@@ -1,4 +1,4 @@
-export type AiProviderKey = "groq" | "mistral" | "cerebras" | "google" | "cohere" | "vercel"
+export type AiProviderKey = "groq" | "mistral" | "cerebras" | "google" | "cohere" | "vercel" | "cloudflare"
 
 export interface AiProviderMetadata {
   provider: AiProviderKey
@@ -62,6 +62,14 @@ const PROVIDERS: Record<AiProviderKey, AiProviderMetadata> = {
     endpoint: "https://ai-gateway.vercel.sh/v1/chat/completions",
     type: "gateway",
   },
+  cloudflare: {
+    provider: "cloudflare",
+    label: "Cloudflare AI Gateway",
+    envKey: "CLOUDFLARE_AI_GATEWAY_TOKEN",
+    defaultModel: "openai/gpt-5.2",
+    endpoint: "https://gateway.ai.cloudflare.com/v1",
+    type: "gateway",
+  },
 }
 
 export function getProviderMetadata(provider: string) {
@@ -81,8 +89,16 @@ export function resolveConfiguredProvider(env: RuntimeEnv = process.env) {
   for (const provider of candidates) {
     const apiKey = env[provider.envKey]
     if (apiKey?.trim()) {
+      const endpoint = provider.provider === "cloudflare"
+        ? env.CLOUDFLARE_AI_GATEWAY_URL
+          || (env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_AI_GATEWAY_ID
+            ? `https://gateway.ai.cloudflare.com/v1/${env.CLOUDFLARE_ACCOUNT_ID}/${env.CLOUDFLARE_AI_GATEWAY_ID}/compat/chat/completions`
+            : provider.endpoint)
+        : provider.endpoint
+
       return {
         ...provider,
+        endpoint,
         apiKey,
         model: env[`${provider.envKey}_MODEL`] || provider.defaultModel,
       }
