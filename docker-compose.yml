@@ -41,14 +41,12 @@ services:
       timeout: 5s
       retries: 20
     volumes:
-      - learning_os_postgres:/var/lib/postgresql/data
+      - learning_os_postgres:/var/lib/postgresql
     ports:
-      - "5432:5432"
+      - "55433:5432"
 
   redis:
     image: redis:8-alpine
-    ports:
-      - "6379:6379"
     volumes:
       - learning_os_redis:/data
 
@@ -59,8 +57,8 @@ services:
       MINIO_ROOT_USER: learning_os_minio
       MINIO_ROOT_PASSWORD: learning_os_minio_password
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9100:9000"
+      - "9101:9001"
     volumes:
       - learning_os_minio:/data
 
