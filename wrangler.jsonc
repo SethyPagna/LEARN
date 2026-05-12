@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "learning-os",
+  "name": "learn",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-05-13",
   "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
@@ -10,20 +10,20 @@
   },
   "d1_databases": [
     {
-      "binding": "LEARNING_OS_DB",
-      "database_name": "learning-os-db",
+      "binding": "LEARN_DB",
+      "database_name": "learn-db",
       "database_id": "replace-with-cloudflare-d1-database-id",
       "migrations_dir": "migrations"
     }
   ],
   "r2_buckets": [
     {
-      "binding": "LEARNING_OS_FILES",
-      "bucket_name": "learning-os-files"
+      "binding": "LEARN_FILES",
+      "bucket_name": "learn-files"
     },
     {
       "binding": "NEXT_INC_CACHE_R2_BUCKET",
-      "bucket_name": "learning-os-next-cache"
+      "bucket_name": "learn-next-cache"
     }
   ],
   "observability": {
@@ -31,8 +31,12 @@
     "head_sampling_rate": 1
   },
   "vars": {
-    "APP_BASE_URL": "https://learning-os.example.com",
+    "APP_ID": "learn",
+    "APP_BASE_URL": "https://learn.example.com",
     "AI_PROVIDER_DEFAULT": "cloudflare",
-    "CLOUDFLARE_AI_GATEWAY_ID": "learning-os"
+    "CLOUDFLARE_D1_DATABASE_NAME": "learn-db",
+    "CLOUDFLARE_R2_BUCKET": "learn-files",
+    "CLOUDFLARE_NEXT_CACHE_BUCKET": "learn-next-cache",
+    "CLOUDFLARE_AI_GATEWAY_ID": "learn"
   }
 }

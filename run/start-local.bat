@@ -2,7 +2,7 @@
 setlocal
 cd /d "%~dp0\.."
 set PATH=%CD%\run\bin;%PATH%
-echo Starting Learning OS in the Cloudflare Workers runtime...
+echo Starting LEARN in the Cloudflare Workers runtime...
 if not exist ".dev.vars" (
   echo .dev.vars is missing. Creating it from .dev.vars.example.
   copy .dev.vars.example .dev.vars >nul

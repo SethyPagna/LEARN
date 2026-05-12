@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/data"
 import { getCloudflareBindings } from "@/lib/cloudflare"
-import { isDatabaseConfigured, query } from "@/lib/db"
+import { getDatabaseRuntimeMode, isDatabaseConfigured, query } from "@/lib/db"
 import { isR2Configured } from "@/lib/storage"
 import { resolveConfiguredProvider } from "@/lib/ai/providers"
 
@@ -21,16 +21,16 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    runtime: "cloudflare-workers",
+    runtime: await getDatabaseRuntimeMode(),
     database: {
       provider: "cloudflare-d1",
       configured: database,
-      binding: Boolean(env?.LEARNING_OS_DB || env?.DB),
+      binding: Boolean(env?.LEARN_DB || env?.DB),
     },
     storage: {
       provider: "cloudflare-r2",
       configured: await isR2Configured(),
-      binding: Boolean(env?.LEARNING_OS_FILES),
+      binding: Boolean(env?.LEARN_FILES),
     },
     ai: {
       provider: resolveConfiguredProvider()?.provider || null,

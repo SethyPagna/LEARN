@@ -6,7 +6,7 @@ import { fail } from "@/lib/api"
 
 export async function POST(request: NextRequest) {
   if (!isDatabaseConfigured()) {
-    return fail("DATABASE_URL is not configured. Start the Docker stack or set a Postgres connection string.", 503)
+    return fail("Cloudflare D1 is not configured. Set LEARN_DB binding or Cloudflare D1 API credentials.", 503)
   }
 
   const body = await request.json().catch(() => ({}))

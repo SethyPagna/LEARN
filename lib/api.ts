@@ -13,7 +13,7 @@ export function fail(message: string, status = 400) {
 
 export async function requireApiUser(request: NextRequest): Promise<User | NextResponse> {
   if (!isDatabaseConfigured()) {
-    return fail("DATABASE_URL is not configured. Use Docker run scripts or set a Postgres connection string.", 503)
+    return fail("Cloudflare D1 is not configured. Set LEARN_DB binding or Cloudflare D1 API credentials.", 503)
   }
 
   const user = await getCurrentUserFromToken(request.cookies.get(SESSION_COOKIE)?.value)
