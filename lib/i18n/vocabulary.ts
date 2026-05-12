@@ -22,7 +22,7 @@ export const supportedLocales = [
 export type SupportedLocale = (typeof supportedLocales)[number]
 
 export const baseVocabulary = {
-  appName: "Learning OS",
+  appName: "LEARN",
   dashboard: "Dashboard",
   notes: "Notes",
   knowledgeBase: "Knowledge Base",

@@ -4,7 +4,7 @@ import { query } from "./db"
 import { buildLearningSnapshot, type TopicAnswer } from "./learning"
 import { createId, ensureDatabase, logAudit } from "./schema"
 
-export const SESSION_COOKIE = "learning_os_session"
+export const SESSION_COOKIE = "learn_session"
 
 export interface User {
   id: string

@@ -247,7 +247,7 @@ async function seedStarterData(client: DatabaseClient) {
     id: "user_admin",
     username: "admin",
     email: "admin@learn.local",
-    name: "Learning OS Admin",
+    name: "LEARN Admin",
     password: "Admin123456!",
     role: "admin",
   })
@@ -262,7 +262,7 @@ async function seedStarterData(client: DatabaseClient) {
 
   await client.query(
     `INSERT INTO workspaces (id, owner_user_id, name)
-     VALUES ('workspace_demo', 'user_admin', 'Learning OS Workspace')
+     VALUES ('workspace_demo', 'user_admin', 'LEARN Workspace')
      ON CONFLICT (id) DO NOTHING`,
   )
 
