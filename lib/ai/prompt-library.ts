@@ -1,7 +1,9 @@
 export type AiTaskKey =
   | "question_import"
+  | "answer_normalization"
   | "answer_explanation"
   | "note_design"
+  | "content_beautification"
   | "quiz_generation"
   | "study_plan"
   | "translation"
@@ -26,6 +28,16 @@ export const promptLibrary: PromptTemplate[] = [
       "Return JSON with items: [{question, choices, answer, explanation, topic, difficulty, tags, sourceExcerpt}].",
   },
   {
+    key: "answer_normalization",
+    title: "Answer Normalizer",
+    system:
+      "You are a strict learning-data editor. Normalize answers into clear, gradeable forms while preserving the original meaning and flagging ambiguity.",
+    user:
+      "Question: {{question}}\nRaw answer data:\n{{answers}}\n\nNormalize the correct answer, distractors, explanation, and validation notes.",
+    outputContract:
+      "Return JSON with correctAnswer, choices, explanation, ambiguityFlags, and suggestedFixes.",
+  },
+  {
     key: "answer_explanation",
     title: "Mistake Explanation",
     system:
@@ -44,6 +56,16 @@ export const promptLibrary: PromptTemplate[] = [
       "Raw material:\n{{input}}\n\nCreate a page with title, summary, sections, callouts, checklist, flashcards, related topics, and practice prompts.",
     outputContract:
       "Return markdown with clear headings, compact bullets, callouts, and a reusable quiz seed block.",
+  },
+  {
+    key: "content_beautification",
+    title: "Learning Page Beautifier",
+    system:
+      "You are a polished education UX writer. Make learning pages clear, energetic, scannable, and fun without adding unsupported facts.",
+    user:
+      "Existing page:\n{{page}}\nAudience: {{audience}}\nTone: {{tone}}\n\nImprove structure, labels, examples, practice prompts, and summary.",
+    outputContract:
+      "Return markdown only, with a title, overview, sections, examples, quick checks, and a compact review block.",
   },
   {
     key: "quiz_generation",
