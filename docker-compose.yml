@@ -2,67 +2,42 @@ services:
   app:
     build:
       context: .
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_started
-      minio:
-        condition: service_started
     environment:
-      APP_BASE_URL: http://localhost:3000
-      DATABASE_URL: postgres://learning_os:learning_os_password@postgres:5432/learning_os
-      DATABASE_SSL: "false"
-      SESSION_SECRET: local-development-secret-change-before-production
-      AI_PROVIDER_DEFAULT: ${AI_PROVIDER_DEFAULT:-groq}
-      GROQ_API_KEY: ${GROQ_API_KEY:-}
-      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
-      CEREBRAS_API_KEY: ${CEREBRAS_API_KEY:-}
-      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
-      COHERE_API_KEY: ${COHERE_API_KEY:-}
-      VERCEL_AI_GATEWAY: ${VERCEL_AI_GATEWAY:-}
-      S3_ENDPOINT: http://minio:9000
-      S3_BUCKET: learning-os
-      S3_ACCESS_KEY_ID: learning_os_minio
-      S3_SECRET_ACCESS_KEY: learning_os_minio_password
+      APP_ID: learn
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      DOCKER_ENV: "true"
+      SESSION_SECRET: ${SESSION_SECRET}
+      AI_PROVIDER_DEFAULT: cloudflare
+      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
+      CLOUDFLARE_D1_DATABASE_ID: ${CLOUDFLARE_D1_DATABASE_ID}
+      CLOUDFLARE_D1_DATABASE_NAME: ${CLOUDFLARE_D1_DATABASE_NAME:-learn-db}
+      CLOUDFLARE_R2_BUCKET: ${CLOUDFLARE_R2_BUCKET:-learn-files}
+      CLOUDFLARE_NEXT_CACHE_BUCKET: ${CLOUDFLARE_NEXT_CACHE_BUCKET:-learn-next-cache}
+      CLOUDFLARE_R2_ACCESS_KEY_ID: ${CLOUDFLARE_R2_ACCESS_KEY_ID}
+      CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${CLOUDFLARE_R2_SECRET_ACCESS_KEY}
+      CLOUDFLARE_AI_GATEWAY_ID: ${CLOUDFLARE_AI_GATEWAY_ID:-learn}
+      CLOUDFLARE_AI_GATEWAY_TOKEN: ${CLOUDFLARE_AI_GATEWAY_TOKEN}
     ports:
       - "3000:3000"
     restart: unless-stopped
 
-  postgres:
-    image: postgres:18
+  caddy:
+    image: caddy:2-alpine
+    depends_on:
+      - app
     environment:
-      POSTGRES_DB: learning_os
-      POSTGRES_USER: learning_os
-      POSTGRES_PASSWORD: learning_os_password
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U learning_os -d learning_os"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-    volumes:
-      - learning_os_postgres:/var/lib/postgresql
+      CADDY_EMAIL: ${CADDY_EMAIL:-admin@example.com}
+      LEARN_DOMAIN: ${LEARN_DOMAIN:-localhost}
     ports:
-      - "55433:5432"
-
-  redis:
-    image: redis:8-alpine
+      - "80:80"
+      - "443:443"
     volumes:
-      - learning_os_redis:/data
-
-  minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: learning_os_minio
-      MINIO_ROOT_PASSWORD: learning_os_minio_password
-    ports:
-      - "9100:9000"
-      - "9101:9001"
-    volumes:
-      - learning_os_minio:/data
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
 
 volumes:
-  learning_os_postgres:
-  learning_os_redis:
-  learning_os_minio:
+  caddy_data:
+  caddy_config:

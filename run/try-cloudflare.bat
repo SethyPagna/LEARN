@@ -16,8 +16,8 @@ if errorlevel 1 exit /b 1
 corepack pnpm db:migrate:local
 if errorlevel 1 exit /b 1
 
-echo Starting Learning OS with local Cloudflare bindings...
-start "Learning OS Local" cmd /c "corepack pnpm dev"
+echo Starting LEARN with local Cloudflare bindings...
+start "LEARN Local" cmd /c "corepack pnpm dev"
 
 echo Starting Cloudflare tunnel container...
 docker run --rm --network host cloudflare/cloudflared:latest tunnel --no-autoupdate run --token "%CLOUDFLARE_TUNNEL_TOKEN%"

@@ -13,6 +13,7 @@ RUN corepack pnpm build
 
 FROM base AS runner
 ENV NODE_ENV=production
+ENV DOCKER_ENV=true
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/next.config.mjs ./next.config.mjs

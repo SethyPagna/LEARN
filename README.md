@@ -1,8 +1,8 @@
-# Learning OS
+# LEARN
 
-Learning OS is a Cloudflare-native study workspace with Notion-style notes, quiz practice, AI tutor workflows, progress tracking, multilingual vocabulary, file capture, automation logs, and first-party login.
+LEARN is a Cloudflare-first study workspace with notes, quizzes, AI tutor workflows, progress tracking, multilingual vocabulary, file capture, automation logs, and first-party login.
 
-Production uses Cloudflare Workers, D1, and R2. Supabase is not required.
+The deployable app name is `learn`. Each sibling app should use separate Cloudflare resources; this repo only creates or modifies `learn-*` resources.
 
 ## Default Login
 
@@ -13,17 +13,26 @@ The first database setup seeds two accounts:
 
 Change these before using real learner data.
 
+## Cloudflare Resources
+
+Wrangler bindings and API-mode env vars use the same resource names:
+
+- D1 database: binding `LEARN_DB`, database name `learn-db`
+- R2 uploads bucket: binding `LEARN_FILES`, bucket name `learn-files`
+- R2 Next cache bucket: binding `NEXT_INC_CACHE_R2_BUCKET`, bucket name `learn-next-cache`
+- Cloudflare AI Gateway ID: `learn`
+
+Never commit real Cloudflare, AI, Vercel, or tunnel secrets. If a token was pasted into chat or logs, rotate it before production use.
+
 ## First Setup
 
-Never commit real Cloudflare, AI, or tunnel secrets. If a token was pasted into chat or logs, rotate it before production use.
-
 ```powershell
-corepack pnpm install
+corepack pnpm install --frozen-lockfile
 copy .dev.vars.example .dev.vars
 run\setup-first-time.bat
 ```
 
-When `wrangler d1 create learning-os-db` prints the database id, paste that id into `wrangler.jsonc` at `d1_databases[0].database_id`. Keep the binding name as `LEARNING_OS_DB`.
+When `wrangler d1 create learn-db` prints the database id, paste that id into `wrangler.jsonc` at `d1_databases[0].database_id` and set `CLOUDFLARE_D1_DATABASE_ID` in ignored local, GitHub, Vercel, or Docker env.
 
 Set production secrets with Wrangler or the Cloudflare dashboard:
 
@@ -32,27 +41,14 @@ npx wrangler secret put SESSION_SECRET
 npx wrangler secret put CLOUDFLARE_AI_GATEWAY_TOKEN
 ```
 
-Set these local-only values in `.dev.vars`:
+For Vercel and Docker, also set:
 
-- `SESSION_SECRET`
 - `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_D1_DATABASE_ID`
+- `CLOUDFLARE_R2_ACCESS_KEY_ID`
+- `CLOUDFLARE_R2_SECRET_ACCESS_KEY`
 - `CLOUDFLARE_AI_GATEWAY_TOKEN`
-- Optional provider keys such as `GROQ_API_KEY`, `MISTRAL_API_KEY`, `GOOGLE_AI_API_KEY`
-
-## Cloudflare Resources
-
-Wrangler bindings are the production source of truth:
-
-- D1 database: `LEARNING_OS_DB`, database name `learning-os-db`
-- R2 uploads bucket: `LEARNING_OS_FILES`, bucket name `learning-os-files`
-- R2 Next cache bucket: `NEXT_INC_CACHE_R2_BUCKET`, bucket name `learning-os-next-cache`
-
-D1 migrations live in `migrations/`. Apply them with:
-
-```powershell
-corepack pnpm db:migrate:local
-corepack pnpm db:migrate:remote
-```
 
 ## Run Locally
 
@@ -62,24 +58,43 @@ Run the app locally with OpenNext's Cloudflare binding integration:
 run\start-local.bat
 ```
 
-This applies local D1 migrations and starts Next dev with D1/R2 bindings available through OpenNext's local Cloudflare integration. For a full Workers preview, use `corepack pnpm preview:cloudflare` from WSL or a Linux CI runner; native Windows can block OpenNext's symlink-heavy standalone bundling.
-
-## Cloudflare Try-Run Tunnel
-
-```powershell
-$env:CLOUDFLARE_TUNNEL_TOKEN="..."
-run\try-cloudflare.bat
-```
-
-This starts the Cloudflare preview and exposes it through a Cloudflare tunnel. Keep the tunnel token outside git.
+This applies local D1 migrations and starts Next dev with D1/R2 bindings available through OpenNext's Cloudflare integration.
 
 ## Deploy
+
+Cloudflare Workers:
 
 ```powershell
 run\deploy-cloudflare.bat
 ```
 
-The deploy script installs dependencies, runs tests and type checks, applies remote D1 migrations, then deploys to Cloudflare Workers. Run it from WSL/Linux if native Windows blocks OpenNext symlink creation.
+Vercel project `learn`:
+
+```powershell
+run\deploy-vercel.bat
+```
+
+Docker/domain self-deploy:
+
+```powershell
+docker compose up --build
+```
+
+Docker uses Cloudflare D1/R2 through API credentials. It does not run local database or object storage replacement services.
+
+## GitHub Secrets
+
+The included workflows expect these repository or environment secrets:
+
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_D1_DATABASE_ID`
+- `CLOUDFLARE_R2_ACCESS_KEY_ID`
+- `CLOUDFLARE_R2_SECRET_ACCESS_KEY`
+- `CLOUDFLARE_AI_GATEWAY_TOKEN`
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
 
 ## APIs
 
@@ -93,17 +108,6 @@ The deploy script installs dependencies, runs tests and type checks, applies rem
 - `/api/automation` and `/api/automation/run` for prompt and job automation.
 - `/api/integrations/health` for admin Cloudflare/D1/R2/AI checks.
 
-## AI Providers
-
-The default provider is Cloudflare AI Gateway:
-
-- `AI_PROVIDER_DEFAULT=cloudflare`
-- `CLOUDFLARE_ACCOUNT_ID`
-- `CLOUDFLARE_AI_GATEWAY_ID`
-- `CLOUDFLARE_AI_GATEWAY_TOKEN`
-
-Other providers remain available through runtime secrets: Groq, Mistral, Cerebras, Google AI, Cohere, and Vercel AI Gateway.
-
 ## Verification
 
 ```powershell
@@ -112,4 +116,4 @@ corepack pnpm lint
 corepack pnpm build
 ```
 
-The test suite covers auth helpers, learning personalization, AI provider resolution, and the Cloudflare-first configuration path.
+The test suite covers auth helpers, learning personalization, AI provider resolution, Cloudflare D1 API configuration, and R2 object key isolation.

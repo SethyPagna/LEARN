@@ -7,5 +7,6 @@ node_modules
 .vercel
 .wrangler
 README.md
+Caddyfile
 npm-debug.log*
 pnpm-debug.log*
