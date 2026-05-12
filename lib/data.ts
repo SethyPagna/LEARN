@@ -28,13 +28,52 @@ export interface NoteRecord {
 }
 
 function normalizeUser(row: Record<string, unknown>): User {
+  const preferences = parseJsonObject(row.preferences)
   return {
     id: String(row.id),
     username: String(row.username),
     email: String(row.email),
     name: String(row.name),
     role: row.role === "admin" ? "admin" : "learner",
-    preferences: typeof row.preferences === "object" && row.preferences ? row.preferences as Record<string, unknown> : {},
+    preferences,
+  }
+}
+
+function parseJsonObject(value: unknown): Record<string, unknown> {
+  if (typeof value === "object" && value) return value as Record<string, unknown>
+  if (typeof value !== "string" || !value.trim()) return {}
+  try {
+    const parsed = JSON.parse(value)
+    return typeof parsed === "object" && parsed ? parsed as Record<string, unknown> : {}
+  } catch {
+    return {}
+  }
+}
+
+function parseJsonArray<T>(value: unknown): T[] {
+  if (Array.isArray(value)) return value as T[]
+  if (typeof value !== "string" || !value.trim()) return []
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed as T[] : []
+  } catch {
+    return []
+  }
+}
+
+function normalizeNote(row: NoteRecord): NoteRecord {
+  const favorite: unknown = (row as unknown as Record<string, unknown>).favorite
+  return {
+    ...row,
+    favorite: favorite === true || favorite === 1 || favorite === "1",
+    tags: parseJsonArray<string>(row.tags),
+  }
+}
+
+function normalizeQuizQuestion(row: Record<string, unknown>) {
+  return {
+    ...row,
+    choices: parseJsonArray(row.choices),
   }
 }
 
@@ -100,11 +139,14 @@ export async function getDashboardData(user: User) {
   await ensureDatabase()
   const [notes, goals, answers, chats] = await Promise.all([
     query<NoteRecord>(
-      `SELECT n.*, COALESCE(array_agg(t.name) FILTER (WHERE t.name IS NOT NULL), '{}') AS tags
+      `SELECT n.*,
+        COALESCE((
+          SELECT json_group_array(t.name)
+          FROM note_tags nt
+          JOIN tags t ON t.id = nt.tag_id
+          WHERE nt.note_id = n.id
+        ), '[]') AS tags
        FROM notes n
-       LEFT JOIN note_tags nt ON nt.note_id = n.id
-       LEFT JOIN tags t ON t.id = nt.tag_id
-       GROUP BY n.id
        ORDER BY n.updated_at DESC
        LIMIT 8`,
     ),
@@ -124,7 +166,7 @@ export async function getDashboardData(user: User) {
 
   const snapshot = buildLearningSnapshot({
     goals: goals.rows,
-    notes: notes.rows.map((note) => ({
+    notes: notes.rows.map(normalizeNote).map((note) => ({
       id: note.id,
       title: note.title,
       updatedAt: new Date(note.updated_at).toISOString(),
@@ -135,7 +177,7 @@ export async function getDashboardData(user: User) {
   return {
     user,
     snapshot,
-    notes: notes.rows,
+    notes: notes.rows.map(normalizeNote),
     goals: goals.rows,
     chats: chats.rows,
   }
@@ -144,20 +186,23 @@ export async function getDashboardData(user: User) {
 export async function listNotes() {
   await ensureDatabase()
   const result = await query<NoteRecord>(
-    `SELECT n.*, COALESCE(array_agg(t.name) FILTER (WHERE t.name IS NOT NULL), '{}') AS tags
+    `SELECT n.*,
+      COALESCE((
+        SELECT json_group_array(t.name)
+        FROM note_tags nt
+        JOIN tags t ON t.id = nt.tag_id
+        WHERE nt.note_id = n.id
+      ), '[]') AS tags
      FROM notes n
-     LEFT JOIN note_tags nt ON nt.note_id = n.id
-     LEFT JOIN tags t ON t.id = nt.tag_id
-     GROUP BY n.id
      ORDER BY n.favorite DESC, n.updated_at DESC`,
   )
-  return result.rows
+  return result.rows.map(normalizeNote)
 }
 
 export async function getNote(id: string) {
   await ensureDatabase()
   const result = await query<NoteRecord>("SELECT * FROM notes WHERE id = $1 LIMIT 1", [id])
-  return result.rows[0] ?? null
+  return result.rows[0] ? normalizeNote(result.rows[0]) : null
 }
 
 export async function saveNote(user: User, input: Partial<NoteRecord> & { title: string; content: string }) {
@@ -214,7 +259,7 @@ export async function getQuiz(id: string) {
     query("SELECT * FROM quiz_questions WHERE quiz_id = $1 ORDER BY id ASC", [id]),
   ])
   if (!quiz.rows[0]) return null
-  return { ...quiz.rows[0], questions: questions.rows }
+  return { ...quiz.rows[0], questions: questions.rows.map(normalizeQuizQuestion) }
 }
 
 export async function recordQuizAttempt(user: User, input: {
