@@ -3,16 +3,36 @@
   "name": "learning-os",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-05-13",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "d1_databases": [
+    {
+      "binding": "LEARNING_OS_DB",
+      "database_name": "learning-os-db",
+      "database_id": "replace-with-cloudflare-d1-database-id",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "LEARNING_OS_FILES",
+      "bucket_name": "learning-os-files"
+    },
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "learning-os-next-cache"
+    }
+  ],
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
   },
   "vars": {
-    "APP_BASE_URL": "https://learning-os.example.com"
+    "APP_BASE_URL": "https://learning-os.example.com",
+    "AI_PROVIDER_DEFAULT": "cloudflare",
+    "CLOUDFLARE_AI_GATEWAY_ID": "learning-os"
   }
 }
