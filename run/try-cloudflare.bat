@@ -1,6 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0\.."
+set PATH=%CD%\run\bin;%PATH%
 
 if "%CLOUDFLARE_TUNNEL_TOKEN%"=="" (
   echo CLOUDFLARE_TUNNEL_TOKEN is not set.
@@ -9,9 +10,14 @@ if "%CLOUDFLARE_TUNNEL_TOKEN%"=="" (
   exit /b 1
 )
 
-echo Starting Learning OS locally through Docker...
-docker compose up -d --build
+echo Preparing local Cloudflare D1 migrations...
+corepack pnpm install
 if errorlevel 1 exit /b 1
+corepack pnpm db:migrate:local
+if errorlevel 1 exit /b 1
+
+echo Starting Learning OS with local Cloudflare bindings...
+start "Learning OS Local" cmd /c "corepack pnpm dev"
 
 echo Starting Cloudflare tunnel container...
 docker run --rm --network host cloudflare/cloudflared:latest tunnel --no-autoupdate run --token "%CLOUDFLARE_TUNNEL_TOKEN%"
