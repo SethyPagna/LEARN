@@ -23,6 +23,7 @@ import {
   Star,
   Target,
 } from "lucide-react"
+import { supportedLocales } from "@/lib/i18n/vocabulary"
 
 type View = "dashboard" | "notes" | "quizzes" | "ai" | "progress" | "calendar" | "settings" | "admin"
 
@@ -109,6 +110,7 @@ export function LearningOsShell({
   const [selectedQuizId, setSelectedQuizId] = useState(initialQuizId || "")
   const [dashboard, setDashboard] = useState<any>(null)
   const [adminData, setAdminData] = useState<any>(null)
+  const [automationData, setAutomationData] = useState<any>(null)
   const [status, setStatus] = useState("Loading workspace...")
   const [query, setQuery] = useState("")
 
@@ -147,6 +149,11 @@ export function LearningOsShell({
     if (view !== "admin" || adminData || user?.role !== "admin") return
     api<any>("/api/admin").then(setAdminData).catch((error) => setStatus(error.message))
   }, [view, adminData, user?.role])
+
+  useEffect(() => {
+    if (!["settings", "admin"].includes(view) || automationData) return
+    api<any>("/api/automation").then(setAutomationData).catch((error) => setStatus(error.message))
+  }, [view, automationData])
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" })
@@ -238,8 +245,8 @@ export function LearningOsShell({
             {view === "ai" ? <AiTutor notes={notes} /> : null}
             {view === "progress" ? <ProgressView dashboard={dashboard} quizzes={quizzes} /> : null}
             {view === "calendar" ? <CalendarView /> : null}
-            {view === "settings" ? <SettingsView user={user} /> : null}
-            {view === "admin" ? <AdminView user={user} adminData={adminData} /> : null}
+            {view === "settings" ? <SettingsView user={user} automationData={automationData} /> : null}
+            {view === "admin" ? <AdminView user={user} adminData={adminData} automationData={automationData} /> : null}
           </div>
         </section>
       </div>
@@ -552,21 +559,42 @@ function CalendarView() {
   )
 }
 
-function SettingsView({ user }: { user: User | null }) {
+function SettingsView({ user, automationData }: { user: User | null; automationData: any }) {
   return (
-    <section className="rounded-3xl border border-[#ded8ce] bg-white p-5 shadow-sm">
-      <h2 className="text-3xl font-semibold">Settings</h2>
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <Info label="Name" value={user?.name} />
-        <Info label="Email" value={user?.email} />
-        <Info label="Role" value={user?.role} />
-        <Info label="Daily goal" value={`${user?.preferences?.dailyGoalMinutes || 45} minutes`} />
-      </div>
-    </section>
+    <div className="grid gap-5 xl:grid-cols-[1fr_420px]">
+      <section className="rounded-3xl border border-[#ded8ce] bg-white p-5 shadow-sm">
+        <h2 className="text-3xl font-semibold">Settings</h2>
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <Info label="Name" value={user?.name} />
+          <Info label="Email" value={user?.email} />
+          <Info label="Role" value={user?.role} />
+          <Info label="Daily goal" value={`${user?.preferences?.dailyGoalMinutes || 45} minutes`} />
+        </div>
+      </section>
+      <section className="rounded-3xl border border-[#ded8ce] bg-white p-5 shadow-sm">
+        <h3 className="text-xl font-semibold">Languages and automation</h3>
+        <p className="mt-2 text-sm leading-6 text-[#756d63]">
+          {supportedLocales.length} language vocabularies are available for reusable UI labels.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {supportedLocales.map((locale) => (
+            <span key={locale} className="rounded-full bg-[#f5f2ec] px-3 py-1 text-xs font-medium">{locale}</span>
+          ))}
+        </div>
+        <div className="mt-5 space-y-2">
+          {(automationData?.jobs || []).slice(0, 4).map((job: any) => (
+            <div key={job.key} className="rounded-2xl bg-[#f8f5ef] p-3">
+              <p className="text-sm font-semibold">{job.label}</p>
+              <p className="mt-1 text-xs leading-5 text-[#756d63]">{job.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
   )
 }
 
-function AdminView({ user, adminData }: { user: User | null; adminData: any }) {
+function AdminView({ user, adminData, automationData }: { user: User | null; adminData: any; automationData: any }) {
   if (user?.role !== "admin") return <section className="rounded-3xl bg-white p-5">Admin access required.</section>
   return (
     <section className="rounded-3xl border border-[#ded8ce] bg-white p-5 shadow-sm">
@@ -575,6 +603,10 @@ function AdminView({ user, adminData }: { user: User | null; adminData: any }) {
         <AdminList title="Users" items={adminData?.users || []} />
         <AdminList title="AI providers" items={adminData?.providers || []} />
         <AdminList title="Audit" items={adminData?.audit || []} />
+      </div>
+      <div className="mt-5 grid gap-4 xl:grid-cols-2">
+        <AdminList title="Automation jobs" items={automationData?.jobs || []} />
+        <AdminList title="AI prompt contracts" items={automationData?.prompts || []} />
       </div>
     </section>
   )
