@@ -8,9 +8,11 @@
     "lint": "tsc --noEmit",
     "start": "next start",
     "test": "tsx --test tests/*.test.ts",
-    "db:seed": "tsx scripts/seed.ts",
-    "preview:cloudflare": "opennextjs-cloudflare build && wrangler dev",
-    "deploy:cloudflare": "opennextjs-cloudflare build && wrangler deploy"
+    "db:migrate:local": "wrangler d1 migrations apply learning-os-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply learning-os-db --remote",
+    "preview:cloudflare": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy:cloudflare": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
