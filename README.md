@@ -34,9 +34,9 @@ run\start-local.bat
 This starts:
 
 - Next.js app on `http://localhost:3000`
-- Postgres on `localhost:5432`
+- Postgres on `localhost:55433`
 - Redis on `localhost:6379`
-- MinIO on `localhost:9000` and console on `localhost:9001`
+- MinIO on `localhost:9100` and console on `localhost:9101`
 
 Postgres is the source of truth for users, sessions, notes, quiz attempts, AI chats, provider configs, goals, and audit logs.
 
@@ -84,6 +84,27 @@ Supported provider references:
 - Vercel AI Gateway: `VERCEL_AI_GATEWAY`
 
 Use `AI_PROVIDER_DEFAULT` to prefer one provider.
+
+## Automation, Prompt Design, And Localization
+
+Learning OS includes a reusable AI prompt library for:
+
+- importing raw question/answer/data dumps into structured learning content
+- redesigning pasted material into clean Notion-style notes
+- generating adaptive quizzes with explanations
+- explaining mistakes after attempts
+- creating personal study plans
+- translating UI vocabulary
+
+The automation catalog exposes daily briefs, note-to-quiz generation, mistake review, content design passes, and localization sync through `/api/automation`.
+
+The multilingual vocabulary covers English, Khmer, simplified/traditional Chinese, Vietnamese, Thai, French, Spanish, German, Japanese, Korean, Portuguese, Italian, Arabic, Hindi, Indonesian, Malay, and Turkish. Add new labels to `lib/i18n/vocabulary.ts` once and reuse them across the UI.
+
+## Supabase Optional Integration
+
+Supabase can be configured as an optional integration through environment variables only. Do not commit real Supabase service-role or legacy anon keys.
+
+If any Supabase secret has been pasted into chat, rotate it before using it in production.
 
 ## Verification
 
