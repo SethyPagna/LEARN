@@ -1,47 +1,49 @@
-import { Pool, type PoolClient, type QueryResultRow } from "pg"
 import { getD1Database } from "./cloudflare"
 
-let pool: Pool | null = null
-
-export type DatabaseDialect = "d1" | "postgres"
+export type QueryResultRow = Record<string, unknown>
+export type CloudflareRuntimeMode = "cloudflare-binding" | "cloudflare-api" | "vercel" | "docker" | "local"
 
 export interface DatabaseClient {
-  query<T extends QueryResultRow = QueryResultRow>(text: string, values?: unknown[]): Promise<{
+  query<T = QueryResultRow>(text: string, values?: unknown[]): Promise<{
     rows: T[]
     rowCount: number
   }>
 }
 
-async function getD1Binding() {
-  return getD1Database()
+interface RuntimeEnv {
+  [key: string]: string | undefined
 }
 
-export async function getDatabaseDialect(): Promise<DatabaseDialect> {
-  return (await getD1Binding()) ? "d1" : "postgres"
+interface D1ApiConfig {
+  accountId: string
+  apiToken: string
+  databaseId: string
 }
 
-export async function isDatabaseConfigured() {
-  return Boolean((await getD1Binding()) || process.env.DATABASE_URL?.trim())
+type D1ApiResponse<T> = {
+  success?: boolean
+  errors?: { message?: string }[]
+  result?: Array<{
+    success?: boolean
+    results?: T[]
+    meta?: { changes?: number }
+    error?: string
+  }>
 }
 
-export function getPool() {
-  const connectionString = process.env.DATABASE_URL
-  if (!connectionString) {
-    throw new Error("DATABASE_URL is not configured")
-  }
-
-  if (!pool) {
-    pool = new Pool({
-      connectionString,
-      max: Number(process.env.DATABASE_POOL_SIZE || 8),
-      ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : undefined,
-    })
-  }
-
-  return pool
+function getProcessEnv(): RuntimeEnv {
+  return typeof process === "undefined" ? {} : process.env
 }
 
-function normalizeD1Sql(text: string, values: unknown[]) {
+async function getMergedEnv(): Promise<RuntimeEnv> {
+  const bindings = await import("./cloudflare").then((module) => module.getCloudflareBindings())
+  const bindingEnv = bindings ? Object.fromEntries(
+    Object.entries(bindings).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+  ) : {}
+  return { ...getProcessEnv(), ...bindingEnv }
+}
+
+export function normalizeD1Sql(text: string, values: unknown[] = []) {
   const orderedValues: unknown[] = []
   const sql = text
     .replace(/\$(\d+)/g, (_match, index: string) => {
@@ -50,53 +52,119 @@ function normalizeD1Sql(text: string, values: unknown[]) {
     })
     .replace(/::jsonb/g, "")
     .replace(/::int/g, "")
+    .replace(/::timestamptz/g, "")
+    .replace(/::date/g, "")
     .replace(/now\(\)/gi, "datetime('now')")
-  return { sql, values: orderedValues }
+  return { sql, values: orderedValues.length ? orderedValues : values }
 }
 
-export async function query<T extends QueryResultRow = QueryResultRow>(
+export function getD1ApiConfig(env: RuntimeEnv = getProcessEnv()): D1ApiConfig | null {
+  const accountId = env.CLOUDFLARE_ACCOUNT_ID?.trim()
+  const apiToken = env.CLOUDFLARE_API_TOKEN?.trim()
+  const databaseId = env.CLOUDFLARE_D1_DATABASE_ID?.trim()
+  if (!accountId || !apiToken || !databaseId) return null
+  return { accountId, apiToken, databaseId }
+}
+
+export function getCloudflareRuntimeMode(input: {
+  env?: RuntimeEnv
+  hasD1Binding?: boolean
+} = {}): CloudflareRuntimeMode {
+  if (input.hasD1Binding) return "cloudflare-binding"
+  if (getD1ApiConfig(input.env || getProcessEnv())) {
+    if ((input.env || getProcessEnv()).VERCEL) return "vercel"
+    if ((input.env || getProcessEnv()).DOCKER_ENV === "true") return "docker"
+    return "cloudflare-api"
+  }
+  return "local"
+}
+
+export async function getDatabaseRuntimeMode(): Promise<CloudflareRuntimeMode> {
+  return getCloudflareRuntimeMode({
+    env: await getMergedEnv(),
+    hasD1Binding: Boolean(await getD1Database()),
+  })
+}
+
+export async function getDatabaseDialect() {
+  return "d1" as const
+}
+
+export async function isDatabaseConfigured() {
+  return Boolean((await getD1Database()) || getD1ApiConfig(await getMergedEnv()))
+}
+
+async function queryD1Binding<T>(text: string, values: unknown[]) {
+  const d1 = await getD1Database()
+  if (!d1) return null
+
+  const normalized = normalizeD1Sql(text, values)
+  const statement = d1.prepare(normalized.sql)
+  const bound = normalized.values.length ? statement.bind(...normalized.values) : statement
+  const result = await bound.all<T>()
+  const rows = (result.results || []) as T[]
+  return {
+    rows,
+    rowCount: result.meta?.changes ?? rows.length,
+  }
+}
+
+function d1ApiUrl(config: D1ApiConfig) {
+  return `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/d1/database/${config.databaseId}/query`
+}
+
+async function queryD1Api<T>(text: string, values: unknown[]) {
+  const config = getD1ApiConfig(await getMergedEnv())
+  if (!config) {
+    throw new Error("Cloudflare D1 is not configured. Set LEARN_DB binding or Cloudflare D1 API credentials.")
+  }
+
+  const normalized = normalizeD1Sql(text, values)
+  const response = await fetch(d1ApiUrl(config), {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${config.apiToken}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ sql: normalized.sql, params: normalized.values }),
+  })
+  const json = await response.json().catch(() => ({})) as D1ApiResponse<T>
+  if (!response.ok || json.success === false) {
+    const message = json.errors?.map((error) => error.message).filter(Boolean).join("; ") || "Cloudflare D1 API query failed."
+    throw new Error(message)
+  }
+
+  const result = Array.isArray(json.result) ? json.result[0] : null
+  if (result?.success === false) throw new Error(result.error || "Cloudflare D1 API statement failed.")
+  const rows = (result?.results || []) as T[]
+  return {
+    rows,
+    rowCount: result?.meta?.changes ?? rows.length,
+  }
+}
+
+export async function query<T = QueryResultRow>(
   text: string,
   values: unknown[] = [],
 ): Promise<{ rows: T[]; rowCount: number }> {
-  const d1 = await getD1Binding()
-  if (d1) {
-    const normalized = normalizeD1Sql(text, values)
-    const statement = d1.prepare(normalized.sql)
-    const bound = normalized.values.length ? statement.bind(...normalized.values) : statement
-    const result = await bound.all<T>()
-    const rows = (result.results || []) as T[]
-    return {
-      rows,
-      rowCount: result.meta?.changes ?? rows.length,
-    }
-  }
-
-  const result = await getPool().query<T>(text, values)
-  return {
-    rows: result.rows,
-    rowCount: result.rowCount ?? result.rows.length,
-  }
+  return (await queryD1Binding<T>(text, values)) || queryD1Api<T>(text, values)
 }
 
-export async function withClient<T>(callback: (client: PoolClient) => Promise<T>) {
-  if (await getD1Binding()) {
-    throw new Error("withClient is only available for the legacy Postgres fallback")
-  }
-
-  const client = await getPool().connect()
-  try {
-    return await callback(client)
-  } finally {
-    client.release()
-  }
+function splitSqlStatements(sql: string) {
+  return sql
+    .split(";")
+    .map((statement) => statement.trim())
+    .filter(Boolean)
 }
 
 export async function exec(sql: string) {
-  const d1 = await getD1Binding()
+  const d1 = await getD1Database()
   if (d1) {
     await d1.exec(sql)
     return
   }
 
-  await query(sql)
+  for (const statement of splitSqlStatements(sql)) {
+    await query(statement)
+  }
 }

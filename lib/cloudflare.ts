@@ -31,13 +31,21 @@ export type R2BucketLike = {
 
 export type CloudflareBindings = {
   DB?: D1DatabaseLike
-  LEARNING_OS_DB?: D1DatabaseLike
-  LEARNING_OS_FILES?: R2BucketLike
+  LEARN_DB?: D1DatabaseLike
+  LEARN_FILES?: R2BucketLike
   NEXT_INC_CACHE_R2_BUCKET?: R2BucketLike
+  APP_ID?: string
   APP_BASE_URL?: string
   AI_PROVIDER_DEFAULT?: string
   CLOUDFLARE_AI_GATEWAY_TOKEN?: string
   CLOUDFLARE_ACCOUNT_ID?: string
+  CLOUDFLARE_API_TOKEN?: string
+  CLOUDFLARE_D1_DATABASE_ID?: string
+  CLOUDFLARE_D1_DATABASE_NAME?: string
+  CLOUDFLARE_R2_BUCKET?: string
+  CLOUDFLARE_NEXT_CACHE_BUCKET?: string
+  CLOUDFLARE_R2_ACCESS_KEY_ID?: string
+  CLOUDFLARE_R2_SECRET_ACCESS_KEY?: string
   CLOUDFLARE_AI_GATEWAY_ID?: string
   [key: string]: unknown
 }
@@ -60,10 +68,10 @@ export async function getCloudflareBindings() {
 
 export async function getD1Database() {
   const env = await getCloudflareBindings()
-  return env?.LEARNING_OS_DB || env?.DB || null
+  return env?.LEARN_DB || env?.DB || null
 }
 
 export async function getR2Bucket() {
   const env = await getCloudflareBindings()
-  return env?.LEARNING_OS_FILES || null
+  return env?.LEARN_FILES || null
 }

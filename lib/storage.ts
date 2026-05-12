@@ -1,7 +1,14 @@
+import crypto from "node:crypto"
 import { getR2Bucket } from "./cloudflare"
 import { query } from "./db"
 import type { User } from "./data"
 import { createId } from "./schema"
+
+const APP_ID = "learn"
+const DEFAULT_WORKSPACE_ID = "workspace_demo"
+const DEFAULT_R2_BUCKET = "learn-files"
+const R2_REGION = "auto"
+const R2_SERVICE = "s3"
 
 export interface MediaAsset {
   id: string
@@ -18,9 +25,49 @@ export interface MediaAsset {
   created_at: string
 }
 
+interface R2ApiConfig {
+  accountId: string
+  accessKeyId: string
+  secretAccessKey: string
+  bucket: string
+  endpoint: string
+}
+
+interface RuntimeEnv {
+  [key: string]: string | undefined
+}
+
+function getProcessEnv(): RuntimeEnv {
+  return typeof process === "undefined" ? {} : process.env
+}
+
 function safeFilename(filename: string) {
   const clean = filename.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "")
   return clean || "upload.bin"
+}
+
+export function buildR2ObjectKey(input: {
+  userId: string
+  assetId: string
+  filename: string
+  workspaceId?: string
+}) {
+  return `apps/${APP_ID}/workspaces/${input.workspaceId || DEFAULT_WORKSPACE_ID}/users/${input.userId}/${input.assetId}-${safeFilename(input.filename)}`
+}
+
+export function getR2ApiConfig(env: RuntimeEnv = getProcessEnv()): R2ApiConfig | null {
+  const accountId = env.CLOUDFLARE_ACCOUNT_ID?.trim()
+  const accessKeyId = env.CLOUDFLARE_R2_ACCESS_KEY_ID?.trim()
+  const secretAccessKey = env.CLOUDFLARE_R2_SECRET_ACCESS_KEY?.trim()
+  const bucket = env.CLOUDFLARE_R2_BUCKET?.trim() || DEFAULT_R2_BUCKET
+  if (!accountId || !accessKeyId || !secretAccessKey) return null
+  return {
+    accountId,
+    accessKeyId,
+    secretAccessKey,
+    bucket,
+    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+  }
 }
 
 function parseMetadata(value: unknown): Record<string, unknown> {
@@ -51,8 +98,98 @@ function normalizeAsset(row: Record<string, unknown>): MediaAsset {
   }
 }
 
+function hashPayload(value: BodyInit | null) {
+  if (!value) return crypto.createHash("sha256").update("").digest("hex")
+  if (typeof value === "string") return crypto.createHash("sha256").update(value).digest("hex")
+  if (value instanceof ArrayBuffer) return crypto.createHash("sha256").update(Buffer.from(value)).digest("hex")
+  if (ArrayBuffer.isView(value)) return crypto.createHash("sha256").update(Buffer.from(value.buffer)).digest("hex")
+  return "UNSIGNED-PAYLOAD"
+}
+
+function hmac(key: crypto.BinaryLike, value: string) {
+  return crypto.createHmac("sha256", key).update(value).digest()
+}
+
+function signingKey(secret: string, date: string) {
+  const dateKey = hmac(`AWS4${secret}`, date)
+  const regionKey = hmac(dateKey, R2_REGION)
+  const serviceKey = hmac(regionKey, R2_SERVICE)
+  return hmac(serviceKey, "aws4_request")
+}
+
+async function signedR2Fetch(config: R2ApiConfig, input: {
+  method: string
+  key?: string
+  query?: string
+  body?: BodyInit | null
+  contentType?: string
+}) {
+  const now = new Date()
+  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "")
+  const dateStamp = amzDate.slice(0, 8)
+  const path = `/${config.bucket}${input.key ? `/${input.key.split("/").map(encodeURIComponent).join("/")}` : ""}`
+  const queryString = input.query || ""
+  const host = new URL(config.endpoint).host
+  const payloadHash = hashPayload(input.body || null)
+  const headers: Record<string, string> = {
+    host,
+    "x-amz-content-sha256": payloadHash,
+    "x-amz-date": amzDate,
+  }
+  if (input.contentType) headers["content-type"] = input.contentType
+
+  const signedHeaderNames = Object.keys(headers).sort()
+  const canonicalHeaders = signedHeaderNames.map((name) => `${name}:${headers[name]}\n`).join("")
+  const canonicalRequest = [
+    input.method,
+    path,
+    queryString,
+    canonicalHeaders,
+    signedHeaderNames.join(";"),
+    payloadHash,
+  ].join("\n")
+  const credentialScope = `${dateStamp}/${R2_REGION}/${R2_SERVICE}/aws4_request`
+  const stringToSign = [
+    "AWS4-HMAC-SHA256",
+    amzDate,
+    credentialScope,
+    crypto.createHash("sha256").update(canonicalRequest).digest("hex"),
+  ].join("\n")
+  const signature = crypto.createHmac("sha256", signingKey(config.secretAccessKey, dateStamp)).update(stringToSign).digest("hex")
+
+  const authorization = `AWS4-HMAC-SHA256 Credential=${config.accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaderNames.join(";")}, Signature=${signature}`
+  const url = `${config.endpoint}${path}${queryString ? `?${queryString}` : ""}`
+  return fetch(url, {
+    method: input.method,
+    headers: { ...headers, authorization },
+    body: input.body,
+  })
+}
+
+async function getConfiguredR2BucketName() {
+  return (typeof process === "undefined" ? undefined : process.env.CLOUDFLARE_R2_BUCKET) || DEFAULT_R2_BUCKET
+}
+
 export async function isR2Configured() {
-  return Boolean(await getR2Bucket())
+  return Boolean((await getR2Bucket()) || getR2ApiConfig())
+}
+
+async function putObject(key: string, body: ArrayBuffer, contentType: string, metadata: Record<string, string>) {
+  const binding = await getR2Bucket()
+  if (binding) {
+    await binding.put(key, body, {
+      httpMetadata: { contentType },
+      customMetadata: metadata,
+    })
+    return
+  }
+
+  const config = getR2ApiConfig()
+  if (!config) {
+    throw new Error("Cloudflare R2 is not configured. Set LEARN_FILES binding or Cloudflare R2 API credentials.")
+  }
+  const response = await signedR2Fetch(config, { method: "PUT", key, body, contentType })
+  if (!response.ok) throw new Error(`Cloudflare R2 upload failed with ${response.status}.`)
 }
 
 export async function uploadMediaAsset(input: {
@@ -61,24 +198,16 @@ export async function uploadMediaAsset(input: {
   noteId?: string | null
   source?: string
 }) {
-  const bucket = await getR2Bucket()
-  if (!bucket) {
-    throw new Error("Cloudflare R2 binding LEARNING_OS_FILES is not configured")
-  }
-
   const id = createId("asset")
   const filename = safeFilename(input.file.name)
-  const objectKey = `workspaces/workspace_demo/users/${input.user.id}/${id}-${filename}`
+  const objectKey = buildR2ObjectKey({ userId: input.user.id, assetId: id, filename })
   const body = await input.file.arrayBuffer()
   const contentType = input.file.type || "application/octet-stream"
 
-  await bucket.put(objectKey, body, {
-    httpMetadata: { contentType },
-    customMetadata: {
-      ownerUserId: input.user.id,
-      filename,
-      source: input.source || "upload",
-    },
+  await putObject(objectKey, body, contentType, {
+    ownerUserId: input.user.id,
+    filename,
+    source: input.source || "upload",
   })
 
   await query(
@@ -88,7 +217,7 @@ export async function uploadMediaAsset(input: {
     [
       id,
       input.user.id,
-      "LEARNING_OS_FILES",
+      await getConfiguredR2BucketName(),
       objectKey,
       filename,
       contentType,
@@ -124,10 +253,23 @@ export async function getMediaAsset(id: string, user: User) {
 }
 
 export async function getMediaObject(asset: MediaAsset) {
-  const bucket = await getR2Bucket()
-  if (!bucket) {
-    throw new Error("Cloudflare R2 binding LEARNING_OS_FILES is not configured")
-  }
+  const binding = await getR2Bucket()
+  if (binding) return binding.get(asset.object_key)
 
-  return bucket.get(asset.object_key)
+  const config = getR2ApiConfig()
+  if (!config) {
+    throw new Error("Cloudflare R2 is not configured. Set LEARN_FILES binding or Cloudflare R2 API credentials.")
+  }
+  const response = await signedR2Fetch(config, { method: "GET", key: asset.object_key })
+  if (response.status === 404) return null
+  if (!response.ok) throw new Error(`Cloudflare R2 download failed with ${response.status}.`)
+  return {
+    body: response.body,
+    httpMetadata: { contentType: response.headers.get("content-type") || asset.content_type },
+    size: Number(response.headers.get("content-length") || asset.size_bytes),
+    writeHttpMetadata(headers: Headers) {
+      const contentType = response.headers.get("content-type")
+      if (contentType) headers.set("content-type", contentType)
+    },
+  }
 }
