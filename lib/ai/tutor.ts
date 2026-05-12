@@ -1,4 +1,5 @@
 import { resolveConfiguredProvider } from "./providers"
+import { getCloudflareBindings } from "../cloudflare"
 
 export interface TutorRequest {
   message: string
@@ -6,7 +7,8 @@ export interface TutorRequest {
 }
 
 export async function askTutor(input: TutorRequest) {
-  const provider = resolveConfiguredProvider()
+  const cloudflareEnv = await getCloudflareBindings()
+  const provider = resolveConfiguredProvider({ ...process.env, ...(cloudflareEnv || {}) } as Record<string, string | undefined>)
   if (!provider) {
     return {
       status: "setup_required" as const,
@@ -14,7 +16,7 @@ export async function askTutor(input: TutorRequest) {
       model: null,
       text: [
         "AI tutor is ready, but no provider key is configured yet.",
-        "Add one of GROQ_API_KEY, MISTRAL_API_KEY, CEREBRAS_API_KEY, GOOGLE_AI_API_KEY, COHERE_API_KEY, or VERCEL_AI_GATEWAY to your runtime secrets.",
+        "Add one of GROQ_API_KEY, MISTRAL_API_KEY, CEREBRAS_API_KEY, GOOGLE_AI_API_KEY, COHERE_API_KEY, VERCEL_AI_GATEWAY, or CLOUDFLARE_AI_GATEWAY_TOKEN to your runtime secrets.",
         "Until then, use the notes, quizzes, and progress features offline.",
       ].join("\n\n"),
     }
