@@ -1,110 +1,108 @@
 # Learning OS
 
-Learning OS is a standalone study workspace with notes, knowledge pages, quizzes, AI tutor workflows, progress tracking, first-party login, and Postgres-backed memory.
+Learning OS is a Cloudflare-native study workspace with Notion-style notes, quiz practice, AI tutor workflows, progress tracking, multilingual vocabulary, file capture, automation logs, and first-party login.
 
-Business OS is used only as an operational reference: Docker-first local runtime, explicit secret handling, and one-step run files. No Business OS production secrets or data are copied into this project.
+Production uses Cloudflare Workers, D1, and R2. Supabase is not required.
 
 ## Default Login
 
-The database seeds two local accounts on first run:
+The first database setup seeds two accounts:
 
 - Admin: `admin` / `Admin123456!`
 - Learner: `learner` / `Learn123456!`
 
-Change these before using real data.
+Change these before using real learner data.
 
-## Local Development
+## First Setup
+
+Never commit real Cloudflare, AI, or tunnel secrets. If a token was pasted into chat or logs, rotate it before production use.
 
 ```powershell
 corepack pnpm install
-copy .env.example .env.local
-corepack pnpm dev
+copy .dev.vars.example .dev.vars
+run\setup-first-time.bat
 ```
 
-Set `DATABASE_URL` in `.env.local` before signing in. For the complete stack, use Docker.
+When `wrangler d1 create learning-os-db` prints the database id, paste that id into `wrangler.jsonc` at `d1_databases[0].database_id`. Keep the binding name as `LEARNING_OS_DB`.
 
-## One-Step Docker Run
+Set production secrets with Wrangler or the Cloudflare dashboard:
 
-Double-click or run:
+```powershell
+npx wrangler secret put SESSION_SECRET
+npx wrangler secret put CLOUDFLARE_AI_GATEWAY_TOKEN
+```
+
+Set these local-only values in `.dev.vars`:
+
+- `SESSION_SECRET`
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_AI_GATEWAY_TOKEN`
+- Optional provider keys such as `GROQ_API_KEY`, `MISTRAL_API_KEY`, `GOOGLE_AI_API_KEY`
+
+## Cloudflare Resources
+
+Wrangler bindings are the production source of truth:
+
+- D1 database: `LEARNING_OS_DB`, database name `learning-os-db`
+- R2 uploads bucket: `LEARNING_OS_FILES`, bucket name `learning-os-files`
+- R2 Next cache bucket: `NEXT_INC_CACHE_R2_BUCKET`, bucket name `learning-os-next-cache`
+
+D1 migrations live in `migrations/`. Apply them with:
+
+```powershell
+corepack pnpm db:migrate:local
+corepack pnpm db:migrate:remote
+```
+
+## Run Locally
+
+Run the app locally with OpenNext's Cloudflare binding integration:
 
 ```powershell
 run\start-local.bat
 ```
 
-This starts:
+This applies local D1 migrations and starts Next dev with D1/R2 bindings available through OpenNext's local Cloudflare integration. For a full Workers preview, use `corepack pnpm preview:cloudflare` from WSL or a Linux CI runner; native Windows can block OpenNext's symlink-heavy standalone bundling.
 
-- Next.js app on `http://localhost:3000`
-- Postgres on `localhost:55433`
-- Redis on `localhost:6379`
-- MinIO on `localhost:9100` and console on `localhost:9101`
-
-Postgres is the source of truth for users, sessions, notes, quiz attempts, AI chats, provider configs, goals, and audit logs.
-
-## Cloudflare Try-Run
-
-Set a Cloudflare tunnel token in your shell or ignored runtime env:
+## Cloudflare Try-Run Tunnel
 
 ```powershell
 $env:CLOUDFLARE_TUNNEL_TOKEN="..."
 run\try-cloudflare.bat
 ```
 
-The script starts the Docker stack and then runs a `cloudflare/cloudflared` tunnel container. Keep the token out of git and rotate it if it is ever exposed.
+This starts the Cloudflare preview and exposes it through a Cloudflare tunnel. Keep the tunnel token outside git.
 
-Cloudflare Workers/OpenNext config is included in `wrangler.jsonc` for future edge experiments, but the full database-backed app should be run through Docker/Vercel unless Cloudflare Hyperdrive or another Postgres-compatible edge path is configured.
-
-## Vercel Deployment
-
-Add production environment variables in Vercel:
-
-- `DATABASE_URL`
-- `SESSION_SECRET`
-- `APP_BASE_URL`
-- Optional AI keys: `GROQ_API_KEY`, `MISTRAL_API_KEY`, `CEREBRAS_API_KEY`, `GOOGLE_AI_API_KEY`, `COHERE_API_KEY`, `VERCEL_AI_GATEWAY`
-
-Then run:
+## Deploy
 
 ```powershell
-run\deploy-vercel.bat
+run\deploy-cloudflare.bat
 ```
 
-The script installs dependencies, runs type checks, builds, and deploys production with Vercel CLI.
+The deploy script installs dependencies, runs tests and type checks, applies remote D1 migrations, then deploys to Cloudflare Workers. Run it from WSL/Linux if native Windows blocks OpenNext symlink creation.
+
+## APIs
+
+- `/api/auth/*` for login, logout, and session.
+- `/api/notes/*` for note pages.
+- `/api/quizzes/*` for quiz banks and attempts.
+- `/api/ai/chat` for tutor messages.
+- `/api/files` for R2-backed uploads and file listing.
+- `/api/files/[id]/download` for authenticated R2 downloads.
+- `/api/import` for turning pasted learning data into a designed note.
+- `/api/automation` and `/api/automation/run` for prompt and job automation.
+- `/api/integrations/health` for admin Cloudflare/D1/R2/AI checks.
 
 ## AI Providers
 
-The AI tutor resolves providers from runtime secrets only. If no key is configured, the tutor returns setup guidance instead of breaking the app.
+The default provider is Cloudflare AI Gateway:
 
-Supported provider references:
+- `AI_PROVIDER_DEFAULT=cloudflare`
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_AI_GATEWAY_ID`
+- `CLOUDFLARE_AI_GATEWAY_TOKEN`
 
-- Groq: `GROQ_API_KEY`
-- Mistral: `MISTRAL_API_KEY`
-- Cerebras: `CEREBRAS_API_KEY`
-- Google AI: `GOOGLE_AI_API_KEY`
-- Cohere: `COHERE_API_KEY`
-- Vercel AI Gateway: `VERCEL_AI_GATEWAY`
-
-Use `AI_PROVIDER_DEFAULT` to prefer one provider.
-
-## Automation, Prompt Design, And Localization
-
-Learning OS includes a reusable AI prompt library for:
-
-- importing raw question/answer/data dumps into structured learning content
-- redesigning pasted material into clean Notion-style notes
-- generating adaptive quizzes with explanations
-- explaining mistakes after attempts
-- creating personal study plans
-- translating UI vocabulary
-
-The automation catalog exposes daily briefs, note-to-quiz generation, mistake review, content design passes, and localization sync through `/api/automation`.
-
-The multilingual vocabulary covers English, Khmer, simplified/traditional Chinese, Vietnamese, Thai, French, Spanish, German, Japanese, Korean, Portuguese, Italian, Arabic, Hindi, Indonesian, Malay, and Turkish. Add new labels to `lib/i18n/vocabulary.ts` once and reuse them across the UI.
-
-## Supabase Optional Integration
-
-Supabase can be configured as an optional integration through environment variables only. Do not commit real Supabase service-role or legacy anon keys.
-
-If any Supabase secret has been pasted into chat, rotate it before using it in production.
+Other providers remain available through runtime secrets: Groq, Mistral, Cerebras, Google AI, Cohere, and Vercel AI Gateway.
 
 ## Verification
 
@@ -114,4 +112,4 @@ corepack pnpm lint
 corepack pnpm build
 ```
 
-The unit tests cover password/session helpers, personalization calculations, and AI provider resolution.
+The test suite covers auth helpers, learning personalization, AI provider resolution, and the Cloudflare-first configuration path.
