@@ -1,0 +1,18 @@
+@echo off
+setlocal
+cd /d "%~dp0\.."
+
+if "%CLOUDFLARE_TUNNEL_TOKEN%"=="" (
+  echo CLOUDFLARE_TUNNEL_TOKEN is not set.
+  echo Set it in your shell or runtime environment, then run this file again.
+  echo The local Docker app can still run with run\start-local.bat.
+  exit /b 1
+)
+
+echo Starting Learning OS locally through Docker...
+docker compose up -d --build
+if errorlevel 1 exit /b 1
+
+echo Starting Cloudflare tunnel container...
+docker run --rm --network host cloudflare/cloudflared:latest tunnel --no-autoupdate run --token "%CLOUDFLARE_TUNNEL_TOKEN%"
+endlocal
