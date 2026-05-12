@@ -53,3 +53,7 @@ export const automationJobs: AutomationJob[] = [
 export function getEnabledAutomationJobs() {
   return automationJobs.filter((job) => job.enabledByDefault)
 }
+
+export function getAutomationJob(key: string) {
+  return automationJobs.find((job) => job.key === key) ?? null
+}
