@@ -8,9 +8,9 @@ const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" })
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" })
 
 export const metadata: Metadata = {
-  title: 'Learning OS',
-  description: 'A mature learning workspace for notes, quizzes, AI tutoring, and progress.',
-  generator: 'Learning OS',
+  title: 'LEARN',
+  description: 'A Cloudflare-first learning workspace for notes, quizzes, files, AI tutoring, and progress.',
+  generator: 'LEARN',
   icons: {
     icon: [
       {

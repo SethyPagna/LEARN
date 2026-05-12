@@ -1,5 +1,5 @@
-import { LearningOsShell } from "@/components/learning-os-shell"
+import { LearnShell } from "@/components/learn/learn-shell"
 
 export default function AiTutorPage() {
-  return <LearningOsShell initialView="ai" />
+  return <LearnShell initialView="ai" />
 }

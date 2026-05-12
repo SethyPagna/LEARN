@@ -1,5 +1,5 @@
-import { LearningOsShell } from "@/components/learning-os-shell"
+import { LearnShell } from "@/components/learn/learn-shell"
 
 export default function CalendarPage() {
-  return <LearningOsShell initialView="calendar" />
+  return <LearnShell initialView="calendar" />
 }

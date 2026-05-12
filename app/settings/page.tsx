@@ -1,5 +1,5 @@
-import { LearningOsShell } from "@/components/learning-os-shell"
+import { LearnShell } from "@/components/learn/learn-shell"
 
 export default function SettingsPage() {
-  return <LearningOsShell initialView="settings" />
+  return <LearnShell initialView="settings" />
 }

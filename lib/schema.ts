@@ -246,7 +246,7 @@ async function seedStarterData(client: DatabaseClient) {
   await seedUser(client, {
     id: "user_admin",
     username: "admin",
-    email: "admin@learning-os.local",
+    email: "admin@learn.local",
     name: "Learning OS Admin",
     password: "Admin123456!",
     role: "admin",
@@ -254,7 +254,7 @@ async function seedStarterData(client: DatabaseClient) {
   await seedUser(client, {
     id: "user_learner",
     username: "learner",
-    email: "learner@learning-os.local",
+    email: "learner@learn.local",
     name: "Demo Learner",
     password: "Learn123456!",
     role: "learner",

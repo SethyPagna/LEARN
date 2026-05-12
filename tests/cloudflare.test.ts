@@ -10,7 +10,7 @@ import {
   getR2ApiConfig,
 } from "../lib/storage"
 
-test("normalizeD1Sql converts Postgres placeholders and casts for D1", () => {
+test("normalizeD1Sql converts numbered placeholders and casts for D1", () => {
   const normalized = normalizeD1Sql(
     "SELECT count(*)::int AS count FROM notes WHERE id = $1 AND updated_at > now() AND data = $2::jsonb",
     ["note_1", JSON.stringify({ ok: true })],
