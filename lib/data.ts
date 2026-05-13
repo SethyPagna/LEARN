@@ -226,7 +226,7 @@ export async function saveNote(user: User, input: Partial<NoteRecord> & { title:
       input.title.trim() || "Untitled",
       input.icon || "FileText",
       input.content,
-      Boolean(input.favorite),
+      input.favorite ? 1 : 0,
       input.template || "blank",
     ],
   )
@@ -289,7 +289,7 @@ export async function recordQuizAttempt(user: User, input: {
     await query(
       `INSERT INTO quiz_attempt_answers (id, attempt_id, question_id, topic, selected_answer_id, correct)
        VALUES ($1, $2, $3, $4, $5, $6)`,
-      [createId("answer"), attemptId, answer.questionId, answer.topic, answer.selectedAnswerId, answer.correct],
+      [createId("answer"), attemptId, answer.questionId, answer.topic, answer.selectedAnswerId, answer.correct ? 1 : 0],
     )
   }
   await logAudit({ userId: user.id, action: "complete", entity: "quiz_attempt", entityId: attemptId })
