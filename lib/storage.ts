@@ -276,3 +276,22 @@ export async function getMediaObject(asset: MediaAsset) {
     },
   }
 }
+
+export async function deleteMediaAsset(id: string, user: User) {
+  const asset = await getMediaAsset(id, user)
+  if (!asset) return false
+
+  const binding = await getR2Bucket()
+  if (binding) {
+    await binding.delete(asset.object_key)
+  } else {
+    const config = getR2ApiConfig()
+    if (config) {
+      const response = await signedR2Fetch(config, { method: "DELETE", key: asset.object_key })
+      if (!response.ok && response.status !== 404) throw new Error(`Cloudflare R2 delete failed with ${response.status}.`)
+    }
+  }
+
+  await query("DELETE FROM media_assets WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin')", [id, user.id, user.role])
+  return true
+}
