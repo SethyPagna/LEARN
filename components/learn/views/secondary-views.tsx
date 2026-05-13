@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { BookOpen, CalendarPlus, Check, ChevronRight, Save, ShieldCheck, Target, Trash2, UserRound } from "lucide-react"
 import { supportedLocales } from "@/lib/i18n/vocabulary"
+import type { WorkspaceOptions } from "../preferences"
 import type { CalendarEvent, Quiz, User } from "../types"
 import { api, formatDate } from "../api"
 import { Panel } from "../ui"
@@ -25,7 +26,7 @@ export function ProgressView({ dashboard, quizzes }: { dashboard: any; quizzes: 
   )
 }
 
-export function CalendarView() {
+export function CalendarView({ options }: { options: WorkspaceOptions }) {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [title, setTitle] = useState("45 min focus block")
   const [status, setStatus] = useState("")
@@ -41,8 +42,8 @@ export function CalendarView() {
 
   async function createEvent() {
     const startsAt = new Date()
-    startsAt.setMinutes(startsAt.getMinutes() + 15)
-    const endsAt = new Date(startsAt.getTime() + 45 * 60 * 1000)
+    startsAt.setMinutes(startsAt.getMinutes() + options.calendarLeadMinutes)
+    const endsAt = new Date(startsAt.getTime() + options.calendarDefaultMinutes * 60 * 1000)
     await api("/api/calendar", {
       method: "POST",
       body: JSON.stringify({
@@ -64,7 +65,7 @@ export function CalendarView() {
     <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
       <Panel className="p-4">
         <h2 className="text-2xl font-semibold text-foreground">Study calendar</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Create focus blocks, review windows, and due-date anchors.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Create focus blocks, review windows, and due-date anchors. Default: {options.calendarDefaultMinutes} minutes, {options.calendarLeadMinutes} minutes from now.</p>
         <input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-4 h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none" />
         <button onClick={createEvent} className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm font-semibold text-primary-foreground">
           <CalendarPlus className="h-4 w-4" /> Add time block
@@ -92,7 +93,17 @@ export function CalendarView() {
   )
 }
 
-export function SettingsView({ user, automationData }: { user: User | null; automationData: any }) {
+export function SettingsView({
+  user,
+  automationData,
+  options,
+  setOptions,
+}: {
+  user: User | null
+  automationData: any
+  options: WorkspaceOptions
+  setOptions: (options: Partial<WorkspaceOptions>) => void
+}) {
   const [name, setName] = useState(user?.name || "")
   const [email, setEmail] = useState(user?.email || "")
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState(Number(user?.preferences?.dailyGoalMinutes || 45))
@@ -111,7 +122,7 @@ export function SettingsView({ user, automationData }: { user: User | null; auto
     })
     await api("/api/preferences", {
       method: "PUT",
-      body: JSON.stringify({ dailyGoalMinutes, localeReady: supportedLocales.length }),
+      body: JSON.stringify({ dailyGoalMinutes, localeReady: supportedLocales.length, workspaceOptions: options }),
     })
     setStatus("Saved profile and preferences.")
   }
@@ -135,6 +146,30 @@ export function SettingsView({ user, automationData }: { user: User | null; auto
         {status ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
       </Panel>
       <Panel className="p-4">
+        <h3 className="text-lg font-semibold text-foreground">Workspace freedom</h3>
+        <p className="mt-2 text-sm text-muted-foreground">Choose how detailed, playful, strict, or compact each section feels.</p>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <SelectField label="Dashboard" value={options.dashboardDetail} options={["focused", "detailed"]} onChange={(value) => setOptions({ dashboardDetail: value as WorkspaceOptions["dashboardDetail"] })} />
+          <SelectField label="Files layout" value={options.fileLayout} options={["list", "grid"]} onChange={(value) => setOptions({ fileLayout: value as WorkspaceOptions["fileLayout"] })} />
+          <SelectField label="Quiz mode" value={options.quizMode} options={["practice", "exam", "review"]} onChange={(value) => setOptions({ quizMode: value as WorkspaceOptions["quizMode"] })} />
+          <SelectField label="Game mode" value={options.gameMode} options={["sprint", "matching", "memory"]} onChange={(value) => setOptions({ gameMode: value as WorkspaceOptions["gameMode"] })} />
+          <SelectField label="Docs template" value={options.docsTemplate} options={["study", "cornell", "project"]} onChange={(value) => setOptions({ docsTemplate: value as WorkspaceOptions["docsTemplate"] })} />
+          <SelectField label="Slides aspect" value={options.slidesAspect} options={["16:9", "4:3"]} onChange={(value) => setOptions({ slidesAspect: value as WorkspaceOptions["slidesAspect"] })} />
+          <Field label="Calendar lead minutes" value={String(options.calendarLeadMinutes)} onChange={(value) => setOptions({ calendarLeadMinutes: Number(value) || 15 })} />
+          <Field label="Calendar block minutes" value={String(options.calendarDefaultMinutes)} onChange={(value) => setOptions({ calendarDefaultMinutes: Number(value) || 45 })} />
+          <Field label="Game question limit" value={String(options.gameQuestionLimit)} onChange={(value) => setOptions({ gameQuestionLimit: Number(value) || 12 })} />
+          <Field label="AI max tokens" value={String(options.aiMaxTokens)} onChange={(value) => setOptions({ aiMaxTokens: Number(value) || 1200 })} />
+        </div>
+        <div className="mt-4 grid gap-2 md:grid-cols-2">
+          <Toggle label="Weak-topic bars" checked={options.showWeakTopicBars} onChange={(checked) => setOptions({ showWeakTopicBars: checked })} />
+          <Toggle label="Notes autosave" checked={options.notesAutosave} onChange={(checked) => setOptions({ notesAutosave: checked })} />
+          <Toggle label="File previews" checked={options.filePreview} onChange={(checked) => setOptions({ filePreview: checked })} />
+          <Toggle label="Reveal quiz answers" checked={options.revealAnswers} onChange={(checked) => setOptions({ revealAnswers: checked })} />
+          <Toggle label="Presence hints" checked={options.collaborationPresence} onChange={(checked) => setOptions({ collaborationPresence: checked })} />
+          <Toggle label="Verbose admin" checked={options.adminVerbose} onChange={(checked) => setOptions({ adminVerbose: checked })} />
+        </div>
+      </Panel>
+      <Panel className="p-4">
         <h3 className="text-lg font-semibold text-foreground">Languages and automation</h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">{supportedLocales.length} clean vocabularies are available with English fallback for missing labels.</p>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -155,7 +190,7 @@ export function SettingsView({ user, automationData }: { user: User | null; auto
   )
 }
 
-export function AdminView({ user, adminData, automationData }: { user: User | null; adminData: any; automationData: any }) {
+export function AdminView({ user, adminData, automationData, options }: { user: User | null; adminData: any; automationData: any; options: WorkspaceOptions }) {
   if (user?.role !== "admin") return <Panel className="p-4">Admin access required.</Panel>
   return (
     <div className="grid gap-4">
@@ -180,6 +215,12 @@ export function AdminView({ user, adminData, automationData }: { user: User | nu
         <AdminList title="Automation jobs" items={automationData?.jobs || []} />
         <AdminList title="AI prompt contracts" items={automationData?.prompts || []} />
       </div>
+      {options.adminVerbose ? (
+        <Panel className="p-4">
+          <p className="font-semibold text-foreground">Current option policy</p>
+          <pre className="mt-3 overflow-auto rounded-md bg-muted p-3 text-xs text-muted-foreground">{JSON.stringify(options, null, 2)}</pre>
+        </Panel>
+      ) : null}
     </div>
   )
 }
@@ -199,6 +240,26 @@ function Info({ label, value }: { label: string; value?: unknown }) {
       <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
       <p className="mt-2 font-medium text-foreground">{String(value || "Not set")}</p>
     </div>
+  )
+}
+
+function SelectField({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
+  return (
+    <label className="block rounded-lg bg-muted p-4">
+      <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none">
+        {options.map((option) => <option key={option} value={option}>{option}</option>)}
+      </select>
+    </label>
+  )
+}
+
+function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <label className="flex items-center justify-between gap-3 rounded-lg bg-muted p-3 text-sm text-foreground">
+      <span>{label}</span>
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+    </label>
   )
 }
 
