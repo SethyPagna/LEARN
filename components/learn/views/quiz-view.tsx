@@ -47,7 +47,7 @@ export function QuizView({
           <button
             key={item.id}
             onClick={() => setSelectedQuizId(item.id)}
-            className={`mb-2 w-full rounded-md p-3 text-left ${selected === item.id ? "bg-[#17202a] text-white" : "bg-[#f2f5f8] text-[#17202a] hover:bg-[#e9edf2]"}`}
+            className={`mb-2 w-full rounded-md p-3 text-left ${selected === item.id ? "bg-primary text-primary-foreground" : "bg-muted text-foreground hover:bg-accent hover:text-accent-foreground"}`}
           >
             <p className="font-semibold">{item.title}</p>
             <p className="mt-1 text-sm opacity-70">{item.question_count || 0} questions</p>
@@ -57,20 +57,20 @@ export function QuizView({
       <Panel className="p-4">
         {quiz ? (
           <>
-            <h2 className="text-2xl font-semibold text-[#17202a]">{quiz.title}</h2>
-            <p className="mt-2 text-sm text-[#5e6a78]">{quiz.description}</p>
+            <h2 className="text-2xl font-semibold text-foreground">{quiz.title}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">{quiz.description}</p>
             <div className="mt-5 space-y-3">
               {quiz.questions?.map((question, index) => (
-                <article key={question.id} className="rounded-lg border border-[#e4e8ee] p-4">
-                  <p className="text-sm text-[#697586]">Question {index + 1}</p>
-                  <h3 className="mt-1 font-semibold text-[#17202a]">{question.question}</h3>
+                <article key={question.id} className="rounded-lg border border-border p-4">
+                  <p className="text-sm text-muted-foreground">Question {index + 1}</p>
+                  <h3 className="mt-1 font-semibold text-foreground">{question.question}</h3>
                   <div className="mt-4 grid gap-2 md:grid-cols-2">
                     {question.choices.map((choice) => (
                       <button
                         key={choice.id}
                         onClick={() => setAnswers({ ...answers, [question.id]: choice.id })}
                         className={`rounded-md border p-3 text-left text-sm ${
-                          answers[question.id] === choice.id ? "border-[#2c7a64] bg-[#e7f3ef]" : "border-[#d8dce2] hover:bg-[#f7f9fb]"
+                          answers[question.id] === choice.id ? "border-success bg-accent text-accent-foreground" : "border-border hover:bg-muted"
                         }`}
                       >
                         {choice.text}
@@ -80,8 +80,8 @@ export function QuizView({
                 </article>
               ))}
             </div>
-            {result ? <p className="mt-4 rounded-md bg-[#e7f3ef] p-3 font-semibold text-[#17202a]">Score: {result.score} / {result.total}</p> : null}
-            <button onClick={submit} className="mt-4 rounded-md bg-[#2c7a64] px-4 py-2 text-sm font-semibold text-white">Submit attempt</button>
+            {result ? <p className="mt-4 rounded-md bg-accent p-3 font-semibold text-accent-foreground">Score: {result.score} / {result.total}</p> : null}
+            <button onClick={submit} className="mt-4 rounded-md bg-success px-4 py-2 text-sm font-semibold text-success-foreground">Submit attempt</button>
           </>
         ) : (
           <EmptyState title="No quiz selected" body="Choose a quiz bank to start practice." />
