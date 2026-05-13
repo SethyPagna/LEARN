@@ -124,7 +124,7 @@ async function queryD1Binding<T>(text: string, values: unknown[]) {
   const rows = (result.results || []) as T[]
   return {
     rows,
-    rowCount: result.meta?.changes ?? rows.length,
+    rowCount: rows.length,
   }
 }
 
@@ -158,9 +158,10 @@ async function queryD1Api<T>(text: string, values: unknown[]) {
   const result = Array.isArray(json.result) ? json.result[0] : null
   if (result?.success === false) throw new Error(result.error || "Cloudflare D1 API statement failed.")
   const rows = (result?.results || []) as T[]
+  const isRead = isD1ReadStatement(normalized.sql)
   return {
     rows,
-    rowCount: result?.meta?.changes ?? rows.length,
+    rowCount: isRead ? rows.length : result?.meta?.changes ?? rows.length,
   }
 }
 
