@@ -29,8 +29,8 @@ export function LoginSurface() {
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#edf1f5] text-[#17202a]">
-      <div className="grid min-h-screen lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="order-2 flex flex-col justify-between px-6 py-8 sm:px-10 lg:order-1 lg:px-14">
+      <div className="grid min-h-screen max-w-full lg:grid-cols-[1.1fr_0.9fr]">
+        <section className="order-2 flex min-w-0 flex-col justify-between px-6 py-8 sm:px-10 lg:order-1 lg:px-14">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#171717] text-white">
               <BookOpen className="h-5 w-5" />
@@ -41,11 +41,11 @@ export function LoginSurface() {
             </div>
           </div>
 
-          <div className="max-w-2xl py-8 lg:py-16">
-            <h1 className="max-w-xl break-words text-4xl font-semibold leading-[1.05] tracking-normal sm:text-5xl lg:text-6xl">
+          <div className="max-w-full py-8 lg:max-w-2xl lg:py-16">
+            <h1 className="max-w-full break-words text-4xl font-semibold leading-[1.05] tracking-normal sm:text-5xl lg:max-w-xl lg:text-6xl">
               Notes, quizzes, files, and AI tutoring in one focused workspace.
             </h1>
-            <p className="mt-5 max-w-lg break-words text-base leading-7 text-[#625a51] sm:text-lg sm:leading-8">
+            <p className="mt-5 max-w-full break-words text-base leading-7 text-[#625a51] sm:text-lg sm:leading-8 lg:max-w-lg">
               A compact learning workspace with Cloudflare-backed notes, adaptive practice, progress memory, and private file capture.
             </p>
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
@@ -65,7 +65,7 @@ export function LoginSurface() {
           <p className="text-sm text-[#5e6a78]">Cloudflare, Vercel, GitHub, local, and Docker deployment paths are included.</p>
         </section>
 
-        <section className="order-1 flex items-center justify-center bg-[#17202a] p-4 text-white sm:p-6 lg:order-2 lg:p-10">
+        <section className="order-1 flex min-w-0 items-center justify-center bg-[#17202a] p-4 text-white sm:p-6 lg:order-2 lg:p-10">
           <form onSubmit={handleSubmit} className="w-full min-w-0 max-w-full rounded-lg border border-white/10 bg-white/[0.06] p-6 shadow-2xl backdrop-blur sm:max-w-md">
             <div className="mb-8">
               <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#d7ff6f] text-[#171717]">
