@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Download, ImageIcon, Upload, Video } from "lucide-react"
+import type { WorkspaceOptions } from "../preferences"
 import type { MediaFile } from "../types"
 import { api, formatBytes, formatDate } from "../api"
 import { EmptyState, Panel } from "../ui"
 
-export function FilesView() {
+export function FilesView({ options }: { options: WorkspaceOptions }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<MediaFile[]>([])
   const [status, setStatus] = useState("Loading files...")
@@ -48,7 +49,27 @@ export function FilesView() {
         <input ref={inputRef} type="file" className="hidden" onChange={(event) => upload(event.target.files?.[0])} />
       </div>
       {status ? <p className="mb-4 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
-      {files.length ? (
+      {files.length ? options.fileLayout === "grid" ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {files.map((file) => (
+            <article key={file.id} className="rounded-lg border border-border bg-card p-3 text-sm">
+              {options.filePreview && file.content_type.startsWith("image/") ? (
+                <img src={`/api/files/${file.id}/download`} alt="" className="mb-3 aspect-video w-full rounded-md object-cover" />
+              ) : (
+                <div className="mb-3 flex aspect-video items-center justify-center rounded-md bg-muted">
+                  {file.content_type.startsWith("video/") ? <Video className="h-7 w-7 text-success" /> : <ImageIcon className="h-7 w-7 text-success" />}
+                </div>
+              )}
+              <p className="truncate font-medium text-foreground">{file.filename}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{formatBytes(file.size_bytes)} - {file.content_type}</p>
+              <a href={`/api/files/${file.id}/download`} className="mt-3 flex h-9 items-center justify-center gap-2 rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                <Download className="h-4 w-4" />
+                Download
+              </a>
+            </article>
+          ))}
+        </div>
+      ) : (
         <div className="overflow-hidden rounded-lg border border-border">
           {files.map((file) => (
             <div key={file.id} className="grid gap-3 border-b border-border p-3 text-sm last:border-b-0 md:grid-cols-[1fr_130px_110px_90px] md:items-center">
