@@ -13,7 +13,7 @@
     "db:migrate:remote": "wrangler d1 migrations apply learn-db --remote",
     "preview:cloudflare": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy:realtime": "wrangler deploy --config wrangler.realtime.jsonc",
-    "deploy:cloudflare": "opennextjs-cloudflare build && wrangler deploy",
+    "deploy:cloudflare": "node scripts/deploy-cloudflare.mjs",
     "deploy:vercel": "pnpm dlx vercel@latest deploy --prod",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
