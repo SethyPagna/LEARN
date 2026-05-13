@@ -69,7 +69,20 @@ export function createSessionToken() {
   return toBase64Url(randomBytes(SESSION_TOKEN_BYTES))
 }
 
-export function hashSessionToken(token: string) {
+function toHex(bytes: Uint8Array) {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")
+}
+
+export async function hashSessionToken(token: string) {
+  const subtle = globalThis.crypto?.subtle
+  if (subtle) {
+    try {
+      const digest = await subtle.digest("SHA-256", new TextEncoder().encode(token))
+      return toHex(new Uint8Array(digest))
+    } catch {
+      // Fall through to Node crypto when Web Crypto is incomplete.
+    }
+  }
   return nodeCrypto.createHash("sha256").update(token, "utf8").digest("hex")
 }
 

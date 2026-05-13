@@ -88,11 +88,11 @@ export async function getCurrentUserFromToken(token?: string) {
      JOIN users u ON u.id = s.user_id
      WHERE s.token_hash = $1 AND s.expires_at > now()
      LIMIT 1`,
-    [hashSessionToken(value)],
+    [await hashSessionToken(value)],
   )
   if (!result.rows[0]) return null
 
-  await query("UPDATE user_sessions SET last_seen_at = now() WHERE token_hash = $1", [hashSessionToken(value)])
+  await query("UPDATE user_sessions SET last_seen_at = now() WHERE token_hash = $1", [await hashSessionToken(value)])
   return normalizeUser(result.rows[0])
 }
 
@@ -124,7 +124,7 @@ export async function createUserSession(userId: string) {
   await query(
     `INSERT INTO user_sessions (id, user_id, token_hash, expires_at)
      VALUES ($1, $2, $3, $4)`,
-    [createId("session"), userId, hashSessionToken(token), expiresAt.toISOString()],
+    [createId("session"), userId, await hashSessionToken(token), expiresAt.toISOString()],
   )
   await logAudit({ userId, action: "login", entity: "auth", entityId: userId })
   return { token, expiresAt }
@@ -132,7 +132,7 @@ export async function createUserSession(userId: string) {
 
 export async function revokeSession(token: string) {
   await ensureDatabase()
-  await query("DELETE FROM user_sessions WHERE token_hash = $1", [hashSessionToken(token)])
+  await query("DELETE FROM user_sessions WHERE token_hash = $1", [await hashSessionToken(token)])
 }
 
 export async function getDashboardData(user: User) {

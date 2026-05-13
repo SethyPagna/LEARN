@@ -10,11 +10,11 @@ test("hashPassword stores a non-plain password and verifies the original", async
   assert.equal(await verifyPassword("wrong-password", hash), false)
 })
 
-test("session token hashing is stable while raw tokens stay random", () => {
+test("session token hashing is stable while raw tokens stay random", async () => {
   const first = createSessionToken()
   const second = createSessionToken()
 
   assert.notEqual(first, second)
-  assert.equal(hashSessionToken(first), hashSessionToken(first))
-  assert.notEqual(hashSessionToken(first), hashSessionToken(second))
+  assert.equal(await hashSessionToken(first), await hashSessionToken(first))
+  assert.notEqual(await hashSessionToken(first), await hashSessionToken(second))
 })
