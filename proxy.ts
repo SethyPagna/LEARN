@@ -25,7 +25,7 @@ const SECURITY_HEADERS: Record<string, string> = {
   "x-permitted-cross-domain-policies": "none",
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const response = NextResponse.next()
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
     response.headers.set(key, value)
