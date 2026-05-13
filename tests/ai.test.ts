@@ -29,5 +29,6 @@ test("resolveConfiguredProvider builds the Cloudflare AI Gateway endpoint", () =
   })
 
   assert.equal(provider?.provider, "cloudflare")
-  assert.equal(provider?.endpoint, "https://gateway.ai.cloudflare.com/v1/account/learn/compat/chat/completions")
+  assert.equal(provider?.model, "@cf/meta/llama-3.1-8b-instruct")
+  assert.equal(provider?.endpoint, "https://gateway.ai.cloudflare.com/v1/account/learn/workers-ai/@cf/meta/llama-3.1-8b-instruct")
 })
