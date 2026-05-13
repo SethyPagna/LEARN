@@ -8,14 +8,16 @@ import { StatusMessage } from "./ui"
 import { AiTutorView } from "./views/ai-view"
 import { DashboardView } from "./views/dashboard-view"
 import { FilesView } from "./views/files-view"
-import { ChatView, GamesView } from "./views/productivity-views"
-import { QuizView } from "./views/quiz-view"
-import { AdminView, CalendarView, ProgressView, SettingsView } from "./views/secondary-views"
+import { AdminView, SettingsView } from "./views/secondary-views"
 import { useWorkspacePreferences } from "./preferences"
-import { FeedView, GraphView, ProfileView, ReviewsView, SocialLearningView, VaultView } from "./views/ecosystem-views"
+import { ProfileView } from "./views/ecosystem-views"
 import { StudioView } from "./views/studio-view"
+import { LearnWorkspaceView, PracticeWorkspaceView, SocialWorkspaceView } from "./views/combined-workspace-views"
 
 const studioViews = ["studio", "notes", "docs", "sheets", "slides"] as const
+const learnViews = ["learn", "vault", "feed", "discover", "graph", "reviews", "calendar", "progress"] as const
+const practiceViews = ["practice", "quizzes", "games"] as const
+const socialViews = ["social", "chat", "spaces", "rooms", "battles"] as const
 
 function getStudioKind(view: View): StudioKind {
   return view === "docs" || view === "sheets" || view === "slides" ? view : "notes"
@@ -105,7 +107,6 @@ export function LearnShell({
           setQuery={setQuery}
           setView={chooseView}
           text={preferences.text}
-          goalCompletion={dashboard?.snapshot?.goalCompletion ?? 0}
         />
         <section className="min-w-0">
           <Topbar
@@ -126,21 +127,12 @@ export function LearnShell({
           <div className={preferences.density === "compact" ? "p-3 lg:p-4" : "p-4 lg:p-6"}>
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
             {view === "dashboard" ? <DashboardView dashboard={dashboard} notes={notes} quizzes={quizzes} options={preferences.options} setView={chooseView} /> : null}
-            {view === "vault" ? <VaultView setView={chooseView} /> : null}
-            {view === "feed" || view === "discover" ? <FeedView setView={chooseView} /> : null}
-            {view === "graph" ? <GraphView /> : null}
-            {view === "reviews" ? <ReviewsView /> : null}
+            {learnViews.includes(view as (typeof learnViews)[number]) ? <LearnWorkspaceView dashboard={dashboard} initialView={view} options={preferences.options} quizzes={quizzes} setView={chooseView} /> : null}
             {studioViews.includes(view as (typeof studioViews)[number]) ? <StudioView initialKind={getStudioKind(view)} notes={filteredNotes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} /> : null}
-            {view === "quizzes" ? <QuizView quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={preferences.options} /> : null}
-            {view === "games" ? <GamesView quizzes={quizzes} options={preferences.options} /> : null}
+            {practiceViews.includes(view as (typeof practiceViews)[number]) ? <PracticeWorkspaceView initialView={view} quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={preferences.options} /> : null}
             {view === "ai" ? <AiTutorView notes={notes} options={preferences.options} setOptions={preferences.setOptions} /> : null}
             {view === "files" ? <FilesView options={preferences.options} /> : null}
-            {view === "chat" ? <ChatView options={preferences.options} /> : null}
-            {view === "progress" ? <ProgressView dashboard={dashboard} quizzes={quizzes} /> : null}
-            {view === "calendar" ? <CalendarView options={preferences.options} /> : null}
-            {view === "spaces" ? <SocialLearningView kind="spaces" /> : null}
-            {view === "rooms" ? <SocialLearningView kind="rooms" /> : null}
-            {view === "battles" ? <SocialLearningView kind="battles" /> : null}
+            {socialViews.includes(view as (typeof socialViews)[number]) ? <SocialWorkspaceView initialView={view} options={preferences.options} /> : null}
             {view === "profile" ? <ProfileView user={user} /> : null}
             {view === "settings" ? <SettingsView user={user} automationData={automationData} options={preferences.options} setOptions={preferences.setOptions} /> : null}
             {view === "admin" ? <AdminView user={user} adminData={adminData} automationData={automationData} options={preferences.options} /> : null}

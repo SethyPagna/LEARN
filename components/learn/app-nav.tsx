@@ -5,14 +5,11 @@ import {
   BarChart3,
   BookOpen,
   Bot,
-  Brain,
-  CalendarDays,
   ChevronDown,
   Compass,
   Files,
   FileText,
   Gamepad2,
-  GitFork,
   Home,
   Languages,
   LogOut,
@@ -21,8 +18,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Presentation,
-  Radio,
-  Repeat2,
   Search,
   Settings,
   Shield,
@@ -40,6 +35,9 @@ type NavItem = { view: View; labelKey: keyof Text; icon: React.ComponentType<{ c
 type NavGroup = { label: string; items: NavItem[] }
 
 const studioViews: View[] = ["studio", "notes", "docs", "sheets", "slides"]
+const learnViews: View[] = ["learn", "vault", "feed", "discover", "graph", "reviews", "calendar", "progress"]
+const practiceViews: View[] = ["practice", "quizzes", "games"]
+const socialViews: View[] = ["social", "chat", "spaces", "rooms", "battles"]
 
 const navGroups: NavGroup[] = [
   {
@@ -47,15 +45,8 @@ const navGroups: NavGroup[] = [
     items: [{ view: "dashboard", labelKey: "dashboard", icon: Home }],
   },
   {
-    label: "Learn",
-    items: [
-      { view: "vault", labelKey: "vault", icon: Brain },
-      { view: "feed", labelKey: "feed", icon: Compass, aliases: ["discover"] },
-      { view: "graph", labelKey: "graph", icon: GitFork },
-      { view: "reviews", labelKey: "reviews", icon: Repeat2 },
-      { view: "calendar", labelKey: "calendar", icon: CalendarDays },
-      { view: "progress", labelKey: "progress", icon: BarChart3 },
-    ],
+    label: "Workspaces",
+    items: [{ view: "learn", labelKey: "learn", icon: Compass, aliases: ["vault", "feed", "discover", "graph", "reviews", "calendar", "progress"] }],
   },
   {
     label: "Studio",
@@ -67,19 +58,11 @@ const navGroups: NavGroup[] = [
   },
   {
     label: "Practice",
-    items: [
-      { view: "quizzes", labelKey: "quizzes", icon: BookOpen },
-      { view: "games", labelKey: "games", icon: Gamepad2 },
-    ],
+    items: [{ view: "practice", labelKey: "practice", icon: Gamepad2, aliases: ["quizzes", "games"] }],
   },
   {
     label: "Social",
-    items: [
-      { view: "chat", labelKey: "chat", icon: MessagesSquare },
-      { view: "spaces", labelKey: "spaces", icon: MessagesSquare },
-      { view: "rooms", labelKey: "rooms", icon: Radio },
-      { view: "battles", labelKey: "battles", icon: Gamepad2 },
-    ],
+    items: [{ view: "social", labelKey: "social", icon: MessagesSquare, aliases: ["chat", "spaces", "rooms", "battles"] }],
   },
   {
     label: "Manage",
@@ -94,13 +77,15 @@ const navItems = navGroups.flatMap((group) => group.items)
 
 export function titleForView(view: View, text: Text) {
   if (studioViews.includes(view)) return text.studio
+  if (learnViews.includes(view)) return text.learn
+  if (practiceViews.includes(view)) return text.practice
+  if (socialViews.includes(view)) return text.social
   const item = navItems.find((entry) => entry.view === view)
   return item ? text[item.labelKey] : text.dashboard
 }
 
 export function Sidebar({
   density,
-  goalCompletion,
   query,
   setQuery,
   setView,
@@ -108,7 +93,6 @@ export function Sidebar({
   view,
 }: {
   density: Density
-  goalCompletion: number
   query: string
   setQuery: (query: string) => void
   setView: (view: View) => void
@@ -116,7 +100,7 @@ export function Sidebar({
   view: View
 }) {
   return (
-    <aside className="hidden border-r border-border bg-sidebar px-3 py-4 text-sidebar-foreground lg:block">
+    <aside className="sticky top-0 hidden h-screen overflow-y-auto border-r border-border bg-sidebar px-3 py-4 text-sidebar-foreground lg:block">
       <Brand text={text} />
       <div className="mb-3 flex h-9 items-center gap-2 rounded-md border border-sidebar-border bg-background px-3">
         <Search className="h-4 w-4 text-muted-foreground" />
@@ -128,11 +112,6 @@ export function Sidebar({
         />
       </div>
       <Navigation density={density} text={text} view={view} setView={setView} />
-      <div className="mt-5 rounded-lg border border-sidebar-border bg-sidebar-accent p-3 text-sidebar-accent-foreground">
-        <p className="text-xs font-semibold uppercase text-muted-foreground">{text.today}</p>
-        <p className="mt-2 text-2xl font-semibold">{goalCompletion}%</p>
-        <p className="text-xs text-muted-foreground">{text.goalCompletion}</p>
-      </div>
     </aside>
   )
 }
