@@ -3,6 +3,7 @@ import { getR2Bucket } from "./cloudflare"
 import { query } from "./db"
 import type { User } from "./data"
 import { createId } from "./schema"
+import { validateUploadFile } from "./file-security"
 
 const APP_ID = "learn"
 const DEFAULT_WORKSPACE_ID = "workspace_demo"
@@ -203,6 +204,8 @@ export async function uploadMediaAsset(input: {
   const objectKey = buildR2ObjectKey({ userId: input.user.id, assetId: id, filename })
   const body = await input.file.arrayBuffer()
   const contentType = input.file.type || "application/octet-stream"
+  const validationError = validateUploadFile(input.file, body)
+  if (validationError) throw new Error(validationError)
 
   await putObject(objectKey, body, contentType, {
     ownerUserId: input.user.id,
