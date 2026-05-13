@@ -49,7 +49,7 @@ export function NotesView({
   return (
     <div className="grid gap-4 xl:grid-cols-[300px_1fr]">
       <Panel className="p-3">
-        <button onClick={createNote} className="mb-3 flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#17202a] text-sm font-semibold text-white">
+        <button onClick={createNote} className="mb-3 flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm font-semibold text-primary-foreground">
           <Plus className="h-4 w-4" />
           New note
         </button>
@@ -58,13 +58,13 @@ export function NotesView({
             <button
               key={note.id}
               onClick={() => setSelectedNoteId(note.id)}
-              className={`w-full rounded-md p-3 text-left transition ${selectedNote?.id === note.id ? "bg-[#e7f3ef]" : "hover:bg-[#f2f5f8]"}`}
+              className={`w-full rounded-md p-3 text-left transition ${selectedNote?.id === note.id ? "bg-accent text-accent-foreground" : "hover:bg-muted"}`}
             >
               <div className="flex items-center justify-between gap-2">
-                <p className="truncate font-medium text-[#17202a]">{note.title}</p>
-                {note.favorite ? <Star className="h-4 w-4 fill-[#d39b24] text-[#d39b24]" /> : null}
+                <p className="truncate font-medium">{note.title}</p>
+                {note.favorite ? <Star className="h-4 w-4 fill-chart-5 text-chart-5" /> : null}
               </div>
-              <p className="mt-1 text-xs text-[#697586]">{formatDate(note.updated_at)}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{formatDate(note.updated_at)}</p>
             </button>
           ))}
         </div>
@@ -77,9 +77,9 @@ export function NotesView({
               <input
                 value={draft.title}
                 onChange={(event) => setDraft({ ...draft, title: event.target.value })}
-                className="min-w-0 flex-1 bg-transparent text-3xl font-semibold text-[#17202a] outline-none"
+                className="min-w-0 flex-1 bg-transparent text-2xl font-semibold text-foreground outline-none sm:text-3xl"
               />
-              <button onClick={save} className="flex h-10 items-center gap-2 rounded-md bg-[#2c7a64] px-4 text-sm font-semibold text-white">
+              <button onClick={save} className="flex h-10 items-center gap-2 rounded-md bg-success px-4 text-sm font-semibold text-success-foreground">
                 <Save className="h-4 w-4" />
                 {saving ? "Saving" : "Save"}
               </button>
@@ -87,7 +87,7 @@ export function NotesView({
             <textarea
               value={draft.content}
               onChange={(event) => setDraft({ ...draft, content: event.target.value })}
-              className="min-h-[520px] w-full resize-none rounded-md border border-[#d8dce2] bg-[#fbfcfd] p-4 text-base leading-8 text-[#17202a] outline-none focus:border-[#2c7a64]"
+              className="min-h-[60vh] w-full resize-none rounded-md border border-input bg-background p-4 text-base leading-8 text-foreground outline-none focus:border-ring"
               placeholder="Write notes, formulas, reflections, and AI-generated drafts here..."
             />
           </>
