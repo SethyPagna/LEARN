@@ -94,19 +94,19 @@ export function StudioView({
 
   const [docs, setDocs] = useState<WorkspaceDocument[]>([])
   const [docId, setDocId] = useState("")
-  const selectedDoc = docs.find((item) => item.id === docId) || docs[0]
+  const selectedDoc = docId ? docs.find((item) => item.id === docId) : undefined
   const [docTitle, setDocTitle] = useState("Untitled document")
   const [docHistory, setDocHistory] = useState<HistoryState<string>>(createHistoryState(""))
 
   const [sheets, setSheets] = useState<WorkspaceSheet[]>([])
   const [sheetId, setSheetId] = useState("")
-  const selectedSheet = sheets.find((item) => item.id === sheetId) || sheets[0]
+  const selectedSheet = sheetId ? sheets.find((item) => item.id === sheetId) : undefined
   const [sheetTitle, setSheetTitle] = useState("Study tracker")
   const [cells, setCells] = useState<string[][]>(starterCells)
 
   const [decks, setDecks] = useState<WorkspaceDeck[]>([])
   const [deckId, setDeckId] = useState("")
-  const selectedDeck = decks.find((item) => item.id === deckId) || decks[0]
+  const selectedDeck = deckId ? decks.find((item) => item.id === deckId) : undefined
   const [deckTitle, setDeckTitle] = useState("Learning deck")
   const [slides, setSlides] = useState(starterSlides)
 
