@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Download, Upload } from "lucide-react"
+import { Download, ImageIcon, Upload, Video } from "lucide-react"
 import type { MediaFile } from "../types"
 import { api, formatBytes, formatDate } from "../api"
 import { EmptyState, Panel } from "../ui"
@@ -53,12 +53,16 @@ export function FilesView() {
           {files.map((file) => (
             <div key={file.id} className="grid gap-3 border-b border-border p-3 text-sm last:border-b-0 md:grid-cols-[1fr_130px_110px_90px] md:items-center">
               <div>
-                <p className="font-medium text-foreground">{file.filename}</p>
+                <div className="flex items-center gap-2">
+                  {file.content_type.startsWith("image/") ? <ImageIcon className="h-4 w-4 text-success" /> : null}
+                  {file.content_type.startsWith("video/") ? <Video className="h-4 w-4 text-success" /> : null}
+                  <p className="font-medium text-foreground">{file.filename}</p>
+                </div>
                 <p className="text-xs text-muted-foreground">{file.content_type}</p>
               </div>
               <p className="text-muted-foreground">{formatBytes(file.size_bytes)}</p>
               <p className="text-muted-foreground">{formatDate(file.created_at)}</p>
-              <a href={`/api/files/${file.id}/download`} className="flex h-9 items-center justify-center gap-2 rounded-md border border-border text-foreground">
+              <a href={`/api/files/${file.id}/download`} className="flex h-9 items-center justify-center gap-2 rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
                 <Download className="h-4 w-4" />
                 Get
               </a>
