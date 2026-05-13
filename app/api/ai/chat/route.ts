@@ -11,6 +11,9 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}))
   const message = String(body.message || "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim().slice(0, 4000)
   const context = String(body.context || "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim().slice(0, 16000)
+  const mode = String(body.mode || "coach").trim()
+  const temperature = Number(body.temperature)
+  const maxTokens = Number(body.maxTokens)
   if (!message) return fail("Message is required.")
 
   const limit = await checkRateLimit({
@@ -21,7 +24,15 @@ export async function POST(request: NextRequest) {
   if (!limit.allowed) return fail("Too many AI requests. Try again later.", 429)
 
   try {
-    const result = await askTutor({ message, context })
+    const result = await askTutor({
+      message,
+      context,
+      mode: ["coach", "rewrite", "quiz", "flashcards", "translate", "route"].includes(mode)
+        ? mode as "coach" | "rewrite" | "quiz" | "flashcards" | "translate" | "route"
+        : "coach",
+      temperature: Number.isFinite(temperature) ? temperature : undefined,
+      maxTokens: Number.isFinite(maxTokens) ? maxTokens : undefined,
+    })
     const saved = await saveAiTurn({
       user,
       chatId: body.chatId ? String(body.chatId) : undefined,
