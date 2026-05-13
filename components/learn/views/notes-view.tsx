@@ -3,6 +3,7 @@
 import type React from "react"
 import { useEffect, useState } from "react"
 import { Clock3, Plus, Redo2, Save, Star, Trash2, Undo2 } from "lucide-react"
+import type { WorkspaceOptions } from "../preferences"
 import type { Note } from "../types"
 import { api, formatDate } from "../api"
 import { EmptyState, Panel } from "../ui"
@@ -15,16 +16,19 @@ export function NotesView({
   selectedNote,
   setSelectedNoteId,
   setNotes,
+  options,
 }: {
   notes: Note[]
   selectedNote?: Note
   setSelectedNoteId: (id: string) => void
   setNotes: React.Dispatch<React.SetStateAction<Note[]>>
+  options: WorkspaceOptions
 }) {
   const [draft, setDraft] = useState<Note | null>(selectedNote || null)
   const [contentHistory, setContentHistory] = useState<HistoryState<string>>(createHistoryState(selectedNote?.content || ""))
   const [versions, setVersions] = useState<any[]>([])
   const [saving, setSaving] = useState(false)
+  const [lastAutosaved, setLastAutosaved] = useState("")
 
   useEffect(() => {
     setDraft(selectedNote || null)
@@ -44,7 +48,7 @@ export function NotesView({
     setSelectedNoteId(response.item.id)
   }
 
-  async function save() {
+  async function save(silent = false) {
     if (!draft) return
     setSaving(true)
     try {
@@ -54,10 +58,19 @@ export function NotesView({
       })
       setNotes((items) => items.map((note) => (note.id === response.item.id ? response.item : note)))
       setDraft(response.item)
+      if (silent) setLastAutosaved(new Date().toLocaleTimeString())
     } finally {
       setSaving(false)
     }
   }
+
+  useEffect(() => {
+    if (!options.notesAutosave || !draft?.id) return
+    const timeout = window.setTimeout(() => {
+      save(true).catch(() => undefined)
+    }, 1800)
+    return () => window.clearTimeout(timeout)
+  }, [options.notesAutosave, draft?.id, draft?.title, contentHistory.present])
 
   async function remove() {
     if (!draft) return
@@ -106,7 +119,7 @@ export function NotesView({
                 onChange={(event) => setDraft({ ...draft, title: event.target.value })}
                 className="min-w-0 flex-1 bg-transparent text-2xl font-semibold text-foreground outline-none sm:text-3xl"
               />
-              <button onClick={save} className="flex h-10 items-center gap-2 rounded-md bg-success px-4 text-sm font-semibold text-success-foreground">
+              <button onClick={() => save()} className="flex h-10 items-center gap-2 rounded-md bg-success px-4 text-sm font-semibold text-success-foreground">
                 <Save className="h-4 w-4" />
                 {saving ? "Saving" : "Save"}
               </button>
@@ -133,9 +146,10 @@ export function NotesView({
             <textarea
               value={contentHistory.present}
               onChange={(event) => setContentHistory(pushHistory(contentHistory, event.target.value))}
-              className="min-h-[60vh] w-full resize-none rounded-md border border-input bg-background p-4 text-base leading-8 text-foreground outline-none focus:border-ring"
+              className={`${options.noteEditorSize === "large" ? "min-h-[72vh] text-lg" : "min-h-[60vh] text-base"} w-full resize-none rounded-md border border-input bg-background p-4 leading-8 text-foreground outline-none focus:border-ring`}
               placeholder="Write notes, formulas, reflections, and AI-generated drafts here..."
             />
+            {options.notesAutosave ? <p className="mt-2 text-xs text-muted-foreground">Autosave is on{lastAutosaved ? ` - last saved ${lastAutosaved}` : ""}.</p> : null}
             <div className="mt-4 rounded-lg border border-border bg-muted/40 p-3">
               <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Clock3 className="h-4 w-4" /> History
