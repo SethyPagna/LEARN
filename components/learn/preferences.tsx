@@ -80,11 +80,13 @@ function getStoredValue(key: string) {
 
 export function useWorkspacePreferences() {
   const { resolvedTheme, setTheme, theme } = useTheme()
+  const [mounted, setMounted] = useState(false)
   const [locale, setLocaleState] = useState<SupportedLocale>("en")
   const [density, setDensityState] = useState<Density>("compact")
   const [options, setOptionsState] = useState<WorkspaceOptions>(defaultWorkspaceOptions)
 
   useEffect(() => {
+    setMounted(true)
     const storedLocale = getStoredValue(LANGUAGE_KEY)
     if (storedLocale) setLocaleState(storedLocale as SupportedLocale)
     const storedDensity = getStoredValue(DENSITY_KEY)
@@ -134,7 +136,7 @@ export function useWorkspacePreferences() {
     density,
     locale,
     options,
-    resolvedTheme,
+    resolvedTheme: mounted ? resolvedTheme : undefined,
     setDensity,
     setLocale,
     setOptions,
