@@ -58,7 +58,7 @@ export function LearnWorkspaceView({
     <WorkspaceFrame
       eyebrow="Learn workspace"
       title="One place for route, discovery, graph, review, calendar, and progress."
-      body="This replaces the duplicate Vault-style dashboard with a learner workflow: choose what to study, capture the idea, review it later, and track what is improving."
+      body="This replaces the old standalone overview with a learner workflow: choose what to study, capture the idea, review it later, and track what is improving."
       tabs={learnTabs}
       activeTab={tab}
       setActiveTab={(value) => setTab(value as LearnTab)}
