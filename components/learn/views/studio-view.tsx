@@ -68,8 +68,12 @@ function parseJsonArray<T>(value: unknown, fallback: T): T {
   return fallback
 }
 
+function ensureCells(value: unknown) {
+  return Array.isArray(value) && value.every((row) => Array.isArray(row)) ? value as string[][] : starterCells
+}
+
 function cellsFromSheet(sheet?: WorkspaceSheet) {
-  return parseJsonArray<string[][]>(sheet?.cells, starterCells)
+  return ensureCells(parseJsonArray<unknown>(sheet?.cells, starterCells))
 }
 
 function slidesFromDeck(deck?: WorkspaceDeck) {
@@ -216,7 +220,7 @@ export function StudioView({
   function currentPayload(format: "download" | "export" = "download") {
     if (kind === "notes") return noteHistory.present
     if (kind === "docs") return format === "export" ? docHistory.present.replace(/^# /gm, "") : docHistory.present
-    if (kind === "sheets") return exportSheetToCsv({ cells })
+    if (kind === "sheets") return exportSheetToCsv({ cells: ensureCells(cells) })
     return format === "export"
       ? JSON.stringify({ title: deckTitle, slides }, null, 2)
       : slides.map((slide, index) => `Slide ${index + 1}: ${slide.title}\n${slide.body}`).join("\n\n")
@@ -520,6 +524,7 @@ function StudioCanvas({
   }
 
   if (kind === "sheets") {
+    const visibleCells = ensureCells(cells)
     return (
       <div>
         <textarea
@@ -532,13 +537,13 @@ function StudioCanvas({
           className="mb-3 h-20 w-full rounded-md border border-input bg-background p-3 text-sm outline-none focus:border-ring"
         />
         <div className="mb-3 flex flex-wrap gap-2">
-          <button onClick={() => setCells([...cells, Array.from({ length: cells[0]?.length || 4 }, () => "")])} className="rounded-md border border-border bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground">Add row</button>
-          <button onClick={() => setCells(cells.map((row) => [...row, ""]))} className="rounded-md border border-border bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground">Add column</button>
+          <button onClick={() => setCells([...visibleCells, Array.from({ length: visibleCells[0]?.length || 4 }, () => "")])} className="rounded-md border border-border bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground">Add row</button>
+          <button onClick={() => setCells(visibleCells.map((row) => [...row, ""]))} className="rounded-md border border-border bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground">Add column</button>
         </div>
         <div className="overflow-auto rounded-md border border-border">
           <table className="min-w-full border-collapse text-sm">
             <tbody>
-              {cells.map((row, rowIndex) => (
+              {visibleCells.map((row, rowIndex) => (
                 <tr key={rowIndex}>
                   {row.map((cell, cellIndex) => (
                     <td key={`${rowIndex}-${cellIndex}`} className="border border-border p-0">
