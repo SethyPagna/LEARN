@@ -42,7 +42,7 @@ export function LoginSurface() {
           </div>
 
           <div className="max-w-full py-8 lg:max-w-2xl lg:py-16">
-            <h1 className="max-w-full break-words text-4xl font-semibold leading-[1.05] tracking-normal sm:text-5xl lg:max-w-xl lg:text-6xl">
+            <h1 className="max-w-full break-words text-3xl font-semibold leading-[1.08] tracking-normal sm:text-5xl lg:max-w-xl lg:text-6xl">
               Notes, quizzes, files, and AI tutoring in one focused workspace.
             </h1>
             <p className="mt-5 max-w-full break-words text-base leading-7 text-[#625a51] sm:text-lg sm:leading-8 lg:max-w-lg">
