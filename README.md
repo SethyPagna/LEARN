@@ -1,6 +1,6 @@
 # LEARN
 
-LEARN is a Cloudflare-first study workspace with notes, quizzes, AI tutor workflows, progress tracking, multilingual vocabulary, file capture, automation logs, and first-party login.
+LEARN is a Cloudflare-first study workspace with notes, native docs, sheets, slides, quizzes, study games, AI tutor workflows, progress tracking, multilingual vocabulary, file capture, calendar planning, group chat, automation logs, and first-party login.
 
 The deployable app name is `learn`. Each sibling app should use separate Cloudflare resources; this repo only creates or modifies `learn-*` resources.
 
@@ -68,6 +68,8 @@ Cloudflare Workers:
 run\deploy-cloudflare.bat
 ```
 
+The Worker name is `learn`, so the default Workers URL is `https://learn.<account-workers-subdomain>.workers.dev`. Cloudflare's workers.dev subdomain is account-level; changing it from `learn-learning-app` to `learn`, `learning`, or `learn-learning` changes workers.dev URLs for other Workers in the same account too. Use a custom domain for a LEARN-only hostname change.
+
 Vercel project `learn`:
 
 ```powershell
@@ -81,6 +83,10 @@ docker compose up --build
 ```
 
 Docker uses Cloudflare D1/R2 through API credentials. It does not run local database or object storage replacement services.
+
+## Security Posture
+
+LEARN uses hashed passwords, hashed session tokens, same-origin mutation checks, durable D1-backed rate-limit buckets when D1 is configured, strict security headers, executable upload blocking, size/type validation, authenticated R2 downloads, and audit logs. No application code can guarantee foolproof protection against malware or DDoS by itself; production should also enable Cloudflare WAF, bot protection or Turnstile where needed, account-level rate limiting, and token rotation for any exposed credentials.
 
 ## GitHub Secrets
 
@@ -100,10 +106,13 @@ The included workflows expect these repository or environment secrets:
 
 - `/api/auth/*` for login, logout, and session.
 - `/api/notes/*` for note pages.
+- `/api/notes/[id]/versions` for note history.
 - `/api/quizzes/*` for quiz banks and attempts.
 - `/api/ai/chat` for tutor messages.
+- `/api/ai/providers` for admin-managed provider configs.
 - `/api/files` for R2-backed uploads and file listing.
 - `/api/files/[id]/download` for authenticated R2 downloads.
+- `/api/profile`, `/api/preferences`, `/api/audit`, `/api/calendar`, `/api/docs`, `/api/sheets`, `/api/slides`, `/api/workspace/members`, `/api/invites`, `/api/groups`, `/api/chat`, and `/api/games` for the mature workspace surfaces.
 - `/api/import` for turning pasted learning data into a designed note.
 - `/api/automation` and `/api/automation/run` for prompt and job automation.
 - `/api/integrations/health` for admin Cloudflare/D1/R2/AI checks.
@@ -116,4 +125,4 @@ corepack pnpm lint
 corepack pnpm build
 ```
 
-The test suite covers auth helpers, learning personalization, AI provider resolution, Cloudflare D1 API configuration, and R2 object key isolation.
+The test suite covers auth helpers, learning personalization, AI provider resolution and encrypted provider primitives, Cloudflare D1 API configuration, R2 object key isolation, upload validation, editor history, CSV sheet import/export, and localization fallback.
