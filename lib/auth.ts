@@ -1,7 +1,7 @@
 import nodeCrypto from "node:crypto"
 
 const PASSWORD_ALGORITHM = "pbkdf2_sha256"
-const PASSWORD_ITERATIONS = 210_000
+const PASSWORD_ITERATIONS = 100_000
 const PASSWORD_KEY_LENGTH = 64
 const SESSION_TOKEN_BYTES = 32
 
