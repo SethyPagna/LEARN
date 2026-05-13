@@ -2,7 +2,6 @@
 
 import type React from "react"
 import {
-  BarChart3,
   BookOpen,
   Bot,
   ChevronDown,
@@ -17,12 +16,10 @@ import {
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
-  Presentation,
   Search,
   Settings,
   Shield,
   Sun,
-  Table2,
   MessagesSquare,
   X,
 } from "lucide-react"
