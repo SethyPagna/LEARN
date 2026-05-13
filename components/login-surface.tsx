@@ -29,7 +29,7 @@ export function LoginSurface() {
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#edf1f5] text-[#17202a]">
-      <div className="grid min-h-screen max-w-full lg:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid min-h-screen max-w-full grid-cols-[minmax(0,1fr)] lg:grid-cols-[1.1fr_0.9fr]">
         <section className="order-2 flex min-w-0 flex-col justify-between px-6 py-8 sm:px-10 lg:order-1 lg:px-14">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#171717] text-white">
