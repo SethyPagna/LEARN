@@ -4,6 +4,7 @@ export type View =
   | "feed"
   | "graph"
   | "reviews"
+  | "studio"
   | "notes"
   | "docs"
   | "sheets"
@@ -105,6 +106,19 @@ export interface WorkspaceDeck {
   title: string
   slides: { title: string; body: string; accent?: string }[]
   updated_at?: string
+}
+
+export type StudioKind = "notes" | "docs" | "sheets" | "slides"
+export type StudioAction = "new" | "save" | "undo" | "redo" | "copy" | "duplicate" | "archive" | "download" | "export"
+export type StudioExportFormat = "markdown" | "text" | "csv" | "json" | "outline"
+
+export interface StudioItem {
+  id: string
+  kind: StudioKind
+  title: string
+  updated_at?: string
+  favorite?: boolean
+  summary?: string
 }
 
 export interface WorkspaceState {
