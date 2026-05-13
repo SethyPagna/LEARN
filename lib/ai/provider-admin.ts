@@ -1,5 +1,5 @@
 import crypto from "node:crypto"
-import { getProviderMetadata, type AiProviderKey } from "./providers"
+import { getProviderMetadata, type AiProviderKey, type AiProviderPreset } from "./providers"
 
 const IV_BYTES = 12
 const KEY_BYTES = 32
@@ -42,6 +42,35 @@ export interface NormalizedProviderConfigInput {
   maxCompletionTokens: number
   timeoutMs: number
   cooldownSeconds: number
+}
+
+export interface SerializedProviderConfig {
+  id: string
+  name: string
+  provider: string
+  provider_type: string
+  enabled: boolean
+  priority: number
+  has_key: boolean
+  key_masked: string
+  last_status: string
+  last_error: string
+}
+
+export interface ProviderAdminSummary {
+  totalCount: number
+  enabledCount: number
+  readyCount: number
+  hasDegradedProviders: boolean
+  routingOrder: Array<{
+    id: string
+    name: string
+    provider: string
+    providerType: string
+    priority: number
+    status: string
+    secretLabel: "Stored" | "Missing"
+  }>
 }
 
 const safeProviderDefaults: Record<AiProviderKey, Pick<NormalizedProviderConfigInput,
@@ -138,5 +167,50 @@ export function normalizeProviderConfigInput(input: ProviderConfigInput): Normal
     maxCompletionTokens: clamp(input.maxCompletionTokens, defaults.maxCompletionTokens, 128, 8192),
     timeoutMs: clamp(input.timeoutMs, defaults.timeoutMs, 3000, 60_000),
     cooldownSeconds: clamp(input.cooldownSeconds, defaults.cooldownSeconds, 5, 300),
+  }
+}
+
+export function createProviderConfigDraftFromPreset(
+  preset: AiProviderPreset,
+  apiKey = "",
+): ProviderConfigInput {
+  return {
+    name: preset.label,
+    provider: preset.provider,
+    providerType: preset.type,
+    apiKey,
+    defaultModel: preset.model,
+    supportedModels: [preset.model],
+    endpointOverride: preset.endpoint,
+    notes: preset.notes,
+    enabled: true,
+    priority: preset.priority,
+    requestsPerMinute: preset.requestsPerMinute,
+    timeoutMs: preset.timeoutMs,
+    cooldownSeconds: preset.cooldownSeconds,
+  }
+}
+
+export function buildProviderAdminSummary(providers: SerializedProviderConfig[]): ProviderAdminSummary {
+  const enabledProviders = providers.filter((provider) => provider.enabled)
+  const readyProviders = enabledProviders.filter((provider) => provider.has_key && provider.last_status !== "error")
+  const routingOrder = [...enabledProviders]
+    .sort((left, right) => left.priority - right.priority || left.name.localeCompare(right.name))
+    .map((provider) => ({
+      id: provider.id,
+      name: provider.name,
+      provider: provider.provider,
+      providerType: provider.provider_type,
+      priority: provider.priority,
+      status: provider.last_status || "untested",
+      secretLabel: provider.has_key ? "Stored" as const : "Missing" as const,
+    }))
+
+  return {
+    totalCount: providers.length,
+    enabledCount: enabledProviders.length,
+    readyCount: readyProviders.length,
+    hasDegradedProviders: enabledProviders.some((provider) => !provider.has_key || provider.last_status === "error"),
+    routingOrder,
   }
 }

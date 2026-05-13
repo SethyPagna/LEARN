@@ -1,6 +1,13 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { decryptProviderSecret, encryptProviderSecret, maskProviderSecret, normalizeProviderConfigInput } from "../lib/ai/provider-admin"
+import {
+  buildProviderAdminSummary,
+  createProviderConfigDraftFromPreset,
+  decryptProviderSecret,
+  encryptProviderSecret,
+  maskProviderSecret,
+  normalizeProviderConfigInput,
+} from "../lib/ai/provider-admin"
 import { listProviderPresets, getProviderMetadata, resolveConfiguredProvider } from "../lib/ai/providers"
 
 test("resolveConfiguredProvider selects the requested provider when a key exists", () => {
@@ -58,4 +65,54 @@ test("provider preset catalog includes chat and embedding choices", () => {
 
   assert.ok(presets.some((preset) => preset.id === "groq-research" && preset.type === "chat"))
   assert.ok(presets.some((preset) => preset.id === "cohere-embed" && preset.type === "embed"))
+})
+
+test("provider preset drafts are ready for encrypted admin storage", () => {
+  const preset = listProviderPresets().find((item) => item.id === "groq-research")
+  assert.ok(preset)
+
+  const draft = createProviderConfigDraftFromPreset(preset, "stored-api-key")
+
+  assert.equal(draft.name, "Groq Research")
+  assert.equal(draft.provider, "groq")
+  assert.equal(draft.providerType, "chat")
+  assert.equal(draft.apiKey, "stored-api-key")
+  assert.equal(draft.priority, 10)
+  assert.equal(draft.requestsPerMinute, 18)
+})
+
+test("provider admin summary masks secrets and flags degraded routing", () => {
+  const summary = buildProviderAdminSummary([
+    {
+      id: "provider_1",
+      name: "Primary Groq",
+      provider: "groq",
+      enabled: true,
+      priority: 10,
+      has_key: true,
+      key_masked: "stored",
+      last_status: "ok",
+      last_error: "",
+      provider_type: "chat",
+    },
+    {
+      id: "provider_2",
+      name: "Fallback Mistral",
+      provider: "mistral",
+      enabled: true,
+      priority: 30,
+      has_key: false,
+      key_masked: "",
+      last_status: "error",
+      last_error: "bad raw secret should not leak",
+      provider_type: "chat",
+    },
+  ])
+
+  assert.equal(summary.enabledCount, 2)
+  assert.equal(summary.readyCount, 1)
+  assert.equal(summary.hasDegradedProviders, true)
+  assert.deepEqual(summary.routingOrder.map((item) => item.name), ["Primary Groq", "Fallback Mistral"])
+  assert.equal(summary.routingOrder[0].secretLabel, "Stored")
+  assert.equal(summary.routingOrder[1].secretLabel, "Missing")
 })
