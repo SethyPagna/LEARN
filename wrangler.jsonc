@@ -35,6 +35,8 @@
     "APP_ID": "learn",
     "APP_BASE_URL": "https://learn.example.com",
     "AI_PROVIDER_DEFAULT": "cloudflare",
+    "CLOUDFLARE_ACCOUNT_ID": "d105a82bc26b6913575355352c2d1bb1",
+    "CLOUDFLARE_D1_DATABASE_ID": "3eeb04af-c283-48c0-9469-82b64392fa79",
     "CLOUDFLARE_D1_DATABASE_NAME": "learn-db",
     "CLOUDFLARE_R2_BUCKET": "learn-files",
     "CLOUDFLARE_NEXT_CACHE_BUCKET": "learn-next-cache",
