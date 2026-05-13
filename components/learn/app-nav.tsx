@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Files,
   FileText,
+  Gamepad2,
   Home,
   Languages,
   LogOut,
@@ -15,10 +16,13 @@ import {
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
+  Presentation,
   Search,
   Settings,
   Shield,
   Sun,
+  Table2,
+  MessagesSquare,
   X,
 } from "lucide-react"
 import { supportedLocales, type baseVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
@@ -30,9 +34,14 @@ type Density = "compact" | "comfortable"
 const navItems: { view: View; labelKey: keyof Text; icon: React.ComponentType<{ className?: string }> }[] = [
   { view: "dashboard", labelKey: "dashboard", icon: Home },
   { view: "notes", labelKey: "notes", icon: FileText },
+  { view: "docs", labelKey: "docs", icon: FileText },
+  { view: "sheets", labelKey: "sheets", icon: Table2 },
+  { view: "slides", labelKey: "slides", icon: Presentation },
   { view: "quizzes", labelKey: "quizzes", icon: BookOpen },
+  { view: "games", labelKey: "games", icon: Gamepad2 },
   { view: "ai", labelKey: "aiTutor", icon: Bot },
   { view: "files", labelKey: "files", icon: Files },
+  { view: "chat", labelKey: "chat", icon: MessagesSquare },
   { view: "progress", labelKey: "progress", icon: BarChart3 },
   { view: "calendar", labelKey: "calendar", icon: CalendarDays },
   { view: "settings", labelKey: "settings", icon: Settings },
@@ -40,9 +49,8 @@ const navItems: { view: View; labelKey: keyof Text; icon: React.ComponentType<{ 
 ]
 
 export function titleForView(view: View, text: Text) {
-  return navItems.find((item) => item.view === view)?.labelKey
-    ? text[navItems.find((item) => item.view === view)!.labelKey]
-    : text.dashboard
+  const item = navItems.find((entry) => entry.view === view)
+  return item ? text[item.labelKey] : text.dashboard
 }
 
 export function Sidebar({
@@ -65,7 +73,7 @@ export function Sidebar({
   return (
     <aside className="hidden border-r border-border bg-sidebar px-3 py-4 text-sidebar-foreground lg:block">
       <Brand text={text} />
-      <div className="mb-3 flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3">
+      <div className="mb-3 flex h-9 items-center gap-2 rounded-md border border-sidebar-border bg-background px-3">
         <Search className="h-4 w-4 text-muted-foreground" />
         <input
           value={query}
@@ -75,8 +83,8 @@ export function Sidebar({
         />
       </div>
       <Navigation density={density} text={text} view={view} setView={setView} />
-      <div className="mt-5 rounded-lg border border-border bg-card p-3 text-card-foreground">
-        <p className="text-xs font-semibold uppercase text-muted-foreground">Today</p>
+      <div className="mt-5 rounded-lg border border-sidebar-border bg-sidebar-accent p-3 text-sidebar-accent-foreground">
+        <p className="text-xs font-semibold uppercase text-muted-foreground">{text.today}</p>
         <p className="mt-2 text-2xl font-semibold">{goalCompletion}%</p>
         <p className="text-xs text-muted-foreground">{text.goalCompletion}</p>
       </div>
@@ -118,7 +126,7 @@ export function Topbar({
       <div className="flex min-w-0 items-center gap-3">
         <button
           onClick={() => setMenuOpen(!menuOpen)}
-          className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-card-foreground lg:hidden"
+          className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground lg:hidden"
           aria-label="Toggle menu"
         >
           <MenuIcon className="h-4 w-4" />
@@ -131,7 +139,7 @@ export function Topbar({
       <div className="flex items-center gap-1.5">
         <button
           onClick={() => setDensity(density === "compact" ? "comfortable" : "compact")}
-          className="hidden h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-card-foreground sm:flex"
+          className="hidden h-9 w-9 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground sm:flex"
           aria-label="Toggle density"
           title={density === "compact" ? "Comfortable spacing" : "Compact spacing"}
         >
@@ -139,18 +147,18 @@ export function Topbar({
         </button>
         <button
           onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-          className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-card-foreground"
+          className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
           aria-label="Toggle theme"
           title={resolvedTheme === "dark" ? "Light mode" : "Dark mode"}
         >
           <ThemeIcon className="h-4 w-4" />
         </button>
-        <label className="flex h-9 items-center gap-2 rounded-md border border-border bg-card px-2 text-card-foreground">
+        <label className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-2 text-secondary-foreground">
           <Languages className="h-4 w-4 text-muted-foreground" />
           <select
             value={locale}
             onChange={(event) => setLocale(event.target.value as SupportedLocale)}
-            className="max-w-20 bg-transparent text-xs font-medium outline-none sm:max-w-28"
+            className="max-w-20 bg-secondary text-xs font-medium text-secondary-foreground outline-none sm:max-w-28"
             aria-label="Language"
           >
             {supportedLocales.map((item) => (
@@ -164,7 +172,7 @@ export function Topbar({
         </div>
         <button
           onClick={logout}
-          className="flex h-9 items-center gap-2 rounded-md border border-border bg-card px-2 text-sm font-medium text-card-foreground sm:px-3"
+          className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-2 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground sm:px-3"
         >
           <LogOut className="h-4 w-4" />
           <span className="hidden sm:inline">{text.signOut}</span>
@@ -203,7 +211,7 @@ function Brand({ text }: { text: Text }) {
       </div>
       <div>
         <p className="font-semibold">{text.appName}</p>
-        <p className="text-xs text-muted-foreground">Study workspace</p>
+        <p className="text-xs text-muted-foreground">{text.workspace}</p>
       </div>
     </div>
   )
@@ -232,7 +240,7 @@ function Navigation({
             onClick={() => setView(item.view)}
             className={`flex ${rowHeight} w-full items-center gap-3 rounded-md px-3 text-sm font-medium transition ${
               active
-                ? "bg-primary text-primary-foreground"
+                ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             }`}
           >
