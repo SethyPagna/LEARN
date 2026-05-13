@@ -15,7 +15,13 @@ function isRealtimeKind(value: string): value is RealtimeKind {
   return ["rooms", "battles", "presence"].includes(value)
 }
 
-export async function GET(request: NextRequest, context: { params: Promise<{ kind: string; id: string }> }) {
+function serviceRequest(request: NextRequest, kind: RealtimeKind, id: string) {
+  const url = new URL(request.url)
+  url.pathname = `/${kind}/${encodeURIComponent(id)}`
+  return new Request(url, request)
+}
+
+async function forwardRealtime(request: NextRequest, context: { params: Promise<{ kind: string; id: string }> }) {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
 
@@ -24,9 +30,21 @@ export async function GET(request: NextRequest, context: { params: Promise<{ kin
   if (!id.trim()) return fail("Realtime channel id is required.")
 
   const env = await getCloudflareBindings()
+  if (env?.LEARN_REALTIME) {
+    return env.LEARN_REALTIME.fetch(serviceRequest(request, kind, id))
+  }
+
   const namespace = namespaceFor(kind, env)
   if (!namespace) return fail("Realtime Durable Object binding is not configured.", 503)
 
   const objectId = namespace.idFromName(`${kind}:${id}`)
   return namespace.get(objectId).fetch(request)
+}
+
+export async function GET(request: NextRequest, context: { params: Promise<{ kind: string; id: string }> }) {
+  return forwardRealtime(request, context)
+}
+
+export async function DELETE(request: NextRequest, context: { params: Promise<{ kind: string; id: string }> }) {
+  return forwardRealtime(request, context)
 }
