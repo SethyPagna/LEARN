@@ -293,7 +293,7 @@ async function seedStarterData(client: DatabaseClient) {
       await client.query(
         `INSERT INTO notes (id, workspace_id, owner_user_id, title, icon, content, favorite, template)
          VALUES ($1, 'workspace_demo', 'user_admin', $2, $3, $4, $5, $6)`,
-        [note.id, note.title, note.icon, note.content, note.id === "note_operating_systems", note.template],
+        [note.id, note.title, note.icon, note.content, note.id === "note_operating_systems" ? 1 : 0, note.template],
       )
       await client.query(
         `INSERT INTO note_blocks (id, note_id, block_type, content, sort_order)
@@ -309,7 +309,7 @@ async function seedStarterData(client: DatabaseClient) {
       await client.query(
         `INSERT INTO learning_goals (id, user_id, title, completed)
          VALUES ($1, 'user_admin', $2, $3)`,
-        [createId("goal"), title, index === 0],
+        [createId("goal"), title, index === 0 ? 1 : 0],
       )
     }
   }
