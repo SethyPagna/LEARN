@@ -1,7 +1,7 @@
 import crypto from "node:crypto"
 import { quizQuestions } from "./quiz-data"
 import { hashPassword } from "./auth"
-import { exec, query, type DatabaseClient } from "./db"
+import { query, type DatabaseClient } from "./db"
 
 let ensurePromise: Promise<void> | null = null
 
@@ -345,7 +345,6 @@ async function seedStarterData(client: DatabaseClient) {
 
 export async function ensureDatabase() {
   ensurePromise ??= (async () => {
-    await exec(D1_SCHEMA_SQL)
     await seedStarterData({ query })
   })()
   return ensurePromise
