@@ -13,6 +13,7 @@ import { ChatView, DocsView, GamesView, SheetsView, SlidesView } from "./views/p
 import { QuizView } from "./views/quiz-view"
 import { AdminView, CalendarView, ProgressView, SettingsView } from "./views/secondary-views"
 import { useWorkspacePreferences } from "./preferences"
+import { FeedView, GraphView, ProfileView, ReviewsView, SocialLearningView, VaultView } from "./views/ecosystem-views"
 
 export function LearnShell({
   initialView = "dashboard",
@@ -119,6 +120,10 @@ export function LearnShell({
           <div className={preferences.density === "compact" ? "p-3 lg:p-4" : "p-4 lg:p-6"}>
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
             {view === "dashboard" ? <DashboardView dashboard={dashboard} notes={notes} quizzes={quizzes} options={preferences.options} setView={chooseView} /> : null}
+            {view === "vault" ? <VaultView setView={chooseView} /> : null}
+            {view === "feed" || view === "discover" ? <FeedView setView={chooseView} /> : null}
+            {view === "graph" ? <GraphView /> : null}
+            {view === "reviews" ? <ReviewsView /> : null}
             {view === "notes" ? <NotesView notes={filteredNotes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} /> : null}
             {view === "docs" ? <DocsView options={preferences.options} /> : null}
             {view === "sheets" ? <SheetsView options={preferences.options} /> : null}
@@ -130,6 +135,10 @@ export function LearnShell({
             {view === "chat" ? <ChatView options={preferences.options} /> : null}
             {view === "progress" ? <ProgressView dashboard={dashboard} quizzes={quizzes} /> : null}
             {view === "calendar" ? <CalendarView options={preferences.options} /> : null}
+            {view === "spaces" ? <SocialLearningView kind="spaces" /> : null}
+            {view === "rooms" ? <SocialLearningView kind="rooms" /> : null}
+            {view === "battles" ? <SocialLearningView kind="battles" /> : null}
+            {view === "profile" ? <ProfileView user={user} /> : null}
             {view === "settings" ? <SettingsView user={user} automationData={automationData} options={preferences.options} setOptions={preferences.setOptions} /> : null}
             {view === "admin" ? <AdminView user={user} adminData={adminData} automationData={automationData} options={preferences.options} /> : null}
           </div>

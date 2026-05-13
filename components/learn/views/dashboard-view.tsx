@@ -1,6 +1,6 @@
 "use client"
 
-import { CalendarDays, FileText, Gamepad2, MessageSquare, Presentation, Sparkles, Table2 } from "lucide-react"
+import { Brain, CalendarDays, Compass, FileText, Gamepad2, GitFork, MessageSquare, Presentation, Sparkles, Table2 } from "lucide-react"
 import type React from "react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Note, Quiz, View } from "../types"
@@ -22,6 +22,9 @@ export function DashboardView({
   const focus = dashboard?.snapshot?.recommendedFocus?.[0] || "React"
   const weakTopics = dashboard?.snapshot?.weakTopics || []
   const routeActions: { label: string; view: View; icon: React.ComponentType<{ className?: string }> }[] = [
+    { label: "Open Vault", view: "vault", icon: Brain },
+    { label: "Explore Feed", view: "feed", icon: Compass },
+    { label: "View graph", view: "graph", icon: GitFork },
     { label: "Write doc", view: "docs", icon: FileText },
     { label: "Track sheet", view: "sheets", icon: Table2 },
     { label: "Build deck", view: "slides", icon: Presentation },

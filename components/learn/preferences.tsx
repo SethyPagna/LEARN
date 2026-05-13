@@ -28,6 +28,13 @@ export type WorkspaceOptions = {
   collaborationPresence: boolean
   chatCompact: boolean
   adminVerbose: boolean
+  highContrast: boolean
+  reducedMotion: boolean
+  dyslexiaFriendly: boolean
+  privacyDefault: "private" | "connections" | "public"
+  dailyReviewCap: number
+  restDay: "sunday" | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday"
+  feedSerendipity: number
 }
 
 const LANGUAGE_KEY = "learn_locale"
@@ -57,6 +64,13 @@ export const defaultWorkspaceOptions: WorkspaceOptions = {
   collaborationPresence: true,
   chatCompact: false,
   adminVerbose: true,
+  highContrast: false,
+  reducedMotion: false,
+  dyslexiaFriendly: false,
+  privacyDefault: "private",
+  dailyReviewCap: 30,
+  restDay: "sunday",
+  feedSerendipity: 15,
 }
 
 function getStoredValue(key: string) {
@@ -89,6 +103,12 @@ export function useWorkspacePreferences() {
     document.documentElement.lang = locale
     document.documentElement.dir = locale === "ar" ? "rtl" : "ltr"
   }, [locale])
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("learn-high-contrast", options.highContrast)
+    document.documentElement.classList.toggle("learn-reduced-motion", options.reducedMotion)
+    document.documentElement.classList.toggle("learn-dyslexia", options.dyslexiaFriendly)
+  }, [options.highContrast, options.reducedMotion, options.dyslexiaFriendly])
 
   function setLocale(nextLocale: SupportedLocale) {
     setLocaleState(nextLocale)

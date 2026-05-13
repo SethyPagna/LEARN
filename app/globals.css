@@ -42,9 +42,9 @@
 }
 
 .dark {
-  --background: oklch(0.13 0.018 255);
+  --background: oklch(0.075 0.014 255);
   --foreground: oklch(0.96 0.008 255);
-  --card: oklch(0.18 0.02 255);
+  --card: oklch(0.135 0.018 255);
   --card-foreground: oklch(0.96 0.008 255);
   --popover: oklch(0.18 0.02 255);
   --popover-foreground: oklch(0.96 0.008 255);
@@ -66,7 +66,7 @@
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.16 0.02 255);
+  --sidebar: oklch(0.105 0.018 255);
   --sidebar-foreground: oklch(0.94 0.01 255);
   --sidebar-primary: oklch(0.69 0.14 240);
   --sidebar-primary-foreground: oklch(0.1 0.018 255);
@@ -74,6 +74,29 @@
   --sidebar-accent-foreground: oklch(0.96 0.008 255);
   --sidebar-border: oklch(0.3 0.025 255);
   --sidebar-ring: oklch(0.69 0.14 240);
+}
+
+.learn-high-contrast {
+  --foreground: oklch(0.99 0 0);
+  --muted-foreground: oklch(0.88 0.01 255);
+  --border: oklch(0.54 0.03 255);
+  --sidebar-border: oklch(0.54 0.03 255);
+  --ring: oklch(0.82 0.16 155);
+}
+
+.learn-dyslexia body {
+  font-family: Verdana, Atkinson Hyperlegible, Arial, sans-serif;
+  letter-spacing: 0;
+  line-height: 1.65;
+}
+
+.learn-reduced-motion *,
+.learn-reduced-motion *::before,
+.learn-reduced-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.001ms !important;
 }
 
 @theme inline {

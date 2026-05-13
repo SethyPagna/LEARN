@@ -1,5 +1,9 @@
 export type View =
   | "dashboard"
+  | "vault"
+  | "feed"
+  | "graph"
+  | "reviews"
   | "notes"
   | "docs"
   | "sheets"
@@ -11,6 +15,11 @@ export type View =
   | "chat"
   | "progress"
   | "calendar"
+  | "discover"
+  | "spaces"
+  | "rooms"
+  | "battles"
+  | "profile"
   | "settings"
   | "admin"
 
@@ -105,4 +114,108 @@ export interface WorkspaceState {
   dashboard: any
   adminData: any
   automationData: any
+}
+
+export type VaultMode = "vault" | "graph" | "reviews"
+export type FeedMode = "discover" | "following" | "circles"
+
+export interface KnowledgeNode {
+  id: string
+  title: string
+  type: "concept" | "note" | "flashcard" | "lesson" | "resource"
+  mastery: number
+  visibility: "private" | "connections" | "public"
+  summary?: string
+  position?: { x: number; y: number; z: number }
+}
+
+export interface KnowledgeEdge {
+  id: string
+  sourceId: string
+  targetId: string
+  type: "link" | "prerequisite" | "related" | "extends" | "contradicts"
+  strength: number
+}
+
+export interface FsrsState {
+  difficulty: number
+  stability: number
+  retrievability: number
+  dueAt: string
+}
+
+export interface ReviewItem extends FsrsState {
+  id: string
+  title: string
+  sourceType?: "note" | "block" | "flashcard" | "lesson"
+}
+
+export interface MicroLesson {
+  id: string
+  title: string
+  summary: string
+  topic_tags?: string[]
+  topicTags?: string[]
+  durationSeconds?: number
+  duration_seconds?: number
+  question?: string
+  choices?: { id: string; text: string }[]
+  correct_choice_id?: string
+  explanation?: string
+  reason?: "preferred" | "serendipity"
+}
+
+export interface LearningSpace {
+  id: string
+  name: string
+  description: string
+  visibility: "private" | "public" | "connections"
+  topic_tags?: string[]
+  member_count?: number
+}
+
+export interface StudyRoom {
+  id: string
+  name: string
+  mode: "focus" | "discussion" | "stage"
+  pomodoro_minutes: number
+  break_minutes: number
+  status: "open" | "active" | "closed"
+  presence?: unknown[]
+}
+
+export interface StudyBattle {
+  id: string
+  title: string
+  topic: string
+  mode: "solo" | "team"
+  status: "waiting" | "active" | "completed"
+  leaderboard?: unknown[]
+}
+
+export interface Achievement {
+  id: string
+  name: string
+  description: string
+  icon: string
+  xp_reward: number
+  unlocked?: boolean
+}
+
+export interface PublicProfile {
+  id: string
+  username: string
+  name: string
+  bio: string
+  avatar_url: string
+  metrics: Record<string, number>
+  artifacts: KnowledgeNode[]
+}
+
+export interface SocialAction {
+  id: string
+  target_type: string
+  target_id: string
+  action_type: string
+  body?: string
 }
