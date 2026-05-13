@@ -1,0 +1,38 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "learn-realtime",
+  "account_id": "d105a82bc26b6913575355352c2d1bb1",
+  "main": "workers/realtime.js",
+  "compatibility_date": "2026-05-13",
+  "workers_dev": false,
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "STUDY_ROOM_DO",
+        "class_name": "StudyRoomDurableObject"
+      },
+      {
+        "name": "STUDY_BATTLE_DO",
+        "class_name": "StudyBattleDurableObject"
+      },
+      {
+        "name": "PRESENCE_DO",
+        "class_name": "PresenceDurableObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1_personal_social_realtime",
+      "new_sqlite_classes": [
+        "StudyRoomDurableObject",
+        "StudyBattleDurableObject",
+        "PresenceDurableObject"
+      ]
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}
