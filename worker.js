@@ -1,76 +1,53 @@
 import { default as handler } from "./.open-next/worker.js"
-import { DurableObject } from "cloudflare:workers"
 
-class RealtimeLearningObject extends DurableObject {
-  constructor(ctx, env) {
-    super(ctx, env)
-    this.ctx = ctx
-    this.env = env
-  }
+const REALTIME_ROUTE = /^\/api\/realtime\/(rooms|battles|presence)\/([^/]+)$/
+const WEBSOCKET_HEADERS = [
+  "connection",
+  "sec-websocket-accept",
+  "sec-websocket-extensions",
+  "sec-websocket-key",
+  "sec-websocket-protocol",
+  "sec-websocket-version",
+  "upgrade",
+]
 
-  async fetch(request) {
-    if (request.headers.get("upgrade") !== "websocket") {
-      return Response.json(await this.snapshot())
-    }
-
-    const pair = new WebSocketPair()
-    const [client, server] = Object.values(pair)
-    this.ctx.acceptWebSocket(server)
-    server.serializeAttachment({
-      connectedAt: new Date().toISOString(),
-      path: new URL(request.url).pathname,
-    })
-    this.broadcast({ type: "presence", count: this.ctx.getWebSockets().length })
-    return new Response(null, { status: 101, webSocket: client })
-  }
-
-  async webSocketMessage(socket, message) {
-    const payload = this.parseMessage(message)
-    if (!payload) {
-      socket.send(JSON.stringify({ type: "error", message: "Invalid message." }))
-      return
-    }
-
-    await this.ctx.storage.put(`event:${Date.now()}:${crypto.randomUUID()}`, payload)
-    this.broadcast({ ...payload, receivedAt: new Date().toISOString() })
-  }
-
-  async webSocketClose(socket, code, reason) {
-    socket.close(code, reason)
-    this.broadcast({ type: "presence", count: this.ctx.getWebSockets().length })
-  }
-
-  async snapshot() {
-    const events = await this.ctx.storage.list({ prefix: "event:", limit: 25, reverse: true })
-    return {
-      connections: this.ctx.getWebSockets().length,
-      events: Array.from(events.values()),
-    }
-  }
-
-  broadcast(payload) {
-    const message = JSON.stringify(payload)
-    for (const socket of this.ctx.getWebSockets()) {
-      socket.send(message)
-    }
-  }
-
-  parseMessage(message) {
-    if (typeof message !== "string") return null
-    try {
-      const parsed = JSON.parse(message)
-      if (!parsed || typeof parsed !== "object" || typeof parsed.type !== "string") return null
-      return parsed
-    } catch {
-      return null
-    }
-  }
+function realtimeServiceRequest(request, kind, id) {
+  const url = new URL(request.url)
+  url.pathname = `/${kind}/${encodeURIComponent(id)}`
+  return new Request(url, request)
 }
 
-export class StudyRoomDurableObject extends RealtimeLearningObject {}
-export class StudyBattleDurableObject extends RealtimeLearningObject {}
-export class PresenceDurableObject extends RealtimeLearningObject {}
+function sessionRequest(request) {
+  const url = new URL(request.url)
+  url.pathname = "/api/auth/session"
+  url.search = ""
+
+  const headers = new Headers(request.headers)
+  for (const header of WEBSOCKET_HEADERS) headers.delete(header)
+
+  return new Request(url, {
+    headers,
+    method: "GET",
+  })
+}
+
+async function isAuthenticated(request, env, ctx) {
+  const response = await handler.fetch(sessionRequest(request), env, ctx)
+  return response.ok
+}
 
 export default {
-  fetch: handler.fetch,
+  async fetch(request, env, ctx) {
+    if (request.headers.get("upgrade") === "websocket") {
+      const match = new URL(request.url).pathname.match(REALTIME_ROUTE)
+      if (!match) return new Response("Unsupported websocket route.", { status: 404 })
+      if (!env.LEARN_REALTIME) return new Response("Realtime service is not configured.", { status: 503 })
+      if (!(await isAuthenticated(request, env, ctx))) return new Response("Please sign in to continue.", { status: 401 })
+
+      const [, kind, id] = match
+      return env.LEARN_REALTIME.fetch(realtimeServiceRequest(request, kind, id))
+    }
+
+    return handler.fetch(request, env, ctx)
+  },
 }
