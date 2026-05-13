@@ -20,4 +20,6 @@ const nextConfig = {
 
 export default nextConfig
 
-initOpenNextCloudflareForDev()
+if (!process.env.VERCEL) {
+  initOpenNextCloudflareForDev()
+}
