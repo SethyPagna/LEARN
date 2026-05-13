@@ -28,6 +28,7 @@ export const baseVocabulary = {
   feed: "Feed",
   graph: "Graph",
   reviews: "Reviews",
+  studio: "Studio",
   discover: "Discover",
   spaces: "Spaces",
   rooms: "Rooms",
