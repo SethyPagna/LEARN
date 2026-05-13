@@ -34,11 +34,16 @@ export type DurableObjectNamespaceLike = {
   get(id: unknown): { fetch(request: Request): Promise<Response> }
 }
 
+export type WorkerServiceBindingLike = {
+  fetch(request: Request): Promise<Response>
+}
+
 export type CloudflareBindings = {
   DB?: D1DatabaseLike
   LEARN_DB?: D1DatabaseLike
   LEARN_FILES?: R2BucketLike
   NEXT_INC_CACHE_R2_BUCKET?: R2BucketLike
+  LEARN_REALTIME?: WorkerServiceBindingLike
   STUDY_ROOM_DO?: DurableObjectNamespaceLike
   STUDY_BATTLE_DO?: DurableObjectNamespaceLike
   PRESENCE_DO?: DurableObjectNamespaceLike
