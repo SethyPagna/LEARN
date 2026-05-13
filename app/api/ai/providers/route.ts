@@ -1,12 +1,17 @@
 import type { NextRequest } from "next/server"
 import { fail, isApiResponse, ok, requireApiUser } from "@/lib/api"
+import { listProviderMetadata, listProviderPresets } from "@/lib/ai/providers"
 import { deleteAiProviderConfig, listAiProviderConfigs, saveAiProviderConfig, testAiProviderConfig } from "@/lib/data"
 
 export async function GET(request: NextRequest) {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
   if (user.role !== "admin") return fail("Admin access required.", 403)
-  return ok({ items: await listAiProviderConfigs() })
+  return ok({
+    items: await listAiProviderConfigs(),
+    catalog: listProviderMetadata(),
+    presets: listProviderPresets(),
+  })
 }
 
 export async function POST(request: NextRequest) {
