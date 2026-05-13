@@ -5,6 +5,7 @@ import {
   Brain,
   CheckCircle2,
   Compass,
+  Edit3,
   Eye,
   GitFork,
   Lock,
@@ -13,9 +14,11 @@ import {
   Play,
   Radio,
   Repeat2,
+  Save,
   ShieldCheck,
   Sparkles,
   Swords,
+  Trash2,
   Users,
 } from "lucide-react"
 import { api } from "../api"
@@ -311,43 +314,277 @@ export function FeedView({ setView }: { setView: (view: View) => void }) {
 export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battles" }) {
   const endpoint = kind === "spaces" ? "/api/learning-spaces" : kind === "rooms" ? "/api/study-rooms" : "/api/study-battles"
   const { data, status, refresh } = useResource<{ items: Array<LearningSpace | StudyRoom | StudyBattle> }>(endpoint)
+  const [selectedId, setSelectedId] = useState("")
+  const [draft, setDraft] = useState(() => createSocialDraft(kind))
+  const [query, setQuery] = useState("")
+  const [message, setMessage] = useState("")
+  const items = data?.items ?? []
+  const selected = items.find((item) => item.id === selectedId)
+  const Icon = kind === "spaces" ? Users : kind === "rooms" ? Radio : Swords
+  const title = kind === "spaces" ? "Learning Spaces" : kind === "rooms" ? "Study Rooms" : "Study Battles"
+  const noun = kind === "spaces" ? "space" : kind === "rooms" ? "room" : "battle"
+  const filteredItems = items.filter((item) => socialSearchText(item).toLowerCase().includes(query.trim().toLowerCase()))
 
-  async function createItem() {
-    const body = kind === "spaces"
-      ? { name: "Personal learning circle", description: "A focused group for shared study routes.", visibility: "private", topicTags: ["study"] }
-      : kind === "rooms"
-        ? { name: "Focus room", mode: "focus", pomodoroMinutes: 25 }
-        : { title: "Quick study battle", topic: "Review", mode: "solo" }
-    await api(endpoint, { method: "POST", body: JSON.stringify(body) })
-    refresh()
+  useEffect(() => {
+    if (!items.length) {
+      setSelectedId("")
+      setDraft(createSocialDraft(kind))
+      return
+    }
+    if (selectedId && items.some((item) => item.id === selectedId)) return
+    const first = items[0]
+    setSelectedId(first.id)
+    setDraft(draftFromSocialItem(kind, first))
+  }, [items, kind, selectedId])
+
+  useEffect(() => {
+    if (!selected) return
+    setDraft(draftFromSocialItem(kind, selected))
+  }, [kind, selected?.id])
+
+  function startNew() {
+    setSelectedId("")
+    setDraft(createSocialDraft(kind))
+    setMessage(`Drafting a new ${noun}.`)
   }
 
-  const Icon = kind === "spaces" ? Users : kind === "rooms" ? Radio : Swords
+  async function saveDraft() {
+    const body = payloadFromSocialDraft(kind, draft)
+    const response = await api<{ item: LearningSpace | StudyRoom | StudyBattle }>(endpoint, {
+      method: draft.id ? "PUT" : "POST",
+      body: JSON.stringify(body),
+    })
+    setSelectedId(response.item.id)
+    setMessage(`${socialTitle(response.item)} saved.`)
+    await refresh()
+  }
+
+  async function toggleDraft() {
+    const nextDraft = nextSocialToggle(kind, draft)
+    setDraft(nextDraft)
+    if (!nextDraft.id) return
+    await api(endpoint, { method: "PUT", body: JSON.stringify(payloadFromSocialDraft(kind, nextDraft)) })
+    setMessage(`${socialTitle(nextDraft)} toggled.`)
+    await refresh()
+  }
+
+  async function deleteDraft() {
+    if (!draft.id) {
+      startNew()
+      return
+    }
+    await api(`${endpoint}?id=${encodeURIComponent(draft.id)}`, { method: "DELETE" })
+    setMessage(`${socialTitle(draft)} deleted.`)
+    setSelectedId("")
+    setDraft(createSocialDraft(kind))
+    await refresh()
+  }
+
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-4 xl:grid-cols-[360px_1fr_320px]">
       <section className="rounded-lg border border-border bg-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-2xl font-semibold text-foreground">{kind === "spaces" ? "Learning Spaces" : kind === "rooms" ? "Study Rooms" : "Study Battles"}</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Opt-in social learning with roles, presence-ready rooms, and shared activity logs.</p>
+            <h2 className="text-2xl font-semibold text-foreground">{title}</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Create, edit, toggle, and delete opt-in social learning records without leaving the section.</p>
           </div>
-          <button onClick={createItem} className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground">
+          <button onClick={startNew} className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground">
             <Icon className="h-4 w-4" />
-            New {kind.slice(0, -1)}
+            New {noun}
           </button>
         </div>
+        <label className="mt-4 flex h-10 items-center rounded-md border border-input bg-background px-3">
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${title.toLowerCase()}`} className="w-full bg-transparent text-sm outline-none" />
+        </label>
+        <div className="mt-4 grid gap-2">
+          {filteredItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => {
+                setSelectedId(item.id)
+                setDraft(draftFromSocialItem(kind, item))
+              }}
+              className={`rounded-md border p-3 text-left ${selectedId === item.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+            >
+              <span className="block truncate text-sm font-semibold">{socialTitle(item)}</span>
+              <span className="mt-1 block truncate text-xs opacity-80">{socialMeta(kind, item)}</span>
+            </button>
+          ))}
+          {!filteredItems.length ? <EmptyState title={`No ${title.toLowerCase()} yet`} body={`Use New ${noun} to create the first record.`} /> : null}
+        </div>
+        {message ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{message}</p> : null}
       </section>
-      <div className="grid gap-3 md:grid-cols-3">
-        {(data?.items ?? []).map((item) => (
-          <Panel key={item.id} className="p-4">
-            <Icon className="h-5 w-5 text-success" />
-            <h3 className="mt-3 font-semibold text-foreground">{"name" in item ? item.name : item.title}</h3>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">{"description" in item ? item.description : "status" in item ? item.status : "Ready"}</p>
-          </Panel>
-        ))}
-      </div>
-      {!data?.items.length ? <StatusMessage message={status} /> : null}
+
+      <Panel className="p-4">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase text-muted-foreground">{draft.id ? "Editing" : "New draft"}</p>
+            <h3 className="mt-1 text-xl font-semibold text-foreground">{draft.name || draft.title || `Untitled ${noun}`}</h3>
+          </div>
+          <span className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">{socialDraftBadge(kind, draft)}</span>
+        </div>
+        <div className="grid gap-3">
+          {kind === "battles" ? (
+            <>
+              <SocialField label="Title" value={draft.title} onChange={(value) => setDraft({ ...draft, title: value })} />
+              <SocialField label="Topic" value={draft.topic} onChange={(value) => setDraft({ ...draft, topic: value })} />
+              <SocialSelect label="Mode" value={draft.mode} options={["solo", "team"]} onChange={(value) => setDraft({ ...draft, mode: value })} />
+              <SocialSelect label="Status" value={draft.status} options={["waiting", "active", "completed"]} onChange={(value) => setDraft({ ...draft, status: value })} />
+            </>
+          ) : kind === "rooms" ? (
+            <>
+              <SocialField label="Room name" value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
+              <SocialSelect label="Mode" value={draft.mode} options={["focus", "discussion", "stage"]} onChange={(value) => setDraft({ ...draft, mode: value })} />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <SocialField label="Pomodoro minutes" value={String(draft.pomodoroMinutes)} onChange={(value) => setDraft({ ...draft, pomodoroMinutes: Number(value) || 25 })} />
+                <SocialField label="Break minutes" value={String(draft.breakMinutes)} onChange={(value) => setDraft({ ...draft, breakMinutes: Number(value) || 5 })} />
+              </div>
+              <SocialSelect label="Status" value={draft.status} options={["open", "active", "closed"]} onChange={(value) => setDraft({ ...draft, status: value })} />
+            </>
+          ) : (
+            <>
+              <SocialField label="Space name" value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
+              <SocialField label="Description" value={draft.description} onChange={(value) => setDraft({ ...draft, description: value })} multiline />
+              <SocialField label="Topic tags" value={draft.topicTags} onChange={(value) => setDraft({ ...draft, topicTags: value })} />
+              <SocialSelect label="Visibility" value={draft.visibility} options={["private", "connections", "public"]} onChange={(value) => setDraft({ ...draft, visibility: value })} />
+            </>
+          )}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <SocialActionButton label="Save" icon={Save} onClick={saveDraft} primary />
+          <SocialActionButton label="Toggle" icon={Play} onClick={toggleDraft} />
+          <SocialActionButton label="Reset" icon={Edit3} onClick={() => setDraft(selected ? draftFromSocialItem(kind, selected) : createSocialDraft(kind))} />
+          <SocialActionButton label="Delete" icon={Trash2} onClick={deleteDraft} danger />
+        </div>
+      </Panel>
+
+      <Panel className="p-4">
+        <h3 className="font-semibold text-foreground">How to use this section</h3>
+        <div className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground">
+          <p><strong className="text-foreground">Add:</strong> create a new {noun} for a topic, room, or challenge.</p>
+          <p><strong className="text-foreground">Edit:</strong> select any record, adjust fields, then save.</p>
+          <p><strong className="text-foreground">Toggle:</strong> cycle visibility or status for quick operation changes.</p>
+          <p><strong className="text-foreground">Delete:</strong> remove test or stale records you no longer need.</p>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Metric label="Records" value={String(items.length)} />
+          <Metric label="State" value={status} />
+        </div>
+      </Panel>
     </div>
+  )
+}
+
+type SocialDraft = {
+  id: string
+  name: string
+  title: string
+  description: string
+  visibility: string
+  topicTags: string
+  mode: string
+  status: string
+  topic: string
+  pomodoroMinutes: number
+  breakMinutes: number
+}
+
+function createSocialDraft(kind: "spaces" | "rooms" | "battles"): SocialDraft {
+  if (kind === "battles") {
+    return { id: "", name: "", title: "Quick study battle", description: "", visibility: "private", topicTags: "review", mode: "solo", status: "waiting", topic: "Review", pomodoroMinutes: 25, breakMinutes: 5 }
+  }
+  if (kind === "rooms") {
+    return { id: "", name: "Focus room", title: "", description: "", visibility: "private", topicTags: "study", mode: "focus", status: "open", topic: "Review", pomodoroMinutes: 25, breakMinutes: 5 }
+  }
+  return { id: "", name: "Personal learning circle", title: "", description: "A focused group for shared study routes.", visibility: "private", topicTags: "study", mode: "focus", status: "open", topic: "Review", pomodoroMinutes: 25, breakMinutes: 5 }
+}
+
+function draftFromSocialItem(kind: "spaces" | "rooms" | "battles", item: LearningSpace | StudyRoom | StudyBattle): SocialDraft {
+  const base = createSocialDraft(kind)
+  if ("title" in item) {
+    return { ...base, id: item.id, title: item.title, topic: item.topic, mode: item.mode, status: item.status }
+  }
+  if ("pomodoro_minutes" in item) {
+    return { ...base, id: item.id, name: item.name, mode: item.mode, status: item.status, pomodoroMinutes: item.pomodoro_minutes, breakMinutes: item.break_minutes }
+  }
+  return { ...base, id: item.id, name: item.name, description: item.description, visibility: item.visibility, topicTags: (item.topic_tags ?? []).join(", ") }
+}
+
+function payloadFromSocialDraft(kind: "spaces" | "rooms" | "battles", draft: SocialDraft) {
+  if (kind === "battles") {
+    return { id: draft.id || undefined, title: draft.title, topic: draft.topic, mode: draft.mode, status: draft.status }
+  }
+  if (kind === "rooms") {
+    return { id: draft.id || undefined, name: draft.name, mode: draft.mode, status: draft.status, pomodoroMinutes: draft.pomodoroMinutes, breakMinutes: draft.breakMinutes }
+  }
+  return { id: draft.id || undefined, name: draft.name, description: draft.description, visibility: draft.visibility, topicTags: draft.topicTags.split(",").map((tag) => tag.trim()).filter(Boolean) }
+}
+
+function nextSocialToggle(kind: "spaces" | "rooms" | "battles", draft: SocialDraft) {
+  if (kind === "spaces") {
+    const order = ["private", "connections", "public"]
+    return { ...draft, visibility: order[(order.indexOf(draft.visibility) + 1) % order.length] }
+  }
+  if (kind === "rooms") {
+    const order = ["open", "active", "closed"]
+    return { ...draft, status: order[(order.indexOf(draft.status) + 1) % order.length] }
+  }
+  const order = ["waiting", "active", "completed"]
+  return { ...draft, status: order[(order.indexOf(draft.status) + 1) % order.length] }
+}
+
+function socialTitle(item: LearningSpace | StudyRoom | StudyBattle | SocialDraft) {
+  if ("title" in item && item.title) return item.title
+  if ("name" in item && item.name) return item.name
+  return "Untitled"
+}
+
+function socialMeta(kind: "spaces" | "rooms" | "battles", item: LearningSpace | StudyRoom | StudyBattle) {
+  if (kind === "spaces" && "visibility" in item) return `${item.visibility} - ${item.member_count ?? 1} members`
+  if (kind === "rooms" && "pomodoro_minutes" in item) return `${item.status} - ${item.mode} - ${item.pomodoro_minutes} min`
+  if ("topic" in item) return `${item.status} - ${item.mode} - ${item.topic}`
+  return "Ready"
+}
+
+function socialSearchText(item: LearningSpace | StudyRoom | StudyBattle) {
+  return `${socialTitle(item)} ${"description" in item ? item.description : ""} ${"topic" in item ? item.topic : ""} ${"status" in item ? item.status : ""} ${"visibility" in item ? item.visibility : ""}`
+}
+
+function socialDraftBadge(kind: "spaces" | "rooms" | "battles", draft: SocialDraft) {
+  if (kind === "spaces") return draft.visibility
+  return draft.status
+}
+
+function SocialField({ label, value, onChange, multiline }: { label: string; value: string; onChange: (value: string) => void; multiline?: boolean }) {
+  return (
+    <label className="block rounded-md bg-muted p-3">
+      <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
+      {multiline ? (
+        <textarea value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 min-h-24 w-full resize-none rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none" />
+      ) : (
+        <input value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none" />
+      )}
+    </label>
+  )
+}
+
+function SocialSelect({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
+  return (
+    <label className="block rounded-md bg-muted p-3">
+      <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none">
+        {options.map((option) => <option key={option} value={option}>{option}</option>)}
+      </select>
+    </label>
+  )
+}
+
+function SocialActionButton({ icon: Icon, label, onClick, primary, danger }: { icon: ComponentType<{ className?: string }>; label: string; onClick: () => void; primary?: boolean; danger?: boolean }) {
+  return (
+    <button onClick={onClick} className={`inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm font-semibold ${primary ? "border-primary bg-primary text-primary-foreground" : danger ? "border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+      <Icon className="h-4 w-4" />
+      {label}
+    </button>
   )
 }
 
