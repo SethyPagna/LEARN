@@ -318,7 +318,7 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
   const [draft, setDraft] = useState(() => createSocialDraft(kind))
   const [query, setQuery] = useState("")
   const [message, setMessage] = useState("")
-  const items = data?.items ?? []
+  const items = useMemo(() => data?.items ?? [], [data?.items])
   const selected = items.find((item) => item.id === selectedId)
   const Icon = kind === "spaces" ? Users : kind === "rooms" ? Radio : Swords
   const title = kind === "spaces" ? "Learning Spaces" : kind === "rooms" ? "Study Rooms" : "Study Battles"
