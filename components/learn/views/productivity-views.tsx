@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import type React from "react"
 import { Download, Gamepad2, MessageSquare, Plus, Redo2, Save, Undo2 } from "lucide-react"
+import type { WorkspaceOptions } from "../preferences"
 import type { Quiz, WorkspaceDeck, WorkspaceDocument, WorkspaceSheet } from "../types"
 import { api } from "../api"
 import { EmptyState, Panel } from "../ui"
@@ -26,7 +27,7 @@ function textFromDocument(document?: WorkspaceDocument) {
   return String(content.text || "")
 }
 
-export function DocsView() {
+export function DocsView({ options }: { options: WorkspaceOptions }) {
   const [items, setItems] = useState<WorkspaceDocument[]>([])
   const [selectedId, setSelectedId] = useState("")
   const selected = items.find((item) => item.id === selectedId) || items[0]
@@ -60,9 +61,14 @@ export function DocsView() {
   }
 
   async function create() {
+    const templates = {
+      study: "# New learning doc\n\n## Summary\n\n## Key examples\n\n## Practice tasks\n",
+      cornell: "# Cornell notes\n\n## Cues\n\n## Notes\n\n## Summary\n",
+      project: "# Learning project\n\n## Goal\n\n## Steps\n\n## Evidence\n\n## Reflection\n",
+    }
     setSelectedId("")
     setTitle("Untitled document")
-    setHistory(createHistoryState("# New learning doc\n\nWrite, paste, or ask AI to shape this into a study page."))
+    setHistory(createHistoryState(templates[options.docsTemplate]))
   }
 
   return (
@@ -103,7 +109,7 @@ export function DocsView() {
   )
 }
 
-export function SheetsView() {
+export function SheetsView({ options }: { options: WorkspaceOptions }) {
   const [items, setItems] = useState<WorkspaceSheet[]>([])
   const [title, setTitle] = useState("Study tracker")
   const [selectedId, setSelectedId] = useState("")
@@ -161,6 +167,15 @@ export function SheetsView() {
                 ))}
               </tr>
             ))}
+            {Array.from({ length: Math.max(0, options.sheetRows - cells.length) }).map((_, offset) => (
+              <tr key={`extra-${offset}`}>
+                {starterCells[0].map((_, cellIndex) => (
+                  <td key={cellIndex} className="border border-border p-0">
+                    <input onFocus={() => setCells([...cells, Array.from({ length: starterCells[0].length }, () => "")])} className="h-10 min-w-36 bg-background px-2 outline-none focus:bg-accent focus:text-accent-foreground" />
+                  </td>
+                ))}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -168,7 +183,7 @@ export function SheetsView() {
   )
 }
 
-export function SlidesView() {
+export function SlidesView({ options }: { options: WorkspaceOptions }) {
   const [title, setTitle] = useState("Learning deck")
   const [items, setItems] = useState<WorkspaceDeck[]>([])
   const [selectedId, setSelectedId] = useState("")
@@ -206,7 +221,7 @@ export function SlidesView() {
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         {slides.map((slide, index) => (
-          <article key={index} className="aspect-video rounded-lg border border-border bg-card p-5 shadow-sm">
+          <article key={index} className={`${options.slidesAspect === "4:3" ? "aspect-[4/3]" : "aspect-video"} rounded-lg border border-border bg-card p-5 shadow-sm`}>
             <input value={slide.accent || ""} onChange={(event) => setSlides(slides.map((item, next) => next === index ? { ...item, accent: event.target.value } : item))} className="mb-2 w-full bg-transparent text-xs font-semibold uppercase text-muted-foreground outline-none" />
             <input value={slide.title} onChange={(event) => setSlides(slides.map((item, next) => next === index ? { ...item, title: event.target.value } : item))} className="w-full bg-transparent text-2xl font-semibold outline-none" />
             <textarea value={slide.body} onChange={(event) => setSlides(slides.map((item, next) => next === index ? { ...item, body: event.target.value } : item))} className="mt-4 h-24 w-full resize-none bg-transparent text-sm leading-6 outline-none" />
@@ -217,8 +232,8 @@ export function SlidesView() {
   )
 }
 
-export function GamesView({ quizzes }: { quizzes: Quiz[] }) {
-  const questions = useMemo(() => quizzes.flatMap((quiz) => quiz.questions || []).slice(0, 12), [quizzes])
+export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: WorkspaceOptions }) {
+  const questions = useMemo(() => quizzes.flatMap((quiz) => quiz.questions || []).slice(0, options.gameQuestionLimit), [quizzes, options.gameQuestionLimit])
   const [index, setIndex] = useState(0)
   const [score, setScore] = useState(0)
   const current = questions[index]
@@ -243,7 +258,7 @@ export function GamesView({ quizzes }: { quizzes: Quiz[] }) {
         <Gamepad2 className="h-5 w-5 text-success" />
         <div>
           <h2 className="text-2xl font-semibold">Flashcard sprint</h2>
-          <p className="text-sm text-muted-foreground">Score {score} / {questions.length}</p>
+          <p className="text-sm text-muted-foreground">{options.gameMode} mode - Score {score} / {questions.length}</p>
         </div>
       </div>
       <div className="rounded-lg bg-primary p-5 text-primary-foreground">
@@ -261,7 +276,7 @@ export function GamesView({ quizzes }: { quizzes: Quiz[] }) {
   )
 }
 
-export function ChatView() {
+export function ChatView({ options }: { options: WorkspaceOptions }) {
   const [threads, setThreads] = useState<any[]>([])
   const [body, setBody] = useState("")
   const [title, setTitle] = useState("Study room")
@@ -284,15 +299,16 @@ export function ChatView() {
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
-      <Panel className="p-4">
+      <Panel className={options.chatCompact ? "p-3" : "p-4"}>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <input value={title} onChange={(event) => setTitle(event.target.value)} className="min-w-52 flex-1 bg-transparent text-2xl font-semibold outline-none" />
           <ToolbarButton label="Send" onClick={send} icon={MessageSquare} primary />
         </div>
         <textarea value={body} onChange={(event) => setBody(event.target.value)} className="min-h-32 w-full rounded-md border border-input bg-background p-3 text-sm outline-none" placeholder="Share a study update, file note, quiz result, or question..." />
       </Panel>
-      <Panel className="p-4">
+      <Panel className={options.chatCompact ? "p-3" : "p-4"}>
         <h3 className="font-semibold">Recent rooms</h3>
+        {options.collaborationPresence ? <p className="mt-1 text-xs text-muted-foreground">Presence hints are enabled for group workflows.</p> : null}
         <div className="mt-3 space-y-2">
           {threads.map((thread) => (
             <div key={thread.id} className="rounded-md bg-muted p-3 text-sm">
