@@ -118,20 +118,20 @@ export function LearnShell({
           <MobileMenu density={preferences.density} open={menuOpen} view={view} text={preferences.text} setView={chooseView} />
           <div className={preferences.density === "compact" ? "p-3 lg:p-4" : "p-4 lg:p-6"}>
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
-            {view === "dashboard" ? <DashboardView dashboard={dashboard} notes={notes} quizzes={quizzes} setView={chooseView} /> : null}
-            {view === "notes" ? <NotesView notes={filteredNotes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} /> : null}
+            {view === "dashboard" ? <DashboardView dashboard={dashboard} notes={notes} quizzes={quizzes} options={preferences.options} setView={chooseView} /> : null}
+            {view === "notes" ? <NotesView notes={filteredNotes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} /> : null}
             {view === "docs" ? <DocsView /> : null}
             {view === "sheets" ? <SheetsView /> : null}
             {view === "slides" ? <SlidesView /> : null}
-            {view === "quizzes" ? <QuizView quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} /> : null}
-            {view === "games" ? <GamesView quizzes={quizzes} /> : null}
-            {view === "ai" ? <AiTutorView notes={notes} /> : null}
-            {view === "files" ? <FilesView /> : null}
-            {view === "chat" ? <ChatView /> : null}
+            {view === "quizzes" ? <QuizView quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={preferences.options} /> : null}
+            {view === "games" ? <GamesView quizzes={quizzes} options={preferences.options} /> : null}
+            {view === "ai" ? <AiTutorView notes={notes} options={preferences.options} setOptions={preferences.setOptions} /> : null}
+            {view === "files" ? <FilesView options={preferences.options} /> : null}
+            {view === "chat" ? <ChatView options={preferences.options} /> : null}
             {view === "progress" ? <ProgressView dashboard={dashboard} quizzes={quizzes} /> : null}
-            {view === "calendar" ? <CalendarView /> : null}
-            {view === "settings" ? <SettingsView user={user} automationData={automationData} /> : null}
-            {view === "admin" ? <AdminView user={user} adminData={adminData} automationData={automationData} /> : null}
+            {view === "calendar" ? <CalendarView options={preferences.options} /> : null}
+            {view === "settings" ? <SettingsView user={user} automationData={automationData} options={preferences.options} setOptions={preferences.setOptions} /> : null}
+            {view === "admin" ? <AdminView user={user} adminData={adminData} automationData={automationData} options={preferences.options} /> : null}
           </div>
         </section>
       </div>
