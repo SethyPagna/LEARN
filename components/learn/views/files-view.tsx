@@ -38,27 +38,27 @@ export function FilesView() {
     <Panel className="p-4">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-[#17202a]">Files</h2>
-          <p className="mt-1 text-sm text-[#5e6a78]">Uploads are stored in the isolated `learn-files` R2 bucket.</p>
+          <h2 className="text-2xl font-semibold text-foreground">Files</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Uploads are stored in the isolated learn-files R2 bucket.</p>
         </div>
-        <button onClick={() => inputRef.current?.click()} className="flex h-10 items-center gap-2 rounded-md bg-[#17202a] px-4 text-sm font-semibold text-white">
+        <button onClick={() => inputRef.current?.click()} className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
           <Upload className="h-4 w-4" />
           Upload
         </button>
         <input ref={inputRef} type="file" className="hidden" onChange={(event) => upload(event.target.files?.[0])} />
       </div>
-      {status ? <p className="mb-4 rounded-md bg-[#f2f5f8] p-3 text-sm text-[#5e6a78]">{status}</p> : null}
+      {status ? <p className="mb-4 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
       {files.length ? (
-        <div className="overflow-hidden rounded-lg border border-[#e4e8ee]">
+        <div className="overflow-hidden rounded-lg border border-border">
           {files.map((file) => (
-            <div key={file.id} className="grid gap-3 border-b border-[#e4e8ee] p-3 text-sm last:border-b-0 md:grid-cols-[1fr_130px_110px_90px] md:items-center">
+            <div key={file.id} className="grid gap-3 border-b border-border p-3 text-sm last:border-b-0 md:grid-cols-[1fr_130px_110px_90px] md:items-center">
               <div>
-                <p className="font-medium text-[#17202a]">{file.filename}</p>
-                <p className="text-xs text-[#697586]">{file.content_type}</p>
+                <p className="font-medium text-foreground">{file.filename}</p>
+                <p className="text-xs text-muted-foreground">{file.content_type}</p>
               </div>
-              <p className="text-[#5e6a78]">{formatBytes(file.size_bytes)}</p>
-              <p className="text-[#5e6a78]">{formatDate(file.created_at)}</p>
-              <a href={`/api/files/${file.id}/download`} className="flex h-9 items-center justify-center gap-2 rounded-md border border-[#d8dce2] text-[#17202a]">
+              <p className="text-muted-foreground">{formatBytes(file.size_bytes)}</p>
+              <p className="text-muted-foreground">{formatDate(file.created_at)}</p>
+              <a href={`/api/files/${file.id}/download`} className="flex h-9 items-center justify-center gap-2 rounded-md border border-border text-foreground">
                 <Download className="h-4 w-4" />
                 Get
               </a>
