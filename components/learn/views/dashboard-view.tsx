@@ -2,6 +2,7 @@
 
 import { CalendarDays, FileText, Gamepad2, MessageSquare, Presentation, Sparkles, Table2 } from "lucide-react"
 import type React from "react"
+import type { WorkspaceOptions } from "../preferences"
 import type { Note, Quiz, View } from "../types"
 import { Panel } from "../ui"
 
@@ -9,11 +10,13 @@ export function DashboardView({
   dashboard,
   notes,
   quizzes,
+  options,
   setView,
 }: {
   dashboard: any
   notes: Note[]
   quizzes: Quiz[]
+  options: WorkspaceOptions
   setView: (view: View) => void
 }) {
   const focus = dashboard?.snapshot?.recommendedFocus?.[0] || "React"
@@ -56,13 +59,27 @@ export function DashboardView({
                 <span className="font-medium text-foreground">{topic.topic}</span>
                 <span className="text-muted-foreground">{topic.accuracy}%</span>
               </div>
-              <div className="mt-2 h-2 rounded-full bg-muted">
-                <div className="h-2 rounded-full bg-success" style={{ width: `${Math.max(8, topic.accuracy)}%` }} />
-              </div>
+              {options.showWeakTopicBars ? (
+                <div className="mt-2 h-2 rounded-full bg-muted">
+                  <div className="h-2 rounded-full bg-success" style={{ width: `${Math.max(8, topic.accuracy)}%` }} />
+                </div>
+              ) : null}
             </div>
           ))}
         </div>
       </Panel>
+
+      {options.dashboardDetail === "detailed" ? (
+        <Panel className="p-4 xl:col-span-2">
+          <h2 className="font-semibold text-foreground">Personalization board</h2>
+          <div className="mt-3 grid gap-2 md:grid-cols-4">
+            <Metric label="Today route" value={focus} />
+            <Metric label="Review mode" value={options.quizMode} />
+            <Metric label="Game mode" value={options.gameMode} />
+            <Metric label="AI mode" value={options.aiMode} />
+          </div>
+        </Panel>
+      ) : null}
 
       <Panel className="p-4 xl:col-span-2">
         <div className="mb-3 flex items-center justify-between">
