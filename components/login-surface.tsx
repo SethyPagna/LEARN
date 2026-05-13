@@ -30,7 +30,7 @@ export function LoginSurface() {
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#edf1f5] text-[#17202a]">
       <div className="grid min-h-screen max-w-full grid-cols-[minmax(0,1fr)] lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="order-2 flex min-w-0 flex-col justify-between px-6 py-8 sm:px-10 lg:order-1 lg:px-14">
+        <section className="order-2 flex min-w-0 max-w-full flex-col justify-between overflow-hidden px-6 py-8 sm:px-10 lg:order-1 lg:px-14">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#171717] text-white">
               <BookOpen className="h-5 w-5" />
@@ -42,10 +42,10 @@ export function LoginSurface() {
           </div>
 
           <div className="max-w-full py-8 lg:max-w-2xl lg:py-16">
-            <h1 className="max-w-full break-words text-2xl font-semibold leading-[1.12] tracking-normal sm:text-5xl lg:max-w-xl lg:text-6xl">
+            <h1 className="max-w-full break-words text-2xl font-semibold leading-[1.12] tracking-normal [overflow-wrap:anywhere] sm:text-5xl lg:max-w-xl lg:text-6xl">
               Notes, quizzes, files, and AI tutoring in one focused workspace.
             </h1>
-            <p className="mt-5 max-w-full break-words text-sm leading-6 text-[#625a51] sm:text-lg sm:leading-8 lg:max-w-lg">
+            <p className="mt-5 max-w-full break-words text-sm leading-6 text-[#625a51] [overflow-wrap:anywhere] sm:text-lg sm:leading-8 lg:max-w-lg">
               A compact learning workspace with Cloudflare-backed notes, adaptive practice, progress memory, and private file capture.
             </p>
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
