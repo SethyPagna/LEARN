@@ -27,30 +27,10 @@
       "bucket_name": "learn-next-cache"
     }
   ],
-  "durable_objects": {
-    "bindings": [
-      {
-        "name": "STUDY_ROOM_DO",
-        "class_name": "StudyRoomDurableObject"
-      },
-      {
-        "name": "STUDY_BATTLE_DO",
-        "class_name": "StudyBattleDurableObject"
-      },
-      {
-        "name": "PRESENCE_DO",
-        "class_name": "PresenceDurableObject"
-      }
-    ]
-  },
-  "migrations": [
+  "services": [
     {
-      "tag": "v1_personal_social_realtime",
-      "new_sqlite_classes": [
-        "StudyRoomDurableObject",
-        "StudyBattleDurableObject",
-        "PresenceDurableObject"
-      ]
+      "binding": "LEARN_REALTIME",
+      "service": "learn-realtime"
     }
   ],
   "observability": {
