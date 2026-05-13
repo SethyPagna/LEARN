@@ -28,6 +28,7 @@ export const baseVocabulary = {
   knowledgeBase: "Knowledge Base",
   quizzes: "Quizzes",
   aiTutor: "AI Tutor",
+  files: "Files",
   progress: "Progress",
   calendar: "Calendar",
   settings: "Settings",
