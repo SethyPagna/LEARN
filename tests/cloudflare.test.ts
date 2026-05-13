@@ -3,6 +3,7 @@ import test from "node:test"
 import {
   getCloudflareRuntimeMode,
   getD1ApiConfig,
+  isD1ReadStatement,
   normalizeD1Sql,
 } from "../lib/db"
 import {
@@ -35,6 +36,15 @@ test("getD1ApiConfig requires Cloudflare account, token, and database id for API
     apiToken: "token_123",
     databaseId: "db_123",
   })
+})
+
+test("isD1ReadStatement only sends row-returning statements through all", () => {
+  assert.equal(isD1ReadStatement("SELECT * FROM users"), true)
+  assert.equal(isD1ReadStatement("WITH recent AS (SELECT * FROM notes) SELECT * FROM recent"), true)
+  assert.equal(isD1ReadStatement("PRAGMA foreign_keys = ON"), true)
+  assert.equal(isD1ReadStatement("INSERT INTO users (id) VALUES ($1)"), false)
+  assert.equal(isD1ReadStatement("UPDATE notes SET title = $1"), false)
+  assert.equal(isD1ReadStatement("DELETE FROM notes WHERE id = $1"), false)
 })
 
 test("getCloudflareRuntimeMode distinguishes binding, api, and unconfigured runtimes", () => {
