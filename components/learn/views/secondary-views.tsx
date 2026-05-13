@@ -1,8 +1,10 @@
 "use client"
 
-import { BookOpen, Check, ChevronRight, Target } from "lucide-react"
+import { useEffect, useState } from "react"
+import { BookOpen, CalendarPlus, Check, ChevronRight, Save, ShieldCheck, Target, Trash2, UserRound } from "lucide-react"
 import { supportedLocales } from "@/lib/i18n/vocabulary"
-import type { Quiz, User } from "../types"
+import type { CalendarEvent, Quiz, User } from "../types"
+import { api, formatDate } from "../api"
 import { Panel } from "../ui"
 
 export function ProgressView({ dashboard, quizzes }: { dashboard: any; quizzes: Quiz[] }) {
@@ -24,39 +26,120 @@ export function ProgressView({ dashboard, quizzes }: { dashboard: any; quizzes: 
 }
 
 export function CalendarView() {
+  const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [title, setTitle] = useState("45 min focus block")
+  const [status, setStatus] = useState("")
+
+  async function refresh() {
+    const response = await api<{ items: CalendarEvent[] }>("/api/calendar")
+    setEvents(response.items)
+  }
+
+  useEffect(() => {
+    refresh().catch((error) => setStatus(error.message))
+  }, [])
+
+  async function createEvent() {
+    const startsAt = new Date()
+    startsAt.setMinutes(startsAt.getMinutes() + 15)
+    const endsAt = new Date(startsAt.getTime() + 45 * 60 * 1000)
+    await api("/api/calendar", {
+      method: "POST",
+      body: JSON.stringify({
+        title,
+        startsAt: startsAt.toISOString(),
+        endsAt: endsAt.toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      }),
+    })
+    await refresh()
+  }
+
+  async function deleteEvent(id: string) {
+    await api(`/api/calendar?id=${encodeURIComponent(id)}`, { method: "DELETE" })
+    await refresh()
+  }
+
   return (
-    <Panel className="p-4">
-      <h2 className="text-2xl font-semibold text-foreground">Study calendar</h2>
-      <div className="mt-5 grid gap-3 md:grid-cols-7">
-        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, index) => (
-          <div key={day} className="min-h-32 rounded-lg bg-muted p-3">
-            <p className="text-sm font-semibold text-foreground">{day}</p>
-            {index < 4 ? <p className="mt-4 rounded-md bg-card p-3 text-xs text-muted-foreground">45 min focus block</p> : null}
-          </div>
-        ))}
-      </div>
-    </Panel>
+    <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
+      <Panel className="p-4">
+        <h2 className="text-2xl font-semibold text-foreground">Study calendar</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Create focus blocks, review windows, and due-date anchors.</p>
+        <input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-4 h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none" />
+        <button onClick={createEvent} className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm font-semibold text-primary-foreground">
+          <CalendarPlus className="h-4 w-4" /> Add time block
+        </button>
+        {status ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
+      </Panel>
+      <Panel className="p-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {events.map((event) => (
+            <article key={event.id} className="rounded-lg border border-border bg-card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-foreground">{event.title}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{formatDate(event.starts_at)} · {event.event_type}</p>
+                </div>
+                <button onClick={() => deleteEvent(event.id)} className="rounded-md p-2 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground" aria-label="Delete event">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </Panel>
+    </div>
   )
 }
 
 export function SettingsView({ user, automationData }: { user: User | null; automationData: any }) {
+  const [name, setName] = useState(user?.name || "")
+  const [email, setEmail] = useState(user?.email || "")
+  const [dailyGoalMinutes, setDailyGoalMinutes] = useState(Number(user?.preferences?.dailyGoalMinutes || 45))
+  const [status, setStatus] = useState("")
+
+  useEffect(() => {
+    setName(user?.name || "")
+    setEmail(user?.email || "")
+    setDailyGoalMinutes(Number(user?.preferences?.dailyGoalMinutes || 45))
+  }, [user?.id])
+
+  async function saveProfile() {
+    await api("/api/profile", {
+      method: "PUT",
+      body: JSON.stringify({ name, email, preferences: { dailyGoalMinutes } }),
+    })
+    await api("/api/preferences", {
+      method: "PUT",
+      body: JSON.stringify({ dailyGoalMinutes, localeReady: supportedLocales.length }),
+    })
+    setStatus("Saved profile and preferences.")
+  }
+
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_420px]">
       <Panel className="p-4">
-        <h2 className="text-2xl font-semibold text-foreground">Settings</h2>
-        <div className="mt-5 grid gap-3 md:grid-cols-2">
-          <Info label="Name" value={user?.name} />
-          <Info label="Email" value={user?.email} />
-          <Info label="Role" value={user?.role} />
-          <Info label="Daily goal" value={`${user?.preferences?.dailyGoalMinutes || 45} minutes`} />
+        <div className="mb-4 flex items-center gap-3">
+          <UserRound className="h-5 w-5 text-success" />
+          <h2 className="text-2xl font-semibold text-foreground">Profile and settings</h2>
         </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="Name" value={name} onChange={setName} />
+          <Field label="Email" value={email} onChange={setEmail} />
+          <Field label="Daily goal minutes" value={String(dailyGoalMinutes)} onChange={(value) => setDailyGoalMinutes(Number(value) || 45)} />
+          <Info label="Role" value={user?.role} />
+        </div>
+        <button onClick={saveProfile} className="mt-4 flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
+          <Save className="h-4 w-4" /> Save settings
+        </button>
+        {status ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
       </Panel>
       <Panel className="p-4">
         <h3 className="text-lg font-semibold text-foreground">Languages and automation</h3>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">{supportedLocales.length} vocabularies are available for reusable UI labels.</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{supportedLocales.length} clean vocabularies are available with English fallback for missing labels.</p>
         <div className="mt-4 flex flex-wrap gap-2">
           {supportedLocales.map((locale) => (
-            <span key={locale} className="rounded-md bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">{locale}</span>
+            <span key={locale} className="rounded-md bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">{locale}</span>
           ))}
         </div>
         <div className="mt-5 space-y-2">
@@ -75,18 +158,38 @@ export function SettingsView({ user, automationData }: { user: User | null; auto
 export function AdminView({ user, adminData, automationData }: { user: User | null; adminData: any; automationData: any }) {
   if (user?.role !== "admin") return <Panel className="p-4">Admin access required.</Panel>
   return (
-    <Panel className="p-4">
-      <h2 className="text-2xl font-semibold text-foreground">Admin control center</h2>
-      <div className="mt-5 grid gap-4 xl:grid-cols-3">
+    <div className="grid gap-4">
+      <Panel className="p-4">
+        <div className="flex items-center gap-3">
+          <ShieldCheck className="h-5 w-5 text-success" />
+          <h2 className="text-2xl font-semibold text-foreground">Admin control center</h2>
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-4">
+          <Info label="Users" value={adminData?.users?.length || 0} />
+          <Info label="Providers" value={adminData?.providers?.length || 0} />
+          <Info label="Events" value={adminData?.counters?.events || 0} />
+          <Info label="Games" value={adminData?.counters?.games || 0} />
+        </div>
+      </Panel>
+      <div className="grid gap-4 xl:grid-cols-3">
         <AdminList title="Users" items={adminData?.users || []} />
         <AdminList title="AI providers" items={adminData?.providers || []} />
         <AdminList title="Audit" items={adminData?.audit || []} />
       </div>
-      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-4 xl:grid-cols-2">
         <AdminList title="Automation jobs" items={automationData?.jobs || []} />
         <AdminList title="AI prompt contracts" items={automationData?.prompts || []} />
       </div>
-    </Panel>
+    </div>
+  )
+}
+
+function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="block rounded-lg bg-muted p-4">
+      <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
+      <input value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none" />
+    </label>
   )
 }
 
@@ -101,16 +204,16 @@ function Info({ label, value }: { label: string; value?: unknown }) {
 
 function AdminList({ title, items }: { title: string; items: any[] }) {
   return (
-    <div className="rounded-lg bg-muted p-4">
+    <Panel className="p-4">
       <p className="font-semibold text-foreground">{title}</p>
       <div className="mt-3 space-y-2">
         {items.slice(0, 8).map((item, index) => (
-          <div key={item.id || index} className="flex items-center justify-between gap-2 rounded-md bg-card p-3 text-sm">
-            <span className="truncate text-foreground">{item.name || item.username || item.action || item.provider || item.id}</span>
+          <div key={item.id || item.key || index} className="flex items-center justify-between gap-2 rounded-md bg-muted p-3 text-sm">
+            <span className="truncate text-foreground">{item.name || item.username || item.action || item.provider || item.label || item.id}</span>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </div>
         ))}
       </div>
-    </div>
+    </Panel>
   )
 }
