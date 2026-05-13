@@ -164,7 +164,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
             <article key={event.id} className={`rounded-lg border p-4 ${selectedId === event.id ? "border-primary bg-primary/10" : "border-border bg-card"}`}>
               <div className="flex items-start justify-between gap-3">
                 <button onClick={() => setSelectedId(event.id)} className="min-w-0 flex-1 text-left">
-                  <p className="font-semibold text-foreground">{event.title}</p>
+                  <p className="truncate font-semibold text-foreground">{event.title}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{formatDate(event.starts_at)} · {event.event_type}</p>
                   {event.notes ? <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{event.notes}</p> : null}
                 </button>
