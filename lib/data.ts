@@ -1383,6 +1383,12 @@ export async function saveLearningSpace(user: User, input: Record<string, unknow
   return (await query("SELECT * FROM learning_spaces WHERE id = $1 LIMIT 1", [id])).rows[0]
 }
 
+export async function deleteLearningSpace(user: User, id: string) {
+  await ensureDatabase()
+  await query("DELETE FROM learning_spaces WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin')", [id, user.id, user.role])
+  await logAudit({ userId: user.id, action: "delete", entity: "learning_space", entityId: id })
+}
+
 export async function listStudyRooms(user: User) {
   await ensureDatabase()
   const result = await query(
@@ -1425,6 +1431,12 @@ export async function saveStudyRoom(user: User, input: Record<string, unknown>) 
   )
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "study_room", entityId: id })
   return (await query("SELECT * FROM study_rooms WHERE id = $1 LIMIT 1", [id])).rows[0]
+}
+
+export async function deleteStudyRoom(user: User, id: string) {
+  await ensureDatabase()
+  await query("DELETE FROM study_rooms WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin')", [id, user.id, user.role])
+  await logAudit({ userId: user.id, action: "delete", entity: "study_room", entityId: id })
 }
 
 export async function listStudyBattles(user: User) {
@@ -1471,6 +1483,12 @@ export async function saveStudyBattle(user: User, input: Record<string, unknown>
   )
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "study_battle", entityId: id })
   return (await query("SELECT * FROM study_battles WHERE id = $1 LIMIT 1", [id])).rows[0]
+}
+
+export async function deleteStudyBattle(user: User, id: string) {
+  await ensureDatabase()
+  await query("DELETE FROM study_battles WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin')", [id, user.id, user.role])
+  await logAudit({ userId: user.id, action: "delete", entity: "study_battle", entityId: id })
 }
 
 export async function recordSocialAction(user: User, input: Record<string, unknown>) {
