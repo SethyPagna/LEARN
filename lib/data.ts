@@ -1,4 +1,5 @@
 import { cookies } from "next/headers"
+import { decryptProviderSecret, encryptProviderSecret, maskProviderSecret, normalizeProviderConfigInput, type ProviderConfigInput } from "./ai/provider-admin"
 import { createSessionToken, hashSessionToken, verifyPassword } from "./auth"
 import { query } from "./db"
 import { buildLearningSnapshot, type TopicAnswer } from "./learning"
@@ -24,6 +25,7 @@ export interface NoteRecord {
   template: string
   created_at: string
   updated_at: string
+  archived_at?: string | null
   tags?: string[]
 }
 
@@ -194,6 +196,7 @@ export async function listNotes() {
         WHERE nt.note_id = n.id
       ), '[]') AS tags
      FROM notes n
+     WHERE n.archived_at IS NULL
      ORDER BY n.favorite DESC, n.updated_at DESC`,
   )
   return result.rows.map(normalizeNote)
@@ -201,7 +204,7 @@ export async function listNotes() {
 
 export async function getNote(id: string) {
   await ensureDatabase()
-  const result = await query<NoteRecord>("SELECT * FROM notes WHERE id = $1 LIMIT 1", [id])
+  const result = await query<NoteRecord>("SELECT * FROM notes WHERE id = $1 AND archived_at IS NULL LIMIT 1", [id])
   return result.rows[0] ? normalizeNote(result.rows[0]) : null
 }
 
@@ -209,6 +212,7 @@ export async function saveNote(user: User, input: Partial<NoteRecord> & { title:
   await ensureDatabase()
   const id = input.id || createId("note")
   const workspaceId = "workspace_demo"
+  const existing = input.id ? await getNote(input.id) : null
   await query(
     `INSERT INTO notes (id, workspace_id, owner_user_id, title, icon, content, favorite, template, updated_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())
@@ -218,6 +222,7 @@ export async function saveNote(user: User, input: Partial<NoteRecord> & { title:
          content = EXCLUDED.content,
          favorite = EXCLUDED.favorite,
          template = EXCLUDED.template,
+         archived_at = NULL,
          updated_at = now()`,
     [
       id,
@@ -230,14 +235,377 @@ export async function saveNote(user: User, input: Partial<NoteRecord> & { title:
       input.template || "blank",
     ],
   )
+  await query(
+    `INSERT INTO note_versions (id, note_id, user_id, title, content, metadata)
+     VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
+    [
+      createId("version"),
+      id,
+      user.id,
+      input.title.trim() || "Untitled",
+      input.content,
+      JSON.stringify({ source: existing ? "update" : "create", previousTitle: existing?.title || null }),
+    ],
+  )
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "note", entityId: id })
   return getNote(id)
 }
 
 export async function deleteNote(user: User, id: string) {
   await ensureDatabase()
-  await query("DELETE FROM notes WHERE id = $1", [id])
+  await query("UPDATE notes SET archived_at = now(), updated_at = now() WHERE id = $1", [id])
   await logAudit({ userId: user.id, action: "delete", entity: "note", entityId: id })
+}
+
+export async function restoreNote(user: User, id: string) {
+  await ensureDatabase()
+  await query("UPDATE notes SET archived_at = NULL, updated_at = now() WHERE id = $1", [id])
+  await logAudit({ userId: user.id, action: "restore", entity: "note", entityId: id })
+  return getNote(id)
+}
+
+export async function listNoteVersions(user: User, noteId: string) {
+  await ensureDatabase()
+  const note = await query("SELECT id FROM notes WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin') LIMIT 1", [noteId, user.id, user.role])
+  if (!note.rowCount) return []
+  const result = await query(
+    `SELECT id, note_id, user_id, title, content, metadata, created_at
+     FROM note_versions
+     WHERE note_id = $1
+     ORDER BY created_at DESC
+     LIMIT 40`,
+    [noteId],
+  )
+  return result.rows.map((row) => ({ ...row, metadata: parseJsonObject(row.metadata) }))
+}
+
+export async function updateProfile(user: User, input: { name?: string; email?: string; preferences?: Record<string, unknown> }) {
+  await ensureDatabase()
+  const nextName = String(input.name || user.name).trim() || user.name
+  const nextEmail = String(input.email || user.email).trim() || user.email
+  const preferences = { ...user.preferences, ...(input.preferences || {}) }
+  await query(
+    "UPDATE users SET name = $1, email = $2, preferences = $3::jsonb, updated_at = now() WHERE id = $4",
+    [nextName, nextEmail, JSON.stringify(preferences), user.id],
+  )
+  await logAudit({ userId: user.id, action: "update", entity: "profile", entityId: user.id })
+  return getCurrentUserFromToken((await cookies()).get(SESSION_COOKIE)?.value)
+}
+
+export async function updatePreferences(user: User, preferences: Record<string, unknown>) {
+  await ensureDatabase()
+  const nextPreferences = { ...user.preferences, ...preferences }
+  await query("UPDATE users SET preferences = $1::jsonb, updated_at = now() WHERE id = $2", [JSON.stringify(nextPreferences), user.id])
+  await logAudit({ userId: user.id, action: "update", entity: "preferences", entityId: user.id })
+  return nextPreferences
+}
+
+export async function listAuditLogs(user: User) {
+  await ensureDatabase()
+  const result = user.role === "admin"
+    ? await query("SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 120")
+    : await query("SELECT * FROM audit_logs WHERE user_id = $1 ORDER BY created_at DESC LIMIT 80", [user.id])
+  return result.rows.map((row) => ({ ...row, details: parseJsonObject(row.details) }))
+}
+
+export async function listCalendarEvents(user: User) {
+  await ensureDatabase()
+  const result = await query(
+    `SELECT * FROM calendar_events
+     WHERE owner_user_id = $1 OR $2 = 'admin'
+     ORDER BY starts_at ASC
+     LIMIT 120`,
+    [user.id, user.role],
+  )
+  return result.rows
+}
+
+export async function saveCalendarEvent(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  const id = String(input.id || createId("event"))
+  await query(
+    `INSERT INTO calendar_events (id, workspace_id, owner_user_id, title, event_type, starts_at, ends_at, timezone, notes, linked_note_id, updated_at)
+     VALUES ($1, 'workspace_demo', $2, $3, $4, $5, $6, $7, $8, $9, now())
+     ON CONFLICT (id) DO UPDATE
+     SET title = EXCLUDED.title,
+         event_type = EXCLUDED.event_type,
+         starts_at = EXCLUDED.starts_at,
+         ends_at = EXCLUDED.ends_at,
+         timezone = EXCLUDED.timezone,
+         notes = EXCLUDED.notes,
+         linked_note_id = EXCLUDED.linked_note_id,
+         updated_at = now()`,
+    [
+      id,
+      user.id,
+      String(input.title || "Study block").trim(),
+      String(input.eventType || input.event_type || "study"),
+      String(input.startsAt || input.starts_at || new Date().toISOString()),
+      String(input.endsAt || input.ends_at || new Date(Date.now() + 45 * 60 * 1000).toISOString()),
+      String(input.timezone || "UTC"),
+      String(input.notes || ""),
+      input.linkedNoteId || input.linked_note_id || null,
+    ],
+  )
+  await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "calendar_event", entityId: id })
+  return (await query("SELECT * FROM calendar_events WHERE id = $1 LIMIT 1", [id])).rows[0]
+}
+
+export async function deleteCalendarEvent(user: User, id: string) {
+  await ensureDatabase()
+  await query("DELETE FROM calendar_events WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin')", [id, user.id, user.role])
+  await logAudit({ userId: user.id, action: "delete", entity: "calendar_event", entityId: id })
+}
+
+function normalizeJsonRow<T extends Record<string, unknown>>(row: T, keys: string[]) {
+  return keys.reduce<Record<string, unknown>>((next, key) => {
+    next[key] = parseJsonArray(row[key])
+    return next
+  }, { ...row })
+}
+
+export async function listEditorDocuments(user: User, documentType = "doc") {
+  await ensureDatabase()
+  const result = await query(
+    `SELECT * FROM editor_documents
+     WHERE document_type = $1 AND archived_at IS NULL AND (owner_user_id = $2 OR $3 = 'admin')
+     ORDER BY updated_at DESC
+     LIMIT 100`,
+    [documentType, user.id, user.role],
+  )
+  return result.rows.map((row) => ({ ...row, content: parseJsonObject(row.content), tags: parseJsonArray(row.tags) }))
+}
+
+export async function saveEditorDocument(user: User, input: Record<string, unknown>, documentType = "doc") {
+  await ensureDatabase()
+  const id = String(input.id || createId(documentType === "doc" ? "doc" : "page"))
+  await query(
+    `INSERT INTO editor_documents (id, workspace_id, owner_user_id, title, document_type, content, tags, updated_at)
+     VALUES ($1, 'workspace_demo', $2, $3, $4, $5::jsonb, $6::jsonb, now())
+     ON CONFLICT (id) DO UPDATE
+     SET title = EXCLUDED.title,
+         content = EXCLUDED.content,
+         tags = EXCLUDED.tags,
+         archived_at = NULL,
+         updated_at = now()`,
+    [
+      id,
+      user.id,
+      String(input.title || "Untitled document").trim(),
+      documentType,
+      JSON.stringify(input.content || {}),
+      JSON.stringify(Array.isArray(input.tags) ? input.tags : []),
+    ],
+  )
+  await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "editor_document", entityId: id })
+  return (await query("SELECT * FROM editor_documents WHERE id = $1 LIMIT 1", [id])).rows[0]
+}
+
+export async function archiveEditorDocument(user: User, id: string) {
+  await ensureDatabase()
+  await query("UPDATE editor_documents SET archived_at = now(), updated_at = now() WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin')", [id, user.id, user.role])
+  await logAudit({ userId: user.id, action: "archive", entity: "editor_document", entityId: id })
+}
+
+export async function listSheets(user: User) {
+  await ensureDatabase()
+  const result = await query(
+    `SELECT * FROM sheet_documents
+     WHERE archived_at IS NULL AND (owner_user_id = $1 OR $2 = 'admin')
+     ORDER BY updated_at DESC
+     LIMIT 100`,
+    [user.id, user.role],
+  )
+  return result.rows.map((row) => normalizeJsonRow(row, ["cells", "history"]))
+}
+
+export async function saveSheet(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  const id = String(input.id || createId("sheet"))
+  await query(
+    `INSERT INTO sheet_documents (id, workspace_id, owner_user_id, title, cells, history, updated_at)
+     VALUES ($1, 'workspace_demo', $2, $3, $4::jsonb, $5::jsonb, now())
+     ON CONFLICT (id) DO UPDATE
+     SET title = EXCLUDED.title,
+         cells = EXCLUDED.cells,
+         history = EXCLUDED.history,
+         archived_at = NULL,
+         updated_at = now()`,
+    [
+      id,
+      user.id,
+      String(input.title || "Untitled sheet").trim(),
+      JSON.stringify(Array.isArray(input.cells) ? input.cells : []),
+      JSON.stringify(Array.isArray(input.history) ? input.history : []),
+    ],
+  )
+  await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "sheet", entityId: id })
+  return (await query("SELECT * FROM sheet_documents WHERE id = $1 LIMIT 1", [id])).rows[0]
+}
+
+export async function listSlideDecks(user: User) {
+  await ensureDatabase()
+  const result = await query(
+    `SELECT * FROM slide_decks
+     WHERE archived_at IS NULL AND (owner_user_id = $1 OR $2 = 'admin')
+     ORDER BY updated_at DESC
+     LIMIT 100`,
+    [user.id, user.role],
+  )
+  return result.rows.map((row) => ({ ...row, slides: parseJsonArray(row.slides), speaker_notes: parseJsonObject(row.speaker_notes) }))
+}
+
+export async function saveSlideDeck(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  const id = String(input.id || createId("deck"))
+  await query(
+    `INSERT INTO slide_decks (id, workspace_id, owner_user_id, title, slides, speaker_notes, updated_at)
+     VALUES ($1, 'workspace_demo', $2, $3, $4::jsonb, $5::jsonb, now())
+     ON CONFLICT (id) DO UPDATE
+     SET title = EXCLUDED.title,
+         slides = EXCLUDED.slides,
+         speaker_notes = EXCLUDED.speaker_notes,
+         archived_at = NULL,
+         updated_at = now()`,
+    [
+      id,
+      user.id,
+      String(input.title || "Untitled deck").trim(),
+      JSON.stringify(Array.isArray(input.slides) ? input.slides : []),
+      JSON.stringify(input.speakerNotes || input.speaker_notes || {}),
+    ],
+  )
+  await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "slide_deck", entityId: id })
+  return (await query("SELECT * FROM slide_decks WHERE id = $1 LIMIT 1", [id])).rows[0]
+}
+
+export async function listWorkspaceMembers(user: User) {
+  await ensureDatabase()
+  if (user.role === "admin") {
+    const adminMembers = await query(
+      `SELECT u.id, u.name, u.email, u.role, COALESCE(wm.status, 'active') AS status, COALESCE(wm.created_at, u.created_at) AS created_at
+       FROM users u
+       LEFT JOIN workspace_members wm ON wm.user_id = u.id
+       ORDER BY u.created_at ASC`,
+    )
+    return adminMembers.rows
+  }
+  return [{ id: user.id, name: user.name, email: user.email, role: user.role, status: "active" }]
+}
+
+export async function createWorkspaceInvite(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  if (user.role !== "admin") throw new Error("Admin access required.")
+  const token = createSessionToken()
+  const id = createId("invite")
+  await query(
+    `INSERT INTO workspace_invites (id, workspace_id, invited_email, role, status, token_hash, expires_at, created_by_user_id)
+     VALUES ($1, 'workspace_demo', $2, $3, 'pending', $4, $5, $6)`,
+    [
+      id,
+      String(input.email || input.invited_email || "").trim().toLowerCase(),
+      String(input.role || "learner"),
+      await hashSessionToken(token),
+      new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(),
+      user.id,
+    ],
+  )
+  await logAudit({ userId: user.id, action: "create", entity: "workspace_invite", entityId: id })
+  return { id, token, status: "pending" }
+}
+
+export async function listGroups(user: User) {
+  await ensureDatabase()
+  const result = await query(
+    `SELECT g.*,
+       (SELECT count(*) FROM group_members gm WHERE gm.group_id = g.id) AS member_count
+     FROM workspace_groups g
+     ORDER BY g.updated_at DESC
+     LIMIT 80`,
+    [user.id],
+  )
+  return result.rows
+}
+
+export async function saveGroup(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  const id = String(input.id || createId("group"))
+  await query(
+    `INSERT INTO workspace_groups (id, workspace_id, name, description, created_by_user_id, updated_at)
+     VALUES ($1, 'workspace_demo', $2, $3, $4, now())
+     ON CONFLICT (id) DO UPDATE
+     SET name = EXCLUDED.name,
+         description = EXCLUDED.description,
+         updated_at = now()`,
+    [id, String(input.name || "Study group").trim(), String(input.description || ""), user.id],
+  )
+  await query(
+    `INSERT INTO group_members (group_id, user_id)
+     VALUES ($1, $2)
+     ON CONFLICT (group_id, user_id) DO NOTHING`,
+    [id, user.id],
+  )
+  await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "workspace_group", entityId: id })
+  return (await query("SELECT * FROM workspace_groups WHERE id = $1 LIMIT 1", [id])).rows[0]
+}
+
+export async function listChatThreads(user: User) {
+  await ensureDatabase()
+  const result = await query(
+    `SELECT t.*,
+       (SELECT body FROM chat_messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1) AS last_message
+     FROM chat_threads t
+     ORDER BY t.updated_at DESC
+     LIMIT 80`,
+    [user.id],
+  )
+  return result.rows
+}
+
+export async function postChatMessage(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  const threadId = String(input.threadId || input.thread_id || createId("thread"))
+  const title = String(input.title || "Study chat").trim()
+  await query(
+    `INSERT INTO chat_threads (id, workspace_id, group_id, title, created_by_user_id, updated_at)
+     VALUES ($1, 'workspace_demo', $2, $3, $4, now())
+     ON CONFLICT (id) DO UPDATE SET updated_at = now()`,
+    [threadId, input.groupId || input.group_id || null, title, user.id],
+  )
+  const messageId = createId("chatmsg")
+  await query(
+    `INSERT INTO chat_messages (id, thread_id, user_id, body, metadata)
+     VALUES ($1, $2, $3, $4, $5::jsonb)`,
+    [messageId, threadId, user.id, String(input.body || "").trim(), JSON.stringify(input.metadata || {})],
+  )
+  await logAudit({ userId: user.id, action: "create", entity: "chat_message", entityId: messageId })
+  return { threadId, messageId }
+}
+
+export async function listGameAttempts(user: User) {
+  await ensureDatabase()
+  const result = await query("SELECT * FROM game_attempts WHERE user_id = $1 ORDER BY created_at DESC LIMIT 80", [user.id])
+  return result.rows.map((row) => ({ ...row, metadata: parseJsonObject(row.metadata) }))
+}
+
+export async function recordGameAttempt(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  const id = createId("game")
+  await query(
+    `INSERT INTO game_attempts (id, user_id, game_key, score, total, duration_seconds, metadata)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
+    [
+      id,
+      user.id,
+      String(input.gameKey || input.game_key || "flashcard-sprint"),
+      Number(input.score || 0),
+      Number(input.total || 0),
+      Number(input.durationSeconds || input.duration_seconds || 0),
+      JSON.stringify(input.metadata || {}),
+    ],
+  )
+  await logAudit({ userId: user.id, action: "complete", entity: "game_attempt", entityId: id })
+  return { id }
 }
 
 export async function listQuizzes() {
@@ -298,12 +666,153 @@ export async function recordQuizAttempt(user: User, input: {
 
 export async function listAdminData() {
   await ensureDatabase()
-  const [users, providers, audit] = await Promise.all([
+  const [users, providers, audit, members, events, games] = await Promise.all([
     query("SELECT id, username, email, name, role, created_at FROM users ORDER BY created_at ASC"),
-    query("SELECT id, name, provider, env_key, default_model, enabled, created_at FROM ai_provider_configs ORDER BY provider ASC"),
+    listAiProviderConfigs(),
     query("SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 80"),
+    query("SELECT count(*) AS count FROM workspace_members"),
+    query("SELECT count(*) AS count FROM calendar_events"),
+    query("SELECT count(*) AS count FROM game_attempts"),
   ])
-  return { users: users.rows, providers: providers.rows, audit: audit.rows }
+  return {
+    users: users.rows,
+    providers,
+    audit: audit.rows,
+    counters: {
+      members: Number(members.rows[0]?.count || 0),
+      events: Number(events.rows[0]?.count || 0),
+      games: Number(games.rows[0]?.count || 0),
+    },
+  }
+}
+
+function serializeAiProvider(row: Record<string, unknown>) {
+  const encrypted = String(row.api_key_encrypted || "")
+  return {
+    id: row.id,
+    name: row.name,
+    provider: row.provider,
+    provider_type: row.provider_type || "chat",
+    account_email: row.account_email || "",
+    project_name: row.project_name || "",
+    default_model: row.default_model || "",
+    supported_models: parseJsonArray(row.supported_models_json),
+    endpoint_override: row.endpoint_override || "",
+    notes: row.notes || "",
+    enabled: row.enabled === true || row.enabled === 1 || row.enabled === "1",
+    priority: Number(row.priority || 50),
+    requests_per_minute: Number(row.requests_per_minute || 10),
+    max_input_chars: Number(row.max_input_chars || 1200),
+    max_completion_tokens: Number(row.max_completion_tokens || 1800),
+    timeout_ms: Number(row.timeout_ms || 18_000),
+    cooldown_seconds: Number(row.cooldown_seconds || 20),
+    last_status: row.last_status || "untested",
+    last_error: row.last_error || "",
+    last_checked_at: row.last_checked_at || "",
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    has_key: Boolean(encrypted),
+    key_masked: encrypted ? "stored" : "",
+  }
+}
+
+export async function listAiProviderConfigs() {
+  await ensureDatabase()
+  const result = await query(
+    `SELECT * FROM ai_provider_configs
+     ORDER BY enabled DESC, priority ASC, provider ASC, created_at DESC`,
+  )
+  return result.rows.map(serializeAiProvider)
+}
+
+export async function saveAiProviderConfig(user: User, input: ProviderConfigInput & { id?: string }) {
+  await ensureDatabase()
+  if (user.role !== "admin") throw new Error("Admin access required.")
+  const normalized = normalizeProviderConfigInput(input)
+  const existing = input.id
+    ? (await query("SELECT * FROM ai_provider_configs WHERE id = $1 LIMIT 1", [input.id])).rows[0]
+    : null
+  const encryptedKey = normalized.apiKey
+    ? await encryptProviderSecret(normalized.apiKey)
+    : String(existing?.api_key_encrypted || "")
+  if (!encryptedKey) throw new Error("API key is required.")
+  const id = String(input.id || createId("provider"))
+  await query(
+    `INSERT INTO ai_provider_configs (
+       id, name, provider, env_key, default_model, enabled, provider_type, account_email, project_name,
+       api_key_encrypted, supported_models_json, endpoint_override, notes, priority, requests_per_minute,
+       max_input_chars, max_completion_tokens, timeout_ms, cooldown_seconds, updated_at
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13, $14, $15, $16, $17, $18, $19, now())
+     ON CONFLICT (id) DO UPDATE
+     SET name = EXCLUDED.name,
+         provider = EXCLUDED.provider,
+         env_key = EXCLUDED.env_key,
+         default_model = EXCLUDED.default_model,
+         enabled = EXCLUDED.enabled,
+         provider_type = EXCLUDED.provider_type,
+         account_email = EXCLUDED.account_email,
+         project_name = EXCLUDED.project_name,
+         api_key_encrypted = EXCLUDED.api_key_encrypted,
+         supported_models_json = EXCLUDED.supported_models_json,
+         endpoint_override = EXCLUDED.endpoint_override,
+         notes = EXCLUDED.notes,
+         priority = EXCLUDED.priority,
+         requests_per_minute = EXCLUDED.requests_per_minute,
+         max_input_chars = EXCLUDED.max_input_chars,
+         max_completion_tokens = EXCLUDED.max_completion_tokens,
+         timeout_ms = EXCLUDED.timeout_ms,
+         cooldown_seconds = EXCLUDED.cooldown_seconds,
+         updated_at = now()`,
+    [
+      id,
+      normalized.name,
+      normalized.provider,
+      `${normalized.provider.toUpperCase()}_API_KEY`,
+      normalized.defaultModel,
+      normalized.enabled ? 1 : 0,
+      normalized.providerType,
+      normalized.accountEmail || null,
+      normalized.projectName || null,
+      encryptedKey,
+      JSON.stringify(normalized.supportedModels),
+      normalized.endpointOverride || null,
+      normalized.notes || null,
+      normalized.priority,
+      normalized.requestsPerMinute,
+      normalized.maxInputChars,
+      normalized.maxCompletionTokens,
+      normalized.timeoutMs,
+      normalized.cooldownSeconds,
+    ],
+  )
+  await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "ai_provider_config", entityId: id })
+  return serializeAiProvider((await query("SELECT * FROM ai_provider_configs WHERE id = $1 LIMIT 1", [id])).rows[0] || {})
+}
+
+export async function deleteAiProviderConfig(user: User, id: string) {
+  await ensureDatabase()
+  if (user.role !== "admin") throw new Error("Admin access required.")
+  await query("DELETE FROM ai_provider_configs WHERE id = $1", [id])
+  await logAudit({ userId: user.id, action: "delete", entity: "ai_provider_config", entityId: id })
+}
+
+export async function testAiProviderConfig(user: User, id: string) {
+  await ensureDatabase()
+  if (user.role !== "admin") throw new Error("Admin access required.")
+  const row = (await query("SELECT * FROM ai_provider_configs WHERE id = $1 LIMIT 1", [id])).rows[0]
+  if (!row) throw new Error("AI provider not found.")
+  const decrypted = await decryptProviderSecret(String(row.api_key_encrypted || ""))
+  const status = decrypted ? "ok" : "error"
+  const message = decrypted
+    ? `Provider ${row.provider || row.name} has a stored key ${maskProviderSecret(decrypted)}.`
+    : "Provider API key is not available."
+  await query(
+    "UPDATE ai_provider_configs SET last_status = $1, last_error = $2, last_checked_at = now(), updated_at = now() WHERE id = $3",
+    [status, status === "ok" ? "" : message, id],
+  )
+  await logAudit({ userId: user.id, action: "test", entity: "ai_provider_config", entityId: id, details: { status } })
+  return { success: status === "ok", message }
 }
 
 export async function saveAiTurn(input: {
