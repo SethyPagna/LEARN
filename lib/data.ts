@@ -1,5 +1,6 @@
 import { cookies } from "next/headers"
 import { decryptProviderSecret, encryptProviderSecret, maskProviderSecret, normalizeProviderConfigInput, type ProviderConfigInput } from "./ai/provider-admin"
+import type { AiProviderKey } from "./ai/providers"
 import { createSessionToken, hashSessionToken, verifyPassword } from "./auth"
 import { query } from "./db"
 import { buildLearningSnapshot, type TopicAnswer } from "./learning"
@@ -723,6 +724,65 @@ export async function listAiProviderConfigs() {
      ORDER BY enabled DESC, priority ASC, provider ASC, created_at DESC`,
   )
   return result.rows.map(serializeAiProvider)
+}
+
+export interface RuntimeAiProviderConfig {
+  id: string
+  name: string
+  provider: AiProviderKey
+  providerType: "chat" | "embed" | "gateway"
+  endpoint: string
+  model: string
+  apiKey: string
+  priority: number
+  requestsPerMinute: number
+  maxInputChars: number
+  maxCompletionTokens: number
+  timeoutMs: number
+  cooldownSeconds: number
+}
+
+export async function listRuntimeAiProviderConfigs(kind: "chat" | "embed" = "chat") {
+  await ensureDatabase()
+  const rows = (await query(
+    `SELECT * FROM ai_provider_configs
+     WHERE enabled = 1
+       AND provider_type IN ($1, 'gateway')
+       AND api_key_encrypted IS NOT NULL
+       AND api_key_encrypted != ''
+     ORDER BY priority ASC, updated_at DESC, created_at DESC`,
+    [kind],
+  )).rows
+  const providers: RuntimeAiProviderConfig[] = []
+  for (const row of rows) {
+    const provider = String(row.provider || "") as AiProviderKey
+    const apiKey = await decryptProviderSecret(String(row.api_key_encrypted || "")).catch(() => "")
+    if (!apiKey) continue
+    providers.push({
+      id: String(row.id),
+      name: String(row.name || provider),
+      provider,
+      providerType: (String(row.provider_type || "chat") as RuntimeAiProviderConfig["providerType"]),
+      endpoint: String(row.endpoint_override || ""),
+      model: String(row.default_model || ""),
+      apiKey,
+      priority: Number(row.priority || 50),
+      requestsPerMinute: Number(row.requests_per_minute || 10),
+      maxInputChars: Number(row.max_input_chars || 1200),
+      maxCompletionTokens: Number(row.max_completion_tokens || 1800),
+      timeoutMs: Number(row.timeout_ms || 18_000),
+      cooldownSeconds: Number(row.cooldown_seconds || 20),
+    })
+  }
+  return providers
+}
+
+export async function recordAiProviderRuntimeStatus(id: string, status: "ok" | "error", message = "") {
+  await ensureDatabase()
+  await query(
+    "UPDATE ai_provider_configs SET last_status = $1, last_error = $2, last_checked_at = now(), updated_at = now() WHERE id = $3",
+    [status, status === "ok" ? "" : message.slice(0, 500), id],
+  )
 }
 
 export async function saveAiProviderConfig(user: User, input: ProviderConfigInput & { id?: string }) {
