@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "learn",
+  "account_id": "d105a82bc26b6913575355352c2d1bb1",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-05-13",
   "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
@@ -12,7 +13,7 @@
     {
       "binding": "LEARN_DB",
       "database_name": "learn-db",
-      "database_id": "replace-with-cloudflare-d1-database-id",
+      "database_id": "3eeb04af-c283-48c0-9469-82b64392fa79",
       "migrations_dir": "migrations"
     }
   ],
