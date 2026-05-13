@@ -66,7 +66,7 @@ const PROVIDERS: Record<AiProviderKey, AiProviderMetadata> = {
     provider: "cloudflare",
     label: "Cloudflare AI Gateway",
     envKey: "CLOUDFLARE_AI_GATEWAY_TOKEN",
-    defaultModel: "openai/gpt-5.2",
+    defaultModel: "@cf/meta/llama-3.1-8b-instruct",
     endpoint: "https://gateway.ai.cloudflare.com/v1",
     type: "gateway",
   },
@@ -89,10 +89,11 @@ export function resolveConfiguredProvider(env: RuntimeEnv = process.env) {
   for (const provider of candidates) {
     const apiKey = env[provider.envKey]
     if (apiKey?.trim()) {
+      const model = env[`${provider.envKey}_MODEL`] || provider.defaultModel
       const endpoint = provider.provider === "cloudflare"
         ? env.CLOUDFLARE_AI_GATEWAY_URL
           || (env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_AI_GATEWAY_ID
-            ? `https://gateway.ai.cloudflare.com/v1/${env.CLOUDFLARE_ACCOUNT_ID}/${env.CLOUDFLARE_AI_GATEWAY_ID}/compat/chat/completions`
+            ? `https://gateway.ai.cloudflare.com/v1/${env.CLOUDFLARE_ACCOUNT_ID}/${env.CLOUDFLARE_AI_GATEWAY_ID}/workers-ai/${model}`
             : provider.endpoint)
         : provider.endpoint
 
@@ -100,7 +101,7 @@ export function resolveConfiguredProvider(env: RuntimeEnv = process.env) {
         ...provider,
         endpoint,
         apiKey,
-        model: env[`${provider.envKey}_MODEL`] || provider.defaultModel,
+        model,
       }
     }
   }
