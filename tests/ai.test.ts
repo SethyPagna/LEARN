@@ -8,6 +8,7 @@ import {
   maskProviderSecret,
   normalizeProviderConfigInput,
 } from "../lib/ai/provider-admin"
+import { getPromptTemplate } from "../lib/ai/prompt-library"
 import { listProviderPresets, getProviderMetadata, resolveConfiguredProvider } from "../lib/ai/providers"
 
 test("resolveConfiguredProvider selects the requested provider when a key exists", () => {
@@ -115,4 +116,11 @@ test("provider admin summary masks secrets and flags degraded routing", () => {
   assert.deepEqual(summary.routingOrder.map((item) => item.name), ["Primary Groq", "Fallback Mistral"])
   assert.equal(summary.routingOrder[0].secretLabel, "Stored")
   assert.equal(summary.routingOrder[1].secretLabel, "Missing")
+})
+
+test("AI automation prompt library includes provider and Vault operations", () => {
+  assert.ok(getPromptTemplate("provider_health_check"))
+  assert.ok(getPromptTemplate("daily_spark"))
+  assert.ok(getPromptTemplate("graph_edge_suggestion"))
+  assert.ok(getPromptTemplate("flashcard_generation"))
 })

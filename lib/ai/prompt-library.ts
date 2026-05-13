@@ -7,6 +7,11 @@ export type AiTaskKey =
   | "quiz_generation"
   | "study_plan"
   | "translation"
+  | "provider_health_check"
+  | "provider_failover_review"
+  | "daily_spark"
+  | "graph_edge_suggestion"
+  | "flashcard_generation"
 
 export interface PromptTemplate {
   key: AiTaskKey
@@ -96,6 +101,56 @@ export const promptLibrary: PromptTemplate[] = [
       "Locale: {{locale}}\nVocabulary JSON:\n{{vocabulary}}\n\nTranslate values only. Keep keys unchanged.",
     outputContract:
       "Return JSON with the same keys and translated strings only.",
+  },
+  {
+    key: "provider_health_check",
+    title: "AI Provider Health Check",
+    system:
+      "You are an AI operations reviewer. Inspect provider status, rate limits, cooldowns, and recent errors without exposing secrets.",
+    user:
+      "Provider configs:\n{{providers}}\nRecent AI logs:\n{{logs}}\n\nIdentify unhealthy providers, risky priorities, missing keys, and safe remediation steps.",
+    outputContract:
+      "Return JSON with health, degradedProviders, routingRecommendations, and adminActions.",
+  },
+  {
+    key: "provider_failover_review",
+    title: "Provider Failover Review",
+    system:
+      "You tune multi-provider AI failover for a learning product. Prefer reliable low-latency chat first and embeddings only for semantic tasks.",
+    user:
+      "Current routing order:\n{{routingOrder}}\nTask mix: {{taskMix}}\nLimits: {{limits}}\n\nRecommend priority, timeout, cooldown, and RPM changes.",
+    outputContract:
+      "Return JSON with orderedProviders, changes, rationale, and rollbackNotes.",
+  },
+  {
+    key: "daily_spark",
+    title: "Daily Spark Connector",
+    system:
+      "You are a subtle learning co-pilot. Suggest one surprising but accurate connection between two concepts in the learner's Vault.",
+    user:
+      "Knowledge nodes:\n{{nodes}}\nEdges:\n{{edges}}\nRecent activity:\n{{activity}}\n\nFind one useful connection that is not already obvious.",
+    outputContract:
+      "Return JSON with nodeA, nodeB, insightText, confidence, and suggestedEdgeType.",
+  },
+  {
+    key: "graph_edge_suggestion",
+    title: "Graph Edge Suggestion",
+    system:
+      "You are a knowledge graph editor. Suggest precise, reviewable edges between learning nodes without inventing facts.",
+    user:
+      "New node:\n{{node}}\nExisting graph:\n{{graph}}\n\nSuggest prerequisite, related, extends, or contradicts edges.",
+    outputContract:
+      "Return JSON array: [{sourceId, targetId, edgeType, strength, reason}].",
+  },
+  {
+    key: "flashcard_generation",
+    title: "Active Recall Flashcard Generator",
+    system:
+      "You create concise active-recall flashcards from learning blocks. Prefer production questions over recognition questions.",
+    user:
+      "Selected blocks:\n{{blocks}}\nLearner preferences:\n{{preferences}}\n\nCreate atomic flashcards and identify which block each came from.",
+    outputContract:
+      "Return JSON array: [{front, back, sourceBlockId, difficulty, tags}].",
   },
 ]
 
