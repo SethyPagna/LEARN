@@ -19,6 +19,7 @@ const starterSlides = [
   { title: "Study brief", body: "Summarize the goal, what changed, and the next practice step.", accent: "Focus" },
   { title: "Key idea", body: "Add a concise visual explanation, image note, or memory hook.", accent: "Explain" },
 ]
+type SlideDraft = typeof starterSlides[number]
 
 function textFromDocument(document?: WorkspaceDocument) {
   const content = document?.content || {}
@@ -171,7 +172,7 @@ export function SlidesView() {
   const [title, setTitle] = useState("Learning deck")
   const [items, setItems] = useState<WorkspaceDeck[]>([])
   const [selectedId, setSelectedId] = useState("")
-  const [slides, setSlides] = useState(starterSlides)
+  const [slides, setSlides] = useState<SlideDraft[]>(starterSlides)
   const selected = items.find((item) => item.id === selectedId)
 
   useEffect(() => {
@@ -180,7 +181,9 @@ export function SlidesView() {
       if (response.items[0]) {
         setSelectedId(response.items[0].id)
         setTitle(response.items[0].title)
-        setSlides(response.items[0].slides?.length ? response.items[0].slides : starterSlides)
+        setSlides(response.items[0].slides?.length
+          ? response.items[0].slides.map((slide) => ({ ...slide, accent: slide.accent || "Slide" }))
+          : starterSlides)
       }
     }).catch(() => undefined)
   }, [])
