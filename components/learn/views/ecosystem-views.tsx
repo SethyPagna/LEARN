@@ -238,7 +238,7 @@ export function ReviewsView() {
             </div>
           </Panel>
         ))}
-        {data && data.items.length === 0 ? <EmptyState title="No reviews due" body="Rest or save a feed lesson into your Vault for the next session." /> : null}
+        {data && data.items.length === 0 ? <EmptyState title="No reviews due" body="Rest or save a feed lesson into Studio for the next session." /> : null}
       </div>
     </div>
   )
@@ -302,7 +302,7 @@ export function FeedView({ setView }: { setView: (view: View) => void }) {
       <Panel className="h-max p-4">
         <h3 className="font-semibold text-foreground">Feed controls</h3>
         <div className="mt-3 grid gap-2">
-          <RitualButton icon={Brain} label="Save ideas to Vault" onClick={() => setView("vault")} />
+          <RitualButton icon={Brain} label="Save ideas to Studio" onClick={() => setView("studio")} />
           <RitualButton icon={Users} label="Open circles" onClick={() => setView("spaces")} />
           <RitualButton icon={ShieldCheck} label="15% serendipity stays on" onClick={() => refresh()} />
         </div>
