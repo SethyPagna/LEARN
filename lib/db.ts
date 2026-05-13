@@ -79,6 +79,11 @@ export function getCloudflareRuntimeMode(input: {
   return "local"
 }
 
+export function isD1ReadStatement(sql: string) {
+  const firstWord = sql.trim().split(/\s+/, 1)[0]?.toLowerCase()
+  return firstWord === "select" || firstWord === "with" || firstWord === "pragma"
+}
+
 export async function getDatabaseRuntimeMode(): Promise<CloudflareRuntimeMode> {
   return getCloudflareRuntimeMode({
     env: await getMergedEnv(),
@@ -101,6 +106,14 @@ async function queryD1Binding<T>(text: string, values: unknown[]) {
   const normalized = normalizeD1Sql(text, values)
   const statement = d1.prepare(normalized.sql)
   const bound = normalized.values.length ? statement.bind(...normalized.values) : statement
+  if (!isD1ReadStatement(normalized.sql)) {
+    const result = await bound.run()
+    return {
+      rows: [] as T[],
+      rowCount: result.meta?.changes ?? 0,
+    }
+  }
+
   const result = await bound.all<T>()
   const rows = (result.results || []) as T[]
   return {
