@@ -48,23 +48,31 @@ export async function askTutor(input: TutorRequest) {
     }
   }
 
+  const messages = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ]
+  const usesWorkersAiGateway = provider.provider === "cloudflare" && provider.endpoint.includes("/workers-ai/")
   const response = await fetch(provider.endpoint, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${provider.apiKey}`,
     },
-    body: JSON.stringify({
-      model: provider.model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.45,
-      max_tokens: 1200,
-      max_completion_tokens: 1200,
-      stream: false,
-    }),
+    body: JSON.stringify(usesWorkersAiGateway
+      ? {
+          messages,
+          temperature: 0.45,
+          max_tokens: 1200,
+        }
+      : {
+          model: provider.model,
+          messages,
+          temperature: 0.45,
+          max_tokens: 1200,
+          max_completion_tokens: 1200,
+          stream: false,
+        }),
   })
   const json = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(json?.error?.message || json?.message || "AI request failed")
@@ -72,6 +80,6 @@ export async function askTutor(input: TutorRequest) {
     status: "ok" as const,
     provider: provider.provider,
     model: provider.model,
-    text: json?.choices?.[0]?.message?.content || "",
+    text: json?.choices?.[0]?.message?.content || json?.result?.response || json?.response || "",
   }
 }
