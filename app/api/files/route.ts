@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/data"
 import { listMediaAssets, uploadMediaAsset } from "@/lib/storage"
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
 
 export async function GET() {
   const user = await getCurrentUser()
@@ -13,6 +14,13 @@ export async function POST(request: Request) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
+  const limit = await checkRateLimit({
+    key: `upload:${user.id}:${getClientIp(request.headers)}`,
+    limit: 20,
+    windowMs: 10 * 60 * 1000,
+  })
+  if (!limit.allowed) return NextResponse.json({ error: "Too many uploads. Try again later." }, { status: 429 })
+
   const form = await request.formData()
   const file = form.get("file")
   if (!(file instanceof File)) {
@@ -23,8 +31,12 @@ export async function POST(request: Request) {
     user,
     file,
     noteId: typeof form.get("noteId") === "string" ? String(form.get("noteId")) : null,
-    source: typeof form.get("source") === "string" ? String(form.get("source")) : "upload",
+    source: typeof form.get("source") === "string" ? String(form.get("source")).slice(0, 48) : "upload",
+  }).catch((error) => {
+    const message = error instanceof Error ? error.message : "Upload failed."
+    return NextResponse.json({ error: message }, { status: 400 })
   })
+  if (asset instanceof NextResponse) return asset
 
   return NextResponse.json({ file: asset }, { status: 201 })
 }
