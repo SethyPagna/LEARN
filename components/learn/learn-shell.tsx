@@ -9,6 +9,7 @@ import { AiTutorView } from "./views/ai-view"
 import { DashboardView } from "./views/dashboard-view"
 import { FilesView } from "./views/files-view"
 import { NotesView } from "./views/notes-view"
+import { ChatView, DocsView, GamesView, SheetsView, SlidesView } from "./views/productivity-views"
 import { QuizView } from "./views/quiz-view"
 import { AdminView, CalendarView, ProgressView, SettingsView } from "./views/secondary-views"
 import { useWorkspacePreferences } from "./preferences"
@@ -119,9 +120,14 @@ export function LearnShell({
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
             {view === "dashboard" ? <DashboardView dashboard={dashboard} notes={notes} quizzes={quizzes} setView={chooseView} /> : null}
             {view === "notes" ? <NotesView notes={filteredNotes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} /> : null}
+            {view === "docs" ? <DocsView /> : null}
+            {view === "sheets" ? <SheetsView /> : null}
+            {view === "slides" ? <SlidesView /> : null}
             {view === "quizzes" ? <QuizView quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} /> : null}
+            {view === "games" ? <GamesView quizzes={quizzes} /> : null}
             {view === "ai" ? <AiTutorView notes={notes} /> : null}
             {view === "files" ? <FilesView /> : null}
+            {view === "chat" ? <ChatView /> : null}
             {view === "progress" ? <ProgressView dashboard={dashboard} quizzes={quizzes} /> : null}
             {view === "calendar" ? <CalendarView /> : null}
             {view === "settings" ? <SettingsView user={user} automationData={automationData} /> : null}
