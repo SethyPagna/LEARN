@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import type { WorkspaceOptions } from "../preferences"
 import type { Quiz } from "../types"
 import { api } from "../api"
 import { EmptyState, Panel } from "../ui"
@@ -9,10 +10,12 @@ export function QuizView({
   quizzes,
   selectedQuizId,
   setSelectedQuizId,
+  options,
 }: {
   quizzes: Quiz[]
   selectedQuizId: string
   setSelectedQuizId: (id: string) => void
+  options: WorkspaceOptions
 }) {
   const [quiz, setQuiz] = useState<Quiz | null>(null)
   const [answers, setAnswers] = useState<Record<string, string>>({})
@@ -59,6 +62,10 @@ export function QuizView({
           <>
             <h2 className="text-2xl font-semibold text-foreground">{quiz.title}</h2>
             <p className="mt-2 text-sm text-muted-foreground">{quiz.description}</p>
+            <div className="mt-4 flex flex-wrap gap-2 text-xs">
+              <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">Mode: {options.quizMode}</span>
+              <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">{options.revealAnswers ? "Answers reveal after selection" : "Exam-style hidden answers"}</span>
+            </div>
             <div className="mt-5 space-y-3">
               {quiz.questions?.map((question, index) => (
                 <article key={question.id} className="rounded-lg border border-border p-4">
@@ -74,6 +81,11 @@ export function QuizView({
                         }`}
                       >
                         {choice.text}
+                        {options.revealAnswers && answers[question.id] === choice.id ? (
+                          <span className="mt-2 block text-xs font-semibold">
+                            {choice.id === question.correct_answer_id ? "Correct choice" : "Try reviewing this topic after submit"}
+                          </span>
+                        ) : null}
                       </button>
                     ))}
                   </div>
