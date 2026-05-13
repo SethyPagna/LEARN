@@ -1,6 +1,6 @@
 import nodeCrypto from "node:crypto"
 
-const PASSWORD_ALGORITHM = "pbkdf2_sha512"
+const PASSWORD_ALGORITHM = "pbkdf2_sha256"
 const PASSWORD_ITERATIONS = 210_000
 const PASSWORD_KEY_LENGTH = 64
 const SESSION_TOKEN_BYTES = 32
@@ -26,14 +26,21 @@ function randomBytes(length: number) {
   return nodeCrypto.randomBytes(length)
 }
 
-async function derivePassword(password: string, salt: string, iterations: number) {
+function getHashAlgorithm(algorithm = PASSWORD_ALGORITHM) {
+  return algorithm === "pbkdf2_sha512"
+    ? { web: "SHA-512", node: "sha512" }
+    : { web: "SHA-256", node: "sha256" }
+}
+
+async function derivePassword(password: string, salt: string, iterations: number, algorithm = PASSWORD_ALGORITHM) {
+  const hash = getHashAlgorithm(algorithm)
   const subtle = globalThis.crypto?.subtle
   if (subtle) {
     try {
       const encoder = new TextEncoder()
       const key = await subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"])
       const bits = await subtle.deriveBits(
-        { name: "PBKDF2", hash: "SHA-512", salt: encoder.encode(salt), iterations },
+        { name: "PBKDF2", hash: hash.web, salt: encoder.encode(salt), iterations },
         key,
         PASSWORD_KEY_LENGTH * 8,
       )
@@ -49,7 +56,7 @@ async function derivePassword(password: string, salt: string, iterations: number
       salt,
       iterations,
       PASSWORD_KEY_LENGTH,
-      "sha512",
+      hash.node,
       (error, derivedKey) => {
         if (error) reject(error)
         else resolve(derivedKey.toString("base64url"))
@@ -76,11 +83,11 @@ export async function hashPassword(password: string) {
 export async function verifyPassword(password: string, storedHash: string) {
   const [algorithm, iterationsText, salt, expectedHash] = storedHash.split("$")
   const iterations = Number(iterationsText)
-  if (algorithm !== PASSWORD_ALGORITHM || !iterations || !salt || !expectedHash) {
+  if (!["pbkdf2_sha256", "pbkdf2_sha512"].includes(algorithm) || !iterations || !salt || !expectedHash) {
     return false
   }
 
-  const actualHash = await derivePassword(password, salt, iterations)
+  const actualHash = await derivePassword(password, salt, iterations, algorithm)
 
   return timingSafeEqualText(actualHash, expectedHash)
 }
