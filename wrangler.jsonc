@@ -2,7 +2,7 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "learn",
   "account_id": "d105a82bc26b6913575355352c2d1bb1",
-  "main": ".open-next/worker.js",
+  "main": "worker.js",
   "compatibility_date": "2026-05-13",
   "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
   "assets": {
@@ -25,6 +25,32 @@
     {
       "binding": "NEXT_INC_CACHE_R2_BUCKET",
       "bucket_name": "learn-next-cache"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "STUDY_ROOM_DO",
+        "class_name": "StudyRoomDurableObject"
+      },
+      {
+        "name": "STUDY_BATTLE_DO",
+        "class_name": "StudyBattleDurableObject"
+      },
+      {
+        "name": "PRESENCE_DO",
+        "class_name": "PresenceDurableObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1_personal_social_realtime",
+      "new_sqlite_classes": [
+        "StudyRoomDurableObject",
+        "StudyBattleDurableObject",
+        "PresenceDurableObject"
+      ]
     }
   ],
   "observability": {
