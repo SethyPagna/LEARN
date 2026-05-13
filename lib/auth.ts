@@ -29,14 +29,18 @@ function randomBytes(length: number) {
 async function derivePassword(password: string, salt: string, iterations: number) {
   const subtle = globalThis.crypto?.subtle
   if (subtle) {
-    const encoder = new TextEncoder()
-    const key = await subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"])
-    const bits = await subtle.deriveBits(
-      { name: "PBKDF2", hash: "SHA-512", salt: encoder.encode(salt), iterations },
-      key,
-      PASSWORD_KEY_LENGTH * 8,
-    )
-    return toBase64Url(new Uint8Array(bits))
+    try {
+      const encoder = new TextEncoder()
+      const key = await subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"])
+      const bits = await subtle.deriveBits(
+        { name: "PBKDF2", hash: "SHA-512", salt: encoder.encode(salt), iterations },
+        key,
+        PASSWORD_KEY_LENGTH * 8,
+      )
+      return toBase64Url(new Uint8Array(bits))
+    } catch {
+      // Some Worker compatibility modes expose subtle crypto without PBKDF2/SHA-512 support.
+    }
   }
 
   return new Promise<string>((resolve, reject) => {
