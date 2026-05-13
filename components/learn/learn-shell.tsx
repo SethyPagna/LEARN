@@ -11,6 +11,7 @@ import { FilesView } from "./views/files-view"
 import { NotesView } from "./views/notes-view"
 import { QuizView } from "./views/quiz-view"
 import { AdminView, CalendarView, ProgressView, SettingsView } from "./views/secondary-views"
+import { useWorkspacePreferences } from "./preferences"
 
 export function LearnShell({
   initialView = "dashboard",
@@ -33,6 +34,7 @@ export function LearnShell({
   const [automationData, setAutomationData] = useState<any>(null)
   const [status, setStatus] = useState("Loading workspace...")
   const [query, setQuery] = useState("")
+  const preferences = useWorkspacePreferences()
 
   const selectedNote = notes.find((note) => note.id === selectedNoteId) || notes[0]
   const filteredNotes = useMemo(() => {
@@ -86,19 +88,34 @@ export function LearnShell({
   }
 
   return (
-    <main className="min-h-screen bg-[#edf1f5] text-[#17202a]">
-      <div className="grid min-h-screen lg:grid-cols-[260px_1fr]">
+    <main className="min-h-screen bg-background text-foreground">
+      <div className={`grid min-h-screen ${preferences.density === "compact" ? "lg:grid-cols-[232px_1fr]" : "lg:grid-cols-[272px_1fr]"}`}>
         <Sidebar
+          density={preferences.density}
           view={view}
           query={query}
           setQuery={setQuery}
           setView={chooseView}
+          text={preferences.text}
           goalCompletion={dashboard?.snapshot?.goalCompletion ?? 0}
         />
         <section className="min-w-0">
-          <Topbar view={view} user={user} menuOpen={menuOpen} setMenuOpen={setMenuOpen} logout={logout} />
-          <MobileMenu open={menuOpen} view={view} setView={chooseView} />
-          <div className="p-4 lg:p-6">
+          <Topbar
+            density={preferences.density}
+            locale={preferences.locale}
+            resolvedTheme={preferences.resolvedTheme}
+            setDensity={preferences.setDensity}
+            setLocale={preferences.setLocale}
+            setTheme={preferences.setTheme}
+            text={preferences.text}
+            view={view}
+            user={user}
+            menuOpen={menuOpen}
+            setMenuOpen={setMenuOpen}
+            logout={logout}
+          />
+          <MobileMenu density={preferences.density} open={menuOpen} view={view} text={preferences.text} setView={chooseView} />
+          <div className={preferences.density === "compact" ? "p-3 lg:p-4" : "p-4 lg:p-6"}>
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
             {view === "dashboard" ? <DashboardView dashboard={dashboard} notes={notes} quizzes={quizzes} setView={chooseView} /> : null}
             {view === "notes" ? <NotesView notes={filteredNotes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} /> : null}
