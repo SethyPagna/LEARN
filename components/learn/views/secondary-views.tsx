@@ -14,9 +14,9 @@ export function ProgressView({ dashboard, quizzes }: { dashboard: any; quizzes: 
         ["Focus topics", dashboard?.snapshot?.recommendedFocus?.length || 0, Check],
       ].map(([label, value, Icon]) => (
         <Panel key={String(label)} className="p-4">
-          <Icon className="h-5 w-5 text-[#2c7a64]" />
-          <p className="mt-4 text-3xl font-semibold text-[#17202a]">{String(value)}</p>
-          <p className="mt-1 text-sm text-[#697586]">{String(label)}</p>
+          <Icon className="h-5 w-5 text-success" />
+          <p className="mt-4 text-3xl font-semibold text-foreground">{String(value)}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{String(label)}</p>
         </Panel>
       ))}
     </div>
@@ -26,12 +26,12 @@ export function ProgressView({ dashboard, quizzes }: { dashboard: any; quizzes: 
 export function CalendarView() {
   return (
     <Panel className="p-4">
-      <h2 className="text-2xl font-semibold text-[#17202a]">Study calendar</h2>
+      <h2 className="text-2xl font-semibold text-foreground">Study calendar</h2>
       <div className="mt-5 grid gap-3 md:grid-cols-7">
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, index) => (
-          <div key={day} className="min-h-32 rounded-lg bg-[#f2f5f8] p-3">
-            <p className="text-sm font-semibold text-[#17202a]">{day}</p>
-            {index < 4 ? <p className="mt-4 rounded-md bg-white p-3 text-xs text-[#5e6a78]">45 min focus block</p> : null}
+          <div key={day} className="min-h-32 rounded-lg bg-muted p-3">
+            <p className="text-sm font-semibold text-foreground">{day}</p>
+            {index < 4 ? <p className="mt-4 rounded-md bg-card p-3 text-xs text-muted-foreground">45 min focus block</p> : null}
           </div>
         ))}
       </div>
@@ -43,7 +43,7 @@ export function SettingsView({ user, automationData }: { user: User | null; auto
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_420px]">
       <Panel className="p-4">
-        <h2 className="text-2xl font-semibold text-[#17202a]">Settings</h2>
+        <h2 className="text-2xl font-semibold text-foreground">Settings</h2>
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           <Info label="Name" value={user?.name} />
           <Info label="Email" value={user?.email} />
@@ -52,18 +52,18 @@ export function SettingsView({ user, automationData }: { user: User | null; auto
         </div>
       </Panel>
       <Panel className="p-4">
-        <h3 className="text-lg font-semibold text-[#17202a]">Languages and automation</h3>
-        <p className="mt-2 text-sm leading-6 text-[#5e6a78]">{supportedLocales.length} vocabularies are available for reusable UI labels.</p>
+        <h3 className="text-lg font-semibold text-foreground">Languages and automation</h3>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{supportedLocales.length} vocabularies are available for reusable UI labels.</p>
         <div className="mt-4 flex flex-wrap gap-2">
           {supportedLocales.map((locale) => (
-            <span key={locale} className="rounded-md bg-[#f2f5f8] px-3 py-1 text-xs font-medium text-[#4d5a68]">{locale}</span>
+            <span key={locale} className="rounded-md bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">{locale}</span>
           ))}
         </div>
         <div className="mt-5 space-y-2">
           {(automationData?.jobs || []).slice(0, 4).map((job: any) => (
-            <div key={job.key} className="rounded-md bg-[#f7f9fb] p-3">
-              <p className="text-sm font-semibold text-[#17202a]">{job.label}</p>
-              <p className="mt-1 text-xs leading-5 text-[#5e6a78]">{job.description}</p>
+            <div key={job.key} className="rounded-md bg-muted p-3">
+              <p className="text-sm font-semibold text-foreground">{job.label}</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">{job.description}</p>
             </div>
           ))}
         </div>
@@ -76,7 +76,7 @@ export function AdminView({ user, adminData, automationData }: { user: User | nu
   if (user?.role !== "admin") return <Panel className="p-4">Admin access required.</Panel>
   return (
     <Panel className="p-4">
-      <h2 className="text-2xl font-semibold text-[#17202a]">Admin control center</h2>
+      <h2 className="text-2xl font-semibold text-foreground">Admin control center</h2>
       <div className="mt-5 grid gap-4 xl:grid-cols-3">
         <AdminList title="Users" items={adminData?.users || []} />
         <AdminList title="AI providers" items={adminData?.providers || []} />
@@ -92,22 +92,22 @@ export function AdminView({ user, adminData, automationData }: { user: User | nu
 
 function Info({ label, value }: { label: string; value?: unknown }) {
   return (
-    <div className="rounded-lg bg-[#f7f9fb] p-4">
-      <p className="text-xs font-semibold uppercase text-[#697586]">{label}</p>
-      <p className="mt-2 font-medium text-[#17202a]">{String(value || "Not set")}</p>
+    <div className="rounded-lg bg-muted p-4">
+      <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
+      <p className="mt-2 font-medium text-foreground">{String(value || "Not set")}</p>
     </div>
   )
 }
 
 function AdminList({ title, items }: { title: string; items: any[] }) {
   return (
-    <div className="rounded-lg bg-[#f7f9fb] p-4">
-      <p className="font-semibold text-[#17202a]">{title}</p>
+    <div className="rounded-lg bg-muted p-4">
+      <p className="font-semibold text-foreground">{title}</p>
       <div className="mt-3 space-y-2">
         {items.slice(0, 8).map((item, index) => (
-          <div key={item.id || index} className="flex items-center justify-between gap-2 rounded-md bg-white p-3 text-sm">
-            <span className="truncate text-[#17202a]">{item.name || item.username || item.action || item.provider || item.id}</span>
-            <ChevronRight className="h-4 w-4 text-[#697586]" />
+          <div key={item.id || index} className="flex items-center justify-between gap-2 rounded-md bg-card p-3 text-sm">
+            <span className="truncate text-foreground">{item.name || item.username || item.action || item.provider || item.id}</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </div>
         ))}
       </div>
