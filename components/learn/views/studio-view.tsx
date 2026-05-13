@@ -42,6 +42,7 @@ const starterSlides = [
   { title: "Study brief", body: "Summarize the goal, what changed, and the next practice step.", accent: "Focus" },
   { title: "Key idea", body: "Add a concise visual explanation, image note, or memory hook.", accent: "Explain" },
 ]
+type SlideDraft = typeof starterSlides[number]
 
 const docTemplates = {
   study: "# New learning doc\n\n## Summary\n\n## Key examples\n\n## Practice tasks\n",
@@ -52,6 +53,27 @@ const docTemplates = {
 function textFromDocument(document?: WorkspaceDocument) {
   const content = document?.content || {}
   return String(content.text || "")
+}
+
+function parseJsonArray<T>(value: unknown, fallback: T): T {
+  if (Array.isArray(value)) return value as T
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value)
+      return Array.isArray(parsed) ? parsed as T : fallback
+    } catch {
+      return fallback
+    }
+  }
+  return fallback
+}
+
+function cellsFromSheet(sheet?: WorkspaceSheet) {
+  return parseJsonArray<string[][]>(sheet?.cells, starterCells)
+}
+
+function slidesFromDeck(deck?: WorkspaceDeck) {
+  return parseJsonArray<SlideDraft[]>(deck?.slides, starterSlides).map((slide) => ({ ...slide, accent: slide.accent || "Slide" }))
 }
 
 function fileTitle(title: string, fallback: string) {
@@ -146,13 +168,13 @@ export function StudioView({
   useEffect(() => {
     if (!selectedSheet) return
     setSheetTitle(selectedSheet.title)
-    setCells(selectedSheet.cells?.length ? selectedSheet.cells : starterCells)
+    setCells(cellsFromSheet(selectedSheet))
   }, [selectedSheet?.id])
 
   useEffect(() => {
     if (!selectedDeck) return
     setDeckTitle(selectedDeck.title)
-    setSlides(selectedDeck.slides?.length ? selectedDeck.slides.map((slide) => ({ ...slide, accent: slide.accent || "Slide" })) : starterSlides)
+    setSlides(slidesFromDeck(selectedDeck))
   }, [selectedDeck?.id])
 
   useEffect(() => {
@@ -171,8 +193,8 @@ export function StudioView({
       : kind === "docs"
         ? docs.map((item) => ({ id: item.id, title: item.title, updated_at: item.updated_at, summary: textFromDocument(item) }))
         : kind === "sheets"
-          ? sheets.map((item) => ({ id: item.id, title: item.title, updated_at: item.updated_at, summary: `${item.cells?.length || 0} rows` }))
-          : decks.map((item) => ({ id: item.id, title: item.title, updated_at: item.updated_at, summary: `${item.slides?.length || 0} slides` }))
+          ? sheets.map((item) => ({ id: item.id, title: item.title, updated_at: item.updated_at, summary: `${cellsFromSheet(item).length} rows` }))
+          : decks.map((item) => ({ id: item.id, title: item.title, updated_at: item.updated_at, summary: `${slidesFromDeck(item).length} slides` }))
     if (!needle) return mapped
     return mapped.filter((item) => `${item.title} ${item.summary || ""}`.toLowerCase().includes(needle))
   }, [decks, docs, kind, notes, query, sheets])
