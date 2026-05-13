@@ -7,6 +7,7 @@ import type { WorkspaceOptions } from "../preferences"
 import type { CalendarEvent, Quiz, User } from "../types"
 import { api, formatDate } from "../api"
 import { Panel } from "../ui"
+import { ProviderAdminPanel } from "./provider-admin-panel"
 
 export function ProgressView({ dashboard, quizzes }: { dashboard: any; quizzes: Quiz[] }) {
   return (
@@ -218,6 +219,7 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
         <AdminList title="AI providers" items={adminData?.providers || []} />
         <AdminList title="Audit" items={adminData?.audit || []} />
       </div>
+      <ProviderAdminPanel />
       <div className="grid gap-4 xl:grid-cols-2">
         <AdminList title="Automation jobs" items={automationData?.jobs || []} />
         <AdminList title="AI prompt contracts" items={automationData?.prompts || []} />
