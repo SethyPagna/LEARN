@@ -47,13 +47,25 @@ export interface NormalizedProviderConfigInput {
 const safeProviderDefaults: Record<AiProviderKey, Pick<NormalizedProviderConfigInput,
   "priority" | "requestsPerMinute" | "maxInputChars" | "maxCompletionTokens" | "timeoutMs" | "cooldownSeconds"
 >> = {
-  groq: { priority: 10, requestsPerMinute: 18, maxInputChars: 1200, maxCompletionTokens: 1800, timeoutMs: 18_000, cooldownSeconds: 20 },
-  google: { priority: 20, requestsPerMinute: 14, maxInputChars: 1200, maxCompletionTokens: 1600, timeoutMs: 17_000, cooldownSeconds: 20 },
-  mistral: { priority: 30, requestsPerMinute: 10, maxInputChars: 1100, maxCompletionTokens: 1400, timeoutMs: 18_000, cooldownSeconds: 25 },
-  cerebras: { priority: 40, requestsPerMinute: 12, maxInputChars: 900, maxCompletionTokens: 1200, timeoutMs: 14_000, cooldownSeconds: 25 },
-  cloudflare: { priority: 50, requestsPerMinute: 18, maxInputChars: 1400, maxCompletionTokens: 1800, timeoutMs: 18_000, cooldownSeconds: 20 },
-  vercel: { priority: 60, requestsPerMinute: 12, maxInputChars: 1400, maxCompletionTokens: 1800, timeoutMs: 20_000, cooldownSeconds: 20 },
-  cohere: { priority: 90, requestsPerMinute: 20, maxInputChars: 1000, maxCompletionTokens: 128, timeoutMs: 12_000, cooldownSeconds: 20 },
+  groq: fromMetadata("groq", 1200, 1800),
+  google: fromMetadata("google", 1200, 1600),
+  mistral: fromMetadata("mistral", 1100, 1400),
+  cerebras: fromMetadata("cerebras", 900, 1200),
+  cloudflare: fromMetadata("cloudflare", 1400, 1800),
+  vercel: fromMetadata("vercel", 1400, 1800),
+  cohere: fromMetadata("cohere", 1000, 128),
+}
+
+function fromMetadata(provider: AiProviderKey, maxInputChars: number, maxCompletionTokens: number) {
+  const metadata = getProviderMetadata(provider)
+  return {
+    priority: metadata?.defaultPriority || 50,
+    requestsPerMinute: metadata?.safeRequestsPerMinute || 10,
+    maxInputChars,
+    maxCompletionTokens,
+    timeoutMs: metadata?.safeTimeoutMs || 18_000,
+    cooldownSeconds: metadata?.safeCooldownSeconds || 20,
+  }
 }
 
 function clamp(value: number | undefined, fallback: number, min: number, max: number) {
@@ -105,7 +117,8 @@ export function normalizeProviderConfigInput(input: ProviderConfigInput): Normal
   const metadata = getProviderMetadata(trim(input.provider)) || getProviderMetadata("cloudflare")
   if (!metadata) throw new Error("Choose a supported AI provider.")
   const defaults = safeProviderDefaults[metadata.provider]
-  const providerType = (trim(input.providerType) || metadata.type) as NormalizedProviderConfigInput["providerType"]
+  const requestedType = trim(input.providerType) as NormalizedProviderConfigInput["providerType"]
+  const providerType = metadata.supportedTypes.includes(requestedType) ? requestedType : metadata.type
 
   return {
     name: trim(input.name) || metadata.label,
@@ -116,8 +129,8 @@ export function normalizeProviderConfigInput(input: ProviderConfigInput): Normal
     apiKey: trim(input.apiKey),
     defaultModel: trim(input.defaultModel) || metadata.defaultModel,
     supportedModels: normalizeSupportedModels(input.supportedModels),
-    endpointOverride: trim(input.endpointOverride),
-    notes: trim(input.notes),
+    endpointOverride: trim(input.endpointOverride) || metadata.endpoint,
+    notes: trim(input.notes) || metadata.notes,
     enabled: input.enabled ?? true,
     priority: clamp(input.priority, defaults.priority, 1, 999),
     requestsPerMinute: clamp(input.requestsPerMinute, defaults.requestsPerMinute, 1, 120),
