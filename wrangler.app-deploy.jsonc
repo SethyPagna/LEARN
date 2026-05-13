@@ -1,0 +1,61 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "learn",
+  "account_id": "d105a82bc26b6913575355352c2d1bb1",
+  "main": "worker.js",
+  "compatibility_date": "2026-05-13",
+  "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "LEARN_DB",
+      "database_name": "learn-db",
+      "database_id": "3eeb04af-c283-48c0-9469-82b64392fa79",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "LEARN_FILES",
+      "bucket_name": "learn-files"
+    },
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "learn-next-cache"
+    }
+  ],
+  "services": [
+    {
+      "binding": "LEARN_REALTIME",
+      "service": "learn-realtime"
+    }
+  ],
+  "migrations": [
+    {
+      "tag": "v2_move_realtime_to_service_worker",
+      "deleted_classes": [
+        "StudyRoomDurableObject",
+        "StudyBattleDurableObject",
+        "PresenceDurableObject"
+      ]
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "vars": {
+    "APP_ID": "learn",
+    "APP_BASE_URL": "https://learn.learn-app.workers.dev",
+    "AI_PROVIDER_DEFAULT": "cloudflare",
+    "CLOUDFLARE_ACCOUNT_ID": "d105a82bc26b6913575355352c2d1bb1",
+    "CLOUDFLARE_D1_DATABASE_ID": "3eeb04af-c283-48c0-9469-82b64392fa79",
+    "CLOUDFLARE_D1_DATABASE_NAME": "learn-db",
+    "CLOUDFLARE_R2_BUCKET": "learn-files",
+    "CLOUDFLARE_NEXT_CACHE_BUCKET": "learn-next-cache",
+    "CLOUDFLARE_AI_GATEWAY_ID": "learn"
+  }
+}
