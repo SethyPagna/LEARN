@@ -4,6 +4,19 @@ import type { AiProviderKey } from "./ai/providers"
 import { createSessionToken, hashSessionToken, verifyPassword } from "./auth"
 import { query } from "./db"
 import { buildLearningSnapshot, type TopicAnswer } from "./learning"
+import {
+  buildReviewSchedule,
+  calculateLevelFromXp,
+  detectOrphanKnowledgeNodes,
+  filterPublicProfileArtifacts,
+  selectFeedLessons,
+  updateLearningStreak,
+  type FeedLessonCandidate,
+  type KnowledgeEdge,
+  type KnowledgeNode,
+  type ReviewItem,
+  type Weekday,
+} from "./learning-ecosystem"
 import { createId, ensureDatabase, logAudit } from "./schema"
 
 export const SESSION_COOKIE = "learn_session"
@@ -873,6 +886,615 @@ export async function testAiProviderConfig(user: User, id: string) {
   )
   await logAudit({ userId: user.id, action: "test", entity: "ai_provider_config", entityId: id, details: { status } })
   return { success: status === "ok", message }
+}
+
+function parseJsonValue<T>(value: unknown, fallback: T): T {
+  if (typeof value !== "string" || !value.trim()) return fallback
+  try {
+    return JSON.parse(value) as T
+  } catch {
+    return fallback
+  }
+}
+
+function normalizeKnowledgeNode(row: Record<string, unknown>): KnowledgeNode & Record<string, unknown> {
+  return {
+    ...row,
+    id: String(row.id),
+    title: String(row.title),
+    type: String(row.source_type || "concept") as KnowledgeNode["type"],
+    mastery: Number(row.mastery || 0),
+    visibility: String(row.visibility || "private") as KnowledgeNode["visibility"],
+    position: {
+      x: Number(row.position_x || 0),
+      y: Number(row.position_y || 0),
+      z: Number(row.position_z || 0),
+    },
+    metadata: parseJsonObject(row.metadata),
+  }
+}
+
+function normalizeKnowledgeEdge(row: Record<string, unknown>): KnowledgeEdge & Record<string, unknown> {
+  return {
+    ...row,
+    id: String(row.id),
+    sourceId: String(row.source_node_id || row.sourceId),
+    targetId: String(row.target_node_id || row.targetId),
+    type: String(row.edge_type || "related") as KnowledgeEdge["type"],
+    strength: Number(row.strength || 0.5),
+    metadata: parseJsonObject(row.metadata),
+  }
+}
+
+async function seedKnowledgeGraphForUser(user: User) {
+  const existing = await query("SELECT count(*) AS count FROM knowledge_nodes WHERE user_id = $1", [user.id])
+  if (Number(existing.rows[0]?.count || 0) > 0) return
+
+  const notes = (await listNotes()).slice(0, 5)
+  for (const [index, note] of notes.entries()) {
+    await query(
+      `INSERT INTO knowledge_nodes (
+         id, user_id, workspace_id, source_type, source_id, title, summary, mastery, visibility,
+         position_x, position_y, position_z, metadata
+       )
+       VALUES ($1, $2, 'workspace_demo', 'note', $3, $4, $5, $6, $7, $8, $9, 0, $10::jsonb)
+       ON CONFLICT (id) DO NOTHING`,
+      [
+        `node_${note.id}`,
+        user.id,
+        note.id,
+        note.title,
+        note.content.slice(0, 220),
+        Math.min(0.9, 0.35 + index * 0.12),
+        note.favorite ? "connections" : "private",
+        Math.cos(index) * 120,
+        Math.sin(index) * 90,
+        JSON.stringify({ icon: note.icon, tags: note.tags || [] }),
+      ],
+    )
+  }
+
+  if (notes.length >= 2) {
+    for (let index = 1; index < notes.length; index += 1) {
+      await query(
+        `INSERT INTO knowledge_edges (id, user_id, workspace_id, source_node_id, target_node_id, edge_type, strength, created_by)
+         VALUES ($1, $2, 'workspace_demo', $3, $4, 'related', $5, 'ai-suggested')
+         ON CONFLICT (source_node_id, target_node_id, edge_type) DO NOTHING`,
+        [createId("edge"), user.id, `node_${notes[index - 1].id}`, `node_${notes[index].id}`, Math.max(0.35, 0.8 - index * 0.08)],
+      )
+    }
+  }
+}
+
+async function seedReviewItemsForUser(user: User) {
+  const existing = await query("SELECT count(*) AS count FROM review_items WHERE user_id = $1", [user.id])
+  if (Number(existing.rows[0]?.count || 0) > 0) return
+
+  const notes = (await listNotes()).slice(0, 6)
+  for (const [index, note] of notes.entries()) {
+    await query(
+      `INSERT INTO review_items (
+         id, user_id, source_type, source_id, title, prompt, answer, difficulty, stability, retrievability, due_at, metadata
+       )
+       VALUES ($1, $2, 'note', $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)
+       ON CONFLICT (user_id, source_type, source_id) DO NOTHING`,
+      [
+        createId("review"),
+        user.id,
+        note.id,
+        note.title,
+        `Explain the central idea in "${note.title}".`,
+        note.content.slice(0, 500),
+        0.45 + index * 0.04,
+        2 + index,
+        0.9 - index * 0.08,
+        new Date(Date.now() - index * 60 * 60 * 1000).toISOString(),
+        JSON.stringify({ icon: note.icon, reviewableBlock: true }),
+      ],
+    )
+  }
+}
+
+async function seedMicroLessons(user: User) {
+  const existing = await query("SELECT count(*) AS count FROM micro_lessons")
+  if (Number(existing.rows[0]?.count || 0) > 0) return
+
+  const lessons = [
+    {
+      id: "lesson_spaced_repetition",
+      title: "Why spaced repetition works",
+      summary: "A compact lesson on retrieval, timing, and why reviews should feel slightly effortful.",
+      tags: ["memory", "study"],
+      question: "What makes a review most useful?",
+      choices: [
+        { id: "a", text: "Seeing the answer immediately" },
+        { id: "b", text: "Trying to recall before seeing the answer" },
+        { id: "c", text: "Reviewing every card every day" },
+      ],
+      correct: "b",
+    },
+    {
+      id: "lesson_graph_connections",
+      title: "Turn notes into a graph",
+      summary: "Connect concepts as prerequisites, examples, contradictions, or extensions.",
+      tags: ["knowledge graph", "notes"],
+      question: "Which edge type means one idea must come before another?",
+      choices: [
+        { id: "a", text: "related" },
+        { id: "b", text: "prerequisite" },
+        { id: "c", text: "extends" },
+      ],
+      correct: "b",
+    },
+    {
+      id: "lesson_serendipity",
+      title: "Serendipity prevents learning tunnels",
+      summary: "A small slice of outside-topic material keeps curiosity alive without hijacking focus.",
+      tags: ["discovery", "feed"],
+      question: "Why keep a serendipity slot in the feed?",
+      choices: [
+        { id: "a", text: "To force random content only" },
+        { id: "b", text: "To surface useful adjacent ideas" },
+        { id: "c", text: "To remove user controls" },
+      ],
+      correct: "b",
+    },
+  ]
+
+  for (const lesson of lessons) {
+    await query(
+      `INSERT INTO micro_lessons (
+         id, creator_user_id, title, summary, duration_seconds, topic_tags, question, choices, correct_choice_id, explanation
+       )
+       VALUES ($1, $2, $3, $4, 90, $5::jsonb, $6, $7::jsonb, $8, $9)
+       ON CONFLICT (id) DO NOTHING`,
+      [
+        lesson.id,
+        user.id,
+        lesson.title,
+        lesson.summary,
+        JSON.stringify(lesson.tags),
+        lesson.question,
+        JSON.stringify(lesson.choices),
+        lesson.correct,
+        "Save the lesson to your Vault and connect it to one note.",
+      ],
+    )
+  }
+}
+
+export async function getVaultGraph(user: User) {
+  await ensureDatabase()
+  await seedKnowledgeGraphForUser(user)
+  const [nodesResult, edgesResult] = await Promise.all([
+    query("SELECT * FROM knowledge_nodes WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 160", [user.id]),
+    query("SELECT * FROM knowledge_edges WHERE user_id = $1 ORDER BY created_at DESC LIMIT 240", [user.id]),
+  ])
+  const nodes = nodesResult.rows.map(normalizeKnowledgeNode)
+  const edges = edgesResult.rows.map(normalizeKnowledgeEdge)
+  return {
+    nodes,
+    edges,
+    orphanNodes: detectOrphanKnowledgeNodes(nodes, edges),
+  }
+}
+
+export async function saveVaultBlock(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  const noteId = String(input.noteId || input.note_id || "")
+  const blockType = String(input.blockType || input.block_type || "text")
+  const content = typeof input.content === "object" && input.content ? input.content : { text: String(input.content || "") }
+  const id = String(input.id || createId("block"))
+  await query(
+    `INSERT INTO note_blocks (id, note_id, block_type, content, sort_order)
+     VALUES ($1, $2, $3, $4::jsonb, $5)
+     ON CONFLICT (id) DO UPDATE SET block_type = EXCLUDED.block_type, content = EXCLUDED.content, sort_order = EXCLUDED.sort_order`,
+    [id, noteId, blockType, JSON.stringify(content), Number(input.sortOrder || input.sort_order || 0)],
+  )
+  await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "vault_block", entityId: id })
+  return { id, noteId, blockType, content }
+}
+
+export async function listReviewSchedule(user: User) {
+  await ensureDatabase()
+  await seedReviewItemsForUser(user)
+  const rows = (await query(
+    `SELECT * FROM review_items
+     WHERE user_id = $1
+     ORDER BY due_at ASC
+     LIMIT 120`,
+    [user.id],
+  )).rows
+  const preferences = user.preferences || {}
+  const items: ReviewItem[] = rows.map((row) => ({
+    id: String(row.id),
+    title: String(row.title),
+    sourceType: String(row.source_type || "note") as ReviewItem["sourceType"],
+    dueAt: String(row.due_at),
+    difficulty: Number(row.difficulty || 0.5),
+    stability: Number(row.stability || 2),
+    retrievability: Number(row.retrievability || 0.9),
+  }))
+  return buildReviewSchedule({
+    items,
+    now: new Date(),
+    dailyCap: Number(preferences.dailyReviewCap || 30),
+    restDay: String(preferences.restDay || "") as Weekday,
+  })
+}
+
+export async function recordReviewResult(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  const id = String(input.id || input.reviewItemId || "")
+  const rating = String(input.rating || "good")
+  const nextIntervalDays = rating === "again" ? 1 : rating === "hard" ? 2 : rating === "easy" ? 7 : 4
+  const nextDueAt = new Date(Date.now() + nextIntervalDays * 24 * 60 * 60 * 1000).toISOString()
+  await query(
+    `UPDATE review_items
+     SET due_at = $1,
+         last_reviewed_at = now(),
+         review_count = review_count + 1,
+         lapse_count = lapse_count + $2,
+         retrievability = $3,
+         updated_at = now()
+     WHERE id = $4 AND user_id = $5`,
+    [nextDueAt, rating === "again" ? 1 : 0, rating === "again" ? 0.35 : 0.9, id, user.id],
+  )
+  await query(
+    "INSERT INTO review_logs (id, user_id, review_item_id, rating, elapsed_ms, next_due_at) VALUES ($1, $2, $3, $4, $5, $6)",
+    [createId("reviewlog"), user.id, id, rating, Number(input.elapsedMs || input.elapsed_ms || 0), nextDueAt],
+  )
+  const today = new Date().toISOString().slice(0, 10)
+  const streak = updateLearningStreak({
+    current: Number((user as unknown as Record<string, unknown>).streak_current || 0),
+    longest: Number((user as unknown as Record<string, unknown>).streak_longest || 0),
+    freezesAvailable: Number((user as unknown as Record<string, unknown>).streak_freezes_available || 0),
+    lastActivityDate: String((user as unknown as Record<string, unknown>).last_learning_activity_at || "").slice(0, 10),
+    today,
+    restDay: String(user.preferences?.restDay || "") as Weekday,
+  })
+  await query(
+    "UPDATE users SET streak_current = $1, streak_longest = $2, streak_freezes_available = $3, xp_total = COALESCE(xp_total, 0) + 8, last_learning_activity_at = $4 WHERE id = $5",
+    [streak.current, streak.longest, streak.freezesAvailable, today, user.id],
+  )
+  await logAudit({ userId: user.id, action: "complete", entity: "review_item", entityId: id, details: { rating } })
+  return { nextDueAt, streak }
+}
+
+export async function listFeed(user: User, topics: string[] = []) {
+  await ensureDatabase()
+  await seedMicroLessons(user)
+  const rows = (await query(
+    `SELECT ml.*,
+       COALESCE((SELECT count(*) FROM feed_interactions fi WHERE fi.lesson_id = ml.id), 0) AS interaction_count
+     FROM micro_lessons ml
+     WHERE ml.status = 'published'
+     ORDER BY ml.updated_at DESC
+     LIMIT 120`,
+  )).rows
+  const candidates: FeedLessonCandidate[] = rows.map((row) => ({
+    id: String(row.id),
+    title: String(row.title),
+    topicTags: parseJsonArray<string>(row.topic_tags),
+    durationSeconds: Number(row.duration_seconds || 90),
+    readinessScore: 0.5 + Math.min(0.4, Number(row.interaction_count || 0) / 100),
+  }))
+  const preferredTopics = topics.length ? topics : parseJsonArray<string>(user.preferences?.feedTopics).concat(["study", "notes"])
+  const selected = selectFeedLessons({ lessons: candidates, preferredTopics, count: 12, serendipityRatio: 0.15 })
+  return selected.map((item) => {
+    const source = rows.find((row) => row.id === item.id) || {}
+    return {
+      ...source,
+      ...item,
+      topic_tags: item.topicTags,
+      choices: parseJsonArray(source.choices),
+    }
+  })
+}
+
+export async function listMicroLessons(user: User) {
+  await ensureDatabase()
+  await seedMicroLessons(user)
+  const result = await query("SELECT * FROM micro_lessons ORDER BY updated_at DESC LIMIT 100")
+  return result.rows.map((row) => ({
+    ...row,
+    topic_tags: parseJsonArray(row.topic_tags),
+    choices: parseJsonArray(row.choices),
+  }))
+}
+
+export async function saveMicroLesson(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  const id = String(input.id || createId("lesson"))
+  await query(
+    `INSERT INTO micro_lessons (
+       id, creator_user_id, title, summary, duration_seconds, topic_tags, question, choices,
+       correct_choice_id, explanation, visibility, status, updated_at
+     )
+     VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8::jsonb, $9, $10, $11, $12, now())
+     ON CONFLICT (id) DO UPDATE
+     SET title = EXCLUDED.title,
+         summary = EXCLUDED.summary,
+         duration_seconds = EXCLUDED.duration_seconds,
+         topic_tags = EXCLUDED.topic_tags,
+         question = EXCLUDED.question,
+         choices = EXCLUDED.choices,
+         correct_choice_id = EXCLUDED.correct_choice_id,
+         explanation = EXCLUDED.explanation,
+         visibility = EXCLUDED.visibility,
+         status = EXCLUDED.status,
+         updated_at = now()`,
+    [
+      id,
+      user.id,
+      String(input.title || "Untitled micro-lesson").trim(),
+      String(input.summary || ""),
+      Number(input.durationSeconds || input.duration_seconds || 90),
+      JSON.stringify(Array.isArray(input.topicTags) ? input.topicTags : input.topic_tags || []),
+      String(input.question || ""),
+      JSON.stringify(Array.isArray(input.choices) ? input.choices : []),
+      String(input.correctChoiceId || input.correct_choice_id || ""),
+      String(input.explanation || ""),
+      String(input.visibility || "public"),
+      String(input.status || "published"),
+    ],
+  )
+  await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "micro_lesson", entityId: id })
+  return (await query("SELECT * FROM micro_lessons WHERE id = $1 LIMIT 1", [id])).rows[0]
+}
+
+export async function recordFeedInteraction(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  const id = createId("feed")
+  await query(
+    `INSERT INTO feed_interactions (id, user_id, lesson_id, action, correct, saved_to_vault, metadata)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
+    [
+      id,
+      user.id,
+      String(input.lessonId || input.lesson_id || ""),
+      String(input.action || "viewed"),
+      input.correct ? 1 : 0,
+      input.savedToVault || input.saved_to_vault ? 1 : 0,
+      JSON.stringify(input.metadata || {}),
+    ],
+  )
+  await query("UPDATE users SET xp_total = COALESCE(xp_total, 0) + $1 WHERE id = $2", [input.correct ? 6 : 2, user.id])
+  await logAudit({ userId: user.id, action: "create", entity: "feed_interaction", entityId: id })
+  return { id }
+}
+
+export async function listAchievements(user: User) {
+  await ensureDatabase()
+  const result = await query(
+    `SELECT a.*, ua.unlocked_at
+     FROM achievements a
+     LEFT JOIN user_achievements ua ON ua.achievement_id = a.id AND ua.user_id = $1
+     ORDER BY ua.unlocked_at DESC, a.created_at ASC`,
+    [user.id],
+  )
+  if (result.rowCount) return result.rows.map((row) => ({ ...row, criteria: parseJsonObject(row.criteria), unlocked: Boolean(row.unlocked_at) }))
+  const seeded = [
+    ["ach_first_review", "First Review", "Complete your first Vault review.", "repeat", 20],
+    ["ach_graph_seed", "Graph Seed", "Create your first knowledge edge.", "network", 30],
+    ["ach_feed_answer", "Curiosity Spark", "Answer a feed lesson question.", "sparkles", 15],
+  ]
+  for (const [id, name, description, icon, xp] of seeded) {
+    await query(
+      "INSERT INTO achievements (id, name, description, icon, xp_reward, criteria) VALUES ($1, $2, $3, $4, $5, $6::jsonb) ON CONFLICT (id) DO NOTHING",
+      [id, name, description, icon, xp, JSON.stringify({ seeded: true })],
+    )
+  }
+  return listAchievements(user)
+}
+
+export async function getPublicProfile(username: string, viewer: "public" | "connections" | "owner" = "public") {
+  await ensureDatabase()
+  const result = await query("SELECT id, username, name, bio, avatar_url, xp_total, streak_current, streak_longest, reputation, profile_visibility FROM users WHERE username = $1 LIMIT 1", [username])
+  const row = result.rows[0]
+  if (!row) return null
+  const nodes = (await query("SELECT * FROM knowledge_nodes WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 80", [row.id])).rows.map(normalizeKnowledgeNode)
+  return {
+    id: row.id,
+    username: row.username,
+    name: row.name,
+    bio: row.bio || "",
+    avatar_url: row.avatar_url || "",
+    metrics: {
+      xp: Number(row.xp_total || 0),
+      ...calculateLevelFromXp(Number(row.xp_total || 0)),
+      streak: Number(row.streak_current || 0),
+      longestStreak: Number(row.streak_longest || 0),
+      reputation: Number(row.reputation || 0),
+    },
+    artifacts: filterPublicProfileArtifacts(nodes, viewer),
+  }
+}
+
+export async function listLearningSpaces(user: User) {
+  await ensureDatabase()
+  const result = await query(
+    `SELECT ls.*,
+       (SELECT count(*) FROM learning_space_members lsm WHERE lsm.space_id = ls.id) AS member_count
+     FROM learning_spaces ls
+     WHERE ls.visibility = 'public' OR ls.owner_user_id = $1 OR $2 = 'admin'
+     ORDER BY ls.updated_at DESC
+     LIMIT 80`,
+    [user.id, user.role],
+  )
+  return result.rows.map((row) => ({ ...row, topic_tags: parseJsonArray(row.topic_tags), settings: parseJsonObject(row.settings) }))
+}
+
+export async function saveLearningSpace(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  const id = String(input.id || createId("space"))
+  await query(
+    `INSERT INTO learning_spaces (id, workspace_id, owner_user_id, name, description, visibility, topic_tags, settings, updated_at)
+     VALUES ($1, 'workspace_demo', $2, $3, $4, $5, $6::jsonb, $7::jsonb, now())
+     ON CONFLICT (id) DO UPDATE
+     SET name = EXCLUDED.name,
+         description = EXCLUDED.description,
+         visibility = EXCLUDED.visibility,
+         topic_tags = EXCLUDED.topic_tags,
+         settings = EXCLUDED.settings,
+         updated_at = now()`,
+    [
+      id,
+      user.id,
+      String(input.name || "Learning Space").trim(),
+      String(input.description || ""),
+      String(input.visibility || "private"),
+      JSON.stringify(Array.isArray(input.topicTags) ? input.topicTags : input.topic_tags || []),
+      JSON.stringify(input.settings || {}),
+    ],
+  )
+  await query(
+    "INSERT INTO learning_space_members (space_id, user_id, role) VALUES ($1, $2, 'owner') ON CONFLICT (space_id, user_id) DO NOTHING",
+    [id, user.id],
+  )
+  await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "learning_space", entityId: id })
+  return (await query("SELECT * FROM learning_spaces WHERE id = $1 LIMIT 1", [id])).rows[0]
+}
+
+export async function listStudyRooms(user: User) {
+  await ensureDatabase()
+  const result = await query(
+    `SELECT sr.*,
+       (SELECT count(*) FROM study_battles sb WHERE sb.room_id = sr.id) AS battle_count
+     FROM study_rooms sr
+     WHERE sr.owner_user_id = $1 OR $2 = 'admin' OR sr.status = 'open'
+     ORDER BY sr.updated_at DESC
+     LIMIT 80`,
+    [user.id, user.role],
+  )
+  return result.rows.map((row) => ({ ...row, presence: parseJsonArray(row.presence) }))
+}
+
+export async function saveStudyRoom(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  const id = String(input.id || createId("room"))
+  await query(
+    `INSERT INTO study_rooms (id, space_id, owner_user_id, name, mode, pomodoro_minutes, break_minutes, status, presence, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, now())
+     ON CONFLICT (id) DO UPDATE
+     SET name = EXCLUDED.name,
+         mode = EXCLUDED.mode,
+         pomodoro_minutes = EXCLUDED.pomodoro_minutes,
+         break_minutes = EXCLUDED.break_minutes,
+         status = EXCLUDED.status,
+         presence = EXCLUDED.presence,
+         updated_at = now()`,
+    [
+      id,
+      input.spaceId || input.space_id || null,
+      user.id,
+      String(input.name || "Focus Room").trim(),
+      String(input.mode || "focus"),
+      Number(input.pomodoroMinutes || input.pomodoro_minutes || 25),
+      Number(input.breakMinutes || input.break_minutes || 5),
+      String(input.status || "open"),
+      JSON.stringify(Array.isArray(input.presence) ? input.presence : []),
+    ],
+  )
+  await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "study_room", entityId: id })
+  return (await query("SELECT * FROM study_rooms WHERE id = $1 LIMIT 1", [id])).rows[0]
+}
+
+export async function listStudyBattles(user: User) {
+  await ensureDatabase()
+  const result = await query(
+    `SELECT * FROM study_battles
+     WHERE owner_user_id = $1 OR $2 = 'admin' OR status IN ('waiting', 'active')
+     ORDER BY updated_at DESC
+     LIMIT 80`,
+    [user.id, user.role],
+  )
+  return result.rows.map((row) => ({ ...row, question_set: parseJsonArray(row.question_set), leaderboard: parseJsonArray(row.leaderboard) }))
+}
+
+export async function saveStudyBattle(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  const id = String(input.id || createId("battle"))
+  await query(
+    `INSERT INTO study_battles (id, room_id, owner_user_id, title, topic, mode, status, question_set, leaderboard, started_at, ended_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11, now())
+     ON CONFLICT (id) DO UPDATE
+     SET title = EXCLUDED.title,
+         topic = EXCLUDED.topic,
+         mode = EXCLUDED.mode,
+         status = EXCLUDED.status,
+         question_set = EXCLUDED.question_set,
+         leaderboard = EXCLUDED.leaderboard,
+         started_at = EXCLUDED.started_at,
+         ended_at = EXCLUDED.ended_at,
+         updated_at = now()`,
+    [
+      id,
+      input.roomId || input.room_id || null,
+      user.id,
+      String(input.title || "Study Battle").trim(),
+      String(input.topic || "General"),
+      String(input.mode || "solo"),
+      String(input.status || "waiting"),
+      JSON.stringify(Array.isArray(input.questionSet) ? input.questionSet : input.question_set || []),
+      JSON.stringify(Array.isArray(input.leaderboard) ? input.leaderboard : []),
+      input.startedAt || input.started_at || null,
+      input.endedAt || input.ended_at || null,
+    ],
+  )
+  await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "study_battle", entityId: id })
+  return (await query("SELECT * FROM study_battles WHERE id = $1 LIMIT 1", [id])).rows[0]
+}
+
+export async function recordSocialAction(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  const id = createId("social")
+  await query(
+    `INSERT INTO social_actions (id, actor_user_id, target_type, target_id, action_type, body, metadata)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
+    [
+      id,
+      user.id,
+      String(input.targetType || input.target_type || "note"),
+      String(input.targetId || input.target_id || ""),
+      String(input.actionType || input.action_type || "comment"),
+      String(input.body || ""),
+      JSON.stringify(input.metadata || {}),
+    ],
+  )
+  await logAudit({ userId: user.id, action: "create", entity: "social_action", entityId: id })
+  return { id }
+}
+
+export async function listModerationItems(user: User) {
+  await ensureDatabase()
+  if (user.role !== "admin") return []
+  const result = await query("SELECT * FROM moderation_items ORDER BY created_at DESC LIMIT 100")
+  return result.rows
+}
+
+export async function saveModerationItem(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  const id = String(input.id || createId("mod"))
+  await query(
+    `INSERT INTO moderation_items (id, reporter_user_id, target_type, target_id, reason, status, notes, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, now())
+     ON CONFLICT (id) DO UPDATE
+     SET status = EXCLUDED.status,
+         notes = EXCLUDED.notes,
+         updated_at = now()`,
+    [
+      id,
+      user.id,
+      String(input.targetType || input.target_type || "feed"),
+      String(input.targetId || input.target_id || ""),
+      String(input.reason || "Needs review"),
+      String(input.status || "open"),
+      String(input.notes || ""),
+    ],
+  )
+  await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "moderation_item", entityId: id })
+  return (await query("SELECT * FROM moderation_items WHERE id = $1 LIMIT 1", [id])).rows[0]
 }
 
 export async function saveAiTurn(input: {
