@@ -42,10 +42,10 @@ export function LoginSurface() {
           </div>
 
           <div className="max-w-full py-8 lg:max-w-2xl lg:py-16">
-            <h1 className="max-w-full break-words text-3xl font-semibold leading-[1.08] tracking-normal sm:text-5xl lg:max-w-xl lg:text-6xl">
+            <h1 className="max-w-full break-words text-2xl font-semibold leading-[1.12] tracking-normal sm:text-5xl lg:max-w-xl lg:text-6xl">
               Notes, quizzes, files, and AI tutoring in one focused workspace.
             </h1>
-            <p className="mt-5 max-w-full break-words text-base leading-7 text-[#625a51] sm:text-lg sm:leading-8 lg:max-w-lg">
+            <p className="mt-5 max-w-full break-words text-sm leading-6 text-[#625a51] sm:text-lg sm:leading-8 lg:max-w-lg">
               A compact learning workspace with Cloudflare-backed notes, adaptive practice, progress memory, and private file capture.
             </p>
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
