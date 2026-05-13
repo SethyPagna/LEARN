@@ -29,11 +29,19 @@ export type R2BucketLike = {
   list(options?: { prefix?: string; limit?: number }): Promise<{ objects: { key: string; size: number }[] }>
 }
 
+export type DurableObjectNamespaceLike = {
+  idFromName(name: string): unknown
+  get(id: unknown): { fetch(request: Request): Promise<Response> }
+}
+
 export type CloudflareBindings = {
   DB?: D1DatabaseLike
   LEARN_DB?: D1DatabaseLike
   LEARN_FILES?: R2BucketLike
   NEXT_INC_CACHE_R2_BUCKET?: R2BucketLike
+  STUDY_ROOM_DO?: DurableObjectNamespaceLike
+  STUDY_BATTLE_DO?: DurableObjectNamespaceLike
+  PRESENCE_DO?: DurableObjectNamespaceLike
   APP_ID?: string
   APP_BASE_URL?: string
   AI_PROVIDER_DEFAULT?: string
