@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
+import { decryptProviderSecret, encryptProviderSecret, maskProviderSecret, normalizeProviderConfigInput } from "../lib/ai/provider-admin"
 import { getProviderMetadata, resolveConfiguredProvider } from "../lib/ai/providers"
 
 test("resolveConfiguredProvider selects the requested provider when a key exists", () => {
@@ -31,4 +32,22 @@ test("resolveConfiguredProvider builds the Cloudflare AI Gateway endpoint", () =
   assert.equal(provider?.provider, "cloudflare")
   assert.equal(provider?.model, "@cf/meta/llama-3.1-8b-instruct")
   assert.equal(provider?.endpoint, "https://gateway.ai.cloudflare.com/v1/account/learn/workers-ai/@cf/meta/llama-3.1-8b-instruct")
+})
+
+test("provider secrets are encrypted and masked without exposing the raw key", async () => {
+  const encrypted = await encryptProviderSecret("secret-provider-key", "test-master-key")
+
+  assert.notEqual(encrypted, "secret-provider-key")
+  assert.equal(await decryptProviderSecret(encrypted, "test-master-key"), "secret-provider-key")
+  assert.equal(maskProviderSecret("secret-provider-key"), "secr...-key")
+})
+
+test("normalizeProviderConfigInput applies safe provider defaults", () => {
+  const input = normalizeProviderConfigInput({ provider: "groq", apiKey: "key" })
+
+  assert.equal(input.provider, "groq")
+  assert.equal(input.name, "Groq")
+  assert.equal(input.defaultModel, "groq/compound")
+  assert.equal(input.providerType, "chat")
+  assert.equal(input.requestsPerMinute, 18)
 })
