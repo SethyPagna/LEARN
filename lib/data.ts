@@ -1,5 +1,5 @@
 import { cookies } from "next/headers"
-import { decryptProviderSecret, encryptProviderSecret, maskProviderSecret, normalizeProviderConfigInput, type ProviderConfigInput } from "./ai/provider-admin"
+import { buildProviderAdminSummary, decryptProviderSecret, encryptProviderSecret, maskProviderSecret, normalizeProviderConfigInput, type ProviderConfigInput } from "./ai/provider-admin"
 import type { AiProviderKey } from "./ai/providers"
 import { createSessionToken, hashSessionToken, verifyPassword } from "./auth"
 import { query } from "./db"
@@ -739,6 +739,14 @@ export async function listAiProviderConfigs() {
   return result.rows.map(serializeAiProvider)
 }
 
+export async function getAiProviderAdminState() {
+  const providers = await listAiProviderConfigs()
+  return {
+    items: providers,
+    summary: buildProviderAdminSummary(providers as any),
+  }
+}
+
 export interface RuntimeAiProviderConfig {
   id: string
   name: string
@@ -854,10 +862,17 @@ export async function saveAiProviderConfig(user: User, input: ProviderConfigInpu
       normalized.priority,
       normalized.requestsPerMinute,
       normalized.maxInputChars,
-      normalized.maxCompletionTokens,
-      normalized.timeoutMs,
-      normalized.cooldownSeconds,
+     normalized.maxCompletionTokens,
+     normalized.timeoutMs,
+     normalized.cooldownSeconds,
     ],
+  )
+  await query(
+    `UPDATE ai_provider_configs
+     SET created_by_id = COALESCE(created_by_id, $1),
+         created_by_name = COALESCE(created_by_name, $2)
+     WHERE id = $3`,
+    [user.id, user.name, id],
   )
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "ai_provider_config", entityId: id })
   return serializeAiProvider((await query("SELECT * FROM ai_provider_configs WHERE id = $1 LIMIT 1", [id])).rows[0] || {})
