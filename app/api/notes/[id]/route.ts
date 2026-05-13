@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server"
 import { fail, isApiResponse, ok, requireApiUser } from "@/lib/api"
-import { deleteNote, getNote, saveNote } from "@/lib/data"
+import { deleteNote, getNote, restoreNote, saveNote } from "@/lib/data"
 
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const user = await requireApiUser(request)
@@ -33,4 +33,13 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
   const { id } = await context.params
   await deleteNote(user, id)
   return ok({ success: true })
+}
+
+export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const user = await requireApiUser(request)
+  if (isApiResponse(user)) return user
+  const { id } = await context.params
+  const body = await request.json().catch(() => ({}))
+  if (body.action === "restore") return ok({ item: await restoreNote(user, id) })
+  return fail("Unsupported note action.", 400)
 }
