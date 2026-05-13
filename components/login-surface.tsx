@@ -66,7 +66,7 @@ export function LoginSurface() {
         </section>
 
         <section className="order-1 flex min-w-0 items-center justify-center bg-[#17202a] p-4 text-white sm:p-6 lg:order-2 lg:p-10">
-          <form onSubmit={handleSubmit} className="w-[calc(100vw-2rem)] min-w-0 max-w-full rounded-lg border border-white/10 bg-white/[0.06] p-6 shadow-2xl backdrop-blur sm:w-full sm:max-w-md">
+          <form onSubmit={handleSubmit} className="w-80 min-w-0 max-w-full rounded-lg border border-white/10 bg-white/[0.06] p-6 shadow-2xl backdrop-blur sm:w-full sm:max-w-md">
             <div className="mb-8">
               <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#d7ff6f] text-[#171717]">
                 <Sparkles className="h-6 w-6" />
