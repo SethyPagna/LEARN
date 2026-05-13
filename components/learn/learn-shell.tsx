@@ -3,17 +3,23 @@
 import { useEffect, useMemo, useState } from "react"
 import { Sidebar, MobileMenu, Topbar } from "./app-nav"
 import { api } from "./api"
-import type { Note, Quiz, User, View } from "./types"
+import type { Note, Quiz, StudioKind, User, View } from "./types"
 import { StatusMessage } from "./ui"
 import { AiTutorView } from "./views/ai-view"
 import { DashboardView } from "./views/dashboard-view"
 import { FilesView } from "./views/files-view"
-import { NotesView } from "./views/notes-view"
-import { ChatView, DocsView, GamesView, SheetsView, SlidesView } from "./views/productivity-views"
+import { ChatView, GamesView } from "./views/productivity-views"
 import { QuizView } from "./views/quiz-view"
 import { AdminView, CalendarView, ProgressView, SettingsView } from "./views/secondary-views"
 import { useWorkspacePreferences } from "./preferences"
 import { FeedView, GraphView, ProfileView, ReviewsView, SocialLearningView, VaultView } from "./views/ecosystem-views"
+import { StudioView } from "./views/studio-view"
+
+const studioViews = ["studio", "notes", "docs", "sheets", "slides"] as const
+
+function getStudioKind(view: View): StudioKind {
+  return view === "docs" || view === "sheets" || view === "slides" ? view : "notes"
+}
 
 export function LearnShell({
   initialView = "dashboard",
@@ -124,10 +130,7 @@ export function LearnShell({
             {view === "feed" || view === "discover" ? <FeedView setView={chooseView} /> : null}
             {view === "graph" ? <GraphView /> : null}
             {view === "reviews" ? <ReviewsView /> : null}
-            {view === "notes" ? <NotesView notes={filteredNotes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} /> : null}
-            {view === "docs" ? <DocsView options={preferences.options} /> : null}
-            {view === "sheets" ? <SheetsView options={preferences.options} /> : null}
-            {view === "slides" ? <SlidesView options={preferences.options} /> : null}
+            {studioViews.includes(view as (typeof studioViews)[number]) ? <StudioView initialKind={getStudioKind(view)} notes={filteredNotes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} /> : null}
             {view === "quizzes" ? <QuizView quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={preferences.options} /> : null}
             {view === "games" ? <GamesView quizzes={quizzes} options={preferences.options} /> : null}
             {view === "ai" ? <AiTutorView notes={notes} options={preferences.options} setOptions={preferences.setOptions} /> : null}
