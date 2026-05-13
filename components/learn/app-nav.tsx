@@ -7,6 +7,7 @@ import {
   Bot,
   Brain,
   CalendarDays,
+  ChevronDown,
   Compass,
   Files,
   FileText,
@@ -35,33 +36,64 @@ import type { View, User } from "./types"
 
 type Text = typeof baseVocabulary
 type Density = "compact" | "comfortable"
+type NavItem = { view: View; labelKey: keyof Text; icon: React.ComponentType<{ className?: string }>; aliases?: View[] }
+type NavGroup = { label: string; items: NavItem[] }
 
-const navItems: { view: View; labelKey: keyof Text; icon: React.ComponentType<{ className?: string }> }[] = [
-  { view: "dashboard", labelKey: "dashboard", icon: Home },
-  { view: "vault", labelKey: "vault", icon: Brain },
-  { view: "feed", labelKey: "feed", icon: Compass },
-  { view: "graph", labelKey: "graph", icon: GitFork },
-  { view: "reviews", labelKey: "reviews", icon: Repeat2 },
-  { view: "notes", labelKey: "notes", icon: FileText },
-  { view: "docs", labelKey: "docs", icon: FileText },
-  { view: "sheets", labelKey: "sheets", icon: Table2 },
-  { view: "slides", labelKey: "slides", icon: Presentation },
-  { view: "quizzes", labelKey: "quizzes", icon: BookOpen },
-  { view: "games", labelKey: "games", icon: Gamepad2 },
-  { view: "ai", labelKey: "aiTutor", icon: Bot },
-  { view: "files", labelKey: "files", icon: Files },
-  { view: "chat", labelKey: "chat", icon: MessagesSquare },
-  { view: "progress", labelKey: "progress", icon: BarChart3 },
-  { view: "calendar", labelKey: "calendar", icon: CalendarDays },
-  { view: "spaces", labelKey: "spaces", icon: MessagesSquare },
-  { view: "rooms", labelKey: "rooms", icon: Radio },
-  { view: "battles", labelKey: "battles", icon: Gamepad2 },
-  { view: "profile", labelKey: "profile", icon: BookOpen },
-  { view: "settings", labelKey: "settings", icon: Settings },
-  { view: "admin", labelKey: "admin", icon: Shield },
+const studioViews: View[] = ["studio", "notes", "docs", "sheets", "slides"]
+
+const navGroups: NavGroup[] = [
+  {
+    label: "Home",
+    items: [{ view: "dashboard", labelKey: "dashboard", icon: Home }],
+  },
+  {
+    label: "Learn",
+    items: [
+      { view: "vault", labelKey: "vault", icon: Brain },
+      { view: "feed", labelKey: "feed", icon: Compass, aliases: ["discover"] },
+      { view: "graph", labelKey: "graph", icon: GitFork },
+      { view: "reviews", labelKey: "reviews", icon: Repeat2 },
+      { view: "calendar", labelKey: "calendar", icon: CalendarDays },
+      { view: "progress", labelKey: "progress", icon: BarChart3 },
+    ],
+  },
+  {
+    label: "Studio",
+    items: [
+      { view: "studio", labelKey: "studio", icon: FileText, aliases: ["notes", "docs", "sheets", "slides"] },
+      { view: "files", labelKey: "files", icon: Files },
+      { view: "ai", labelKey: "aiTutor", icon: Bot },
+    ],
+  },
+  {
+    label: "Practice",
+    items: [
+      { view: "quizzes", labelKey: "quizzes", icon: BookOpen },
+      { view: "games", labelKey: "games", icon: Gamepad2 },
+    ],
+  },
+  {
+    label: "Social",
+    items: [
+      { view: "chat", labelKey: "chat", icon: MessagesSquare },
+      { view: "spaces", labelKey: "spaces", icon: MessagesSquare },
+      { view: "rooms", labelKey: "rooms", icon: Radio },
+      { view: "battles", labelKey: "battles", icon: Gamepad2 },
+    ],
+  },
+  {
+    label: "Manage",
+    items: [
+      { view: "profile", labelKey: "profile", icon: BookOpen },
+      { view: "settings", labelKey: "settings", icon: Settings },
+      { view: "admin", labelKey: "admin", icon: Shield },
+    ],
+  },
 ]
+const navItems = navGroups.flatMap((group) => group.items)
 
 export function titleForView(view: View, text: Text) {
+  if (studioViews.includes(view)) return text.studio
   const item = navItems.find((entry) => entry.view === view)
   return item ? text[item.labelKey] : text.dashboard
 }
@@ -91,7 +123,7 @@ export function Sidebar({
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search notes"
+          placeholder="Search Studio"
           className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
         />
       </div>
@@ -243,25 +275,35 @@ function Navigation({
 }) {
   const rowHeight = density === "compact" ? "h-9" : "h-11"
   return (
-    <nav className="grid gap-1">
-      {navItems.map((item) => {
-        const active = view === item.view
-        const Icon = item.icon
-        return (
-          <button
-            key={item.view}
-            onClick={() => setView(item.view)}
-            className={`flex ${rowHeight} w-full items-center gap-3 rounded-md px-3 text-sm font-medium transition ${
-              active
-                ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            }`}
-          >
-            <Icon className="h-4 w-4 shrink-0" />
-            <span className="truncate">{text[item.labelKey]}</span>
-          </button>
-        )
-      })}
+    <nav className="grid gap-3">
+      {navGroups.map((group) => (
+        <details key={group.label} className="group/navigation" open>
+          <summary className="mb-1 flex cursor-pointer list-none items-center justify-between px-2 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            <span>{group.label}</span>
+            <ChevronDown className="h-3.5 w-3.5 transition group-open/navigation:rotate-180 lg:hidden" />
+          </summary>
+          <div className="grid gap-1">
+            {group.items.map((item) => {
+              const active = view === item.view || item.aliases?.includes(view)
+              const Icon = item.icon
+              return (
+                <button
+                  key={item.view}
+                  onClick={() => setView(item.view)}
+                  className={`flex ${rowHeight} w-full items-center gap-3 rounded-md px-3 text-sm font-medium transition ${
+                    active
+                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm ring-1 ring-sidebar-ring/20"
+                      : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  }`}
+                >
+                  <Icon className="h-[18px] w-[18px] shrink-0" />
+                  <span className="truncate">{text[item.labelKey]}</span>
+                </button>
+              )
+            })}
+          </div>
+        </details>
+      ))}
     </nav>
   )
 }
