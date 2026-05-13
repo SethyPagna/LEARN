@@ -54,7 +54,7 @@ export function DashboardView({
     {
       label: "Review",
       actions: [
-        { label: "Vault", body: "Map what you know", view: "vault", icon: Brain },
+        { label: "Learn", body: "Route, graph, review", view: "learn", icon: Brain },
         { label: "Reviews", body: "Practice due concepts", view: "reviews", icon: Repeat2 },
         { label: "Graph", body: "Find weak links", view: "graph", icon: GitFork },
       ],
@@ -102,7 +102,7 @@ export function DashboardView({
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <BigMetric icon={CheckCircle2} label="Goal" value={`${goalCompletion}%`} body="Learning goals completed" />
-          <BigMetric icon={FileText} label="Studio items" value={String(notes.length)} body="Recent notes in your Vault" />
+          <BigMetric icon={FileText} label="Studio items" value={String(notes.length)} body="Recent notes and workspace items" />
           <BigMetric icon={BookOpen} label="Quiz banks" value={String(quizzes.length)} body="Practice sets available" />
           <BigMetric icon={Repeat2} label="Review queue" value={String(reviewCount)} body="Concepts needing attention" />
         </div>
@@ -155,7 +155,7 @@ export function DashboardView({
             </button>
           )) : (
             <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground md:col-span-2">
-              Create a Studio item to start building your Vault.
+              Create a Studio item to start building your learning workspace.
             </div>
           )}
         </div>
