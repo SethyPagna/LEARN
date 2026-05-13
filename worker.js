@@ -1,4 +1,4 @@
-import openNextWorker from "./.open-next/worker.js"
+import { default as handler } from "./.open-next/worker.js"
 import { DurableObject } from "cloudflare:workers"
 
 class RealtimeLearningObject extends DurableObject {
@@ -71,4 +71,6 @@ export class StudyRoomDurableObject extends RealtimeLearningObject {}
 export class StudyBattleDurableObject extends RealtimeLearningObject {}
 export class PresenceDurableObject extends RealtimeLearningObject {}
 
-export default openNextWorker
+export default {
+  fetch: handler.fetch,
+}
