@@ -31,6 +31,13 @@ const studioTabs: { kind: StudioKind; label: string; description: string; icon: 
   { kind: "slides", label: "Slides", description: "Draft decks, lesson outlines, speaker notes, and quiz prompts.", icon: Presentation },
 ]
 
+const studioCreateLabels: Record<StudioKind, string> = {
+  notes: "New Note",
+  docs: "New Doc",
+  sheets: "New Sheet",
+  slides: "New Deck",
+}
+
 const starterCells = [
   ["Topic", "Status", "Score", "Next step"],
   ["React", "Review", "72", "Practice hooks"],
@@ -399,7 +406,7 @@ export function StudioView({
           })}
         </div>
         <button onClick={createActive} className="mb-3 flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm font-semibold text-primary-foreground">
-          <Plus className="h-4 w-4" /> New {activeTab.label.slice(0, -1) || "item"}
+          <Plus className="h-4 w-4" /> {studioCreateLabels[kind]}
         </button>
         <label className="mb-3 flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3">
           <Search className="h-4 w-4 text-muted-foreground" />
