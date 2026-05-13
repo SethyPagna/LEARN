@@ -171,12 +171,6 @@ function splitSqlStatements(sql: string) {
 }
 
 export async function exec(sql: string) {
-  const d1 = await getD1Database()
-  if (d1) {
-    await d1.exec(sql)
-    return
-  }
-
   for (const statement of splitSqlStatements(sql)) {
     await query(statement)
   }
