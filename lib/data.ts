@@ -457,6 +457,12 @@ export async function saveSheet(user: User, input: Record<string, unknown>) {
   return (await query("SELECT * FROM sheet_documents WHERE id = $1 LIMIT 1", [id])).rows[0]
 }
 
+export async function archiveSheet(user: User, id: string) {
+  await ensureDatabase()
+  await query("UPDATE sheet_documents SET archived_at = now(), updated_at = now() WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin')", [id, user.id, user.role])
+  await logAudit({ userId: user.id, action: "archive", entity: "sheet", entityId: id })
+}
+
 export async function listSlideDecks(user: User) {
   await ensureDatabase()
   const result = await query(
@@ -491,6 +497,12 @@ export async function saveSlideDeck(user: User, input: Record<string, unknown>) 
   )
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "slide_deck", entityId: id })
   return (await query("SELECT * FROM slide_decks WHERE id = $1 LIMIT 1", [id])).rows[0]
+}
+
+export async function archiveSlideDeck(user: User, id: string) {
+  await ensureDatabase()
+  await query("UPDATE slide_decks SET archived_at = now(), updated_at = now() WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin')", [id, user.id, user.role])
+  await logAudit({ userId: user.id, action: "archive", entity: "slide_deck", entityId: id })
 }
 
 export async function listWorkspaceMembers(user: User) {
