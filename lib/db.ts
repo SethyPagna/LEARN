@@ -168,7 +168,13 @@ export async function query<T = QueryResultRow>(
   text: string,
   values: unknown[] = [],
 ): Promise<{ rows: T[]; rowCount: number }> {
-  return (await queryD1Binding<T>(text, values)) || queryD1Api<T>(text, values)
+  try {
+    const bindingResult = await queryD1Binding<T>(text, values)
+    if (bindingResult) return bindingResult
+  } catch (error) {
+    if (!getD1ApiConfig(await getMergedEnv())) throw error
+  }
+  return queryD1Api<T>(text, values)
 }
 
 function splitSqlStatements(sql: string) {
