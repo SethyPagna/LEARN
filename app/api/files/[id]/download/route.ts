@@ -16,6 +16,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const headers = new Headers()
   object.writeHttpMetadata(headers)
   headers.set("content-type", asset.content_type)
+  headers.set("cache-control", "private, no-store")
   headers.set("content-disposition", `attachment; filename="${asset.filename.replace(/"/g, "")}"`)
+  headers.set("x-content-type-options", "nosniff")
   return new Response(object.body, { headers })
 }
