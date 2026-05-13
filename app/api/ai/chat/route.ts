@@ -2,15 +2,23 @@ import type { NextRequest } from "next/server"
 import { fail, isApiResponse, ok, requireApiUser } from "@/lib/api"
 import { askTutor } from "@/lib/ai/tutor"
 import { saveAiTurn } from "@/lib/data"
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
 
 export async function POST(request: NextRequest) {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
 
   const body = await request.json().catch(() => ({}))
-  const message = String(body.message || "").trim()
-  const context = String(body.context || "").trim()
+  const message = String(body.message || "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim().slice(0, 4000)
+  const context = String(body.context || "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim().slice(0, 16000)
   if (!message) return fail("Message is required.")
+
+  const limit = await checkRateLimit({
+    key: `ai:${user.id}:${getClientIp(request.headers)}`,
+    limit: 40,
+    windowMs: 10 * 60 * 1000,
+  })
+  if (!limit.allowed) return fail("Too many AI requests. Try again later.", 429)
 
   try {
     const result = await askTutor({ message, context })
