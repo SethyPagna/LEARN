@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/data"
-import { listMediaAssets, uploadMediaAsset } from "@/lib/storage"
+import { deleteMediaAsset, listMediaAssets, uploadMediaAsset } from "@/lib/storage"
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
 
 export async function GET() {
@@ -39,4 +39,15 @@ export async function POST(request: Request) {
   if (asset instanceof NextResponse) return asset
 
   return NextResponse.json({ file: asset }, { status: 201 })
+}
+
+export async function DELETE(request: Request) {
+  const user = await getCurrentUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const id = new URL(request.url).searchParams.get("id") || ""
+  if (!id) return NextResponse.json({ error: "File id is required." }, { status: 400 })
+
+  const deleted = await deleteMediaAsset(id, user)
+  return NextResponse.json({ deleted })
 }
