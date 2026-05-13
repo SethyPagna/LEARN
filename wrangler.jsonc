@@ -33,16 +33,6 @@
       "service": "learn-realtime"
     }
   ],
-  "migrations": [
-    {
-      "tag": "v2_move_realtime_to_service_worker",
-      "deleted_classes": [
-        "StudyRoomDurableObject",
-        "StudyBattleDurableObject",
-        "PresenceDurableObject"
-      ]
-    }
-  ],
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
