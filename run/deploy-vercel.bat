@@ -20,6 +20,10 @@ if errorlevel 1 exit /b 1
 corepack pnpm build
 if errorlevel 1 exit /b 1
 
+echo Linking Vercel project learn...
+corepack pnpm dlx vercel@latest link --yes --project learn --token="%VERCEL_TOKEN%"
+if errorlevel 1 exit /b 1
+
 echo Pulling Vercel project learn...
 corepack pnpm dlx vercel@latest pull --yes --environment=production --token="%VERCEL_TOKEN%"
 if errorlevel 1 exit /b 1
@@ -29,5 +33,5 @@ corepack pnpm dlx vercel@latest build --prod --token="%VERCEL_TOKEN%"
 if errorlevel 1 exit /b 1
 
 echo Deploying Vercel project learn...
-corepack pnpm dlx vercel@latest deploy --prebuilt --prod --name learn --token="%VERCEL_TOKEN%"
+corepack pnpm dlx vercel@latest deploy --prebuilt --prod --token="%VERCEL_TOKEN%"
 endlocal
