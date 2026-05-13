@@ -6,8 +6,6 @@ import { exec, query, type DatabaseClient } from "./db"
 let ensurePromise: Promise<void> | null = null
 
 const D1_SCHEMA_SQL = `
-PRAGMA foreign_keys = ON;
-
 CREATE TABLE IF NOT EXISTS users (
   id text PRIMARY KEY,
   username text UNIQUE NOT NULL,
