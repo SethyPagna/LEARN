@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "corepack pnpm build",
+  "buildCommand": "NEXT_TELEMETRY_DISABLED=1 corepack pnpm exec next build --webpack",
   "installCommand": "corepack pnpm install --frozen-lockfile",
   "framework": "nextjs",
   "regions": ["hkg1"]
