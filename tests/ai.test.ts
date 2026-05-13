@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { decryptProviderSecret, encryptProviderSecret, maskProviderSecret, normalizeProviderConfigInput } from "../lib/ai/provider-admin"
-import { getProviderMetadata, resolveConfiguredProvider } from "../lib/ai/providers"
+import { listProviderPresets, getProviderMetadata, resolveConfiguredProvider } from "../lib/ai/providers"
 
 test("resolveConfiguredProvider selects the requested provider when a key exists", () => {
   const provider = resolveConfiguredProvider({
@@ -50,4 +50,12 @@ test("normalizeProviderConfigInput applies safe provider defaults", () => {
   assert.equal(input.defaultModel, "groq/compound")
   assert.equal(input.providerType, "chat")
   assert.equal(input.requestsPerMinute, 18)
+  assert.equal(input.endpointOverride, "https://api.groq.com/openai/v1/chat/completions")
+})
+
+test("provider preset catalog includes chat and embedding choices", () => {
+  const presets = listProviderPresets()
+
+  assert.ok(presets.some((preset) => preset.id === "groq-research" && preset.type === "chat"))
+  assert.ok(presets.some((preset) => preset.id === "cohere-embed" && preset.type === "embed"))
 })
