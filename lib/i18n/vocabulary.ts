@@ -24,6 +24,7 @@ export type SupportedLocale = (typeof supportedLocales)[number]
 export const baseVocabulary = {
   appName: "LEARN",
   dashboard: "Dashboard",
+  learn: "Learn",
   vault: "Vault",
   feed: "Feed",
   graph: "Graph",
@@ -36,6 +37,7 @@ export const baseVocabulary = {
   notes: "Notes",
   knowledgeBase: "Knowledge base",
   quizzes: "Quizzes",
+  practice: "Practice",
   aiTutor: "AI tutor",
   files: "Files",
   progress: "Progress",
@@ -61,6 +63,7 @@ export const baseVocabulary = {
   profile: "Profile",
   workspace: "Workspace",
   members: "Members",
+  social: "Social",
   groups: "Groups",
   chat: "Chat",
   docs: "Docs",
