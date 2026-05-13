@@ -36,6 +36,21 @@ test("getD1ApiConfig requires Cloudflare account, token, and database id for API
     apiToken: "token_123",
     databaseId: "db_123",
   })
+
+  assert.deepEqual(
+    getD1ApiConfig({
+      CLOUDFLARE_ACCOUNT_ID: "account_123",
+      CLOUDFLARE_EMAIL: "owner@example.com",
+      CLOUDFLARE_GLOBAL_API_KEY: "global_123",
+      CLOUDFLARE_D1_DATABASE_ID: "db_123",
+    }),
+    {
+      accountId: "account_123",
+      apiEmail: "owner@example.com",
+      globalApiKey: "global_123",
+      databaseId: "db_123",
+    },
+  )
 })
 
 test("isD1ReadStatement only sends row-returning statements through all", () => {

@@ -16,7 +16,9 @@ interface RuntimeEnv {
 
 interface D1ApiConfig {
   accountId: string
-  apiToken: string
+  apiToken?: string
+  apiEmail?: string
+  globalApiKey?: string
   databaseId: string
 }
 
@@ -61,9 +63,13 @@ export function normalizeD1Sql(text: string, values: unknown[] = []) {
 export function getD1ApiConfig(env: RuntimeEnv = getProcessEnv()): D1ApiConfig | null {
   const accountId = env.CLOUDFLARE_ACCOUNT_ID?.trim()
   const apiToken = env.CLOUDFLARE_API_TOKEN?.trim()
+  const apiEmail = env.CLOUDFLARE_EMAIL?.trim()
+  const globalApiKey = (env.CLOUDFLARE_GLOBAL_API_KEY || env.CLOUDFLARE_API_KEY)?.trim()
   const databaseId = env.CLOUDFLARE_D1_DATABASE_ID?.trim()
-  if (!accountId || !apiToken || !databaseId) return null
-  return { accountId, apiToken, databaseId }
+  if (!accountId || !databaseId || (!apiToken && (!apiEmail || !globalApiKey))) return null
+  return apiToken
+    ? { accountId, apiToken, databaseId }
+    : { accountId, apiEmail, globalApiKey, databaseId }
 }
 
 export function getCloudflareRuntimeMode(input: {
@@ -136,7 +142,9 @@ async function queryD1Api<T>(text: string, values: unknown[]) {
   const response = await fetch(d1ApiUrl(config), {
     method: "POST",
     headers: {
-      authorization: `Bearer ${config.apiToken}`,
+      ...(config.apiToken
+        ? { authorization: `Bearer ${config.apiToken}` }
+        : { "x-auth-email": String(config.apiEmail), "x-auth-key": String(config.globalApiKey) }),
       "content-type": "application/json",
     },
     body: JSON.stringify({ sql: normalized.sql, params: normalized.values }),
