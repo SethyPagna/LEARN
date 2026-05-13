@@ -1,6 +1,23 @@
 PRAGMA foreign_keys = ON;
 
 ALTER TABLE notes ADD COLUMN archived_at text;
+ALTER TABLE ai_provider_configs ADD COLUMN provider_type text DEFAULT 'chat';
+ALTER TABLE ai_provider_configs ADD COLUMN account_email text;
+ALTER TABLE ai_provider_configs ADD COLUMN project_name text;
+ALTER TABLE ai_provider_configs ADD COLUMN api_key_encrypted text;
+ALTER TABLE ai_provider_configs ADD COLUMN supported_models_json text DEFAULT '[]';
+ALTER TABLE ai_provider_configs ADD COLUMN endpoint_override text;
+ALTER TABLE ai_provider_configs ADD COLUMN notes text;
+ALTER TABLE ai_provider_configs ADD COLUMN priority integer DEFAULT 50;
+ALTER TABLE ai_provider_configs ADD COLUMN requests_per_minute integer DEFAULT 10;
+ALTER TABLE ai_provider_configs ADD COLUMN max_input_chars integer DEFAULT 1200;
+ALTER TABLE ai_provider_configs ADD COLUMN max_completion_tokens integer DEFAULT 1800;
+ALTER TABLE ai_provider_configs ADD COLUMN timeout_ms integer DEFAULT 18000;
+ALTER TABLE ai_provider_configs ADD COLUMN cooldown_seconds integer DEFAULT 20;
+ALTER TABLE ai_provider_configs ADD COLUMN last_status text DEFAULT 'untested';
+ALTER TABLE ai_provider_configs ADD COLUMN last_error text DEFAULT '';
+ALTER TABLE ai_provider_configs ADD COLUMN last_checked_at text;
+ALTER TABLE ai_provider_configs ADD COLUMN updated_at text;
 
 CREATE TABLE IF NOT EXISTS note_versions (
   id text PRIMARY KEY,
