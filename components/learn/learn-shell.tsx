@@ -120,9 +120,9 @@ export function LearnShell({
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
             {view === "dashboard" ? <DashboardView dashboard={dashboard} notes={notes} quizzes={quizzes} options={preferences.options} setView={chooseView} /> : null}
             {view === "notes" ? <NotesView notes={filteredNotes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} /> : null}
-            {view === "docs" ? <DocsView /> : null}
-            {view === "sheets" ? <SheetsView /> : null}
-            {view === "slides" ? <SlidesView /> : null}
+            {view === "docs" ? <DocsView options={preferences.options} /> : null}
+            {view === "sheets" ? <SheetsView options={preferences.options} /> : null}
+            {view === "slides" ? <SlidesView options={preferences.options} /> : null}
             {view === "quizzes" ? <QuizView quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={preferences.options} /> : null}
             {view === "games" ? <GamesView quizzes={quizzes} options={preferences.options} /> : null}
             {view === "ai" ? <AiTutorView notes={notes} options={preferences.options} setOptions={preferences.setOptions} /> : null}
