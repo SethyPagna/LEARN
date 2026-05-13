@@ -2,23 +2,28 @@
 
 import { useState } from "react"
 import { Bot, Gauge, Settings2, Sparkles } from "lucide-react"
+import type { WorkspaceOptions } from "../preferences"
 import type { Note } from "../types"
 import { api } from "../api"
 import { Panel } from "../ui"
 
 const tutorModes = ["coach", "route", "rewrite", "quiz", "flashcards", "translate"]
 
-export function AiTutorView({ notes }: { notes: Note[] }) {
+export function AiTutorView({
+  notes,
+  options,
+  setOptions,
+}: {
+  notes: Note[]
+  options: WorkspaceOptions
+  setOptions: (options: Partial<WorkspaceOptions>) => void
+}) {
   const [message, setMessage] = useState("Create a study plan from my recent notes.")
   const [reply, setReply] = useState("")
   const [loading, setLoading] = useState(false)
   const [providers, setProviders] = useState<any[]>([])
   const [catalog, setCatalog] = useState<any[]>([])
   const [presets, setPresets] = useState<any[]>([])
-  const [mode, setMode] = useState("route")
-  const [includeNotes, setIncludeNotes] = useState(true)
-  const [temperature, setTemperature] = useState(0.45)
-  const [maxTokens, setMaxTokens] = useState(1200)
 
   const promptActions = [
     "Turn my weakest topics into a 7-day learning route.",
@@ -30,10 +35,10 @@ export function AiTutorView({ notes }: { notes: Note[] }) {
   async function ask() {
     setLoading(true)
     try {
-      const context = includeNotes ? notes.slice(0, 5).map((note) => `${note.title}: ${note.content}`).join("\n\n") : ""
+      const context = options.aiIncludeNotes ? notes.slice(0, 5).map((note) => `${note.title}: ${note.content}`).join("\n\n") : ""
       const response = await api<any>("/api/ai/chat", {
         method: "POST",
-        body: JSON.stringify({ message, context, mode, temperature, maxTokens }),
+        body: JSON.stringify({ message, context, mode: options.aiMode, temperature: options.aiTemperature, maxTokens: options.aiMaxTokens }),
       })
       setReply(response.text)
     } finally {
@@ -60,8 +65,8 @@ export function AiTutorView({ notes }: { notes: Note[] }) {
             {tutorModes.map((item) => (
               <button
                 key={item}
-                onClick={() => setMode(item)}
-                className={`h-8 rounded px-2 text-xs font-medium capitalize ${mode === item ? "bg-primary text-primary-foreground" : "text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+                onClick={() => setOptions({ aiMode: item as WorkspaceOptions["aiMode"] })}
+                className={`h-8 rounded px-2 text-xs font-medium capitalize ${options.aiMode === item ? "bg-primary text-primary-foreground" : "text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
               >
                 {item}
               </button>
@@ -79,16 +84,16 @@ export function AiTutorView({ notes }: { notes: Note[] }) {
         <div className="mt-4 grid gap-3 rounded-md border border-border bg-muted/40 p-3 md:grid-cols-3">
           <label className="flex items-center justify-between gap-3 text-sm text-foreground">
             <span className="flex items-center gap-2"><Settings2 className="h-4 w-4" /> Use recent notes</span>
-            <input type="checkbox" checked={includeNotes} onChange={(event) => setIncludeNotes(event.target.checked)} />
+            <input type="checkbox" checked={options.aiIncludeNotes} onChange={(event) => setOptions({ aiIncludeNotes: event.target.checked })} />
           </label>
           <label className="text-sm text-foreground">
             Creativity
-            <input className="mt-2 w-full accent-primary" type="range" min="0" max="1.2" step="0.05" value={temperature} onChange={(event) => setTemperature(Number(event.target.value))} />
-            <span className="text-xs text-muted-foreground">{temperature.toFixed(2)}</span>
+            <input className="mt-2 w-full accent-primary" type="range" min="0" max="1.2" step="0.05" value={options.aiTemperature} onChange={(event) => setOptions({ aiTemperature: Number(event.target.value) })} />
+            <span className="text-xs text-muted-foreground">{options.aiTemperature.toFixed(2)}</span>
           </label>
           <label className="text-sm text-foreground">
             Max tokens
-            <input className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-foreground" type="number" min="128" max="8192" step="128" value={maxTokens} onChange={(event) => setMaxTokens(Number(event.target.value))} />
+            <input className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-foreground" type="number" min="128" max="8192" step="128" value={options.aiMaxTokens} onChange={(event) => setOptions({ aiMaxTokens: Number(event.target.value) })} />
           </label>
         </div>
         <textarea value={message} onChange={(event) => setMessage(event.target.value)} className="mt-5 min-h-40 w-full rounded-md border border-input bg-background p-4 text-foreground outline-none focus:border-ring" />
