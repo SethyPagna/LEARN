@@ -4,7 +4,15 @@ import { useEffect, useMemo, useState } from "react"
 import type React from "react"
 import {
   Archive,
+  AtSign,
   Clipboard,
+  Columns3,
+  FilePlus2,
+  Filter,
+  GalleryVertical,
+  History,
+  ListTree,
+  MessageSquareText,
   Copy,
   Download,
   FileText,
@@ -16,6 +24,7 @@ import {
   Save,
   Search,
   Table2,
+  Users,
   Undo2,
 } from "lucide-react"
 import { api, formatDate } from "../api"
@@ -38,6 +47,33 @@ const studioCreateLabels: Record<StudioKind, string> = {
   slides: "New Deck",
 }
 
+const docTemplates = {
+  study: "# New learning doc\n\n## Summary\n\n## Key examples\n\n## Practice tasks\n",
+  cornell: "# Cornell notes\n\n## Cues\n\n## Notes\n\n## Summary\n",
+  project: "# Learning project\n\n## Goal\n\n## Steps\n\n## Evidence\n\n## Reflection\n",
+}
+
+const studioTemplates: Record<StudioKind, Array<{ label: string; title: string; body: string }>> = {
+  notes: [
+    { label: "Daily note", title: "Daily learning note", body: "## What I learned today\n\n## Questions\n\n## Review later\n" },
+    { label: "Concept card", title: "Concept note", body: "## Concept\n\n## Plain-English explanation\n\n## Example\n\n## Recall prompt\n" },
+  ],
+  docs: [
+    { label: "Study guide", title: "Study guide", body: docTemplates.study },
+    { label: "Cornell", title: "Cornell notes", body: docTemplates.cornell },
+  ],
+  sheets: [
+    { label: "Tracker", title: "Study tracker", body: "Topic,Status,Score,Next step\nReact,Review,72,Practice hooks\nDatabases,Weak,48,Index questions" },
+    { label: "Resources", title: "Resource tracker", body: "Resource,Type,Status,Owner\nLecture 1,Video,To watch,Me\nChapter 2,Reading,Review,Me" },
+  ],
+  slides: [
+    { label: "Lesson", title: "Lesson deck", body: "Hook|Why this matters|Open\nKey idea|One visual explanation|Explain\nPractice|One recall question|Try" },
+    { label: "Review", title: "Review deck", body: "Warmup|Quick recap|Start\nMistake|Common trap|Fix\nNext|What to practice|Plan" },
+  ],
+}
+
+type StudioViewMode = "list" | "board" | "gallery"
+
 const starterCells = [
   ["Topic", "Status", "Score", "Next step"],
   ["React", "Review", "72", "Practice hooks"],
@@ -50,12 +86,6 @@ const starterSlides = [
   { title: "Key idea", body: "Add a concise visual explanation, image note, or memory hook.", accent: "Explain" },
 ]
 type SlideDraft = typeof starterSlides[number]
-
-const docTemplates = {
-  study: "# New learning doc\n\n## Summary\n\n## Key examples\n\n## Practice tasks\n",
-  cornell: "# Cornell notes\n\n## Cues\n\n## Notes\n\n## Summary\n",
-  project: "# Learning project\n\n## Goal\n\n## Steps\n\n## Evidence\n\n## Reflection\n",
-}
 
 function textFromDocument(document?: WorkspaceDocument) {
   const content = document?.content || {}
@@ -118,6 +148,7 @@ export function StudioView({
 }) {
   const [kind, setKind] = useState<StudioKind>(initialKind)
   const [query, setQuery] = useState("")
+  const [viewMode, setViewMode] = useState<StudioViewMode>("list")
   const [status, setStatus] = useState("Loading Studio...")
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState("")
@@ -231,6 +262,36 @@ export function StudioView({
     return format === "export"
       ? JSON.stringify({ title: deckTitle, slides }, null, 2)
       : slides.map((slide, index) => `Slide ${index + 1}: ${slide.title}\n${slide.body}`).join("\n\n")
+  }
+
+  function activeSummary() {
+    if (kind === "notes") return `${noteHistory.present.length} chars`
+    if (kind === "docs") return `${docHistory.present.split(/\s+/).filter(Boolean).length} words`
+    if (kind === "sheets") return `${ensureCells(cells).length} rows x ${ensureCells(cells)[0]?.length || 0} columns`
+    return `${slides.length} slides`
+  }
+
+  function applyTemplate(template: { title: string; body: string }) {
+    if (kind === "notes") {
+      setNoteDraft((current) => current ? { ...current, title: template.title } : current)
+      setNoteHistory(pushHistory(noteHistory, template.body))
+      return
+    }
+    if (kind === "docs") {
+      setDocTitle(template.title)
+      setDocHistory(pushHistory(docHistory, template.body))
+      return
+    }
+    if (kind === "sheets") {
+      setSheetTitle(template.title)
+      setCells(importCsvToSheet(template.body).cells)
+      return
+    }
+    setDeckTitle(template.title)
+    setSlides(template.body.split("\n").map((line) => {
+      const [title, body, accent] = line.split("|")
+      return { title: title || "Slide", body: body || "Add the point.", accent: accent || "Slide" }
+    }))
   }
 
   async function createActive() {
@@ -408,13 +469,31 @@ export function StudioView({
         <button onClick={createActive} className="mb-3 flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm font-semibold text-primary-foreground">
           <Plus className="h-4 w-4" /> {studioCreateLabels[kind]}
         </button>
+        <div className="mb-3 rounded-md border border-border bg-background p-2">
+          <p className="mb-2 flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            <FilePlus2 className="h-3.5 w-3.5" />
+            Templates
+          </p>
+          <div className="grid grid-cols-2 gap-1">
+            {studioTemplates[kind].map((template) => (
+              <button key={template.label} onClick={() => applyTemplate(template)} className="rounded-md bg-secondary px-2 py-2 text-left text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                {template.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <label className="mb-3 flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3">
           <Search className="h-4 w-4 text-muted-foreground" />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${activeTab.label.toLowerCase()}`} className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
         </label>
+        <div className="mb-3 grid grid-cols-3 gap-1 rounded-md border border-border bg-background p-1">
+          <ViewModeButton active={viewMode === "list"} icon={ListTree} label="List" onClick={() => setViewMode("list")} />
+          <ViewModeButton active={viewMode === "board"} icon={Columns3} label="Board" onClick={() => setViewMode("board")} />
+          <ViewModeButton active={viewMode === "gallery"} icon={GalleryVertical} label="Gallery" onClick={() => setViewMode("gallery")} />
+        </div>
         <div className="space-y-1">
           {items.map((item) => (
-            <button key={item.id} onClick={() => selectItem(item.id)} className="w-full rounded-md p-3 text-left text-sm hover:bg-muted focus:bg-accent focus:text-accent-foreground">
+            <button key={item.id} onClick={() => selectItem(item.id)} className={`w-full rounded-md border p-3 text-left text-sm hover:bg-muted focus:bg-accent focus:text-accent-foreground ${item.id === (kind === "notes" ? noteDraft?.id : kind === "docs" ? docId : kind === "sheets" ? sheetId : deckId) ? "border-primary bg-primary/10" : "border-transparent"}`}>
               <span className="line-clamp-1 font-medium text-foreground">{item.title}</span>
               <span className="mt-1 block text-xs text-muted-foreground">{item.updated_at ? formatDate(item.updated_at) : item.summary || "Draft"}</span>
             </button>
@@ -434,6 +513,12 @@ export function StudioView({
               <input value={activeTitle()} onChange={(event) => setActiveTitle(event.target.value)} className="mt-1 w-full bg-transparent text-2xl font-semibold text-foreground outline-none sm:text-3xl" />
               <p className="mt-1 text-sm text-muted-foreground">{saving ? "Saving..." : lastSaved ? `Saved ${lastSaved}` : activeTab.description}</p>
             </div>
+          </div>
+          <div className="mt-3 grid gap-2 rounded-md border border-border bg-background p-3 text-xs text-muted-foreground sm:grid-cols-4">
+            <StudioProperty icon={Filter} label="View" value={viewMode} />
+            <StudioProperty icon={History} label="State" value={activeSummary()} />
+            <StudioProperty icon={MessageSquareText} label="Comments" value="thread-ready" />
+            <StudioProperty icon={Users} label="Share" value="private first" />
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <StudioButton label="Save" icon={Save} onClick={() => saveActive()} primary disabled={!hasActiveItem} />
@@ -471,11 +556,36 @@ export function StudioView({
         <p className="text-sm leading-6 text-muted-foreground">{activeTab.description}</p>
         <div className="mt-4 space-y-3 text-sm">
           <GuideItem title="Create" body="Start a new item without leaving the current workspace." />
+          <GuideItem title="Views and templates" body="Use list, board, or gallery thinking to organize the same records without duplicating pages." />
           <GuideItem title="Save and duplicate" body="Save updates, then duplicate useful templates for later lessons." />
+          <GuideItem title="Mentions and comments" body="Use @mentions in the content for people, topics, or source pages; keep comments tied to the item instead of scattering chat." />
           <GuideItem title="Download and export" body="Use Markdown/text, CSV, outline, or JSON-style exports depending on the item type." />
           <GuideItem title="Archive" body="Archive removes the item from this list while keeping the safer soft-delete behavior." />
         </div>
+        <div className="mt-4 rounded-md border border-border bg-background p-3 text-sm">
+          <p className="flex items-center gap-2 font-semibold text-foreground"><AtSign className="h-4 w-4 text-success" /> Collaboration cues</p>
+          <p className="mt-2 leading-6 text-muted-foreground">Keep private drafts here, then share selected pages into Social when you want feedback, peer review, or a study room.</p>
+        </div>
       </Panel>
+    </div>
+  )
+}
+
+function ViewModeButton({ active, icon: Icon, label, onClick }: { active: boolean; icon: React.ComponentType<{ className?: string }>; label: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className={`flex h-8 items-center justify-center gap-1.5 rounded-md text-xs font-semibold ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </button>
+  )
+}
+
+function StudioProperty({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-md bg-secondary px-2 py-2 text-secondary-foreground">
+      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+      <span className="font-semibold text-foreground">{label}</span>
+      <span className="truncate">{value}</span>
     </div>
   )
 }
