@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import type React from "react"
-import { Download, Gamepad2, MessageSquare, Plus, Redo2, Save, Undo2 } from "lucide-react"
+import { AtSign, Bell, Download, Gamepad2, Hash, Languages, MessageSquare, Plus, Redo2, Reply, Save, Send, Smile, Undo2 } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Quiz, WorkspaceDeck, WorkspaceDocument, WorkspaceSheet } from "../types"
 import { api } from "../api"
@@ -280,6 +280,14 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const [threads, setThreads] = useState<any[]>([])
   const [body, setBody] = useState("")
   const [title, setTitle] = useState("Study room")
+  const [intent, setIntent] = useState<"update" | "question" | "win">("update")
+  const [channel, setChannel] = useState("#general")
+  const [reaction, setReaction] = useState("helpful")
+  const quickIntents = [
+    { id: "update" as const, label: "Update", body: "Share progress, a note, or what changed." },
+    { id: "question" as const, label: "Question", body: "Ask for help and invite replies." },
+    { id: "win" as const, label: "Win", body: "Celebrate a milestone or review streak." },
+  ]
 
   async function refresh() {
     const response = await api<{ items: any[] }>("/api/chat")
@@ -292,33 +300,96 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
 
   async function send() {
     if (!body.trim()) return
-    await api("/api/chat", { method: "POST", body: JSON.stringify({ title, body }) })
+    await api("/api/chat", { method: "POST", body: JSON.stringify({ title: `${channel} - ${title}`, body: `[${intent}] ${body}` }) })
     setBody("")
     await refresh()
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
       <Panel className={options.chatCompact ? "p-3" : "p-4"}>
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <input value={title} onChange={(event) => setTitle(event.target.value)} className="min-w-52 flex-1 bg-transparent text-2xl font-semibold outline-none" />
-          <ToolbarButton label="Send" onClick={send} icon={MessageSquare} primary />
+        <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="flex h-10 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground">
+                <Hash className="h-4 w-4" />
+                <select value={channel} onChange={(event) => setChannel(event.target.value)} className="bg-transparent text-foreground outline-none">
+                  <option value="#general">general</option>
+                  <option value="#study-help">study-help</option>
+                  <option value="#resources">resources</option>
+                  <option value="#wins">wins</option>
+                </select>
+              </label>
+              <input value={title} onChange={(event) => setTitle(event.target.value)} className="min-w-52 flex-1 bg-transparent text-2xl font-semibold text-foreground outline-none" />
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">Use channels, mentions, and message intent so discussion stays searchable instead of becoming one long stream.</p>
+          </div>
+          <ToolbarButton label="Send" onClick={send} icon={Send} primary />
         </div>
-        <textarea value={body} onChange={(event) => setBody(event.target.value)} className="min-h-32 w-full rounded-md border border-input bg-background p-3 text-sm outline-none" placeholder="Share a study update, file note, quiz result, or question..." />
+        <div className="mb-3 grid gap-2 sm:grid-cols-3">
+          {quickIntents.map((item) => (
+            <button key={item.id} onClick={() => setIntent(item.id)} className={`rounded-md border p-3 text-left text-sm transition ${intent === item.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+              <span className="font-semibold">{item.label}</span>
+              <span className={`mt-1 block text-xs leading-5 ${intent === item.id ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{item.body}</span>
+            </button>
+          ))}
+        </div>
+        <div className="rounded-md border border-input bg-background p-3">
+          <textarea value={body} onChange={(event) => setBody(event.target.value)} className="min-h-32 w-full resize-none bg-transparent text-sm leading-6 text-foreground outline-none" placeholder="Share a study update, @mention a person, link a Studio item, or ask for a quick explanation..." />
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+            <div className="flex flex-wrap gap-2">
+              <ComposerChip icon={AtSign} label="@mention" />
+              <ComposerChip icon={Smile} label="reaction" />
+              <ComposerChip icon={Languages} label="translate" />
+              <ComposerChip icon={Bell} label="notify" />
+            </div>
+            <p className="text-xs text-muted-foreground">Private-first. Share only what belongs in the group.</p>
+          </div>
+        </div>
       </Panel>
       <Panel className={options.chatCompact ? "p-3" : "p-4"}>
-        <h3 className="font-semibold">Recent rooms</h3>
+        <h3 className="font-semibold text-foreground">Recent threads</h3>
         {options.collaborationPresence ? <p className="mt-1 text-xs text-muted-foreground">Presence hints are enabled for group workflows.</p> : null}
+        <div className="mt-3 grid grid-cols-3 gap-1 rounded-md border border-border bg-background p-1">
+          {["helpful", "save", "reply"].map((item) => (
+            <button key={item} onClick={() => setReaction(item)} className={`rounded-md px-2 py-1.5 text-xs font-semibold ${reaction === item ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+              {item}
+            </button>
+          ))}
+        </div>
         <div className="mt-3 space-y-2">
           {threads.map((thread) => (
-            <div key={thread.id} className="rounded-md bg-muted p-3 text-sm">
-              <p className="font-medium text-foreground">{thread.title}</p>
+            <div key={thread.id} className="rounded-md border border-border bg-background p-3 text-sm">
+              <div className="flex items-start justify-between gap-2">
+                <p className="font-medium text-foreground">{thread.title}</p>
+                <span className="rounded-md bg-secondary px-2 py-1 text-[11px] font-semibold text-secondary-foreground">read</span>
+              </div>
               <p className="mt-1 line-clamp-2 text-muted-foreground">{thread.last_message || "No messages yet"}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button className="inline-flex h-8 items-center gap-1.5 rounded-md bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                  <Smile className="h-3.5 w-3.5" />
+                  {reaction}
+                </button>
+                <button className="inline-flex h-8 items-center gap-1.5 rounded-md bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                  <Reply className="h-3.5 w-3.5" />
+                  reply
+                </button>
+              </div>
             </div>
           ))}
+          {!threads.length ? <EmptyState title="No threads yet" body="Send an update or question to create the first searchable study thread." /> : null}
         </div>
       </Panel>
     </div>
+  )
+}
+
+function ComposerChip({ icon: Icon, label }: { icon: React.ComponentType<{ className?: string }>; label: string }) {
+  return (
+    <span className="inline-flex h-8 items-center gap-1.5 rounded-md bg-secondary px-2 text-xs font-semibold text-secondary-foreground">
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </span>
   )
 }
 
