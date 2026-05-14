@@ -57,8 +57,8 @@ export function LearnWorkspaceView({
   return (
     <WorkspaceFrame
       eyebrow="Learn workspace"
-      title="One place for route, discovery, graph, review, calendar, and progress."
-      body="This replaces the old standalone overview with a learner workflow: choose what to study, capture the idea, review it later, and track what is improving."
+      title="One home for the learning loop: route, discover, connect, review, schedule, improve."
+      body="Inspired by mature workspace tools: one action-oriented home, multiple views of the same learning system, and less sidebar hopping."
       tabs={learnTabs}
       activeTab={tab}
       setActiveTab={(value) => setTab(value as LearnTab)}
@@ -120,7 +120,7 @@ export function SocialWorkspaceView({ initialView, options }: { initialView: Vie
     <WorkspaceFrame
       eyebrow="Social workspace"
       title="Chat, spaces, rooms, and battles are grouped by collaboration mode."
-      body="Social learning should be opt-in and purposeful: discuss asynchronously, organize circles, focus together, or run a challenge."
+      body="Communication follows social-product patterns without becoming noisy: channels, threads, mentions, presence, reactions, and opt-in group modes."
       tabs={socialTabs}
       activeTab={tab}
       setActiveTab={(value) => setTab(value as SocialTab)}
@@ -220,6 +220,14 @@ function LearnRoute({ dashboard, quizzes, setView }: { dashboard: any; quizzes: 
         </div>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">Use this page as the “what next?” surface. Dashboard stays a command center; Learn is the working route.</p>
       </Panel>
+      <Panel className="p-4 xl:col-span-2">
+        <h3 className="font-semibold text-foreground">Patterns brought into LEARN</h3>
+        <div className="mt-3 grid gap-3 md:grid-cols-3">
+          <PatternCard title="Workspace views" body="Studio acts like one database with notes, docs, sheets, slides, templates, and filtered views instead of scattered tools." />
+          <PatternCard title="Social clarity" body="Threads, channels, mentions, reactions, and rooms keep collaboration readable and searchable." />
+          <PatternCard title="Study loop" body="Discovery only matters when it can become a note, review, schedule block, quiz, or group action." />
+        </div>
+      </Panel>
     </div>
   )
 }
@@ -242,6 +250,15 @@ function MiniMetric({ label, value }: { label: string; value: string }) {
     <div className="rounded-md border border-border bg-background p-3">
       <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
       <p className="mt-1 text-xl font-semibold text-foreground">{value}</p>
+    </div>
+  )
+}
+
+function PatternCard({ body, title }: { body: string; title: string }) {
+  return (
+    <div className="rounded-md border border-border bg-background p-4">
+      <p className="font-semibold text-foreground">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{body}</p>
     </div>
   )
 }
