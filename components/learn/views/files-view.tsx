@@ -1,33 +1,25 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Copy, Download, ImageIcon, Trash2, Upload, Video } from "lucide-react"
+import { Copy, Download, FileText, ImageIcon, Trash2, Upload, Video } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { MediaFile } from "../types"
 import { api, formatBytes, formatDate } from "../api"
 import { EmptyState, Panel } from "../ui"
+import { filterFileLibrary, fileKindLabel, summarizeFileLibrary, type FileLibraryFilter } from "@/lib/file-library-features"
 import { classifyUploadContentType, UPLOAD_HELP_TEXT, validateUploadFileShape } from "@/lib/file-security"
 
-const mediaFilters = ["all", "image", "video", "audio", "pdf", "doc", "sheet", "slides"] as const
-type MediaFilter = typeof mediaFilters[number]
+const mediaFilters: FileLibraryFilter[] = ["all", "image", "video", "audio", "pdf", "doc", "sheet", "slides"]
 
 export function FilesView({ options }: { options: WorkspaceOptions }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<MediaFile[]>([])
   const [selectedId, setSelectedId] = useState("")
   const [query, setQuery] = useState("")
-  const [mediaFilter, setMediaFilter] = useState<MediaFilter>("all")
+  const [mediaFilter, setMediaFilter] = useState<FileLibraryFilter>("all")
   const [status, setStatus] = useState("Loading files...")
-  const storageStats = useMemo(() => summarizeFiles(files), [files])
-  const filteredFiles = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    return files.filter((file) => {
-      const kind = classifyUploadContentType(file.content_type)
-      const matchesKind = mediaFilter === "all" || kind === mediaFilter
-      const matchesQuery = !needle || `${file.filename} ${file.content_type} ${file.source} ${kind}`.toLowerCase().includes(needle)
-      return matchesKind && matchesQuery
-    })
-  }, [files, mediaFilter, query])
+  const storageStats = useMemo(() => summarizeFileLibrary(files), [files])
+  const filteredFiles = useMemo(() => filterFileLibrary(files, { query, kind: mediaFilter }), [files, mediaFilter, query])
   const selectedFile = useMemo(() => files.find((file) => file.id === selectedId) || filteredFiles[0], [files, filteredFiles, selectedId])
 
   async function refresh() {
@@ -104,14 +96,15 @@ export function FilesView({ options }: { options: WorkspaceOptions }) {
                 onClick={() => setMediaFilter(filter)}
                 className={`h-8 rounded-md px-3 text-xs font-semibold ${mediaFilter === filter ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
               >
-                {filter === "all" ? "All" : filter[0].toUpperCase() + filter.slice(1)}
+                {fileKindLabel(filter)}
               </button>
             ))}
           </div>
           <div className="flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground">
-            <span className="rounded-md bg-muted px-2 py-1">{files.length} files</span>
+            <span className="rounded-md bg-muted px-2 py-1">{storageStats.totalFiles} files</span>
             <span className="rounded-md bg-muted px-2 py-1">{formatBytes(storageStats.totalBytes)}</span>
             <span className="rounded-md bg-muted px-2 py-1">{storageStats.mediaCount} media</span>
+            <span className="rounded-md bg-muted px-2 py-1">{storageStats.documentCount} docs</span>
           </div>
         </div>
         {status ? <p className="mb-4 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
@@ -129,7 +122,7 @@ export function FilesView({ options }: { options: WorkspaceOptions }) {
                     {file.content_type.startsWith("video/") ? <Video className="h-4 w-4 text-success" /> : null}
                     <p className="font-medium text-foreground">{file.filename}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">{file.content_type} · {classifyUploadContentType(file.content_type)}</p>
+                  <p className="text-xs text-muted-foreground">{file.content_type} | {fileKindLabel(classifyUploadContentType(file.content_type))}</p>
                 </div>
                 <p className="text-muted-foreground">{formatBytes(file.size_bytes)}</p>
                 <p className="text-muted-foreground">{formatDate(file.created_at)}</p>
@@ -154,8 +147,14 @@ export function FilesView({ options }: { options: WorkspaceOptions }) {
             )}
             <p className="mt-3 break-words font-semibold text-foreground">{selectedFile.filename}</p>
             <p className="mt-1 text-sm text-muted-foreground">{formatBytes(selectedFile.size_bytes)} - {selectedFile.content_type}</p>
-            <p className="mt-1 text-sm text-muted-foreground">Kind: {classifyUploadContentType(selectedFile.content_type)}</p>
+            <p className="mt-1 text-sm text-muted-foreground">Kind: {fileKindLabel(classifyUploadContentType(selectedFile.content_type))}</p>
             <p className="mt-1 text-sm text-muted-foreground">Uploaded {formatDate(selectedFile.created_at)}</p>
+            <div className="mt-3 grid grid-cols-2 gap-2 rounded-md border border-border bg-background p-2 text-xs font-semibold text-muted-foreground">
+              <span className="rounded-md bg-muted px-2 py-1">R2-backed</span>
+              <span className="rounded-md bg-muted px-2 py-1">Private route</span>
+              <span className="rounded-md bg-muted px-2 py-1">Validated type</span>
+              <span className="rounded-md bg-muted px-2 py-1">Downloadable</span>
+            </div>
             <div className="mt-4 grid gap-2">
               <a href={`/api/files/${selectedFile.id}/download`} className="flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-secondary text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
                 <Download className="h-4 w-4" />
@@ -181,28 +180,18 @@ export function FilesView({ options }: { options: WorkspaceOptions }) {
 
 function FileCard({ file, selected, preview, onSelect }: { file: MediaFile; selected: boolean; preview: boolean; onSelect: () => void }) {
   const kind = classifyUploadContentType(file.content_type)
+  const Icon = kind === "video" ? Video : kind === "image" ? ImageIcon : FileText
   return (
     <button onClick={onSelect} className={`rounded-lg border p-3 text-left text-sm ${selected ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-muted"}`}>
       {preview && file.content_type.startsWith("image/") ? (
         <img src={`/api/files/${file.id}/download`} alt="" className="mb-3 aspect-video w-full rounded-md object-cover" />
       ) : (
         <div className="mb-3 flex aspect-video items-center justify-center rounded-md bg-muted">
-          {file.content_type.startsWith("video/") ? <Video className="h-7 w-7 text-success" /> : <ImageIcon className="h-7 w-7 text-success" />}
+          <Icon className="h-7 w-7 text-success" />
         </div>
       )}
       <p className="truncate font-medium text-foreground">{file.filename}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{formatBytes(file.size_bytes)} - {kind}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{formatBytes(file.size_bytes)} - {fileKindLabel(kind)}</p>
     </button>
   )
-}
-
-function summarizeFiles(files: MediaFile[]) {
-  let totalBytes = 0
-  let mediaCount = 0
-  for (const file of files) {
-    totalBytes += Number(file.size_bytes || 0)
-    const kind = classifyUploadContentType(file.content_type)
-    if (kind === "image" || kind === "video" || kind === "audio") mediaCount += 1
-  }
-  return { totalBytes, mediaCount }
 }
