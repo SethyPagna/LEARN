@@ -48,8 +48,10 @@ async function checkDurableRateLimit(keyHash: string, limit: number, windowMs: n
     )
     const row = existing.rows[0]
     const resetAtMs = row ? new Date(row.reset_at).getTime() : 0
-    const resetAt = Number.isFinite(resetAtMs) && resetAtMs > now ? row.reset_at : fallbackResetAt
-    const nextCount = row && new Date(resetAt).getTime() > now ? Number(row.count || 0) + 1 : 1
+    const hasActiveWindow = Number.isFinite(resetAtMs) && resetAtMs > now
+    const resetAt = hasActiveWindow ? row?.reset_at || fallbackResetAt : fallbackResetAt
+    const resetTime = hasActiveWindow ? resetAtMs : now + windowMs
+    const nextCount = row && hasActiveWindow ? Number(row.count || 0) + 1 : 1
 
     await query(
       `INSERT INTO rate_limit_buckets (key_hash, count, reset_at, updated_at)
@@ -61,12 +63,11 @@ async function checkDurableRateLimit(keyHash: string, limit: number, windowMs: n
       [keyHash, nextCount, resetAt],
     )
 
-    const resetTime = new Date(resetAt).getTime()
     return {
       allowed: nextCount <= limit,
       limit,
       remaining: Math.max(0, limit - nextCount),
-      resetAt: Number.isFinite(resetTime) ? resetTime : now + windowMs,
+      resetAt: resetTime,
     }
   } catch {
     return null
