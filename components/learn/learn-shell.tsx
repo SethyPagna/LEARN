@@ -168,7 +168,7 @@ export function LearnShell({
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <main className="min-h-screen overflow-x-hidden bg-background text-foreground">
       <div className={`grid min-h-screen ${preferences.density === "compact" ? "lg:grid-cols-[232px_1fr]" : "lg:grid-cols-[272px_1fr]"}`}>
         <Sidebar
           density={preferences.density}
@@ -186,7 +186,7 @@ export function LearnShell({
           user={user}
           studioDraftSummary={studioDraftSummary}
         />
-        <section className="min-w-0">
+        <section className="min-w-0 overflow-x-hidden">
           <Topbar
             density={preferences.density}
             locale={preferences.locale}
