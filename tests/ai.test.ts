@@ -11,6 +11,7 @@ import {
 import { getTutorModeInstruction } from "../lib/ai/tutor"
 import { getPromptTemplate } from "../lib/ai/prompt-library"
 import { buildGuidedPrompt, listInsertActions, promptContracts } from "../lib/ai/prompt-builder"
+import { buildInsertBackPayload, parseAiJson } from "../lib/ai/insert-back"
 import { listProviderPresets, getProviderMetadata, resolveConfiguredProvider } from "../lib/ai/providers"
 
 test("resolveConfiguredProvider selects the requested provider when a key exists", () => {
@@ -177,4 +178,34 @@ test("guided prompt contracts expose insert-back actions", () => {
   const practice = promptContracts.find((item) => item.mode === "practice_generator")
   assert.ok(practice)
   assert.deepEqual(listInsertActions(practice.insertTargets).map((item) => item.target), ["quiz", "flashcards", "review-cards"])
+})
+
+test("AI insert-back parses JSON fenced responses", () => {
+  const parsed = parseAiJson('```json\n{"title":"Deck","slides":[{"title":"One","body":"Body"}]}\n```')
+
+  assert.equal(parsed?.title, "Deck")
+  assert.ok(Array.isArray(parsed?.slides))
+})
+
+test("AI insert-back maps responses to Studio payloads", () => {
+  const sheet = buildInsertBackPayload("sheet-rows", JSON.stringify({
+    title: "Tracker",
+    columns: ["Topic", "Status"],
+    rows: [{ Topic: "React", Status: "Review" }],
+  }))
+  const slides = buildInsertBackPayload("slide-outline", JSON.stringify({
+    title: "Lesson",
+    slides: [{ title: "Hook", body: "Why it matters", layout: "quote" }],
+  }))
+  const doc = buildInsertBackPayload("doc-section", JSON.stringify({
+    title: "Guide",
+    blocks: [{ type: "heading", text: "Summary" }, { type: "paragraph", text: "Learn it." }],
+  }))
+
+  assert.equal(sheet.endpoint, "/api/sheets")
+  assert.deepEqual(sheet.body.cells, [["Topic", "Status"], ["React", "Review"]])
+  assert.equal(slides.endpoint, "/api/slides")
+  assert.equal((slides.body.slides as any[])[0].layout, "quote")
+  assert.equal(doc.endpoint, "/api/docs")
+  assert.match(String((doc.body.content as any).text), /Summary/)
 })
