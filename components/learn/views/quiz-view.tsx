@@ -60,11 +60,11 @@ export function QuizView({
       setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)))
     }, 1000)
     return () => window.clearInterval(timer)
-  }, [result, startedAt])
+  }, [paused, result, startedAt])
 
   async function submit() {
     if (!quiz) return
-    const durationSeconds = currentElapsedSeconds(startedAt)
+    const durationSeconds = paused ? elapsedSeconds : currentElapsedSeconds(startedAt)
     const submittedAnswers = Object.entries(answers).map(([questionId, selectedAnswerId]) => ({ questionId, selectedAnswerId }))
     const summary = summarizePracticeAttempt({
       mode: practiceMode,
@@ -91,6 +91,16 @@ export function QuizView({
     setPaused(false)
   }
 
+  function setPracticePaused(nextPaused: boolean) {
+    if (nextPaused) {
+      setElapsedSeconds(currentElapsedSeconds(startedAt))
+      setPaused(true)
+      return
+    }
+    setStartedAt(Date.now() - elapsedSeconds * 1000)
+    setPaused(false)
+  }
+
   function retryMissed() {
     if (!attemptSummary?.missedQuestionIds.length) return
     setRetryQuestionIds(attemptSummary.missedQuestionIds)
@@ -104,6 +114,8 @@ export function QuizView({
   const remainingSeconds = Math.max(0, targetMinutes * 60 - elapsedSeconds)
   const elapsedLabel = formatDuration(elapsedSeconds)
   const remainingLabel = formatDuration(remainingSeconds)
+  const answeredCount = visibleQuestions.filter((question) => answers[question.id]).length
+  const progressPercent = visibleQuestions.length ? Math.round((answeredCount / visibleQuestions.length) * 100) : 0
 
   return (
     <div className="grid gap-4 xl:grid-cols-[300px_1fr]">
@@ -134,10 +146,14 @@ export function QuizView({
             <div className="mt-4 flex flex-wrap gap-2 text-xs">
               <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">Mode: {practiceModeLabel(practiceMode)}</span>
               <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">{options.revealAnswers ? "Answers reveal after selection" : "Exam-style hidden answers"}</span>
+              <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">{answeredCount}/{visibleQuestions.length} answered</span>
               <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-muted-foreground"><Clock className="h-3.5 w-3.5" /> {elapsedLabel} elapsed</span>
               <span className={`rounded-md px-2 py-1 ${remainingSeconds === 0 ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>{remainingLabel} left</span>
             </div>
-            <QuizTimerControls paused={paused} setPaused={setPaused} targetMinutes={targetMinutes} elapsedSeconds={elapsedSeconds} remainingSeconds={remainingSeconds} resetTimer={resetTimer} setTargetMinutes={setTargetMinutes} />
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} />
+            </div>
+            <QuizTimerControls paused={paused} setPaused={setPracticePaused} targetMinutes={targetMinutes} elapsedSeconds={elapsedSeconds} remainingSeconds={remainingSeconds} resetTimer={resetTimer} setTargetMinutes={setTargetMinutes} />
             <div className="mt-5 space-y-3">
               {visibleQuestions.map((question, index) => (
                 <article key={question.id} className="rounded-lg border border-border p-4">
@@ -178,7 +194,7 @@ export function QuizView({
           </>
         ) : (
           <>
-            <QuizTimerControls paused={paused} setPaused={setPaused} targetMinutes={targetMinutes} elapsedSeconds={elapsedSeconds} remainingSeconds={remainingSeconds} resetTimer={resetTimer} setTargetMinutes={setTargetMinutes} />
+            <QuizTimerControls paused={paused} setPaused={setPracticePaused} targetMinutes={targetMinutes} elapsedSeconds={elapsedSeconds} remainingSeconds={remainingSeconds} resetTimer={resetTimer} setTargetMinutes={setTargetMinutes} />
             <EmptyState title="No quiz selected" body="Choose a quiz bank to start practice." />
           </>
         )}
