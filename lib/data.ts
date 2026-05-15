@@ -666,15 +666,17 @@ export async function recordQuizAttempt(user: User, input: {
   if (!quiz) throw new Error("Quiz not found")
 
   const questionMap = new Map(quiz.questions.map((question: any) => [String(question.id), question]))
+  let score = 0
   const normalizedAnswers = input.answers.map((answer) => {
     const question = questionMap.get(answer.questionId)
+    const correct = String(question?.correct_answer_id || "") === answer.selectedAnswerId
+    if (correct) score += 1
     return {
       ...answer,
       topic: String(question?.topic || "General"),
-      correct: String(question?.correct_answer_id || "") === answer.selectedAnswerId,
+      correct,
     }
   })
-  const score = normalizedAnswers.filter((answer) => answer.correct).length
   const attemptId = createId("attempt")
   const durationSeconds = Math.max(0, Math.round(Number(input.durationSeconds || 0)))
   await query(
