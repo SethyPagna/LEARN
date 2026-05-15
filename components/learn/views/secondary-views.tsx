@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, ArrowRight, BookOpen, CalendarPlus, Check, ChevronRight, Clock, Copy, FileText, Filter, Gauge, Languages, Lock, Palette, Repeat2, Save, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserRound } from "lucide-react"
+import { AlertTriangle, ArrowRight, BookOpen, Bot, CalendarPlus, Check, ChevronRight, Clock, Copy, FileText, Filter, Gauge, Languages, Lock, Palette, Repeat2, Save, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserRound, Users } from "lucide-react"
 import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
 import { filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
 import { summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
 import { normalizeSettingsNumber, summarizeSettingsOptions } from "@/lib/settings-features"
+import { filterAdminList, summarizeAdminOperations, type AdminPanelTab } from "@/lib/admin-features"
 import type { WorkspaceOptions } from "../preferences"
 import type { CalendarEvent, Quiz, User, View } from "../types"
 import { api, formatDate } from "../api"
@@ -592,31 +593,91 @@ function settingsToneClass(tone: "good" | "watch" | "neutral") {
 }
 
 export function AdminView({ user, adminData, automationData, options }: { user: User | null; adminData: any; automationData: any; options: WorkspaceOptions }) {
+  const [tab, setTab] = useState<AdminPanelTab>("overview")
+  const [query, setQuery] = useState("")
+  const adminSummary = useMemo(() => summarizeAdminOperations({ adminData, automationData }), [adminData, automationData])
+  const users = useMemo(() => filterAdminList(adminData?.users || [], query, ["name", "username", "email", "role"]), [adminData?.users, query])
+  const providers = useMemo(() => filterAdminList(adminData?.providers || [], query, ["name", "provider", "last_status", "last_error"]), [adminData?.providers, query])
+  const audit = useMemo(() => filterAdminList(adminData?.audit || [], query, ["action", "entity", "details", "user_id"]), [adminData?.audit, query])
+  const jobs = useMemo(() => filterAdminList(automationData?.jobs || [], query, ["label", "description", "key"]), [automationData?.jobs, query])
+  const prompts = useMemo(() => filterAdminList(automationData?.prompts || [], query, ["label", "description", "key", "mode"]), [automationData?.prompts, query])
+
   if (user?.role !== "admin") return <Panel className="p-4">Admin access required.</Panel>
+
   return (
     <div className="grid gap-4">
       <Panel className="p-4">
-        <div className="flex items-center gap-3">
-          <ShieldCheck className="h-5 w-5 text-success" />
-          <h2 className="text-2xl font-semibold text-foreground">Admin control center</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-md ${adminSummary.systemTone === "watch" ? "bg-warning text-warning-foreground" : "bg-primary text-primary-foreground"}`}>
+              <ShieldCheck className="h-6 w-6" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-2xl font-semibold text-foreground">Admin control center</h2>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <StatusPill label={adminSummary.systemTone === "watch" ? "review needed" : "healthy"} />
+                <StatusPill label={`${adminSummary.providerIssues.length} provider issue${adminSummary.providerIssues.length === 1 ? "" : "s"}`} />
+                <StatusPill label={`${adminSummary.recentAudit.length} audit rows`} />
+              </div>
+            </div>
+          </div>
+          <label className="flex h-10 w-full max-w-sm items-center gap-2 rounded-md border border-border bg-background px-3 focus-within:ring-2 focus-within:ring-primary/25">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search admin data" className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
+          </label>
         </div>
         <div className="mt-5 grid gap-3 md:grid-cols-4">
-          <Info label="Users" value={adminData?.users?.length || 0} />
-          <Info label="Providers" value={adminData?.providers?.length || 0} />
-          <Info label="Events" value={adminData?.counters?.events || 0} />
-          <Info label="Games" value={adminData?.counters?.games || 0} />
+          {adminSummary.cards.map((card) => (
+            <button key={card.id} onClick={() => setTab(tabFromCard(card.id))} className="group relative rounded-md border border-border bg-background p-4 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{card.label}</p>
+              <p className="mt-2 text-2xl font-semibold text-foreground">{card.value}</p>
+              <span className={`mt-3 inline-flex rounded-md px-2 py-1 text-xs font-semibold ${settingsToneClass(card.tone)}`}>{card.tone}</span>
+              <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{card.detail}</p>
+            </button>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {([
+            ["overview", "Overview", Gauge],
+            ["users", "Users", Users],
+            ["providers", "Providers", Bot],
+            ["audit", "Audit", ShieldCheck],
+            ["automation", "Automation", Sparkles],
+          ] as const).map(([id, label, Icon]) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-semibold ${tab === id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+            </button>
+          ))}
         </div>
       </Panel>
-      <div className="grid gap-4 xl:grid-cols-3">
-        <AdminList title="Users" items={adminData?.users || []} />
-        <AdminList title="AI providers" items={adminData?.providers || []} />
-        <AdminList title="Audit" items={adminData?.audit || []} />
-      </div>
-      <ProviderAdminPanel />
-      <div className="grid gap-4 xl:grid-cols-2">
-        <AdminList title="Automation jobs" items={automationData?.jobs || []} />
-        <AdminList title="AI prompt contracts" items={automationData?.prompts || []} />
-      </div>
+
+      {tab === "overview" ? (
+        <div className="grid gap-4 xl:grid-cols-3">
+          <AdminList title="Provider attention" items={adminSummary.providerIssues} emptyLabel="No provider issues." />
+          <AdminList title="Recent audit" items={adminSummary.recentAudit} emptyLabel="No audit rows yet." />
+          <AdminList title="Automation jobs" items={adminSummary.visibleAutomation} emptyLabel="No automation jobs loaded." />
+        </div>
+      ) : null}
+      {tab === "users" ? <AdminList title="Users" items={users} emptyLabel="No users match this search." /> : null}
+      {tab === "providers" ? (
+        <div className="grid gap-4">
+          <AdminList title="Provider records" items={providers} emptyLabel="No provider records match this search." />
+          <ProviderAdminPanel />
+        </div>
+      ) : null}
+      {tab === "audit" ? <AdminList title="Audit" items={audit} emptyLabel="No audit rows match this search." /> : null}
+      {tab === "automation" ? (
+        <div className="grid gap-4 xl:grid-cols-2">
+          <AdminList title="Automation jobs" items={jobs} emptyLabel="No automation jobs match this search." />
+          <AdminList title="AI prompt contracts" items={prompts} emptyLabel="No prompt contracts match this search." />
+        </div>
+      ) : null}
+
       {options.adminVerbose ? (
         <Panel className="p-4">
           <p className="font-semibold text-foreground">Current option policy</p>
@@ -625,6 +686,14 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
       ) : null}
     </div>
   )
+}
+
+function tabFromCard(cardId: string): AdminPanelTab {
+  if (cardId === "users") return "users"
+  if (cardId === "providers") return "providers"
+  if (cardId === "audit") return "audit"
+  if (cardId === "automation") return "automation"
+  return "overview"
 }
 
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
@@ -665,17 +734,31 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
   )
 }
 
-function AdminList({ title, items }: { title: string; items: any[] }) {
+function AdminList({ emptyLabel = "No records yet.", items, title }: { emptyLabel?: string; title: string; items: any[] }) {
   return (
     <Panel className="p-4">
-      <p className="font-semibold text-foreground">{title}</p>
-      <div className="mt-3 space-y-2">
-        {items.slice(0, 8).map((item, index) => (
-          <div key={item.id || item.key || index} className="flex items-center justify-between gap-2 rounded-md bg-muted p-3 text-sm">
-            <span className="truncate text-foreground">{item.name || item.username || item.action || item.provider || item.label || item.id}</span>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      <div className="flex items-center justify-between gap-3">
+        <p className="font-semibold text-foreground">{title}</p>
+        <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{items.length}</span>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+        {items.slice(0, 12).map((item, index) => (
+          <div key={item.id || item.key || index} className="rounded-md border border-border bg-background p-3 text-sm">
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate font-semibold text-foreground">{item.name || item.username || item.action || item.provider || item.label || item.id || item.key || "Record"}</span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </div>
+            <p className="mt-1 truncate text-xs text-muted-foreground">{item.email || item.role || item.entity || item.description || item.default_model || item.details || item.provider_type || item.key || "No detail"}</p>
+            {item.last_status || item.enabled !== undefined ? (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {item.last_status ? <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{item.last_status}</span> : null}
+                {item.enabled !== undefined ? <span className={`rounded-md px-2 py-0.5 text-[0.68rem] font-semibold ${item.enabled ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground"}`}>{item.enabled ? "enabled" : "off"}</span> : null}
+                {item.has_key !== undefined ? <span className={`rounded-md px-2 py-0.5 text-[0.68rem] font-semibold ${item.has_key ? "bg-success/20 text-success" : "bg-warning text-warning-foreground"}`}>{item.has_key ? "key stored" : "key missing"}</span> : null}
+              </div>
+            ) : null}
           </div>
         ))}
+        {!items.length ? <p className="rounded-md border border-dashed border-border bg-background p-4 text-sm text-muted-foreground md:col-span-2 xl:col-span-4">{emptyLabel}</p> : null}
       </div>
     </Panel>
   )
