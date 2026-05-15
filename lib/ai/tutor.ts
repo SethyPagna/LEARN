@@ -5,10 +5,12 @@ import { listRuntimeAiProviderConfigs, recordAiProviderRuntimeStatus, type Runti
 export interface TutorRequest {
   message: string
   context?: string
-  mode?: "coach" | "rewrite" | "quiz" | "flashcards" | "translate" | "route"
+  mode?: TutorMode
   temperature?: number
   maxTokens?: number
 }
+
+export type TutorMode = "coach" | "rewrite" | "quiz" | "flashcards" | "translate" | "route" | "cleanup" | "mistake"
 
 export async function askTutor(input: TutorRequest) {
   const cloudflareEnv = await getCloudflareBindings()
@@ -50,7 +52,7 @@ export async function askTutor(input: TutorRequest) {
     "You are LEARN Tutor, a concise study coach.",
     "Personalize the answer using the learner context.",
     "Prefer actionable study steps, note outlines, quiz questions, and mistake explanations.",
-    modeInstruction(input.mode),
+    getTutorModeInstruction(input.mode),
   ].join(" ")
   const userPrompt = [input.context, input.message].filter(Boolean).join("\n\n").slice(0, 16_000)
   const errors: string[] = []
@@ -70,7 +72,7 @@ export async function askTutor(input: TutorRequest) {
   throw new Error(errors[0] || "AI tutor request failed.")
 }
 
-function modeInstruction(mode: TutorRequest["mode"]) {
+export function getTutorModeInstruction(mode: TutorRequest["mode"]) {
   switch (mode) {
     case "rewrite":
       return "Rewrite messy notes into clean sections with headings, bullets, examples, and follow-up tasks."
@@ -82,6 +84,10 @@ function modeInstruction(mode: TutorRequest["mode"]) {
       return "Translate and localize the learning material while preserving terminology and examples."
     case "route":
       return "Build a dated learning route with review blocks, weak topics, and measurable checkpoints."
+    case "cleanup":
+      return "Clean imported material into structured notes with headings, tables, deduplicated ideas, and review-ready action items."
+    case "mistake":
+      return "Explain the learner's mistake, identify the misconception, and give a short repair drill with one memory hook."
     default:
       return "Coach the learner with concise steps, encouragement, and concrete next actions."
   }
