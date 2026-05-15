@@ -1,43 +1,39 @@
 import { NextResponse } from "next/server"
-import { getCurrentUser, saveNote } from "@/lib/data"
-import { getPromptTemplate } from "@/lib/ai/prompt-library"
-
-function shapeImportedContent(raw: string) {
-  const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
-  const title = lines.find((line) => line.length > 8)?.slice(0, 72) || "Imported Learning Capture"
-  return {
-    title,
-    content: [
-      "## Capture",
-      raw.trim(),
-      "",
-      "## Study Design",
-      "- Key ideas:",
-      "- Questions to practice:",
-      "- Terms to remember:",
-      "",
-      "## AI Prompt Used",
-      getPromptTemplate("note_design")?.title || "Content design pass",
-    ].join("\n"),
-  }
-}
+import { getCurrentUser, saveEditorDocument, saveNote, saveSheet, saveSlideDeck } from "@/lib/data"
+import { shapeImportedLearningContent, type ImportTarget } from "@/lib/import-gateway"
 
 export async function POST(request: Request) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const body = await request.json().catch(() => null) as { text?: string; title?: string } | null
+  const body = await request.json().catch(() => null) as { text?: string; title?: string; target?: ImportTarget | "auto" } | null
   const text = body?.text?.trim()
   if (!text) return NextResponse.json({ error: "Provide text to import." }, { status: 400 })
 
-  const shaped = shapeImportedContent(text)
-  const note = await saveNote(user, {
-    title: body?.title?.trim() || shaped.title,
-    content: shaped.content,
-    icon: "Sparkles",
-    favorite: true,
-    template: "ai-capture",
-  })
+  const shaped = shapeImportedLearningContent({ raw: text, title: body?.title, target: body?.target || "auto" })
 
-  return NextResponse.json({ note }, { status: 201 })
+  if (shaped.target === "doc") {
+    const item = await saveEditorDocument(user, shaped.payload, "doc")
+    return NextResponse.json({ target: shaped.target, item }, { status: 201 })
+  }
+
+  if (shaped.target === "sheet") {
+    const item = await saveSheet(user, shaped.payload)
+    return NextResponse.json({ target: shaped.target, item }, { status: 201 })
+  }
+
+  if (shaped.target === "slides") {
+    const item = await saveSlideDeck(user, shaped.payload)
+    return NextResponse.json({ target: shaped.target, item }, { status: 201 })
+  }
+
+  const notePayload = shaped.payload as {
+    title: string
+    content: string
+    icon?: string
+    favorite?: boolean
+    template?: string
+  }
+  const note = await saveNote(user, notePayload)
+  return NextResponse.json({ target: shaped.target, note, item: note }, { status: 201 })
 }
