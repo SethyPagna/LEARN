@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { BookOpen, CalendarPlus, Check, ChevronRight, Copy, Save, ShieldCheck, Target, Trash2, UserRound } from "lucide-react"
-import { supportedLocales } from "@/lib/i18n/vocabulary"
+import { languageNames, supportedLocales } from "@/lib/i18n/vocabulary"
 import type { WorkspaceOptions } from "../preferences"
 import type { CalendarEvent, Quiz, User } from "../types"
 import { api, formatDate } from "../api"
@@ -248,7 +248,6 @@ export function SettingsView({
       </Panel>
       <Panel className="p-4">
         <h3 className="text-lg font-semibold text-foreground">Workspace freedom</h3>
-        <p className="mt-2 text-sm text-muted-foreground">Choose how detailed, playful, strict, or compact each section feels.</p>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <SelectField label="Dashboard" value={options.dashboardDetail} options={["focused", "detailed"]} onChange={(value) => setOptions({ dashboardDetail: value as WorkspaceOptions["dashboardDetail"] })} />
           <SelectField label="Files layout" value={options.fileLayout} options={["list", "grid"]} onChange={(value) => setOptions({ fileLayout: value as WorkspaceOptions["fileLayout"] })} />
@@ -279,10 +278,9 @@ export function SettingsView({
       </Panel>
       <Panel className="p-4">
         <h3 className="text-lg font-semibold text-foreground">Languages and automation</h3>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">{supportedLocales.length} clean vocabularies are available with English fallback for missing labels.</p>
         <div className="mt-4 flex flex-wrap gap-2">
           {supportedLocales.map((locale) => (
-            <span key={locale} className="rounded-md bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">{locale}</span>
+            <span key={locale} className="rounded-md bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">{languageNames[locale]}</span>
           ))}
         </div>
         <div className="mt-5 space-y-2">
