@@ -666,12 +666,13 @@ export function StudioView({
       }
 
       if (kind === "docs") {
+        const plainText = plainTextFromHtml(docHistory.present)
         const response = await api<{ item: WorkspaceDocument }>("/api/docs", {
           method: selectedDoc?.id ? "PUT" : "POST",
           body: JSON.stringify({
             id: selectedDoc?.id,
             title: docTitle,
-            content: { text: docHistory.present, markdown: plainTextFromHtml(docHistory.present), plainText: plainTextFromHtml(docHistory.present) },
+            content: { text: docHistory.present, markdown: plainText, plainText },
             tags: selectedDoc?.tags || [],
           }),
         })
@@ -715,7 +716,8 @@ export function StudioView({
       setSelectedNoteId(response.item.id)
     }
     if (kind === "docs") {
-      const response = await api<{ item: WorkspaceDocument }>("/api/docs", { method: "POST", body: JSON.stringify({ title, content: { text: docHistory.present, plainText: plainTextFromHtml(docHistory.present) }, tags: [] }) })
+      const plainText = plainTextFromHtml(docHistory.present)
+      const response = await api<{ item: WorkspaceDocument }>("/api/docs", { method: "POST", body: JSON.stringify({ title, content: { text: docHistory.present, plainText }, tags: [] }) })
       setDocs((current) => [response.item, ...current])
       setDocId(response.item.id)
     }
