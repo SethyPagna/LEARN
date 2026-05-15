@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Copy, Download, ImageIcon, Trash2, Upload, Video } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { MediaFile } from "../types"
@@ -13,8 +13,12 @@ export function FilesView({ options }: { options: WorkspaceOptions }) {
   const [selectedId, setSelectedId] = useState("")
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState("Loading files...")
-  const filteredFiles = files.filter((file) => `${file.filename} ${file.content_type} ${file.source}`.toLowerCase().includes(query.trim().toLowerCase()))
-  const selectedFile = files.find((file) => file.id === selectedId) || filteredFiles[0]
+  const filteredFiles = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return files
+    return files.filter((file) => `${file.filename} ${file.content_type} ${file.source}`.toLowerCase().includes(needle))
+  }, [files, query])
+  const selectedFile = useMemo(() => files.find((file) => file.id === selectedId) || filteredFiles[0], [files, filteredFiles, selectedId])
 
   async function refresh() {
     try {
