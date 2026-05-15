@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useTheme } from "next-themes"
-import { getVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
+import { getVocabulary, isSupportedLocale, type SupportedLocale } from "@/lib/i18n/vocabulary"
 
 type Density = "compact" | "comfortable"
 export type WorkspaceOptions = {
@@ -88,7 +88,7 @@ export function useWorkspacePreferences() {
   useEffect(() => {
     setMounted(true)
     const storedLocale = getStoredValue(LANGUAGE_KEY)
-    if (storedLocale) setLocaleState(storedLocale as SupportedLocale)
+    if (isSupportedLocale(storedLocale)) setLocaleState(storedLocale)
     const storedDensity = getStoredValue(DENSITY_KEY)
     if (storedDensity === "comfortable") setDensityState("comfortable")
     const storedOptions = getStoredValue(OPTIONS_KEY)
