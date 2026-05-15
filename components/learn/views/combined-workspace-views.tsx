@@ -73,7 +73,7 @@ export function LearnWorkspaceView({
       {tab === "graph" ? <GraphView /> : null}
       {tab === "reviews" ? <ReviewsView /> : null}
       {tab === "calendar" ? <CalendarView options={options} /> : null}
-      {tab === "progress" ? <ProgressView dashboard={dashboard} quizzes={quizzes} /> : null}
+      {tab === "progress" ? <ProgressView dashboard={dashboard} quizzes={quizzes} setView={setView} /> : null}
     </WorkspaceFrame>
   )
 }

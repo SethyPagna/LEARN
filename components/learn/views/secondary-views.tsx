@@ -1,31 +1,176 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { BookOpen, CalendarPlus, Check, ChevronRight, Clock, Copy, Filter, Save, ShieldCheck, Target, Trash2, UserRound } from "lucide-react"
+import { AlertTriangle, ArrowRight, BookOpen, CalendarPlus, Check, ChevronRight, Clock, Copy, FileText, Filter, Gauge, Repeat2, Save, ShieldCheck, Sparkles, Target, Trash2, TrendingUp, UserRound } from "lucide-react"
 import { languageNames, supportedLocales } from "@/lib/i18n/vocabulary"
 import { filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
+import { summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
 import type { WorkspaceOptions } from "../preferences"
-import type { CalendarEvent, Quiz, User } from "../types"
+import type { CalendarEvent, Quiz, User, View } from "../types"
 import { api, formatDate } from "../api"
 import { Panel } from "../ui"
 import { ProviderAdminPanel } from "./provider-admin-panel"
 
-export function ProgressView({ dashboard, quizzes }: { dashboard: any; quizzes: Quiz[] }) {
+const progressActionIcons: Record<ProgressActionTarget, typeof Target> = {
+  ai: Sparkles,
+  calendar: CalendarPlus,
+  quizzes: BookOpen,
+  reviews: Repeat2,
+  studio: FileText,
+}
+
+export function ProgressView({ dashboard, quizzes, setView }: { dashboard: any; quizzes: Quiz[]; setView?: (view: View) => void }) {
+  const progress = useMemo(
+    () => summarizeLearningProgress({ snapshot: dashboard?.snapshot, quizCount: quizzes.length }),
+    [dashboard?.snapshot, quizzes.length],
+  )
+
   return (
-    <div className="grid gap-4 md:grid-cols-3">
-      {[
-        ["Goals", `${dashboard?.snapshot?.goalCompletion ?? 0}%`, Target],
-        ["Quiz banks", quizzes.length, BookOpen],
-        ["Focus topics", dashboard?.snapshot?.recommendedFocus?.length || 0, Check],
-      ].map(([label, value, Icon]) => (
-        <Panel key={String(label)} className="p-4">
-          <Icon className="h-5 w-5 text-success" />
-          <p className="mt-4 text-3xl font-semibold text-foreground">{String(value)}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{String(label)}</p>
-        </Panel>
-      ))}
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <Panel className="p-4 xl:col-span-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <TrendingUp className="h-6 w-6" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-2xl font-semibold text-foreground">Progress command center</h2>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <StatusPill label={progress.momentumLabel} />
+                <StatusPill label={`${progress.focusTopics.length} focus`} />
+                <StatusPill label={`${progress.reviewCount} review`} />
+              </div>
+            </div>
+          </div>
+          <div className="w-full max-w-sm">
+            <div className="flex items-center justify-between text-xs font-semibold uppercase text-muted-foreground">
+              <span>Goal route</span>
+              <span>{progress.goalCompletion}%</span>
+            </div>
+            <div className="mt-2 h-3 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-success transition-all" style={{ width: `${Math.max(4, progress.goalCompletion)}%` }} />
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {progress.metrics.map((metric) => (
+            <div key={metric.id} className="group relative rounded-md border border-border bg-background p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{metric.label}</p>
+              <p className="mt-2 text-3xl font-semibold leading-none text-foreground">{metric.value}</p>
+              <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{metric.detail}</p>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel className="p-4">
+        <ProgressHeader icon={Target} title="Next actions" info="Ranked from the current goal, weak topics, and available quiz banks." />
+        <div className="mt-4 grid gap-2">
+          {progress.nextActions.map((action) => (
+            <ProgressActionButton key={action.id} action={action} onClick={() => setView?.(action.target)} />
+          ))}
+        </div>
+      </Panel>
+
+      <Panel className="p-4">
+        <ProgressHeader icon={AlertTriangle} title="Weak topics" info="Lower accuracy appears first. Use these cards to decide what should become review or practice next." />
+        <div className="mt-4 grid gap-2">
+          {progress.weakTopics.length ? progress.weakTopics.map((topic) => (
+            <div key={topic.topic} className="rounded-md border border-border bg-background p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">{topic.topic}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{topic.attempts || 0} attempts</p>
+                </div>
+                <span className={`rounded-md px-2 py-1 text-xs font-semibold ${severityClass(topic.severity)}`}>{topic.accuracy}%</span>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                <div className={`h-full rounded-full ${topic.severity === "critical" ? "bg-destructive" : "bg-success"}`} style={{ width: `${Math.max(6, topic.accuracy)}%` }} />
+              </div>
+            </div>
+          )) : (
+            <div className="rounded-md border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
+              No weak topics yet. Run a quiz or game to create a smarter route.
+            </div>
+          )}
+        </div>
+      </Panel>
+
+      <Panel className="p-4 xl:col-span-2">
+        <ProgressHeader icon={Gauge} title="Learning loop" info="Capture, clean, practice, review, then schedule only what matters." />
+        <div className="mt-4 grid gap-3 md:grid-cols-5">
+          {[
+            ["Studio", "Capture"],
+            ["AI", "Clean"],
+            ["Practice", "Attempt"],
+            ["Reviews", "Recall"],
+            ["Calendar", "Schedule"],
+          ].map(([label, detail], index) => (
+            <div key={label} className="rounded-md border border-border bg-background p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-secondary text-sm font-semibold text-secondary-foreground">{index + 1}</span>
+                {index < 4 ? <ArrowRight className="h-4 w-4 text-muted-foreground" /> : <Check className="h-4 w-4 text-success" />}
+              </div>
+              <p className="mt-3 font-semibold text-foreground">{label}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+            </div>
+          ))}
+        </div>
+      </Panel>
     </div>
   )
+}
+
+function ProgressActionButton({ action, onClick }: { action: ProgressNextAction; onClick: () => void }) {
+  const Icon = progressActionIcons[action.target]
+  return (
+    <button onClick={onClick} className="group relative rounded-md border border-border bg-background p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
+      <div className="flex items-center gap-3">
+        <Icon className="h-5 w-5 text-success" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold">{action.label}</p>
+          <span className={`mt-1 inline-flex rounded-md px-2 py-0.5 text-[0.68rem] font-semibold ${urgencyClass(action.urgency)}`}>{action.urgency}</span>
+        </div>
+        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{action.detail}</p>
+    </button>
+  )
+}
+
+function ProgressHeader({ icon: Icon, info, title }: { icon: typeof Target; info: string; title: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
+          <Icon className="h-5 w-5" />
+        </div>
+        <h3 className="truncate font-semibold text-foreground">{title}</h3>
+      </div>
+      <details className="relative">
+        <summary className="flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${title}`}>
+          <Filter className="h-4 w-4" />
+        </summary>
+        <p className="absolute right-0 top-10 z-20 w-64 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">{info}</p>
+      </details>
+    </div>
+  )
+}
+
+function StatusPill({ label }: { label: string }) {
+  return <span className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-semibold text-muted-foreground">{label}</span>
+}
+
+function severityClass(severity: "critical" | "watch" | "steady") {
+  if (severity === "critical") return "bg-destructive text-destructive-foreground"
+  if (severity === "watch") return "bg-warning/20 text-warning-foreground"
+  return "bg-success/20 text-success"
+}
+
+function urgencyClass(urgency: ProgressNextAction["urgency"]) {
+  if (urgency === "high") return "bg-destructive text-destructive-foreground"
+  if (urgency === "medium") return "bg-warning/20 text-warning-foreground"
+  return "bg-success/20 text-success"
 }
 
 export function CalendarView({ options }: { options: WorkspaceOptions }) {
