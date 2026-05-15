@@ -39,7 +39,7 @@ export function summarizeCalendarAgenda(events: CalendarEventLike[], now = new D
   return { total: events.length, today, upcoming, completed, review, scheduledMinutes }
 }
 
-export function filterCalendarAgenda(events: CalendarEventLike[], filter: CalendarAgendaFilter, now = new Date()) {
+export function filterCalendarAgenda<T extends CalendarEventLike>(events: T[], filter: CalendarAgendaFilter, now = new Date()) {
   const todayKey = dateKey(now)
   const nowTime = now.getTime()
   return events.filter((event) => {

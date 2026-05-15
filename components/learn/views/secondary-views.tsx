@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { BookOpen, CalendarPlus, Check, ChevronRight, Copy, Save, ShieldCheck, Target, Trash2, UserRound } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { BookOpen, CalendarPlus, Check, ChevronRight, Clock, Copy, Filter, Save, ShieldCheck, Target, Trash2, UserRound } from "lucide-react"
 import { languageNames, supportedLocales } from "@/lib/i18n/vocabulary"
+import { filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
 import type { WorkspaceOptions } from "../preferences"
 import type { CalendarEvent, Quiz, User } from "../types"
 import { api, formatDate } from "../api"
@@ -36,7 +37,11 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
   const [durationMinutes, setDurationMinutes] = useState(options.calendarDefaultMinutes)
   const [notes, setNotes] = useState("")
   const [status, setStatus] = useState("")
+  const [agendaFilter, setAgendaFilter] = useState<CalendarAgendaFilter>("upcoming")
   const selected = events.find((event) => event.id === selectedId)
+  const agendaSummary = useMemo(() => summarizeCalendarAgenda(events), [events])
+  const filteredEvents = useMemo(() => filterCalendarAgenda(events, agendaFilter), [agendaFilter, events])
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
   async function refresh() {
     const response = await api<{ items: CalendarEvent[] }>("/api/calendar")
@@ -127,7 +132,13 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
     <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
       <Panel className="p-4">
         <h2 className="text-2xl font-semibold text-foreground">Study calendar</h2>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">Create, edit, complete, duplicate, and delete focus blocks. Defaults: {options.calendarDefaultMinutes} minutes, {options.calendarLeadMinutes} minutes from now.</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">Defaults: {options.calendarDefaultMinutes} minutes, {options.calendarLeadMinutes} minutes from now. Timezone: {timezone}.</p>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Info label="Today" value={agendaSummary.today} />
+          <Info label="Upcoming" value={agendaSummary.upcoming} />
+          <Info label="Review" value={agendaSummary.review} />
+          <Info label="Planned" value={formatCalendarDuration(agendaSummary.scheduledMinutes)} />
+        </div>
         <div className="mt-4 grid gap-3">
           <Field label="Title" value={title} onChange={setTitle} />
           <label className="block rounded-lg bg-muted p-4">
@@ -157,15 +168,30 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
             <h3 className="font-semibold text-foreground">Agenda records</h3>
             <p className="text-sm text-muted-foreground">Select a block to edit it in the left panel.</p>
           </div>
-          <span className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">{events.length} blocks</span>
+          <span className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">{filteredEvents.length}/{events.length} blocks</span>
+        </div>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {(["all", "today", "upcoming", "review", "completed"] as CalendarAgendaFilter[]).map((filter) => (
+            <button
+              key={filter}
+              onClick={() => setAgendaFilter(filter)}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-semibold ${agendaFilter === filter ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+            >
+              <Filter className="h-3.5 w-3.5" />
+              {filter[0].toUpperCase() + filter.slice(1)}
+            </button>
+          ))}
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {events.map((event) => (
+          {filteredEvents.map((event) => {
+            const duration = formatCalendarDuration(Math.max(0, Math.round((new Date(event.ends_at).getTime() - new Date(event.starts_at).getTime()) / 60000)))
+            return (
             <article key={event.id} className={`rounded-lg border p-4 ${selectedId === event.id ? "border-primary bg-primary/10" : "border-border bg-card"}`}>
               <div className="flex items-start justify-between gap-3">
                 <button onClick={() => setSelectedId(event.id)} className="min-w-0 flex-1 text-left">
                   <p className="truncate font-semibold text-foreground">{event.title}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{formatDate(event.starts_at)} · {event.event_type}</p>
+                  <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground"><Clock className="h-3.5 w-3.5" /> {duration}</p>
                   {event.notes ? <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{event.notes}</p> : null}
                 </button>
                 <button onClick={() => deleteEvent(event.id)} className="rounded-md p-2 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground" aria-label="Delete event">
@@ -173,7 +199,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
                 </button>
               </div>
             </article>
-          ))}
+          )})}
         </div>
       </Panel>
     </div>
