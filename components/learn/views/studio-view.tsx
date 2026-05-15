@@ -99,6 +99,7 @@ import {
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, undoHistory, type HistoryState } from "@/lib/workspace-features"
 import { clearStudioDraft, readStudioDrafts, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
 import type { ImportTarget } from "@/lib/import-gateway"
+import { applySlideDesignPreset, createSlideDesignObject, getDocumentInsertBlock, slideDesignPresets, type DocumentInsertKind } from "@/lib/studio-design"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
 
@@ -155,8 +156,8 @@ const starterCells = [
 ]
 
 const starterSlides: WorkspaceDeck["slides"] = [
-  { title: "Study brief", body: "Summarize the goal, what changed, and the next practice step.", accent: "Focus", layout: "title", theme: "midnight", speakerNotes: "Open with why this matters." },
-  { title: "Key idea", body: "Add a concise visual explanation, image note, or memory hook.", accent: "Explain", layout: "two-column", theme: "midnight", speakerNotes: "Keep this slide visual and short." },
+  { title: "Study brief", body: "Summarize the goal, what changed, and the next practice step.", accent: "Focus", layout: "title", theme: "midnight", background: "#111827", transition: "fade", animation: "rise", speakerNotes: "Open with why this matters." },
+  { title: "Key idea", body: "Add a concise visual explanation, image note, or memory hook.", accent: "Explain", layout: "two-column", theme: "midnight", background: "#111827", transition: "fade", animation: "reveal", speakerNotes: "Keep this slide visual and short." },
 ]
 const STARTER_CELLS_FINGERPRINT = JSON.stringify(starterCells)
 const STARTER_SLIDES_FINGERPRINT = JSON.stringify(starterSlides)
@@ -193,6 +194,9 @@ function slidesFromDeck(deck?: WorkspaceDeck) {
     accent: slide.accent || "Slide",
     layout: slide.layout || "title",
     theme: slide.theme || "midnight",
+    background: slide.background || slideDesignPresets[(slide.theme || "midnight") as keyof typeof slideDesignPresets]?.background || "#111827",
+    transition: slide.transition || "none",
+    animation: slide.animation || "none",
     speakerNotes: slide.speakerNotes || "",
   }))
 }
@@ -1508,7 +1512,7 @@ function StudioCanvas({
   return (
     <div className="grid min-h-[58vh] gap-3 lg:grid-cols-[150px_1fr_230px]">
       <div className="space-y-2 overflow-auto">
-        <button onClick={() => onSetSlides([...slides, { title: "New slide", body: "Add the point, image cue, or quiz prompt.", accent: "New", layout: "title", theme: "midnight", speakerNotes: "" }])} className="flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm font-semibold text-primary-foreground">
+        <button onClick={() => onSetSlides([...slides, { title: "New slide", body: "Add the point, image cue, or quiz prompt.", accent: "New", layout: "title", theme: "midnight", background: "#111827", transition: "fade", animation: "rise", speakerNotes: "" }])} className="flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm font-semibold text-primary-foreground">
           <Plus className="h-4 w-4" /> Slide
         </button>
         <DndContext collisionDetection={closestCenter} onDragEnd={handleSlideDragEnd}>
@@ -1529,20 +1533,40 @@ function StudioCanvas({
           </SortableContext>
         </DndContext>
       </div>
-      <div className={`${options.slidesAspect === "4:3" ? "aspect-[4/3]" : "aspect-video"} rounded-lg border border-border bg-[#111827] p-8 text-white shadow-sm`}>
+      <div
+        className={`${options.slidesAspect === "4:3" ? "aspect-[4/3]" : "aspect-video"} rounded-lg border border-border p-8 text-white shadow-sm transition-transform ${selectedSlide?.animation === "rise" ? "hover:-translate-y-1" : selectedSlide?.animation === "emphasis" ? "hover:scale-[1.01]" : ""}`}
+        style={{ background: selectedSlide?.background || slideDesignPresets[(selectedSlide?.theme || "midnight") as keyof typeof slideDesignPresets]?.background || "#111827" }}
+      >
         {selectedSlide ? (
           <div className="flex h-full flex-col">
             <input value={selectedSlide.accent || ""} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, accent: event.target.value } : item))} className="mb-3 w-full bg-transparent text-xs font-semibold uppercase tracking-[0.16em] text-emerald-200 outline-none" />
             <input value={selectedSlide.title} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, title: event.target.value } : item))} className="w-full bg-transparent text-4xl font-semibold leading-tight outline-none" />
             <textarea value={selectedSlide.body} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, body: event.target.value } : item))} className="mt-5 min-h-32 flex-1 resize-none bg-transparent text-lg leading-8 text-slate-200 outline-none" />
+            {selectedSlide.objects?.length ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {selectedSlide.objects.map((object) => (
+                  <span key={object.id} className="rounded-md bg-white/15 px-2 py-1 text-xs font-semibold text-white">
+                    {object.text || object.type}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
       <div className="grid gap-3">
         <SelectLike label="Layout" value={selectedSlide?.layout || "title"} options={["title", "two-column", "image", "quote"]} onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, layout: value as WorkspaceDeck["slides"][number]["layout"] } : item))} />
-        <SelectLike label="Theme" value={selectedSlide?.theme || "midnight"} options={["midnight", "sunrise", "plain"]} onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, theme: value } : item))} />
+        <SelectLike label="Theme" value={selectedSlide?.theme || "midnight"} options={Object.keys(slideDesignPresets)} onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? applySlideDesignPreset(item, value as keyof typeof slideDesignPresets) : item))} />
+        <SelectLike label="Transition" value={selectedSlide?.transition || "none"} options={["none", "fade", "push", "zoom", "wipe"]} onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, transition: value as WorkspaceDeck["slides"][number]["transition"] } : item))} />
+        <SelectLike label="Animation" value={selectedSlide?.animation || "none"} options={["none", "rise", "reveal", "emphasis"]} onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, animation: value as WorkspaceDeck["slides"][number]["animation"] } : item))} />
+        <label className="grid gap-1 text-sm text-foreground">
+          Background
+          <input value={selectedSlide?.background || "#111827"} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, background: event.target.value } : item))} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
+        </label>
         <textarea value={selectedSlide?.speakerNotes || ""} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, speakerNotes: event.target.value } : item))} placeholder="Speaker notes" className="min-h-32 rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none focus:border-ring" />
         <div className="grid grid-cols-2 gap-2">
+          <SheetButton label="Text" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("text")] } : item))} icon={Type} />
+          <SheetButton label="Shape" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("shape")] } : item))} icon={LayoutPanelLeft} />
           <SheetButton label="Up" onClick={() => onSetSlides((current) => moveSlide(current, selectedSlideIndex, -1))} icon={ChevronDown} />
           <SheetButton label="Down" onClick={() => onSetSlides((current) => moveSlide(current, selectedSlideIndex, 1))} icon={ChevronDown} />
           <SheetButton label="Copy" onClick={() => onSetSlides((current) => duplicateSlide(current, selectedSlideIndex))} icon={Copy} />
@@ -1660,6 +1684,18 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
         <option value="16px">16</option>
         <option value="20px">20</option>
         <option value="28px">28</option>
+      </select>
+      <select onChange={(event) => {
+        const value = event.target.value as DocumentInsertKind
+        run((item) => item.chain().focus().insertContent(getDocumentInsertBlock(value)).run())
+        event.target.value = ""
+      }} defaultValue="" className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground">
+        <option value="" disabled>Insert</option>
+        <option value="callout">Callout</option>
+        <option value="reference">Reference</option>
+        <option value="equation">Equation</option>
+        <option value="page-break">Divider</option>
+        <option value="two-column">Two-column table</option>
       </select>
       <span className="mx-1 h-5 w-px bg-border" />
       <ToolbarIcon label="Bold" icon={Bold} onClick={() => run((item) => item.chain().focus().toggleBold().run())} />
