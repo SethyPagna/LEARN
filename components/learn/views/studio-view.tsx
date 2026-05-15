@@ -71,6 +71,7 @@ import {
   Type,
   Underline as UnderlineIcon,
   Undo2,
+  UploadCloud,
   X,
 } from "lucide-react"
 import { api, formatDate } from "../api"
@@ -97,6 +98,7 @@ import {
 } from "@/lib/studio-features"
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, undoHistory, type HistoryState } from "@/lib/workspace-features"
 import { clearStudioDraft, readStudioDrafts, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
+import type { ImportTarget } from "@/lib/import-gateway"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
 
@@ -109,6 +111,7 @@ const studioTabs: { kind: StudioKind; label: string; description: string; icon: 
 
 const sections = ["All", "Notes", "Docs", "Sheets", "Slides", "Recent", "Favorites", "Archived"]
 const inspectorTabs = ["Info", "Outline", "Comments", "History", "AI", "Export"]
+const importTargets: Array<ImportTarget | "auto"> = ["auto", "note", "doc", "sheet", "slides"]
 
 const studioCreateLabels: Record<StudioKind, string> = {
   notes: "New Note",
@@ -196,6 +199,21 @@ function slidesFromDeck(deck?: WorkspaceDeck) {
 
 function fileTitle(title: string, fallback: string) {
   return (title.trim() || fallback).replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase()
+}
+
+function labelImportTarget(target: ImportTarget | "auto") {
+  if (target === "auto") return "Auto detect"
+  if (target === "doc") return "Document"
+  if (target === "sheet") return "Sheet"
+  if (target === "slides") return "Slides"
+  return "Note"
+}
+
+function importTargetToKind(target: ImportTarget): StudioKind {
+  if (target === "doc") return "docs"
+  if (target === "sheet") return "sheets"
+  if (target === "slides") return "slides"
+  return "notes"
 }
 
 function downloadText(filename: string, body: string, type = "text/plain") {
@@ -288,6 +306,11 @@ export function StudioView({
   const [status, setStatus] = useState("Loading Studio...")
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState("")
+  const [importOpen, setImportOpen] = useState(false)
+  const [importText, setImportText] = useState("")
+  const [importTitle, setImportTitle] = useState("")
+  const [importTarget, setImportTarget] = useState<ImportTarget | "auto">("auto")
+  const [importing, setImporting] = useState(false)
   const [dirtyBadges, setDirtyBadges] = useState<StudioDirtyBadge[]>([])
   const [inspectorTab, setInspectorTab] = useState("Info")
   const [selectedCell, setSelectedCell] = useState({ row: 0, column: 0 })
@@ -800,6 +823,75 @@ export function StudioView({
     }
   }
 
+  async function organizeImport() {
+    if (!importText.trim()) {
+      setStatus("Paste text, CSV, or an outline to import.")
+      return
+    }
+    setImporting(true)
+    try {
+      const response = await api<{
+        target: ImportTarget
+        item?: Note | WorkspaceDocument | WorkspaceSheet | WorkspaceDeck
+        note?: Note
+      }>("/api/import", {
+        method: "POST",
+        body: JSON.stringify({
+          text: importText,
+          title: importTitle || undefined,
+          target: importTarget,
+        }),
+      })
+      const imported = response.item || response.note
+      if (!imported) {
+        setStatus("Import finished, but no Studio item was returned.")
+        return
+      }
+      applyImportedItem(response.target, imported)
+      setImportText("")
+      setImportTitle("")
+      setImportOpen(false)
+      setStatus(`Imported ${labelImportTarget(response.target)}.`)
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  function applyImportedItem(target: ImportTarget, item: Note | WorkspaceDocument | WorkspaceSheet | WorkspaceDeck) {
+    const nextKind = importTargetToKind(target)
+    setKind(nextKind)
+    updateActivePaneKind(nextKind, item.id, item.title)
+    if (target === "note") {
+      const note = item as Note
+      setNotes((current) => [note, ...current.filter((entry) => entry.id !== note.id)])
+      setSelectedNoteId(note.id)
+      setNoteDraft(note)
+      setNoteHistory(createHistoryState(note.content || ""))
+      return
+    }
+    if (target === "doc") {
+      const doc = item as WorkspaceDocument
+      setDocs((current) => [doc, ...current.filter((entry) => entry.id !== doc.id)])
+      setDocId(doc.id)
+      setDocTitle(doc.title)
+      setDocHistory(createHistoryState(textFromDocument(doc)))
+      return
+    }
+    if (target === "sheet") {
+      const sheet = item as WorkspaceSheet
+      setSheets((current) => [sheet, ...current.filter((entry) => entry.id !== sheet.id)])
+      setSheetId(sheet.id)
+      setSheetTitle(sheet.title)
+      setCells(cellsFromSheet(sheet))
+      return
+    }
+    const deck = item as WorkspaceDeck
+    setDecks((current) => [deck, ...current.filter((entry) => entry.id !== deck.id)])
+    setDeckId(deck.id)
+    setDeckTitle(deck.title)
+    setSlides(slidesFromDeck(deck))
+  }
+
   async function archiveActive() {
     if (kind === "notes" && noteDraft) {
       await api(`/api/notes/${noteDraft.id}`, { method: "DELETE" })
@@ -897,6 +989,7 @@ export function StudioView({
           <span className="mx-1 hidden h-6 w-px bg-border md:block" />
           <StudioButton label="New" icon={Plus} onClick={createActive} primary />
           <StudioButton label="Save" icon={Save} onClick={() => saveActive()} disabled={!hasActiveItem} />
+          <StudioButton label="Import" icon={UploadCloud} onClick={() => setImportOpen((open) => !open)} />
           <StudioButton label="Undo" icon={Undo2} onClick={() => kind === "notes" ? setNoteHistory(undoHistory(noteHistory)) : setDocHistory(undoHistory(docHistory))} disabled={!canUndoRedo} />
           <StudioButton label="Redo" icon={Redo2} onClick={() => kind === "notes" ? setNoteHistory(redoHistory(noteHistory)) : setDocHistory(redoHistory(docHistory))} disabled={!canUndoRedo} />
           <StudioMenu
@@ -914,6 +1007,31 @@ export function StudioView({
             Inspector
           </button>
         </div>
+        {importOpen ? (
+          <div className="mt-3 grid gap-2 rounded-md border border-border bg-background p-3 md:grid-cols-[1fr_160px_160px_auto]">
+            <input
+              value={importTitle}
+              onChange={(event) => setImportTitle(event.target.value)}
+              placeholder="Optional title"
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground outline-none focus:border-ring"
+            />
+            <select value={importTarget} onChange={(event) => setImportTarget(event.target.value as ImportTarget | "auto")} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground">
+              {importTargets.map((target) => <option key={target} value={target}>{labelImportTarget(target)}</option>)}
+            </select>
+            <button onClick={organizeImport} disabled={importing} className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+              {importing ? "Importing" : "Organize"}
+            </button>
+            <button onClick={() => setImportOpen(false)} className="h-9 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+              Close
+            </button>
+            <textarea
+              value={importText}
+              onChange={(event) => setImportText(event.target.value)}
+              placeholder="Paste raw notes, CSV, lesson outline, or copied material. Auto-detect routes it to the best Studio type."
+              className="min-h-24 rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none focus:border-ring md:col-span-4"
+            />
+          </div>
+        ) : null}
       </Panel>
 
       <div className="grid gap-3 xl:grid-cols-[280px_1fr]">
