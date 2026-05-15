@@ -293,10 +293,12 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
   }
 
   async function choose(choiceId: string) {
+    const durationSeconds = currentElapsedSeconds(startedAt)
     const nextScore = score + (choiceId === current?.correct_answer_id ? 1 : 0)
     setScore(nextScore)
     if (index + 1 >= questions.length) {
-      await api("/api/games", { method: "POST", body: JSON.stringify({ gameKey: "flashcard-sprint", score: nextScore, total: questions.length, durationSeconds: elapsedSeconds }) }).catch(() => undefined)
+      setElapsedSeconds(durationSeconds)
+      await api("/api/games", { method: "POST", body: JSON.stringify({ gameKey: "flashcard-sprint", score: nextScore, total: questions.length, durationSeconds }) }).catch(() => undefined)
       resetRun()
       return
     }
@@ -378,6 +380,10 @@ function formatDuration(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
   return `${minutes}:${String(seconds).padStart(2, "0")}`
+}
+
+function currentElapsedSeconds(startedAt: number) {
+  return Math.max(0, Math.floor((Date.now() - startedAt) / 1000))
 }
 
 export function ChatView({ options }: { options: WorkspaceOptions }) {
