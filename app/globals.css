@@ -150,3 +150,9 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .sidebar-icon-button {
+    @apply flex h-9 w-full items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring;
+  }
+}
