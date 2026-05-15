@@ -323,7 +323,7 @@ function NotificationsMenu({ compact }: { compact?: boolean }) {
       <div className={`absolute right-0 z-40 mt-2 w-72 origin-top-right rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95 ${compact ? "" : "bottom-11 right-auto left-0"}`}>
         <div className="flex items-center justify-between px-2 pb-2">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Notifications</p>
-          <button className="rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground">•••</button>
+          <button className="rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground">...</button>
         </div>
         <div className="grid gap-1">
           {items.map((item) => (
