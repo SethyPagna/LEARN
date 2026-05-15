@@ -1,4 +1,5 @@
-const MAX_UPLOAD_BYTES = 100 * 1024 * 1024
+export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024
+export const UPLOAD_HELP_TEXT = "Images, video, audio, PDFs, Office files, CSV, Markdown, and plain text. Max 100 MB."
 
 const BLOCKED_EXTENSIONS = new Set([
   "apk",
@@ -61,7 +62,19 @@ function isAllowedContentType(contentType: string) {
   )
 }
 
-export function validateUploadFile(file: File, body: ArrayBuffer) {
+export function classifyUploadContentType(contentType: string) {
+  const normalized = contentType.split(";")[0].toLowerCase()
+  if (normalized.startsWith("image/")) return "image"
+  if (normalized.startsWith("video/")) return "video"
+  if (normalized.startsWith("audio/")) return "audio"
+  if (normalized === "application/pdf") return "pdf"
+  if (normalized.includes("presentation")) return "slides"
+  if (normalized.includes("spreadsheet") || normalized === "text/csv") return "sheet"
+  if (normalized.includes("wordprocessing") || normalized === "text/markdown" || normalized === "text/plain") return "doc"
+  return "file"
+}
+
+export function validateUploadFileShape(file: Pick<File, "name" | "size" | "type">) {
   const extension = extensionFor(file.name)
   const contentType = (file.type || "").toLowerCase()
 
@@ -69,6 +82,12 @@ export function validateUploadFile(file: File, body: ArrayBuffer) {
   if (file.size > MAX_UPLOAD_BYTES) return "File is too large. Keep uploads under 100 MB."
   if (BLOCKED_EXTENSIONS.has(extension)) return "This file type is blocked for safety."
   if (!isAllowedContentType(contentType)) return "Upload images, videos, audio, PDFs, documents, spreadsheets, slides, CSV, Markdown, or plain text."
+  return null
+}
+
+export function validateUploadFile(file: File, body: ArrayBuffer) {
+  const shapeError = validateUploadFileShape(file)
+  if (shapeError) return shapeError
 
   const bytes = new Uint8Array(body.slice(0, 16))
   if (hasExecutableSignature(bytes)) return "Executable files are blocked for safety."
