@@ -21,6 +21,27 @@ export const supportedLocales = [
 
 export type SupportedLocale = (typeof supportedLocales)[number]
 
+export const languageNames: Record<SupportedLocale, string> = {
+  en: "English",
+  km: "Khmer",
+  "zh-CN": "Chinese (Simplified)",
+  "zh-TW": "Chinese (Traditional)",
+  vi: "Vietnamese",
+  th: "Thai",
+  fr: "French",
+  es: "Spanish",
+  de: "German",
+  ja: "Japanese",
+  ko: "Korean",
+  pt: "Portuguese",
+  it: "Italian",
+  ar: "Arabic",
+  hi: "Hindi",
+  id: "Indonesian",
+  ms: "Malay",
+  tr: "Turkish",
+}
+
 export const baseVocabulary = {
   appName: "LEARN",
   dashboard: "Dashboard",
