@@ -29,6 +29,13 @@ import {
   X,
 } from "lucide-react"
 import { languageNames, supportedLocales, type baseVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
+import {
+  formatNavigationBadge,
+  rankNavigationMatches,
+  summarizeActiveNavigationGroup,
+  viewBelongsToNavigationItem,
+  type NavigationSearchCandidate,
+} from "@/lib/navigation-features"
 import type { PracticeDraftSummary } from "@/lib/practice-drafts"
 import type { StudioDraftSummary } from "@/lib/studio-drafts"
 import type { View, User } from "./types"
@@ -36,7 +43,7 @@ import type { View, User } from "./types"
 type Text = typeof baseVocabulary
 type Density = "compact" | "comfortable"
 type NavItem = { view: View; labelKey: keyof Text; icon: React.ComponentType<{ className?: string }>; aliases?: View[] }
-type NavGroup = { label: string; items: NavItem[] }
+type NavGroup = { label: string; caption: string; items: NavItem[] }
 type LauncherCommand = { label: string; detail: string; view: View; icon: React.ComponentType<{ className?: string }>; keywords: string[] }
 
 const studioViews: View[] = ["studio", "notes", "docs", "sheets", "slides"]
@@ -47,14 +54,17 @@ const socialViews: View[] = ["social", "chat", "spaces", "rooms", "battles"]
 const navGroups: NavGroup[] = [
   {
     label: "Home",
+    caption: "Dashboard and next steps",
     items: [{ view: "dashboard", labelKey: "dashboard", icon: Home }],
   },
   {
     label: "Workspaces",
+    caption: "Vault, feed, graph, reviews, progress, and calendar",
     items: [{ view: "learn", labelKey: "learn", icon: Compass, aliases: ["vault", "feed", "discover", "graph", "reviews", "calendar", "progress"] }],
   },
   {
     label: "Studio",
+    caption: "Create, import, files, and AI workflows",
     items: [
       { view: "studio", labelKey: "studio", icon: FileText, aliases: ["notes", "docs", "sheets", "slides"] },
       { view: "files", labelKey: "files", icon: Files },
@@ -63,14 +73,17 @@ const navGroups: NavGroup[] = [
   },
   {
     label: "Practice",
+    caption: "Quizzes, games, retries, and review loops",
     items: [{ view: "practice", labelKey: "practice", icon: Gamepad2, aliases: ["quizzes", "games"] }],
   },
   {
     label: "Social",
+    caption: "Chat, spaces, rooms, and battles",
     items: [{ view: "social", labelKey: "social", icon: MessagesSquare, aliases: ["chat", "spaces", "rooms", "battles"] }],
   },
   {
     label: "Manage",
+    caption: "Profile, preferences, security, and admin",
     items: [
       { view: "profile", labelKey: "profile", icon: BookOpen },
       { view: "settings", labelKey: "settings", icon: Settings },
@@ -87,6 +100,15 @@ const launcherCommands: LauncherCommand[] = [
   { label: "Plan calendar", detail: "Study blocks and due dates", view: "calendar", icon: Compass, keywords: ["calendar", "time", "schedule", "plan"] },
   { label: "Tune settings", detail: "Theme, language, density, accessibility", view: "settings", icon: Settings, keywords: ["settings", "theme", "language", "accessibility", "density"] },
 ]
+
+function detailForNavItem(item: NavItem) {
+  const group = navGroups.find((entry) => entry.items.some((candidate) => candidate.view === item.view))
+  return group?.caption ?? "Open section"
+}
+
+function keywordsForNavItem(item: NavItem, text: Text) {
+  return [item.view, String(text[item.labelKey]), ...(item.aliases ?? []), detailForNavItem(item)]
+}
 
 export function titleForView(view: View, text: Text) {
   if (studioViews.includes(view)) return text.studio
@@ -165,33 +187,30 @@ function LauncherSearch({
 }) {
   const [focused, setFocused] = useState(false)
   const needle = query.trim().toLowerCase()
+  const navCandidates = useMemo<NavigationSearchCandidate<NavItem>[]>(() => navItems.map((item) => ({
+    value: item,
+    label: String(text[item.labelKey]),
+    detail: detailForNavItem(item),
+    keywords: keywordsForNavItem(item, text),
+  })), [text])
+  const commandCandidates = useMemo<NavigationSearchCandidate<LauncherCommand>[]>(() => launcherCommands.map((item) => ({
+    value: item,
+    label: item.label,
+    detail: item.detail,
+    keywords: item.keywords,
+  })), [])
   const navResults = useMemo(() => {
     if (!needle) return []
-    const results: NavItem[] = []
-    for (const item of navItems) {
-      const label = String(text[item.labelKey]).toLowerCase()
-      if (label.includes(needle) || item.view.includes(needle) || item.aliases?.some((alias) => alias.includes(needle))) {
-        results.push(item)
-        if (results.length >= 5) break
-      }
-    }
-    return results
-  }, [needle, text])
+    return rankNavigationMatches(needle, navCandidates, 5)
+  }, [navCandidates, needle])
   const commandResults = useMemo(() => {
     if (!needle) return []
-    const results: LauncherCommand[] = []
-    for (const item of launcherCommands) {
-      if (`${item.label} ${item.detail} ${item.keywords.join(" ")}`.toLowerCase().includes(needle)) {
-        results.push(item)
-        if (results.length >= 4) break
-      }
-    }
-    return results
-  }, [needle])
-  const visibleCommands = needle ? commandResults : launcherCommands.slice(0, 4)
+    return rankNavigationMatches(needle, commandCandidates, 4)
+  }, [commandCandidates, needle])
+  const visibleCommands = needle ? commandResults : commandCandidates.slice(0, 4)
   const hasResults = navResults.length > 0 || visibleCommands.length > 0
   const showPanel = focused && (needle.length > 0 || visibleCommands.length > 0)
-  const firstView = visibleCommands[0]?.view ?? navResults[0]?.view
+  const firstView = visibleCommands[0]?.value.view ?? navResults[0]?.value.view
 
   function choose(nextView: View) {
     setView(nextView)
@@ -233,9 +252,9 @@ function LauncherSearch({
               {navResults.length ? (
                 <LauncherGroup label="Go to">
                   {navResults.map((item) => {
-                    const Icon = item.icon
+                    const Icon = item.value.icon
                     return (
-                      <LauncherItem key={item.view} icon={Icon} label={String(text[item.labelKey])} detail="Open section" onClick={() => choose(item.view)} />
+                      <LauncherItem key={item.value.view} icon={Icon} label={item.label} detail={item.detail} onClick={() => choose(item.value.view)} />
                     )
                   })}
                 </LauncherGroup>
@@ -243,7 +262,7 @@ function LauncherSearch({
               {visibleCommands.length ? (
                 <LauncherGroup label={needle ? "Actions" : "Quick actions"}>
                   {visibleCommands.map((item) => (
-                    <LauncherItem key={item.label} icon={item.icon} label={item.label} detail={item.detail} onClick={() => choose(item.view)} />
+                    <LauncherItem key={item.label} icon={item.value.icon} label={item.label} detail={item.detail} onClick={() => choose(item.value.view)} />
                   ))}
                 </LauncherGroup>
               ) : null}
@@ -632,26 +651,31 @@ function Navigation({
   practiceDraftSummary: PracticeDraftSummary
 }) {
   const rowHeight = density === "compact" ? "h-9" : "h-11"
+  const activeGroup = summarizeActiveNavigationGroup(view, navGroups)
   return (
     <nav className="grid gap-3">
       {navGroups.map((group) => (
         <details key={group.label} className="group/navigation" open>
-          <summary className="mb-1 flex cursor-pointer list-none items-center justify-between px-2 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            <span>{group.label}</span>
+          <summary className="mb-1 flex cursor-pointer list-none items-center justify-between px-2 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground" title={group.caption}>
+            <span className="flex min-w-0 items-center gap-2">
+              <span>{group.label}</span>
+              {activeGroup?.groupLabel === group.label ? <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" /> : null}
+            </span>
             <ChevronDown className="h-3.5 w-3.5 transition group-open/navigation:rotate-180 lg:hidden" />
           </summary>
           <div className="grid gap-1">
             {group.items.map((item) => {
-              const active = view === item.view || item.aliases?.includes(view)
+              const active = viewBelongsToNavigationItem(view, item)
               const Icon = item.icon
               const badge = item.view === "studio" ? studioDraftSummary.count : item.view === "practice" ? practiceDraftSummary.count : 0
               const badgeTitle = item.view === "practice"
-                ? `${badge} saved Practice attempt${badge === 1 ? "" : "s"}`
-                : `${badge} local Studio draft${badge === 1 ? "" : "s"}`
+                ? formatNavigationBadge(badge, "saved Practice attempt", "saved Practice attempts")
+                : formatNavigationBadge(badge, "local Studio draft", "local Studio drafts")
               return (
                 <button
                   key={item.view}
                   onClick={() => setView(item.view)}
+                  title={detailForNavItem(item)}
                   className={`flex ${rowHeight} w-full items-center gap-3 rounded-md px-3 text-sm font-medium transition ${
                     active
                       ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm ring-1 ring-sidebar-ring/20"
