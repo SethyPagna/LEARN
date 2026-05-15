@@ -308,6 +308,8 @@ export function StudioView({
   const hydratedDraftKinds = useRef<Set<StudioKind>>(new Set())
   const draftReady = useRef(false)
   const lastDraftFingerprint = useRef<Partial<Record<StudioKind, string>>>({})
+  const pendingDrafts = useRef<Partial<Record<StudioKind, { draft: StudioDraftRecord; fingerprint: string }>>>({})
+  const draftSaveTimeouts = useRef<Partial<Record<StudioKind, number>>>({})
   const draftStatusTimeout = useRef<number | null>(null)
   const layoutSaveTimeout = useRef<number | null>(null)
   const pendingLayoutSnapshot = useRef("")
@@ -325,18 +327,46 @@ export function StudioView({
     }, 1600)
   }
 
+  function flushStudioDraft(kind: StudioKind) {
+    const pending = pendingDrafts.current[kind]
+    if (!pending || lastDraftFingerprint.current[kind] === pending.fingerprint) return
+    lastDraftFingerprint.current[kind] = pending.fingerprint
+    delete pendingDrafts.current[kind]
+    markDraftSaved(writeStudioDraft(kind, pending.draft))
+  }
+
+  function flushPendingStudioDrafts() {
+    ;(["notes", "docs", "sheets", "slides"] as StudioKind[]).forEach((item) => {
+      if (draftSaveTimeouts.current[item]) {
+        window.clearTimeout(draftSaveTimeouts.current[item])
+        delete draftSaveTimeouts.current[item]
+      }
+      flushStudioDraft(item)
+    })
+  }
+
   function scheduleStudioDraft(kind: StudioKind, fingerprint: string, buildDraft: () => StudioDraftRecord) {
     if (lastDraftFingerprint.current[kind] === fingerprint) return undefined
-    const timeout = window.setTimeout(() => {
-      if (lastDraftFingerprint.current[kind] === fingerprint) return
-      lastDraftFingerprint.current[kind] = fingerprint
-      markDraftSaved(writeStudioDraft(kind, buildDraft()))
+    pendingDrafts.current[kind] = { fingerprint, draft: buildDraft() }
+    if (draftSaveTimeouts.current[kind]) window.clearTimeout(draftSaveTimeouts.current[kind])
+    draftSaveTimeouts.current[kind] = window.setTimeout(() => {
+      delete draftSaveTimeouts.current[kind]
+      flushStudioDraft(kind)
     }, 650)
-    return () => window.clearTimeout(timeout)
+    return undefined
   }
 
   useEffect(() => {
+    const flushOnPageExit = () => flushPendingStudioDrafts()
+    const flushOnVisibilityChange = () => {
+      if (document.visibilityState === "hidden") flushPendingStudioDrafts()
+    }
+    window.addEventListener("pagehide", flushOnPageExit)
+    document.addEventListener("visibilitychange", flushOnVisibilityChange)
     return () => {
+      window.removeEventListener("pagehide", flushOnPageExit)
+      document.removeEventListener("visibilitychange", flushOnVisibilityChange)
+      flushPendingStudioDrafts()
       if (draftStatusTimeout.current) window.clearTimeout(draftStatusTimeout.current)
       if (layoutSaveTimeout.current) {
         window.clearTimeout(layoutSaveTimeout.current)
