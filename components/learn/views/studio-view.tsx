@@ -586,12 +586,15 @@ export function StudioView({
       : slides.map((slide, index) => `Slide ${index + 1}: ${slide.title}\n${slide.body}\nNotes: ${slide.speakerNotes || ""}`).join("\n\n")
   }
 
-  function activeSummary() {
+  const activeSummaryText = useMemo(() => {
     if (kind === "notes") return `${plainTextFromHtml(noteHistory.present).length} chars`
     if (kind === "docs") return `${plainTextFromHtml(docHistory.present).split(/\s+/).filter(Boolean).length} words`
-    if (kind === "sheets") return `${ensureCells(cells).length} rows x ${ensureCells(cells)[0]?.length || 0} columns`
+    if (kind === "sheets") {
+      const safeCells = ensureCells(cells)
+      return `${safeCells.length} rows x ${safeCells[0]?.length || 0} columns`
+    }
     return `${slides.length} slides`
-  }
+  }, [cells, docHistory.present, kind, noteHistory.present, slides.length])
 
   function selectKind(nextKind: StudioKind) {
     setKind(nextKind)
@@ -866,7 +869,7 @@ export function StudioView({
                   <StudioPaneSurface
                     active={layout.activePaneId === pane.id}
                     activeKind={kind}
-                    activeSummary={activeSummary()}
+                    activeSummary={activeSummaryText}
                     activeTitle={activeTitle()}
                     cells={cells}
                     docHistory={docHistory}
