@@ -8,7 +8,7 @@ import {
   redoHistory,
   undoHistory,
 } from "../lib/workspace-features"
-import { getVocabulary, isSupportedLocale, supportedLocales } from "../lib/i18n/vocabulary"
+import { getVocabulary, isSupportedLocale, loadVocabulary, supportedLocales } from "../lib/i18n/vocabulary"
 
 test("editor history supports undo and redo without losing future states", () => {
   const initial = createHistoryState("first")
@@ -41,21 +41,21 @@ test("sheet csv import and export preserve quoted commas", () => {
   assert.equal(exportSheetToCsv(sheet), 'Topic,Note\n"React, hooks","useMemo, useState"')
 })
 
-test("all supported vocabularies return usable text without mojibake", () => {
+test("all supported vocabularies return usable text without mojibake", async () => {
   for (const locale of supportedLocales) {
-    const text = getVocabulary(locale)
+    const text = await loadVocabulary(locale)
     assert.equal(typeof text.dashboard, "string")
     assert.ok(text.dashboard.length > 0)
     assert.doesNotMatch(Object.values(text).join(" "), /Ã|Â|áž|Ù|à[¸¤¥]|�/)
   }
 })
 
-test("vocabulary combines English fallback with only the requested locale", () => {
+test("vocabulary combines English fallback with only the requested locale", async () => {
   const english = getVocabulary("en")
-  const french = getVocabulary("fr")
+  const french = await loadVocabulary("fr")
 
   assert.equal(getVocabulary("fr"), french)
-  assert.equal(getVocabulary("unknown"), english)
+  assert.equal(await loadVocabulary("unknown"), english)
   assert.equal(french.save, "Enregistrer")
   assert.equal(french.workspace, english.workspace)
   assert.equal(isSupportedLocale("fr"), true)
