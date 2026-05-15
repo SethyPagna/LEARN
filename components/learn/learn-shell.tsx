@@ -13,6 +13,7 @@ import { useWorkspacePreferences } from "./preferences"
 import { ProfileView } from "./views/ecosystem-views"
 import { StudioView } from "./views/studio-view"
 import { LearnWorkspaceView, PracticeWorkspaceView, SocialWorkspaceView } from "./views/combined-workspace-views"
+import { PRACTICE_DRAFT_EVENT, readPracticeDrafts, summarizePracticeDrafts, type PracticeDraftSummary } from "@/lib/practice-drafts"
 import { readStudioDrafts, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, type StudioDraftSummary } from "@/lib/studio-drafts"
 
 const studioViews = ["studio", "notes", "docs", "sheets", "slides"] as const
@@ -82,6 +83,7 @@ export function LearnShell({
   const [status, setStatus] = useState("Loading workspace...")
   const [query, setQuery] = useState("")
   const [studioDraftSummary, setStudioDraftSummary] = useState<StudioDraftSummary>({ count: 0, labels: [] })
+  const [practiceDraftSummary, setPracticeDraftSummary] = useState<PracticeDraftSummary>({ count: 0, quizIds: [] })
   const preferences = useWorkspacePreferences()
 
   const selectedNote = useMemo(() => notes.find((note) => note.id === selectedNoteId) || notes[0], [notes, selectedNoteId])
@@ -128,6 +130,16 @@ export function LearnShell({
     }
     window.addEventListener(STUDIO_DRAFT_EVENT, updateDraftSummary)
     return () => window.removeEventListener(STUDIO_DRAFT_EVENT, updateDraftSummary)
+  }, [])
+
+  useEffect(() => {
+    setPracticeDraftSummary(summarizePracticeDrafts(readPracticeDrafts()))
+    function updatePracticeDraftSummary(event: Event) {
+      setPracticeDraftSummary((event as CustomEvent<PracticeDraftSummary>).detail || summarizePracticeDrafts(readPracticeDrafts()))
+    }
+
+    window.addEventListener(PRACTICE_DRAFT_EVENT, updatePracticeDraftSummary)
+    return () => window.removeEventListener(PRACTICE_DRAFT_EVENT, updatePracticeDraftSummary)
   }, [])
 
   useEffect(() => {
@@ -191,6 +203,7 @@ export function LearnShell({
           text={preferences.text}
           user={user}
           studioDraftSummary={studioDraftSummary}
+          practiceDraftSummary={practiceDraftSummary}
         />
         <section className="min-w-0 overflow-x-hidden">
           <Topbar
@@ -207,6 +220,7 @@ export function LearnShell({
             setMenuOpen={setMenuOpen}
             logout={logout}
             studioDraftSummary={studioDraftSummary}
+            practiceDraftSummary={practiceDraftSummary}
           />
           <MobileMenu
             density={preferences.density}
@@ -217,6 +231,7 @@ export function LearnShell({
             text={preferences.text}
             setView={chooseView}
             studioDraftSummary={studioDraftSummary}
+            practiceDraftSummary={practiceDraftSummary}
           />
           <div className={preferences.density === "compact" ? "p-3 lg:p-4" : "p-4 lg:p-6"}>
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}

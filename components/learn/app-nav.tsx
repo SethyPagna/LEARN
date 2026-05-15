@@ -29,6 +29,7 @@ import {
   X,
 } from "lucide-react"
 import { languageNames, supportedLocales, type baseVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
+import type { PracticeDraftSummary } from "@/lib/practice-drafts"
 import type { StudioDraftSummary } from "@/lib/studio-drafts"
 import type { View, User } from "./types"
 
@@ -111,6 +112,7 @@ export function Sidebar({
   view,
   logout,
   studioDraftSummary,
+  practiceDraftSummary,
 }: {
   density: Density
   locale: SupportedLocale
@@ -126,13 +128,14 @@ export function Sidebar({
   view: View
   logout: () => void
   studioDraftSummary: StudioDraftSummary
+  practiceDraftSummary: PracticeDraftSummary
 }) {
   return (
     <aside className="sticky top-0 hidden h-screen border-r border-border bg-sidebar px-3 py-4 text-sidebar-foreground lg:flex lg:flex-col">
       <Brand text={text} />
       <LauncherSearch query={query} setQuery={setQuery} setView={setView} text={text} />
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-        <Navigation density={density} text={text} view={view} setView={setView} studioDraftSummary={studioDraftSummary} />
+        <Navigation density={density} text={text} view={view} setView={setView} studioDraftSummary={studioDraftSummary} practiceDraftSummary={practiceDraftSummary} />
       </div>
       <SidebarControls
         density={density}
@@ -303,6 +306,7 @@ export function Topbar({
   view,
   logout,
   studioDraftSummary,
+  practiceDraftSummary,
 }: {
   density: Density
   locale: SupportedLocale
@@ -317,6 +321,7 @@ export function Topbar({
   view: View
   logout: () => void
   studioDraftSummary: StudioDraftSummary
+  practiceDraftSummary: PracticeDraftSummary
 }) {
   const MenuIcon = menuOpen ? X : Menu
   const ThemeIcon = resolvedTheme === "dark" ? Moon : Sun
@@ -337,6 +342,11 @@ export function Topbar({
           {studioDraftSummary.count && studioViews.includes(view) ? (
             <span className="mt-1 inline-flex rounded-md bg-warning px-2 py-0.5 text-[0.68rem] font-semibold text-warning-foreground">
               {studioDraftSummary.count} draft{studioDraftSummary.count === 1 ? "" : "s"}
+            </span>
+          ) : null}
+          {practiceDraftSummary.count && practiceViews.includes(view) ? (
+            <span className="mt-1 inline-flex rounded-md bg-warning px-2 py-0.5 text-[0.68rem] font-semibold text-warning-foreground">
+              {practiceDraftSummary.count} saved attempt{practiceDraftSummary.count === 1 ? "" : "s"}
             </span>
           ) : null}
         </div>
@@ -571,6 +581,7 @@ export function MobileMenu({
   text,
   view,
   studioDraftSummary,
+  practiceDraftSummary,
 }: {
   density: Density
   open: boolean
@@ -580,12 +591,13 @@ export function MobileMenu({
   text: Text
   view: View
   studioDraftSummary: StudioDraftSummary
+  practiceDraftSummary: PracticeDraftSummary
 }) {
   if (!open) return null
   return (
     <div className="border-b border-border bg-sidebar p-3 text-sidebar-foreground lg:hidden">
       <LauncherSearch query={query} setQuery={setQuery} setView={setView} text={text} />
-      <Navigation density={density} text={text} view={view} setView={setView} studioDraftSummary={studioDraftSummary} />
+      <Navigation density={density} text={text} view={view} setView={setView} studioDraftSummary={studioDraftSummary} practiceDraftSummary={practiceDraftSummary} />
     </div>
   )
 }
@@ -610,12 +622,14 @@ function Navigation({
   text,
   view,
   studioDraftSummary,
+  practiceDraftSummary,
 }: {
   density: Density
   setView: (view: View) => void
   text: Text
   view: View
   studioDraftSummary: StudioDraftSummary
+  practiceDraftSummary: PracticeDraftSummary
 }) {
   const rowHeight = density === "compact" ? "h-9" : "h-11"
   return (
@@ -630,7 +644,10 @@ function Navigation({
             {group.items.map((item) => {
               const active = view === item.view || item.aliases?.includes(view)
               const Icon = item.icon
-              const badge = item.view === "studio" ? studioDraftSummary.count : 0
+              const badge = item.view === "studio" ? studioDraftSummary.count : item.view === "practice" ? practiceDraftSummary.count : 0
+              const badgeTitle = item.view === "practice"
+                ? `${badge} saved Practice attempt${badge === 1 ? "" : "s"}`
+                : `${badge} local Studio draft${badge === 1 ? "" : "s"}`
               return (
                 <button
                   key={item.view}
@@ -644,7 +661,7 @@ function Navigation({
                   <Icon className="h-[18px] w-[18px] shrink-0" />
                   <span className="truncate">{text[item.labelKey]}</span>
                   {badge ? (
-                    <span className={`ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.68rem] font-bold ${active ? "bg-sidebar-primary-foreground text-sidebar-primary" : "bg-warning text-warning-foreground"}`} title={`${badge} local Studio draft${badge === 1 ? "" : "s"}`}>
+                    <span className={`ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.68rem] font-bold ${active ? "bg-sidebar-primary-foreground text-sidebar-primary" : "bg-warning text-warning-foreground"}`} title={badgeTitle}>
                       {badge}
                     </span>
                   ) : null}
