@@ -157,6 +157,7 @@ function LauncherSearch({
   setView: (view: View) => void
   text: Text
 }) {
+  const [focused, setFocused] = useState(false)
   const needle = query.trim().toLowerCase()
   const navResults = useMemo(() => {
     if (!needle) return []
@@ -173,25 +174,45 @@ function LauncherSearch({
       .filter((item) => `${item.label} ${item.detail} ${item.keywords.join(" ")}`.toLowerCase().includes(needle))
       .slice(0, 4)
   }, [needle])
-  const hasResults = navResults.length > 0 || commandResults.length > 0
+  const visibleCommands = needle ? commandResults : launcherCommands.slice(0, 4)
+  const hasResults = navResults.length > 0 || visibleCommands.length > 0
+  const showPanel = focused && (needle.length > 0 || visibleCommands.length > 0)
+  const firstView = navResults[0]?.view ?? visibleCommands[0]?.view
 
   function choose(nextView: View) {
     setView(nextView)
     setQuery("")
+    setFocused(false)
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      setQuery("")
+      setFocused(false)
+      return
+    }
+    if (event.key === "Enter" && firstView) {
+      event.preventDefault()
+      choose(firstView)
+    }
   }
 
   return (
-    <div className="relative mb-3">
+    <div className="relative mb-3" onBlur={(event) => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false)
+    }}>
       <div className="flex h-9 items-center gap-2 rounded-md border border-sidebar-border bg-background px-3 focus-within:ring-2 focus-within:ring-sidebar-ring/30">
         <Search className="h-4 w-4 text-muted-foreground" />
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          onFocus={() => setFocused(true)}
+          onKeyDown={handleKeyDown}
           placeholder="Search or jump"
           className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
         />
       </div>
-      {needle ? (
+      {showPanel ? (
         <div className="absolute left-0 right-0 top-11 z-50 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95">
           {hasResults ? (
             <div className="grid gap-2">
@@ -205,9 +226,9 @@ function LauncherSearch({
                   })}
                 </LauncherGroup>
               ) : null}
-              {commandResults.length ? (
-                <LauncherGroup label="Actions">
-                  {commandResults.map((item) => (
+              {visibleCommands.length ? (
+                <LauncherGroup label={needle ? "Actions" : "Quick actions"}>
+                  {visibleCommands.map((item) => (
                     <LauncherItem key={item.label} icon={item.icon} label={item.label} detail={item.detail} onClick={() => choose(item.view)} />
                   ))}
                 </LauncherGroup>
