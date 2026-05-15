@@ -688,56 +688,63 @@ export function StudioView({
         </Panel>
 
         <Panel className="min-w-0 p-0">
-          <PanelGroup direction={layout.groups[0]?.direction || "horizontal"} className="min-h-[74vh]">
+          <PanelGroup id="learn-studio-primary" direction={layout.groups[0]?.direction || "horizontal"} className="min-h-[74vh]">
             {activePanes.map((pane, index) => (
-              <ResizePanel key={pane.id} minSize={28} defaultSize={100 / activePanes.length}>
-                <StudioPaneSurface
-                  active={layout.activePaneId === pane.id}
-                  activeKind={kind}
-                  activeSummary={activeSummary()}
-                  activeTitle={activeTitle()}
-                  cells={cells}
-                  docHistory={docHistory}
-                  inspectorOpen={layout.inspectorOpen}
-                  inspectorTab={inspectorTab}
-                  lastSaved={lastSaved}
-                  noteDraft={noteDraft}
-                  noteHistory={noteHistory}
-                  onArchive={archiveActive}
-                  onClosePane={() => setLayout((current) => closeStudioPane(current, pane.id))}
-                  onCopy={copyActive}
-                  onDownload={() => downloadActive(false)}
-                  onDuplicate={duplicateActive}
-                  onExport={() => downloadActive(true)}
-                  onRenamePane={(label) => setLayout((current) => normalizeStudioLayout({ ...current, groups: [{ ...current.groups[0], panes: current.groups[0].panes.map((item) => item.id === pane.id ? { ...item, label } : item) }] }))}
-                  onSave={() => saveActive()}
-                  onSelectPane={() => setLayout((current) => ({ ...current, activePaneId: pane.id }))}
-                  onSetActiveTitle={setActiveTitle}
-                  onSetCells={setCells}
-                  onSetDocHistory={setDocHistory}
-                  onSetInspectorTab={setInspectorTab}
-                  onSetKind={(nextKind) => {
-                    setKind(nextKind)
-                    setLayout((current) => ({ ...current, activePaneId: pane.id }))
-                  }}
-                  onSetNoteHistory={setNoteHistory}
-                  onSetSelectedCell={setSelectedCell}
-                  onSetSelectedSlideIndex={setSelectedSlideIndex}
-                  onSetSlides={setSlides}
-                  onSplitDown={() => setLayout((current) => splitStudioPane(current, pane.id, "vertical"))}
-                  onSplitRight={() => setLayout((current) => splitStudioPane(current, pane.id, "horizontal"))}
-                  options={options}
-                  pane={pane}
-                  saving={saving}
-                  selectedCell={selectedCell}
-                  selectedSlideIndex={selectedSlideIndex}
-                  slides={slides}
-                  status={status}
-                  updateCell={updateCell}
-                />
-              </ResizePanel>
+              <React.Fragment key={pane.id}>
+                <ResizePanel id={pane.id} order={index} minSize={28} defaultSize={100 / activePanes.length}>
+                  <StudioPaneSurface
+                    active={layout.activePaneId === pane.id}
+                    activeKind={kind}
+                    activeSummary={activeSummary()}
+                    activeTitle={activeTitle()}
+                    cells={cells}
+                    docHistory={docHistory}
+                    inspectorOpen={layout.inspectorOpen}
+                    inspectorTab={inspectorTab}
+                    lastSaved={lastSaved}
+                    noteDraft={noteDraft}
+                    noteHistory={noteHistory}
+                    onArchive={archiveActive}
+                    onClosePane={() => setLayout((current) => closeStudioPane(current, pane.id))}
+                    onCopy={copyActive}
+                    onDownload={() => downloadActive(false)}
+                    onDuplicate={duplicateActive}
+                    onExport={() => downloadActive(true)}
+                    onRenamePane={(label) => setLayout((current) => normalizeStudioLayout({ ...current, groups: [{ ...current.groups[0], panes: current.groups[0].panes.map((item) => item.id === pane.id ? { ...item, label } : item) }] }))}
+                    onSave={() => saveActive()}
+                    onSelectPane={() => setLayout((current) => ({ ...current, activePaneId: pane.id }))}
+                    onSetActiveTitle={setActiveTitle}
+                    onSetCells={setCells}
+                    onSetDocHistory={setDocHistory}
+                    onSetInspectorTab={setInspectorTab}
+                    onSetKind={(nextKind) => {
+                      setKind(nextKind)
+                      setLayout((current) => ({ ...current, activePaneId: pane.id }))
+                    }}
+                    onSetNoteHistory={setNoteHistory}
+                    onSetSelectedCell={setSelectedCell}
+                    onSetSelectedSlideIndex={setSelectedSlideIndex}
+                    onSetSlides={setSlides}
+                    onSplitDown={() => setLayout((current) => splitStudioPane(current, pane.id, "vertical"))}
+                    onSplitRight={() => setLayout((current) => splitStudioPane(current, pane.id, "horizontal"))}
+                    options={options}
+                    pane={pane}
+                    saving={saving}
+                    selectedCell={selectedCell}
+                    selectedSlideIndex={selectedSlideIndex}
+                    slides={slides}
+                    status={status}
+                    updateCell={updateCell}
+                  />
+                </ResizePanel>
+                {index < activePanes.length - 1 && (
+                  <PanelResizeHandle
+                    id={`${pane.id}_handle`}
+                    className={layout.groups[0]?.direction === "vertical" ? "h-1 bg-border hover:bg-primary data-[resize-handle-active]:bg-primary" : "w-1 bg-border hover:bg-primary data-[resize-handle-active]:bg-primary"}
+                  />
+                )}
+              </React.Fragment>
             ))}
-            {activePanes.length > 1 && activePanes.map((pane, index) => index < activePanes.length - 1 ? <PanelResizeHandle key={`${pane.id}_handle`} className="w-1 bg-border hover:bg-primary data-[resize-handle-active]:bg-primary" /> : null)}
           </PanelGroup>
         </Panel>
       </div>
