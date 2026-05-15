@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { applySlideDesignPreset, createSlideDesignObject, getDocumentInsertBlock, removeSlideDesignObject, updateSlideDesignObject } from "../lib/studio-design"
+import { applySlideDesignPreset, createSlideDesignObject, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject } from "../lib/studio-design"
 
 test("document insert blocks expose reusable editor snippets", () => {
   assert.match(getDocumentInsertBlock("callout"), /Callout/)
@@ -31,4 +31,17 @@ test("slide design objects can be updated and removed", () => {
 
   assert.equal(updated.objects?.[0]?.text, "Updated point")
   assert.equal(removed.objects?.length, 0)
+})
+
+test("slide motion presets summarize deck duration", () => {
+  const summary = summarizeSlideShow([
+    { title: "Intro", body: "A short teaching point.", transition: "fade", animation: "rise" },
+    { title: "Practice", body: "Try the question and explain your reasoning.", transition: "push", animation: "reveal" },
+  ])
+
+  assert.equal(slideTransitionPresets.fade.label, "Fade")
+  assert.equal(slideAnimationPresets.reveal.label, "Reveal")
+  assert.equal(summary.slideCount, 2)
+  assert.ok(summary.totalSeconds >= 8)
+  assert.equal(summary.slideTimings[0].title, "Intro")
 })

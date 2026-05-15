@@ -18,6 +18,21 @@ export const slideDesignPresets = {
   grape: { background: "#2e1065", accent: "#f0abfc", foreground: "#faf5ff" },
 }
 
+export const slideTransitionPresets = {
+  none: { label: "None", description: "Instant slide change for fast reviews.", durationMs: 0 },
+  fade: { label: "Fade", description: "Soft crossfade for calm teaching decks.", durationMs: 450 },
+  push: { label: "Push", description: "Directional movement for step-by-step stories.", durationMs: 500 },
+  zoom: { label: "Zoom", description: "Emphasizes a major idea or section break.", durationMs: 550 },
+  wipe: { label: "Wipe", description: "Clear visual handoff for process slides.", durationMs: 500 },
+}
+
+export const slideAnimationPresets = {
+  none: { label: "None", description: "No object entrance animation.", durationMs: 0 },
+  rise: { label: "Rise", description: "Content lifts in gently for modern decks.", durationMs: 350 },
+  reveal: { label: "Reveal", description: "Best for bullets, steps, and progressive teaching.", durationMs: 400 },
+  emphasis: { label: "Emphasis", description: "Subtle scale cue for key moments.", durationMs: 300 },
+}
+
 export function getDocumentInsertBlock(kind: DocumentInsertKind) {
   return documentInsertBlocks[kind]
 }
@@ -59,5 +74,26 @@ export function removeSlideDesignObject(slide: WorkspaceDeck["slides"][number], 
   return {
     ...slide,
     objects: (slide.objects || []).filter((object) => object.id !== objectId),
+  }
+}
+
+export function summarizeSlideShow(slides: WorkspaceDeck["slides"]) {
+  const slideTimings = slides.map((slide, index) => {
+    const bodyWords = `${slide.title} ${slide.body} ${slide.speakerNotes || ""}`.trim().split(/\s+/).filter(Boolean).length
+    const readingMs = Math.max(3500, Math.ceil(bodyWords / 2.4) * 1000)
+    const transitionMs = slideTransitionPresets[slide.transition || "none"]?.durationMs || 0
+    const animationMs = slideAnimationPresets[slide.animation || "none"]?.durationMs || 0
+    return {
+      index,
+      title: slide.title || `Slide ${index + 1}`,
+      durationMs: readingMs + transitionMs + animationMs,
+    }
+  })
+  const totalMs = slideTimings.reduce((total, item) => total + item.durationMs, 0)
+  return {
+    slideCount: slides.length,
+    totalSeconds: Math.ceil(totalMs / 1000),
+    totalMinutes: Math.max(1, Math.ceil(totalMs / 60000)),
+    slideTimings,
   }
 }
