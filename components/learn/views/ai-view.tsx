@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Bot, Brain, CheckSquare, FileText, Gauge, Languages, ListFilter, Plus, Route, Settings2, Sparkles, Wand2 } from "lucide-react"
+import { Bot, Brain, CheckSquare, FileText, Gauge, Languages, ListFilter, Plus, Route, Settings2, Sparkles, UploadCloud, Wand2 } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Note, StudioInsertTarget, View } from "../types"
 import { api } from "../api"
@@ -9,6 +9,7 @@ import { Panel } from "../ui"
 import { buildGuidedPrompt, listInsertActions, promptContracts } from "@/lib/ai/prompt-builder"
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
 import type { AiTaskKey } from "@/lib/ai/prompt-library"
+import type { ImportTarget } from "@/lib/import-gateway"
 
 const tutorModes = [
   { id: "answer_explanation", mode: "mistake", label: "Mistake", icon: Sparkles, prompt: "Explain the mistake, repair the misconception, and create a short retry drill." },
@@ -30,6 +31,7 @@ const tones = ["Kind", "Direct", "Socratic", "Concise", "Detailed"]
 const outputLengths = ["Short", "Balanced", "Deep"]
 const languages = ["English", "Khmer", "French", "Spanish", "Korean", "Japanese", "Chinese"]
 const insertTargets: StudioInsertTarget[] = ["note-block", "doc-section", "sheet-rows", "slide-outline", "quiz", "flashcards", "review-cards", "ai-note"]
+const importTargets: Array<ImportTarget | "auto"> = ["auto", "note", "doc", "sheet", "slides"]
 const AI_TUTOR_DRAFT_KEY = "learn_ai_tutor_draft_v1"
 const DEFAULT_AI_MESSAGE = "Create a study plan from my recent notes."
 
@@ -70,6 +72,11 @@ export function AiTutorView({
   const [providers, setProviders] = useState<any[]>([])
   const [catalog, setCatalog] = useState<any[]>([])
   const [presets, setPresets] = useState<any[]>([])
+  const [importText, setImportText] = useState("")
+  const [importTitle, setImportTitle] = useState("")
+  const [importTarget, setImportTarget] = useState<ImportTarget | "auto">("auto")
+  const [importStatus, setImportStatus] = useState("")
+  const [importLoading, setImportLoading] = useState(false)
   const [sourceScope, setSourceScope] = useState(sourceScopes[0])
   const [difficulty, setDifficulty] = useState(difficulties[0])
   const [tone, setTone] = useState(tones[0])
@@ -228,6 +235,34 @@ export function AiTutorView({
     if (payload.endpoint === "/api/notes" && response.item) setNotes?.((current) => [response.item as Note, ...current])
     setActionStatus(`Created ${payload.view} item from AI result.`)
     setView?.(payload.view)
+  }
+
+  async function organizeImport() {
+    if (!importText.trim()) {
+      setImportStatus("Paste learning material first.")
+      return
+    }
+    setImportLoading(true)
+    try {
+      const response = await api<{ target: ImportTarget; item?: Note; note?: Note }>("/api/import", {
+        method: "POST",
+        body: JSON.stringify({
+          text: importText,
+          title: importTitle || undefined,
+          target: importTarget,
+        }),
+      })
+      if (response.target === "note" && (response.item || response.note)) {
+        const note = (response.item || response.note) as Note
+        setNotes?.((current) => [note, ...current])
+      }
+      setImportText("")
+      setImportTitle("")
+      setImportStatus(`Created ${labelImportTarget(response.target)} in Studio.`)
+      setView?.(viewForImportTarget(response.target))
+    } finally {
+      setImportLoading(false)
+    }
   }
 
   async function copyReply() {
@@ -394,6 +429,30 @@ export function AiTutorView({
           </div>
           {catalog.length ? <p className="mt-3 text-xs text-muted-foreground">{catalog.length} provider families available.</p> : null}
         </div>
+        <div className="mt-4 border-t border-border pt-4">
+          <p className="flex items-center gap-2 text-sm font-semibold text-foreground"><UploadCloud className="h-4 w-4" /> Import gateway</p>
+          <div className="mt-3 grid gap-2">
+            <input
+              value={importTitle}
+              onChange={(event) => setImportTitle(event.target.value)}
+              placeholder="Optional title"
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground outline-none focus:border-ring"
+            />
+            <select value={importTarget} onChange={(event) => setImportTarget(event.target.value as ImportTarget | "auto")} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground">
+              {importTargets.map((target) => <option key={target} value={target}>{labelImportTarget(target)}</option>)}
+            </select>
+            <textarea
+              value={importText}
+              onChange={(event) => setImportText(event.target.value)}
+              placeholder="Paste text, CSV, or slide outline"
+              className="min-h-28 rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none focus:border-ring"
+            />
+            <button onClick={organizeImport} disabled={importLoading} className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+              {importLoading ? "Organizing" : "Organize into Studio"}
+            </button>
+            {importStatus ? <p className="rounded-md bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground">{importStatus}</p> : null}
+          </div>
+        </div>
       </Panel>
     </div>
   )
@@ -421,6 +480,21 @@ function clearAiTutorDraft() {
 
 function normalizeChoice(value: string, options: string[], fallback: string) {
   return options.includes(value) ? value : fallback
+}
+
+function labelImportTarget(target: ImportTarget | "auto") {
+  if (target === "auto") return "Auto detect"
+  if (target === "doc") return "Document"
+  if (target === "sheet") return "Sheet"
+  if (target === "slides") return "Slides"
+  return "Note"
+}
+
+function viewForImportTarget(target: ImportTarget): View {
+  if (target === "doc") return "docs"
+  if (target === "sheet") return "sheets"
+  if (target === "slides") return "slides"
+  return "notes"
 }
 
 function buildPromptFields(message: string, recentContext: string, targetAudience: string, requiredOutput: string, difficulty: string) {
