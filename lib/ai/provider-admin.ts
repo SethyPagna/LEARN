@@ -192,9 +192,21 @@ export function createProviderConfigDraftFromPreset(
 }
 
 export function buildProviderAdminSummary(providers: SerializedProviderConfig[]): ProviderAdminSummary {
-  const enabledProviders = providers.filter((provider) => provider.enabled)
-  const readyProviders = enabledProviders.filter((provider) => provider.has_key && provider.last_status !== "error")
-  const routingOrder = [...enabledProviders]
+  let enabledCount = 0
+  let readyCount = 0
+  let hasDegradedProviders = false
+  const enabledProviders: SerializedProviderConfig[] = []
+
+  for (const provider of providers) {
+    if (!provider.enabled) continue
+    enabledCount += 1
+    enabledProviders.push(provider)
+    const ready = provider.has_key && provider.last_status !== "error"
+    if (ready) readyCount += 1
+    else hasDegradedProviders = true
+  }
+
+  const routingOrder = enabledProviders
     .sort((left, right) => left.priority - right.priority || left.name.localeCompare(right.name))
     .map((provider) => ({
       id: provider.id,
@@ -208,9 +220,9 @@ export function buildProviderAdminSummary(providers: SerializedProviderConfig[])
 
   return {
     totalCount: providers.length,
-    enabledCount: enabledProviders.length,
-    readyCount: readyProviders.length,
-    hasDegradedProviders: enabledProviders.some((provider) => !provider.has_key || provider.last_status === "error"),
+    enabledCount,
+    readyCount,
+    hasDegradedProviders,
     routingOrder,
   }
 }
