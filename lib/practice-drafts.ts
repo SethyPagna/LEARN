@@ -2,6 +2,7 @@ import type { PracticeMode } from "@/components/learn/types"
 import type { PracticeQuestionFilter } from "./practice-features"
 
 export const PRACTICE_DRAFTS_KEY = "learn_practice_drafts_v1"
+export const PRACTICE_DRAFT_EVENT = "learn:practice-drafts"
 
 export interface PracticeDraftState {
   quizId: string
@@ -15,7 +16,13 @@ export interface PracticeDraftState {
   updatedAt: string
 }
 
-type PracticeDraftStore = Record<string, PracticeDraftState>
+export type PracticeDraftStore = Record<string, PracticeDraftState>
+
+export type PracticeDraftSummary = {
+  count: number
+  quizIds: string[]
+  latestAt?: string
+}
 
 const questionFilters: PracticeQuestionFilter[] = ["all", "unanswered", "marked", "missed"]
 const practiceModes: PracticeMode[] = ["quiz", "exam", "flashcards", "matching", "sprint", "mistake-retry", "fill-blank", "true-false", "generated"]
@@ -56,13 +63,19 @@ export function hasPracticeDraftContent(draft: PracticeDraftState, defaultMode: 
 
 export function readPracticeDraft(quizId: string): PracticeDraftState | null {
   if (typeof window === "undefined") return null
-  return normalizePracticeDraft(readPracticeDraftStore()[quizId], quizId)
+  return normalizePracticeDraft(readPracticeDrafts()[quizId], quizId)
+}
+
+export function readPracticeDrafts(): PracticeDraftStore {
+  if (typeof window === "undefined") return {}
+  return readPracticeDraftStore()
 }
 
 export function writePracticeDraft(draft: PracticeDraftState) {
   if (typeof window === "undefined") return
-  const store = readPracticeDraftStore()
-  window.localStorage.setItem(PRACTICE_DRAFTS_KEY, JSON.stringify({ ...store, [draft.quizId]: draft }))
+  const next = { ...readPracticeDraftStore(), [draft.quizId]: draft }
+  window.localStorage.setItem(PRACTICE_DRAFTS_KEY, JSON.stringify(next))
+  publishPracticeDraftSummary(next)
 }
 
 export function clearPracticeDraft(quizId: string) {
@@ -70,6 +83,26 @@ export function clearPracticeDraft(quizId: string) {
   const store = readPracticeDraftStore()
   delete store[quizId]
   window.localStorage.setItem(PRACTICE_DRAFTS_KEY, JSON.stringify(store))
+  publishPracticeDraftSummary(store)
+}
+
+export function summarizePracticeDrafts(store: Record<string, unknown>): PracticeDraftSummary {
+  const quizIds: string[] = []
+  let latestAt: string | undefined
+
+  for (const [quizId, value] of Object.entries(store)) {
+    const draft = normalizePracticeDraft(value, quizId)
+    if (!draft || !hasPracticeDraftContent(draft, "quiz")) continue
+    quizIds.push(quizId)
+    if (draft.updatedAt && (!latestAt || draft.updatedAt > latestAt)) latestAt = draft.updatedAt
+  }
+
+  return { count: quizIds.length, quizIds, latestAt }
+}
+
+export function publishPracticeDraftSummary(store: Record<string, unknown>) {
+  if (typeof window === "undefined") return
+  window.dispatchEvent(new CustomEvent(PRACTICE_DRAFT_EVENT, { detail: summarizePracticeDrafts(store) }))
 }
 
 function readPracticeDraftStore(): PracticeDraftStore {

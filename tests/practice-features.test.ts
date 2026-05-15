@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import type { QuizQuestion } from "../components/learn/types"
-import { hasPracticeDraftContent, normalizePracticeDraft } from "../lib/practice-drafts"
+import { hasPracticeDraftContent, normalizePracticeDraft, summarizePracticeDrafts } from "../lib/practice-drafts"
 import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, evaluateGameChoice, filterPracticeQuestions, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt } from "../lib/practice-features"
 
 const questions: QuizQuestion[] = [
@@ -102,6 +102,37 @@ test("practice drafts normalize saved attempts and ignore empty defaults", () =>
   assert.ok(empty)
   assert.equal(hasPracticeDraftContent(empty, "quiz"), false)
   assert.equal(normalizePracticeDraft({ quizId: "other" }, "quiz_math"), null)
+})
+
+test("practice draft summary counts unfinished quiz work", () => {
+  const summary = summarizePracticeDrafts({
+    quiz_math: {
+      quizId: "quiz_math",
+      answers: { q1: "a" },
+      markedQuestionIds: [],
+      retryQuestionIds: [],
+      questionFilter: "all",
+      practiceMode: "quiz",
+      targetMinutes: 10,
+      elapsedSeconds: 12,
+      updatedAt: "2026-05-16T01:00:00.000Z",
+    },
+    quiz_empty: {
+      quizId: "quiz_empty",
+      answers: {},
+      markedQuestionIds: [],
+      retryQuestionIds: [],
+      questionFilter: "all",
+      practiceMode: "quiz",
+      targetMinutes: 10,
+      elapsedSeconds: 0,
+      updatedAt: "2026-05-16T02:00:00.000Z",
+    },
+  })
+
+  assert.equal(summary.count, 1)
+  assert.deepEqual(summary.quizIds, ["quiz_math"])
+  assert.equal(summary.latestAt, "2026-05-16T01:00:00.000Z")
 })
 
 test("game choice evaluation returns feedback and correct answer text", () => {
