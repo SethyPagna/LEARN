@@ -24,6 +24,17 @@ export type PracticeDraftSummary = {
   latestAt?: string
 }
 
+export interface PracticeDraftCard {
+  quizId: string
+  title: string
+  practiceMode: PracticeMode
+  answeredCount: number
+  markedCount: number
+  retryCount: number
+  elapsedSeconds: number
+  updatedAt: string
+}
+
 const questionFilters: PracticeQuestionFilter[] = ["all", "unanswered", "marked", "missed"]
 const practiceModes: PracticeMode[] = ["quiz", "exam", "flashcards", "matching", "sprint", "mistake-retry", "fill-blank", "true-false", "generated"]
 
@@ -98,6 +109,25 @@ export function summarizePracticeDrafts(store: Record<string, unknown>): Practic
   }
 
   return { count: quizIds.length, quizIds, latestAt }
+}
+
+export function listPracticeDraftCards(store: Record<string, unknown>, quizTitles: Record<string, string> = {}): PracticeDraftCard[] {
+  const cards: PracticeDraftCard[] = []
+  for (const [quizId, value] of Object.entries(store)) {
+    const draft = normalizePracticeDraft(value, quizId)
+    if (!draft || !hasPracticeDraftContent(draft, "quiz")) continue
+    cards.push({
+      quizId,
+      title: quizTitles[quizId] || "Saved practice",
+      practiceMode: draft.practiceMode,
+      answeredCount: Object.keys(draft.answers).length,
+      markedCount: draft.markedQuestionIds.length,
+      retryCount: draft.retryQuestionIds.length,
+      elapsedSeconds: draft.elapsedSeconds,
+      updatedAt: draft.updatedAt,
+    })
+  }
+  return cards.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
 }
 
 export function publishPracticeDraftSummary(store: Record<string, unknown>) {

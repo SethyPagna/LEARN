@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import type { QuizQuestion } from "../components/learn/types"
-import { hasPracticeDraftContent, normalizePracticeDraft, summarizePracticeDrafts } from "../lib/practice-drafts"
+import { hasPracticeDraftContent, listPracticeDraftCards, normalizePracticeDraft, summarizePracticeDrafts } from "../lib/practice-drafts"
 import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, evaluateGameChoice, filterPracticeQuestions, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt } from "../lib/practice-features"
 
 const questions: QuizQuestion[] = [
@@ -133,6 +133,40 @@ test("practice draft summary counts unfinished quiz work", () => {
   assert.equal(summary.count, 1)
   assert.deepEqual(summary.quizIds, ["quiz_math"])
   assert.equal(summary.latestAt, "2026-05-16T01:00:00.000Z")
+})
+
+test("practice draft cards sort recent work and show useful counts", () => {
+  const cards = listPracticeDraftCards({
+    quiz_old: {
+      quizId: "quiz_old",
+      answers: { q1: "a" },
+      markedQuestionIds: [],
+      retryQuestionIds: [],
+      questionFilter: "all",
+      practiceMode: "quiz",
+      targetMinutes: 10,
+      elapsedSeconds: 20,
+      updatedAt: "2026-05-16T01:00:00.000Z",
+    },
+    quiz_new: {
+      quizId: "quiz_new",
+      answers: { q1: "a", q2: "b" },
+      markedQuestionIds: ["q2"],
+      retryQuestionIds: ["q3"],
+      questionFilter: "marked",
+      practiceMode: "mistake-retry",
+      targetMinutes: 10,
+      elapsedSeconds: 80,
+      updatedAt: "2026-05-16T02:00:00.000Z",
+    },
+  }, { quiz_new: "New quiz" })
+
+  assert.equal(cards[0].quizId, "quiz_new")
+  assert.equal(cards[0].title, "New quiz")
+  assert.equal(cards[0].answeredCount, 2)
+  assert.equal(cards[0].markedCount, 1)
+  assert.equal(cards[0].retryCount, 1)
+  assert.equal(cards[1].title, "Saved practice")
 })
 
 test("game choice evaluation returns feedback and correct answer text", () => {
