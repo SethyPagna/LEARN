@@ -2,14 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react"
 import type React from "react"
-import { AtSign, Bell, Clock, Download, Gamepad2, Hash, Languages, MessageSquare, Plus, Redo2, Reply, RotateCcw, Save, Send, Smile, Undo2 } from "lucide-react"
+import { AtSign, Bell, CheckCircle2, Clock, Download, Gamepad2, Hash, Languages, MessageSquare, Plus, Redo2, Reply, RotateCcw, Save, Send, Smile, Trophy, Undo2, XCircle } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Quiz, WorkspaceDeck, WorkspaceDocument, WorkspaceSheet } from "../types"
 import { api } from "../api"
 import { EmptyState, Panel } from "../ui"
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, undoHistory, type HistoryState } from "@/lib/workspace-features"
+import { evaluateGameChoice, summarizeGameRun } from "@/lib/practice-features"
 
-const emojiSet = ["⭐", "✅", "💡", "📌", "🎯", "🔥", "🧠", "📚"]
+const emojiSet = ["*", "+", "Idea", "Pin", "Goal", "Hot", "Brain", "Book"]
 const starterCells = [
   ["Topic", "Status", "Score", "Next step"],
   ["React", "Review", "72", "Practice hooks"],
@@ -242,6 +243,8 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
   const [startedAt, setStartedAt] = useState(() => Date.now())
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [targetSeconds, setTargetSeconds] = useState(90)
+  const [feedback, setFeedback] = useState<ReturnType<typeof evaluateGameChoice> | null>(null)
+  const [completedRun, setCompletedRun] = useState<ReturnType<typeof summarizeGameRun> | null>(null)
   const current = questions[index]
 
   useEffect(() => {
@@ -279,30 +282,40 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
   }, [quizIds])
 
   useEffect(() => {
+    if (completedRun) return undefined
     const timer = window.setInterval(() => {
       setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)))
     }, 1000)
     return () => window.clearInterval(timer)
-  }, [startedAt])
+  }, [completedRun, startedAt])
 
   function resetRun() {
     setIndex(0)
     setScore(0)
+    setFeedback(null)
+    setCompletedRun(null)
     setStartedAt(Date.now())
     setElapsedSeconds(0)
   }
 
-  async function choose(choiceId: string) {
+  function choose(choiceId: string) {
+    if (!current || feedback || completedRun) return
+    const result = evaluateGameChoice(current, choiceId)
+    setFeedback(result)
+    if (result.correct) setScore((value) => value + 1)
+  }
+
+  async function nextPrompt() {
+    if (!current) return
     const durationSeconds = currentElapsedSeconds(startedAt)
-    const nextScore = score + (choiceId === current?.correct_answer_id ? 1 : 0)
-    setScore(nextScore)
     if (index + 1 >= questions.length) {
       setElapsedSeconds(durationSeconds)
-      await api("/api/games", { method: "POST", body: JSON.stringify({ gameKey: "flashcard-sprint", score: nextScore, total: questions.length, durationSeconds }) }).catch(() => undefined)
-      resetRun()
+      setCompletedRun(summarizeGameRun({ score, total: questions.length, durationSeconds, targetSeconds }))
+      await api("/api/games", { method: "POST", body: JSON.stringify({ gameKey: "flashcard-sprint", score, total: questions.length, durationSeconds }) }).catch(() => undefined)
       return
     }
-    setIndex(index + 1)
+    setFeedback(null)
+    setIndex((value) => value + 1)
   }
 
   if (!current) {
@@ -324,17 +337,49 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
         </div>
       </div>
       <GameTimerControls elapsedSeconds={elapsedSeconds} resetRun={resetRun} setTargetSeconds={setTargetSeconds} targetSeconds={targetSeconds} />
+      {completedRun ? (
+        <div className="mb-4 rounded-lg border border-border bg-accent p-4 text-accent-foreground">
+          <div className="flex flex-wrap items-center gap-3">
+            <Trophy className="h-5 w-5" />
+            <p className="font-semibold">Run complete: {completedRun.score}/{completedRun.total} - {completedRun.accuracy}%</p>
+            <span className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-foreground">{completedRun.nextAction.replace(/-/g, " ")}</span>
+          </div>
+          <p className="mt-2 text-sm opacity-80">Duration {formatDuration(completedRun.durationSeconds)} / target {formatDuration(completedRun.targetSeconds)}.</p>
+          <button onClick={resetRun} className="mt-3 rounded-md bg-background px-3 py-1.5 text-xs font-semibold text-foreground">Start another run</button>
+        </div>
+      ) : null}
       <div className="rounded-lg bg-primary p-5 text-primary-foreground">
         <p className="text-sm opacity-70">Prompt {index + 1}</p>
         <h3 className="mt-2 text-2xl font-semibold">{current.question}</h3>
       </div>
       <div className="mt-4 grid gap-2 md:grid-cols-2">
         {current.choices.map((choice) => (
-          <button key={choice.id} onClick={() => choose(choice.id)} className="rounded-md border border-border bg-card p-4 text-left text-sm hover:bg-accent hover:text-accent-foreground">
+          <button
+            key={choice.id}
+            onClick={() => choose(choice.id)}
+            disabled={Boolean(feedback || completedRun)}
+            className={`rounded-md border p-4 text-left text-sm hover:bg-accent hover:text-accent-foreground disabled:opacity-80 ${
+              feedback && choice.id === current.correct_answer_id
+                ? "border-success bg-success text-success-foreground"
+                : "border-border bg-card"
+            }`}
+          >
             {choice.text}
           </button>
         ))}
       </div>
+      {feedback ? (
+        <div className={`mt-4 rounded-md border p-4 ${feedback.correct ? "border-success bg-success text-success-foreground" : "border-destructive bg-destructive text-destructive-foreground"}`}>
+          <div className="flex flex-wrap items-center gap-2">
+            {feedback.correct ? <CheckCircle2 className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
+            <p className="font-semibold">{feedback.correct ? "Correct" : `Correct answer: ${feedback.correctChoiceText}`}</p>
+          </div>
+          <p className="mt-2 text-sm opacity-90">{feedback.explanation}</p>
+          <button onClick={nextPrompt} className="mt-3 rounded-md bg-background px-3 py-1.5 text-xs font-semibold text-foreground">
+            {index + 1 >= questions.length ? "Finish run" : "Next prompt"}
+          </button>
+        </div>
+      ) : null}
     </Panel>
   )
 }
