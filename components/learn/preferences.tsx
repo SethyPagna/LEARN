@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useTheme } from "next-themes"
 import { getVocabulary, isSupportedLocale, loadVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
 
@@ -85,6 +85,8 @@ export function useWorkspacePreferences() {
   const [text, setText] = useState(() => getVocabulary("en"))
   const [density, setDensityState] = useState<Density>("compact")
   const [options, setOptionsState] = useState<WorkspaceOptions>(defaultWorkspaceOptions)
+  const optionsSaveTimeout = useRef<number | null>(null)
+  const pendingOptionsSnapshot = useRef("")
 
   useEffect(() => {
     setMounted(true)
@@ -98,6 +100,17 @@ export function useWorkspacePreferences() {
         setOptionsState({ ...defaultWorkspaceOptions, ...JSON.parse(storedOptions) })
       } catch {
         setOptionsState(defaultWorkspaceOptions)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (optionsSaveTimeout.current) {
+        window.clearTimeout(optionsSaveTimeout.current)
+        if (pendingOptionsSnapshot.current) {
+          window.localStorage.setItem(OPTIONS_KEY, pendingOptionsSnapshot.current)
+        }
       }
     }
   }, [])
@@ -137,7 +150,14 @@ export function useWorkspacePreferences() {
   function setOptions(nextOptions: Partial<WorkspaceOptions>) {
     setOptionsState((current) => {
       const merged = { ...current, ...nextOptions }
-      if (typeof window !== "undefined") window.localStorage.setItem(OPTIONS_KEY, JSON.stringify(merged))
+      if (typeof window !== "undefined") {
+        pendingOptionsSnapshot.current = JSON.stringify(merged)
+        if (optionsSaveTimeout.current) window.clearTimeout(optionsSaveTimeout.current)
+        optionsSaveTimeout.current = window.setTimeout(() => {
+          window.localStorage.setItem(OPTIONS_KEY, pendingOptionsSnapshot.current)
+          optionsSaveTimeout.current = null
+        }, 250)
+      }
       return merged
     })
   }
