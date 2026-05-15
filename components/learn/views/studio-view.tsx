@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { Fragment, useEffect, useMemo, useState } from "react"
 import type React from "react"
 import * as ContextMenu from "@radix-ui/react-context-menu"
 import { Panel as ResizePanel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
@@ -690,7 +690,7 @@ export function StudioView({
         <Panel className="min-w-0 p-0">
           <PanelGroup id="learn-studio-primary" direction={layout.groups[0]?.direction || "horizontal"} className="min-h-[74vh]">
             {activePanes.map((pane, index) => (
-              <React.Fragment key={pane.id}>
+              <Fragment key={pane.id}>
                 <ResizePanel id={pane.id} order={index} minSize={28} defaultSize={100 / activePanes.length}>
                   <StudioPaneSurface
                     active={layout.activePaneId === pane.id}
@@ -743,7 +743,7 @@ export function StudioView({
                     className={layout.groups[0]?.direction === "vertical" ? "h-1 bg-border hover:bg-primary data-[resize-handle-active]:bg-primary" : "w-1 bg-border hover:bg-primary data-[resize-handle-active]:bg-primary"}
                   />
                 )}
-              </React.Fragment>
+              </Fragment>
             ))}
           </PanelGroup>
         </Panel>
