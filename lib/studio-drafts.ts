@@ -28,17 +28,20 @@ export function readStudioDrafts(): StudioDraftStore {
 }
 
 export function summarizeStudioDrafts(store: StudioDraftStore): StudioDraftSummary {
-  const records = Object.values(store).filter(Boolean) as StudioDraftRecord[]
-  const latest = records
-    .map((record) => record.updatedAt)
-    .filter(Boolean)
-    .sort()
-    .at(-1)
-  return {
-    count: records.length,
-    labels: records.map((record) => record.kind),
-    latestAt: latest,
+  let count = 0
+  let latestAt: string | undefined
+  const labels: string[] = []
+
+  for (const record of Object.values(store)) {
+    if (!record) continue
+    count += 1
+    labels.push(record.kind)
+    if (record.updatedAt && (!latestAt || record.updatedAt > latestAt)) {
+      latestAt = record.updatedAt
+    }
   }
+
+  return { count, labels, latestAt }
 }
 
 export function publishStudioDraftSummary(store: StudioDraftStore) {
