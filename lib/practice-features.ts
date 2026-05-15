@@ -63,6 +63,37 @@ export function filterPracticeQuestions(
   return questions.filter((question) => missed.has(question.id))
 }
 
+export function evaluateGameChoice(question: QuizQuestion, selectedChoiceId: string) {
+  const selectedChoice = question.choices.find((choice) => choice.id === selectedChoiceId)
+  const correctChoice = question.choices.find((choice) => choice.id === question.correct_answer_id)
+  const correct = question.correct_answer_id === selectedChoiceId
+
+  return {
+    correct,
+    selectedChoiceText: selectedChoice?.text || "",
+    correctChoiceText: correctChoice?.text || "",
+    explanation: question.explanation || (correct ? "Nice recall." : "Review this concept, then retry it."),
+  }
+}
+
+export function summarizeGameRun(input: {
+  score: number
+  total: number
+  durationSeconds: number
+  targetSeconds: number
+}) {
+  const accuracy = input.total ? Math.round((input.score / input.total) * 100) : 0
+  const pace = input.durationSeconds <= input.targetSeconds ? "on-target" : "over-target"
+  const nextAction = accuracy < 70 ? "retry-missed" : pace === "over-target" ? "speed-review" : "level-up"
+
+  return {
+    ...input,
+    accuracy,
+    pace,
+    nextAction,
+  }
+}
+
 export function practiceModeLabel(mode: PracticeMode) {
   return mode.split("-").map((part) => part[0]?.toUpperCase() + part.slice(1)).join(" ")
 }
