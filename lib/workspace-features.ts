@@ -98,3 +98,46 @@ function formatCsvCell(value: string) {
 export function exportSheetToCsv(sheet: SheetDocument) {
   return sheet.cells.map((row) => row.map(formatCsvCell).join(",")).join("\n")
 }
+
+export function stripHtmlToText(html: string) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+export function summarizeDocumentHtml(html: string) {
+  const text = stripHtmlToText(html)
+  const words = text ? text.split(/\s+/).filter(Boolean).length : 0
+  const headings = Array.from(html.matchAll(/<h([1-3])[^>]*>([\s\S]*?)<\/h\1>/gi)).map((match) => ({
+    level: Number(match[1]),
+    title: stripHtmlToText(match[2] || ""),
+  })).filter((heading) => heading.title)
+
+  return {
+    characters: text.length,
+    words,
+    readingMinutes: Math.max(1, Math.ceil(words / 220)),
+    headings,
+  }
+}
+
+export function replaceTextInHtml(html: string, find: string, replacement: string) {
+  if (!find) return { html, count: 0 }
+  const escaped = find.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  const pattern = new RegExp(escaped, "g")
+  let count = 0
+  const nextHtml = html.replace(pattern, () => {
+    count += 1
+    return replacement
+  })
+  return { html: nextHtml, count }
+}

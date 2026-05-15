@@ -6,6 +6,9 @@ import {
   importCsvToSheet,
   pushHistory,
   redoHistory,
+  replaceTextInHtml,
+  stripHtmlToText,
+  summarizeDocumentHtml,
   undoHistory,
 } from "../lib/workspace-features"
 import {
@@ -61,6 +64,18 @@ test("sheet csv import and export preserve quoted commas", () => {
   assert.equal(sheet.cells[1][0], "React, hooks")
   assert.equal(sheet.cells[1][1], "useMemo, useState")
   assert.equal(exportSheetToCsv(sheet), 'Topic,Note\n"React, hooks","useMemo, useState"')
+})
+
+test("document helpers summarize outline and replace text", () => {
+  const html = "<h1>Photosynthesis</h1><p>Light makes energy. Light matters.</p>"
+  const summary = summarizeDocumentHtml(html)
+  const replaced = replaceTextInHtml(html, "Light", "Sunlight")
+
+  assert.equal(stripHtmlToText(html), "Photosynthesis Light makes energy. Light matters.")
+  assert.equal(summary.words, 6)
+  assert.equal(summary.headings[0].title, "Photosynthesis")
+  assert.equal(replaced.count, 2)
+  assert.match(replaced.html, /Sunlight makes energy/)
 })
 
 test("studio layout supports split and close pane operations", () => {
