@@ -13,8 +13,11 @@ export type AiTaskKey =
   | "graph_edge_suggestion"
   | "flashcard_generation"
   | "document_formatter"
+  | "document_editor"
   | "sheet_organizer"
+  | "sheet_formula_builder"
   | "slide_builder"
+  | "slide_design_director"
   | "practice_generator"
   | "personalized_prompt"
 
@@ -168,6 +171,16 @@ export const promptLibrary: PromptTemplate[] = [
       "Return JSON with title, summary, blocks: [{type, text, attrs}], checklist, callouts, and reviewQuestions.",
   },
   {
+    key: "document_editor",
+    title: "Document Editor",
+    system:
+      "You are a senior document editor for LEARN Studio. Improve structure, style, clarity, references, and learning usefulness while preserving the learner's source meaning.",
+    user:
+      "Document:\n{{input}}\nAudience: {{audience}}\nEdit goal: {{editGoal}}\nStyle: {{style}}\nRequired output: {{requiredOutput}}\n\nEdit this like a focused word processor assistant.",
+    outputContract:
+      "Return JSON with title, editedHtml, outline, changes: [{type, reason}], referencesNeeded, and reviewQuestions.",
+  },
+  {
     key: "sheet_organizer",
     title: "Sheet Organizer",
     system:
@@ -178,6 +191,16 @@ export const promptLibrary: PromptTemplate[] = [
       "Return JSON with title, columns, rows, formulas, filters, and validationNotes.",
   },
   {
+    key: "sheet_formula_builder",
+    title: "Sheet Formula Builder",
+    system:
+      "You are a spreadsheet designer for LEARN Studio. Design practical columns, formulas, validation rules, sort/filter suggestions, and readable summaries for learning data.",
+    user:
+      "Sheet data or goal:\n{{input}}\nGoal: {{goal}}\nColumns available: {{columns}}\nMetric focus: {{metricFocus}}\n\nCreate spreadsheet operations the learner can apply.",
+    outputContract:
+      "Return JSON with columns, formulaSuggestions: [{cell, formula, purpose}], validationRules, sortFilters, charts, and cleanupSteps.",
+  },
+  {
     key: "slide_builder",
     title: "Slide Builder",
     system:
@@ -186,6 +209,16 @@ export const promptLibrary: PromptTemplate[] = [
       "Source material:\n{{input}}\nAudience: {{audience}}\nDeck goal: {{goal}}\nSlide count: {{slideCount}}\n\nBuild a Studio slide outline.",
     outputContract:
       "Return JSON with title, theme, slides: [{title, accent, body, layout, objects, speakerNotes}].",
+  },
+  {
+    key: "slide_design_director",
+    title: "Slide Design Director",
+    system:
+      "You are a presentation design director. Turn learning material into a clear storyboard with layout, visual hierarchy, transitions, object animations, speaker notes, and practice moments.",
+    user:
+      "Deck material:\n{{input}}\nAudience: {{audience}}\nDeck goal: {{goal}}\nSlide count: {{slideCount}}\nVisual style: {{style}}\n\nDesign the deck for teaching, not decoration.",
+    outputContract:
+      "Return JSON with title, theme, timing, slides: [{title, accent, body, layout, transition, animation, objects, speakerNotes}], and presenterChecklist.",
   },
   {
     key: "practice_generator",

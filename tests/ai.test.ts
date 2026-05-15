@@ -127,8 +127,11 @@ test("AI automation prompt library includes provider and Vault operations", () =
   assert.ok(getPromptTemplate("graph_edge_suggestion"))
   assert.ok(getPromptTemplate("flashcard_generation"))
   assert.ok(getPromptTemplate("document_formatter"))
+  assert.ok(getPromptTemplate("document_editor"))
   assert.ok(getPromptTemplate("sheet_organizer"))
+  assert.ok(getPromptTemplate("sheet_formula_builder"))
   assert.ok(getPromptTemplate("slide_builder"))
+  assert.ok(getPromptTemplate("slide_design_director"))
   assert.ok(getPromptTemplate("practice_generator"))
 })
 
@@ -171,7 +174,29 @@ test("guided prompt builder validates required fields and renders preview", () =
 
   assert.equal(ready.ok, true)
   assert.match(ready.preview, /Preferred provider family: groq/)
+  assert.match(ready.preview, /one main idea per slide/)
   assert.match(ready.user, /Insert target: slide-outline/)
+})
+
+test("guided prompt builder adds task rules and insert target warnings", () => {
+  const result = buildGuidedPrompt({
+    taskKey: "sheet_formula_builder",
+    fields: { input: "Topic, Score\nReact, 72", goal: "Track weak topics" },
+    filters: {
+      sourceScope: "Active Studio item",
+      difficulty: "Intermediate",
+      tone: "Direct",
+      language: "English",
+      outputLength: "Balanced",
+      providerFamily: "auto",
+      insertTarget: "slide-outline",
+    },
+  })
+
+  assert.equal(result.ok, true)
+  assert.match(result.preview, /Warning: Insert target slide-outline/)
+  assert.match(result.user, /Prefer readable formulas/)
+  assert.ok(result.requirements.length > 6)
 })
 
 test("guided prompt contracts expose insert-back actions", () => {
