@@ -482,8 +482,15 @@ function NotificationsMenu({ compact, open, setOpen }: { compact?: boolean; open
     { id: "studio", title: "Studio saved", detail: "Latest workspace sync", unread: false },
     { id: "room", title: "Room status", detail: "Focus room is open", unread: true },
   ])
-  const visibleItems = filter === "unread" ? items.filter((item) => item.unread) : items
-  const unreadCount = items.filter((item) => item.unread).length
+  const { unreadCount, visibleItems } = useMemo(() => {
+    let nextUnreadCount = 0
+    const nextVisibleItems = []
+    for (const item of items) {
+      if (item.unread) nextUnreadCount += 1
+      if (filter === "all" || item.unread) nextVisibleItems.push(item)
+    }
+    return { unreadCount: nextUnreadCount, visibleItems: nextVisibleItems }
+  }, [filter, items])
 
   function markAllRead() {
     setItems((current) => current.map((item) => ({ ...item, unread: false })))
