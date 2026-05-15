@@ -7,6 +7,7 @@ import type { Note, StudioInsertTarget, View } from "../types"
 import { api } from "../api"
 import { Panel } from "../ui"
 import { buildGuidedPrompt, listInsertActions, promptContracts } from "@/lib/ai/prompt-builder"
+import { buildInsertBackPayload } from "@/lib/ai/insert-back"
 import type { AiTaskKey } from "@/lib/ai/prompt-library"
 
 const tutorModes = [
@@ -217,6 +218,18 @@ export function AiTutorView({
     setView?.("notes")
   }
 
+  async function insertReply(target: StudioInsertTarget) {
+    if (!reply.trim()) return
+    const payload = buildInsertBackPayload(target, reply, `AI ${activeMode.label}`)
+    const response = await api<{ item?: Note }>(payload.endpoint, {
+      method: "POST",
+      body: JSON.stringify(payload.body),
+    })
+    if (payload.endpoint === "/api/notes" && response.item) setNotes?.((current) => [response.item as Note, ...current])
+    setActionStatus(`Created ${payload.view} item from AI result.`)
+    setView?.(payload.view)
+  }
+
   async function copyReply() {
     if (!reply.trim()) return
     await navigator.clipboard?.writeText(reply)
@@ -341,7 +354,7 @@ export function AiTutorView({
               <ResultAction label="Flashcards" onClick={() => useReplyAsPrompt("flashcards", "Turn this result into active-recall flashcards and matching pairs.")} />
             </div>
             <div className="mb-3 flex flex-wrap gap-2">
-              {insertActions.map((action) => <ResultAction key={action.target} label={action.label} onClick={() => setActionStatus(`${action.label}: ready to route into Studio.`)} />)}
+              {insertActions.map((action) => <ResultAction key={action.target} label={action.label} onClick={() => insertReply(action.target)} />)}
             </div>
             {actionStatus ? <p className="mb-3 rounded-md bg-background px-3 py-2 text-xs font-semibold text-muted-foreground">{actionStatus}</p> : null}
             <div className="whitespace-pre-wrap leading-7 text-foreground">{reply}</div>
