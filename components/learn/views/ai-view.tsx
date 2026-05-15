@@ -46,12 +46,12 @@ export function AiTutorView({
   const [language, setLanguage] = useState(languages[0])
   const [providerFamily, setProviderFamily] = useState("auto")
 
-  const activeMode = tutorModes.find((mode) => mode.id === options.aiMode) || tutorModes[0]
+  const activeMode = useMemo(() => tutorModes.find((mode) => mode.id === options.aiMode) || tutorModes[0], [options.aiMode])
   const recentContext = useMemo(() => notes.slice(0, 5).map((note) => `${note.title}: ${note.content}`).join("\n\n"), [notes])
-  const promptActions = tutorModes.map((mode) => ({
+  const promptActions = useMemo(() => tutorModes.map((mode) => ({
     ...mode,
     body: `${mode.label} - ${mode.prompt}`,
-  }))
+  })), [])
 
   async function ask() {
     setLoading(true)
