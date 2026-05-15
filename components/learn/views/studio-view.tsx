@@ -2,13 +2,19 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import type React from "react"
+import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core"
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import * as ContextMenu from "@radix-ui/react-context-menu"
+import { useVirtualizer } from "@tanstack/react-virtual"
 import { Panel as ResizePanel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import { EditorContent, useEditor, type Editor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import Underline from "@tiptap/extension-underline"
 import TextAlign from "@tiptap/extension-text-align"
 import { TextStyle } from "@tiptap/extension-text-style"
+import FontFamily from "@tiptap/extension-font-family"
+import Typography from "@tiptap/extension-typography"
 import Color from "@tiptap/extension-color"
 import Highlight from "@tiptap/extension-highlight"
 import Link from "@tiptap/extension-link"
@@ -75,15 +81,18 @@ import {
   addColumn,
   addRow,
   closeStudioPane,
+  computeStudioDirtyBadges,
   createDefaultStudioLayout,
   createStudioTab,
   deleteColumn,
   deleteRow,
   duplicateSlide,
+  fillSheetRange,
   moveColumn,
   moveRow,
   moveSlide,
   normalizeStudioLayout,
+  sortSheetByColumn,
   splitStudioPane,
 } from "@/lib/studio-features"
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, undoHistory, type HistoryState } from "@/lib/workspace-features"
@@ -561,6 +570,8 @@ export function StudioView({
   }, [deckTitle, selectedDeck?.id, selectedDeck?.title, selectedDeckFingerprint, slides, slidesFingerprint])
 
   const activeTab = studioTabs.find((tab) => tab.kind === kind) || studioTabs[0]
+  const dirtyBadges = useMemo(() => computeStudioDirtyBadges(readStudioDrafts()), [status, kind])
+  const dirtyBadgeMap = useMemo(() => new Map(dirtyBadges.map((badge) => [badge.kind, badge])), [dirtyBadges])
   const allItems = useMemo(() => {
     const needle = query.trim().toLowerCase()
     const mapped: Array<{ id: string; kind: StudioKind; title: string; updated_at?: string; summary?: string; favorite?: boolean }> = []
@@ -865,6 +876,7 @@ export function StudioView({
           {studioTabs.map((tab) => {
             const Icon = tab.icon
             const active = kind === tab.kind
+            const badge = dirtyBadgeMap.get(tab.kind)
             return (
               <button
                 key={tab.kind}
@@ -874,6 +886,7 @@ export function StudioView({
               >
                 <Icon className="h-4 w-4" />
                 {tab.label}
+                {badge ? <span className={`ml-1 rounded px-1.5 py-0.5 text-[10px] ${active ? "bg-background/20" : "bg-primary text-primary-foreground"}`}>{badge.count}</span> : null}
               </button>
             )
           })}
@@ -1003,6 +1016,16 @@ function StudioLibrary({
   section: string
   viewMode: StudioViewMode
 }) {
+  const listRef = useRef<HTMLDivElement | null>(null)
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => viewMode === "board" ? 88 : 72,
+    overscan: 8,
+  })
+  const virtualItems = virtualizer.getVirtualItems()
+  const useVirtualList = viewMode !== "gallery" && items.length > 12
+
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap gap-1">
@@ -1021,23 +1044,25 @@ function StudioLibrary({
         <ViewModeButton active={viewMode === "board"} icon={Columns3} label="Board" onClick={() => onViewMode("board")} />
         <ViewModeButton active={viewMode === "gallery"} icon={LayoutPanelLeft} label="Gallery" onClick={() => onViewMode("gallery")} />
       </div>
-      <ContextMenu.Root>
-        <ContextMenu.Trigger asChild>
-          <div className={`grid gap-2 ${viewMode === "gallery" ? "grid-cols-2" : ""}`}>
-            {items.map((item) => (
-              <button key={`${item.kind}_${item.id}`} onClick={() => onSelect(item)} className="rounded-md border border-border bg-background p-3 text-left text-sm hover:bg-accent hover:text-accent-foreground">
-                <span className="flex items-center gap-2 font-medium text-foreground">
-                  {item.kind === "sheets" ? <Table2 className="h-4 w-4" /> : item.kind === "slides" ? <Presentation className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
-                  <span className="line-clamp-1">{item.title}</span>
-                </span>
-                <span className="mt-1 block text-xs capitalize text-muted-foreground">{item.kind} - {item.updated_at ? formatDate(item.updated_at) : item.summary || "Draft"}</span>
-              </button>
-            ))}
-            {!items.length ? <EmptyState title="No Studio items" body="Create a note, doc, sheet, or deck, then open it in a split pane." /> : null}
+      <div ref={listRef} className="max-h-[44vh] overflow-auto pr-1">
+        {useVirtualList ? (
+          <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+            {virtualItems.map((virtualRow) => {
+              const item = items[virtualRow.index]
+              return item ? (
+                <div key={`${item.kind}_${item.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${virtualRow.start}px)` }}>
+                  <StudioItemButton item={item} onSelect={onSelect} />
+                </div>
+              ) : null
+            })}
           </div>
-        </ContextMenu.Trigger>
-        <StudioContextContent onCopy={() => undefined} onDuplicate={() => undefined} onArchive={() => undefined} onAskAi={() => undefined} />
-      </ContextMenu.Root>
+        ) : (
+          <div className={`grid gap-2 ${viewMode === "gallery" ? "grid-cols-2" : ""}`}>
+            {items.map((item) => <StudioItemButton key={`${item.kind}_${item.id}`} item={item} onSelect={onSelect} />)}
+          </div>
+        )}
+        {!items.length ? <EmptyState title="No Studio items" body="Create a note, doc, sheet, or deck, then open it in a split pane." /> : null}
+      </div>
       <div className="rounded-md border border-border bg-background p-2">
         <p className="mb-2 flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           <FilePlus2 className="h-3.5 w-3.5" />
@@ -1052,6 +1077,23 @@ function StudioLibrary({
         </div>
       </div>
     </div>
+  )
+}
+
+function StudioItemButton({ item, onSelect }: { item: { id: string; kind: StudioKind; title: string; updated_at?: string; summary?: string }; onSelect: (item: { id: string; kind: StudioKind; title: string }) => void }) {
+  return (
+    <ContextMenu.Root>
+      <ContextMenu.Trigger asChild>
+        <button onClick={() => onSelect(item)} className="mb-2 w-full rounded-md border border-border bg-background p-3 text-left text-sm hover:bg-accent hover:text-accent-foreground">
+          <span className="flex items-center gap-2 font-medium text-foreground">
+            {item.kind === "sheets" ? <Table2 className="h-4 w-4" /> : item.kind === "slides" ? <Presentation className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+            <span className="line-clamp-1">{item.title}</span>
+          </span>
+          <span className="mt-1 block text-xs capitalize text-muted-foreground">{item.kind} - {item.updated_at ? formatDate(item.updated_at) : item.summary || "Draft"}</span>
+        </button>
+      </ContextMenu.Trigger>
+      <StudioContextContent onCopy={() => navigator.clipboard?.writeText(item.title)} onDuplicate={() => undefined} onArchive={() => undefined} onAskAi={() => undefined} />
+    </ContextMenu.Root>
   )
 }
 
@@ -1282,6 +1324,9 @@ function StudioCanvas({
           <SheetButton label="Col -" onClick={() => onSetCells((current) => deleteColumn(ensureCells(current), selectedCell.column))} icon={Trash2} />
           <SheetButton label="Move row" onClick={() => onSetCells((current) => moveRow(ensureCells(current), selectedCell.row, -1))} icon={Scissors} />
           <SheetButton label="Move col" onClick={() => onSetCells((current) => moveColumn(ensureCells(current), selectedCell.column, 1))} icon={Scissors} />
+          <SheetButton label="Fill down" onClick={() => onSetCells((current) => fillSheetRange(ensureCells(current), { selectedRange: { startRow: selectedCell.row, startColumn: selectedCell.column, endRow: ensureCells(current).length - 1, endColumn: selectedCell.column } }, "down"))} icon={Rows3} />
+          <SheetButton label="Fill right" onClick={() => onSetCells((current) => fillSheetRange(ensureCells(current), { selectedRange: { startRow: selectedCell.row, startColumn: selectedCell.column, endRow: selectedCell.row, endColumn: (ensureCells(current)[0]?.length || 1) - 1 } }, "right"))} icon={Columns3} />
+          <SheetButton label="Sort A-Z" onClick={() => onSetCells((current) => sortSheetByColumn(ensureCells(current), selectedCell.column, "asc"))} icon={ListOrdered} />
         </div>
         <textarea
           onBlur={(event) => {
@@ -1327,28 +1372,39 @@ function StudioCanvas({
   }
 
   const selectedSlide = slides[selectedSlideIndex] || slides[0]
+  const slideIds = slides.map((_, index) => `slide-${index}`)
+  const handleSlideDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const from = slideIds.indexOf(String(active.id))
+    const to = slideIds.indexOf(String(over.id))
+    if (from < 0 || to < 0) return
+    onSetSlides((current) => arrayMove(current, from, to))
+    onSetSelectedSlideIndex(to)
+  }
   return (
     <div className="grid min-h-[58vh] gap-3 lg:grid-cols-[150px_1fr_230px]">
       <div className="space-y-2 overflow-auto">
         <button onClick={() => onSetSlides([...slides, { title: "New slide", body: "Add the point, image cue, or quiz prompt.", accent: "New", layout: "title", theme: "midnight", speakerNotes: "" }])} className="flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm font-semibold text-primary-foreground">
           <Plus className="h-4 w-4" /> Slide
         </button>
-        {slides.map((slide, index) => (
-          <ContextMenu.Root key={index}>
-            <ContextMenu.Trigger asChild>
-              <button onClick={() => onSetSelectedSlideIndex(index)} className={`w-full rounded-md border p-2 text-left ${selectedSlideIndex === index ? "border-primary bg-primary/10" : "border-border bg-background hover:bg-accent"}`}>
-                <span className="block text-xs font-semibold text-muted-foreground">Slide {index + 1}</span>
-                <span className="line-clamp-2 text-sm font-medium text-foreground">{slide.title}</span>
-              </button>
-            </ContextMenu.Trigger>
-            <StudioContextContent
-              onCopy={() => navigator.clipboard?.writeText(`${slide.title}\n${slide.body}`)}
-              onDuplicate={() => onSetSlides((current) => duplicateSlide(current, index))}
-              onArchive={() => onSetSlides((current) => current.length > 1 ? current.filter((_, next) => next !== index) : current)}
-              onAskAi={() => undefined}
-            />
-          </ContextMenu.Root>
-        ))}
+        <DndContext collisionDetection={closestCenter} onDragEnd={handleSlideDragEnd}>
+          <SortableContext items={slideIds} strategy={verticalListSortingStrategy}>
+            {slides.map((slide, index) => (
+              <SortableSlideThumb
+                key={`slide-${index}`}
+                id={`slide-${index}`}
+                active={selectedSlideIndex === index}
+                index={index}
+                onArchive={() => onSetSlides((current) => current.length > 1 ? current.filter((_, next) => next !== index) : current)}
+                onCopy={() => navigator.clipboard?.writeText(`${slide.title}\n${slide.body}`)}
+                onDuplicate={() => onSetSlides((current) => duplicateSlide(current, index))}
+                onSelect={() => onSetSelectedSlideIndex(index)}
+                slide={slide}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
       </div>
       <div className={`${options.slidesAspect === "4:3" ? "aspect-[4/3]" : "aspect-video"} rounded-lg border border-border bg-[#111827] p-8 text-white shadow-sm`}>
         {selectedSlide ? (
@@ -1374,6 +1430,46 @@ function StudioCanvas({
   )
 }
 
+function SortableSlideThumb({
+  active,
+  id,
+  index,
+  onArchive,
+  onCopy,
+  onDuplicate,
+  onSelect,
+  slide,
+}: {
+  active: boolean
+  id: string
+  index: number
+  onArchive: () => void
+  onCopy: () => void
+  onDuplicate: () => void
+  onSelect: () => void
+  slide: WorkspaceDeck["slides"][number]
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id })
+  return (
+    <ContextMenu.Root>
+      <ContextMenu.Trigger asChild>
+        <button
+          ref={setNodeRef}
+          style={{ transform: CSS.Transform.toString(transform), transition }}
+          onClick={onSelect}
+          className={`mb-2 w-full rounded-md border p-2 text-left ${active ? "border-primary bg-primary/10" : "border-border bg-background hover:bg-accent"}`}
+          {...attributes}
+          {...listeners}
+        >
+          <span className="block text-xs font-semibold text-muted-foreground">Slide {index + 1}</span>
+          <span className="line-clamp-2 text-sm font-medium text-foreground">{slide.title}</span>
+        </button>
+      </ContextMenu.Trigger>
+      <StudioContextContent onCopy={onCopy} onDuplicate={onDuplicate} onArchive={onArchive} onAskAi={() => undefined} />
+    </ContextMenu.Root>
+  )
+}
+
 function RichTextEditor({ large, onChange, placeholder, value }: { large?: boolean; onChange: (value: string) => void; placeholder: string; value: string }) {
   const editor = useEditor({
     immediatelyRender: false,
@@ -1381,6 +1477,8 @@ function RichTextEditor({ large, onChange, placeholder, value }: { large?: boole
       StarterKit.configure({ link: false, underline: false }),
       Underline,
       TextStyle,
+      FontFamily,
+      Typography,
       Color,
       Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
@@ -1427,6 +1525,19 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
       <ToolbarIcon label="Paragraph" icon={Type} onClick={() => run((item) => item.chain().focus().setParagraph().run())} />
       <ToolbarIcon label="H1" icon={Heading1} onClick={() => run((item) => item.chain().focus().toggleHeading({ level: 1 }).run())} />
       <ToolbarIcon label="H2" icon={Heading2} onClick={() => run((item) => item.chain().focus().toggleHeading({ level: 2 }).run())} />
+      <select onChange={(event) => run((item) => item.chain().focus().setFontFamily(event.target.value).run())} defaultValue="" className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground">
+        <option value="" disabled>Font</option>
+        <option value="Inter, sans-serif">Sans</option>
+        <option value="Georgia, serif">Serif</option>
+        <option value="'Courier New', monospace">Mono</option>
+      </select>
+      <select onChange={(event) => run((item) => item.chain().focus().setMark("textStyle", { fontSize: event.target.value }).run())} defaultValue="" className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground">
+        <option value="" disabled>Size</option>
+        <option value="14px">14</option>
+        <option value="16px">16</option>
+        <option value="20px">20</option>
+        <option value="28px">28</option>
+      </select>
       <span className="mx-1 h-5 w-px bg-border" />
       <ToolbarIcon label="Bold" icon={Bold} onClick={() => run((item) => item.chain().focus().toggleBold().run())} />
       <ToolbarIcon label="Italic" icon={Italic} onClick={() => run((item) => item.chain().focus().toggleItalic().run())} />
