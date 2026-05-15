@@ -8,6 +8,17 @@ export interface ShapedImport {
   payload: Record<string, unknown>
 }
 
+export interface ImportPreviewSummary {
+  ok: boolean
+  target: ImportTarget
+  title: string
+  confidence: "low" | "medium" | "high"
+  itemCount: number
+  itemLabel: string
+  destinationView: "notes" | "docs" | "sheets" | "slides"
+  warnings: string[]
+}
+
 export function shapeImportedLearningContent(input: { raw: string; title?: string; target?: ImportTarget | "auto" }): ShapedImport {
   const raw = input.raw.trim()
   const target = input.target && input.target !== "auto" ? input.target : detectImportTarget(raw)
@@ -65,6 +76,29 @@ export function shapeImportedLearningContent(input: { raw: string; title?: strin
   }
 }
 
+export function previewImportedLearningContent(input: { raw: string; title?: string; target?: ImportTarget | "auto" }): ImportPreviewSummary {
+  const raw = input.raw.trim()
+  const forcedTarget = input.target && input.target !== "auto"
+  const target = forcedTarget ? input.target as ImportTarget : detectImportTarget(raw)
+  const title = cleanTitle(input.title || inferTitle(raw))
+  const warnings: string[] = []
+
+  if (raw.length < 12) warnings.push("Paste more learning material before importing.")
+  if (!forcedTarget && target === "note" && raw.length > 500) warnings.push("Auto-detect chose note; document may fit better for longer material.")
+
+  const itemCount = countImportItems(target, raw)
+  return {
+    ok: raw.length >= 12,
+    target,
+    title,
+    confidence: importConfidence({ forcedTarget: Boolean(forcedTarget), itemCount, raw, target }),
+    itemCount,
+    itemLabel: labelImportItems(target, itemCount),
+    destinationView: viewForImportTarget(target),
+    warnings,
+  }
+}
+
 export function detectImportTarget(raw: string): ImportTarget {
   const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
   const commaRows = lines.filter((line) => line.includes(",")).length
@@ -75,6 +109,37 @@ export function detectImportTarget(raw: string): ImportTarget {
   if (lines.length >= 2 && pipeRows / lines.length > 0.5) return "slides"
   if (headingRows >= 2 || raw.length > 900) return "doc"
   return "note"
+}
+
+function countImportItems(target: ImportTarget, raw: string) {
+  const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+  if (target === "sheet") return Math.max(1, lines.length)
+  if (target === "slides") return Math.max(1, Math.min(16, lines.length))
+  if (target === "doc") return Math.max(1, lines.filter((line) => /^#{1,3}\s+/.test(line)).length || Math.ceil(raw.length / 500))
+  return Math.max(1, Math.ceil(raw.length / 240))
+}
+
+function importConfidence(input: { forcedTarget: boolean; itemCount: number; raw: string; target: ImportTarget }): ImportPreviewSummary["confidence"] {
+  if (input.forcedTarget) return "high"
+  if (input.target === "sheet" && input.itemCount >= 2) return "high"
+  if (input.target === "slides" && input.raw.includes("|")) return "high"
+  if (input.target === "doc" && input.raw.includes("##")) return "high"
+  if (input.raw.length < 40) return "low"
+  return "medium"
+}
+
+function labelImportItems(target: ImportTarget, count: number) {
+  if (target === "sheet") return `${count} row${count === 1 ? "" : "s"}`
+  if (target === "slides") return `${count} slide${count === 1 ? "" : "s"}`
+  if (target === "doc") return `${count} section${count === 1 ? "" : "s"}`
+  return `${count} block${count === 1 ? "" : "s"}`
+}
+
+function viewForImportTarget(target: ImportTarget): ImportPreviewSummary["destinationView"] {
+  if (target === "doc") return "docs"
+  if (target === "sheet") return "sheets"
+  if (target === "slides") return "slides"
+  return "notes"
 }
 
 function shapeDocumentMarkdown(raw: string) {

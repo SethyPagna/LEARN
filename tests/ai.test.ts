@@ -13,6 +13,7 @@ import { getPromptTemplate } from "../lib/ai/prompt-library"
 import { buildGuidedPrompt, listInsertActions, promptContracts } from "../lib/ai/prompt-builder"
 import { buildAiGatewayReadiness } from "../lib/ai/gateway-readiness"
 import { buildInsertBackPayload, parseAiJson } from "../lib/ai/insert-back"
+import { splitPromptPreview, summarizeAiTutorWorkflow } from "../lib/ai/tutor-workflow"
 import { listProviderPresets, getProviderMetadata, resolveConfiguredProvider } from "../lib/ai/providers"
 
 test("resolveConfiguredProvider selects the requested provider when a key exists", () => {
@@ -245,6 +246,74 @@ test("AI gateway readiness explains prompt and provider state", () => {
   })
   assert.equal(blocked.status, "blocked")
   assert.match(blocked.checks.join(" "), /Missing required fields/)
+})
+
+test("AI tutor workflow summary combines prompt gateway insert and draft state", () => {
+  const prompt = buildGuidedPrompt({
+    taskKey: "document_formatter",
+    fields: { input: "Raw notes", purpose: "Make a study guide" },
+    filters: {
+      sourceScope: "Recent notes",
+      difficulty: "Adaptive",
+      tone: "Kind",
+      language: "English",
+      outputLength: "Balanced",
+      providerFamily: "auto",
+      insertTarget: "doc-section",
+    },
+  })
+  const gateway = buildAiGatewayReadiness({
+    prompt,
+    providerFamily: "auto",
+    providers: [{ provider: "groq", enabled: true, has_key: true, last_status: "ok" }],
+  })
+
+  const summary = summarizeAiTutorWorkflow({
+    taskLabel: "Docs",
+    sourceScope: "Recent notes",
+    insertTarget: "doc-section",
+    prompt,
+    gateway,
+    recentNoteCount: 3,
+    draftSaved: true,
+  })
+
+  assert.equal(summary.status, "ready")
+  assert.equal(summary.providerLabel, "1 ready")
+  assert.equal(summary.insertLabel, "doc section")
+  assert.match(summary.nextAction, /Run and insert/)
+})
+
+test("AI tutor workflow blocks missing prompts and splits previews", () => {
+  const prompt = buildGuidedPrompt({
+    taskKey: "slide_builder",
+    fields: { input: "" },
+    filters: {
+      sourceScope: "Manual only",
+      difficulty: "Beginner",
+      tone: "Direct",
+      language: "English",
+      outputLength: "Short",
+      providerFamily: "auto",
+      insertTarget: "note-block",
+    },
+  })
+  const gateway = buildAiGatewayReadiness({ prompt, providerFamily: "auto", providers: [] })
+  const summary = summarizeAiTutorWorkflow({
+    taskLabel: "Slides",
+    sourceScope: "Manual only",
+    insertTarget: "note-block",
+    prompt,
+    gateway,
+    recentNoteCount: 0,
+    draftSaved: false,
+  })
+  const preview = splitPromptPreview(prompt.preview)
+
+  assert.equal(summary.status, "blocked")
+  assert.match(summary.nextAction, /Fill/)
+  assert.ok(preview.task)
+  assert.ok(preview.output.length >= 0)
 })
 
 test("AI insert-back parses JSON fenced responses", () => {
