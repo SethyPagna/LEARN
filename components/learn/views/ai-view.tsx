@@ -18,8 +18,11 @@ const tutorModes = [
   { id: "flashcard_generation", mode: "flashcards", label: "Flashcards", icon: Brain, prompt: "Create active-recall flashcards and a tiny memory game from this context." },
   { id: "study_plan", mode: "route", label: "Study Plan", icon: Route, prompt: "Create a targeted 7-day study route with daily focus, review, and practice." },
   { id: "document_formatter", mode: "cleanup", label: "Docs", icon: FileText, prompt: "Format raw material into a Studio document with blocks, callouts, and review questions." },
+  { id: "document_editor", mode: "cleanup", label: "Doc Edit", icon: FileText, prompt: "Edit this document for hierarchy, flow, references, and study usefulness." },
   { id: "sheet_organizer", mode: "cleanup", label: "Sheets", icon: ListFilter, prompt: "Organize messy data into spreadsheet columns, rows, filters, and validation notes." },
+  { id: "sheet_formula_builder", mode: "cleanup", label: "Formulas", icon: ListFilter, prompt: "Design useful formulas, validation rules, filters, and chart suggestions for this sheet." },
   { id: "slide_builder", mode: "cleanup", label: "Slides", icon: Sparkles, prompt: "Build a concise lesson deck with layouts, objects, and speaker notes." },
+  { id: "slide_design_director", mode: "cleanup", label: "Deck Design", icon: Sparkles, prompt: "Design a teaching deck with visual hierarchy, transitions, animations, timing, and presenter notes." },
   { id: "practice_generator", mode: "quiz", label: "Practice", icon: Gauge, prompt: "Create targeted practice with timing, explanations, retry set, and review cards." },
   { id: "personalized_prompt", mode: "coach", label: "Prompt", icon: Bot, prompt: "Compose a precise personalized prompt with requirements and output format." },
   { id: "translation", mode: "translate", label: "Translate", icon: Languages, prompt: "Translate and simplify this learning material while preserving key terms." },
@@ -97,12 +100,17 @@ export function AiTutorView({
     body: `${mode.label} - ${mode.prompt}`,
   })), [])
   const activeContract = useMemo(() => promptContracts.find((contract) => contract.mode === activeMode.id), [activeMode.id])
-  const insertActions = useMemo(() => listInsertActions(activeContract?.insertTargets || [insertTarget]), [activeContract?.insertTargets, insertTarget])
+  const availableInsertTargets = useMemo(() => activeContract?.insertTargets || insertTargets, [activeContract?.insertTargets])
+  const insertActions = useMemo(() => listInsertActions(availableInsertTargets), [availableInsertTargets])
   const promptBuild = useMemo(() => buildGuidedPrompt({
     taskKey: activeMode.id as AiTaskKey,
-    fields: buildPromptFields(message, recentContext, targetAudience, requiredOutput, difficulty),
+    fields: buildPromptFields(message, recentContext, targetAudience, requiredOutput, difficulty, tone, outputLength, language),
     filters: { sourceScope, difficulty, tone, language, outputLength, providerFamily, insertTarget },
   }), [activeMode.id, difficulty, insertTarget, language, message, outputLength, providerFamily, recentContext, requiredOutput, sourceScope, targetAudience, tone])
+
+  useEffect(() => {
+    if (!availableInsertTargets.includes(insertTarget)) setInsertTarget(availableInsertTargets[0] || "ai-note")
+  }, [availableInsertTargets, insertTarget])
 
   useEffect(() => {
     const draft = readAiTutorDraft()
@@ -325,7 +333,7 @@ export function AiTutorView({
           <SelectControl label="Tone" value={tone} values={tones} onChange={setTone} icon={Settings2} />
           <SelectControl label="Length" value={outputLength} values={outputLengths} onChange={setOutputLength} icon={FileText} />
           <SelectControl label="Language" value={language} values={languages} onChange={setLanguage} icon={Languages} />
-          <SelectControl label="Insert" value={insertTarget} values={insertTargets} onChange={(value) => setInsertTarget(value as StudioInsertTarget)} icon={Plus} />
+          <SelectControl label="Insert" value={insertTarget} values={availableInsertTargets} onChange={(value) => setInsertTarget(value as StudioInsertTarget)} icon={Plus} />
           <label className="grid gap-1 text-sm text-foreground">
             <span className="flex items-center gap-2 font-semibold"><Brain className="h-4 w-4" /> Provider</span>
             <select value={providerFamily} onChange={(event) => setProviderFamily(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground">
@@ -351,6 +359,7 @@ export function AiTutorView({
           <details className="rounded-md border border-border bg-muted/40 p-3 text-sm md:col-span-2">
             <summary className="cursor-pointer font-semibold text-foreground">Prompt preview {promptBuild.ok ? "" : `- missing ${promptBuild.missing.length}`}</summary>
             <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{promptBuild.preview}</pre>
+            {promptBuild.warnings.length ? <p className="mt-2 rounded-md bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">{promptBuild.warnings.join(" ")}</p> : null}
           </details>
         </div>
 
@@ -497,7 +506,7 @@ function viewForImportTarget(target: ImportTarget): View {
   return "notes"
 }
 
-function buildPromptFields(message: string, recentContext: string, targetAudience: string, requiredOutput: string, difficulty: string) {
+function buildPromptFields(message: string, recentContext: string, targetAudience: string, requiredOutput: string, difficulty: string, tone: string, outputLength: string, language: string) {
   const source = [message, recentContext].filter(Boolean).join("\n\n")
   return {
     input: source,
@@ -520,6 +529,10 @@ function buildPromptFields(message: string, recentContext: string, targetAudienc
     audience: targetAudience,
     columns: "Topic, Status, Evidence, Next step",
     sections: "Summary, Key ideas, Examples, Practice",
+    editGoal: requiredOutput,
+    style: `${tone}, ${outputLength}, ${language}`,
+    metricFocus: "Accuracy, progress, weak topics, review urgency",
+    requiredOutput,
     count: 8,
     slideCount: 6,
     mode: "mixed",
