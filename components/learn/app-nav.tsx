@@ -540,12 +540,16 @@ function NotificationsMenu({ compact, open, setOpen }: { compact?: boolean; open
 export function MobileMenu({
   density,
   open,
+  query,
+  setQuery,
   setView,
   text,
   view,
 }: {
   density: Density
   open: boolean
+  query: string
+  setQuery: (query: string) => void
   setView: (view: View) => void
   text: Text
   view: View
@@ -553,6 +557,7 @@ export function MobileMenu({
   if (!open) return null
   return (
     <div className="border-b border-border bg-sidebar p-3 text-sidebar-foreground lg:hidden">
+      <LauncherSearch query={query} setQuery={setQuery} setView={setView} text={text} />
       <Navigation density={density} text={text} view={view} setView={setView} />
     </div>
   )

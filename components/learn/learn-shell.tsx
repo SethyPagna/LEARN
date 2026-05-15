@@ -130,7 +130,15 @@ export function LearnShell({
             setMenuOpen={setMenuOpen}
             logout={logout}
           />
-          <MobileMenu density={preferences.density} open={menuOpen} view={view} text={preferences.text} setView={chooseView} />
+          <MobileMenu
+            density={preferences.density}
+            open={menuOpen}
+            query={query}
+            setQuery={setQuery}
+            view={view}
+            text={preferences.text}
+            setView={chooseView}
+          />
           <div className={preferences.density === "compact" ? "p-3 lg:p-4" : "p-4 lg:p-6"}>
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
             {view === "dashboard" ? <DashboardView dashboard={dashboard} notes={notes} quizzes={quizzes} options={preferences.options} setView={chooseView} /> : null}
