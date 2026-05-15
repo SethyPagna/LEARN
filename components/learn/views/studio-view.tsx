@@ -1,6 +1,6 @@
 "use client"
 
-import { Fragment, useEffect, useMemo, useState } from "react"
+import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import type React from "react"
 import * as ContextMenu from "@radix-ui/react-context-menu"
 import { Panel as ResizePanel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
@@ -87,6 +87,7 @@ import {
   splitStudioPane,
 } from "@/lib/studio-features"
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, undoHistory, type HistoryState } from "@/lib/workspace-features"
+import { clearStudioDraft, readStudioDrafts, summarizeStudioDrafts, writeStudioDraft, type StudioDraftSummary } from "@/lib/studio-drafts"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
 
@@ -259,6 +260,7 @@ export function StudioView({
   selectedNote,
   setNotes,
   setSelectedNoteId,
+  onDraftSummary,
 }: {
   initialKind: StudioKind
   notes: Note[]
@@ -266,6 +268,7 @@ export function StudioView({
   selectedNote?: Note
   setNotes: React.Dispatch<React.SetStateAction<Note[]>>
   setSelectedNoteId: (id: string) => void
+  onDraftSummary?: (summary: StudioDraftSummary) => void
 }) {
   const [kind, setKind] = useState<StudioKind>(initialKind)
   const [query, setQuery] = useState("")
@@ -300,6 +303,12 @@ export function StudioView({
   const selectedDeck = deckId ? decks.find((item) => item.id === deckId) : undefined
   const [deckTitle, setDeckTitle] = useState("Learning deck")
   const [slides, setSlides] = useState<WorkspaceDeck["slides"]>(starterSlides)
+  const hydratedDraftKinds = useRef<Set<StudioKind>>(new Set())
+  const draftReady = useRef(false)
+
+  function notifyDraftSummary() {
+    onDraftSummary?.(summarizeStudioDrafts(readStudioDrafts()))
+  }
 
   useEffect(() => {
     setKind(initialKind)
@@ -320,6 +329,19 @@ export function StudioView({
   }, [layout])
 
   useEffect(() => {
+    const stored = readStudioDrafts().notes
+    if (!hydratedDraftKinds.current.has("notes") && stored?.kind === "notes") {
+      hydratedDraftKinds.current.add("notes")
+      setSelectedNoteId(stored.id || "")
+      setNoteDraft({
+        ...(selectedNote || { icon: "FileText", favorite: false, template: "draft", updated_at: stored.updatedAt, tags: [] }),
+        id: stored.id || "",
+        title: stored.title,
+        content: stored.content,
+      })
+      setNoteHistory(createHistoryState(stored.content))
+      return
+    }
     setNoteDraft(selectedNote || null)
     setNoteHistory(createHistoryState(selectedNote?.content || ""))
   }, [selectedNote?.id])
@@ -337,24 +359,51 @@ export function StudioView({
         setSheetId(sheetsResponse.items[0]?.id || "")
         setDecks(decksResponse.items)
         setDeckId(decksResponse.items[0]?.id || "")
+        draftReady.current = true
+        notifyDraftSummary()
         setStatus("")
       })
       .catch((error) => setStatus(error.message))
   }, [])
 
   useEffect(() => {
+    const stored = readStudioDrafts().docs
+    if (!hydratedDraftKinds.current.has("docs") && stored?.kind === "docs") {
+      hydratedDraftKinds.current.add("docs")
+      setDocId(stored.id || "")
+      setDocTitle(stored.title)
+      setDocHistory(createHistoryState(stored.content))
+      return
+    }
     if (!selectedDoc) return
     setDocTitle(selectedDoc.title)
     setDocHistory(createHistoryState(textFromDocument(selectedDoc)))
   }, [selectedDoc?.id])
 
   useEffect(() => {
+    const stored = readStudioDrafts().sheets
+    if (!hydratedDraftKinds.current.has("sheets") && stored?.kind === "sheets") {
+      hydratedDraftKinds.current.add("sheets")
+      setSheetId(stored.id || "")
+      setSheetTitle(stored.title)
+      setCells(stored.cells)
+      return
+    }
     if (!selectedSheet) return
     setSheetTitle(selectedSheet.title)
     setCells(cellsFromSheet(selectedSheet))
   }, [selectedSheet?.id])
 
   useEffect(() => {
+    const stored = readStudioDrafts().slides
+    if (!hydratedDraftKinds.current.has("slides") && stored?.kind === "slides") {
+      hydratedDraftKinds.current.add("slides")
+      setDeckId(stored.id || "")
+      setDeckTitle(stored.title)
+      setSlides(stored.slides)
+      setSelectedSlideIndex(0)
+      return
+    }
     if (!selectedDeck) return
     setDeckTitle(selectedDeck.title)
     setSlides(slidesFromDeck(selectedDeck))
@@ -368,6 +417,71 @@ export function StudioView({
     }, 1800)
     return () => window.clearTimeout(timeout)
   }, [options.notesAutosave, kind, noteDraft?.id, noteDraft?.title, noteHistory.present])
+
+  useEffect(() => {
+    if (!draftReady.current || !noteDraft) return
+    const changed = noteDraft.title !== selectedNote?.title || noteHistory.present !== (selectedNote?.content || "")
+    if (!changed) return
+    onDraftSummary?.(writeStudioDraft("notes", {
+      kind: "notes",
+      id: noteDraft.id,
+      title: noteDraft.title || "Untitled learning page",
+      content: noteHistory.present,
+      updatedAt: new Date().toISOString(),
+    }))
+    setStatus("Draft saved locally.")
+  }, [noteDraft?.id, noteDraft?.title, noteHistory.present, selectedNote?.content, selectedNote?.title])
+
+  useEffect(() => {
+    if (!draftReady.current) return
+    const selectedContent = textFromDocument(selectedDoc)
+    const changed = selectedDoc
+      ? docTitle !== selectedDoc.title || docHistory.present !== selectedContent
+      : docTitle !== "Untitled document" || plainTextFromHtml(docHistory.present).length > 0
+    if (!changed) return
+    onDraftSummary?.(writeStudioDraft("docs", {
+      kind: "docs",
+      id: selectedDoc?.id,
+      title: docTitle || "Untitled document",
+      content: docHistory.present,
+      updatedAt: new Date().toISOString(),
+    }))
+    setStatus("Draft saved locally.")
+  }, [docHistory.present, docTitle, selectedDoc?.id, selectedDoc?.title])
+
+  useEffect(() => {
+    if (!draftReady.current) return
+    const selectedCells = selectedSheet ? cellsFromSheet(selectedSheet) : starterCells
+    const changed = selectedSheet
+      ? sheetTitle !== selectedSheet.title || JSON.stringify(cells) !== JSON.stringify(selectedCells)
+      : sheetTitle !== "Study tracker" || JSON.stringify(cells) !== JSON.stringify(starterCells)
+    if (!changed) return
+    onDraftSummary?.(writeStudioDraft("sheets", {
+      kind: "sheets",
+      id: selectedSheet?.id,
+      title: sheetTitle || "Study tracker",
+      cells,
+      updatedAt: new Date().toISOString(),
+    }))
+    setStatus("Draft saved locally.")
+  }, [cells, selectedSheet?.id, selectedSheet?.title, sheetTitle])
+
+  useEffect(() => {
+    if (!draftReady.current) return
+    const selectedSlides = selectedDeck ? slidesFromDeck(selectedDeck) : starterSlides
+    const changed = selectedDeck
+      ? deckTitle !== selectedDeck.title || JSON.stringify(slides) !== JSON.stringify(selectedSlides)
+      : deckTitle !== "Learning deck" || JSON.stringify(slides) !== JSON.stringify(starterSlides)
+    if (!changed) return
+    onDraftSummary?.(writeStudioDraft("slides", {
+      kind: "slides",
+      id: selectedDeck?.id,
+      title: deckTitle || "Learning deck",
+      slides,
+      updatedAt: new Date().toISOString(),
+    }))
+    setStatus("Draft saved locally.")
+  }, [deckTitle, selectedDeck?.id, selectedDeck?.title, slides])
 
   const activeTab = studioTabs.find((tab) => tab.kind === kind) || studioTabs[0]
   const allItems = useMemo(() => {
@@ -492,6 +606,7 @@ export function StudioView({
         })
         setNotes((current) => current.map((item) => (item.id === response.item.id ? response.item : item)))
         setNoteDraft(response.item)
+        onDraftSummary?.(clearStudioDraft("notes"))
       }
 
       if (kind === "docs") {
@@ -506,6 +621,7 @@ export function StudioView({
         })
         setDocs((current) => [response.item, ...current.filter((item) => item.id !== response.item.id)])
         setDocId(response.item.id)
+        onDraftSummary?.(clearStudioDraft("docs"))
       }
 
       if (kind === "sheets") {
@@ -515,6 +631,7 @@ export function StudioView({
         })
         setSheets((current) => [response.item, ...current.filter((item) => item.id !== response.item.id)])
         setSheetId(response.item.id)
+        onDraftSummary?.(clearStudioDraft("sheets"))
       }
 
       if (kind === "slides") {
@@ -524,6 +641,7 @@ export function StudioView({
         })
         setDecks((current) => [response.item, ...current.filter((item) => item.id !== response.item.id)])
         setDeckId(response.item.id)
+        onDraftSummary?.(clearStudioDraft("slides"))
       }
 
       setLastSaved(new Date().toLocaleTimeString())
