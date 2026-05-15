@@ -21,6 +21,7 @@ import {
   moveSlide,
   splitStudioPane,
 } from "../lib/studio-features"
+import { summarizeStudioDrafts } from "../lib/studio-drafts"
 import { getVocabulary, isSupportedLocale, loadVocabulary, supportedLocales } from "../lib/i18n/vocabulary"
 
 test("editor history supports undo and redo without losing future states", () => {
@@ -86,6 +87,17 @@ test("studio slide helpers duplicate and move slides", () => {
 
   assert.equal(duplicateSlide(slides, 0)[1].title, "One copy")
   assert.deepEqual(moveSlide(slides, 1, -1).map((slide) => slide.title), ["Two", "One"])
+})
+
+test("studio draft summary counts typed workspace drafts", () => {
+  const summary = summarizeStudioDrafts({
+    docs: { kind: "docs", title: "Guide", content: "<p>Draft</p>", updatedAt: "2026-01-01T00:00:00.000Z" },
+    sheets: { kind: "sheets", title: "Tracker", cells: [["A"]], updatedAt: "2026-01-02T00:00:00.000Z" },
+  })
+
+  assert.equal(summary.count, 2)
+  assert.deepEqual(summary.labels.sort(), ["docs", "sheets"])
+  assert.equal(summary.latestAt, "2026-01-02T00:00:00.000Z")
 })
 
 test("all supported vocabularies return usable text without mojibake", async () => {
