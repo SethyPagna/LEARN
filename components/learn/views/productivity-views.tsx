@@ -254,12 +254,11 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
   }, [quizzes])
 
   useEffect(() => {
-    if (!current) return
     const timer = window.setInterval(() => {
       setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)))
     }, 1000)
     return () => window.clearInterval(timer)
-  }, [current, startedAt])
+  }, [startedAt])
 
   function resetRun() {
     setIndex(0)
@@ -279,7 +278,14 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
     setIndex(index + 1)
   }
 
-  if (!current) return <Panel className="p-4"><EmptyState title="No game questions yet" body="Open quizzes once so question data can power flashcard sprint and matching games." /></Panel>
+  if (!current) {
+    return (
+      <Panel className="p-4">
+        <GameTimerControls elapsedSeconds={elapsedSeconds} resetRun={resetRun} setTargetSeconds={setTargetSeconds} targetSeconds={targetSeconds} />
+        <EmptyState title="No game questions yet" body="Add or open quizzes so question data can power flashcard sprint and matching games." />
+      </Panel>
+    )
+  }
 
   return (
     <Panel className="p-5">
@@ -290,28 +296,7 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
           <p className="text-sm text-muted-foreground">{options.gameMode} mode - Score {score} / {questions.length} - {formatDuration(elapsedSeconds)}</p>
         </div>
       </div>
-      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2">
-        <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
-          <Clock className="h-3.5 w-3.5" />
-          {formatDuration(elapsedSeconds)}
-        </span>
-        {[60, 90, 180].map((seconds) => (
-          <button
-            key={seconds}
-            onClick={() => setTargetSeconds(seconds)}
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold ${targetSeconds === seconds ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
-          >
-            {Math.round(seconds / 60)}m
-          </button>
-        ))}
-        <span className={`rounded-md px-2 py-1 text-xs font-semibold ${elapsedSeconds > targetSeconds ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>
-          target {formatDuration(targetSeconds)}
-        </span>
-        <button onClick={resetRun} className="ml-auto flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-          <RotateCcw className="h-3.5 w-3.5" />
-          Restart
-        </button>
-      </div>
+      <GameTimerControls elapsedSeconds={elapsedSeconds} resetRun={resetRun} setTargetSeconds={setTargetSeconds} targetSeconds={targetSeconds} />
       <div className="rounded-lg bg-primary p-5 text-primary-foreground">
         <p className="text-sm opacity-70">Prompt {index + 1}</p>
         <h3 className="mt-2 text-2xl font-semibold">{current.question}</h3>
@@ -324,6 +309,43 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
         ))}
       </div>
     </Panel>
+  )
+}
+
+function GameTimerControls({
+  elapsedSeconds,
+  resetRun,
+  setTargetSeconds,
+  targetSeconds,
+}: {
+  elapsedSeconds: number
+  resetRun: () => void
+  setTargetSeconds: (seconds: number) => void
+  targetSeconds: number
+}) {
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2">
+      <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
+        <Clock className="h-3.5 w-3.5" />
+        {formatDuration(elapsedSeconds)} elapsed
+      </span>
+      {[60, 90, 180].map((seconds) => (
+        <button
+          key={seconds}
+          onClick={() => setTargetSeconds(seconds)}
+          className={`rounded-md px-3 py-1.5 text-xs font-semibold ${targetSeconds === seconds ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+        >
+          {Math.round(seconds / 60)}m
+        </button>
+      ))}
+      <span className={`rounded-md px-2 py-1 text-xs font-semibold ${elapsedSeconds > targetSeconds ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>
+        target {formatDuration(targetSeconds)}
+      </span>
+      <button onClick={resetRun} className="ml-auto flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+        <RotateCcw className="h-3.5 w-3.5" />
+        Restart
+      </button>
+    </div>
   )
 }
 
