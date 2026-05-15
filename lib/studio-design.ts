@@ -66,14 +66,17 @@ export function applySlideDesignPreset(slide: WorkspaceDeck["slides"][number], p
   }
 }
 
-export function createSlideDesignObject(type: "text" | "shape" | "image") {
+export function createSlideDesignObject(type: SlideObject["type"]) {
   if (type === "shape") {
-    return { id: `shape_${Date.now().toString(36)}`, type, x: 10, y: 68, w: 28, h: 10, text: "Label" }
+    return { id: `shape_${Date.now().toString(36)}`, type, x: 10, y: 68, w: 28, h: 10, text: "Label", style: { background: "#2563eb", color: "#ffffff", borderRadius: 8 } }
   }
   if (type === "image") {
-    return { id: `image_${Date.now().toString(36)}`, type, x: 58, y: 24, w: 30, h: 34, src: "", text: "Image cue" }
+    return { id: `image_${Date.now().toString(36)}`, type, x: 58, y: 24, w: 30, h: 34, src: "", text: "Image cue", style: { background: "rgba(255,255,255,0.14)", color: "#ffffff" } }
   }
-  return { id: `text_${Date.now().toString(36)}`, type, x: 12, y: 54, w: 70, h: 12, text: "Supporting point" }
+  if (type === "table") {
+    return { id: `table_${Date.now().toString(36)}`, type, x: 12, y: 58, w: 60, h: 22, text: "Concept | Evidence | Action", style: { background: "rgba(255,255,255,0.12)", color: "#ffffff", fontSize: 12 } }
+  }
+  return { id: `text_${Date.now().toString(36)}`, type, x: 12, y: 54, w: 70, h: 12, text: "Supporting point", style: { color: "#ffffff", fontSize: 16 } }
 }
 
 export function updateSlideDesignObject(

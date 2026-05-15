@@ -20,10 +20,14 @@ test("slide design presets add theme and background metadata", () => {
 test("slide design objects create editable placeholders", () => {
   const shape = createSlideDesignObject("shape")
   const text = createSlideDesignObject("text")
+  const table = createSlideDesignObject("table")
 
   assert.equal(shape.type, "shape")
+  assert.equal(shape.style?.background, "#2563eb")
   assert.equal(text.type, "text")
   assert.ok(text.text)
+  assert.equal(table.type, "table")
+  assert.match(table.text || "", /Concept/)
 })
 
 test("slide design objects can be updated and removed", () => {
