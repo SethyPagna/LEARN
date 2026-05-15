@@ -101,7 +101,7 @@ import {
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, replaceTextInHtml, summarizeDocumentHtml, undoHistory, type HistoryState } from "@/lib/workspace-features"
 import { clearStudioDraft, readStudioDrafts, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
 import type { ImportTarget } from "@/lib/import-gateway"
-import { applySlideDesignPreset, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
+import { applySlideDesignPreset, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
 
@@ -671,8 +671,8 @@ export function StudioView({
     if (kind === "docs") return format === "export" ? plainTextFromHtml(docHistory.present) : docHistory.present
     if (kind === "sheets") return exportSheetToCsv({ cells: ensureCells(cells) })
     return format === "export"
-      ? JSON.stringify({ title: deckTitle, slides }, null, 2)
-      : slides.map((slide, index) => `Slide ${index + 1}: ${slide.title}\n${slide.body}\nNotes: ${slide.speakerNotes || ""}`).join("\n\n")
+      ? JSON.stringify(buildSlideExportPayload(deckTitle || "Slides", slides), null, 2)
+      : buildSlidePresenterOutline(slides)
   }
 
   const activeSummaryText = useMemo(() => {
@@ -933,7 +933,7 @@ export function StudioView({
     const base = fileTitle(activeTitle(), kind)
     if (kind === "sheets") return downloadText(`${base}.csv`, currentPayload("download"), "text/csv")
     if (kind === "slides" && exportMode) return exportPptx(base)
-    if (kind === "slides") return downloadText(`${base}.json`, currentPayload("export"), "application/json")
+    if (kind === "slides") return downloadText(`${base}.outline.txt`, currentPayload("download"), "text/plain")
     downloadText(`${base}.${exportMode ? "txt" : "html"}`, currentPayload(exportMode ? "export" : "download"), exportMode ? "text/plain" : "text/html")
   }
 
