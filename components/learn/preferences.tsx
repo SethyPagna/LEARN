@@ -21,7 +21,7 @@ export type WorkspaceOptions = {
   gameQuestionLimit: number
   calendarLeadMinutes: number
   calendarDefaultMinutes: number
-  aiMode: "coach" | "route" | "rewrite" | "quiz" | "flashcards" | "translate"
+  aiMode: "coach" | "route" | "rewrite" | "quiz" | "flashcards" | "translate" | "cleanup" | "mistake"
   aiIncludeNotes: boolean
   aiTemperature: number
   aiMaxTokens: number
