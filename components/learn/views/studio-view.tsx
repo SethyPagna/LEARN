@@ -1149,7 +1149,7 @@ function RichTextEditor({ large, onChange, placeholder, value }: { large?: boole
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
-      StarterKit.configure({ underline: false }),
+      StarterKit.configure({ link: false, underline: false }),
       Underline,
       TextStyle,
       Color,
