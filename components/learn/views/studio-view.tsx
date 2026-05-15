@@ -81,6 +81,7 @@ import { EmptyState, Panel } from "../ui"
 import {
   addColumn,
   addRow,
+  buildSheetFormula,
   closeStudioPane,
   computeStudioDirtyBadges,
   createDefaultStudioLayout,
@@ -88,6 +89,7 @@ import {
   deleteColumn,
   deleteRow,
   duplicateSlide,
+  evaluateSheetFormula,
   fillSheetRange,
   moveColumn,
   moveRow,
@@ -1442,6 +1444,11 @@ function StudioCanvas({
 
   if (activeKind === "sheets") {
     const visibleCells = ensureCells(cells)
+    const selectedCellValue = visibleCells[selectedCell.row]?.[selectedCell.column] || ""
+    const formulaPreview = selectedCellValue.trim().startsWith("=") ? evaluateSheetFormula(visibleCells, selectedCellValue) : null
+    const applyFormula = (functionName: "SUM" | "AVERAGE" | "MIN" | "MAX" | "COUNT") => {
+      updateCell(selectedCell.row, selectedCell.column, buildSheetFormula(functionName, selectedCell.column, visibleCells.length))
+    }
     return (
       <div className="grid gap-3">
         <div className="flex flex-wrap gap-2">
@@ -1454,6 +1461,29 @@ function StudioCanvas({
           <SheetButton label="Fill down" onClick={() => onSetCells((current) => fillSheetRange(ensureCells(current), { selectedRange: { startRow: selectedCell.row, startColumn: selectedCell.column, endRow: ensureCells(current).length - 1, endColumn: selectedCell.column } }, "down"))} icon={Rows3} />
           <SheetButton label="Fill right" onClick={() => onSetCells((current) => fillSheetRange(ensureCells(current), { selectedRange: { startRow: selectedCell.row, startColumn: selectedCell.column, endRow: selectedCell.row, endColumn: (ensureCells(current)[0]?.length || 1) - 1 } }, "right"))} icon={Columns3} />
           <SheetButton label="Sort A-Z" onClick={() => onSetCells((current) => sortSheetByColumn(ensureCells(current), selectedCell.column, "asc"))} icon={ListOrdered} />
+        </div>
+        <div className="grid gap-2 rounded-md border border-border bg-card p-2 md:grid-cols-[1fr_auto]">
+          <label className="flex min-h-9 items-center gap-2 rounded-md border border-input bg-background px-2 text-sm text-foreground">
+            <Braces className="h-4 w-4 text-muted-foreground" />
+            <input
+              value={selectedCellValue}
+              onChange={(event) => updateCell(selectedCell.row, selectedCell.column, event.target.value)}
+              placeholder="Formula or cell value"
+              className="w-full bg-transparent outline-none"
+            />
+          </label>
+          <div className="flex flex-wrap gap-1">
+            {(["SUM", "AVERAGE", "MIN", "MAX", "COUNT"] as const).map((formula) => (
+              <button key={formula} onClick={() => applyFormula(formula)} className="h-9 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                {formula}
+              </button>
+            ))}
+          </div>
+          {formulaPreview ? (
+            <p className={`text-xs font-semibold md:col-span-2 ${formulaPreview.ok ? "text-success" : "text-destructive"}`}>
+              {formulaPreview.ok ? `Result ${formulaPreview.value} - ${formulaPreview.reason}` : formulaPreview.reason}
+            </p>
+          ) : null}
         </div>
         <textarea
           onBlur={(event) => {
