@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Bot, Brain, CheckSquare, FileText, Gauge, Languages, ListFilter, Plus, Route, Settings2, Sparkles, Wand2 } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
-import type { Note } from "../types"
+import type { Note, View } from "../types"
 import { api } from "../api"
 import { Panel } from "../ui"
 
@@ -41,15 +41,20 @@ type AiTutorDraft = {
 export function AiTutorView({
   notes,
   options,
+  setNotes,
   setOptions,
+  setView,
 }: {
   notes: Note[]
   options: WorkspaceOptions
+  setNotes?: (updater: (current: Note[]) => Note[]) => void
   setOptions: (options: Partial<WorkspaceOptions>) => void
+  setView?: (view: View) => void
 }) {
   const [message, setMessage] = useState(DEFAULT_AI_MESSAGE)
   const [reply, setReply] = useState("")
   const [draftStatus, setDraftStatus] = useState("")
+  const [actionStatus, setActionStatus] = useState("")
   const [loading, setLoading] = useState(false)
   const [providers, setProviders] = useState<any[]>([])
   const [catalog, setCatalog] = useState<any[]>([])
@@ -146,6 +151,7 @@ export function AiTutorView({
         }),
       })
       setReply(response.text)
+      setActionStatus("")
     } finally {
       setLoading(false)
     }
@@ -156,6 +162,33 @@ export function AiTutorView({
     setProviders(response.items)
     setCatalog(response.catalog || [])
     setPresets(response.presets || [])
+  }
+
+  async function saveReplyAsNote() {
+    if (!reply.trim()) return
+    const response = await api<{ item: Note }>("/api/notes", {
+      method: "POST",
+      body: JSON.stringify({
+        title: `AI ${activeMode.label} - ${new Date().toLocaleDateString()}`,
+        content: `<h2>${escapeHtml(activeMode.label)}</h2><pre>${escapeHtml(reply)}</pre>`,
+        template: "ai-result",
+      }),
+    })
+    setNotes?.((current) => [response.item, ...current])
+    setActionStatus("Saved as a Studio note.")
+    setView?.("notes")
+  }
+
+  async function copyReply() {
+    if (!reply.trim()) return
+    await navigator.clipboard?.writeText(reply)
+    setActionStatus("Copied result.")
+  }
+
+  function useReplyAsPrompt(mode: WorkspaceOptions["aiMode"], instruction: string) {
+    setOptions({ aiMode: mode })
+    setMessage(`${instruction}\n\n${reply}`)
+    setActionStatus("Loaded result into the prompt.")
   }
 
   return (
@@ -247,12 +280,12 @@ export function AiTutorView({
         {reply ? (
           <div className="mt-5 rounded-md border border-border bg-muted p-4">
             <div className="mb-3 flex flex-wrap gap-2">
-              {["Insert as note", "Append to doc", "Make sheet rows", "Make slide outline", "Create review cards"].map((action) => (
-                <button key={action} className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
-                  {action}
-                </button>
-              ))}
+              <ResultAction label="Save as note" onClick={saveReplyAsNote} />
+              <ResultAction label="Copy result" onClick={copyReply} />
+              <ResultAction label="Quiz prompt" onClick={() => useReplyAsPrompt("quiz", "Turn this result into a mixed quiz with answers and explanations.")} />
+              <ResultAction label="Flashcards" onClick={() => useReplyAsPrompt("flashcards", "Turn this result into active-recall flashcards and matching pairs.")} />
             </div>
+            {actionStatus ? <p className="mb-3 rounded-md bg-background px-3 py-2 text-xs font-semibold text-muted-foreground">{actionStatus}</p> : null}
             <div className="whitespace-pre-wrap leading-7 text-foreground">{reply}</div>
           </div>
         ) : null}
@@ -317,6 +350,23 @@ function clearAiTutorDraft() {
 
 function normalizeChoice(value: string, options: string[], fallback: string) {
   return options.includes(value) ? value : fallback
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
+function ResultAction({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
+      {label}
+    </button>
+  )
 }
 
 function SelectControl({ icon: Icon, label, onChange, value, values }: { icon: React.ComponentType<{ className?: string }>; label: string; onChange: (value: string) => void; value: string; values: string[] }) {
