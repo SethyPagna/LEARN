@@ -77,13 +77,17 @@ export function buildReviewSchedule(input: {
   restDay?: Weekday
 }): ReviewSchedule {
   const isRestDay = input.restDay ? weekdayForDate(input.now) === input.restDay : false
-  const dueItems = input.items
-    .filter((item) => new Date(item.dueAt).getTime() <= input.now.getTime())
-    .sort((left, right) => {
-      const dueDelta = new Date(left.dueAt).getTime() - new Date(right.dueAt).getTime()
-      if (dueDelta !== 0) return dueDelta
-      return left.retrievability - right.retrievability
-    })
+  const nowTime = input.now.getTime()
+  const dueItems: Array<{ item: ReviewItem; dueTime: number }> = []
+  for (const item of input.items) {
+    const dueTime = Date.parse(item.dueAt)
+    if (dueTime <= nowTime) dueItems.push({ item, dueTime })
+  }
+  dueItems.sort((left, right) => {
+    const dueDelta = left.dueTime - right.dueTime
+    if (dueDelta !== 0) return dueDelta
+    return left.item.retrievability - right.item.retrievability
+  })
 
   if (isRestDay) {
     return { items: [], isRestDay: true, remainingDueCount: dueItems.length }
@@ -91,7 +95,7 @@ export function buildReviewSchedule(input: {
 
   const cap = Math.max(0, Math.floor(input.dailyCap))
   return {
-    items: dueItems.slice(0, cap),
+    items: dueItems.slice(0, cap).map((entry) => entry.item),
     isRestDay: false,
     remainingDueCount: Math.max(0, dueItems.length - cap),
   }
