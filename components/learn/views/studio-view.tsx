@@ -99,7 +99,7 @@ import {
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, replaceTextInHtml, summarizeDocumentHtml, undoHistory, type HistoryState } from "@/lib/workspace-features"
 import { clearStudioDraft, readStudioDrafts, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
 import type { ImportTarget } from "@/lib/import-gateway"
-import { applySlideDesignPreset, createSlideDesignObject, getDocumentInsertBlock, removeSlideDesignObject, slideDesignPresets, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
+import { applySlideDesignPreset, createSlideDesignObject, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
 
@@ -1499,6 +1499,9 @@ function StudioCanvas({
   }
 
   const selectedSlide = slides[selectedSlideIndex] || slides[0]
+  const slideShowSummary = useMemo(() => summarizeSlideShow(slides), [slides])
+  const selectedTransition = slideTransitionPresets[selectedSlide?.transition || "none"]
+  const selectedAnimation = slideAnimationPresets[selectedSlide?.animation || "none"]
   const slideIds = slides.map((_, index) => `slide-${index}`)
   const handleSlideDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
@@ -1534,7 +1537,7 @@ function StudioCanvas({
         </DndContext>
       </div>
       <div
-        className={`${options.slidesAspect === "4:3" ? "aspect-[4/3]" : "aspect-video"} rounded-lg border border-border p-8 text-white shadow-sm transition-transform ${selectedSlide?.animation === "rise" ? "hover:-translate-y-1" : selectedSlide?.animation === "emphasis" ? "hover:scale-[1.01]" : ""}`}
+        className={`${options.slidesAspect === "4:3" ? "aspect-[4/3]" : "aspect-video"} rounded-lg border border-border p-8 text-white shadow-sm transition-all ${selectedSlide?.transition === "fade" ? "hover:opacity-90" : selectedSlide?.transition === "zoom" ? "hover:shadow-lg" : ""} ${selectedSlide?.animation === "rise" ? "hover:-translate-y-1" : selectedSlide?.animation === "emphasis" ? "hover:scale-[1.01]" : ""}`}
         style={{ background: selectedSlide?.background || slideDesignPresets[(selectedSlide?.theme || "midnight") as keyof typeof slideDesignPresets]?.background || "#111827" }}
       >
         {selectedSlide ? (
@@ -1555,10 +1558,17 @@ function StudioCanvas({
         ) : null}
       </div>
       <div className="grid gap-3">
+        <div className="grid grid-cols-3 gap-2 rounded-md border border-border bg-card p-2 text-center text-xs">
+          <span className="rounded-md bg-secondary px-2 py-1 text-secondary-foreground">{slideShowSummary.slideCount} slides</span>
+          <span className="rounded-md bg-secondary px-2 py-1 text-secondary-foreground">{slideShowSummary.totalMinutes} min</span>
+          <span className="rounded-md bg-secondary px-2 py-1 text-secondary-foreground">{Math.ceil((slideShowSummary.slideTimings[selectedSlideIndex]?.durationMs || 0) / 1000)}s here</span>
+        </div>
         <SelectLike label="Layout" value={selectedSlide?.layout || "title"} options={["title", "two-column", "image", "quote"]} onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, layout: value as WorkspaceDeck["slides"][number]["layout"] } : item))} />
         <SelectLike label="Theme" value={selectedSlide?.theme || "midnight"} options={Object.keys(slideDesignPresets)} onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? applySlideDesignPreset(item, value as keyof typeof slideDesignPresets) : item))} />
-        <SelectLike label="Transition" value={selectedSlide?.transition || "none"} options={["none", "fade", "push", "zoom", "wipe"]} onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, transition: value as WorkspaceDeck["slides"][number]["transition"] } : item))} />
-        <SelectLike label="Animation" value={selectedSlide?.animation || "none"} options={["none", "rise", "reveal", "emphasis"]} onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, animation: value as WorkspaceDeck["slides"][number]["animation"] } : item))} />
+        <SelectLike label="Transition" value={selectedSlide?.transition || "none"} options={Object.keys(slideTransitionPresets)} onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, transition: value as WorkspaceDeck["slides"][number]["transition"] } : item))} />
+        <p className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{selectedTransition.description}</p>
+        <SelectLike label="Animation" value={selectedSlide?.animation || "none"} options={Object.keys(slideAnimationPresets)} onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, animation: value as WorkspaceDeck["slides"][number]["animation"] } : item))} />
+        <p className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{selectedAnimation.description}</p>
         <label className="grid gap-1 text-sm text-foreground">
           Background
           <input value={selectedSlide?.background || "#111827"} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, background: event.target.value } : item))} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
