@@ -124,6 +124,9 @@ export interface WorkspaceDeck {
     accent?: string
     layout?: "title" | "two-column" | "image" | "quote"
     theme?: string
+    background?: string
+    transition?: "none" | "fade" | "push" | "zoom" | "wipe"
+    animation?: "none" | "rise" | "reveal" | "emphasis"
     objects?: Array<{ id: string; type: "text" | "image" | "shape"; x: number; y: number; w: number; h: number; text?: string; src?: string }>
     speakerNotes?: string
   }[]
