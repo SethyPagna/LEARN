@@ -1155,6 +1155,45 @@ export async function listReviewSchedule(user: User) {
   })
 }
 
+export async function createPracticeReviewItems(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  const cards = Array.isArray(input.items) ? input.items : []
+  const dueAt = new Date().toISOString()
+  const created = []
+
+  for (const card of cards) {
+    if (!card || typeof card !== "object") continue
+    const record = card as Record<string, unknown>
+    const sourceId = String(record.sourceId || record.source_id || "").trim()
+    const prompt = String(record.prompt || "").trim()
+    if (!sourceId || !prompt) continue
+    const id = createId("review")
+    const title = String(record.title || "Practice mistake").slice(0, 160)
+    const answer = String(record.answer || "").slice(0, 2000)
+    const topic = String(record.topic || "General").slice(0, 80)
+    await query(
+      `INSERT INTO review_items (
+         id, user_id, source_type, source_id, title, prompt, answer, difficulty, stability, retrievability, due_at, metadata
+       )
+       VALUES ($1, $2, 'practice_mistake', $3, $4, $5, $6, 0.7, 1.5, 0.55, $7, $8::jsonb)
+       ON CONFLICT (user_id, source_type, source_id) DO UPDATE SET
+         title = EXCLUDED.title,
+         prompt = EXCLUDED.prompt,
+         answer = EXCLUDED.answer,
+         due_at = EXCLUDED.due_at,
+         retrievability = 0.45,
+         updated_at = now()`,
+      [id, user.id, sourceId, title, prompt, answer, dueAt, JSON.stringify({ topic, source: "practice" })],
+    )
+    created.push({ sourceId, title, topic })
+  }
+
+  if (created.length) {
+    await logAudit({ userId: user.id, action: "create", entity: "review_items", entityId: "practice_mistakes", details: { count: created.length } })
+  }
+  return { created, count: created.length }
+}
+
 export async function recordReviewResult(user: User, input: Record<string, unknown>) {
   await ensureDatabase()
   const id = String(input.id || input.reviewItemId || "")
