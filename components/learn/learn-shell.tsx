@@ -84,11 +84,17 @@ export function LearnShell({
   const [studioDraftSummary, setStudioDraftSummary] = useState<StudioDraftSummary>({ count: 0, labels: [] })
   const preferences = useWorkspacePreferences()
 
-  const selectedNote = notes.find((note) => note.id === selectedNoteId) || notes[0]
+  const selectedNote = useMemo(() => notes.find((note) => note.id === selectedNoteId) || notes[0], [notes, selectedNoteId])
   const filteredNotes = useMemo(() => {
     const needle = query.trim().toLowerCase()
     if (!needle) return notes
-    return notes.filter((note) => `${note.title} ${note.content} ${note.tags?.join(" ")}`.toLowerCase().includes(needle))
+    const results: Note[] = []
+    for (const note of notes) {
+      if (`${note.title} ${note.content} ${note.tags?.join(" ")}`.toLowerCase().includes(needle)) {
+        results.push(note)
+      }
+    }
+    return results
   }, [notes, query])
 
   async function refresh() {
