@@ -38,6 +38,10 @@ export function QuizView({
   }, [selected])
 
   useEffect(() => {
+    if (!selectedQuizId && quizzes[0]?.id) setSelectedQuizId(quizzes[0].id)
+  }, [quizzes, selectedQuizId, setSelectedQuizId])
+
+  useEffect(() => {
     if (!quiz || result) return
     const timer = window.setInterval(() => {
       setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)))

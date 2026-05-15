@@ -233,13 +233,25 @@ export function SlidesView({ options }: { options: WorkspaceOptions }) {
 }
 
 export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: WorkspaceOptions }) {
-  const questions = useMemo(() => quizzes.flatMap((quiz) => quiz.questions || []).slice(0, options.gameQuestionLimit), [quizzes, options.gameQuestionLimit])
+  const [quizBank, setQuizBank] = useState<Quiz[]>(quizzes)
+  const questions = useMemo(() => quizBank.flatMap((quiz) => quiz.questions || []).slice(0, options.gameQuestionLimit), [quizBank, options.gameQuestionLimit])
   const [index, setIndex] = useState(0)
   const [score, setScore] = useState(0)
   const [startedAt, setStartedAt] = useState(() => Date.now())
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [targetSeconds, setTargetSeconds] = useState(90)
   const current = questions[index]
+
+  useEffect(() => {
+    let active = true
+    Promise.all(quizzes.slice(0, 8).map((quiz) => api<{ item: Quiz }>(`/api/quizzes/${quiz.id}`).then((response) => response.item).catch(() => quiz)))
+      .then((items) => {
+        if (active) setQuizBank(items)
+      })
+    return () => {
+      active = false
+    }
+  }, [quizzes])
 
   useEffect(() => {
     if (!current) return
