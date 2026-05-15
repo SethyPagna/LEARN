@@ -116,7 +116,7 @@ export function Sidebar({
   logout: () => void
 }) {
   return (
-    <aside className="sticky top-0 hidden h-screen overflow-y-auto border-r border-border bg-sidebar px-3 py-4 text-sidebar-foreground lg:flex lg:flex-col">
+    <aside className="sticky top-0 hidden h-screen border-r border-border bg-sidebar px-3 py-4 text-sidebar-foreground lg:flex lg:flex-col">
       <Brand text={text} />
       <div className="mb-3 flex h-9 items-center gap-2 rounded-md border border-sidebar-border bg-background px-3">
         <Search className="h-4 w-4 text-muted-foreground" />
@@ -127,7 +127,9 @@ export function Sidebar({
           className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
         />
       </div>
-      <Navigation density={density} text={text} view={view} setView={setView} />
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+        <Navigation density={density} text={text} view={view} setView={setView} />
+      </div>
       <SidebarControls
         density={density}
         locale={locale}
