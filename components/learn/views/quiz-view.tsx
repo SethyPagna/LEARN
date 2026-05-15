@@ -6,6 +6,7 @@ import type { WorkspaceOptions } from "../preferences"
 import type { PracticeAttemptSummary, PracticeMode, Quiz } from "../types"
 import { api } from "../api"
 import { EmptyState, Panel } from "../ui"
+import { clearPracticeDraft, hasPracticeDraftContent, readPracticeDraft, writePracticeDraft } from "@/lib/practice-drafts"
 import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, filterPracticeQuestions, practiceModeLabel, summarizePracticeAttempt, type PracticeQuestionFilter } from "@/lib/practice-features"
 
 const practiceModes: PracticeMode[] = ["quiz", "exam", "flashcards", "matching", "sprint", "mistake-retry", "fill-blank", "true-false", "generated"]
@@ -40,7 +41,9 @@ export function QuizView({
   const [markedQuestionIds, setMarkedQuestionIds] = useState<string[]>([])
   const [questionFilter, setQuestionFilter] = useState<PracticeQuestionFilter>("all")
   const [reviewCardStatus, setReviewCardStatus] = useState("")
+  const [draftStatus, setDraftStatus] = useState("")
   const selected = selectedQuizId || quizzes[0]?.id
+  const defaultPracticeMode: PracticeMode = options.quizMode === "exam" ? "exam" : "quiz"
   const visibleQuestions = useMemo(() => {
     const questions = quiz?.questions || []
     return retryQuestionIds.length ? buildMistakeRetrySet(questions, retryQuestionIds) : questions
@@ -57,17 +60,21 @@ export function QuizView({
     if (!selected) return
     api<{ item: Quiz }>(`/api/quizzes/${selected}`).then((response) => {
       setQuiz(response.item)
-      setAnswers({})
+      const draft = readPracticeDraft(response.item.id)
+      setAnswers(draft?.answers || {})
       setResult(null)
       setAttemptSummary(null)
       setReviewCardStatus("")
-      setRetryQuestionIds([])
-      setMarkedQuestionIds([])
-      setQuestionFilter("all")
-      setStartedAt(Date.now())
-      setElapsedSeconds(0)
+      setRetryQuestionIds(draft?.retryQuestionIds || [])
+      setMarkedQuestionIds(draft?.markedQuestionIds || [])
+      setQuestionFilter(draft?.questionFilter || "all")
+      setPracticeMode(draft?.practiceMode || defaultPracticeMode)
+      setTargetMinutes(draft?.targetMinutes || (options.quizMode === "exam" ? 20 : 10))
+      setStartedAt(Date.now() - (draft?.elapsedSeconds || 0) * 1000)
+      setElapsedSeconds(draft?.elapsedSeconds || 0)
+      setDraftStatus(draft ? `Restored draft from ${formatDraftTime(draft.updatedAt)}.` : "")
     })
-  }, [selected])
+  }, [defaultPracticeMode, options.quizMode, selected])
 
   useEffect(() => {
     if (!selectedQuizId && quizzes[0]?.id) setSelectedQuizId(quizzes[0].id)
@@ -80,6 +87,30 @@ export function QuizView({
     }, 1000)
     return () => window.clearInterval(timer)
   }, [paused, result, startedAt])
+
+  const draftElapsedBucket = Math.floor(elapsedSeconds / 10)
+
+  useEffect(() => {
+    if (!quiz || result) return
+    const elapsed = paused ? elapsedSeconds : currentElapsedSeconds(startedAt)
+    const draft = {
+      quizId: quiz.id,
+      answers,
+      markedQuestionIds,
+      retryQuestionIds,
+      questionFilter,
+      practiceMode,
+      targetMinutes,
+      elapsedSeconds: elapsed,
+      updatedAt: new Date().toISOString(),
+    }
+    if (!hasPracticeDraftContent(draft, defaultPracticeMode)) return
+    const timeout = window.setTimeout(() => {
+      writePracticeDraft(draft)
+      setDraftStatus(`Draft saved at ${formatDuration(elapsed)}.`)
+    }, 500)
+    return () => window.clearTimeout(timeout)
+  }, [answers, defaultPracticeMode, draftElapsedBucket, markedQuestionIds, paused, practiceMode, questionFilter, quiz, result, retryQuestionIds, startedAt, targetMinutes])
 
   async function submit() {
     if (!quiz) return
@@ -103,6 +134,20 @@ export function QuizView({
     setResult(response)
     setAttemptSummary(summary)
     setReviewCardStatus("")
+    clearPracticeDraft(quiz.id)
+    setDraftStatus("Attempt submitted. Draft cleared.")
+  }
+
+  function discardDraft() {
+    if (!quiz) return
+    clearPracticeDraft(quiz.id)
+    setAnswers({})
+    setRetryQuestionIds([])
+    setMarkedQuestionIds([])
+    setQuestionFilter("all")
+    setPracticeMode(defaultPracticeMode)
+    resetTimer()
+    setDraftStatus("Draft cleared.")
   }
 
   function resetTimer() {
@@ -207,6 +252,11 @@ export function QuizView({
               <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">{markedQuestionIds.length} marked</span>
               <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-muted-foreground"><Clock className="h-3.5 w-3.5" /> {elapsedLabel} elapsed</span>
               <span className={`rounded-md px-2 py-1 ${remainingSeconds === 0 ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>{remainingLabel} left</span>
+              {draftStatus ? (
+                <button onClick={discardDraft} className="rounded-md bg-secondary px-2 py-1 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                  {draftStatus} Clear
+                </button>
+              ) : null}
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
               <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} />
@@ -371,6 +421,12 @@ function formatDuration(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
   return `${minutes}:${String(seconds).padStart(2, "0")}`
+}
+
+function formatDraftTime(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "earlier"
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 }
 
 function currentElapsedSeconds(startedAt: number) {
