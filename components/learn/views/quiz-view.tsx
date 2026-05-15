@@ -6,7 +6,7 @@ import type { WorkspaceOptions } from "../preferences"
 import type { PracticeAttemptSummary, PracticeMode, Quiz } from "../types"
 import { api } from "../api"
 import { EmptyState, Panel } from "../ui"
-import { buildMistakeRetrySet, filterPracticeQuestions, practiceModeLabel, summarizePracticeAttempt, type PracticeQuestionFilter } from "@/lib/practice-features"
+import { buildMistakeRetrySet, buildPracticeReviewPlan, filterPracticeQuestions, practiceModeLabel, summarizePracticeAttempt, type PracticeQuestionFilter } from "@/lib/practice-features"
 
 const practiceModes: PracticeMode[] = ["quiz", "exam", "flashcards", "matching", "sprint", "mistake-retry", "fill-blank", "true-false", "generated"]
 const questionFilters: Array<{ id: PracticeQuestionFilter; label: string }> = [
@@ -136,6 +136,9 @@ export function QuizView({
   const answeredCount = answeredQuestionIds.filter((id) => visibleQuestions.some((question) => question.id === id)).length
   const progressPercent = visibleQuestions.length ? Math.round((answeredCount / visibleQuestions.length) * 100) : 0
   const missedCount = attemptSummary?.missedQuestionIds.length || 0
+  const reviewPlan = useMemo(() => (
+    attemptSummary ? buildPracticeReviewPlan({ summary: attemptSummary, questions: visibleQuestions }) : null
+  ), [attemptSummary, visibleQuestions])
 
   function toggleMarked(questionId: string) {
     setMarkedQuestionIds((current) => (
@@ -254,6 +257,28 @@ export function QuizView({
               <div className="mt-4 rounded-md border border-border bg-accent p-3 text-accent-foreground">
                 <p className="font-semibold">Score: {attemptSummary.score} / {attemptSummary.total} - Duration: {formatDuration(attemptSummary.durationSeconds)}</p>
                 <p className="mt-1 text-sm opacity-80">Next: {attemptSummary.nextAction.replace(/-/g, " ")} {attemptSummary.missedQuestionIds.length ? `- ${attemptSummary.missedQuestionIds.length} missed` : ""}</p>
+                {reviewPlan ? (
+                  <div className="mt-3 grid gap-2 rounded-md bg-background/90 p-3 text-foreground md:grid-cols-[1fr_auto]">
+                    <div>
+                      <p className="text-sm font-semibold">Repair plan</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{reviewPlan.primaryAction}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 md:justify-end">
+                      <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{reviewPlan.accuracy}% accuracy</span>
+                      <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{reviewPlan.durationMinutes} min</span>
+                      <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{reviewPlan.cardsToCreate} cards</span>
+                    </div>
+                    {reviewPlan.weakTopics.length ? (
+                      <div className="flex flex-wrap gap-2 md:col-span-2">
+                        {reviewPlan.weakTopics.map((topic) => (
+                          <span key={topic.topic} className="rounded-md bg-warning px-2 py-1 text-xs font-semibold text-warning-foreground">
+                            {topic.topic}: {topic.missed}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button onClick={retryMissed} disabled={!attemptSummary.missedQuestionIds.length} className="rounded-md bg-background px-3 py-1.5 text-xs font-semibold text-foreground disabled:opacity-50">Retry missed</button>
                   <button onClick={() => setRetryQuestionIds([])} className="rounded-md bg-background px-3 py-1.5 text-xs font-semibold text-foreground">Full set</button>
