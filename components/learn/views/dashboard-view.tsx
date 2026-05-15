@@ -85,7 +85,7 @@ export function DashboardView({
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm xl:col-span-2">
+      <section className="rounded-lg border border-border bg-card text-card-foreground shadow-sm xl:col-span-2">
         <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:p-5">
           <div className="min-w-0">
             <div className="mb-3 flex flex-wrap items-center gap-2">
