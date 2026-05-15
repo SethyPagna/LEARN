@@ -1,6 +1,6 @@
 "use client"
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react"
+import { Fragment, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import type React from "react"
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core"
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
@@ -338,6 +338,7 @@ export function StudioView({
   const selectedDeck = deckId ? decks.find((item) => item.id === deckId) : undefined
   const [deckTitle, setDeckTitle] = useState("Learning deck")
   const [slides, setSlides] = useState<WorkspaceDeck["slides"]>(starterSlides)
+  const deferredQuery = useDeferredValue(query)
   const hydratedDraftKinds = useRef<Set<StudioKind>>(new Set())
   const draftReady = useRef(false)
   const lastDraftFingerprint = useRef<Partial<Record<StudioKind, string>>>({})
@@ -600,7 +601,7 @@ export function StudioView({
   const activeTab = studioTabs.find((tab) => tab.kind === kind) || studioTabs[0]
   const dirtyBadgeMap = useMemo(() => new Map(dirtyBadges.map((badge) => [badge.kind, badge])), [dirtyBadges])
   const allItems = useMemo(() => {
-    const needle = query.trim().toLowerCase()
+    const needle = deferredQuery.trim().toLowerCase()
     const mapped: Array<{ id: string; kind: StudioKind; title: string; updated_at?: string; summary?: string; favorite?: boolean }> = []
     const acceptsSection = (itemKind: StudioKind, favorite?: boolean) => (
       section === "All" || section === "Recent" || (section === "Favorites" ? favorite : itemKind === section.toLowerCase())
@@ -617,7 +618,7 @@ export function StudioView({
     for (const item of decks) append({ id: item.id, kind: "slides", title: item.title, updated_at: item.updated_at, summary: `${slidesFromDeck(item).length} slides` })
 
     return mapped.sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")))
-  }, [decks, docs, notes, query, section, sheets])
+  }, [decks, deferredQuery, docs, notes, section, sheets])
 
   function updateActivePaneKind(nextKind: StudioKind, itemId?: string, title?: string) {
     setLayout((current) => {
