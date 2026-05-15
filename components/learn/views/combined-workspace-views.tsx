@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ComponentType } from "react"
-import { BarChart3, BookOpen, CalendarDays, Compass, Gamepad2, GitFork, MessageSquare, Radio, Repeat2, Sparkles, Swords, Target, Users } from "lucide-react"
+import { BarChart3, BookOpen, CalendarDays, Compass, Gamepad2, GitFork, Info, MessageSquare, MoreHorizontal, Radio, Repeat2, Sparkles, Swords, Target, Users } from "lucide-react"
 import type { Quiz, View } from "../types"
 import type { WorkspaceOptions } from "../preferences"
 import { Panel } from "../ui"
@@ -57,7 +57,7 @@ export function LearnWorkspaceView({
   return (
     <WorkspaceFrame
       eyebrow="Learn workspace"
-      title="One home for the learning loop: route, discover, connect, review, schedule, improve."
+      title="Learn loop"
       body="Inspired by mature workspace tools: one action-oriented home, multiple views of the same learning system, and less sidebar hopping."
       tabs={learnTabs}
       activeTab={tab}
@@ -95,7 +95,7 @@ export function PracticeWorkspaceView({
   return (
     <WorkspaceFrame
       eyebrow="Practice workspace"
-      title="Quizzes and games now work as one active-recall area."
+      title="Practice arena"
       body="A strong practice loop should move between deliberate quiz attempts and fast recall games without making you hunt through separate pages."
       tabs={practiceTabs}
       activeTab={tab}
@@ -119,7 +119,7 @@ export function SocialWorkspaceView({ initialView, options }: { initialView: Vie
   return (
     <WorkspaceFrame
       eyebrow="Social workspace"
-      title="Chat, spaces, rooms, and battles are grouped by collaboration mode."
+      title="Social hub"
       body="Communication follows social-product patterns without becoming noisy: channels, threads, mentions, presence, reactions, and opt-in group modes."
       tabs={socialTabs}
       activeTab={tab}
@@ -153,11 +153,13 @@ function WorkspaceFrame<T extends string>({
   return (
     <div className="grid gap-4">
       <Panel className="p-4 lg:p-5">
-        <div className="grid gap-4 xl:grid-cols-[1fr_auto] xl:items-end">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{eyebrow}</p>
-            <h2 className="mt-2 max-w-4xl text-2xl font-semibold leading-tight text-foreground lg:text-3xl">{title}</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{body}</p>
+        <div className="grid gap-4 xl:grid-cols-[1fr_auto] xl:items-center">
+          <div className="flex min-w-0 items-start gap-3">
+            <InfoMenu title={eyebrow} body={body} />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{eyebrow}</p>
+              <h2 className="mt-1 max-w-4xl text-2xl font-semibold leading-tight text-foreground lg:text-3xl">{title}</h2>
+            </div>
           </div>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:w-[560px]">
             {tabs.map((tab) => {
@@ -167,13 +169,14 @@ function WorkspaceFrame<T extends string>({
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`rounded-md border p-3 text-left transition ${active ? "border-primary bg-primary text-primary-foreground shadow-sm" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+                  className={`group relative rounded-md border p-3 text-left transition hover:-translate-y-0.5 ${active ? "border-primary bg-primary text-primary-foreground shadow-sm" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
                 >
                   <div className="flex items-center gap-2">
                     <Icon className="h-4 w-4" />
                     <span className="font-semibold">{tab.label}</span>
+                    <MoreHorizontal className="ml-auto h-4 w-4 opacity-60" />
                   </div>
-                  <p className={`mt-1 text-xs leading-5 ${active ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{tab.caption}</p>
+                  <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{tab.caption}</p>
                 </button>
               )
             })}
@@ -189,9 +192,9 @@ function LearnRoute({ dashboard, quizzes, setView }: { dashboard: any; quizzes: 
   const focus = dashboard?.snapshot?.recommendedFocus ?? []
   const weakTopics = dashboard?.snapshot?.weakTopics ?? []
   const actions = useMemo(() => [
-    { title: "Start with one recall task", body: "Open reviews before browsing. Active recall solves the common problem of notes becoming passive storage.", view: "reviews" as View, icon: Repeat2 },
-    { title: "Turn notes into practice", body: "Use Studio, AI, then Practice so content creation and delivery are not separate chores.", view: "studio" as View, icon: Sparkles },
-    { title: "Schedule the next block", body: "Give every important concept a time anchor, not only a page or card.", view: "calendar" as View, icon: CalendarDays },
+    { title: "Review", body: "Open recall before browsing.", view: "reviews" as View, icon: Repeat2 },
+    { title: "Create", body: "Turn notes into practice.", view: "studio" as View, icon: Sparkles },
+    { title: "Schedule", body: "Give concepts a time block.", view: "calendar" as View, icon: CalendarDays },
   ], [])
 
   return (
@@ -204,7 +207,7 @@ function LearnRoute({ dashboard, quizzes, setView }: { dashboard: any; quizzes: 
               <button key={action.title} onClick={() => setView(action.view)} className="rounded-md border border-border bg-background p-4 text-left hover:bg-accent hover:text-accent-foreground">
                 <Icon className="h-6 w-6 text-success" />
                 <h3 className="mt-4 font-semibold text-foreground">{action.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">{action.body}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{action.body}</p>
               </button>
             )
           })}
@@ -218,16 +221,38 @@ function LearnRoute({ dashboard, quizzes, setView }: { dashboard: any; quizzes: 
           <MiniMetric label="Focus topics" value={String(focus.length)} />
           <MiniMetric label="Weak topics" value={String(weakTopics.length)} />
         </div>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">Use this page as the “what next?” surface. Dashboard stays a command center; Learn is the working route.</p>
+        <InfoStrip body="Dashboard is command. Learn is route." />
       </Panel>
       <Panel className="p-4 xl:col-span-2">
-        <h3 className="font-semibold text-foreground">Patterns brought into LEARN</h3>
+        <h3 className="font-semibold text-foreground">Patterns</h3>
         <div className="mt-3 grid gap-3 md:grid-cols-3">
-          <PatternCard title="Workspace views" body="Studio acts like one database with notes, docs, sheets, slides, templates, and filtered views instead of scattered tools." />
-          <PatternCard title="Social clarity" body="Threads, channels, mentions, reactions, and rooms keep collaboration readable and searchable." />
-          <PatternCard title="Study loop" body="Discovery only matters when it can become a note, review, schedule block, quiz, or group action." />
+          <PatternCard title="Views" body="Studio stays unified." />
+          <PatternCard title="Social" body="Threads, mentions, reactions." />
+          <PatternCard title="Loop" body="Discover to practice." />
         </div>
       </Panel>
+    </div>
+  )
+}
+
+function InfoMenu({ body, title }: { body: string; title: string }) {
+  return (
+    <details className="group/info relative">
+      <summary className="flex h-9 w-9 list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground" aria-label={`About ${title}`}>
+        <Info className="h-4 w-4" />
+      </summary>
+      <div className="absolute left-0 top-11 z-30 w-72 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">
+        {body}
+      </div>
+    </details>
+  )
+}
+
+function InfoStrip({ body }: { body: string }) {
+  return (
+    <div className="mt-3 flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
+      <Info className="h-4 w-4 text-success" />
+      {body}
     </div>
   )
 }
@@ -278,3 +303,4 @@ function socialTabFromView(view: View): SocialTab {
   if (view === "battles") return "battles"
   return "chat"
 }
+
