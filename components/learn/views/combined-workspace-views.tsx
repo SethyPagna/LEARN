@@ -239,9 +239,9 @@ function LearnRoute({ dashboard, quizzes, setView }: { dashboard: any; quizzes: 
       <Panel className="p-4 xl:col-span-2">
         <h3 className="font-semibold text-foreground">Shortcuts</h3>
         <div className="mt-3 grid gap-3 md:grid-cols-3">
-          <PatternCard title="Studio" body="Create, save, export." />
-          <PatternCard title="Social" body="Thread, mention, react." />
-          <PatternCard title="Loop" body="Discover, review, retry." />
+          <PatternCard icon={Sparkles} title="Studio" body="Create, save, export." />
+          <PatternCard icon={MessageSquare} title="Social" body="Thread, mention, react." />
+          <PatternCard icon={Repeat2} title="Loop" body="Discover, review, retry." />
         </div>
       </Panel>
     </div>
@@ -271,13 +271,28 @@ function InfoStrip({ body }: { body: string }) {
 }
 
 function PracticeGuide() {
+  const items = [
+    { icon: BookOpen, title: "Quiz", body: "Use for accuracy, explanations, and slower correction." },
+    { icon: Gamepad2, title: "Game", body: "Use for momentum, speed, and repeated retrieval." },
+    { icon: Repeat2, title: "Loop", body: "Quiz missed topics, then replay them as a short game." },
+  ]
   return (
     <Panel className="h-max p-4">
-      <h3 className="font-semibold text-foreground">Practice guide</h3>
-      <div className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground">
-        <p><strong className="text-foreground">Quiz:</strong> use when you need accuracy, explanations, and slower correction.</p>
-        <p><strong className="text-foreground">Game:</strong> use when you need momentum, speed, and repeated retrieval.</p>
-        <p><strong className="text-foreground">Best loop:</strong> quiz missed topics, then replay them as a short game.</p>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-semibold text-foreground">Practice guide</h3>
+        <InfoMenu title="Practice guide" body="Pick quiz mode for careful correction, game mode for fast repetition." />
+      </div>
+      <div className="mt-3 grid gap-2">
+        {items.map((item) => {
+          const Icon = item.icon
+          return (
+            <div key={item.title} className="group relative flex items-center gap-3 rounded-md border border-border bg-background p-3">
+              <Icon className="h-6 w-6 text-success" />
+              <p className="font-semibold text-foreground">{item.title}</p>
+              <p className="pointer-events-none absolute right-2 top-[calc(100%+0.35rem)] z-20 hidden w-56 rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{item.body}</p>
+            </div>
+          )
+        })}
       </div>
     </Panel>
   )
@@ -292,11 +307,12 @@ function MiniMetric({ label, value }: { label: string; value: string }) {
   )
 }
 
-function PatternCard({ body, title }: { body: string; title: string }) {
+function PatternCard({ body, icon: Icon, title }: { body: string; icon: ComponentType<{ className?: string }>; title: string }) {
   return (
-    <div className="rounded-md border border-border bg-background p-4">
+    <div className="group relative flex items-center gap-3 rounded-md border border-border bg-background p-4">
+      <Icon className="h-6 w-6 text-success" />
       <p className="font-semibold text-foreground">{title}</p>
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">{body}</p>
+      <p className="pointer-events-none absolute left-3 right-3 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{body}</p>
     </div>
   )
 }
