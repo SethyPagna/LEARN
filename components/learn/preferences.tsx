@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { useTheme } from "next-themes"
-import { getVocabulary, isSupportedLocale, type SupportedLocale } from "@/lib/i18n/vocabulary"
+import { getVocabulary, isSupportedLocale, loadVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
 
 type Density = "compact" | "comfortable"
 export type WorkspaceOptions = {
@@ -82,6 +82,7 @@ export function useWorkspacePreferences() {
   const { resolvedTheme, setTheme, theme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [locale, setLocaleState] = useState<SupportedLocale>("en")
+  const [text, setText] = useState(() => getVocabulary("en"))
   const [density, setDensityState] = useState<Density>("compact")
   const [options, setOptionsState] = useState<WorkspaceOptions>(defaultWorkspaceOptions)
 
@@ -107,6 +108,17 @@ export function useWorkspacePreferences() {
   }, [locale])
 
   useEffect(() => {
+    let active = true
+    setText(getVocabulary(locale))
+    loadVocabulary(locale).then((nextText) => {
+      if (active) setText(nextText)
+    })
+    return () => {
+      active = false
+    }
+  }, [locale])
+
+  useEffect(() => {
     document.documentElement.classList.toggle("learn-high-contrast", options.highContrast)
     document.documentElement.classList.toggle("learn-reduced-motion", options.reducedMotion)
     document.documentElement.classList.toggle("learn-dyslexia", options.dyslexiaFriendly)
@@ -129,8 +141,6 @@ export function useWorkspacePreferences() {
       return merged
     })
   }
-
-  const text = useMemo(() => getVocabulary(locale), [locale])
 
   return {
     density,
