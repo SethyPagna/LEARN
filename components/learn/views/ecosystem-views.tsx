@@ -36,6 +36,7 @@ import type {
   View,
 } from "../types"
 import { EmptyState, Panel, StatusMessage } from "../ui"
+import { reviewAnswerText, reviewPromptText, reviewSourceLabel } from "@/lib/learning-ecosystem"
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -197,12 +198,23 @@ export function GraphView() {
 export function ReviewsView() {
   const { data, status, refresh } = useResource<ReviewPayload>("/api/reviews")
   const [busyId, setBusyId] = useState("")
+  const [revealedIds, setRevealedIds] = useState<string[]>([])
+  const revealed = useMemo(() => new Set(revealedIds), [revealedIds])
+  const practiceMissCount = useMemo(() => (data?.items ?? []).filter((item) => item.sourceType === "practice_mistake").length, [data?.items])
 
   async function record(item: ReviewItem, rating: string) {
     setBusyId(item.id)
-    await api("/api/reviews", { method: "POST", body: JSON.stringify({ id: item.id, rating }) })
-    setBusyId("")
-    refresh()
+    try {
+      await api("/api/reviews", { method: "POST", body: JSON.stringify({ id: item.id, rating }) })
+      setRevealedIds((current) => current.filter((id) => id !== item.id))
+      refresh()
+    } finally {
+      setBusyId("")
+    }
+  }
+
+  function toggleReveal(id: string) {
+    setRevealedIds((current) => current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id])
   }
 
   return (
@@ -215,17 +227,32 @@ export function ReviewsView() {
         <div className="mt-4 grid gap-2">
           <Metric label="Status" value={status} />
           <Metric label="Dose" value="Minimum effective" />
+          <Metric label="Practice misses" value={String(practiceMissCount)} />
         </div>
       </Panel>
       <div className="grid gap-3">
-        {(data?.items ?? []).map((item) => (
+        {(data?.items ?? []).map((item) => {
+          const isRevealed = revealed.has(item.id)
+          return (
           <Panel key={item.id} className="p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="font-semibold text-foreground">{item.title}</p>
-                <p className="text-sm text-muted-foreground">{item.sourceType} · retrievability {Math.round(item.retrievability * 100)}%</p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-semibold text-foreground">{item.title}</p>
+                  <span className="rounded-md border border-border bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">
+                    {reviewSourceLabel(item)}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">Retrievability {Math.round(item.retrievability * 100)}%</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => toggleReveal(item.id)}
+                  className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground"
+                >
+                  <Eye className="h-4 w-4" />
+                  {isRevealed ? "Hide answer" : "Reveal"}
+                </button>
                 {["again", "hard", "good", "easy"].map((rating) => (
                   <button
                     key={rating}
@@ -233,13 +260,18 @@ export function ReviewsView() {
                     onClick={() => record(item, rating)}
                     className="h-9 rounded-md border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-60"
                   >
-                    {rating}
+                    {rating[0].toUpperCase() + rating.slice(1)}
                   </button>
                 ))}
               </div>
             </div>
+            <div className="mt-4 rounded-md border border-border bg-background p-3">
+              <p className="text-sm font-semibold text-foreground">{reviewPromptText(item)}</p>
+              {isRevealed ? <p className="mt-3 text-sm leading-6 text-muted-foreground">{reviewAnswerText(item)}</p> : null}
+            </div>
           </Panel>
-        ))}
+          )
+        })}
         {data && data.items.length === 0 ? <EmptyState title="No reviews due" body="Rest or save a feed lesson into Studio for the next session." /> : null}
       </div>
     </div>
