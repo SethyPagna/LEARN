@@ -75,7 +75,7 @@ import {
   X,
 } from "lucide-react"
 import { api, formatDate } from "../api"
-import type { Note, StudioDirtyBadge, StudioKind, StudioLayoutState, StudioPane, StudioTab, WorkspaceDeck, WorkspaceDocument, WorkspaceSheet } from "../types"
+import type { Note, SlideObject, StudioDirtyBadge, StudioKind, StudioLayoutState, StudioPane, StudioTab, WorkspaceDeck, WorkspaceDocument, WorkspaceSheet } from "../types"
 import type { WorkspaceOptions } from "../preferences"
 import { EmptyState, Panel } from "../ui"
 import {
@@ -1567,25 +1567,17 @@ function StudioCanvas({
         </DndContext>
       </div>
       <div
-        className={`${options.slidesAspect === "4:3" ? "aspect-[4/3]" : "aspect-video"} rounded-lg border border-border p-8 text-white shadow-sm transition-all ${selectedSlide?.transition === "fade" ? "hover:opacity-90" : selectedSlide?.transition === "zoom" ? "hover:shadow-lg" : ""} ${selectedSlide?.animation === "rise" ? "hover:-translate-y-1" : selectedSlide?.animation === "emphasis" ? "hover:scale-[1.01]" : ""}`}
+        className={`${options.slidesAspect === "4:3" ? "aspect-[4/3]" : "aspect-video"} relative overflow-hidden rounded-lg border border-border p-8 text-white shadow-sm transition-all ${selectedSlide?.transition === "fade" ? "hover:opacity-90" : selectedSlide?.transition === "zoom" ? "hover:shadow-lg" : ""} ${selectedSlide?.animation === "rise" ? "hover:-translate-y-1" : selectedSlide?.animation === "emphasis" ? "hover:scale-[1.01]" : ""}`}
         style={{ background: selectedSlide?.background || slideDesignPresets[(selectedSlide?.theme || "midnight") as keyof typeof slideDesignPresets]?.background || "#111827" }}
       >
         {selectedSlide ? (
-          <div className="flex h-full flex-col">
+          <div className="relative z-10 flex h-full flex-col">
             <input value={selectedSlide.accent || ""} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, accent: event.target.value } : item))} className="mb-3 w-full bg-transparent text-xs font-semibold uppercase tracking-[0.16em] text-emerald-200 outline-none" />
             <input value={selectedSlide.title} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, title: event.target.value } : item))} className="w-full bg-transparent text-4xl font-semibold leading-tight outline-none" />
             <textarea value={selectedSlide.body} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, body: event.target.value } : item))} className="mt-5 min-h-32 flex-1 resize-none bg-transparent text-lg leading-8 text-slate-200 outline-none" />
-            {selectedSlide.objects?.length ? (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {selectedSlide.objects.map((object) => (
-                  <span key={object.id} className="rounded-md bg-white/15 px-2 py-1 text-xs font-semibold text-white">
-                    {object.text || object.type}
-                  </span>
-                ))}
-              </div>
-            ) : null}
           </div>
         ) : null}
+        {selectedSlide?.objects?.map((object) => <SlideCanvasObject key={object.id} object={object} />)}
       </div>
       <div className="grid gap-3">
         <div className="grid grid-cols-3 gap-2 rounded-md border border-border bg-card p-2 text-center text-xs">
@@ -1608,6 +1600,7 @@ function StudioCanvas({
           <SheetButton label="Text" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("text")] } : item))} icon={Type} />
           <SheetButton label="Shape" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("shape")] } : item))} icon={LayoutPanelLeft} />
           <SheetButton label="Image" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("image")] } : item))} icon={ImageIcon} />
+          <SheetButton label="Table" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("table")] } : item))} icon={Table2} />
           <SheetButton label="Up" onClick={() => onSetSlides((current) => moveSlide(current, selectedSlideIndex, -1))} icon={ChevronDown} />
           <SheetButton label="Down" onClick={() => onSetSlides((current) => moveSlide(current, selectedSlideIndex, 1))} icon={ChevronDown} />
           <SheetButton label="Copy" onClick={() => onSetSlides((current) => duplicateSlide(current, selectedSlideIndex))} icon={Copy} />
@@ -1641,6 +1634,26 @@ function StudioCanvas({
                     className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus:border-ring"
                   />
                 ) : null}
+                <div className="grid grid-cols-4 gap-1">
+                  {(["x", "y", "w", "h"] as const).map((field) => (
+                    <label key={field} className="grid gap-1 text-[10px] font-semibold uppercase text-muted-foreground">
+                      {field}
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={object[field]}
+                        onChange={(event) => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? updateSlideDesignObject(item, object.id, { [field]: Number(event.target.value) }) : item))}
+                        className="h-8 rounded-md border border-input bg-background px-1 text-xs text-foreground outline-none focus:border-ring"
+                      />
+                    </label>
+                  ))}
+                </div>
+                <div className="grid grid-cols-3 gap-1">
+                  <SlideStyleInput label="Text" value={styleValue(object, "color", "#ffffff")} onChange={(value) => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? updateSlideDesignObject(item, object.id, { style: { ...(object.style || {}), color: value } }) : item))} />
+                  <SlideStyleInput label="Fill" value={styleValue(object, "background", "rgba(255,255,255,0.14)")} onChange={(value) => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? updateSlideDesignObject(item, object.id, { style: { ...(object.style || {}), background: value } }) : item))} />
+                  <SlideStyleInput label="Size" value={styleValue(object, "fontSize", "14")} onChange={(value) => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? updateSlideDesignObject(item, object.id, { style: { ...(object.style || {}), fontSize: Number(value) || 14 } }) : item))} />
+                </div>
               </div>
             ))}
           </div>
@@ -1648,6 +1661,58 @@ function StudioCanvas({
       </div>
     </div>
   )
+}
+
+function SlideCanvasObject({ object }: { object: SlideObject }) {
+  const style = object.style || {}
+  const canvasStyle: React.CSSProperties = {
+    left: `${object.x}%`,
+    top: `${object.y}%`,
+    width: `${object.w}%`,
+    height: `${object.h}%`,
+    color: readStyleValue(style, "color", "#ffffff"),
+    background: readStyleValue(style, "background", object.type === "text" ? "transparent" : "rgba(255,255,255,0.14)"),
+    borderRadius: Number(readStyleValue(style, "borderRadius", "8")),
+    fontSize: Number(readStyleValue(style, "fontSize", "14")),
+  }
+  if (object.type === "image") {
+    return (
+      <div className="absolute z-20 overflow-hidden border border-white/20 text-xs" style={canvasStyle}>
+        {object.src ? <img src={object.src} alt={object.text || "Slide image"} className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center p-2 text-center">{object.text || "Image"}</span>}
+      </div>
+    )
+  }
+  if (object.type === "table") {
+    const columns = (object.text || "Concept | Evidence | Action").split("|").map((item) => item.trim())
+    return (
+      <div className="absolute z-20 grid overflow-hidden border border-white/20 text-xs font-semibold" style={{ ...canvasStyle, gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}>
+        {columns.map((column, index) => <span key={`${column}-${index}`} className="border-r border-white/20 p-2 last:border-r-0">{column}</span>)}
+      </div>
+    )
+  }
+  return (
+    <div className={`absolute z-20 overflow-hidden border border-white/20 p-2 ${object.type === "shape" ? "flex items-center justify-center text-center font-semibold" : ""}`} style={canvasStyle}>
+      {object.text || object.type}
+    </div>
+  )
+}
+
+function SlideStyleInput({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) {
+  return (
+    <label className="grid gap-1 text-[10px] font-semibold uppercase text-muted-foreground">
+      {label}
+      <input value={value} onChange={(event) => onChange(event.target.value)} className="h-8 rounded-md border border-input bg-background px-1 text-xs text-foreground outline-none focus:border-ring" />
+    </label>
+  )
+}
+
+function styleValue(object: SlideObject, key: string, fallback: string) {
+  return readStyleValue(object.style || {}, key, fallback)
+}
+
+function readStyleValue(style: Record<string, unknown>, key: string, fallback: string) {
+  const value = style[key]
+  return value === undefined || value === null ? fallback : String(value)
 }
 
 function SortableSlideThumb({
