@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatDraftPayload, filterChatThreads, parseThreadTitle } from "../lib/social-features"
+import { buildChatDraftPayload, filterChatThreads, filterSocialRecords, parseThreadTitle, summarizeSocialWorkspace } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -32,4 +32,39 @@ test("chat thread filtering supports query questions wins and saved", () => {
   assert.equal(filterChatThreads(threads, { filter: "questions" }).length, 1)
   assert.equal(filterChatThreads(threads, { filter: "wins" }).length, 1)
   assert.equal(filterChatThreads(threads, { filter: "saved" }).length, 1)
+})
+
+test("summarizeSocialWorkspace creates kind-specific operational signals", () => {
+  const spaces = summarizeSocialWorkspace("spaces", [
+    { name: "Private circle", visibility: "private" },
+    { name: "Open math", visibility: "public" },
+  ])
+  const rooms = summarizeSocialWorkspace("rooms", [
+    { name: "Focus", status: "open", mode: "focus" },
+    { name: "Stage", status: "closed", mode: "stage" },
+  ])
+  const battles = summarizeSocialWorkspace("battles", [
+    { title: "Solo sprint", status: "completed", mode: "solo" },
+    { title: "Team round", status: "waiting", mode: "team" },
+  ])
+
+  assert.equal(spaces.primaryLabel, "Public")
+  assert.equal(spaces.primaryCount, 1)
+  assert.equal(rooms.primaryLabel, "Open")
+  assert.equal(rooms.primaryCount, 1)
+  assert.equal(battles.secondaryLabel, "Team")
+  assert.equal(battles.secondaryCount, 1)
+})
+
+test("filterSocialRecords combines text search with workspace filters", () => {
+  const records = [
+    { name: "Private algebra", visibility: "private", mode: "focus" },
+    { name: "Public biology", visibility: "public", mode: "discussion" },
+    { title: "Team calculus", status: "waiting", mode: "team", topic: "math" },
+  ]
+
+  assert.deepEqual(filterSocialRecords(records, { query: "bio" }).map((record) => record.name), ["Public biology"])
+  assert.equal(filterSocialRecords(records, { filter: "private" }).length, 1)
+  assert.equal(filterSocialRecords(records, { filter: "team" }).length, 1)
+  assert.equal(filterSocialRecords(records, { query: "math", filter: "active" }).length, 1)
 })
