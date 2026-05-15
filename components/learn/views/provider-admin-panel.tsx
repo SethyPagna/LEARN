@@ -113,6 +113,11 @@ export function ProviderAdminPanel() {
   }, [])
 
   const selectedPreset = useMemo(() => presets.find((preset) => preset.provider === form.provider), [form.provider, presets])
+  const providerOptions = useMemo(() => {
+    const options = new Set(["cloudflare", "vercel"])
+    for (const preset of presets) options.add(preset.provider)
+    return Array.from(options)
+  }, [presets])
 
   function applyPreset(preset: ProviderPreset) {
     setForm({
@@ -235,7 +240,7 @@ export function ProviderAdminPanel() {
         <h4 className="font-semibold text-foreground">Edit encrypted provider</h4>
         <div className="mt-3 grid gap-3">
           <Field label="Name" value={form.name} onChange={(value) => setForm({ ...form, name: value })} />
-          <SelectField label="Provider" value={form.provider} options={Array.from(new Set(presets.map((preset) => preset.provider))).concat(["cloudflare", "vercel"])} onChange={(value) => setForm({ ...form, provider: value })} />
+          <SelectField label="Provider" value={form.provider} options={providerOptions} onChange={(value) => setForm({ ...form, provider: value })} />
           <SelectField label="Type" value={form.providerType} options={["chat", "embed", "gateway"]} onChange={(value) => setForm({ ...form, providerType: value as ProviderType })} />
           <Field label="API key" value={form.apiKey} type="password" placeholder={form.id ? "Leave blank to keep encrypted key" : "Paste key to encrypt"} onChange={(value) => setForm({ ...form, apiKey: value })} />
           <Field label="Model" value={form.defaultModel} onChange={(value) => setForm({ ...form, defaultModel: value })} />
@@ -308,7 +313,7 @@ function SelectField({ label, value, options, onChange }: { label: string; value
     <label className="block">
       <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
       <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none">
-        {Array.from(new Set(options)).map((option) => <option key={option} value={option}>{option}</option>)}
+        {options.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
     </label>
   )
