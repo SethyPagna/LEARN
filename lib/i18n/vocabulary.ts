@@ -122,7 +122,7 @@ export const baseVocabulary = {
 type Vocabulary = typeof baseVocabulary
 type VocabularyPatch = Partial<Vocabulary>
 
-const patches: Record<SupportedLocale, VocabularyPatch> = {
+const vocabularyPatches: Record<SupportedLocale, VocabularyPatch> = {
   en: {},
   km: {
     dashboard: "ផ្ទាំងគ្រប់គ្រង",
@@ -350,10 +350,20 @@ const patches: Record<SupportedLocale, VocabularyPatch> = {
   },
 }
 
-export const vocabulary = Object.fromEntries(
-  supportedLocales.map((locale) => [locale, { ...baseVocabulary, ...patches[locale] }]),
-) as Record<SupportedLocale, Vocabulary>
+const vocabularyCache: Partial<Record<SupportedLocale, Vocabulary>> = {
+  en: baseVocabulary,
+}
+
+export function isSupportedLocale(locale: string): locale is SupportedLocale {
+  return supportedLocales.includes(locale as SupportedLocale)
+}
 
 export function getVocabulary(locale: string): Vocabulary {
-  return vocabulary[locale as SupportedLocale] ?? vocabulary.en
+  const supportedLocale = isSupportedLocale(locale) ? locale : "en"
+  const cached = vocabularyCache[supportedLocale]
+  if (cached) return cached
+
+  const vocabulary = { ...baseVocabulary, ...vocabularyPatches[supportedLocale] }
+  vocabularyCache[supportedLocale] = vocabulary
+  return vocabulary
 }
