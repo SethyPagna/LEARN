@@ -10,6 +10,7 @@ import {
 } from "../lib/ai/provider-admin"
 import { getTutorModeInstruction } from "../lib/ai/tutor"
 import { getPromptTemplate } from "../lib/ai/prompt-library"
+import { buildGuidedPrompt, listInsertActions, promptContracts } from "../lib/ai/prompt-builder"
 import { listProviderPresets, getProviderMetadata, resolveConfiguredProvider } from "../lib/ai/providers"
 
 test("resolveConfiguredProvider selects the requested provider when a key exists", () => {
@@ -124,9 +125,56 @@ test("AI automation prompt library includes provider and Vault operations", () =
   assert.ok(getPromptTemplate("daily_spark"))
   assert.ok(getPromptTemplate("graph_edge_suggestion"))
   assert.ok(getPromptTemplate("flashcard_generation"))
+  assert.ok(getPromptTemplate("document_formatter"))
+  assert.ok(getPromptTemplate("sheet_organizer"))
+  assert.ok(getPromptTemplate("slide_builder"))
+  assert.ok(getPromptTemplate("practice_generator"))
 })
 
 test("AI tutor supports cleanup and mistake modes", () => {
   assert.match(getTutorModeInstruction("cleanup"), /imported material/)
   assert.match(getTutorModeInstruction("mistake"), /misconception/)
+})
+
+test("guided prompt builder validates required fields and renders preview", () => {
+  const missing = buildGuidedPrompt({
+    taskKey: "slide_builder",
+    fields: { input: "Photosynthesis notes" },
+    filters: {
+      sourceScope: "Active Studio item",
+      difficulty: "Intermediate",
+      tone: "Concise",
+      language: "English",
+      outputLength: "Balanced",
+      providerFamily: "auto",
+      insertTarget: "slide-outline",
+    },
+  })
+
+  assert.equal(missing.ok, false)
+  assert.deepEqual(missing.missing, ["Goal"])
+
+  const ready = buildGuidedPrompt({
+    taskKey: "slide_builder",
+    fields: { input: "Photosynthesis notes", goal: "Teach the process", audience: "Beginners", slideCount: 5 },
+    filters: {
+      sourceScope: "Active Studio item",
+      difficulty: "Beginner",
+      tone: "Kind",
+      language: "English",
+      outputLength: "Balanced",
+      providerFamily: "groq",
+      insertTarget: "slide-outline",
+    },
+  })
+
+  assert.equal(ready.ok, true)
+  assert.match(ready.preview, /Preferred provider family: groq/)
+  assert.match(ready.user, /Insert target: slide-outline/)
+})
+
+test("guided prompt contracts expose insert-back actions", () => {
+  const practice = promptContracts.find((item) => item.mode === "practice_generator")
+  assert.ok(practice)
+  assert.deepEqual(listInsertActions(practice.insertTargets).map((item) => item.target), ["quiz", "flashcards", "review-cards"])
 })

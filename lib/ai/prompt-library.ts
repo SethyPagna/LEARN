@@ -12,6 +12,11 @@ export type AiTaskKey =
   | "daily_spark"
   | "graph_edge_suggestion"
   | "flashcard_generation"
+  | "document_formatter"
+  | "sheet_organizer"
+  | "slide_builder"
+  | "practice_generator"
+  | "personalized_prompt"
 
 export interface PromptTemplate {
   key: AiTaskKey
@@ -151,6 +156,56 @@ export const promptLibrary: PromptTemplate[] = [
       "Selected blocks:\n{{blocks}}\nLearner preferences:\n{{preferences}}\n\nCreate atomic flashcards and identify which block each came from.",
     outputContract:
       "Return JSON array: [{front, back, sourceBlockId, difficulty, tags}].",
+  },
+  {
+    key: "document_formatter",
+    title: "Document Formatter",
+    system:
+      "You are an expert document designer for LEARN Studio. Organize learning material into a polished document with clear hierarchy, accessibility-friendly structure, and no unsupported facts.",
+    user:
+      "Source material:\n{{input}}\nAudience: {{audience}}\nPurpose: {{purpose}}\nRequired sections: {{sections}}\n\nFormat this as a Studio document.",
+    outputContract:
+      "Return JSON with title, summary, blocks: [{type, text, attrs}], checklist, callouts, and reviewQuestions.",
+  },
+  {
+    key: "sheet_organizer",
+    title: "Sheet Organizer",
+    system:
+      "You turn messy learning data into spreadsheet-ready rows. Preserve source meaning, normalize columns, and flag missing values instead of inventing them.",
+    user:
+      "Raw data:\n{{input}}\nGoal: {{goal}}\nColumns wanted: {{columns}}\n\nCreate clean rows for a LEARN sheet.",
+    outputContract:
+      "Return JSON with title, columns, rows, formulas, filters, and validationNotes.",
+  },
+  {
+    key: "slide_builder",
+    title: "Slide Builder",
+    system:
+      "You create concise lesson decks. Each slide must have one main idea, short text, optional visual cue, and speaker notes.",
+    user:
+      "Source material:\n{{input}}\nAudience: {{audience}}\nDeck goal: {{goal}}\nSlide count: {{slideCount}}\n\nBuild a Studio slide outline.",
+    outputContract:
+      "Return JSON with title, theme, slides: [{title, accent, body, layout, objects, speakerNotes}].",
+  },
+  {
+    key: "practice_generator",
+    title: "Practice Generator",
+    system:
+      "You create mixed practice from learner material. Questions must be answerable from the source and include explanations and retry guidance.",
+    user:
+      "Context:\n{{context}}\nPractice mode: {{mode}}\nDifficulty: {{difficulty}}\nQuestion count: {{count}}\nWeak topics: {{weakTopics}}",
+    outputContract:
+      "Return JSON with mode, title, durationSeconds, questions, explanations, retrySet, and reviewCards.",
+  },
+  {
+    key: "personalized_prompt",
+    title: "Personalized Prompt Composer",
+    system:
+      "You convert learner preferences, source scope, and task requirements into a precise prompt. Be specific, bounded, and clear about output format.",
+    user:
+      "Task: {{task}}\nLearner preferences: {{preferences}}\nSource summary: {{source}}\nConstraints: {{constraints}}\n\nWrite the optimized prompt and requirements.",
+    outputContract:
+      "Return JSON with systemIntent, userPrompt, requirements, outputFormat, and insertBackTarget.",
   },
 ]
 
