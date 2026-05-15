@@ -168,10 +168,12 @@ export function selectFeedLessons(input: {
   const preferredCount = Math.max(0, input.count - serendipityCount)
   const preferred: FeedLessonSelection[] = []
   const outsideBubble: FeedLessonSelection[] = []
+  const selectionById = new Map<string, FeedLessonSelection>()
 
   for (const lesson of sorted) {
     const isPreferred = lesson.topicTags.some((topic) => preferredTopics.has(topic.toLowerCase()))
     const next = { ...lesson, reason: isPreferred ? "preferred" as const : "serendipity" as const }
+    selectionById.set(lesson.id, next)
     if (isPreferred) preferred.push(next)
     else outsideBubble.push(next)
   }
@@ -184,9 +186,10 @@ export function selectFeedLessons(input: {
   const fallback: FeedLessonSelection[] = []
   const needed = Math.max(0, input.count - selectedPreferred.length - selectedSerendipity.length)
   if (needed) {
-    for (const lesson of [...preferred, ...outsideBubble].sort((left, right) => right.readinessScore - left.readinessScore)) {
+    for (const lesson of sorted) {
       if (chosenIds.has(lesson.id)) continue
-      fallback.push(lesson)
+      const candidate = selectionById.get(lesson.id)
+      if (candidate) fallback.push(candidate)
       if (fallback.length >= needed) break
     }
   }
