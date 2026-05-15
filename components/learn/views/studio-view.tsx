@@ -221,6 +221,37 @@ function plainTextFromHtml(value: string) {
   return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
 }
 
+type PptxGenConstructor = typeof import("pptxgenjs").default
+
+declare global {
+  interface Window {
+    PptxGenJS?: PptxGenConstructor
+  }
+}
+
+async function loadPptxGen() {
+  if (window.PptxGenJS) return window.PptxGenJS
+  await new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>('script[data-learn-pptxgen="true"]')
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true })
+      existing.addEventListener("error", () => reject(new Error("Unable to load the PPTX exporter.")), { once: true })
+      return
+    }
+
+    const script = document.createElement("script")
+    script.src = "/vendor/pptxgen.min.js"
+    script.async = true
+    script.dataset.learnPptxgen = "true"
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error("Unable to load the PPTX exporter."))
+    document.head.appendChild(script)
+  })
+
+  if (!window.PptxGenJS) throw new Error("PPTX exporter did not initialize.")
+  return window.PptxGenJS
+}
+
 export function StudioView({
   initialKind,
   notes,
@@ -565,7 +596,7 @@ export function StudioView({
   }
 
   async function exportPptx(base: string) {
-    const pptxgen = (await import("pptxgenjs")).default
+    const pptxgen = await loadPptxGen()
     const pptx = new pptxgen()
     pptx.layout = options.slidesAspect === "4:3" ? "LAYOUT_4X3" : "LAYOUT_WIDE"
     pptx.author = "LEARN"
