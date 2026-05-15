@@ -29,6 +29,7 @@ import {
   X,
 } from "lucide-react"
 import { languageNames, supportedLocales, type baseVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
+import type { StudioDraftSummary } from "@/lib/studio-drafts"
 import type { View, User } from "./types"
 
 type Text = typeof baseVocabulary
@@ -109,6 +110,7 @@ export function Sidebar({
   user,
   view,
   logout,
+  studioDraftSummary,
 }: {
   density: Density
   locale: SupportedLocale
@@ -123,13 +125,14 @@ export function Sidebar({
   user: User | null
   view: View
   logout: () => void
+  studioDraftSummary: StudioDraftSummary
 }) {
   return (
     <aside className="sticky top-0 hidden h-screen border-r border-border bg-sidebar px-3 py-4 text-sidebar-foreground lg:flex lg:flex-col">
       <Brand text={text} />
       <LauncherSearch query={query} setQuery={setQuery} setView={setView} text={text} />
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-        <Navigation density={density} text={text} view={view} setView={setView} />
+        <Navigation density={density} text={text} view={view} setView={setView} studioDraftSummary={studioDraftSummary} />
       </div>
       <SidebarControls
         density={density}
@@ -291,6 +294,7 @@ export function Topbar({
   user,
   view,
   logout,
+  studioDraftSummary,
 }: {
   density: Density
   locale: SupportedLocale
@@ -304,6 +308,7 @@ export function Topbar({
   user: User | null
   view: View
   logout: () => void
+  studioDraftSummary: StudioDraftSummary
 }) {
   const MenuIcon = menuOpen ? X : Menu
   const ThemeIcon = resolvedTheme === "dark" ? Moon : Sun
@@ -321,6 +326,11 @@ export function Topbar({
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase text-muted-foreground">LEARN</p>
           <h1 className="truncate text-lg font-semibold">{titleForView(view, text)}</h1>
+          {studioDraftSummary.count && studioViews.includes(view) ? (
+            <span className="mt-1 inline-flex rounded-md bg-warning px-2 py-0.5 text-[0.68rem] font-semibold text-warning-foreground">
+              {studioDraftSummary.count} draft{studioDraftSummary.count === 1 ? "" : "s"}
+            </span>
+          ) : null}
         </div>
       </div>
       <div className="flex items-center gap-1.5">
@@ -545,6 +555,7 @@ export function MobileMenu({
   setView,
   text,
   view,
+  studioDraftSummary,
 }: {
   density: Density
   open: boolean
@@ -553,12 +564,13 @@ export function MobileMenu({
   setView: (view: View) => void
   text: Text
   view: View
+  studioDraftSummary: StudioDraftSummary
 }) {
   if (!open) return null
   return (
     <div className="border-b border-border bg-sidebar p-3 text-sidebar-foreground lg:hidden">
       <LauncherSearch query={query} setQuery={setQuery} setView={setView} text={text} />
-      <Navigation density={density} text={text} view={view} setView={setView} />
+      <Navigation density={density} text={text} view={view} setView={setView} studioDraftSummary={studioDraftSummary} />
     </div>
   )
 }
@@ -582,11 +594,13 @@ function Navigation({
   setView,
   text,
   view,
+  studioDraftSummary,
 }: {
   density: Density
   setView: (view: View) => void
   text: Text
   view: View
+  studioDraftSummary: StudioDraftSummary
 }) {
   const rowHeight = density === "compact" ? "h-9" : "h-11"
   return (
@@ -601,6 +615,7 @@ function Navigation({
             {group.items.map((item) => {
               const active = view === item.view || item.aliases?.includes(view)
               const Icon = item.icon
+              const badge = item.view === "studio" ? studioDraftSummary.count : 0
               return (
                 <button
                   key={item.view}
@@ -613,6 +628,11 @@ function Navigation({
                 >
                   <Icon className="h-[18px] w-[18px] shrink-0" />
                   <span className="truncate">{text[item.labelKey]}</span>
+                  {badge ? (
+                    <span className={`ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.68rem] font-bold ${active ? "bg-sidebar-primary-foreground text-sidebar-primary" : "bg-warning text-warning-foreground"}`} title={`${badge} local Studio draft${badge === 1 ? "" : "s"}`}>
+                      {badge}
+                    </span>
+                  ) : null}
                 </button>
               )
             })}

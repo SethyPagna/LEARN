@@ -13,6 +13,7 @@ import { useWorkspacePreferences } from "./preferences"
 import { ProfileView } from "./views/ecosystem-views"
 import { StudioView } from "./views/studio-view"
 import { LearnWorkspaceView, PracticeWorkspaceView, SocialWorkspaceView } from "./views/combined-workspace-views"
+import { readStudioDrafts, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, type StudioDraftSummary } from "@/lib/studio-drafts"
 
 const studioViews = ["studio", "notes", "docs", "sheets", "slides"] as const
 const learnViews = ["learn", "vault", "feed", "discover", "graph", "reviews", "calendar", "progress"] as const
@@ -80,6 +81,7 @@ export function LearnShell({
   const [automationData, setAutomationData] = useState<any>(null)
   const [status, setStatus] = useState("Loading workspace...")
   const [query, setQuery] = useState("")
+  const [studioDraftSummary, setStudioDraftSummary] = useState<StudioDraftSummary>({ count: 0, labels: [] })
   const preferences = useWorkspacePreferences()
 
   const selectedNote = notes.find((note) => note.id === selectedNoteId) || notes[0]
@@ -111,6 +113,15 @@ export function LearnShell({
 
   useEffect(() => {
     refresh()
+  }, [])
+
+  useEffect(() => {
+    setStudioDraftSummary(summarizeStudioDrafts(readStudioDrafts()))
+    function updateDraftSummary(event: Event) {
+      setStudioDraftSummary((event as CustomEvent<StudioDraftSummary>).detail || summarizeStudioDrafts(readStudioDrafts()))
+    }
+    window.addEventListener(STUDIO_DRAFT_EVENT, updateDraftSummary)
+    return () => window.removeEventListener(STUDIO_DRAFT_EVENT, updateDraftSummary)
   }, [])
 
   useEffect(() => {
@@ -173,6 +184,7 @@ export function LearnShell({
           setView={chooseView}
           text={preferences.text}
           user={user}
+          studioDraftSummary={studioDraftSummary}
         />
         <section className="min-w-0">
           <Topbar
@@ -188,6 +200,7 @@ export function LearnShell({
             menuOpen={menuOpen}
             setMenuOpen={setMenuOpen}
             logout={logout}
+            studioDraftSummary={studioDraftSummary}
           />
           <MobileMenu
             density={preferences.density}
@@ -197,12 +210,13 @@ export function LearnShell({
             view={view}
             text={preferences.text}
             setView={chooseView}
+            studioDraftSummary={studioDraftSummary}
           />
           <div className={preferences.density === "compact" ? "p-3 lg:p-4" : "p-4 lg:p-6"}>
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
             {view === "dashboard" ? <DashboardView dashboard={dashboard} notes={notes} quizzes={quizzes} options={preferences.options} setView={chooseView} /> : null}
             {learnViews.includes(view as (typeof learnViews)[number]) ? <LearnWorkspaceView dashboard={dashboard} initialView={view} options={preferences.options} quizzes={quizzes} setView={chooseView} /> : null}
-            {studioViews.includes(view as (typeof studioViews)[number]) ? <StudioView initialKind={getStudioKind(view)} notes={filteredNotes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} /> : null}
+            {studioViews.includes(view as (typeof studioViews)[number]) ? <StudioView initialKind={getStudioKind(view)} notes={filteredNotes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} onDraftSummary={setStudioDraftSummary} /> : null}
             {practiceViews.includes(view as (typeof practiceViews)[number]) ? <PracticeWorkspaceView initialView={view} quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={preferences.options} setView={chooseView} /> : null}
             {view === "ai" ? <AiTutorView notes={notes} options={preferences.options} setOptions={preferences.setOptions} /> : null}
             {view === "files" ? <FilesView options={preferences.options} /> : null}
