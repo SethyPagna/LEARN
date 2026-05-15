@@ -166,29 +166,32 @@ export function selectFeedLessons(input: {
   const sorted = [...input.lessons].sort((left, right) => right.readinessScore - left.readinessScore)
   const serendipityCount = Math.max(1, Math.ceil(input.count * (input.serendipityRatio ?? 0.15)))
   const preferredCount = Math.max(0, input.count - serendipityCount)
-  const preferred = sorted
-    .filter((lesson) => lesson.topicTags.some((topic) => preferredTopics.has(topic.toLowerCase())))
-    .slice(0, preferredCount)
-    .map((lesson) => ({ ...lesson, reason: "preferred" as const }))
+  const preferred: FeedLessonSelection[] = []
+  const outsideBubble: FeedLessonSelection[] = []
 
-  const chosenIds = new Set(preferred.map((lesson) => lesson.id))
-  const serendipity = sorted
-    .filter((lesson) => !chosenIds.has(lesson.id))
-    .filter((lesson) => !lesson.topicTags.some((topic) => preferredTopics.has(topic.toLowerCase())))
-    .slice(0, serendipityCount)
-    .map((lesson) => ({ ...lesson, reason: "serendipity" as const }))
+  for (const lesson of sorted) {
+    const isPreferred = lesson.topicTags.some((topic) => preferredTopics.has(topic.toLowerCase()))
+    const next = { ...lesson, reason: isPreferred ? "preferred" as const : "serendipity" as const }
+    if (isPreferred) preferred.push(next)
+    else outsideBubble.push(next)
+  }
 
-  const fallback = sorted
-    .filter((lesson) => !chosenIds.has(lesson.id) && !serendipity.some((entry) => entry.id === lesson.id))
-    .slice(0, Math.max(0, input.count - preferred.length - serendipity.length))
-    .map((lesson) => ({
-      ...lesson,
-      reason: lesson.topicTags.some((topic) => preferredTopics.has(topic.toLowerCase()))
-        ? "preferred" as const
-        : "serendipity" as const,
-    }))
+  const selectedPreferred = preferred.slice(0, preferredCount)
+  const selectedSerendipity = outsideBubble.slice(0, serendipityCount)
+  const chosenIds = new Set(selectedPreferred.map((lesson) => lesson.id))
+  for (const lesson of selectedSerendipity) chosenIds.add(lesson.id)
 
-  return [...preferred, ...serendipity, ...fallback].slice(0, input.count)
+  const fallback: FeedLessonSelection[] = []
+  const needed = Math.max(0, input.count - selectedPreferred.length - selectedSerendipity.length)
+  if (needed) {
+    for (const lesson of [...preferred, ...outsideBubble].sort((left, right) => right.readinessScore - left.readinessScore)) {
+      if (chosenIds.has(lesson.id)) continue
+      fallback.push(lesson)
+      if (fallback.length >= needed) break
+    }
+  }
+
+  return [...selectedPreferred, ...selectedSerendipity, ...fallback].slice(0, input.count)
 }
 
 export function detectOrphanKnowledgeNodes(nodes: KnowledgeNode[], edges: KnowledgeEdge[]) {
