@@ -177,7 +177,7 @@ function LauncherSearch({
   const visibleCommands = needle ? commandResults : launcherCommands.slice(0, 4)
   const hasResults = navResults.length > 0 || visibleCommands.length > 0
   const showPanel = focused && (needle.length > 0 || visibleCommands.length > 0)
-  const firstView = navResults[0]?.view ?? visibleCommands[0]?.view
+  const firstView = visibleCommands[0]?.view ?? navResults[0]?.view
 
   function choose(nextView: View) {
     setView(nextView)
