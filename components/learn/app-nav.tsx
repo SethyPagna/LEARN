@@ -1,9 +1,12 @@
 "use client"
 
 import type React from "react"
+import { useState } from "react"
 import {
   Bell,
   BookOpen,
+  Check,
+  CheckCheck,
   Bot,
   ChevronDown,
   Compass,
@@ -22,6 +25,7 @@ import {
   Shield,
   Sun,
   MessagesSquare,
+  Trash2,
   X,
 } from "lucide-react"
 import { languageNames, supportedLocales, type baseVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
@@ -297,9 +301,10 @@ function LanguageMenu({ compact, locale, setLocale }: { compact?: boolean; local
             <button
               key={item}
               onClick={() => setLocale(item)}
-              className={`rounded-md px-3 py-2 text-left text-sm transition hover:bg-accent hover:text-accent-foreground ${locale === item ? "bg-primary text-primary-foreground" : "text-popover-foreground"}`}
+              className={`flex items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm transition hover:bg-accent hover:text-accent-foreground ${locale === item ? "bg-primary text-primary-foreground" : "text-popover-foreground"}`}
             >
-              {languageNames[item]}
+              <span>{languageNames[item]}</span>
+              {locale === item ? <Check className="h-4 w-4" /> : null}
             </button>
           ))}
         </div>
@@ -309,29 +314,71 @@ function LanguageMenu({ compact, locale, setLocale }: { compact?: boolean; local
 }
 
 function NotificationsMenu({ compact }: { compact?: boolean }) {
-  const items = [
-    { title: "Review ready", detail: "3 active recall items" },
-    { title: "Studio saved", detail: "Latest workspace sync" },
-    { title: "Room status", detail: "Focus room is open" },
-  ]
+  const [filter, setFilter] = useState<"all" | "unread">("all")
+  const [items, setItems] = useState([
+    { id: "review", title: "Review ready", detail: "3 active recall items", unread: true },
+    { id: "studio", title: "Studio saved", detail: "Latest workspace sync", unread: false },
+    { id: "room", title: "Room status", detail: "Focus room is open", unread: true },
+  ])
+  const visibleItems = filter === "unread" ? items.filter((item) => item.unread) : items
+  const unreadCount = items.filter((item) => item.unread).length
+
+  function markAllRead() {
+    setItems((current) => current.map((item) => ({ ...item, unread: false })))
+  }
+
+  function toggleRead(id: string) {
+    setItems((current) => current.map((item) => item.id === id ? { ...item, unread: !item.unread } : item))
+  }
+
+  function dismiss(id: string) {
+    setItems((current) => current.filter((item) => item.id !== id))
+  }
+
   return (
     <details className="group/menu relative">
       <summary className={`${compact ? "flex h-9 w-9" : "sidebar-icon-button"} relative list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground`} aria-label="Notifications" title="Notifications">
         <Bell className="h-4 w-4" />
-        <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-success" />
+        {unreadCount ? <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-success px-1 text-[0.62rem] font-bold leading-none text-success-foreground">{unreadCount}</span> : null}
       </summary>
       <div className={`absolute right-0 z-40 mt-2 w-72 origin-top-right rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95 ${compact ? "" : "bottom-11 right-auto left-0"}`}>
         <div className="flex items-center justify-between px-2 pb-2">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Notifications</p>
-          <button className="rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground">...</button>
+          <button onClick={markAllRead} className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground" title="Mark all read">
+            <CheckCheck className="h-3.5 w-3.5" />
+            Read
+          </button>
         </div>
-        <div className="grid gap-1">
-          {items.map((item) => (
-            <button key={item.title} className="rounded-md p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
-              <span className="block text-sm font-semibold">{item.title}</span>
-              <span className="mt-1 block text-xs text-muted-foreground">{item.detail}</span>
+        <div className="mb-2 grid grid-cols-2 gap-1 rounded-md border border-border bg-background p-1">
+          {(["all", "unread"] as const).map((item) => (
+            <button
+              key={item}
+              onClick={() => setFilter(item)}
+              className={`rounded-sm px-2 py-1.5 text-xs font-semibold capitalize transition ${filter === item ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}
+            >
+              {item}
             </button>
           ))}
+        </div>
+        <div className="grid gap-1">
+          {visibleItems.length ? visibleItems.map((item) => (
+            <div key={item.id} className="group/notification grid grid-cols-[1fr_auto] gap-2 rounded-md p-3 transition hover:bg-accent hover:text-accent-foreground">
+              <button onClick={() => toggleRead(item.id)} className="min-w-0 text-left">
+                <span className="flex items-center gap-2 text-sm font-semibold">
+                  {item.unread ? <span className="h-2 w-2 rounded-full bg-success" /> : null}
+                  <span className="truncate">{item.title}</span>
+                </span>
+                <span className="mt-1 block truncate text-xs text-muted-foreground">{item.detail}</span>
+              </button>
+              <button onClick={() => dismiss(item.id)} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground opacity-80 transition hover:bg-background hover:text-destructive group-hover/notification:opacity-100" aria-label={`Dismiss ${item.title}`} title="Dismiss">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          )) : (
+            <div className="rounded-md border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
+              No notifications
+            </div>
+          )}
         </div>
       </div>
     </details>
