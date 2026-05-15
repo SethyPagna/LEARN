@@ -319,11 +319,15 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
   const [query, setQuery] = useState("")
   const [message, setMessage] = useState("")
   const items = useMemo(() => data?.items ?? [], [data?.items])
-  const selected = items.find((item) => item.id === selectedId)
+  const selected = useMemo(() => items.find((item) => item.id === selectedId), [items, selectedId])
   const Icon = kind === "spaces" ? Users : kind === "rooms" ? Radio : Swords
   const title = kind === "spaces" ? "Learning Spaces" : kind === "rooms" ? "Study Rooms" : "Study Battles"
   const noun = kind === "spaces" ? "space" : kind === "rooms" ? "room" : "battle"
-  const filteredItems = items.filter((item) => socialSearchText(item).toLowerCase().includes(query.trim().toLowerCase()))
+  const filteredItems = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return items
+    return items.filter((item) => socialSearchText(item).toLowerCase().includes(needle))
+  }, [items, query])
 
   useEffect(() => {
     if (!items.length) {
