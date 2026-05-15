@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import type React from "react"
-import { AtSign, Bell, Download, Gamepad2, Hash, Languages, MessageSquare, Plus, Redo2, Reply, Save, Send, Smile, Undo2 } from "lucide-react"
+import { AtSign, Bell, Clock, Download, Gamepad2, Hash, Languages, MessageSquare, Plus, Redo2, Reply, RotateCcw, Save, Send, Smile, Undo2 } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Quiz, WorkspaceDeck, WorkspaceDocument, WorkspaceSheet } from "../types"
 import { api } from "../api"
@@ -236,15 +236,32 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
   const questions = useMemo(() => quizzes.flatMap((quiz) => quiz.questions || []).slice(0, options.gameQuestionLimit), [quizzes, options.gameQuestionLimit])
   const [index, setIndex] = useState(0)
   const [score, setScore] = useState(0)
+  const [startedAt, setStartedAt] = useState(() => Date.now())
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [targetSeconds, setTargetSeconds] = useState(90)
   const current = questions[index]
+
+  useEffect(() => {
+    if (!current) return
+    const timer = window.setInterval(() => {
+      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [current, startedAt])
+
+  function resetRun() {
+    setIndex(0)
+    setScore(0)
+    setStartedAt(Date.now())
+    setElapsedSeconds(0)
+  }
 
   async function choose(choiceId: string) {
     const nextScore = score + (choiceId === current?.correct_answer_id ? 1 : 0)
     setScore(nextScore)
     if (index + 1 >= questions.length) {
-      await api("/api/games", { method: "POST", body: JSON.stringify({ gameKey: "flashcard-sprint", score: nextScore, total: questions.length }) }).catch(() => undefined)
-      setIndex(0)
-      setScore(0)
+      await api("/api/games", { method: "POST", body: JSON.stringify({ gameKey: "flashcard-sprint", score: nextScore, total: questions.length, durationSeconds: elapsedSeconds }) }).catch(() => undefined)
+      resetRun()
       return
     }
     setIndex(index + 1)
@@ -258,8 +275,30 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
         <Gamepad2 className="h-5 w-5 text-success" />
         <div>
           <h2 className="text-2xl font-semibold">Flashcard sprint</h2>
-          <p className="text-sm text-muted-foreground">{options.gameMode} mode - Score {score} / {questions.length}</p>
+          <p className="text-sm text-muted-foreground">{options.gameMode} mode - Score {score} / {questions.length} - {formatDuration(elapsedSeconds)}</p>
         </div>
+      </div>
+      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2">
+        <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
+          <Clock className="h-3.5 w-3.5" />
+          {formatDuration(elapsedSeconds)}
+        </span>
+        {[60, 90, 180].map((seconds) => (
+          <button
+            key={seconds}
+            onClick={() => setTargetSeconds(seconds)}
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold ${targetSeconds === seconds ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+          >
+            {Math.round(seconds / 60)}m
+          </button>
+        ))}
+        <span className={`rounded-md px-2 py-1 text-xs font-semibold ${elapsedSeconds > targetSeconds ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>
+          target {formatDuration(targetSeconds)}
+        </span>
+        <button onClick={resetRun} className="ml-auto flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+          <RotateCcw className="h-3.5 w-3.5" />
+          Restart
+        </button>
       </div>
       <div className="rounded-lg bg-primary p-5 text-primary-foreground">
         <p className="text-sm opacity-70">Prompt {index + 1}</p>
@@ -274,6 +313,12 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
       </div>
     </Panel>
   )
+}
+
+function formatDuration(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${String(seconds).padStart(2, "0")}`
 }
 
 export function ChatView({ options }: { options: WorkspaceOptions }) {

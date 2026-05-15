@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { Clock, RotateCcw } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Quiz } from "../types"
 import { api } from "../api"
@@ -20,6 +21,9 @@ export function QuizView({
   const [quiz, setQuiz] = useState<Quiz | null>(null)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [result, setResult] = useState<any>(null)
+  const [startedAt, setStartedAt] = useState(() => Date.now())
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [targetMinutes, setTargetMinutes] = useState(options.quizMode === "exam" ? 20 : 10)
   const selected = selectedQuizId || quizzes[0]?.id
 
   useEffect(() => {
@@ -28,8 +32,18 @@ export function QuizView({
       setQuiz(response.item)
       setAnswers({})
       setResult(null)
+      setStartedAt(Date.now())
+      setElapsedSeconds(0)
     })
   }, [selected])
+
+  useEffect(() => {
+    if (!quiz || result) return
+    const timer = window.setInterval(() => {
+      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [quiz, result, startedAt])
 
   async function submit() {
     if (!quiz) return
@@ -38,10 +52,20 @@ export function QuizView({
       body: JSON.stringify({
         quizId: quiz.id,
         answers: Object.entries(answers).map(([questionId, selectedAnswerId]) => ({ questionId, selectedAnswerId })),
+        durationSeconds: elapsedSeconds,
       }),
     })
     setResult(response)
   }
+
+  function resetTimer() {
+    setStartedAt(Date.now())
+    setElapsedSeconds(0)
+  }
+
+  const remainingSeconds = Math.max(0, targetMinutes * 60 - elapsedSeconds)
+  const elapsedLabel = formatDuration(elapsedSeconds)
+  const remainingLabel = formatDuration(remainingSeconds)
 
   return (
     <div className="grid gap-4 xl:grid-cols-[300px_1fr]">
@@ -65,6 +89,23 @@ export function QuizView({
             <div className="mt-4 flex flex-wrap gap-2 text-xs">
               <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">Mode: {options.quizMode}</span>
               <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">{options.revealAnswers ? "Answers reveal after selection" : "Exam-style hidden answers"}</span>
+              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-muted-foreground"><Clock className="h-3.5 w-3.5" /> {elapsedLabel} elapsed</span>
+              <span className={`rounded-md px-2 py-1 ${remainingSeconds === 0 ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>{remainingLabel} left</span>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2">
+              {[5, 10, 20, 45].map((minutes) => (
+                <button
+                  key={minutes}
+                  onClick={() => setTargetMinutes(minutes)}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold ${targetMinutes === minutes ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+                >
+                  {minutes}m
+                </button>
+              ))}
+              <button onClick={resetTimer} className="ml-auto flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                <RotateCcw className="h-3.5 w-3.5" />
+                Reset timer
+              </button>
             </div>
             <div className="mt-5 space-y-3">
               {quiz.questions?.map((question, index) => (
@@ -92,7 +133,7 @@ export function QuizView({
                 </article>
               ))}
             </div>
-            {result ? <p className="mt-4 rounded-md bg-accent p-3 font-semibold text-accent-foreground">Score: {result.score} / {result.total}</p> : null}
+            {result ? <p className="mt-4 rounded-md bg-accent p-3 font-semibold text-accent-foreground">Score: {result.score} / {result.total} - Duration: {formatDuration(result.durationSeconds || elapsedSeconds)}</p> : null}
             <button onClick={submit} className="mt-4 rounded-md bg-success px-4 py-2 text-sm font-semibold text-success-foreground">Submit attempt</button>
           </>
         ) : (
@@ -101,4 +142,10 @@ export function QuizView({
       </Panel>
     </div>
   )
+}
+
+function formatDuration(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${String(seconds).padStart(2, "0")}`
 }
