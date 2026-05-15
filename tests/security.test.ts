@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
+import { filterFileLibrary, fileKindLabel, summarizeFileLibrary } from "../lib/file-library-features"
 import { classifyUploadContentType, MAX_UPLOAD_BYTES, validateUploadFile, validateUploadFileShape } from "../lib/file-security"
 import { checkRateLimit } from "../lib/rate-limit"
 
@@ -24,6 +25,32 @@ test("upload content types classify files for UI grouping", () => {
   assert.equal(classifyUploadContentType("video/mp4"), "video")
   assert.equal(classifyUploadContentType("text/csv"), "sheet")
   assert.equal(classifyUploadContentType("application/pdf"), "pdf")
+})
+
+test("file library summary groups media and document files", () => {
+  const files = [
+    { id: "image", filename: "diagram.png", content_type: "image/png", size_bytes: 10, created_at: "", source: "r2" },
+    { id: "pdf", filename: "reading.pdf", content_type: "application/pdf", size_bytes: 20, created_at: "", source: "r2" },
+    { id: "sheet", filename: "scores.csv", content_type: "text/csv", size_bytes: 30, created_at: "", source: "r2" },
+  ]
+  const summary = summarizeFileLibrary(files)
+
+  assert.equal(summary.totalFiles, 3)
+  assert.equal(summary.totalBytes, 60)
+  assert.equal(summary.mediaCount, 1)
+  assert.equal(summary.documentCount, 2)
+  assert.equal(summary.kindCounts.sheet, 1)
+  assert.equal(fileKindLabel("slides"), "Slides")
+})
+
+test("file library filter matches kind labels and query text", () => {
+  const files = [
+    { id: "image", filename: "diagram.png", content_type: "image/png", size_bytes: 10, created_at: "", source: "r2" },
+    { id: "pdf", filename: "reading.pdf", content_type: "application/pdf", size_bytes: 20, created_at: "", source: "r2" },
+  ]
+
+  assert.deepEqual(filterFileLibrary(files, { kind: "image" }).map((file) => file.id), ["image"])
+  assert.deepEqual(filterFileLibrary(files, { query: "pdfs" }).map((file) => file.id), ["pdf"])
 })
 
 test("checkRateLimit blocks after the configured burst", async () => {
