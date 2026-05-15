@@ -37,6 +37,7 @@ import type {
 } from "../types"
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { reviewAnswerText, reviewPromptText, reviewSourceLabel } from "@/lib/learning-ecosystem"
+import { filterSocialRecords, socialRecordTitle, summarizeSocialWorkspace, type SocialRecordFilter } from "@/lib/social-features"
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -351,6 +352,7 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
   const [selectedId, setSelectedId] = useState("")
   const [draft, setDraft] = useState(() => createSocialDraft(kind))
   const [query, setQuery] = useState("")
+  const [recordFilter, setRecordFilter] = useState<SocialRecordFilter>("all")
   const [message, setMessage] = useState("")
   const draftHydrated = useRef(false)
   const restoredDraftId = useRef<string | null>(null)
@@ -359,11 +361,9 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
   const Icon = kind === "spaces" ? Users : kind === "rooms" ? Radio : Swords
   const title = kind === "spaces" ? "Learning Spaces" : kind === "rooms" ? "Study Rooms" : "Study Battles"
   const noun = kind === "spaces" ? "space" : kind === "rooms" ? "room" : "battle"
-  const filteredItems = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    if (!needle) return items
-    return items.filter((item) => socialSearchText(item).toLowerCase().includes(needle))
-  }, [items, query])
+  const socialSummary = useMemo(() => summarizeSocialWorkspace(kind, items), [items, kind])
+  const filteredItems = useMemo(() => filterSocialRecords(items, { query, filter: recordFilter }) as Array<LearningSpace | StudyRoom | StudyBattle>, [items, query, recordFilter])
+  const filterOptions = useMemo(() => socialFilterOptions(kind), [kind])
 
   useEffect(() => {
     const stored = readSocialDraftStore(kind)
@@ -474,6 +474,22 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
         <label className="mt-4 flex h-10 items-center rounded-md border border-input bg-background px-3">
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${title.toLowerCase()}`} className="w-full bg-transparent text-sm outline-none" />
         </label>
+        <div className="mt-3 grid grid-cols-3 gap-1 rounded-md border border-border bg-background p-1">
+          {filterOptions.map((option) => (
+            <button
+              key={option}
+              onClick={() => setRecordFilter(option)}
+              className={`rounded-md px-2 py-1.5 text-xs font-semibold capitalize ${recordFilter === option ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <Metric label="Total" value={String(socialSummary.total)} />
+          <Metric label={socialSummary.primaryLabel} value={String(socialSummary.primaryCount)} />
+          <Metric label={socialSummary.secondaryLabel} value={String(socialSummary.secondaryCount)} />
+        </div>
         <div className="mt-4 grid gap-2">
           {filteredItems.map((item) => (
             <button
@@ -484,7 +500,7 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
               }}
               className={`rounded-md border p-3 text-left ${selectedId === item.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
             >
-              <span className="block truncate text-sm font-semibold">{socialTitle(item)}</span>
+              <span className="block truncate text-sm font-semibold">{socialRecordTitle(item)}</span>
               <span className="mt-1 block truncate text-xs opacity-80">{socialMeta(kind, item)}</span>
             </button>
           ))}
@@ -499,7 +515,7 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
             <p className="text-xs font-semibold uppercase text-muted-foreground">{draft.id ? "Editing" : "New draft"}</p>
             <h3 className="mt-1 text-xl font-semibold text-foreground">{draft.name || draft.title || `Untitled ${noun}`}</h3>
           </div>
-          <span className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">{socialDraftBadge(kind, draft)}</span>
+          <span className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">{socialDraftStatus(kind, draft)}</span>
         </div>
         <div className="grid gap-3">
           {kind === "battles" ? (
@@ -538,6 +554,7 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
 
       <Panel className="p-4">
         <h3 className="font-semibold text-foreground">Controls</h3>
+        <p className="mt-2 rounded-md border border-border bg-background p-3 text-sm text-muted-foreground">{socialSummary.suggestedAction}</p>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <SocialGuideTile icon={Save} label="Save" detail={`Create or update the selected ${noun}.`} />
           <SocialGuideTile icon={Edit3} label="Edit" detail="Select a record, change fields, then save." />
@@ -547,6 +564,14 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Metric label="Records" value={String(items.length)} />
           <Metric label="State" value={status} />
+        </div>
+        <div className="mt-4 grid gap-2">
+          {socialSummary.modeCounts.map((mode) => (
+            <div key={mode.label} className="flex items-center justify-between rounded-md border border-border bg-background p-2 text-sm">
+              <span className="font-medium text-foreground capitalize">{mode.label}</span>
+              <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{mode.count}</span>
+            </div>
+          ))}
         </div>
       </Panel>
     </div>
@@ -648,6 +673,17 @@ function nextSocialToggle(kind: "spaces" | "rooms" | "battles", draft: SocialDra
   return { ...draft, status: order[(order.indexOf(draft.status) + 1) % order.length] }
 }
 
+function socialFilterOptions(kind: SocialKind): SocialRecordFilter[] {
+  if (kind === "spaces") return ["all", "private", "public"]
+  if (kind === "rooms") return ["all", "active", "focus"]
+  return ["all", "active", "team"]
+}
+
+function socialDraftStatus(kind: SocialKind, draft: SocialDraft) {
+  if (kind === "spaces") return draft.visibility
+  return draft.status
+}
+
 function socialTitle(item: LearningSpace | StudyRoom | StudyBattle | SocialDraft) {
   if ("title" in item && item.title) return item.title
   if ("name" in item && item.name) return item.name
@@ -659,15 +695,6 @@ function socialMeta(kind: "spaces" | "rooms" | "battles", item: LearningSpace | 
   if (kind === "rooms" && "pomodoro_minutes" in item) return `${item.status} - ${item.mode} - ${item.pomodoro_minutes} min`
   if ("topic" in item) return `${item.status} - ${item.mode} - ${item.topic}`
   return "Ready"
-}
-
-function socialSearchText(item: LearningSpace | StudyRoom | StudyBattle) {
-  return `${socialTitle(item)} ${"description" in item ? item.description : ""} ${"topic" in item ? item.topic : ""} ${"status" in item ? item.status : ""} ${"visibility" in item ? item.visibility : ""}`
-}
-
-function socialDraftBadge(kind: "spaces" | "rooms" | "battles", draft: SocialDraft) {
-  if (kind === "spaces") return draft.visibility
-  return draft.status
 }
 
 function SocialField({ label, value, onChange, multiline }: { label: string; value: string; onChange: (value: string) => void; multiline?: boolean }) {
