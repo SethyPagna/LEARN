@@ -6,7 +6,7 @@ import type { WorkspaceOptions } from "../preferences"
 import type { PracticeAttemptSummary, PracticeMode, Quiz } from "../types"
 import { api } from "../api"
 import { EmptyState, Panel } from "../ui"
-import { buildMistakeRetrySet, buildPracticeReviewPlan, filterPracticeQuestions, practiceModeLabel, summarizePracticeAttempt, type PracticeQuestionFilter } from "@/lib/practice-features"
+import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, filterPracticeQuestions, practiceModeLabel, summarizePracticeAttempt, type PracticeQuestionFilter } from "@/lib/practice-features"
 
 const practiceModes: PracticeMode[] = ["quiz", "exam", "flashcards", "matching", "sprint", "mistake-retry", "fill-blank", "true-false", "generated"]
 const questionFilters: Array<{ id: PracticeQuestionFilter; label: string }> = [
@@ -39,6 +39,7 @@ export function QuizView({
   const [retryQuestionIds, setRetryQuestionIds] = useState<string[]>([])
   const [markedQuestionIds, setMarkedQuestionIds] = useState<string[]>([])
   const [questionFilter, setQuestionFilter] = useState<PracticeQuestionFilter>("all")
+  const [reviewCardStatus, setReviewCardStatus] = useState("")
   const selected = selectedQuizId || quizzes[0]?.id
   const visibleQuestions = useMemo(() => {
     const questions = quiz?.questions || []
@@ -59,6 +60,7 @@ export function QuizView({
       setAnswers({})
       setResult(null)
       setAttemptSummary(null)
+      setReviewCardStatus("")
       setRetryQuestionIds([])
       setMarkedQuestionIds([])
       setQuestionFilter("all")
@@ -100,6 +102,7 @@ export function QuizView({
     setElapsedSeconds(durationSeconds)
     setResult(response)
     setAttemptSummary(summary)
+    setReviewCardStatus("")
   }
 
   function resetTimer() {
@@ -128,6 +131,23 @@ export function QuizView({
     setAttemptSummary(null)
     setPracticeMode("mistake-retry")
     resetTimer()
+  }
+
+  async function saveMissesToReviews() {
+    if (!quiz || !attemptSummary?.missedQuestionIds.length) return
+    const items = buildPracticeReviewCards({
+      quizId: quiz.id,
+      quizTitle: quiz.title,
+      questions: visibleQuestions,
+      missedQuestionIds: attemptSummary.missedQuestionIds,
+    })
+    if (!items.length) return
+    setReviewCardStatus("Saving review cards...")
+    const response = await api<{ item: { count: number } }>("/api/reviews", {
+      method: "POST",
+      body: JSON.stringify({ items }),
+    })
+    setReviewCardStatus(`Saved ${response.item.count} review cards.`)
   }
 
   const remainingSeconds = Math.max(0, targetMinutes * 60 - elapsedSeconds)
@@ -281,8 +301,10 @@ export function QuizView({
                 ) : null}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button onClick={retryMissed} disabled={!attemptSummary.missedQuestionIds.length} className="rounded-md bg-background px-3 py-1.5 text-xs font-semibold text-foreground disabled:opacity-50">Retry missed</button>
+                  <button onClick={saveMissesToReviews} disabled={!attemptSummary.missedQuestionIds.length} className="rounded-md bg-background px-3 py-1.5 text-xs font-semibold text-foreground disabled:opacity-50">Save review cards</button>
                   <button onClick={() => setRetryQuestionIds([])} className="rounded-md bg-background px-3 py-1.5 text-xs font-semibold text-foreground">Full set</button>
                 </div>
+                {reviewCardStatus ? <p className="mt-2 rounded-md bg-background px-3 py-2 text-xs font-semibold text-foreground">{reviewCardStatus}</p> : null}
               </div>
             ) : null}
             <button onClick={submit} className="mt-4 rounded-md bg-success px-4 py-2 text-sm font-semibold text-success-foreground">Submit attempt</button>
