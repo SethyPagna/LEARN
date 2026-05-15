@@ -39,6 +39,38 @@ export function summarizePracticeAttempt(input: {
   }
 }
 
+export function buildPracticeReviewPlan(input: {
+  summary: PracticeAttemptSummary
+  questions: QuizQuestion[]
+}) {
+  const questionById = new Map(input.questions.map((question) => [question.id, question]))
+  const topicCounts = new Map<string, number>()
+  for (const questionId of input.summary.missedQuestionIds) {
+    const topic = questionById.get(questionId)?.topic || "General"
+    topicCounts.set(topic, (topicCounts.get(topic) || 0) + 1)
+  }
+
+  const weakTopics = [...topicCounts.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .map(([topic, missed]) => ({ topic, missed }))
+
+  const accuracy = input.summary.total ? Math.round((input.summary.score / input.summary.total) * 100) : 0
+  const durationMinutes = Math.max(1, Math.ceil(input.summary.durationSeconds / 60))
+  const primaryAction = input.summary.missedQuestionIds.length
+    ? "Retry missed questions, then save the hardest misses as review cards."
+    : accuracy >= 90
+      ? "Level up with a harder mode or generate a follow-up quiz from Studio notes."
+      : "Do a short review pass, then repeat the full set."
+
+  return {
+    accuracy,
+    durationMinutes,
+    weakTopics,
+    primaryAction,
+    cardsToCreate: Math.min(5, input.summary.missedQuestionIds.length),
+  }
+}
+
 export function buildMistakeRetrySet(questions: QuizQuestion[], missedQuestionIds: string[]) {
   const missed = new Set(missedQuestionIds)
   return questions.filter((question) => missed.has(question.id))

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import type { QuizQuestion } from "../components/learn/types"
-import { buildMistakeRetrySet, evaluateGameChoice, filterPracticeQuestions, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt } from "../lib/practice-features"
+import { buildMistakeRetrySet, buildPracticeReviewPlan, evaluateGameChoice, filterPracticeQuestions, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt } from "../lib/practice-features"
 
 const questions: QuizQuestion[] = [
   { id: "q1", question: "One?", choices: [{ id: "a", text: "1" }, { id: "b", text: "2" }], correct_answer_id: "a", topic: "Math", explanation: "One" },
@@ -27,6 +27,22 @@ test("practice attempt summary scores answers and recommends retry", () => {
 test("practice retry set contains only missed questions", () => {
   assert.deepEqual(buildMistakeRetrySet(questions, ["q2"]).map((question) => question.id), ["q2"])
   assert.equal(practiceModeLabel("mistake-retry"), "Mistake Retry")
+})
+
+test("practice review plan groups misses by topic and recommends next loop", () => {
+  const summary = summarizePracticeAttempt({
+    mode: "quiz",
+    questions,
+    answers: [{ questionId: "q1", selectedAnswerId: "b" }],
+    durationSeconds: 75,
+  })
+  const plan = buildPracticeReviewPlan({ summary, questions })
+
+  assert.equal(plan.accuracy, 0)
+  assert.equal(plan.durationMinutes, 2)
+  assert.deepEqual(plan.weakTopics, [{ topic: "Math", missed: 2 }])
+  assert.match(plan.primaryAction, /Retry missed/)
+  assert.equal(plan.cardsToCreate, 2)
 })
 
 test("practice summary treats unanswered questions as missed", () => {
