@@ -8,6 +8,7 @@ import {
   maskProviderSecret,
   normalizeProviderConfigInput,
 } from "../lib/ai/provider-admin"
+import { getTutorModeInstruction } from "../lib/ai/tutor"
 import { getPromptTemplate } from "../lib/ai/prompt-library"
 import { listProviderPresets, getProviderMetadata, resolveConfiguredProvider } from "../lib/ai/providers"
 
@@ -123,4 +124,9 @@ test("AI automation prompt library includes provider and Vault operations", () =
   assert.ok(getPromptTemplate("daily_spark"))
   assert.ok(getPromptTemplate("graph_edge_suggestion"))
   assert.ok(getPromptTemplate("flashcard_generation"))
+})
+
+test("AI tutor supports cleanup and mistake modes", () => {
+  assert.match(getTutorModeInstruction("cleanup"), /imported material/)
+  assert.match(getTutorModeInstruction("mistake"), /misconception/)
 })
