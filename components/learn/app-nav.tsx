@@ -172,6 +172,7 @@ export function Topbar({
 }) {
   const MenuIcon = menuOpen ? X : Menu
   const ThemeIcon = resolvedTheme === "dark" ? Moon : Sun
+  const [openControl, setOpenControl] = useState<"language" | "notifications" | null>(null)
   return (
     <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-2.5 text-foreground backdrop-blur lg:hidden">
       <div className="flex min-w-0 items-center gap-3">
@@ -204,8 +205,8 @@ export function Topbar({
         >
           <ThemeIcon className="h-4 w-4" />
         </button>
-        <LanguageMenu locale={locale} setLocale={setLocale} compact />
-        <NotificationsMenu compact />
+        <LanguageMenu compact locale={locale} open={openControl === "language"} setLocale={setLocale} setOpen={(open) => setOpenControl(open ? "language" : null)} />
+        <NotificationsMenu compact open={openControl === "notifications"} setOpen={(open) => setOpenControl(open ? "notifications" : null)} />
         <div className="hidden text-right md:block">
           <p className="text-sm font-semibold">{user?.name || "Loading"}</p>
           <p className="text-xs capitalize text-muted-foreground">{user?.role || "learner"}</p>
@@ -244,6 +245,7 @@ function SidebarControls({
   user: User | null
 }) {
   const ThemeIcon = resolvedTheme === "dark" ? Moon : Sun
+  const [openControl, setOpenControl] = useState<"language" | "notifications" | null>(null)
   return (
     <div className="mt-auto pt-4">
       <div className="rounded-md border border-sidebar-border bg-background p-2">
@@ -273,8 +275,8 @@ function SidebarControls({
           >
             <ThemeIcon className="h-4 w-4" />
           </button>
-          <LanguageMenu locale={locale} setLocale={setLocale} />
-          <NotificationsMenu />
+          <LanguageMenu locale={locale} open={openControl === "language"} setLocale={setLocale} setOpen={(open) => setOpenControl(open ? "language" : null)} />
+          <NotificationsMenu open={openControl === "notifications"} setOpen={(open) => setOpenControl(open ? "notifications" : null)} />
         </div>
         <button
           onClick={logout}
@@ -288,19 +290,34 @@ function SidebarControls({
   )
 }
 
-function LanguageMenu({ compact, locale, setLocale }: { compact?: boolean; locale: SupportedLocale; setLocale: (locale: SupportedLocale) => void }) {
+function LanguageMenu({
+  compact,
+  locale,
+  open,
+  setLocale,
+  setOpen,
+}: {
+  compact?: boolean
+  locale: SupportedLocale
+  open: boolean
+  setLocale: (locale: SupportedLocale) => void
+  setOpen: (open: boolean) => void
+}) {
   return (
-    <details className="group/menu relative">
-      <summary className={`${compact ? "flex h-9 w-9" : "sidebar-icon-button"} list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground`} aria-label="Language" title={languageNames[locale]}>
+    <div className="relative">
+      <button onClick={() => setOpen(!open)} className={`${compact ? "flex h-9 w-9" : "sidebar-icon-button"} list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground`} aria-label="Language" title={languageNames[locale]}>
         <Languages className="h-4 w-4" />
-      </summary>
-      <div className={`absolute right-0 z-40 mt-2 w-64 origin-top-right rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95 ${compact ? "" : "bottom-11 right-auto left-0"}`}>
+      </button>
+      {open ? <div className={`absolute right-0 z-40 mt-2 w-64 origin-top-right rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95 ${compact ? "" : "bottom-11 right-auto left-0"}`}>
         <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Language</p>
         <div className="grid max-h-72 gap-1 overflow-auto">
           {supportedLocales.map((item) => (
             <button
               key={item}
-              onClick={() => setLocale(item)}
+              onClick={() => {
+                setLocale(item)
+                setOpen(false)
+              }}
               className={`flex items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm transition hover:bg-accent hover:text-accent-foreground ${locale === item ? "bg-primary text-primary-foreground" : "text-popover-foreground"}`}
             >
               <span>{languageNames[item]}</span>
@@ -308,12 +325,12 @@ function LanguageMenu({ compact, locale, setLocale }: { compact?: boolean; local
             </button>
           ))}
         </div>
-      </div>
-    </details>
+      </div> : null}
+    </div>
   )
 }
 
-function NotificationsMenu({ compact }: { compact?: boolean }) {
+function NotificationsMenu({ compact, open, setOpen }: { compact?: boolean; open: boolean; setOpen: (open: boolean) => void }) {
   const [filter, setFilter] = useState<"all" | "unread">("all")
   const [items, setItems] = useState([
     { id: "review", title: "Review ready", detail: "3 active recall items", unread: true },
@@ -336,12 +353,12 @@ function NotificationsMenu({ compact }: { compact?: boolean }) {
   }
 
   return (
-    <details className="group/menu relative">
-      <summary className={`${compact ? "flex h-9 w-9" : "sidebar-icon-button"} relative list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground`} aria-label="Notifications" title="Notifications">
+    <div className="relative">
+      <button onClick={() => setOpen(!open)} className={`${compact ? "flex h-9 w-9" : "sidebar-icon-button"} relative list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground`} aria-label="Notifications" title="Notifications">
         <Bell className="h-4 w-4" />
         {unreadCount ? <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-success px-1 text-[0.62rem] font-bold leading-none text-success-foreground">{unreadCount}</span> : null}
-      </summary>
-      <div className={`absolute right-0 z-40 mt-2 w-72 origin-top-right rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95 ${compact ? "" : "bottom-11 right-auto left-0"}`}>
+      </button>
+      {open ? <div className={`absolute right-0 z-40 mt-2 w-72 origin-top-right rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95 ${compact ? "" : "bottom-11 right-auto left-0"}`}>
         <div className="flex items-center justify-between px-2 pb-2">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Notifications</p>
           <button onClick={markAllRead} className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground" title="Mark all read">
@@ -380,8 +397,8 @@ function NotificationsMenu({ compact }: { compact?: boolean }) {
             </div>
           )}
         </div>
-      </div>
-    </details>
+      </div> : null}
+    </div>
   )
 }
 
