@@ -14,8 +14,11 @@ export function QuizProgress({
   currentQuestion,
   answers,
 }: QuizProgressProps) {
-  const correctCount = answers.filter((a) => a.isCorrect).length
-  const incorrectCount = answers.filter((a) => !a.isCorrect).length
+  let correctCount = 0
+  for (const answer of answers) {
+    if (answer.isCorrect) correctCount += 1
+  }
+  const incorrectCount = answers.length - correctCount
 
   return (
     <div className="w-full max-w-2xl mx-auto mb-8">
