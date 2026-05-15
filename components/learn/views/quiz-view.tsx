@@ -1,15 +1,14 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Clock, Flag, Pause, Play, RotateCcw, XCircle } from "lucide-react"
+import { Clock, Flag, Info, Pause, Play, RotateCcw, Sparkles, XCircle } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { PracticeAttemptSummary, PracticeMode, Quiz } from "../types"
 import { api } from "../api"
 import { EmptyState, Panel } from "../ui"
 import { clearPracticeDraft, hasPracticeDraftContent, readPracticeDraft, writePracticeDraft } from "@/lib/practice-drafts"
-import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, filterPracticeQuestions, practiceModeLabel, summarizePracticeAttempt, type PracticeQuestionFilter } from "@/lib/practice-features"
+import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, filterPracticeQuestions, practiceModeGroups, practiceModeLabel, summarizePracticeAttempt, summarizePracticeMode, type PracticeQuestionFilter } from "@/lib/practice-features"
 
-const practiceModes: PracticeMode[] = ["quiz", "exam", "flashcards", "matching", "sprint", "mistake-retry", "fill-blank", "true-false", "generated"]
 const questionFilters: Array<{ id: PracticeQuestionFilter; label: string }> = [
   { id: "all", label: "All" },
   { id: "unanswered", label: "Unanswered" },
@@ -201,6 +200,12 @@ export function QuizView({
   const answeredCount = answeredQuestionIds.filter((id) => visibleQuestions.some((question) => question.id === id)).length
   const progressPercent = visibleQuestions.length ? Math.round((answeredCount / visibleQuestions.length) * 100) : 0
   const missedCount = attemptSummary?.missedQuestionIds.length || 0
+  const modeSummary = summarizePracticeMode({
+    mode: practiceMode,
+    missedCount,
+    answeredCount,
+    totalCount: visibleQuestions.length,
+  })
   const reviewPlan = useMemo(() => (
     attemptSummary ? buildPracticeReviewPlan({ summary: attemptSummary, questions: visibleQuestions }) : null
   ), [attemptSummary, visibleQuestions])
@@ -236,13 +241,38 @@ export function QuizView({
       <Panel className="p-4">
         {quiz ? (
           <>
-            <h2 className="text-2xl font-semibold text-foreground">{quiz.title}</h2>
-            <p className="mt-2 text-sm text-muted-foreground">{quiz.description}</p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {practiceModes.map((mode) => (
-                <button key={mode} onClick={() => setPracticeMode(mode)} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${practiceMode === mode ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
-                  {practiceModeLabel(mode)}
+            <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
+              <div>
+                <h2 className="text-2xl font-semibold text-foreground">{quiz.title}</h2>
+                <p className="mt-2 text-sm text-muted-foreground">{quiz.description}</p>
+              </div>
+              <div className="flex flex-wrap gap-2 lg:justify-end">
+                <ModeStatusChip label={modeSummary.activeGroup.label} value={modeSummary.activeModeLabel} />
+                <button
+                  onClick={() => setPracticeMode(modeSummary.recommendedNextMode)}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
+                  title={modeSummary.caption}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Next: {practiceModeLabel(modeSummary.recommendedNextMode)}
                 </button>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-2 lg:grid-cols-4">
+              {practiceModeGroups.map((group) => (
+                <div key={group.id} className={`rounded-md border p-2 ${modeSummary.activeGroup.id === group.id ? "border-primary bg-primary/10" : "border-border bg-card"}`}>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{group.label}</p>
+                    <InfoPopover title={group.label} body={group.caption} />
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.modes.map((mode) => (
+                      <button key={mode} onClick={() => setPracticeMode(mode)} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${practiceMode === mode ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+                        {practiceModeLabel(mode)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
             <div className="mt-4 flex flex-wrap gap-2 text-xs">
@@ -367,6 +397,28 @@ export function QuizView({
         )}
       </Panel>
     </div>
+  )
+}
+
+function ModeStatusChip({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-muted px-3 text-xs font-semibold text-muted-foreground">
+      {label}
+      <span className="rounded bg-background px-1.5 py-0.5 text-foreground">{value}</span>
+    </span>
+  )
+}
+
+function InfoPopover({ body, title }: { body: string; title: string }) {
+  return (
+    <details className="relative">
+      <summary className="flex h-7 w-7 list-none items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${title}`}>
+        <Info className="h-3.5 w-3.5" />
+      </summary>
+      <p className="absolute right-0 top-8 z-20 w-56 rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-xl">
+        {body}
+      </p>
+    </details>
   )
 }
 

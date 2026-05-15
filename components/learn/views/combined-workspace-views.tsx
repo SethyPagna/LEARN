@@ -323,7 +323,7 @@ function PracticeGuide({
                   <p className="truncate text-sm font-semibold text-foreground">{draft.title}</p>
                   <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                     <Clock className="h-3.5 w-3.5" />
-                    {formatCompactDuration(draft.elapsedSeconds)} · {draft.answeredCount} answered · {draft.markedCount} marked
+                    {formatCompactDuration(draft.elapsedSeconds)} | {draft.answeredCount} answered | {draft.markedCount} marked
                   </p>
                 </div>
                 <span className="rounded-md bg-background px-2 py-1 text-[0.68rem] font-semibold text-foreground">{draft.practiceMode.replace(/-/g, " ")}</span>
