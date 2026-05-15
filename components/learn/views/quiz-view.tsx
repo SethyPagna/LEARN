@@ -1,14 +1,20 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Clock, Pause, Play, RotateCcw } from "lucide-react"
+import { Clock, Flag, Pause, Play, RotateCcw, XCircle } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { PracticeAttemptSummary, PracticeMode, Quiz } from "../types"
 import { api } from "../api"
 import { EmptyState, Panel } from "../ui"
-import { buildMistakeRetrySet, practiceModeLabel, summarizePracticeAttempt } from "@/lib/practice-features"
+import { buildMistakeRetrySet, filterPracticeQuestions, practiceModeLabel, summarizePracticeAttempt, type PracticeQuestionFilter } from "@/lib/practice-features"
 
 const practiceModes: PracticeMode[] = ["quiz", "exam", "flashcards", "matching", "sprint", "mistake-retry", "fill-blank", "true-false", "generated"]
+const questionFilters: Array<{ id: PracticeQuestionFilter; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "unanswered", label: "Unanswered" },
+  { id: "marked", label: "Marked" },
+  { id: "missed", label: "Missed" },
+]
 
 export function QuizView({
   quizzes,
@@ -31,11 +37,20 @@ export function QuizView({
   const [practiceMode, setPracticeMode] = useState<PracticeMode>(options.quizMode === "exam" ? "exam" : "quiz")
   const [attemptSummary, setAttemptSummary] = useState<PracticeAttemptSummary | null>(null)
   const [retryQuestionIds, setRetryQuestionIds] = useState<string[]>([])
+  const [markedQuestionIds, setMarkedQuestionIds] = useState<string[]>([])
+  const [questionFilter, setQuestionFilter] = useState<PracticeQuestionFilter>("all")
   const selected = selectedQuizId || quizzes[0]?.id
   const visibleQuestions = useMemo(() => {
     const questions = quiz?.questions || []
     return retryQuestionIds.length ? buildMistakeRetrySet(questions, retryQuestionIds) : questions
   }, [quiz?.questions, retryQuestionIds])
+  const answeredQuestionIds = useMemo(() => Object.keys(answers), [answers])
+  const filteredQuestions = useMemo(() => filterPracticeQuestions(visibleQuestions, {
+    filter: questionFilter,
+    answeredQuestionIds,
+    markedQuestionIds,
+    missedQuestionIds: attemptSummary?.missedQuestionIds || retryQuestionIds,
+  }), [answeredQuestionIds, attemptSummary?.missedQuestionIds, markedQuestionIds, questionFilter, retryQuestionIds, visibleQuestions])
 
   useEffect(() => {
     if (!selected) return
@@ -45,6 +60,8 @@ export function QuizView({
       setResult(null)
       setAttemptSummary(null)
       setRetryQuestionIds([])
+      setMarkedQuestionIds([])
+      setQuestionFilter("all")
       setStartedAt(Date.now())
       setElapsedSeconds(0)
     })
@@ -104,6 +121,8 @@ export function QuizView({
   function retryMissed() {
     if (!attemptSummary?.missedQuestionIds.length) return
     setRetryQuestionIds(attemptSummary.missedQuestionIds)
+    setMarkedQuestionIds(attemptSummary.missedQuestionIds)
+    setQuestionFilter("all")
     setAnswers({})
     setResult(null)
     setAttemptSummary(null)
@@ -114,8 +133,23 @@ export function QuizView({
   const remainingSeconds = Math.max(0, targetMinutes * 60 - elapsedSeconds)
   const elapsedLabel = formatDuration(elapsedSeconds)
   const remainingLabel = formatDuration(remainingSeconds)
-  const answeredCount = visibleQuestions.filter((question) => answers[question.id]).length
+  const answeredCount = answeredQuestionIds.filter((id) => visibleQuestions.some((question) => question.id === id)).length
   const progressPercent = visibleQuestions.length ? Math.round((answeredCount / visibleQuestions.length) * 100) : 0
+  const missedCount = attemptSummary?.missedQuestionIds.length || 0
+
+  function toggleMarked(questionId: string) {
+    setMarkedQuestionIds((current) => (
+      current.includes(questionId) ? current.filter((id) => id !== questionId) : [...current, questionId]
+    ))
+  }
+
+  function clearAnswer(questionId: string) {
+    setAnswers((current) => {
+      const next = { ...current }
+      delete next[questionId]
+      return next
+    })
+  }
 
   return (
     <div className="grid gap-4 xl:grid-cols-[300px_1fr]">
@@ -147,6 +181,7 @@ export function QuizView({
               <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">Mode: {practiceModeLabel(practiceMode)}</span>
               <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">{options.revealAnswers ? "Answers reveal after selection" : "Exam-style hidden answers"}</span>
               <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">{answeredCount}/{visibleQuestions.length} answered</span>
+              <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">{markedQuestionIds.length} marked</span>
               <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-muted-foreground"><Clock className="h-3.5 w-3.5" /> {elapsedLabel} elapsed</span>
               <span className={`rounded-md px-2 py-1 ${remainingSeconds === 0 ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>{remainingLabel} left</span>
             </div>
@@ -154,16 +189,50 @@ export function QuizView({
               <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} />
             </div>
             <QuizTimerControls paused={paused} setPaused={setPracticePaused} targetMinutes={targetMinutes} elapsedSeconds={elapsedSeconds} remainingSeconds={remainingSeconds} resetTimer={resetTimer} setTargetMinutes={setTargetMinutes} />
+            <div className="mt-4 flex flex-wrap gap-2 rounded-md border border-border bg-card p-2">
+              {questionFilters.map((filter) => {
+                const count = filter.id === "all"
+                  ? visibleQuestions.length
+                  : filterPracticeQuestions(visibleQuestions, {
+                    filter: filter.id,
+                    answeredQuestionIds,
+                    markedQuestionIds,
+                    missedQuestionIds: attemptSummary?.missedQuestionIds || retryQuestionIds,
+                  }).length
+                return (
+                  <button key={filter.id} onClick={() => setQuestionFilter(filter.id)} className={`h-8 rounded-md px-3 text-xs font-semibold ${questionFilter === filter.id ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+                    {filter.label} <span className="opacity-70">{count}</span>
+                  </button>
+                )
+              })}
+              {missedCount ? <span className="ml-auto rounded-md bg-warning px-2 py-1 text-xs font-semibold text-warning-foreground">{missedCount} to repair</span> : null}
+            </div>
             <div className="mt-5 space-y-3">
-              {visibleQuestions.map((question, index) => (
+              {filteredQuestions.map((question, index) => {
+                const marked = markedQuestionIds.includes(question.id)
+                return (
                 <article key={question.id} className="rounded-lg border border-border p-4">
-                  <p className="text-sm text-muted-foreground">Question {index + 1}</p>
-                  <h3 className="mt-1 font-semibold text-foreground">{question.question}</h3>
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Question {index + 1}</p>
+                      <h3 className="mt-1 font-semibold text-foreground">{question.question}</h3>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => toggleMarked(question.id)} className={`flex h-8 items-center gap-1.5 rounded-md border px-2 text-xs font-semibold ${marked ? "border-warning bg-warning text-warning-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+                        <Flag className="h-3.5 w-3.5" />
+                        {marked ? "Marked" : "Mark"}
+                      </button>
+                      <button onClick={() => clearAnswer(question.id)} disabled={!answers[question.id]} className="flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50">
+                        <XCircle className="h-3.5 w-3.5" />
+                        Clear
+                      </button>
+                    </div>
+                  </div>
                   <div className="mt-4 grid gap-2 md:grid-cols-2">
                     {question.choices.map((choice) => (
                       <button
                         key={choice.id}
-                        onClick={() => setAnswers({ ...answers, [question.id]: choice.id })}
+                        onClick={() => setAnswers((current) => ({ ...current, [question.id]: choice.id }))}
                         className={`rounded-md border p-3 text-left text-sm ${
                           answers[question.id] === choice.id ? "border-success bg-accent text-accent-foreground" : "border-border hover:bg-muted"
                         }`}
@@ -178,7 +247,8 @@ export function QuizView({
                     ))}
                   </div>
                 </article>
-              ))}
+              )})}
+              {!filteredQuestions.length ? <EmptyState title="No questions in this view" body="Switch filters or clear answers/marks to continue." /> : null}
             </div>
             {attemptSummary ? (
               <div className="mt-4 rounded-md border border-border bg-accent p-3 text-accent-foreground">
