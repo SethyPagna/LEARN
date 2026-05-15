@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS quiz_attempts (
   user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   score integer NOT NULL,
   total integer NOT NULL,
+  duration_seconds integer NOT NULL DEFAULT 0,
   created_at text NOT NULL DEFAULT (datetime('now'))
 );
 

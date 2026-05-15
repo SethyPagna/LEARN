@@ -9,6 +9,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}))
   const quizId = String(body.quizId || "")
   const answers = Array.isArray(body.answers) ? body.answers : []
+  const durationSeconds = Math.max(0, Math.round(Number(body.durationSeconds || body.duration_seconds || 0)))
   if (!quizId || answers.length === 0) return fail("Quiz id and answers are required.")
-  return ok(await recordQuizAttempt(user, { quizId, answers }))
+  return ok(await recordQuizAttempt(user, { quizId, answers, durationSeconds }))
 }

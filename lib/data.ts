@@ -659,6 +659,7 @@ export async function getQuiz(id: string) {
 export async function recordQuizAttempt(user: User, input: {
   quizId: string
   answers: { questionId: string; selectedAnswerId: string }[]
+  durationSeconds?: number
 }) {
   await ensureDatabase()
   const quiz = await getQuiz(input.quizId)
@@ -675,9 +676,10 @@ export async function recordQuizAttempt(user: User, input: {
   })
   const score = normalizedAnswers.filter((answer) => answer.correct).length
   const attemptId = createId("attempt")
+  const durationSeconds = Math.max(0, Math.round(Number(input.durationSeconds || 0)))
   await query(
-    "INSERT INTO quiz_attempts (id, quiz_id, user_id, score, total) VALUES ($1, $2, $3, $4, $5)",
-    [attemptId, input.quizId, user.id, score, input.answers.length],
+    "INSERT INTO quiz_attempts (id, quiz_id, user_id, score, total, duration_seconds) VALUES ($1, $2, $3, $4, $5, $6)",
+    [attemptId, input.quizId, user.id, score, input.answers.length, durationSeconds],
   )
   for (const answer of normalizedAnswers) {
     await query(
@@ -687,7 +689,7 @@ export async function recordQuizAttempt(user: User, input: {
     )
   }
   await logAudit({ userId: user.id, action: "complete", entity: "quiz_attempt", entityId: attemptId })
-  return { attemptId, score, total: input.answers.length }
+  return { attemptId, score, total: input.answers.length, durationSeconds }
 }
 
 export async function listAdminData() {
