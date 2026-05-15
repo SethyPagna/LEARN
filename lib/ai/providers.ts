@@ -255,28 +255,36 @@ export function listProviderPresets() {
 
 export function resolveConfiguredProvider(env: RuntimeEnv = process.env) {
   const preferred = getProviderMetadata(env.AI_PROVIDER_DEFAULT || "")
-  const candidates = preferred
-    ? [preferred, ...listProviderMetadata().filter((provider) => provider.provider !== preferred.provider)]
-    : listProviderMetadata()
-
-  for (const provider of candidates) {
+  const visited = new Set<string>()
+  const resolve = (provider: AiProviderMetadata) => {
+    visited.add(provider.provider)
     const apiKey = env[provider.envKey]
-    if (apiKey?.trim()) {
-      const model = env[`${provider.envKey}_MODEL`] || provider.defaultModel
-      const endpoint = provider.provider === "cloudflare"
-        ? env.CLOUDFLARE_AI_GATEWAY_URL
-          || (env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_AI_GATEWAY_ID
-            ? `https://gateway.ai.cloudflare.com/v1/${env.CLOUDFLARE_ACCOUNT_ID}/${env.CLOUDFLARE_AI_GATEWAY_ID}/workers-ai/${model}`
-            : provider.endpoint)
-        : provider.endpoint
+    if (!apiKey?.trim()) return null
+    const model = env[`${provider.envKey}_MODEL`] || provider.defaultModel
+    const endpoint = provider.provider === "cloudflare"
+      ? env.CLOUDFLARE_AI_GATEWAY_URL
+        || (env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_AI_GATEWAY_ID
+          ? `https://gateway.ai.cloudflare.com/v1/${env.CLOUDFLARE_ACCOUNT_ID}/${env.CLOUDFLARE_AI_GATEWAY_ID}/workers-ai/${model}`
+          : provider.endpoint)
+      : provider.endpoint
 
-      return {
-        ...provider,
-        endpoint,
-        apiKey,
-        model,
-      }
+    return {
+      ...provider,
+      endpoint,
+      apiKey,
+      model,
     }
+  }
+
+  if (preferred) {
+    const resolved = resolve(preferred)
+    if (resolved) return resolved
+  }
+
+  for (const provider of listProviderMetadata()) {
+    if (visited.has(provider.provider)) continue
+    const resolved = resolve(provider)
+    if (resolved) return resolved
   }
 
   return null
