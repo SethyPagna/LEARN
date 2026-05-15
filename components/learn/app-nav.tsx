@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import {
   Bell,
   BookOpen,
@@ -35,6 +35,7 @@ type Text = typeof baseVocabulary
 type Density = "compact" | "comfortable"
 type NavItem = { view: View; labelKey: keyof Text; icon: React.ComponentType<{ className?: string }>; aliases?: View[] }
 type NavGroup = { label: string; items: NavItem[] }
+type LauncherCommand = { label: string; detail: string; view: View; icon: React.ComponentType<{ className?: string }>; keywords: string[] }
 
 const studioViews: View[] = ["studio", "notes", "docs", "sheets", "slides"]
 const learnViews: View[] = ["learn", "vault", "feed", "discover", "graph", "reviews", "calendar", "progress"]
@@ -76,6 +77,14 @@ const navGroups: NavGroup[] = [
   },
 ]
 const navItems = navGroups.flatMap((group) => group.items)
+const launcherCommands: LauncherCommand[] = [
+  { label: "Create in Studio", detail: "New note, doc, sheet, or slide", view: "studio", icon: FileText, keywords: ["new", "create", "note", "doc", "sheet", "slide", "studio"] },
+  { label: "Start reviews", detail: "Open active recall queue", view: "reviews", icon: BookOpen, keywords: ["review", "recall", "flashcard", "practice"] },
+  { label: "Practice now", detail: "Quizzes and games", view: "practice", icon: Gamepad2, keywords: ["quiz", "game", "practice", "test"] },
+  { label: "Ask AI tutor", detail: "Prompt, rewrite, quiz, plan", view: "ai", icon: Bot, keywords: ["ai", "tutor", "prompt", "rewrite", "plan"] },
+  { label: "Plan calendar", detail: "Study blocks and due dates", view: "calendar", icon: Compass, keywords: ["calendar", "time", "schedule", "plan"] },
+  { label: "Tune settings", detail: "Theme, language, density, accessibility", view: "settings", icon: Settings, keywords: ["settings", "theme", "language", "accessibility", "density"] },
+]
 
 export function titleForView(view: View, text: Text) {
   if (studioViews.includes(view)) return text.studio
@@ -118,15 +127,7 @@ export function Sidebar({
   return (
     <aside className="sticky top-0 hidden h-screen border-r border-border bg-sidebar px-3 py-4 text-sidebar-foreground lg:flex lg:flex-col">
       <Brand text={text} />
-      <div className="mb-3 flex h-9 items-center gap-2 rounded-md border border-sidebar-border bg-background px-3">
-        <Search className="h-4 w-4 text-muted-foreground" />
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search Studio"
-          className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-        />
-      </div>
+      <LauncherSearch query={query} setQuery={setQuery} setView={setView} text={text} />
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
         <Navigation density={density} text={text} view={view} setView={setView} />
       </div>
@@ -142,6 +143,117 @@ export function Sidebar({
         user={user}
       />
     </aside>
+  )
+}
+
+function LauncherSearch({
+  query,
+  setQuery,
+  setView,
+  text,
+}: {
+  query: string
+  setQuery: (query: string) => void
+  setView: (view: View) => void
+  text: Text
+}) {
+  const needle = query.trim().toLowerCase()
+  const navResults = useMemo(() => {
+    if (!needle) return []
+    return navItems
+      .filter((item) => {
+        const label = String(text[item.labelKey]).toLowerCase()
+        return label.includes(needle) || item.view.includes(needle) || item.aliases?.some((alias) => alias.includes(needle))
+      })
+      .slice(0, 5)
+  }, [needle, text])
+  const commandResults = useMemo(() => {
+    if (!needle) return []
+    return launcherCommands
+      .filter((item) => `${item.label} ${item.detail} ${item.keywords.join(" ")}`.toLowerCase().includes(needle))
+      .slice(0, 4)
+  }, [needle])
+  const hasResults = navResults.length > 0 || commandResults.length > 0
+
+  function choose(nextView: View) {
+    setView(nextView)
+    setQuery("")
+  }
+
+  return (
+    <div className="relative mb-3">
+      <div className="flex h-9 items-center gap-2 rounded-md border border-sidebar-border bg-background px-3 focus-within:ring-2 focus-within:ring-sidebar-ring/30">
+        <Search className="h-4 w-4 text-muted-foreground" />
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search or jump"
+          className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+        />
+      </div>
+      {needle ? (
+        <div className="absolute left-0 right-0 top-11 z-50 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95">
+          {hasResults ? (
+            <div className="grid gap-2">
+              {navResults.length ? (
+                <LauncherGroup label="Go to">
+                  {navResults.map((item) => {
+                    const Icon = item.icon
+                    return (
+                      <LauncherItem key={item.view} icon={Icon} label={String(text[item.labelKey])} detail="Open section" onClick={() => choose(item.view)} />
+                    )
+                  })}
+                </LauncherGroup>
+              ) : null}
+              {commandResults.length ? (
+                <LauncherGroup label="Actions">
+                  {commandResults.map((item) => (
+                    <LauncherItem key={item.label} icon={item.icon} label={item.label} detail={item.detail} onClick={() => choose(item.view)} />
+                  ))}
+                </LauncherGroup>
+              ) : null}
+            </div>
+          ) : (
+            <div className="rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">
+              No command found
+            </div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function LauncherGroup({ children, label }: { children: React.ReactNode; label: string }) {
+  return (
+    <div>
+      <p className="px-2 pb-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <div className="grid gap-1">{children}</div>
+    </div>
+  )
+}
+
+function LauncherItem({
+  detail,
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  detail: string
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button onClick={onClick} className="flex w-full items-center gap-3 rounded-md p-2 text-left transition hover:bg-accent hover:text-accent-foreground">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-semibold">{label}</span>
+        <span className="block truncate text-xs text-muted-foreground">{detail}</span>
+      </span>
+    </button>
   )
 }
 
