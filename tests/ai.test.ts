@@ -11,6 +11,7 @@ import {
 import { getTutorModeInstruction } from "../lib/ai/tutor"
 import { getPromptTemplate } from "../lib/ai/prompt-library"
 import { buildGuidedPrompt, listInsertActions, promptContracts } from "../lib/ai/prompt-builder"
+import { buildAiGatewayReadiness } from "../lib/ai/gateway-readiness"
 import { buildInsertBackPayload, parseAiJson } from "../lib/ai/insert-back"
 import { listProviderPresets, getProviderMetadata, resolveConfiguredProvider } from "../lib/ai/providers"
 
@@ -203,6 +204,47 @@ test("guided prompt contracts expose insert-back actions", () => {
   const practice = promptContracts.find((item) => item.mode === "practice_generator")
   assert.ok(practice)
   assert.deepEqual(listInsertActions(practice.insertTargets).map((item) => item.target), ["quiz", "flashcards", "review-cards"])
+})
+
+test("AI gateway readiness explains prompt and provider state", () => {
+  const prompt = buildGuidedPrompt({
+    taskKey: "practice_generator",
+    fields: { context: "React hooks", mode: "mixed", count: 5 },
+    filters: {
+      sourceScope: "Recent notes",
+      difficulty: "Adaptive",
+      tone: "Direct",
+      language: "English",
+      outputLength: "Balanced",
+      providerFamily: "groq",
+      insertTarget: "quiz",
+    },
+  })
+
+  const ready = buildAiGatewayReadiness({
+    prompt,
+    providerFamily: "groq",
+    providers: [
+      { provider: "groq", enabled: true, has_key: true, last_status: "ok" },
+      { provider: "mistral", enabled: true, has_key: false, last_status: "untested" },
+    ],
+  })
+
+  assert.equal(ready.status, "ready")
+  assert.equal(ready.readyProviderCount, 1)
+  assert.equal(ready.selectedProviderCount, 1)
+
+  const unloaded = buildAiGatewayReadiness({ prompt, providerFamily: "auto", providers: [] })
+  assert.equal(unloaded.status, "warning")
+  assert.match(unloaded.checks.join(" "), /not been loaded/)
+
+  const blocked = buildAiGatewayReadiness({
+    prompt: { ...prompt, ok: false, missing: ["Context"] },
+    providerFamily: "auto",
+    providers: [{ provider: "groq", enabled: true, has_key: false, last_status: "error" }],
+  })
+  assert.equal(blocked.status, "blocked")
+  assert.match(blocked.checks.join(" "), /Missing required fields/)
 })
 
 test("AI insert-back parses JSON fenced responses", () => {
