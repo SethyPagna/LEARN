@@ -9,6 +9,7 @@ import { api } from "../api"
 import { EmptyState, Panel } from "../ui"
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, undoHistory, type HistoryState } from "@/lib/workspace-features"
 import { evaluateGameChoice, summarizeGameRun } from "@/lib/practice-features"
+import { buildChatDraftPayload, filterChatThreads, parseThreadTitle, type ChatThreadFilter } from "@/lib/social-features"
 
 const emojiSet = ["*", "+", "Idea", "Pin", "Goal", "Hot", "Brain", "Book"]
 const starterCells = [
@@ -23,6 +24,7 @@ const starterSlides = [
 ]
 type SlideDraft = typeof starterSlides[number]
 const quizDetailCache = new Map<string, Quiz>()
+const CHAT_DRAFT_KEY = "learn_chat_draft_v1"
 
 function textFromDocument(document?: WorkspaceDocument) {
   const content = document?.content || {}
@@ -438,11 +440,15 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const [intent, setIntent] = useState<"update" | "question" | "win">("update")
   const [channel, setChannel] = useState("#general")
   const [reaction, setReaction] = useState("helpful")
+  const [query, setQuery] = useState("")
+  const [filter, setFilter] = useState<ChatThreadFilter>("all")
+  const [draftStatus, setDraftStatus] = useState("")
   const quickIntents = [
     { id: "update" as const, label: "Update", body: "Share progress, a note, or what changed." },
     { id: "question" as const, label: "Question", body: "Ask for help and invite replies." },
     { id: "win" as const, label: "Win", body: "Celebrate a milestone or review streak." },
   ]
+  const visibleThreads = useMemo(() => filterChatThreads(threads, { query, filter }), [filter, query, threads])
 
   async function refresh() {
     const response = await api<{ items: any[] }>("/api/chat")
@@ -453,10 +459,29 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     refresh().catch(() => undefined)
   }, [])
 
+  useEffect(() => {
+    const draft = readChatDraft()
+    if (!draft) return
+    setBody(draft.body || "")
+    setTitle(draft.title || "Study room")
+    setIntent(draft.intent || "update")
+    setChannel(draft.channel || "#general")
+  }, [])
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      writeChatDraft({ body, title, intent, channel })
+      setDraftStatus(body.trim() ? "Draft saved" : "")
+    }, 500)
+    return () => window.clearTimeout(timeout)
+  }, [body, channel, intent, title])
+
   async function send() {
     if (!body.trim()) return
-    await api("/api/chat", { method: "POST", body: JSON.stringify({ title: `${channel} - ${title}`, body: `[${intent}] ${body}` }) })
+    await api("/api/chat", { method: "POST", body: JSON.stringify(buildChatDraftPayload({ body, channel, title, intent })) })
     setBody("")
+    clearChatDraft()
+    setDraftStatus("Sent")
     await refresh()
   }
 
@@ -478,6 +503,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               <input value={title} onChange={(event) => setTitle(event.target.value)} className="min-w-52 flex-1 bg-transparent text-2xl font-semibold text-foreground outline-none" />
             </div>
             <p className="mt-2 text-sm text-muted-foreground">Use channels, mentions, and message intent so discussion stays searchable instead of becoming one long stream.</p>
+            {draftStatus ? <p className="mt-2 text-xs font-semibold text-success">{draftStatus}</p> : null}
           </div>
           <ToolbarButton label="Send" onClick={send} icon={Send} primary />
         </div>
@@ -498,6 +524,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               <ComposerChip icon={Languages} label="translate" />
               <ComposerChip icon={Bell} label="notify" />
             </div>
+            <button onClick={() => { setBody(""); clearChatDraft(); setDraftStatus("Draft cleared") }} className="rounded-md bg-secondary px-2 py-1.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Clear draft</button>
             <p className="text-xs text-muted-foreground">Private-first. Share only what belongs in the group.</p>
           </div>
         </div>
@@ -505,6 +532,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
       <Panel className={options.chatCompact ? "p-3" : "p-4"}>
         <h3 className="font-semibold text-foreground">Recent threads</h3>
         {options.collaborationPresence ? <p className="mt-1 text-xs text-muted-foreground">Presence hints are enabled for group workflows.</p> : null}
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search threads" className="mt-3 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-ring" />
         <div className="mt-3 grid grid-cols-3 gap-1 rounded-md border border-border bg-background p-1">
           {["helpful", "save", "reply"].map((item) => (
             <button key={item} onClick={() => setReaction(item)} className={`rounded-md px-2 py-1.5 text-xs font-semibold ${reaction === item ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}>
@@ -512,11 +540,23 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             </button>
           ))}
         </div>
+        <div className="mt-3 grid grid-cols-4 gap-1 rounded-md border border-border bg-background p-1">
+          {(["all", "questions", "wins", "saved"] as ChatThreadFilter[]).map((item) => (
+            <button key={item} onClick={() => setFilter(item)} className={`rounded-md px-2 py-1.5 text-xs font-semibold ${filter === item ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+              {item}
+            </button>
+          ))}
+        </div>
         <div className="mt-3 space-y-2">
-          {threads.map((thread) => (
+          {visibleThreads.map((thread) => {
+            const parsed = parseThreadTitle(thread.title)
+            return (
             <div key={thread.id} className="rounded-md border border-border bg-background p-3 text-sm">
               <div className="flex items-start justify-between gap-2">
-                <p className="font-medium text-foreground">{thread.title}</p>
+                <div>
+                  <p className="font-medium text-foreground">{parsed.title}</p>
+                  <p className="text-xs font-semibold text-muted-foreground">{parsed.channel}</p>
+                </div>
                 <span className="rounded-md bg-secondary px-2 py-1 text-[11px] font-semibold text-secondary-foreground">read</span>
               </div>
               <p className="mt-1 line-clamp-2 text-muted-foreground">{thread.last_message || "No messages yet"}</p>
@@ -531,12 +571,32 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                 </button>
               </div>
             </div>
-          ))}
-          {!threads.length ? <EmptyState title="No threads yet" body="Send an update or question to create the first searchable study thread." /> : null}
+          )})}
+          {!visibleThreads.length ? <EmptyState title="No matching threads" body="Send a message or change the search/filter to see more collaboration history." /> : null}
         </div>
       </Panel>
     </div>
   )
+}
+
+function readChatDraft(): { body: string; title: string; intent: "update" | "question" | "win"; channel: string } | null {
+  if (typeof window === "undefined") return null
+  try {
+    const stored = window.localStorage.getItem(CHAT_DRAFT_KEY)
+    return stored ? JSON.parse(stored) : null
+  } catch {
+    return null
+  }
+}
+
+function writeChatDraft(draft: { body: string; title: string; intent: "update" | "question" | "win"; channel: string }) {
+  if (typeof window === "undefined") return
+  window.localStorage.setItem(CHAT_DRAFT_KEY, JSON.stringify(draft))
+}
+
+function clearChatDraft() {
+  if (typeof window === "undefined") return
+  window.localStorage.removeItem(CHAT_DRAFT_KEY)
 }
 
 function ComposerChip({ icon: Icon, label }: { icon: React.ComponentType<{ className?: string }>; label: string }) {
