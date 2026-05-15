@@ -180,9 +180,10 @@ export async function getDashboardData(user: User) {
     query("SELECT id, title, updated_at FROM ai_chats WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 5", [user.id]),
   ])
 
+  const normalizedNotes = notes.rows.map(normalizeNote)
   const snapshot = buildLearningSnapshot({
     goals: goals.rows,
-    notes: notes.rows.map(normalizeNote).map((note) => ({
+    notes: normalizedNotes.map((note) => ({
       id: note.id,
       title: note.title,
       updatedAt: new Date(note.updated_at).toISOString(),
@@ -193,7 +194,7 @@ export async function getDashboardData(user: User) {
   return {
     user,
     snapshot,
-    notes: notes.rows.map(normalizeNote),
+    notes: normalizedNotes,
     goals: goals.rows,
     chats: chats.rows,
   }
