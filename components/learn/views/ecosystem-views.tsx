@@ -432,7 +432,7 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-2xl font-semibold text-foreground">{title}</h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Create, edit, toggle, and delete opt-in social learning records without leaving the section.</p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Opt-in collaboration records with quick edit controls.</p>
           </div>
           <button onClick={startNew} className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground">
             <Icon className="h-4 w-4" />
@@ -505,12 +505,12 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
       </Panel>
 
       <Panel className="p-4">
-        <h3 className="font-semibold text-foreground">How to use this section</h3>
-        <div className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground">
-          <p><strong className="text-foreground">Add:</strong> create a new {noun} for a topic, room, or challenge.</p>
-          <p><strong className="text-foreground">Edit:</strong> select any record, adjust fields, then save.</p>
-          <p><strong className="text-foreground">Toggle:</strong> cycle visibility or status for quick operation changes.</p>
-          <p><strong className="text-foreground">Delete:</strong> remove test or stale records you no longer need.</p>
+        <h3 className="font-semibold text-foreground">Controls</h3>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <SocialGuideTile icon={Save} label="Save" detail={`Create or update the selected ${noun}.`} />
+          <SocialGuideTile icon={Edit3} label="Edit" detail="Select a record, change fields, then save." />
+          <SocialGuideTile icon={Play} label="Toggle" detail="Cycle visibility or status quickly." />
+          <SocialGuideTile icon={Trash2} label="Delete" detail="Remove stale or test records." />
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Metric label="Records" value={String(items.length)} />
@@ -668,6 +668,16 @@ function SocialActionButton({ icon: Icon, label, onClick, primary, danger }: { i
       <Icon className="h-4 w-4" />
       {label}
     </button>
+  )
+}
+
+function SocialGuideTile({ detail, icon: Icon, label }: { detail: string; icon: ComponentType<{ className?: string }>; label: string }) {
+  return (
+    <div className="group relative flex min-h-20 flex-col justify-between rounded-md border border-border bg-background p-3">
+      <Icon className="h-5 w-5 text-success" />
+      <p className="text-sm font-semibold text-foreground">{label}</p>
+      <p className="pointer-events-none absolute right-2 top-[calc(100%+0.35rem)] z-20 hidden w-56 rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{detail}</p>
+    </div>
   )
 }
 
