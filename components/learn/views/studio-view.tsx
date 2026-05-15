@@ -99,7 +99,7 @@ import {
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, undoHistory, type HistoryState } from "@/lib/workspace-features"
 import { clearStudioDraft, readStudioDrafts, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
 import type { ImportTarget } from "@/lib/import-gateway"
-import { applySlideDesignPreset, createSlideDesignObject, getDocumentInsertBlock, slideDesignPresets, type DocumentInsertKind } from "@/lib/studio-design"
+import { applySlideDesignPreset, createSlideDesignObject, getDocumentInsertBlock, removeSlideDesignObject, slideDesignPresets, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
 
@@ -1567,11 +1567,44 @@ function StudioCanvas({
         <div className="grid grid-cols-2 gap-2">
           <SheetButton label="Text" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("text")] } : item))} icon={Type} />
           <SheetButton label="Shape" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("shape")] } : item))} icon={LayoutPanelLeft} />
+          <SheetButton label="Image" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("image")] } : item))} icon={ImageIcon} />
           <SheetButton label="Up" onClick={() => onSetSlides((current) => moveSlide(current, selectedSlideIndex, -1))} icon={ChevronDown} />
           <SheetButton label="Down" onClick={() => onSetSlides((current) => moveSlide(current, selectedSlideIndex, 1))} icon={ChevronDown} />
           <SheetButton label="Copy" onClick={() => onSetSlides((current) => duplicateSlide(current, selectedSlideIndex))} icon={Copy} />
           <SheetButton label="Delete" onClick={() => onSetSlides((current) => current.length > 1 ? current.filter((_, index) => index !== selectedSlideIndex) : current)} icon={Trash2} />
         </div>
+        {selectedSlide?.objects?.length ? (
+          <div className="grid gap-2 rounded-md border border-border bg-background p-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Objects</p>
+            {selectedSlide.objects.map((object) => (
+              <div key={object.id} className="grid gap-2 rounded-md border border-border bg-card p-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{object.type}</span>
+                  <button
+                    onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? removeSlideDesignObject(item, object.id) : item))}
+                    className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground hover:bg-destructive hover:text-destructive-foreground"
+                  >
+                    Delete
+                  </button>
+                </div>
+                <input
+                  value={object.text || ""}
+                  onChange={(event) => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? updateSlideDesignObject(item, object.id, { text: event.target.value }) : item))}
+                  placeholder="Label or text"
+                  className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus:border-ring"
+                />
+                {object.type === "image" ? (
+                  <input
+                    value={object.src || ""}
+                    onChange={(event) => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? updateSlideDesignObject(item, object.id, { src: event.target.value }) : item))}
+                    placeholder="Image URL"
+                    className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus:border-ring"
+                  />
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   )
