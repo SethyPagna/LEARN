@@ -21,6 +21,7 @@ const starterSlides = [
   { title: "Key idea", body: "Add a concise visual explanation, image note, or memory hook.", accent: "Explain" },
 ]
 type SlideDraft = typeof starterSlides[number]
+const quizDetailCache = new Map<string, Quiz>()
 
 function textFromDocument(document?: WorkspaceDocument) {
   const content = document?.content || {}
@@ -235,6 +236,7 @@ export function SlidesView({ options }: { options: WorkspaceOptions }) {
 export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: WorkspaceOptions }) {
   const [quizBank, setQuizBank] = useState<Quiz[]>(quizzes)
   const questions = useMemo(() => quizBank.flatMap((quiz) => quiz.questions || []).slice(0, options.gameQuestionLimit), [quizBank, options.gameQuestionLimit])
+  const quizIds = useMemo(() => quizzes.slice(0, 8).map((quiz) => quiz.id).join("|"), [quizzes])
   const [index, setIndex] = useState(0)
   const [score, setScore] = useState(0)
   const [startedAt, setStartedAt] = useState(() => Date.now())
@@ -244,14 +246,37 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
 
   useEffect(() => {
     let active = true
-    Promise.all(quizzes.slice(0, 8).map((quiz) => api<{ item: Quiz }>(`/api/quizzes/${quiz.id}`).then((response) => response.item).catch(() => quiz)))
+    const seed = quizzes.slice(0, 8)
+    if (!seed.length) {
+      setQuizBank([])
+      return () => {
+        active = false
+      }
+    }
+    if (seed.every((quiz) => (quiz.questions?.length || 0) > 0)) {
+      setQuizBank(seed)
+      return () => {
+        active = false
+      }
+    }
+    Promise.all(seed.map(async (quiz) => {
+      if (quiz.questions?.length) {
+        quizDetailCache.set(quiz.id, quiz)
+        return quiz
+      }
+      const cached = quizDetailCache.get(quiz.id)
+      if (cached) return cached
+      const response = await api<{ item: Quiz }>(`/api/quizzes/${quiz.id}`).catch(() => ({ item: quiz }))
+      if (response.item.questions?.length) quizDetailCache.set(quiz.id, response.item)
+      return response.item
+    }))
       .then((items) => {
         if (active) setQuizBank(items)
       })
     return () => {
       active = false
     }
-  }, [quizzes])
+  }, [quizIds])
 
   useEffect(() => {
     const timer = window.setInterval(() => {
