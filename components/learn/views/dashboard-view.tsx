@@ -55,23 +55,23 @@ export function DashboardView({
     {
       label: "Review",
       actions: [
-        { label: "Learn", body: "Route, graph, review", view: "learn", icon: Brain },
-        { label: "Reviews", body: "Practice due concepts", view: "reviews", icon: Repeat2 },
-        { label: "Graph", body: "Find weak links", view: "graph", icon: GitFork },
+        { label: "Learn route", body: "Route, graph, reviews, and calendar", view: "learn", icon: Brain },
+        { label: "Review queue", body: "Due concepts and mistake cards", view: "reviews", icon: Repeat2 },
+        { label: "Knowledge map", body: "Graph links and weak areas", view: "graph", icon: GitFork },
       ],
     },
     {
       label: "Practice",
       actions: [
-        { label: "Quizzes", body: "Answer and retry", view: "quizzes", icon: BookOpen },
-        { label: "Games", body: "Sprint and matching", view: "games", icon: Gamepad2 },
+        { label: "Practice hub", body: "Quizzes, games, exams, and retries", view: "practice", icon: BookOpen },
+        { label: "Sprint mode", body: "Timed review and matching games", view: "practice", icon: Gamepad2 },
       ],
     },
     {
       label: "Share",
       actions: [
-        { label: "Chat", body: "Ask or discuss", view: "chat", icon: MessageSquare },
-        { label: "Rooms", body: "Focus with others", view: "rooms", icon: Compass },
+        { label: "Social hub", body: "Chat, spaces, rooms, and battles", view: "social", icon: MessageSquare },
+        { label: "Focus room", body: "Pomodoro presence and study rooms", view: "rooms", icon: Compass },
       ],
     },
     {
@@ -176,7 +176,7 @@ export function DashboardView({
         <SectionHeader icon={Clock3} title="Review queue" body="Turn recent work into active recall before it fades." />
         <div className="mt-4 space-y-2">
           {["Review weak topic", "Retry quiz mistakes", "Save an AI route"].map((item, index) => (
-            <button key={item} onClick={() => setView(index === 1 ? "quizzes" : "reviews")} className="flex w-full items-center gap-3 rounded-md border border-border bg-background p-3 text-left text-sm hover:bg-accent hover:text-accent-foreground">
+            <button key={item} onClick={() => setView(index === 1 ? "practice" : "reviews")} className="flex w-full items-center gap-3 rounded-md border border-border bg-background p-3 text-left text-sm hover:bg-accent hover:text-accent-foreground">
               <Repeat2 className="h-5 w-5 text-success" />
               <span className="font-medium">{item}</span>
             </button>
