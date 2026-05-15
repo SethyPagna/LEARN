@@ -33,18 +33,21 @@ export function rankWeakTopics(answers: TopicAnswer[]) {
     topicStats.set(topic, stats)
   }
 
-  return Array.from(topicStats.entries())
-    .map<WeakTopic>(([topic, stats]) => ({
+  const weakTopics: WeakTopic[] = []
+  for (const [topic, stats] of topicStats.entries()) {
+    const next = {
       topic,
       attempts: stats.attempts,
       correct: stats.correct,
       accuracy: Math.round((stats.correct / stats.attempts) * 100),
-    }))
-    .filter((topic) => topic.accuracy < 80)
-    .sort((first, second) => {
-      if (first.accuracy !== second.accuracy) return first.accuracy - second.accuracy
-      return second.attempts - first.attempts
-    })
+    }
+    if (next.accuracy < 80) weakTopics.push(next)
+  }
+
+  return weakTopics.sort((first, second) => {
+    if (first.accuracy !== second.accuracy) return first.accuracy - second.accuracy
+    return second.attempts - first.attempts
+  })
 }
 
 export function buildLearningSnapshot(input: {
@@ -52,13 +55,14 @@ export function buildLearningSnapshot(input: {
   notes: NoteSummary[]
   answers: TopicAnswer[]
 }) {
-  const completedGoals = input.goals.filter((goal) => goal.completed).length
+  let completedGoals = 0
+  for (const goal of input.goals) {
+    if (goal.completed) completedGoals += 1
+  }
   const goalCompletion = input.goals.length
     ? Math.round((completedGoals / input.goals.length) * 100)
     : 0
-  const recentNotes = [...input.notes]
-    .sort((first, second) => Date.parse(second.updatedAt) - Date.parse(first.updatedAt))
-    .slice(0, 5)
+  const recentNotes = topRecentNotes(input.notes, 5)
   const weakTopics = rankWeakTopics(input.answers)
 
   return {
@@ -67,4 +71,21 @@ export function buildLearningSnapshot(input: {
     weakTopics,
     recommendedFocus: weakTopics.slice(0, 3).map((topic) => topic.topic),
   }
+}
+
+function topRecentNotes(notes: NoteSummary[], limit: number) {
+  const recent: NoteSummary[] = []
+  for (const note of notes) {
+    const noteTime = Date.parse(note.updatedAt)
+    let insertAt = recent.length
+    for (let index = 0; index < recent.length; index += 1) {
+      if (noteTime > Date.parse(recent[index].updatedAt)) {
+        insertAt = index
+        break
+      }
+    }
+    recent.splice(insertAt, 0, note)
+    if (recent.length > limit) recent.pop()
+  }
+  return recent
 }
