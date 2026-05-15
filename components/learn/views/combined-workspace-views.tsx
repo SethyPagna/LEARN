@@ -58,7 +58,7 @@ export function LearnWorkspaceView({
     <WorkspaceFrame
       eyebrow="Learn workspace"
       title="Learn loop"
-      body="Inspired by mature workspace tools: one action-oriented home, multiple views of the same learning system, and less sidebar hopping."
+      body="One route with discovery, graph, reviews, time, and progress grouped together."
       tabs={learnTabs}
       activeTab={tab}
       setActiveTab={(value) => setTab(value as LearnTab)}
@@ -96,7 +96,7 @@ export function PracticeWorkspaceView({
     <WorkspaceFrame
       eyebrow="Practice workspace"
       title="Practice arena"
-      body="A strong practice loop should move between deliberate quiz attempts and fast recall games without making you hunt through separate pages."
+      body="Quizzes and games share one practice surface, so missed topics can move straight into fast recall."
       tabs={practiceTabs}
       activeTab={tab}
       setActiveTab={(value) => setTab(value as PracticeTab)}
@@ -120,7 +120,7 @@ export function SocialWorkspaceView({ initialView, options }: { initialView: Vie
     <WorkspaceFrame
       eyebrow="Social workspace"
       title="Social hub"
-      body="Communication follows social-product patterns without becoming noisy: channels, threads, mentions, presence, reactions, and opt-in group modes."
+      body="Chat, spaces, rooms, and battles stay grouped around opt-in collaboration."
       tabs={socialTabs}
       activeTab={tab}
       setActiveTab={(value) => setTab(value as SocialTab)}
@@ -152,16 +152,15 @@ function WorkspaceFrame<T extends string>({
 }) {
   return (
     <div className="grid gap-4">
-      <Panel className="p-4 lg:p-5">
-        <div className="grid gap-4 xl:grid-cols-[1fr_auto] xl:items-center">
+      <Panel className="p-3 lg:p-4">
+        <div className="grid gap-3 xl:grid-cols-[1fr_auto] xl:items-center">
           <div className="flex min-w-0 items-start gap-3">
             <InfoMenu title={eyebrow} body={body} />
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{eyebrow}</p>
-              <h2 className="mt-1 max-w-4xl text-2xl font-semibold leading-tight text-foreground lg:text-3xl">{title}</h2>
+              <h2 className="max-w-4xl text-2xl font-semibold leading-tight text-foreground lg:text-3xl">{title}</h2>
             </div>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:w-[560px]">
+          <div className="grid gap-2 sm:grid-cols-3 xl:w-[560px]">
             {tabs.map((tab) => {
               const Icon = tab.icon
               const active = activeTab === tab.id
@@ -169,10 +168,10 @@ function WorkspaceFrame<T extends string>({
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`group relative rounded-md border p-3 text-left transition hover:-translate-y-0.5 ${active ? "border-primary bg-primary text-primary-foreground shadow-sm" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+                  className={`group relative rounded-md border p-2.5 text-left transition hover:-translate-y-0.5 ${active ? "border-primary bg-primary text-primary-foreground shadow-sm" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
                 >
                   <div className="flex items-center gap-2">
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-5 w-5" />
                     <span className="font-semibold">{tab.label}</span>
                     <MoreHorizontal className="ml-auto h-4 w-4 opacity-60" />
                   </div>
@@ -214,21 +213,21 @@ function LearnRoute({ dashboard, quizzes, setView }: { dashboard: any; quizzes: 
         </div>
       </Panel>
       <Panel className="p-4">
-        <h3 className="font-semibold text-foreground">Today’s learning signal</h3>
+        <h3 className="font-semibold text-foreground">Today's learning signal</h3>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <MiniMetric label="Goal" value={`${dashboard?.snapshot?.goalCompletion ?? 0}%`} />
           <MiniMetric label="Quiz banks" value={String(quizzes.length)} />
           <MiniMetric label="Focus topics" value={String(focus.length)} />
           <MiniMetric label="Weak topics" value={String(weakTopics.length)} />
         </div>
-        <InfoStrip body="Dashboard is command. Learn is route." />
+        <InfoStrip body="Dashboard commands. Learn routes." />
       </Panel>
       <Panel className="p-4 xl:col-span-2">
-        <h3 className="font-semibold text-foreground">Patterns</h3>
+        <h3 className="font-semibold text-foreground">Shortcuts</h3>
         <div className="mt-3 grid gap-3 md:grid-cols-3">
-          <PatternCard title="Views" body="Studio stays unified." />
-          <PatternCard title="Social" body="Threads, mentions, reactions." />
-          <PatternCard title="Loop" body="Discover to practice." />
+          <PatternCard title="Studio" body="Create, save, export." />
+          <PatternCard title="Social" body="Thread, mention, react." />
+          <PatternCard title="Loop" body="Discover, review, retry." />
         </div>
       </Panel>
     </div>
