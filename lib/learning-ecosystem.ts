@@ -207,13 +207,22 @@ export function detectOrphanKnowledgeNodes(nodes: KnowledgeNode[], edges: Knowle
     connected.add(edge.sourceId)
     connected.add(edge.targetId)
   }
-  return nodes.filter((node) => !connected.has(node.id))
+  const orphans: KnowledgeNode[] = []
+  for (const node of nodes) {
+    if (!connected.has(node.id)) orphans.push(node)
+  }
+  return orphans
 }
 
 export function filterPublicProfileArtifacts(nodes: KnowledgeNode[], viewer: "public" | "connections" | "owner") {
   if (viewer === "owner") return nodes
-  if (viewer === "connections") return nodes.filter((node) => node.visibility !== "private")
-  return nodes.filter((node) => node.visibility === "public")
+  const visible: KnowledgeNode[] = []
+  for (const node of nodes) {
+    if (viewer === "connections" ? node.visibility !== "private" : node.visibility === "public") {
+      visible.push(node)
+    }
+  }
+  return visible
 }
 
 export function canPostInCommunity(input: { reputation: number; role: CommunityRole }) {
