@@ -2,6 +2,7 @@
 
 import type React from "react"
 import {
+  Bell,
   BookOpen,
   Bot,
   ChevronDown,
@@ -23,7 +24,7 @@ import {
   MessagesSquare,
   X,
 } from "lucide-react"
-import { supportedLocales, type baseVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
+import { languageNames, supportedLocales, type baseVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
 import type { View, User } from "./types"
 
 type Text = typeof baseVocabulary
@@ -83,21 +84,35 @@ export function titleForView(view: View, text: Text) {
 
 export function Sidebar({
   density,
+  locale,
   query,
+  resolvedTheme,
   setQuery,
+  setDensity,
+  setLocale,
+  setTheme,
   setView,
   text,
+  user,
   view,
+  logout,
 }: {
   density: Density
+  locale: SupportedLocale
   query: string
+  resolvedTheme?: string
   setQuery: (query: string) => void
+  setDensity: (density: Density) => void
+  setLocale: (locale: SupportedLocale) => void
+  setTheme: (theme: string) => void
   setView: (view: View) => void
   text: Text
+  user: User | null
   view: View
+  logout: () => void
 }) {
   return (
-    <aside className="sticky top-0 hidden h-screen overflow-y-auto border-r border-border bg-sidebar px-3 py-4 text-sidebar-foreground lg:block">
+    <aside className="sticky top-0 hidden h-screen overflow-y-auto border-r border-border bg-sidebar px-3 py-4 text-sidebar-foreground lg:flex lg:flex-col">
       <Brand text={text} />
       <div className="mb-3 flex h-9 items-center gap-2 rounded-md border border-sidebar-border bg-background px-3">
         <Search className="h-4 w-4 text-muted-foreground" />
@@ -109,6 +124,17 @@ export function Sidebar({
         />
       </div>
       <Navigation density={density} text={text} view={view} setView={setView} />
+      <SidebarControls
+        density={density}
+        locale={locale}
+        logout={logout}
+        resolvedTheme={resolvedTheme}
+        setDensity={setDensity}
+        setLocale={setLocale}
+        setTheme={setTheme}
+        text={text}
+        user={user}
+      />
     </aside>
   )
 }
@@ -143,7 +169,7 @@ export function Topbar({
   const MenuIcon = menuOpen ? X : Menu
   const ThemeIcon = resolvedTheme === "dark" ? Moon : Sun
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-2.5 text-foreground backdrop-blur lg:px-6">
+    <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-2.5 text-foreground backdrop-blur lg:hidden">
       <div className="flex min-w-0 items-center gap-3">
         <button
           onClick={() => setMenuOpen(!menuOpen)}
@@ -174,19 +200,8 @@ export function Topbar({
         >
           <ThemeIcon className="h-4 w-4" />
         </button>
-        <label className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-2 text-secondary-foreground">
-          <Languages className="h-4 w-4 text-muted-foreground" />
-          <select
-            value={locale}
-            onChange={(event) => setLocale(event.target.value as SupportedLocale)}
-            className="max-w-20 bg-secondary text-xs font-medium text-secondary-foreground outline-none sm:max-w-28"
-            aria-label="Language"
-          >
-            {supportedLocales.map((item) => (
-              <option key={item} value={item}>{item}</option>
-            ))}
-          </select>
-        </label>
+        <LanguageMenu locale={locale} setLocale={setLocale} compact />
+        <NotificationsMenu compact />
         <div className="hidden text-right md:block">
           <p className="text-sm font-semibold">{user?.name || "Loading"}</p>
           <p className="text-xs capitalize text-muted-foreground">{user?.role || "learner"}</p>
@@ -200,6 +215,126 @@ export function Topbar({
         </button>
       </div>
     </header>
+  )
+}
+
+function SidebarControls({
+  density,
+  locale,
+  logout,
+  resolvedTheme,
+  setDensity,
+  setLocale,
+  setTheme,
+  text,
+  user,
+}: {
+  density: Density
+  locale: SupportedLocale
+  logout: () => void
+  resolvedTheme?: string
+  setDensity: (density: Density) => void
+  setLocale: (locale: SupportedLocale) => void
+  setTheme: (theme: string) => void
+  text: Text
+  user: User | null
+}) {
+  const ThemeIcon = resolvedTheme === "dark" ? Moon : Sun
+  return (
+    <div className="mt-auto pt-4">
+      <div className="rounded-md border border-sidebar-border bg-background p-2">
+        <div className="mb-2 flex items-center gap-2 px-1">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-xs font-semibold text-primary-foreground">
+            {(user?.name || "L").slice(0, 1)}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-foreground">{user?.name || "Learner"}</p>
+            <p className="truncate text-xs capitalize text-muted-foreground">{user?.role || "learner"}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-4 gap-1">
+          <button
+            onClick={() => setDensity(density === "compact" ? "comfortable" : "compact")}
+            className="sidebar-icon-button"
+            aria-label="Toggle density"
+            title={density === "compact" ? "Comfortable spacing" : "Compact spacing"}
+          >
+            {density === "compact" ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          </button>
+          <button
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+            className="sidebar-icon-button"
+            aria-label="Toggle theme"
+            title={resolvedTheme === "dark" ? text.lightMode : text.darkMode}
+          >
+            <ThemeIcon className="h-4 w-4" />
+          </button>
+          <LanguageMenu locale={locale} setLocale={setLocale} />
+          <NotificationsMenu />
+        </div>
+        <button
+          onClick={logout}
+          className="mt-2 flex h-9 w-full items-center justify-center gap-2 rounded-md border border-border bg-secondary text-sm font-semibold text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground"
+        >
+          <LogOut className="h-4 w-4" />
+          {text.signOut}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function LanguageMenu({ compact, locale, setLocale }: { compact?: boolean; locale: SupportedLocale; setLocale: (locale: SupportedLocale) => void }) {
+  return (
+    <details className="group/menu relative">
+      <summary className={`${compact ? "flex h-9 w-9" : "sidebar-icon-button"} list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground`} aria-label="Language" title={languageNames[locale]}>
+        <Languages className="h-4 w-4" />
+      </summary>
+      <div className={`absolute right-0 z-40 mt-2 w-64 origin-top-right rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95 ${compact ? "" : "bottom-11 right-auto left-0"}`}>
+        <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Language</p>
+        <div className="grid max-h-72 gap-1 overflow-auto">
+          {supportedLocales.map((item) => (
+            <button
+              key={item}
+              onClick={() => setLocale(item)}
+              className={`rounded-md px-3 py-2 text-left text-sm transition hover:bg-accent hover:text-accent-foreground ${locale === item ? "bg-primary text-primary-foreground" : "text-popover-foreground"}`}
+            >
+              {languageNames[item]}
+            </button>
+          ))}
+        </div>
+      </div>
+    </details>
+  )
+}
+
+function NotificationsMenu({ compact }: { compact?: boolean }) {
+  const items = [
+    { title: "Review ready", detail: "3 active recall items" },
+    { title: "Studio saved", detail: "Latest workspace sync" },
+    { title: "Room status", detail: "Focus room is open" },
+  ]
+  return (
+    <details className="group/menu relative">
+      <summary className={`${compact ? "flex h-9 w-9" : "sidebar-icon-button"} relative list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground`} aria-label="Notifications" title="Notifications">
+        <Bell className="h-4 w-4" />
+        <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-success" />
+      </summary>
+      <div className={`absolute right-0 z-40 mt-2 w-72 origin-top-right rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95 ${compact ? "" : "bottom-11 right-auto left-0"}`}>
+        <div className="flex items-center justify-between px-2 pb-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Notifications</p>
+          <button className="rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground">•••</button>
+        </div>
+        <div className="grid gap-1">
+          {items.map((item) => (
+            <button key={item.title} className="rounded-md p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
+              <span className="block text-sm font-semibold">{item.title}</span>
+              <span className="mt-1 block text-xs text-muted-foreground">{item.detail}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </details>
   )
 }
 
