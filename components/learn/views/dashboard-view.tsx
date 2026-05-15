@@ -85,29 +85,30 @@ export function DashboardView({
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <section className="rounded-lg border border-border bg-card p-5 text-card-foreground shadow-sm xl:col-span-2">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-muted-foreground">Today route</p>
-            <h2 className="mt-2 text-3xl font-semibold leading-tight text-foreground md:text-4xl">
-              Focus on {focus}, then turn the work into practice.
-            </h2>
-            <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground">
-              <span className="rounded-md border border-border bg-background px-2.5 py-1">Studio</span>
-              <span className="rounded-md border border-border bg-background px-2.5 py-1">Review</span>
-              <span className="rounded-md border border-border bg-background px-2.5 py-1">Tutor</span>
+      <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm xl:col-span-2">
+        <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:p-5">
+          <div className="min-w-0">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">Today</span>
+              <StatusChip label="Studio" />
+              <StatusChip label="Review" />
+              <StatusChip label="Tutor" />
             </div>
+            <h2 className="max-w-4xl text-2xl font-semibold leading-tight text-foreground md:text-4xl">
+              {focus}
+            </h2>
           </div>
-          <button onClick={() => setView("ai")} className="flex h-12 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
-            <Sparkles className="h-5 w-5" />
-            Ask tutor
-          </button>
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            <HeroAction icon={FileText} label="Create" onClick={() => setView("studio")} />
+            <HeroAction icon={Repeat2} label="Review" onClick={() => setView("reviews")} />
+            <HeroAction icon={Sparkles} label="Tutor" onClick={() => setView("ai")} primary />
+          </div>
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid border-t border-border bg-background/45 sm:grid-cols-2 xl:grid-cols-4">
           <BigMetric icon={CheckCircle2} label="Goal" value={`${goalCompletion}%`} body="Learning goals completed" />
-          <BigMetric icon={FileText} label="Studio items" value={String(notes.length)} body="Recent notes and workspace items" />
-          <BigMetric icon={BookOpen} label="Quiz banks" value={String(quizzes.length)} body="Practice sets available" />
-          <BigMetric icon={Repeat2} label="Review queue" value={String(reviewCount)} body="Concepts needing attention" />
+          <BigMetric icon={FileText} label="Studio" value={String(notes.length)} body="Recent notes and workspace items" />
+          <BigMetric icon={BookOpen} label="Quiz" value={String(quizzes.length)} body="Practice sets available" />
+          <BigMetric icon={Repeat2} label="Review" value={String(reviewCount)} body="Concepts needing attention" />
         </div>
       </section>
 
@@ -204,10 +205,12 @@ export function DashboardView({
                 {group.actions.map((action) => {
                   const Icon = action.icon
                   return (
-                    <button key={action.label} onClick={() => setView(action.view)} className="rounded-md border border-border bg-background p-3 text-left hover:bg-accent hover:text-accent-foreground">
-                      <Icon className="h-6 w-6 text-success" />
-                      <p className="mt-2 text-sm font-semibold">{action.label}</p>
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">{action.body}</p>
+                    <button key={action.label} onClick={() => setView(action.view)} className="group relative rounded-md border border-border bg-background p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground" title={action.body}>
+                      <div className="flex items-center gap-2">
+                        <Icon className="h-6 w-6 text-success" />
+                        <p className="text-sm font-semibold">{action.label}</p>
+                      </div>
+                      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{action.body}</p>
                     </button>
                   )
                 })}
@@ -222,18 +225,32 @@ export function DashboardView({
 
 function BigMetric({ body, icon: Icon, label, value }: { body: string; icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border bg-background p-4">
+    <div className="group relative border-b border-border p-4 sm:border-r xl:border-b-0">
       <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-md bg-primary text-primary-foreground">
-          <Icon className="h-6 w-6" />
-        </div>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
-          <p className="text-2xl font-semibold text-foreground">{value}</p>
+        <Icon className="h-8 w-8 text-primary" />
+        <div className="min-w-0">
+          <p className="truncate text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+          <p className="text-3xl font-semibold leading-none text-foreground">{value}</p>
         </div>
       </div>
-      <p className="mt-3 text-xs leading-5 text-muted-foreground">{body}</p>
+      <p className="pointer-events-none absolute left-3 right-3 top-[calc(100%-0.2rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{body}</p>
     </div>
+  )
+}
+
+function StatusChip({ label }: { label: string }) {
+  return <span className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-semibold text-muted-foreground">{label}</span>
+}
+
+function HeroAction({ icon: Icon, label, onClick, primary }: { icon: React.ComponentType<{ className?: string }>; label: string; onClick: () => void; primary?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex h-11 items-center gap-2 rounded-md border px-3 text-sm font-semibold transition hover:-translate-y-0.5 ${primary ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+    >
+      <Icon className="h-5 w-5" />
+      {label}
+    </button>
   )
 }
 
