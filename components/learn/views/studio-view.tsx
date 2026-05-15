@@ -101,7 +101,7 @@ import {
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, replaceTextInHtml, summarizeDocumentHtml, undoHistory, type HistoryState } from "@/lib/workspace-features"
 import { clearStudioDraft, readStudioDrafts, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
 import type { ImportTarget } from "@/lib/import-gateway"
-import { applySlideDesignPreset, createSlideDesignObject, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
+import { applySlideDesignPreset, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
 
@@ -1784,11 +1784,11 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
         event.target.value = ""
       }} defaultValue="" className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground">
         <option value="" disabled>Insert</option>
-        <option value="callout">Callout</option>
-        <option value="reference">Reference</option>
-        <option value="equation">Equation</option>
-        <option value="page-break">Divider</option>
-        <option value="two-column">Two-column table</option>
+        {documentInsertGroups.map((group) => (
+          <optgroup key={group.label} label={group.label}>
+            {group.items.map((item) => <option key={item} value={item}>{insertLabel(item)}</option>)}
+          </optgroup>
+        ))}
       </select>
       <span className="mx-1 h-5 w-px bg-border" />
       <ToolbarIcon label="Bold" icon={Bold} onClick={() => run((item) => item.chain().focus().toggleBold().run())} />
@@ -1803,6 +1803,9 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
       <ToolbarIcon label="Numbers" icon={ListOrdered} onClick={() => run((item) => item.chain().focus().toggleOrderedList().run())} />
       <ToolbarIcon label="Tasks" icon={CheckSquare} onClick={() => run((item) => item.chain().focus().toggleTaskList().run())} />
       <ToolbarIcon label="Table" icon={Grid2X2} onClick={() => run((item) => item.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())} />
+      <ToolbarIcon label="Table row" icon={Rows3} onClick={() => run((item) => item.chain().focus().addRowAfter().run())} />
+      <ToolbarIcon label="Table column" icon={Columns3} onClick={() => run((item) => item.chain().focus().addColumnAfter().run())} />
+      <ToolbarIcon label="Delete table row" icon={Trash2} onClick={() => run((item) => item.chain().focus().deleteRow().run())} />
       <ToolbarIcon label="Code" icon={Braces} onClick={() => run((item) => item.chain().focus().toggleCodeBlock().run())} />
       <ToolbarIcon label="Image cue" icon={ImageIcon} onClick={() => {
         const src = window.prompt("Image URL")
@@ -1820,6 +1823,13 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
       {replaceStatus ? <span className="text-xs font-semibold text-success">{replaceStatus}</span> : null}
     </div>
   )
+}
+
+function insertLabel(kind: DocumentInsertKind) {
+  return kind
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
 }
 
 function StudioInspector({
