@@ -35,6 +35,10 @@ export type WorkspaceOptions = {
   dailyReviewCap: number
   restDay: "sunday" | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday"
   feedSerendipity: number
+  notificationReviewReminders: boolean
+  notificationDraftWarnings: boolean
+  notificationSocialUpdates: boolean
+  notificationSystemHealth: boolean
 }
 
 const LANGUAGE_KEY = "learn_locale"
@@ -71,6 +75,10 @@ export const defaultWorkspaceOptions: WorkspaceOptions = {
   dailyReviewCap: 30,
   restDay: "sunday",
   feedSerendipity: 15,
+  notificationReviewReminders: true,
+  notificationDraftWarnings: true,
+  notificationSocialUpdates: true,
+  notificationSystemHealth: true,
 }
 
 function getStoredValue(key: string) {
