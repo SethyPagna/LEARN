@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ComponentType } from "react"
-import { BarChart3, BookOpen, CalendarDays, Compass, Gamepad2, GitFork, Info, MessageSquare, MoreHorizontal, Radio, Repeat2, Sparkles, Swords, Target, Users } from "lucide-react"
+import { BarChart3, BookOpen, CalendarDays, Clock, Compass, Gamepad2, GitFork, Info, MessageSquare, MoreHorizontal, Play, Radio, Repeat2, Sparkles, Swords, Target, Trash2, Users } from "lucide-react"
 import type { Quiz, View } from "../types"
 import type { WorkspaceOptions } from "../preferences"
 import { Panel } from "../ui"
@@ -9,6 +9,7 @@ import { FeedView, GraphView, ReviewsView, SocialLearningView } from "./ecosyste
 import { CalendarView, ProgressView } from "./secondary-views"
 import { ChatView, GamesView } from "./productivity-views"
 import { QuizView } from "./quiz-view"
+import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 
 type LearnTab = "overview" | "discover" | "graph" | "reviews" | "calendar" | "progress"
 type PracticeTab = "quizzes" | "games"
@@ -93,10 +94,33 @@ export function PracticeWorkspaceView({
   setView: (view: View) => void
 }) {
   const [tab, setTab] = useState<PracticeTab>(initialView === "games" ? "games" : "quizzes")
+  const [draftCards, setDraftCards] = useState<PracticeDraftCard[]>([])
+  const quizTitles = useMemo(() => Object.fromEntries(quizzes.map((quiz) => [quiz.id, quiz.title])), [quizzes])
 
   useEffect(() => {
     setTab(initialView === "games" ? "games" : "quizzes")
   }, [initialView])
+
+  useEffect(() => {
+    function syncDraftCards() {
+      setDraftCards(listPracticeDraftCards(readPracticeDrafts(), quizTitles))
+    }
+
+    syncDraftCards()
+    window.addEventListener(PRACTICE_DRAFT_EVENT, syncDraftCards)
+    return () => window.removeEventListener(PRACTICE_DRAFT_EVENT, syncDraftCards)
+  }, [quizTitles])
+
+  function resumeDraft(quizId: string) {
+    setSelectedQuizId(quizId)
+    setTab("quizzes")
+    setView("quizzes")
+  }
+
+  function discardDraft(quizId: string) {
+    clearPracticeDraft(quizId)
+    setDraftCards(listPracticeDraftCards(readPracticeDrafts(), quizTitles))
+  }
 
   return (
     <WorkspaceFrame
@@ -113,7 +137,7 @@ export function PracticeWorkspaceView({
     >
       <div className="grid gap-4 xl:grid-cols-[1fr_300px]">
         <div>{tab === "quizzes" ? <QuizView quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={options} /> : <GamesView quizzes={quizzes} options={options} />}</div>
-        <PracticeGuide />
+        <PracticeGuide draftCards={draftCards} onClearDraft={discardDraft} onResumeDraft={resumeDraft} />
       </div>
     </WorkspaceFrame>
   )
@@ -270,7 +294,15 @@ function InfoStrip({ body }: { body: string }) {
   )
 }
 
-function PracticeGuide() {
+function PracticeGuide({
+  draftCards,
+  onClearDraft,
+  onResumeDraft,
+}: {
+  draftCards: PracticeDraftCard[]
+  onClearDraft: (quizId: string) => void
+  onResumeDraft: (quizId: string) => void
+}) {
   const items = [
     { icon: BookOpen, title: "Quiz", body: "Use for accuracy, explanations, and slower correction." },
     { icon: Gamepad2, title: "Game", body: "Use for momentum, speed, and repeated retrieval." },
@@ -282,6 +314,34 @@ function PracticeGuide() {
         <h3 className="font-semibold text-foreground">Practice guide</h3>
         <InfoMenu title="Practice guide" body="Pick quiz mode for careful correction, game mode for fast repetition." />
       </div>
+      {draftCards.length ? (
+        <div className="mt-3 grid gap-2">
+          {draftCards.slice(0, 3).map((draft) => (
+            <div key={draft.quizId} className="rounded-md border border-warning/50 bg-warning/10 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">{draft.title}</p>
+                  <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                    <Clock className="h-3.5 w-3.5" />
+                    {formatCompactDuration(draft.elapsedSeconds)} · {draft.answeredCount} answered · {draft.markedCount} marked
+                  </p>
+                </div>
+                <span className="rounded-md bg-background px-2 py-1 text-[0.68rem] font-semibold text-foreground">{draft.practiceMode.replace(/-/g, " ")}</span>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <button onClick={() => onResumeDraft(draft.quizId)} className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground">
+                  <Play className="h-3.5 w-3.5" />
+                  Resume
+                </button>
+                <button onClick={() => onClearDraft(draft.quizId)} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Clear
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className="mt-3 grid gap-2">
         {items.map((item) => {
           const Icon = item.icon
@@ -296,6 +356,12 @@ function PracticeGuide() {
       </div>
     </Panel>
   )
+}
+
+function formatCompactDuration(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${String(seconds).padStart(2, "0")}`
 }
 
 function MiniMetric({ label, value }: { label: string; value: string }) {
