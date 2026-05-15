@@ -14,6 +14,48 @@ export interface PracticeReviewCard {
 }
 
 export type PracticeQuestionFilter = "all" | "unanswered" | "marked" | "missed"
+export type PracticeModeGroupId = "core" | "speed" | "repair" | "generated"
+
+export interface PracticeModeGroup {
+  id: PracticeModeGroupId
+  label: string
+  caption: string
+  modes: PracticeMode[]
+}
+
+export interface PracticeModeSummary {
+  activeGroup: PracticeModeGroup
+  activeModeLabel: string
+  recommendedNextMode: PracticeMode
+  caption: string
+}
+
+export const practiceModeGroups: PracticeModeGroup[] = [
+  {
+    id: "core",
+    label: "Core",
+    caption: "Accuracy-first practice with explanations and exam timing.",
+    modes: ["quiz", "exam", "true-false", "fill-blank"],
+  },
+  {
+    id: "speed",
+    label: "Speed",
+    caption: "Fast retrieval for warmups, memory checks, and confidence.",
+    modes: ["flashcards", "matching", "sprint"],
+  },
+  {
+    id: "repair",
+    label: "Repair",
+    caption: "Focus only on misses, marked questions, and weak topics.",
+    modes: ["mistake-retry"],
+  },
+  {
+    id: "generated",
+    label: "Generated",
+    caption: "Practice created from Studio notes, AI cleanup, or imports.",
+    modes: ["generated"],
+  },
+]
 
 export function summarizePracticeAttempt(input: {
   mode: PracticeMode
@@ -152,6 +194,37 @@ export function summarizeGameRun(input: {
     accuracy,
     pace,
     nextAction,
+  }
+}
+
+export function getPracticeModeGroup(mode: PracticeMode) {
+  return practiceModeGroups.find((group) => group.modes.includes(mode)) ?? practiceModeGroups[0]
+}
+
+export function summarizePracticeMode(input: {
+  mode: PracticeMode
+  missedCount?: number
+  answeredCount?: number
+  totalCount?: number
+}): PracticeModeSummary {
+  const activeGroup = getPracticeModeGroup(input.mode)
+  const hasMisses = (input.missedCount ?? 0) > 0
+  const hasAnsweredAll = (input.totalCount ?? 0) > 0 && (input.answeredCount ?? 0) >= (input.totalCount ?? 0)
+  const recommendedNextMode: PracticeMode = hasMisses
+    ? "mistake-retry"
+    : hasAnsweredAll
+      ? "flashcards"
+      : input.mode
+
+  return {
+    activeGroup,
+    activeModeLabel: practiceModeLabel(input.mode),
+    recommendedNextMode,
+    caption: hasMisses
+      ? "Repair misses first, then save the hardest ones to Reviews."
+      : hasAnsweredAll
+        ? "You have a complete pass. Switch to fast recall or level up."
+        : activeGroup.caption,
   }
 }
 

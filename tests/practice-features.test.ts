@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import type { QuizQuestion } from "../components/learn/types"
 import { hasPracticeDraftContent, listPracticeDraftCards, normalizePracticeDraft, summarizePracticeDrafts } from "../lib/practice-drafts"
-import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, evaluateGameChoice, filterPracticeQuestions, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt } from "../lib/practice-features"
+import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../lib/practice-features"
 
 const questions: QuizQuestion[] = [
   { id: "q1", question: "One?", choices: [{ id: "a", text: "1" }, { id: "b", text: "2" }], correct_answer_id: "a", topic: "Math", explanation: "One" },
@@ -28,6 +28,19 @@ test("practice attempt summary scores answers and recommends retry", () => {
 test("practice retry set contains only missed questions", () => {
   assert.deepEqual(buildMistakeRetrySet(questions, ["q2"]).map((question) => question.id), ["q2"])
   assert.equal(practiceModeLabel("mistake-retry"), "Mistake Retry")
+})
+
+test("practice modes are grouped by learner intent", () => {
+  assert.equal(practiceModeGroups.length, 4)
+  assert.equal(getPracticeModeGroup("sprint").id, "speed")
+  assert.equal(getPracticeModeGroup("mistake-retry").id, "repair")
+  assert.equal(getPracticeModeGroup("generated").label, "Generated")
+})
+
+test("practice mode summary recommends the next useful loop", () => {
+  assert.deepEqual(summarizePracticeMode({ mode: "quiz", missedCount: 2, answeredCount: 3, totalCount: 5 }).recommendedNextMode, "mistake-retry")
+  assert.equal(summarizePracticeMode({ mode: "exam", answeredCount: 5, totalCount: 5 }).recommendedNextMode, "flashcards")
+  assert.match(summarizePracticeMode({ mode: "matching" }).caption, /Fast retrieval/)
 })
 
 test("practice review plan groups misses by topic and recommends next loop", () => {
