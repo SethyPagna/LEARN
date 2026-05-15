@@ -74,7 +74,7 @@ import {
   X,
 } from "lucide-react"
 import { api, formatDate } from "../api"
-import type { Note, StudioKind, StudioLayoutState, StudioPane, StudioTab, WorkspaceDeck, WorkspaceDocument, WorkspaceSheet } from "../types"
+import type { Note, StudioDirtyBadge, StudioKind, StudioLayoutState, StudioPane, StudioTab, WorkspaceDeck, WorkspaceDocument, WorkspaceSheet } from "../types"
 import type { WorkspaceOptions } from "../preferences"
 import { EmptyState, Panel } from "../ui"
 import {
@@ -96,7 +96,7 @@ import {
   splitStudioPane,
 } from "@/lib/studio-features"
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, undoHistory, type HistoryState } from "@/lib/workspace-features"
-import { clearStudioDraft, readStudioDrafts, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
+import { clearStudioDraft, readStudioDrafts, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
 
@@ -288,6 +288,7 @@ export function StudioView({
   const [status, setStatus] = useState("Loading Studio...")
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState("")
+  const [dirtyBadges, setDirtyBadges] = useState<StudioDirtyBadge[]>([])
   const [inspectorTab, setInspectorTab] = useState("Info")
   const [selectedCell, setSelectedCell] = useState({ row: 0, column: 0 })
   const [selectedSlideIndex, setSelectedSlideIndex] = useState(0)
@@ -370,10 +371,14 @@ export function StudioView({
     const flushOnVisibilityChange = () => {
       if (document.visibilityState === "hidden") flushPendingStudioDrafts()
     }
+    const syncDirtyBadges = () => setDirtyBadges(computeStudioDirtyBadges(readStudioDrafts()))
+    syncDirtyBadges()
     window.addEventListener("pagehide", flushOnPageExit)
+    window.addEventListener(STUDIO_DRAFT_EVENT, syncDirtyBadges)
     document.addEventListener("visibilitychange", flushOnVisibilityChange)
     return () => {
       window.removeEventListener("pagehide", flushOnPageExit)
+      window.removeEventListener(STUDIO_DRAFT_EVENT, syncDirtyBadges)
       document.removeEventListener("visibilitychange", flushOnVisibilityChange)
       flushPendingStudioDrafts()
       if (draftStatusTimeout.current) window.clearTimeout(draftStatusTimeout.current)
@@ -570,7 +575,6 @@ export function StudioView({
   }, [deckTitle, selectedDeck?.id, selectedDeck?.title, selectedDeckFingerprint, slides, slidesFingerprint])
 
   const activeTab = studioTabs.find((tab) => tab.kind === kind) || studioTabs[0]
-  const dirtyBadges = useMemo(() => computeStudioDirtyBadges(readStudioDrafts()), [status, kind])
   const dirtyBadgeMap = useMemo(() => new Map(dirtyBadges.map((badge) => [badge.kind, badge])), [dirtyBadges])
   const allItems = useMemo(() => {
     const needle = query.trim().toLowerCase()
