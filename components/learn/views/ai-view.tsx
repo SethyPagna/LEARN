@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Bot, Brain, CheckSquare, FileText, Gauge, Languages, ListFilter, Plus, Route, Settings2, Sparkles, Wand2 } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Note } from "../types"
@@ -23,6 +23,20 @@ const difficulties = ["Adaptive", "Beginner", "Intermediate", "Advanced", "Exam 
 const tones = ["Kind", "Direct", "Socratic", "Concise", "Detailed"]
 const outputLengths = ["Short", "Balanced", "Deep"]
 const languages = ["English", "Khmer", "French", "Spanish", "Korean", "Japanese", "Chinese"]
+const AI_TUTOR_DRAFT_KEY = "learn_ai_tutor_draft_v1"
+const DEFAULT_AI_MESSAGE = "Create a study plan from my recent notes."
+
+type AiTutorDraft = {
+  message: string
+  reply: string
+  sourceScope: string
+  difficulty: string
+  tone: string
+  outputLength: string
+  language: string
+  providerFamily: string
+  updatedAt: string
+}
 
 export function AiTutorView({
   notes,
@@ -33,8 +47,9 @@ export function AiTutorView({
   options: WorkspaceOptions
   setOptions: (options: Partial<WorkspaceOptions>) => void
 }) {
-  const [message, setMessage] = useState("Create a study plan from my recent notes.")
+  const [message, setMessage] = useState(DEFAULT_AI_MESSAGE)
   const [reply, setReply] = useState("")
+  const [draftStatus, setDraftStatus] = useState("")
   const [loading, setLoading] = useState(false)
   const [providers, setProviders] = useState<any[]>([])
   const [catalog, setCatalog] = useState<any[]>([])
@@ -45,6 +60,8 @@ export function AiTutorView({
   const [outputLength, setOutputLength] = useState(outputLengths[1])
   const [language, setLanguage] = useState(languages[0])
   const [providerFamily, setProviderFamily] = useState("auto")
+  const draftHydrated = useRef(false)
+  const draftStatusTimer = useRef<number | null>(null)
 
   const activeMode = useMemo(() => tutorModes.find((mode) => mode.id === options.aiMode) || tutorModes[0], [options.aiMode])
   const recentContext = useMemo(() => notes.slice(0, 5).map((note) => `${note.title}: ${note.content}`).join("\n\n"), [notes])
@@ -52,6 +69,58 @@ export function AiTutorView({
     ...mode,
     body: `${mode.label} - ${mode.prompt}`,
   })), [])
+
+  useEffect(() => {
+    const draft = readAiTutorDraft()
+    if (draft) {
+      setMessage(draft.message || DEFAULT_AI_MESSAGE)
+      setReply(draft.reply || "")
+      setSourceScope(normalizeChoice(draft.sourceScope, sourceScopes, sourceScopes[0]))
+      setDifficulty(normalizeChoice(draft.difficulty, difficulties, difficulties[0]))
+      setTone(normalizeChoice(draft.tone, tones, tones[0]))
+      setOutputLength(normalizeChoice(draft.outputLength, outputLengths, outputLengths[1]))
+      setLanguage(normalizeChoice(draft.language, languages, languages[0]))
+      setProviderFamily(draft.providerFamily || "auto")
+    }
+    draftHydrated.current = true
+    return () => {
+      if (draftStatusTimer.current) window.clearTimeout(draftStatusTimer.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!draftHydrated.current) return
+    const timeout = window.setTimeout(() => {
+      writeAiTutorDraft({
+        message,
+        reply,
+        sourceScope,
+        difficulty,
+        tone,
+        outputLength,
+        language,
+        providerFamily,
+        updatedAt: new Date().toISOString(),
+      })
+      setDraftStatus("Draft saved")
+      if (draftStatusTimer.current) window.clearTimeout(draftStatusTimer.current)
+      draftStatusTimer.current = window.setTimeout(() => setDraftStatus(""), 1400)
+    }, 500)
+    return () => window.clearTimeout(timeout)
+  }, [difficulty, language, message, outputLength, providerFamily, reply, sourceScope, tone])
+
+  function resetDraft() {
+    setMessage(DEFAULT_AI_MESSAGE)
+    setReply("")
+    setSourceScope(sourceScopes[0])
+    setDifficulty(difficulties[0])
+    setTone(tones[0])
+    setOutputLength(outputLengths[1])
+    setLanguage(languages[0])
+    setProviderFamily("auto")
+    clearAiTutorDraft()
+    setDraftStatus("Draft reset")
+  }
 
   async function ask() {
     setLoading(true)
@@ -95,7 +164,7 @@ export function AiTutorView({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-2xl font-semibold text-foreground">AI tutor</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Choose a task, filter the context, then insert the result back into your learning loop.</p>
+            <p className="mt-2 text-sm text-muted-foreground">{draftStatus || "Choose a task, filter the context, then insert the result back into your learning loop."}</p>
           </div>
           <div className="flex flex-wrap rounded-md border border-border bg-secondary p-1">
             {tutorModes.map((item) => {
@@ -171,6 +240,9 @@ export function AiTutorView({
             <Plus className="h-4 w-4" />
             Studio block
           </button>
+          <button onClick={resetDraft} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+            Reset draft
+          </button>
         </div>
         {reply ? (
           <div className="mt-5 rounded-md border border-border bg-muted p-4">
@@ -221,6 +293,30 @@ export function AiTutorView({
       </Panel>
     </div>
   )
+}
+
+function readAiTutorDraft(): AiTutorDraft | null {
+  if (typeof window === "undefined") return null
+  try {
+    const stored = window.localStorage.getItem(AI_TUTOR_DRAFT_KEY)
+    return stored ? JSON.parse(stored) as AiTutorDraft : null
+  } catch {
+    return null
+  }
+}
+
+function writeAiTutorDraft(draft: AiTutorDraft) {
+  if (typeof window === "undefined") return
+  window.localStorage.setItem(AI_TUTOR_DRAFT_KEY, JSON.stringify(draft))
+}
+
+function clearAiTutorDraft() {
+  if (typeof window === "undefined") return
+  window.localStorage.removeItem(AI_TUTOR_DRAFT_KEY)
+}
+
+function normalizeChoice(value: string, options: string[], fallback: string) {
+  return options.includes(value) ? value : fallback
 }
 
 function SelectControl({ icon: Icon, label, onChange, value, values }: { icon: React.ComponentType<{ className?: string }>; label: string; onChange: (value: string) => void; value: string; values: string[] }) {
