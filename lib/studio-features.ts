@@ -172,6 +172,80 @@ export function sortSheetByColumn(cells: string[][], columnIndex: number, direct
   return [header, ...sortedRows]
 }
 
+export function buildSheetFormula(functionName: "SUM" | "AVERAGE" | "MIN" | "MAX" | "COUNT", columnIndex: number, rowCount: number) {
+  const column = columnIndexToName(columnIndex)
+  const endRow = Math.max(2, rowCount)
+  return `=${functionName}(${column}2:${column}${endRow})`
+}
+
+export function evaluateSheetFormula(cells: string[][], formula: string) {
+  const normalized = formula.trim().toUpperCase()
+  const match = normalized.match(/^=(SUM|AVERAGE|MIN|MAX|COUNT)\(([A-Z]+\d+)(?::([A-Z]+\d+))?\)$/)
+  if (!match) return { ok: false, value: "", reason: "Unsupported formula" }
+  const [, functionName, startRef, endRef = startRef] = match
+  const values = readSheetRange(cells, startRef, endRef).map(toNumber).filter((value) => Number.isFinite(value))
+  if (!values.length) return { ok: true, value: "0", reason: "No numeric cells" }
+  const result = calculateFormula(functionName, values)
+  return { ok: true, value: formatFormulaResult(result), reason: `${functionName} across ${values.length} cells` }
+}
+
+function calculateFormula(functionName: string, values: number[]) {
+  if (functionName === "COUNT") return values.length
+  if (functionName === "MIN") return Math.min(...values)
+  if (functionName === "MAX") return Math.max(...values)
+  const total = values.reduce((sum, value) => sum + value, 0)
+  return functionName === "AVERAGE" ? total / values.length : total
+}
+
+function readSheetRange(cells: string[][], startRef: string, endRef: string) {
+  const start = parseCellRef(startRef)
+  const end = parseCellRef(endRef)
+  if (!start || !end) return []
+  const minRow = Math.min(start.row, end.row)
+  const maxRow = Math.max(start.row, end.row)
+  const minColumn = Math.min(start.column, end.column)
+  const maxColumn = Math.max(start.column, end.column)
+  const values: string[] = []
+  for (let row = minRow; row <= maxRow; row += 1) {
+    for (let column = minColumn; column <= maxColumn; column += 1) {
+      values.push(cells[row]?.[column] ?? "")
+    }
+  }
+  return values
+}
+
+function parseCellRef(ref: string) {
+  const match = ref.match(/^([A-Z]+)(\d+)$/)
+  if (!match) return null
+  return {
+    column: columnNameToIndex(match[1]),
+    row: Number(match[2]) - 1,
+  }
+}
+
+function columnIndexToName(index: number) {
+  let next = Math.max(0, index) + 1
+  let name = ""
+  while (next > 0) {
+    const remainder = (next - 1) % 26
+    name = String.fromCharCode(65 + remainder) + name
+    next = Math.floor((next - 1) / 26)
+  }
+  return name
+}
+
+function columnNameToIndex(name: string) {
+  return name.split("").reduce((index, char) => index * 26 + char.charCodeAt(0) - 64, 0) - 1
+}
+
+function toNumber(value: string) {
+  return Number(String(value).replace(/,/g, "").trim())
+}
+
+function formatFormulaResult(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, "")
+}
+
 export function duplicateSlide(slides: WorkspaceDeck["slides"], index: number) {
   const next = [...slides]
   const slide = slides[index]

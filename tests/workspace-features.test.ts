@@ -14,6 +14,7 @@ import {
 import {
   addColumn,
   addRow,
+  buildSheetFormula,
   closeStudioPane,
   closeOtherStudioPanes,
   computeStudioDirtyBadges,
@@ -22,6 +23,7 @@ import {
   deleteColumn,
   deleteRow,
   duplicateSlide,
+  evaluateSheetFormula,
   fillSheetRange,
   moveColumn,
   moveRow,
@@ -121,6 +123,16 @@ test("studio sheet helpers fill ranges and sort rows", () => {
 
   assert.deepEqual(filled.map((row) => row[1]), ["Score", "72", "72", "72"])
   assert.deepEqual(sorted.map((row) => row[0]), ["Topic", "Algorithms", "Databases", "React"])
+})
+
+test("studio sheet formulas build and evaluate common functions", () => {
+  const cells = [["Topic", "Score"], ["React", "72"], ["Databases", "48"], ["Algorithms", "90"]]
+
+  assert.equal(buildSheetFormula("SUM", 1, cells.length), "=SUM(B2:B4)")
+  assert.deepEqual(evaluateSheetFormula(cells, "=SUM(B2:B4)"), { ok: true, value: "210", reason: "SUM across 3 cells" })
+  assert.deepEqual(evaluateSheetFormula(cells, "=AVERAGE(B2:B4)"), { ok: true, value: "70", reason: "AVERAGE across 3 cells" })
+  assert.deepEqual(evaluateSheetFormula(cells, "=MAX(B2:B4)"), { ok: true, value: "90", reason: "MAX across 3 cells" })
+  assert.equal(evaluateSheetFormula(cells, "=MEDIAN(B2:B4)").ok, false)
 })
 
 test("studio slide helpers duplicate and move slides", () => {
