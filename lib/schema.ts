@@ -317,15 +317,21 @@ async function seedStarterData(client: DatabaseClient) {
 
   const quizCount = await client.query("SELECT count(*)::int AS count FROM quizzes")
   if (Number(quizCount.rows[0]?.count || 0) === 0) {
-    const topics = Array.from(new Set(quizQuestions.map((question) => question.topic)))
-    for (const topic of topics) {
+    const questionsByTopic = new Map<string, typeof quizQuestions>()
+    for (const question of quizQuestions) {
+      const topicQuestions = questionsByTopic.get(question.topic) ?? []
+      topicQuestions.push(question)
+      questionsByTopic.set(question.topic, topicQuestions)
+    }
+
+    for (const [topic, topicQuestions] of questionsByTopic.entries()) {
       const quizId = `quiz_${topic.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`
       await client.query(
         `INSERT INTO quizzes (id, workspace_id, title, topic, description, source)
          VALUES ($1, 'workspace_demo', $2, $3, $4, 'seed')`,
         [quizId, `${topic} Practice`, topic, `Adaptive MCQ practice for ${topic}.`],
       )
-      for (const question of quizQuestions.filter((item) => item.topic === topic)) {
+      for (const question of topicQuestions) {
         await client.query(
           `INSERT INTO quiz_questions (id, quiz_id, question, choices, correct_answer_id, topic, explanation)
            VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)`,
