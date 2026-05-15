@@ -1,10 +1,13 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { applySlideDesignPreset, createSlideDesignObject, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject } from "../lib/studio-design"
+import { applySlideDesignPreset, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject } from "../lib/studio-design"
 
 test("document insert blocks expose reusable editor snippets", () => {
   assert.match(getDocumentInsertBlock("callout"), /Callout/)
   assert.match(getDocumentInsertBlock("two-column"), /<table>/)
+  assert.match(getDocumentInsertBlock("cornell-notes"), /Cues/)
+  assert.match(getDocumentInsertBlock("quiz-seed"), /Question/)
+  assert.deepEqual(documentInsertGroups.map((group) => group.label), ["Blocks", "Layouts", "Learning"])
 })
 
 test("slide design presets add theme and background metadata", () => {

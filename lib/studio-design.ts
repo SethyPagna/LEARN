@@ -1,6 +1,15 @@
 import type { SlideObject, WorkspaceDeck } from "@/components/learn/types"
 
-export type DocumentInsertKind = "callout" | "reference" | "equation" | "page-break" | "two-column"
+export type DocumentInsertKind =
+  | "callout"
+  | "reference"
+  | "equation"
+  | "page-break"
+  | "two-column"
+  | "study-summary"
+  | "cornell-notes"
+  | "quiz-seed"
+  | "citation-list"
 
 export const documentInsertBlocks: Record<DocumentInsertKind, string> = {
   callout: `<blockquote><p><strong>Callout:</strong> Add the idea, warning, or insight here.</p></blockquote>`,
@@ -8,7 +17,17 @@ export const documentInsertBlocks: Record<DocumentInsertKind, string> = {
   equation: `<p><code>Equation:</code> f(x) = ax + b</p>`,
   "page-break": `<hr><p></p>`,
   "two-column": `<table><tbody><tr><th>Concept</th><th>Evidence / example</th></tr><tr><td></td><td></td></tr></tbody></table>`,
+  "study-summary": `<h2>Study summary</h2><p><strong>Main idea:</strong> </p><ul><li>Key point</li><li>Example</li><li>Next review action</li></ul>`,
+  "cornell-notes": `<table><tbody><tr><th>Cues / questions</th><th>Notes</th></tr><tr><td>What should I recall?</td><td>Add explanation, example, and source.</td></tr><tr><td colspan="2"><strong>Summary:</strong> Write the takeaway in your own words.</td></tr></tbody></table>`,
+  "quiz-seed": `<h2>Quiz seed</h2><ol><li><p><strong>Question:</strong> </p><p><strong>Answer:</strong> </p><p><strong>Why:</strong> </p></li></ol>`,
+  "citation-list": `<h2>References</h2><ul><li>Author. <em>Title</em>. Link or source note. Why it matters.</li></ul>`,
 }
+
+export const documentInsertGroups: Array<{ label: string; items: DocumentInsertKind[] }> = [
+  { label: "Blocks", items: ["callout", "reference", "equation", "page-break"] },
+  { label: "Layouts", items: ["two-column", "cornell-notes"] },
+  { label: "Learning", items: ["study-summary", "quiz-seed", "citation-list"] },
+]
 
 export const slideDesignPresets = {
   midnight: { background: "#111827", accent: "#a7f3d0", foreground: "#ffffff" },
