@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { applySlideDesignPreset, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject } from "../lib/studio-design"
+import { applySlideDesignPreset, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject } from "../lib/studio-design"
 
 test("document insert blocks expose reusable editor snippets", () => {
   assert.match(getDocumentInsertBlock("callout"), /Callout/)
@@ -51,4 +51,19 @@ test("slide motion presets summarize deck duration", () => {
   assert.equal(summary.slideCount, 2)
   assert.ok(summary.totalSeconds >= 8)
   assert.equal(summary.slideTimings[0].title, "Intro")
+})
+
+test("slide export payload includes presenter outline and timings", () => {
+  const object = createSlideDesignObject("table")
+  const slides = [
+    { title: "Intro", body: "A short teaching point.", accent: "Open", objects: [object], speakerNotes: "Ask a warmup question." },
+  ]
+  const outline = buildSlidePresenterOutline(slides)
+  const payload = buildSlideExportPayload("Lesson", slides)
+
+  assert.match(outline, /Slide 1: Intro/)
+  assert.match(outline, /Objects: table/)
+  assert.equal(payload.title, "Lesson")
+  assert.equal(payload.slides[0].estimatedSeconds >= 3, true)
+  assert.match(payload.presenterOutline, /Speaker notes/)
 })

@@ -119,3 +119,40 @@ export function summarizeSlideShow(slides: WorkspaceDeck["slides"]) {
     slideTimings,
   }
 }
+
+export function buildSlidePresenterOutline(slides: WorkspaceDeck["slides"]) {
+  return slides.map((slide, index) => {
+    const objects = (slide.objects || []).map((object) => `${object.type}: ${object.text || object.src || "empty"}`).join("; ")
+    return [
+      `Slide ${index + 1}: ${slide.title || "Untitled"}`,
+      `Accent: ${slide.accent || "Slide"}`,
+      `Layout: ${slide.layout || "title"} | Transition: ${slide.transition || "none"} | Animation: ${slide.animation || "none"}`,
+      `Body: ${slide.body || ""}`,
+      objects ? `Objects: ${objects}` : "",
+      slide.speakerNotes ? `Speaker notes: ${slide.speakerNotes}` : "",
+    ].filter(Boolean).join("\n")
+  }).join("\n\n")
+}
+
+export function buildSlideExportPayload(title: string, slides: WorkspaceDeck["slides"]) {
+  const summary = summarizeSlideShow(slides)
+  return {
+    title,
+    summary,
+    presenterOutline: buildSlidePresenterOutline(slides),
+    slides: slides.map((slide, index) => ({
+      index: index + 1,
+      title: slide.title || `Slide ${index + 1}`,
+      accent: slide.accent || "Slide",
+      body: slide.body || "",
+      layout: slide.layout || "title",
+      theme: slide.theme || "midnight",
+      background: slide.background || slideDesignPresets[(slide.theme || "midnight") as keyof typeof slideDesignPresets]?.background || "#111827",
+      transition: slide.transition || "none",
+      animation: slide.animation || "none",
+      objects: slide.objects || [],
+      speakerNotes: slide.speakerNotes || "",
+      estimatedSeconds: Math.ceil((summary.slideTimings[index]?.durationMs || 0) / 1000),
+    })),
+  }
+}
