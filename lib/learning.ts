@@ -74,18 +74,18 @@ export function buildLearningSnapshot(input: {
 }
 
 function topRecentNotes(notes: NoteSummary[], limit: number) {
-  const recent: NoteSummary[] = []
+  const recent: Array<{ note: NoteSummary; time: number }> = []
   for (const note of notes) {
     const noteTime = Date.parse(note.updatedAt)
     let insertAt = recent.length
     for (let index = 0; index < recent.length; index += 1) {
-      if (noteTime > Date.parse(recent[index].updatedAt)) {
+      if (noteTime > recent[index].time) {
         insertAt = index
         break
       }
     }
-    recent.splice(insertAt, 0, note)
+    recent.splice(insertAt, 0, { note, time: noteTime })
     if (recent.length > limit) recent.pop()
   }
-  return recent
+  return recent.map((entry) => entry.note)
 }
