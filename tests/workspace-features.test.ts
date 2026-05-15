@@ -8,7 +8,7 @@ import {
   redoHistory,
   undoHistory,
 } from "../lib/workspace-features"
-import { getVocabulary, supportedLocales } from "../lib/i18n/vocabulary"
+import { getVocabulary, isSupportedLocale, supportedLocales } from "../lib/i18n/vocabulary"
 
 test("editor history supports undo and redo without losing future states", () => {
   const initial = createHistoryState("first")
@@ -48,4 +48,16 @@ test("all supported vocabularies return usable text without mojibake", () => {
     assert.ok(text.dashboard.length > 0)
     assert.doesNotMatch(Object.values(text).join(" "), /Ã|Â|áž|Ù|à[¸¤¥]|�/)
   }
+})
+
+test("vocabulary combines English fallback with only the requested locale", () => {
+  const english = getVocabulary("en")
+  const french = getVocabulary("fr")
+
+  assert.equal(getVocabulary("fr"), french)
+  assert.equal(getVocabulary("unknown"), english)
+  assert.equal(french.save, "Enregistrer")
+  assert.equal(french.workspace, english.workspace)
+  assert.equal(isSupportedLocale("fr"), true)
+  assert.equal(isSupportedLocale("unknown"), false)
 })
