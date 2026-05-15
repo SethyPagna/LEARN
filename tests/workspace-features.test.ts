@@ -12,13 +12,21 @@ import {
   addColumn,
   addRow,
   closeStudioPane,
+  closeOtherStudioPanes,
+  computeStudioDirtyBadges,
+  createSlideObject,
   createDefaultStudioLayout,
   deleteColumn,
   deleteRow,
   duplicateSlide,
+  fillSheetRange,
   moveColumn,
   moveRow,
   moveSlide,
+  pinStudioPane,
+  renameStudioPane,
+  slideToObjects,
+  sortSheetByColumn,
   splitStudioPane,
 } from "../lib/studio-features"
 import { summarizeStudioDrafts } from "../lib/studio-drafts"
@@ -68,6 +76,18 @@ test("studio layout supports split and close pane operations", () => {
   assert.equal(closed.groups[0].panes[0].label, "Order 1")
 })
 
+test("studio layout supports rename pin and close-others operations", () => {
+  const layout = splitStudioPane(createDefaultStudioLayout("docs", "Study doc", "doc_1"), "pane_1", "horizontal")
+  const secondPaneId = layout.groups[0].panes[1].id
+  const renamed = renameStudioPane(layout, secondPaneId, "Research")
+  const pinned = pinStudioPane(renamed, secondPaneId)
+  const focused = closeOtherStudioPanes(pinned, secondPaneId)
+
+  assert.equal(focused.groups[0].panes.length, 1)
+  assert.equal(focused.groups[0].panes[0].label, "Research")
+  assert.equal(focused.groups[0].panes[0].pinned, true)
+})
+
 test("studio sheet helpers add delete and move rows and columns", () => {
   const cells = [["A", "B"], ["1", "2"]]
 
@@ -79,6 +99,15 @@ test("studio sheet helpers add delete and move rows and columns", () => {
   assert.deepEqual(moveColumn(cells, 0, 1), [["B", "A"], ["2", "1"]])
 })
 
+test("studio sheet helpers fill ranges and sort rows", () => {
+  const cells = [["Topic", "Score"], ["React", "72"], ["Databases", "48"], ["Algorithms", "90"]]
+  const filled = fillSheetRange(cells, { selectedRange: { startRow: 1, startColumn: 1, endRow: 3, endColumn: 1 } }, "down")
+  const sorted = sortSheetByColumn(cells, 0, "asc")
+
+  assert.deepEqual(filled.map((row) => row[1]), ["Score", "72", "72", "72"])
+  assert.deepEqual(sorted.map((row) => row[0]), ["Topic", "Algorithms", "Databases", "React"])
+})
+
 test("studio slide helpers duplicate and move slides", () => {
   const slides = [
     { title: "One", body: "A" },
@@ -87,6 +116,25 @@ test("studio slide helpers duplicate and move slides", () => {
 
   assert.equal(duplicateSlide(slides, 0)[1].title, "One copy")
   assert.deepEqual(moveSlide(slides, 1, -1).map((slide) => slide.title), ["Two", "One"])
+})
+
+test("studio slide helpers build editable objects from legacy slides", () => {
+  const object = createSlideObject("shape", { text: "Box" })
+  const legacyObjects = slideToObjects({ title: "One", body: "Body" })
+
+  assert.equal(object.type, "shape")
+  assert.equal(legacyObjects[0].text, "One")
+  assert.equal(legacyObjects[1].text, "Body")
+})
+
+test("studio dirty badges summarize local drafts by kind", () => {
+  const badges = computeStudioDirtyBadges({
+    notes: { updatedAt: "2026-01-01T00:00:00.000Z" },
+    slides: { updatedAt: "2026-01-02T00:00:00.000Z" },
+  })
+
+  assert.deepEqual(badges.map((badge) => badge.kind), ["notes", "slides"])
+  assert.equal(badges[0].count, 1)
 })
 
 test("studio draft summary counts typed workspace drafts", () => {

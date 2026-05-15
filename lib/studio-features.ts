@@ -1,4 +1,4 @@
-import type { StudioKind, StudioLayoutState, StudioPane, StudioTab, WorkspaceDeck } from "@/components/learn/types"
+import type { SheetMetadata, SlideObject, StudioDirtyBadge, StudioKind, StudioLayoutState, StudioPane, StudioTab, WorkspaceDeck } from "@/components/learn/types"
 
 export function createStudioTab(kind: StudioKind, title: string, itemId?: string): StudioTab {
   return {
@@ -71,6 +71,39 @@ export function closeStudioPane(layout: StudioLayoutState, paneId: string): Stud
   })
 }
 
+export function closeOtherStudioPanes(layout: StudioLayoutState, paneId: string): StudioLayoutState {
+  const group = layout.groups[0] || createDefaultStudioLayout().groups[0]
+  const pane = group.panes.find((item) => item.id === paneId) || group.panes[0]
+  return normalizeStudioLayout({
+    ...layout,
+    activePaneId: pane.id,
+    groups: [{ ...group, panes: [pane] }],
+  })
+}
+
+export function renameStudioPane(layout: StudioLayoutState, paneId: string, label: string): StudioLayoutState {
+  const group = layout.groups[0] || createDefaultStudioLayout().groups[0]
+  return normalizeStudioLayout({
+    ...layout,
+    groups: [{ ...group, panes: group.panes.map((pane) => pane.id === paneId ? { ...pane, label } : pane) }],
+  })
+}
+
+export function pinStudioPane(layout: StudioLayoutState, paneId: string): StudioLayoutState {
+  const group = layout.groups[0] || createDefaultStudioLayout().groups[0]
+  return normalizeStudioLayout({
+    ...layout,
+    groups: [{ ...group, panes: group.panes.map((pane) => pane.id === paneId ? { ...pane, pinned: !pane.pinned } : pane) }],
+  })
+}
+
+export function computeStudioDirtyBadges(input: Partial<Record<StudioKind, { updatedAt?: string } | null>>): StudioDirtyBadge[] {
+  return (["notes", "docs", "sheets", "slides"] as StudioKind[]).flatMap((kind) => {
+    const draft = input[kind]
+    return draft ? [{ kind, count: 1, latestAt: draft.updatedAt }] : []
+  })
+}
+
 export function addRow(cells: string[][], afterIndex = cells.length - 1) {
   const width = Math.max(1, cells[0]?.length || 1)
   const next = cells.map((row) => [...row])
@@ -117,6 +150,28 @@ export function moveColumn(cells: string[][], columnIndex: number, direction: -1
   })
 }
 
+export function fillSheetRange(cells: string[][], metadata: SheetMetadata, direction: "down" | "right") {
+  const range = metadata.selectedRange
+  if (!range) return cells
+  const next = cells.map((row) => [...row])
+  const source = next[range.startRow]?.[range.startColumn] ?? ""
+  for (let rowIndex = range.startRow; rowIndex <= range.endRow; rowIndex += 1) {
+    for (let columnIndex = range.startColumn; columnIndex <= range.endColumn; columnIndex += 1) {
+      const shouldFill = direction === "down" ? rowIndex > range.startRow : columnIndex > range.startColumn
+      if (shouldFill && next[rowIndex]) next[rowIndex][columnIndex] = source
+    }
+  }
+  return next
+}
+
+export function sortSheetByColumn(cells: string[][], columnIndex: number, direction: "asc" | "desc" = "asc") {
+  if (cells.length <= 2) return cells
+  const [header, ...rows] = cells
+  const factor = direction === "asc" ? 1 : -1
+  const sortedRows = [...rows].sort((left, right) => String(left[columnIndex] ?? "").localeCompare(String(right[columnIndex] ?? "")) * factor)
+  return [header, ...sortedRows]
+}
+
 export function duplicateSlide(slides: WorkspaceDeck["slides"], index: number) {
   const next = [...slides]
   const slide = slides[index]
@@ -132,4 +187,26 @@ export function moveSlide(slides: WorkspaceDeck["slides"], index: number, direct
   const [slide] = next.splice(index, 1)
   next.splice(target, 0, slide)
   return next
+}
+
+export function createSlideObject(type: SlideObject["type"], partial: Partial<SlideObject> = {}): SlideObject {
+  return {
+    id: partial.id || `slide_object_${Date.now().toString(36)}`,
+    type,
+    x: partial.x ?? 12,
+    y: partial.y ?? 12,
+    w: partial.w ?? 48,
+    h: partial.h ?? 18,
+    text: partial.text,
+    src: partial.src,
+    style: partial.style,
+  }
+}
+
+export function slideToObjects(slide: WorkspaceDeck["slides"][number]): SlideObject[] {
+  if (slide.objects?.length) return slide.objects as SlideObject[]
+  return [
+    createSlideObject("text", { id: "title", x: 10, y: 12, w: 80, h: 16, text: slide.title }),
+    createSlideObject("text", { id: "body", x: 10, y: 34, w: 80, h: 42, text: slide.body }),
+  ]
 }
