@@ -522,16 +522,22 @@ export function StudioView({
   const activeTab = studioTabs.find((tab) => tab.kind === kind) || studioTabs[0]
   const allItems = useMemo(() => {
     const needle = query.trim().toLowerCase()
-    const mapped: Array<{ id: string; kind: StudioKind; title: string; updated_at?: string; summary?: string; favorite?: boolean }> = [
-      ...notes.map((item) => ({ id: item.id, kind: "notes" as StudioKind, title: item.title, updated_at: item.updated_at, summary: item.content, favorite: item.favorite })),
-      ...docs.map((item) => ({ id: item.id, kind: "docs" as StudioKind, title: item.title, updated_at: item.updated_at, summary: textFromDocument(item) })),
-      ...sheets.map((item) => ({ id: item.id, kind: "sheets" as StudioKind, title: item.title, updated_at: item.updated_at, summary: `${cellsFromSheet(item).length} rows` })),
-      ...decks.map((item) => ({ id: item.id, kind: "slides" as StudioKind, title: item.title, updated_at: item.updated_at, summary: `${slidesFromDeck(item).length} slides` })),
-    ]
-    return mapped
-      .filter((item) => section === "All" || section === "Recent" || (section === "Favorites" ? item.favorite : item.kind === section.toLowerCase()))
-      .filter((item) => !needle || `${item.title} ${item.summary || ""}`.toLowerCase().includes(needle))
-      .sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")))
+    const mapped: Array<{ id: string; kind: StudioKind; title: string; updated_at?: string; summary?: string; favorite?: boolean }> = []
+    const acceptsSection = (itemKind: StudioKind, favorite?: boolean) => (
+      section === "All" || section === "Recent" || (section === "Favorites" ? favorite : itemKind === section.toLowerCase())
+    )
+    const append = (item: { id: string; kind: StudioKind; title: string; updated_at?: string; summary?: string; favorite?: boolean }) => {
+      if (!acceptsSection(item.kind, item.favorite)) return
+      if (needle && !`${item.title} ${item.summary || ""}`.toLowerCase().includes(needle)) return
+      mapped.push(item)
+    }
+
+    for (const item of notes) append({ id: item.id, kind: "notes", title: item.title, updated_at: item.updated_at, summary: item.content, favorite: item.favorite })
+    for (const item of docs) append({ id: item.id, kind: "docs", title: item.title, updated_at: item.updated_at, summary: textFromDocument(item) })
+    for (const item of sheets) append({ id: item.id, kind: "sheets", title: item.title, updated_at: item.updated_at, summary: `${cellsFromSheet(item).length} rows` })
+    for (const item of decks) append({ id: item.id, kind: "slides", title: item.title, updated_at: item.updated_at, summary: `${slidesFromDeck(item).length} slides` })
+
+    return mapped.sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")))
   }, [decks, docs, notes, query, section, sheets])
 
   function updateActivePaneKind(nextKind: StudioKind, itemId?: string, title?: string) {
