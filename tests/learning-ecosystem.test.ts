@@ -7,6 +7,9 @@ import {
   calculateLevelFromXp,
   detectOrphanKnowledgeNodes,
   filterPublicProfileArtifacts,
+  reviewAnswerText,
+  reviewPromptText,
+  reviewSourceLabel,
   selectFeedLessons,
   updateLearningStreak,
   type FeedLessonCandidate,
@@ -40,6 +43,21 @@ test("review schedule respects caps, rest days, and due order", () => {
   })
   assert.equal(restSchedule.isRestDay, true)
   assert.deepEqual(restSchedule.items, [])
+})
+
+test("review card helpers expose practice mistake context", () => {
+  const mistake = {
+    ...item("review_miss", "2026-05-13T01:00:00.000Z", 0.4),
+    sourceType: "practice_mistake" as const,
+    prompt: "What is the scheduler optimizing?",
+    answer: "It minimizes daily review load while maintaining target retention.",
+    topic: "FSRS",
+  }
+
+  assert.equal(reviewSourceLabel(mistake), "Practice miss · FSRS")
+  assert.equal(reviewPromptText(mistake), "What is the scheduler optimizing?")
+  assert.equal(reviewAnswerText(mistake), "It minimizes daily review load while maintaining target retention.")
+  assert.equal(reviewPromptText(item("review_plain", "2026-05-13T01:00:00.000Z", 0.8)), 'Recall the core idea behind "review_plain".')
 })
 
 test("streak updates support rest days and earned freezes", () => {

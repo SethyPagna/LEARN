@@ -1138,15 +1138,21 @@ export async function listReviewSchedule(user: User) {
     [user.id],
   )).rows
   const preferences = user.preferences || {}
-  const items: ReviewItem[] = rows.map((row) => ({
-    id: String(row.id),
-    title: String(row.title),
-    sourceType: String(row.source_type || "note") as ReviewItem["sourceType"],
-    dueAt: String(row.due_at),
-    difficulty: Number(row.difficulty || 0.5),
-    stability: Number(row.stability || 2),
-    retrievability: Number(row.retrievability || 0.9),
-  }))
+  const items: ReviewItem[] = rows.map((row) => {
+    const metadata = parseJsonObject(row.metadata)
+    return {
+      id: String(row.id),
+      title: String(row.title),
+      sourceType: String(row.source_type || "note") as ReviewItem["sourceType"],
+      dueAt: String(row.due_at),
+      difficulty: Number(row.difficulty || 0.5),
+      stability: Number(row.stability || 2),
+      retrievability: Number(row.retrievability || 0.9),
+      prompt: String(row.prompt || ""),
+      answer: String(row.answer || ""),
+      topic: String(metadata.topic || ""),
+    }
+  })
   return buildReviewSchedule({
     items,
     now: new Date(),

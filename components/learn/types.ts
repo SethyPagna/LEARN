@@ -301,7 +301,10 @@ export interface FsrsState {
 export interface ReviewItem extends FsrsState {
   id: string
   title: string
-  sourceType?: "note" | "block" | "flashcard" | "lesson"
+  sourceType?: "note" | "block" | "flashcard" | "lesson" | "practice_mistake"
+  prompt?: string
+  answer?: string
+  topic?: string
 }
 
 export interface MicroLesson {

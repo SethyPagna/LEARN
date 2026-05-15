@@ -21,7 +21,10 @@ export interface FsrsState {
 export interface ReviewItem extends FsrsState {
   id: string
   title: string
-  sourceType?: "note" | "block" | "flashcard" | "lesson"
+  sourceType?: "note" | "block" | "flashcard" | "lesson" | "practice_mistake"
+  prompt?: string
+  answer?: string
+  topic?: string
 }
 
 export interface ReviewSchedule {
@@ -99,6 +102,30 @@ export function buildReviewSchedule(input: {
     isRestDay: false,
     remainingDueCount: Math.max(0, dueItems.length - cap),
   }
+}
+
+export function reviewSourceLabel(item: ReviewItem) {
+  const labels: Record<NonNullable<ReviewItem["sourceType"]>, string> = {
+    note: "Note",
+    block: "Vault block",
+    flashcard: "Flashcard",
+    lesson: "Feed lesson",
+    practice_mistake: "Practice miss",
+  }
+  const base = labels[item.sourceType || "note"]
+  return item.topic ? `${base} · ${item.topic}` : base
+}
+
+export function reviewPromptText(item: ReviewItem) {
+  const prompt = item.prompt?.trim()
+  if (prompt) return prompt
+  return `Recall the core idea behind "${item.title}".`
+}
+
+export function reviewAnswerText(item: ReviewItem) {
+  const answer = item.answer?.trim()
+  if (answer) return answer
+  return "Check your Studio notes, then grade the recall honestly before moving on."
 }
 
 export function updateLearningStreak(input: LearningStreak & {
