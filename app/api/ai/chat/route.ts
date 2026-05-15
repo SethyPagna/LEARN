@@ -1,8 +1,10 @@
 import type { NextRequest } from "next/server"
 import { fail, isApiResponse, ok, requireApiUser } from "@/lib/api"
-import { askTutor } from "@/lib/ai/tutor"
+import { askTutor, type TutorMode } from "@/lib/ai/tutor"
 import { saveAiTurn } from "@/lib/data"
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
+
+const tutorModes: TutorMode[] = ["coach", "rewrite", "quiz", "flashcards", "translate", "route", "cleanup", "mistake"]
 
 export async function POST(request: NextRequest) {
   const user = await requireApiUser(request)
@@ -27,9 +29,7 @@ export async function POST(request: NextRequest) {
     const result = await askTutor({
       message,
       context,
-      mode: ["coach", "rewrite", "quiz", "flashcards", "translate", "route"].includes(mode)
-        ? mode as "coach" | "rewrite" | "quiz" | "flashcards" | "translate" | "route"
-        : "coach",
+      mode: tutorModes.includes(mode as TutorMode) ? mode as TutorMode : "coach",
       temperature: Number.isFinite(temperature) ? temperature : undefined,
       maxTokens: Number.isFinite(maxTokens) ? maxTokens : undefined,
     })
