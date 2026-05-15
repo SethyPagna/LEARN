@@ -87,7 +87,7 @@ import {
   splitStudioPane,
 } from "@/lib/studio-features"
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, undoHistory, type HistoryState } from "@/lib/workspace-features"
-import { clearStudioDraft, readStudioDrafts, summarizeStudioDrafts, writeStudioDraft, type StudioDraftSummary } from "@/lib/studio-drafts"
+import { clearStudioDraft, readStudioDrafts, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
 
@@ -146,6 +146,8 @@ const starterSlides: WorkspaceDeck["slides"] = [
   { title: "Study brief", body: "Summarize the goal, what changed, and the next practice step.", accent: "Focus", layout: "title", theme: "midnight", speakerNotes: "Open with why this matters." },
   { title: "Key idea", body: "Add a concise visual explanation, image note, or memory hook.", accent: "Explain", layout: "two-column", theme: "midnight", speakerNotes: "Keep this slide visual and short." },
 ]
+const STARTER_CELLS_FINGERPRINT = JSON.stringify(starterCells)
+const STARTER_SLIDES_FINGERPRINT = JSON.stringify(starterSlides)
 
 function textFromDocument(document?: WorkspaceDocument) {
   const content = document?.content || {}
@@ -305,10 +307,37 @@ export function StudioView({
   const [slides, setSlides] = useState<WorkspaceDeck["slides"]>(starterSlides)
   const hydratedDraftKinds = useRef<Set<StudioKind>>(new Set())
   const draftReady = useRef(false)
+  const lastDraftFingerprint = useRef<Partial<Record<StudioKind, string>>>({})
+  const draftStatusTimeout = useRef<number | null>(null)
 
   function notifyDraftSummary() {
     onDraftSummary?.(summarizeStudioDrafts(readStudioDrafts()))
   }
+
+  function markDraftSaved(summary: StudioDraftSummary) {
+    onDraftSummary?.(summary)
+    if (draftStatusTimeout.current) window.clearTimeout(draftStatusTimeout.current)
+    setStatus("Draft saved locally.")
+    draftStatusTimeout.current = window.setTimeout(() => {
+      setStatus((current) => current === "Draft saved locally." ? "" : current)
+    }, 1600)
+  }
+
+  function scheduleStudioDraft(kind: StudioKind, fingerprint: string, buildDraft: () => StudioDraftRecord) {
+    if (lastDraftFingerprint.current[kind] === fingerprint) return undefined
+    const timeout = window.setTimeout(() => {
+      if (lastDraftFingerprint.current[kind] === fingerprint) return
+      lastDraftFingerprint.current[kind] = fingerprint
+      markDraftSaved(writeStudioDraft(kind, buildDraft()))
+    }, 650)
+    return () => window.clearTimeout(timeout)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (draftStatusTimeout.current) window.clearTimeout(draftStatusTimeout.current)
+    }
+  }, [])
 
   useEffect(() => {
     setKind(initialKind)
@@ -420,68 +449,75 @@ export function StudioView({
 
   useEffect(() => {
     if (!draftReady.current || !noteDraft) return
-    const changed = noteDraft.title !== selectedNote?.title || noteHistory.present !== (selectedNote?.content || "")
+    const title = noteDraft.title || "Untitled learning page"
+    const changed = title !== (selectedNote?.title || "") || noteHistory.present !== (selectedNote?.content || "")
     if (!changed) return
-    onDraftSummary?.(writeStudioDraft("notes", {
+    const fingerprint = ["notes", noteDraft.id || "", title, noteHistory.present].join("\u001f")
+    return scheduleStudioDraft("notes", fingerprint, () => ({
       kind: "notes",
       id: noteDraft.id,
-      title: noteDraft.title || "Untitled learning page",
+      title,
       content: noteHistory.present,
       updatedAt: new Date().toISOString(),
     }))
-    setStatus("Draft saved locally.")
   }, [noteDraft?.id, noteDraft?.title, noteHistory.present, selectedNote?.content, selectedNote?.title])
 
   useEffect(() => {
     if (!draftReady.current) return
     const selectedContent = textFromDocument(selectedDoc)
+    const title = docTitle || "Untitled document"
     const changed = selectedDoc
-      ? docTitle !== selectedDoc.title || docHistory.present !== selectedContent
-      : docTitle !== "Untitled document" || plainTextFromHtml(docHistory.present).length > 0
+      ? title !== selectedDoc.title || docHistory.present !== selectedContent
+      : title !== "Untitled document" || plainTextFromHtml(docHistory.present).length > 0
     if (!changed) return
-    onDraftSummary?.(writeStudioDraft("docs", {
+    const fingerprint = ["docs", selectedDoc?.id || "", title, docHistory.present].join("\u001f")
+    return scheduleStudioDraft("docs", fingerprint, () => ({
       kind: "docs",
       id: selectedDoc?.id,
-      title: docTitle || "Untitled document",
+      title,
       content: docHistory.present,
       updatedAt: new Date().toISOString(),
     }))
-    setStatus("Draft saved locally.")
   }, [docHistory.present, docTitle, selectedDoc?.id, selectedDoc?.title])
+
+  const cellsFingerprint = useMemo(() => JSON.stringify(cells), [cells])
+  const selectedSheetFingerprint = useMemo(() => selectedSheet ? JSON.stringify(cellsFromSheet(selectedSheet)) : STARTER_CELLS_FINGERPRINT, [selectedSheet?.cells, selectedSheet?.id])
+  const slidesFingerprint = useMemo(() => JSON.stringify(slides), [slides])
+  const selectedDeckFingerprint = useMemo(() => selectedDeck ? JSON.stringify(slidesFromDeck(selectedDeck)) : STARTER_SLIDES_FINGERPRINT, [selectedDeck?.id, selectedDeck?.slides])
 
   useEffect(() => {
     if (!draftReady.current) return
-    const selectedCells = selectedSheet ? cellsFromSheet(selectedSheet) : starterCells
+    const title = sheetTitle || "Study tracker"
     const changed = selectedSheet
-      ? sheetTitle !== selectedSheet.title || JSON.stringify(cells) !== JSON.stringify(selectedCells)
-      : sheetTitle !== "Study tracker" || JSON.stringify(cells) !== JSON.stringify(starterCells)
+      ? title !== selectedSheet.title || cellsFingerprint !== selectedSheetFingerprint
+      : title !== "Study tracker" || cellsFingerprint !== STARTER_CELLS_FINGERPRINT
     if (!changed) return
-    onDraftSummary?.(writeStudioDraft("sheets", {
+    const fingerprint = ["sheets", selectedSheet?.id || "", title, cellsFingerprint].join("\u001f")
+    return scheduleStudioDraft("sheets", fingerprint, () => ({
       kind: "sheets",
       id: selectedSheet?.id,
-      title: sheetTitle || "Study tracker",
+      title,
       cells,
       updatedAt: new Date().toISOString(),
     }))
-    setStatus("Draft saved locally.")
-  }, [cells, selectedSheet?.id, selectedSheet?.title, sheetTitle])
+  }, [cells, cellsFingerprint, selectedSheet?.id, selectedSheet?.title, selectedSheetFingerprint, sheetTitle])
 
   useEffect(() => {
     if (!draftReady.current) return
-    const selectedSlides = selectedDeck ? slidesFromDeck(selectedDeck) : starterSlides
+    const title = deckTitle || "Learning deck"
     const changed = selectedDeck
-      ? deckTitle !== selectedDeck.title || JSON.stringify(slides) !== JSON.stringify(selectedSlides)
-      : deckTitle !== "Learning deck" || JSON.stringify(slides) !== JSON.stringify(starterSlides)
+      ? title !== selectedDeck.title || slidesFingerprint !== selectedDeckFingerprint
+      : title !== "Learning deck" || slidesFingerprint !== STARTER_SLIDES_FINGERPRINT
     if (!changed) return
-    onDraftSummary?.(writeStudioDraft("slides", {
+    const fingerprint = ["slides", selectedDeck?.id || "", title, slidesFingerprint].join("\u001f")
+    return scheduleStudioDraft("slides", fingerprint, () => ({
       kind: "slides",
       id: selectedDeck?.id,
-      title: deckTitle || "Learning deck",
+      title,
       slides,
       updatedAt: new Date().toISOString(),
     }))
-    setStatus("Draft saved locally.")
-  }, [deckTitle, selectedDeck?.id, selectedDeck?.title, slides])
+  }, [deckTitle, selectedDeck?.id, selectedDeck?.title, selectedDeckFingerprint, slides, slidesFingerprint])
 
   const activeTab = studioTabs.find((tab) => tab.kind === kind) || studioTabs[0]
   const allItems = useMemo(() => {
