@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState, type ComponentType } from "react"
+import { useEffect, useMemo, useRef, useState, type ComponentType } from "react"
 import {
   Brain,
   CheckCircle2,
@@ -48,6 +48,8 @@ type ReviewPayload = {
   isRestDay: boolean
   remainingDueCount: number
 }
+
+const SOCIAL_DRAFT_KEY_PREFIX = "learn_social_draft_v1"
 
 export function VaultView({ setView }: { setView: (view: View) => void }) {
   const { data, status } = useResource<VaultGraphPayload>("/api/vault/graph")
@@ -318,6 +320,8 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
   const [draft, setDraft] = useState(() => createSocialDraft(kind))
   const [query, setQuery] = useState("")
   const [message, setMessage] = useState("")
+  const draftHydrated = useRef(false)
+  const restoredDraftId = useRef<string | null>(null)
   const items = useMemo(() => data?.items ?? [], [data?.items])
   const selected = useMemo(() => items.find((item) => item.id === selectedId), [items, selectedId])
   const Icon = kind === "spaces" ? Users : kind === "rooms" ? Radio : Swords
@@ -330,19 +334,57 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
   }, [items, query])
 
   useEffect(() => {
-    if (!items.length) {
+    const stored = readSocialDraftStore(kind)
+    if (stored) {
+      restoredDraftId.current = stored.selectedId || "new"
+      setSelectedId(stored.selectedId)
+      setDraft(stored.draft)
+      setQuery(stored.query)
+      setMessage("Local draft restored.")
+    } else {
+      restoredDraftId.current = null
       setSelectedId("")
       setDraft(createSocialDraft(kind))
+      setQuery("")
+    }
+    draftHydrated.current = true
+  }, [kind])
+
+  useEffect(() => {
+    if (!draftHydrated.current) return
+    const timeout = window.setTimeout(() => {
+      writeSocialDraftStore(kind, {
+        selectedId,
+        query,
+        draft,
+        updatedAt: new Date().toISOString(),
+      })
+    }, 500)
+    return () => window.clearTimeout(timeout)
+  }, [draft, kind, query, selectedId])
+
+  useEffect(() => {
+    if (!draftHydrated.current || !data) return
+    if (!items.length) {
+      if (!hasMeaningfulSocialDraft(kind, draft)) {
+        setSelectedId("")
+        setDraft(createSocialDraft(kind))
+      }
       return
     }
     if (selectedId && items.some((item) => item.id === selectedId)) return
+    if (hasMeaningfulSocialDraft(kind, draft)) return
     const first = items[0]
     setSelectedId(first.id)
     setDraft(draftFromSocialItem(kind, first))
-  }, [items, kind, selectedId])
+  }, [data, draft, items, kind, selectedId])
 
   useEffect(() => {
     if (!selected) return
+    if (restoredDraftId.current === selected.id) {
+      restoredDraftId.current = null
+      return
+    }
     setDraft(draftFromSocialItem(kind, selected))
   }, [kind, selected?.id])
 
@@ -493,6 +535,15 @@ type SocialDraft = {
   breakMinutes: number
 }
 
+type SocialDraftStore = {
+  selectedId: string
+  query: string
+  draft: SocialDraft
+  updatedAt: string
+}
+
+type SocialKind = "spaces" | "rooms" | "battles"
+
 function createSocialDraft(kind: "spaces" | "rooms" | "battles"): SocialDraft {
   if (kind === "battles") {
     return { id: "", name: "", title: "Quick study battle", description: "", visibility: "private", topicTags: "review", mode: "solo", status: "waiting", topic: "Review", pomodoroMinutes: 25, breakMinutes: 5 }
@@ -501,6 +552,34 @@ function createSocialDraft(kind: "spaces" | "rooms" | "battles"): SocialDraft {
     return { id: "", name: "Focus room", title: "", description: "", visibility: "private", topicTags: "study", mode: "focus", status: "open", topic: "Review", pomodoroMinutes: 25, breakMinutes: 5 }
   }
   return { id: "", name: "Personal learning circle", title: "", description: "A focused group for shared study routes.", visibility: "private", topicTags: "study", mode: "focus", status: "open", topic: "Review", pomodoroMinutes: 25, breakMinutes: 5 }
+}
+
+function readSocialDraftStore(kind: SocialKind): SocialDraftStore | null {
+  if (typeof window === "undefined") return null
+  try {
+    const stored = window.localStorage.getItem(socialDraftStorageKey(kind))
+    return stored ? JSON.parse(stored) as SocialDraftStore : null
+  } catch {
+    return null
+  }
+}
+
+function writeSocialDraftStore(kind: SocialKind, store: SocialDraftStore) {
+  if (typeof window === "undefined") return
+  window.localStorage.setItem(socialDraftStorageKey(kind), JSON.stringify(store))
+}
+
+function socialDraftStorageKey(kind: SocialKind) {
+  return `${SOCIAL_DRAFT_KEY_PREFIX}_${kind}`
+}
+
+function hasMeaningfulSocialDraft(kind: SocialKind, draft: SocialDraft) {
+  return socialDraftFingerprint(draft) !== socialDraftFingerprint(createSocialDraft(kind))
+}
+
+function socialDraftFingerprint(draft: SocialDraft) {
+  const { id: _id, ...rest } = draft
+  return JSON.stringify(rest)
 }
 
 function draftFromSocialItem(kind: "spaces" | "rooms" | "battles", item: LearningSpace | StudyRoom | StudyBattle): SocialDraft {
