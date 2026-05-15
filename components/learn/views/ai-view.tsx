@@ -6,6 +6,7 @@ import type { WorkspaceOptions } from "../preferences"
 import type { Note, StudioInsertTarget, View } from "../types"
 import { api } from "../api"
 import { Panel } from "../ui"
+import { buildAiGatewayReadiness } from "@/lib/ai/gateway-readiness"
 import { buildGuidedPrompt, listInsertActions, promptContracts } from "@/lib/ai/prompt-builder"
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
 import type { AiTaskKey } from "@/lib/ai/prompt-library"
@@ -107,6 +108,11 @@ export function AiTutorView({
     fields: buildPromptFields(message, recentContext, targetAudience, requiredOutput, difficulty, tone, outputLength, language),
     filters: { sourceScope, difficulty, tone, language, outputLength, providerFamily, insertTarget },
   }), [activeMode.id, difficulty, insertTarget, language, message, outputLength, providerFamily, recentContext, requiredOutput, sourceScope, targetAudience, tone])
+  const gatewayReadiness = useMemo(() => buildAiGatewayReadiness({
+    prompt: promptBuild,
+    providers,
+    providerFamily,
+  }), [promptBuild, providerFamily, providers])
 
   useEffect(() => {
     if (!availableInsertTargets.includes(insertTarget)) setInsertTarget(availableInsertTargets[0] || "ai-note")
@@ -361,6 +367,20 @@ export function AiTutorView({
             <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{promptBuild.preview}</pre>
             {promptBuild.warnings.length ? <p className="mt-2 rounded-md bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">{promptBuild.warnings.join(" ")}</p> : null}
           </details>
+          <div className={`rounded-md border p-3 md:col-span-2 ${gatewayReadiness.status === "ready" ? "border-success/50 bg-success/10" : gatewayReadiness.status === "warning" ? "border-warning/50 bg-warning/10" : "border-destructive/50 bg-destructive/10"}`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-foreground">{gatewayReadiness.label}</p>
+              <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                <span className="rounded-md bg-background px-2 py-1 text-foreground">{gatewayReadiness.readyProviderCount} ready</span>
+                <span className="rounded-md bg-background px-2 py-1 text-foreground">{gatewayReadiness.selectedProviderCount} selected</span>
+              </div>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {gatewayReadiness.checks.map((check) => (
+                <span key={check} className="rounded-md bg-background px-2 py-1 text-xs font-medium text-muted-foreground">{check}</span>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="mt-4 grid gap-3 rounded-md border border-border bg-background p-3 md:grid-cols-[1fr_180px]">
@@ -377,7 +397,7 @@ export function AiTutorView({
 
         <textarea value={message} onChange={(event) => setMessage(event.target.value)} className="mt-5 min-h-40 w-full rounded-md border border-input bg-background p-4 text-foreground outline-none focus:border-ring" />
         <div className="mt-3 flex flex-wrap gap-2">
-          <button onClick={ask} className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
+          <button disabled={gatewayReadiness.status === "blocked" || loading} onClick={ask} className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
             <Bot className="h-4 w-4" />
             {loading ? "Thinking" : "Run tutor"}
           </button>
@@ -419,9 +439,15 @@ export function AiTutorView({
             <div key={provider.id} className="rounded-md bg-muted p-3 text-sm">
               <div className="flex items-center justify-between gap-2">
                 <p className="font-medium text-foreground">{provider.name}</p>
-                <span className="rounded bg-background px-2 py-0.5 text-xs text-muted-foreground">{provider.priority}</span>
+                <span className="rounded bg-background px-2 py-0.5 text-xs text-muted-foreground">P{provider.priority}</span>
               </div>
-              <p className="text-xs text-muted-foreground">{provider.provider} - {provider.default_model} - {provider.last_status}</p>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                <span className="rounded bg-background px-2 py-0.5 text-muted-foreground">{provider.provider}</span>
+                <span className="rounded bg-background px-2 py-0.5 text-muted-foreground">{provider.default_model}</span>
+                <span className={`rounded px-2 py-0.5 font-semibold ${provider.enabled && provider.has_key && provider.last_status !== "error" ? "bg-success text-success-foreground" : "bg-warning text-warning-foreground"}`}>
+                  {provider.enabled && provider.has_key && provider.last_status !== "error" ? "Ready" : provider.has_key ? provider.last_status || "Untested" : "Missing key"}
+                </span>
+              </div>
             </div>
           ))}
           {!providers.length ? <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">Admin providers appear here after loading.</p> : null}
