@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, ArrowRight, BookOpen, CalendarPlus, Check, ChevronRight, Clock, Copy, FileText, Filter, Gauge, Repeat2, Save, ShieldCheck, Sparkles, Target, Trash2, TrendingUp, UserRound } from "lucide-react"
-import { languageNames, supportedLocales } from "@/lib/i18n/vocabulary"
+import { AlertTriangle, ArrowRight, BookOpen, CalendarPlus, Check, ChevronRight, Clock, Copy, FileText, Filter, Gauge, Languages, Lock, Palette, Repeat2, Save, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserRound } from "lucide-react"
+import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
 import { filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
 import { summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
+import { normalizeSettingsNumber, summarizeSettingsOptions } from "@/lib/settings-features"
 import type { WorkspaceOptions } from "../preferences"
 import type { CalendarEvent, Quiz, User, View } from "../types"
 import { api, formatDate } from "../api"
@@ -368,18 +369,25 @@ function CalendarAction({ icon: Icon, label, onClick, primary }: { icon: typeof 
 export function SettingsView({
   user,
   automationData,
+  locale,
   options,
+  setLocale,
   setOptions,
 }: {
   user: User | null
   automationData: any
+  locale: SupportedLocale
   options: WorkspaceOptions
+  setLocale: (locale: SupportedLocale) => void
   setOptions: (options: Partial<WorkspaceOptions>) => void
 }) {
   const [name, setName] = useState(user?.name || "")
   const [email, setEmail] = useState(user?.email || "")
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState(Number(user?.preferences?.dailyGoalMinutes || 45))
+  const [section, setSection] = useState<"profile" | "experience" | "learning" | "privacy">("profile")
   const [status, setStatus] = useState("")
+  const settingsSummary = useMemo(() => summarizeSettingsOptions(options), [options])
+  const profileDirty = name !== (user?.name || "") || email !== (user?.email || "") || dailyGoalMinutes !== Number(user?.preferences?.dailyGoalMinutes || 45)
 
   useEffect(() => {
     setName(user?.name || "")
@@ -400,71 +408,187 @@ export function SettingsView({
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_420px]">
-      <Panel className="p-4">
-        <div className="mb-4 flex items-center gap-3">
-          <UserRound className="h-5 w-5 text-success" />
-          <h2 className="text-2xl font-semibold text-foreground">Profile and settings</h2>
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <Panel className="p-4 xl:col-span-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <SlidersHorizontal className="h-6 w-6" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-2xl font-semibold text-foreground">Settings control center</h2>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <StatusPill label={settingsSummary.privacyLabel} />
+                <StatusPill label={settingsSummary.dailyReviewLabel} />
+                {profileDirty ? <StatusPill label="profile draft" /> : <StatusPill label="profile saved" />}
+              </div>
+            </div>
+          </div>
+          <button onClick={saveProfile} className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
+            <Save className="h-4 w-4" />
+            Save profile
+          </button>
         </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          <Field label="Name" value={name} onChange={setName} />
-          <Field label="Email" value={email} onChange={setEmail} />
-          <Field label="Daily goal minutes" value={String(dailyGoalMinutes)} onChange={(value) => setDailyGoalMinutes(Number(value) || 45)} />
-          <Info label="Role" value={user?.role} />
-        </div>
-        <button onClick={saveProfile} className="mt-4 flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
-          <Save className="h-4 w-4" /> Save settings
-        </button>
         {status ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
-      </Panel>
-      <Panel className="p-4">
-        <h3 className="text-lg font-semibold text-foreground">Workspace freedom</h3>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <SelectField label="Dashboard" value={options.dashboardDetail} options={["focused", "detailed"]} onChange={(value) => setOptions({ dashboardDetail: value as WorkspaceOptions["dashboardDetail"] })} />
-          <SelectField label="Files layout" value={options.fileLayout} options={["list", "grid"]} onChange={(value) => setOptions({ fileLayout: value as WorkspaceOptions["fileLayout"] })} />
-          <SelectField label="Quiz mode" value={options.quizMode} options={["practice", "exam", "review"]} onChange={(value) => setOptions({ quizMode: value as WorkspaceOptions["quizMode"] })} />
-          <SelectField label="Game mode" value={options.gameMode} options={["sprint", "matching", "memory"]} onChange={(value) => setOptions({ gameMode: value as WorkspaceOptions["gameMode"] })} />
-          <SelectField label="Docs template" value={options.docsTemplate} options={["study", "cornell", "project"]} onChange={(value) => setOptions({ docsTemplate: value as WorkspaceOptions["docsTemplate"] })} />
-          <SelectField label="Slides aspect" value={options.slidesAspect} options={["16:9", "4:3"]} onChange={(value) => setOptions({ slidesAspect: value as WorkspaceOptions["slidesAspect"] })} />
-          <Field label="Calendar lead minutes" value={String(options.calendarLeadMinutes)} onChange={(value) => setOptions({ calendarLeadMinutes: Number(value) || 15 })} />
-          <Field label="Calendar block minutes" value={String(options.calendarDefaultMinutes)} onChange={(value) => setOptions({ calendarDefaultMinutes: Number(value) || 45 })} />
-          <Field label="Game question limit" value={String(options.gameQuestionLimit)} onChange={(value) => setOptions({ gameQuestionLimit: Number(value) || 12 })} />
-          <Field label="AI max tokens" value={String(options.aiMaxTokens)} onChange={(value) => setOptions({ aiMaxTokens: Number(value) || 1200 })} />
-          <Field label="Daily review cap" value={String(options.dailyReviewCap)} onChange={(value) => setOptions({ dailyReviewCap: Number(value) || 30 })} />
-          <Field label="Feed serendipity %" value={String(options.feedSerendipity)} onChange={(value) => setOptions({ feedSerendipity: Math.min(50, Math.max(15, Number(value) || 15)) })} />
-          <SelectField label="Privacy default" value={options.privacyDefault} options={["private", "connections", "public"]} onChange={(value) => setOptions({ privacyDefault: value as WorkspaceOptions["privacyDefault"] })} />
-          <SelectField label="Rest day" value={options.restDay} options={["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]} onChange={(value) => setOptions({ restDay: value as WorkspaceOptions["restDay"] })} />
-        </div>
-        <div className="mt-4 grid gap-2 md:grid-cols-2">
-          <Toggle label="Weak-topic bars" checked={options.showWeakTopicBars} onChange={(checked) => setOptions({ showWeakTopicBars: checked })} />
-          <Toggle label="Notes autosave" checked={options.notesAutosave} onChange={(checked) => setOptions({ notesAutosave: checked })} />
-          <Toggle label="File previews" checked={options.filePreview} onChange={(checked) => setOptions({ filePreview: checked })} />
-          <Toggle label="Reveal quiz answers" checked={options.revealAnswers} onChange={(checked) => setOptions({ revealAnswers: checked })} />
-          <Toggle label="Presence hints" checked={options.collaborationPresence} onChange={(checked) => setOptions({ collaborationPresence: checked })} />
-          <Toggle label="Verbose admin" checked={options.adminVerbose} onChange={(checked) => setOptions({ adminVerbose: checked })} />
-          <Toggle label="High contrast" checked={options.highContrast} onChange={(checked) => setOptions({ highContrast: checked })} />
-          <Toggle label="Reduced motion" checked={options.reducedMotion} onChange={(checked) => setOptions({ reducedMotion: checked })} />
-          <Toggle label="Dyslexia-friendly font" checked={options.dyslexiaFriendly} onChange={(checked) => setOptions({ dyslexiaFriendly: checked })} />
-        </div>
-      </Panel>
-      <Panel className="p-4">
-        <h3 className="text-lg font-semibold text-foreground">Languages and automation</h3>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {supportedLocales.map((locale) => (
-            <span key={locale} className="rounded-md bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">{languageNames[locale]}</span>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {([
+            ["profile", "Profile", UserRound],
+            ["experience", "Experience", Palette],
+            ["learning", "Learning", Target],
+            ["privacy", "Privacy", Lock],
+          ] as const).map(([id, label, Icon]) => (
+            <button
+              key={id}
+              onClick={() => setSection(id)}
+              className={`flex items-center gap-3 rounded-md border p-3 text-left transition hover:-translate-y-0.5 ${section === id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+            >
+              <Icon className="h-5 w-5" />
+              <span className="font-semibold">{label}</span>
+            </button>
           ))}
         </div>
-        <div className="mt-5 space-y-2">
-          {(automationData?.jobs || []).slice(0, 4).map((job: any) => (
-            <div key={job.key} className="rounded-md bg-muted p-3">
-              <p className="text-sm font-semibold text-foreground">{job.label}</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">{job.description}</p>
+      </Panel>
+
+      <Panel className="p-4">
+        <SettingsSectionHeader icon={Gauge} title="Workspace signals" body="Quick checks for privacy, review load, feed variety, focus length, and AI budget." />
+        <div className="mt-4 grid gap-2">
+          {settingsSummary.statuses.map((item) => (
+            <div key={item.id} className="flex items-center justify-between gap-3 rounded-md border border-border bg-background p-3 text-sm">
+              <span className="font-medium text-foreground">{item.label}</span>
+              <span className={`rounded-md px-2 py-1 text-xs font-semibold ${settingsToneClass(item.tone)}`}>{item.value}</span>
             </div>
           ))}
         </div>
       </Panel>
+
+      {section === "profile" ? (
+        <Panel className="p-4">
+          <SettingsSectionHeader icon={UserRound} title="Profile" body="Keep identity details simple. Learning artifacts remain private unless sharing settings say otherwise." />
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <Field label="Name" value={name} onChange={setName} />
+            <Field label="Email" value={email} onChange={setEmail} />
+            <Field label="Daily goal minutes" value={String(dailyGoalMinutes)} onChange={(value) => setDailyGoalMinutes(normalizeSettingsNumber({ value, fallback: 45, min: 5, max: 240 }))} />
+            <Info label="Role" value={user?.role} />
+          </div>
+        </Panel>
+      ) : null}
+
+      {section === "experience" ? (
+        <Panel className="p-4">
+          <SettingsSectionHeader icon={Palette} title="Experience" body="Tune density, language, contrast, motion, and reading comfort without hiding controls in long text." />
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <SelectField label="Dashboard" value={options.dashboardDetail} options={["focused", "detailed"]} onChange={(value) => setOptions({ dashboardDetail: value as WorkspaceOptions["dashboardDetail"] })} />
+            <SelectField label="Files layout" value={options.fileLayout} options={["list", "grid"]} onChange={(value) => setOptions({ fileLayout: value as WorkspaceOptions["fileLayout"] })} />
+            <SelectField label="Docs template" value={options.docsTemplate} options={["study", "cornell", "project"]} onChange={(value) => setOptions({ docsTemplate: value as WorkspaceOptions["docsTemplate"] })} />
+            <SelectField label="Slides aspect" value={options.slidesAspect} options={["16:9", "4:3"]} onChange={(value) => setOptions({ slidesAspect: value as WorkspaceOptions["slidesAspect"] })} />
+          </div>
+          <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            <Toggle label="High contrast" checked={options.highContrast} onChange={(checked) => setOptions({ highContrast: checked })} />
+            <Toggle label="Reduced motion" checked={options.reducedMotion} onChange={(checked) => setOptions({ reducedMotion: checked })} />
+            <Toggle label="Dyslexia-friendly font" checked={options.dyslexiaFriendly} onChange={(checked) => setOptions({ dyslexiaFriendly: checked })} />
+            <Toggle label="Weak-topic bars" checked={options.showWeakTopicBars} onChange={(checked) => setOptions({ showWeakTopicBars: checked })} />
+            <Toggle label="File previews" checked={options.filePreview} onChange={(checked) => setOptions({ filePreview: checked })} />
+          </div>
+          <LanguagePicker locale={locale} setLocale={setLocale} />
+        </Panel>
+      ) : null}
+
+      {section === "learning" ? (
+        <Panel className="p-4">
+          <SettingsSectionHeader icon={Target} title="Learning workflow" body="Caps and defaults keep practice focused while preserving user freedom." />
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <SelectField label="Quiz mode" value={options.quizMode} options={["practice", "exam", "review"]} onChange={(value) => setOptions({ quizMode: value as WorkspaceOptions["quizMode"] })} />
+            <SelectField label="Game mode" value={options.gameMode} options={["sprint", "matching", "memory"]} onChange={(value) => setOptions({ gameMode: value as WorkspaceOptions["gameMode"] })} />
+            <SelectField label="Rest day" value={options.restDay} options={["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]} onChange={(value) => setOptions({ restDay: value as WorkspaceOptions["restDay"] })} />
+            <Field label="Calendar lead minutes" value={String(options.calendarLeadMinutes)} onChange={(value) => setOptions({ calendarLeadMinutes: normalizeSettingsNumber({ value, fallback: 15, min: 0, max: 240 }) })} />
+            <Field label="Calendar block minutes" value={String(options.calendarDefaultMinutes)} onChange={(value) => setOptions({ calendarDefaultMinutes: normalizeSettingsNumber({ value, fallback: 45, min: 5, max: 240 }) })} />
+            <Field label="Game question limit" value={String(options.gameQuestionLimit)} onChange={(value) => setOptions({ gameQuestionLimit: normalizeSettingsNumber({ value, fallback: 12, min: 3, max: 80 }) })} />
+            <Field label="Daily review cap" value={String(options.dailyReviewCap)} onChange={(value) => setOptions({ dailyReviewCap: normalizeSettingsNumber({ value, fallback: 30, min: 1, max: 120 }) })} />
+            <Field label="Feed serendipity %" value={String(options.feedSerendipity)} onChange={(value) => setOptions({ feedSerendipity: normalizeSettingsNumber({ value, fallback: 15, min: 15, max: 50 }) })} />
+            <Field label="AI max tokens" value={String(options.aiMaxTokens)} onChange={(value) => setOptions({ aiMaxTokens: normalizeSettingsNumber({ value, fallback: 1200, min: 256, max: 8000 }) })} />
+          </div>
+          <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            <Toggle label="Notes autosave" checked={options.notesAutosave} onChange={(checked) => setOptions({ notesAutosave: checked })} />
+            <Toggle label="Reveal quiz answers" checked={options.revealAnswers} onChange={(checked) => setOptions({ revealAnswers: checked })} />
+            <Toggle label="AI includes notes" checked={options.aiIncludeNotes} onChange={(checked) => setOptions({ aiIncludeNotes: checked })} />
+          </div>
+        </Panel>
+      ) : null}
+
+      {section === "privacy" ? (
+        <Panel className="p-4">
+          <SettingsSectionHeader icon={Lock} title="Privacy and notifications" body="Sharing stays opt-in. Notifications can be quieted without disabling core safety reminders." />
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <SelectField label="Privacy default" value={options.privacyDefault} options={["private", "connections", "public"]} onChange={(value) => setOptions({ privacyDefault: value as WorkspaceOptions["privacyDefault"] })} />
+            <Toggle label="Presence hints" checked={options.collaborationPresence} onChange={(checked) => setOptions({ collaborationPresence: checked })} />
+          </div>
+          <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+            <Toggle label="Review reminders" checked={options.notificationReviewReminders} onChange={(checked) => setOptions({ notificationReviewReminders: checked })} />
+            <Toggle label="Draft warnings" checked={options.notificationDraftWarnings} onChange={(checked) => setOptions({ notificationDraftWarnings: checked })} />
+            <Toggle label="Social updates" checked={options.notificationSocialUpdates} onChange={(checked) => setOptions({ notificationSocialUpdates: checked })} />
+            <Toggle label="System health" checked={options.notificationSystemHealth} onChange={(checked) => setOptions({ notificationSystemHealth: checked })} />
+            <Toggle label="Verbose admin" checked={options.adminVerbose} onChange={(checked) => setOptions({ adminVerbose: checked })} />
+          </div>
+          <div className="mt-5 grid gap-2 md:grid-cols-2">
+            {(automationData?.jobs || []).slice(0, 4).map((job: any) => (
+              <div key={job.key} className="rounded-md border border-border bg-background p-3">
+                <p className="text-sm font-semibold text-foreground">{job.label}</p>
+                <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{job.description}</p>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
     </div>
   )
+}
+
+function SettingsSectionHeader({ body, icon: Icon, title }: { body: string; icon: typeof Target; title: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
+          <Icon className="h-5 w-5" />
+        </div>
+        <h3 className="truncate text-lg font-semibold text-foreground">{title}</h3>
+      </div>
+      <details className="relative">
+        <summary className="flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${title}`}>
+          <Filter className="h-4 w-4" />
+        </summary>
+        <p className="absolute right-0 top-10 z-20 w-64 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">{body}</p>
+      </details>
+    </div>
+  )
+}
+
+function LanguagePicker({ locale, setLocale }: { locale: SupportedLocale; setLocale: (locale: SupportedLocale) => void }) {
+  return (
+    <div className="mt-4 rounded-lg border border-border bg-background p-3">
+      <div className="mb-3 flex items-center gap-2">
+        <Languages className="h-4 w-4 text-success" />
+        <p className="text-sm font-semibold text-foreground">Language</p>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {supportedLocales.map((item) => (
+          <button
+            key={item}
+            onClick={() => setLocale(item)}
+            className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm font-semibold transition hover:-translate-y-0.5 ${locale === item ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+          >
+            <span>{languageNames[item]}</span>
+            {locale === item ? <Check className="h-4 w-4" /> : null}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function settingsToneClass(tone: "good" | "watch" | "neutral") {
+  if (tone === "good") return "bg-success text-success-foreground"
+  if (tone === "watch") return "bg-warning text-warning-foreground"
+  return "bg-secondary text-secondary-foreground"
 }
 
 export function AdminView({ user, adminData, automationData, options }: { user: User | null; adminData: any; automationData: any; options: WorkspaceOptions }) {
