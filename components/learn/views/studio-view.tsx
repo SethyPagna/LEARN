@@ -309,6 +309,8 @@ export function StudioView({
   const draftReady = useRef(false)
   const lastDraftFingerprint = useRef<Partial<Record<StudioKind, string>>>({})
   const draftStatusTimeout = useRef<number | null>(null)
+  const layoutSaveTimeout = useRef<number | null>(null)
+  const pendingLayoutSnapshot = useRef("")
 
   function notifyDraftSummary() {
     onDraftSummary?.(summarizeStudioDrafts(readStudioDrafts()))
@@ -336,6 +338,10 @@ export function StudioView({
   useEffect(() => {
     return () => {
       if (draftStatusTimeout.current) window.clearTimeout(draftStatusTimeout.current)
+      if (layoutSaveTimeout.current) {
+        window.clearTimeout(layoutSaveTimeout.current)
+        if (pendingLayoutSnapshot.current) window.localStorage.setItem(LAYOUT_KEY, pendingLayoutSnapshot.current)
+      }
     }
   }, [])
 
@@ -354,7 +360,12 @@ export function StudioView({
   }, [])
 
   useEffect(() => {
-    window.localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout))
+    pendingLayoutSnapshot.current = JSON.stringify(layout)
+    if (layoutSaveTimeout.current) window.clearTimeout(layoutSaveTimeout.current)
+    layoutSaveTimeout.current = window.setTimeout(() => {
+      window.localStorage.setItem(LAYOUT_KEY, pendingLayoutSnapshot.current)
+      layoutSaveTimeout.current = null
+    }, 250)
   }, [layout])
 
   useEffect(() => {
