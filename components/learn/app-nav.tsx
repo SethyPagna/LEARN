@@ -164,18 +164,26 @@ function LauncherSearch({
   const needle = query.trim().toLowerCase()
   const navResults = useMemo(() => {
     if (!needle) return []
-    return navItems
-      .filter((item) => {
-        const label = String(text[item.labelKey]).toLowerCase()
-        return label.includes(needle) || item.view.includes(needle) || item.aliases?.some((alias) => alias.includes(needle))
-      })
-      .slice(0, 5)
+    const results: NavItem[] = []
+    for (const item of navItems) {
+      const label = String(text[item.labelKey]).toLowerCase()
+      if (label.includes(needle) || item.view.includes(needle) || item.aliases?.some((alias) => alias.includes(needle))) {
+        results.push(item)
+        if (results.length >= 5) break
+      }
+    }
+    return results
   }, [needle, text])
   const commandResults = useMemo(() => {
     if (!needle) return []
-    return launcherCommands
-      .filter((item) => `${item.label} ${item.detail} ${item.keywords.join(" ")}`.toLowerCase().includes(needle))
-      .slice(0, 4)
+    const results: LauncherCommand[] = []
+    for (const item of launcherCommands) {
+      if (`${item.label} ${item.detail} ${item.keywords.join(" ")}`.toLowerCase().includes(needle)) {
+        results.push(item)
+        if (results.length >= 4) break
+      }
+    }
+    return results
   }, [needle])
   const visibleCommands = needle ? commandResults : launcherCommands.slice(0, 4)
   const hasResults = navResults.length > 0 || visibleCommands.length > 0
