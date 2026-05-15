@@ -96,7 +96,7 @@ import {
   sortSheetByColumn,
   splitStudioPane,
 } from "@/lib/studio-features"
-import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, undoHistory, type HistoryState } from "@/lib/workspace-features"
+import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, replaceTextInHtml, summarizeDocumentHtml, undoHistory, type HistoryState } from "@/lib/workspace-features"
 import { clearStudioDraft, readStudioDrafts, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
 import type { ImportTarget } from "@/lib/import-gateway"
 import { applySlideDesignPreset, createSlideDesignObject, getDocumentInsertBlock, removeSlideDesignObject, slideDesignPresets, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
@@ -1651,6 +1651,7 @@ function SortableSlideThumb({
 }
 
 function RichTextEditor({ large, onChange, placeholder, value }: { large?: boolean; onChange: (value: string) => void; placeholder: string; value: string }) {
+  const documentSummary = useMemo(() => summarizeDocumentHtml(value), [value])
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -1690,15 +1691,34 @@ function RichTextEditor({ large, onChange, placeholder, value }: { large?: boole
         editor={editor}
         className={`${large ? "min-h-[62vh]" : "min-h-[52vh]"} px-5 py-4 text-foreground [&_.ProseMirror]:min-h-[48vh] [&_.ProseMirror]:outline-none [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-3 [&_h1]:text-3xl [&_h1]:font-semibold [&_h2]:text-2xl [&_h2]:font-semibold [&_p]:leading-8 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-2 [&_th]:border [&_th]:border-border [&_th]:bg-secondary [&_th]:p-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6`}
       />
+      <div className="flex flex-wrap items-center gap-2 border-t border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+        <span>{documentSummary.words} words</span>
+        <span>{documentSummary.characters} chars</span>
+        <span>{documentSummary.readingMinutes} min read</span>
+        {documentSummary.headings.slice(0, 4).map((heading) => (
+          <span key={`${heading.level}-${heading.title}`} className="rounded-md bg-secondary px-2 py-1 text-secondary-foreground">
+            H{heading.level} {heading.title}
+          </span>
+        ))}
+      </div>
     </div>
   )
 }
 
 function RichTextToolbar({ editor }: { editor: Editor | null }) {
+  const [findText, setFindText] = useState("")
+  const [replaceText, setReplaceText] = useState("")
+  const [replaceStatus, setReplaceStatus] = useState("")
   const run = (fn: (editor: Editor) => void) => {
     if (!editor) return
     fn(editor)
     editor.commands.focus()
+  }
+  function replaceAll() {
+    if (!editor || !findText) return
+    const result = replaceTextInHtml(editor.getHTML(), findText, replaceText)
+    editor.commands.setContent(result.html)
+    setReplaceStatus(`${result.count} replaced`)
   }
   return (
     <div className="sticky top-0 z-10 flex flex-wrap items-center gap-1 border-b border-border bg-card/95 p-2 backdrop-blur">
@@ -1748,6 +1768,16 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
         const src = window.prompt("Image URL")
         if (src) run((item) => item.chain().focus().setImage({ src }).run())
       }} />
+      <span className="mx-1 h-5 w-px bg-border" />
+      <label className="flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs text-muted-foreground">
+        <Search className="h-3.5 w-3.5" />
+        <input value={findText} onChange={(event) => setFindText(event.target.value)} placeholder="Find" className="w-20 bg-transparent text-foreground outline-none" />
+      </label>
+      <input value={replaceText} onChange={(event) => setReplaceText(event.target.value)} placeholder="Replace" className="h-8 w-24 rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none" />
+      <button onClick={replaceAll} className="h-8 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+        Replace all
+      </button>
+      {replaceStatus ? <span className="text-xs font-semibold text-success">{replaceStatus}</span> : null}
     </div>
   )
 }
