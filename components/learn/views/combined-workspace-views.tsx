@@ -61,7 +61,11 @@ export function LearnWorkspaceView({
       body="One route with discovery, graph, reviews, time, and progress grouped together."
       tabs={learnTabs}
       activeTab={tab}
-      setActiveTab={(value) => setTab(value as LearnTab)}
+      setActiveTab={(value) => {
+        const nextTab = value as LearnTab
+        setTab(nextTab)
+        setView(viewFromLearnTab(nextTab))
+      }}
     >
       {tab === "overview" ? <LearnRoute dashboard={dashboard} quizzes={quizzes} setView={setView} /> : null}
       {tab === "discover" ? <FeedView setView={setView} /> : null}
@@ -79,12 +83,14 @@ export function PracticeWorkspaceView({
   quizzes,
   selectedQuizId,
   setSelectedQuizId,
+  setView,
 }: {
   initialView: View
   options: WorkspaceOptions
   quizzes: Quiz[]
   selectedQuizId: string
   setSelectedQuizId: (id: string) => void
+  setView: (view: View) => void
 }) {
   const [tab, setTab] = useState<PracticeTab>(initialView === "games" ? "games" : "quizzes")
 
@@ -99,7 +105,11 @@ export function PracticeWorkspaceView({
       body="Quizzes and games share one practice surface, so missed topics can move straight into fast recall."
       tabs={practiceTabs}
       activeTab={tab}
-      setActiveTab={(value) => setTab(value as PracticeTab)}
+      setActiveTab={(value) => {
+        const nextTab = value as PracticeTab
+        setTab(nextTab)
+        setView(viewFromPracticeTab(nextTab))
+      }}
     >
       <div className="grid gap-4 xl:grid-cols-[1fr_300px]">
         <div>{tab === "quizzes" ? <QuizView quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={options} /> : <GamesView quizzes={quizzes} options={options} />}</div>
@@ -109,7 +119,7 @@ export function PracticeWorkspaceView({
   )
 }
 
-export function SocialWorkspaceView({ initialView, options }: { initialView: View; options: WorkspaceOptions }) {
+export function SocialWorkspaceView({ initialView, options, setView }: { initialView: View; options: WorkspaceOptions; setView: (view: View) => void }) {
   const [tab, setTab] = useState<SocialTab>(socialTabFromView(initialView))
 
   useEffect(() => {
@@ -123,7 +133,11 @@ export function SocialWorkspaceView({ initialView, options }: { initialView: Vie
       body="Chat, spaces, rooms, and battles stay grouped around opt-in collaboration."
       tabs={socialTabs}
       activeTab={tab}
-      setActiveTab={(value) => setTab(value as SocialTab)}
+      setActiveTab={(value) => {
+        const nextTab = value as SocialTab
+        setTab(nextTab)
+        setView(viewFromSocialTab(nextTab))
+      }}
     >
       {tab === "chat" ? <ChatView options={options} /> : null}
       {tab === "spaces" ? <SocialLearningView kind="spaces" /> : null}
@@ -296,10 +310,24 @@ function learnTabFromView(view: View): LearnTab {
   return "overview"
 }
 
+function viewFromLearnTab(tab: LearnTab): View {
+  if (tab === "overview") return "learn"
+  if (tab === "discover") return "discover"
+  return tab
+}
+
+function viewFromPracticeTab(tab: PracticeTab): View {
+  return tab
+}
+
 function socialTabFromView(view: View): SocialTab {
   if (view === "spaces") return "spaces"
   if (view === "rooms") return "rooms"
   if (view === "battles") return "battles"
   return "chat"
+}
+
+function viewFromSocialTab(tab: SocialTab): View {
+  return tab
 }
 
