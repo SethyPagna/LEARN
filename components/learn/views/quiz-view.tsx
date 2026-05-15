@@ -51,14 +51,16 @@ export function QuizView({
 
   async function submit() {
     if (!quiz) return
+    const durationSeconds = currentElapsedSeconds(startedAt)
     const response = await api<any>("/api/quizzes/attempts", {
       method: "POST",
       body: JSON.stringify({
         quizId: quiz.id,
         answers: Object.entries(answers).map(([questionId, selectedAnswerId]) => ({ questionId, selectedAnswerId })),
-        durationSeconds: elapsedSeconds,
+        durationSeconds,
       }),
     })
+    setElapsedSeconds(durationSeconds)
     setResult(response)
   }
 
@@ -180,4 +182,8 @@ function formatDuration(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
   return `${minutes}:${String(seconds).padStart(2, "0")}`
+}
+
+function currentElapsedSeconds(startedAt: number) {
+  return Math.max(0, Math.floor((Date.now() - startedAt) / 1000))
 }
