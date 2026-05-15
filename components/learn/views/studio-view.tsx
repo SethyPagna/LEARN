@@ -593,6 +593,20 @@ export function StudioView({
     })
   }
 
+  function syncActivePaneTab(nextKind: StudioKind, itemId: string, title: string) {
+    setLayout((current) => {
+      const group = current.groups[0]
+      const panes = group.panes.map((pane) => {
+        if (pane.id !== current.activePaneId) return pane
+        const tabs = pane.tabs.map((tab) => (
+          tab.id === pane.activeTabId ? { ...tab, kind: nextKind, itemId, title } : tab
+        ))
+        return { ...pane, tabs }
+      })
+      return normalizeStudioLayout({ ...current, groups: [{ ...group, panes }] })
+    })
+  }
+
   function activeTitle() {
     if (kind === "notes") return noteDraft?.title || "Untitled learning page"
     if (kind === "docs") return docTitle
@@ -692,6 +706,7 @@ export function StudioView({
         })
         setNotes((current) => current.map((item) => (item.id === response.item.id ? response.item : item)))
         setNoteDraft(response.item)
+        syncActivePaneTab("notes", response.item.id, response.item.title)
         onDraftSummary?.(clearStudioDraft("notes"))
       }
 
@@ -708,6 +723,7 @@ export function StudioView({
         })
         setDocs((current) => [response.item, ...current.filter((item) => item.id !== response.item.id)])
         setDocId(response.item.id)
+        syncActivePaneTab("docs", response.item.id, response.item.title)
         onDraftSummary?.(clearStudioDraft("docs"))
       }
 
@@ -718,6 +734,7 @@ export function StudioView({
         })
         setSheets((current) => [response.item, ...current.filter((item) => item.id !== response.item.id)])
         setSheetId(response.item.id)
+        syncActivePaneTab("sheets", response.item.id, response.item.title)
         onDraftSummary?.(clearStudioDraft("sheets"))
       }
 
@@ -728,6 +745,7 @@ export function StudioView({
         })
         setDecks((current) => [response.item, ...current.filter((item) => item.id !== response.item.id)])
         setDeckId(response.item.id)
+        syncActivePaneTab("slides", response.item.id, response.item.title)
         onDraftSummary?.(clearStudioDraft("slides"))
       }
 
@@ -744,22 +762,26 @@ export function StudioView({
       const response = await api<{ item: Note }>("/api/notes", { method: "POST", body: JSON.stringify({ title, content: noteHistory.present, template: "blank" }) })
       setNotes((current) => [response.item, ...current])
       setSelectedNoteId(response.item.id)
+      syncActivePaneTab("notes", response.item.id, response.item.title)
     }
     if (kind === "docs") {
       const plainText = plainTextFromHtml(docHistory.present)
       const response = await api<{ item: WorkspaceDocument }>("/api/docs", { method: "POST", body: JSON.stringify({ title, content: { text: docHistory.present, plainText }, tags: [] }) })
       setDocs((current) => [response.item, ...current])
       setDocId(response.item.id)
+      syncActivePaneTab("docs", response.item.id, response.item.title)
     }
     if (kind === "sheets") {
       const response = await api<{ item: WorkspaceSheet }>("/api/sheets", { method: "POST", body: JSON.stringify({ title, cells, history: [] }) })
       setSheets((current) => [response.item, ...current])
       setSheetId(response.item.id)
+      syncActivePaneTab("sheets", response.item.id, response.item.title)
     }
     if (kind === "slides") {
       const response = await api<{ item: WorkspaceDeck }>("/api/slides", { method: "POST", body: JSON.stringify({ title, slides, speakerNotes: {} }) })
       setDecks((current) => [response.item, ...current])
       setDeckId(response.item.id)
+      syncActivePaneTab("slides", response.item.id, response.item.title)
     }
   }
 
@@ -1127,8 +1149,9 @@ function StudioPaneSurface({
                 {pane.tabs.map((tab: StudioTab) => {
                   const tabActive = tab.kind === activeKind
                   return (
-                    <button key={tab.id} onClick={() => onSetKind(tab.kind)} className={`flex h-8 items-center gap-1.5 rounded-md border px-2 text-xs font-semibold ${tabActive ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
-                      {tab.kind}
+                    <button key={tab.id} onClick={() => onSetKind(tab.kind)} className={`flex h-8 max-w-40 items-center gap-1.5 rounded-md border px-2 text-xs font-semibold ${tabActive ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} title={tab.title}>
+                      <span className="rounded bg-background/20 px-1">{pane.order}</span>
+                      <span className="truncate">{tab.title || tab.kind}</span>
                       {tab.pinned ? <Maximize2 className="h-3 w-3" /> : null}
                     </button>
                   )
