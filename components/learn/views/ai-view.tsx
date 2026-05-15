@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Bot, Brain, CheckSquare, FileText, Gauge, Languages, ListFilter, Plus, Route, Settings2, Sparkles, UploadCloud, Wand2 } from "lucide-react"
+import { AlertTriangle, Bot, Brain, CheckCircle2, CheckSquare, FileText, Gauge, Info, Languages, ListFilter, Plus, Route, Settings2, Sparkles, UploadCloud, Wand2 } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Note, StudioInsertTarget, View } from "../types"
 import { api } from "../api"
@@ -9,8 +9,9 @@ import { Panel } from "../ui"
 import { buildAiGatewayReadiness } from "@/lib/ai/gateway-readiness"
 import { buildGuidedPrompt, listInsertActions, promptContracts } from "@/lib/ai/prompt-builder"
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
+import { splitPromptPreview, summarizeAiTutorWorkflow } from "@/lib/ai/tutor-workflow"
 import type { AiTaskKey } from "@/lib/ai/prompt-library"
-import type { ImportTarget } from "@/lib/import-gateway"
+import { previewImportedLearningContent, type ImportTarget } from "@/lib/import-gateway"
 
 const tutorModes = [
   { id: "answer_explanation", mode: "mistake", label: "Mistake", icon: Sparkles, prompt: "Explain the mistake, repair the misconception, and create a short retry drill." },
@@ -38,6 +39,12 @@ const insertTargets: StudioInsertTarget[] = ["note-block", "doc-section", "sheet
 const importTargets: Array<ImportTarget | "auto"> = ["auto", "note", "doc", "sheet", "slides"]
 const AI_TUTOR_DRAFT_KEY = "learn_ai_tutor_draft_v1"
 const DEFAULT_AI_MESSAGE = "Create a study plan from my recent notes."
+const tutorModeGroups = [
+  { id: "all", label: "All", modes: tutorModes.map((mode) => mode.id) },
+  { id: "tutor", label: "Tutor", modes: ["answer_explanation", "study_plan", "personalized_prompt", "translation"] },
+  { id: "studio", label: "Studio", modes: ["note_design", "document_formatter", "document_editor", "sheet_organizer", "sheet_formula_builder", "slide_builder", "slide_design_director"] },
+  { id: "practice", label: "Practice", modes: ["quiz_generation", "flashcard_generation", "practice_generator"] },
+] as const
 
 type AiTutorDraft = {
   message: string
@@ -91,10 +98,16 @@ export function AiTutorView({
   const [targetAudience, setTargetAudience] = useState("Self-directed learner")
   const [requiredOutput, setRequiredOutput] = useState("Clear sections, compact examples, and one next action.")
   const [activeTaskKey, setActiveTaskKey] = useState(tutorModes[0].id)
+  const [modeGroup, setModeGroup] = useState<(typeof tutorModeGroups)[number]["id"]>("all")
   const draftHydrated = useRef(false)
   const draftStatusTimer = useRef<number | null>(null)
 
   const activeMode = useMemo(() => tutorModes.find((mode) => mode.id === activeTaskKey) || tutorModes[0], [activeTaskKey])
+  const visibleTutorModes = useMemo(() => {
+    const group = tutorModeGroups.find((item) => item.id === modeGroup) || tutorModeGroups[0]
+    const allowed = new Set(group.modes)
+    return tutorModes.filter((mode) => allowed.has(mode.id))
+  }, [modeGroup])
   const recentContext = useMemo(() => notes.slice(0, 5).map((note) => `${note.title}: ${note.content}`).join("\n\n"), [notes])
   const promptActions = useMemo(() => tutorModes.map((mode) => ({
     ...mode,
@@ -113,6 +126,17 @@ export function AiTutorView({
     providers,
     providerFamily,
   }), [promptBuild, providerFamily, providers])
+  const workflowSummary = useMemo(() => summarizeAiTutorWorkflow({
+    taskLabel: activeMode.label,
+    sourceScope,
+    insertTarget,
+    prompt: promptBuild,
+    gateway: gatewayReadiness,
+    recentNoteCount: notes.length,
+    draftSaved: draftStatus === "Draft saved",
+  }), [activeMode.label, draftStatus, gatewayReadiness, insertTarget, notes.length, promptBuild, sourceScope])
+  const previewParts = useMemo(() => splitPromptPreview(promptBuild.preview), [promptBuild.preview])
+  const importPreview = useMemo(() => previewImportedLearningContent({ raw: importText, title: importTitle, target: importTarget }), [importTarget, importText, importTitle])
 
   useEffect(() => {
     if (!availableInsertTargets.includes(insertTarget)) setInsertTarget(availableInsertTargets[0] || "ai-note")
@@ -297,10 +321,33 @@ export function AiTutorView({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-2xl font-semibold text-foreground">AI tutor</h2>
-            <p className="mt-2 text-sm text-muted-foreground">{draftStatus || "Choose a task, filter the context, then insert the result back into your learning loop."}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <StatusChip label={workflowSummary.statusLabel} tone={workflowSummary.status} />
+              <StatusChip label={workflowSummary.nextAction} tone="neutral" />
+              {draftStatus ? <StatusChip label={draftStatus} tone="ready" /> : null}
+            </div>
           </div>
-          <div className="flex flex-wrap rounded-md border border-border bg-secondary p-1">
-            {tutorModes.map((item) => {
+          <div className="flex flex-wrap gap-2">
+            {tutorModeGroups.map((group) => (
+              <button
+                key={group.id}
+                onClick={() => setModeGroup(group.id)}
+                className={`h-8 rounded-md border px-3 text-xs font-semibold ${modeGroup === group.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+              >
+                {group.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          {workflowSummary.cards.map((card) => (
+            <WorkflowCard key={card.id} label={card.label} value={card.value} detail={card.detail} tone={card.tone} />
+          ))}
+        </div>
+
+        <div className="mt-4 flex flex-wrap rounded-md border border-border bg-secondary p-1">
+            {visibleTutorModes.map((item) => {
               const Icon = item.icon
               return (
                 <button
@@ -318,11 +365,11 @@ export function AiTutorView({
                 </button>
               )
             })}
-          </div>
         </div>
 
-        <div className="mt-4 grid gap-2 md:grid-cols-2">
-          {promptActions.slice(0, 6).map((prompt) => {
+        <SectionLabel icon={Sparkles} title="Task" body="Pick a workflow, then tune source, difficulty, tone, language, and insert target." />
+        <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {promptActions.filter((prompt) => visibleTutorModes.some((mode) => mode.id === prompt.id)).slice(0, 6).map((prompt) => {
             const Icon = prompt.icon
             return (
               <button key={prompt.id} onClick={() => { setActiveTaskKey(prompt.id); setOptions({ aiMode: prompt.mode as WorkspaceOptions["aiMode"] }); setMessage(prompt.prompt) }} className="rounded-md border border-border bg-secondary p-3 text-left text-sm text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
@@ -333,6 +380,7 @@ export function AiTutorView({
           })}
         </div>
 
+        <SectionLabel icon={ListFilter} title="Context" body="These controls decide what the tutor can use and where the result should land." />
         <div className="mt-4 grid gap-3 rounded-md border border-border bg-muted/40 p-3 md:grid-cols-3">
           <SelectControl label="Source" value={sourceScope} values={sourceScopes} onChange={setSourceScope} icon={ListFilter} />
           <SelectControl label="Difficulty" value={difficulty} values={difficulties} onChange={setDifficulty} icon={Gauge} />
@@ -353,6 +401,7 @@ export function AiTutorView({
           </label>
         </div>
 
+        <SectionLabel icon={Settings2} title="Requirements" body="Make the request specific: audience, constraints, and preferred output shape." />
         <div className="mt-4 grid gap-3 rounded-md border border-border bg-background p-3 md:grid-cols-2">
           <label className="grid gap-1 text-sm text-foreground">
             <span className="font-semibold">Audience</span>
@@ -364,7 +413,12 @@ export function AiTutorView({
           </label>
           <details className="rounded-md border border-border bg-muted/40 p-3 text-sm md:col-span-2">
             <summary className="cursor-pointer font-semibold text-foreground">Prompt preview {promptBuild.ok ? "" : `- missing ${promptBuild.missing.length}`}</summary>
-            <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{promptBuild.preview}</pre>
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
+              <PreviewBlock title="Task" body={previewParts.task || activeMode.label} />
+              <PreviewBlock title="Output" body={previewParts.output || promptBuild.outputContract || "Structured learning response"} />
+              <PreviewBlock title="Requirements" body={previewParts.requirements.join("\n")} />
+              <PreviewBlock title="Warnings" body={previewParts.warnings.length ? previewParts.warnings.join("\n") : "None"} />
+            </div>
             {promptBuild.warnings.length ? <p className="mt-2 rounded-md bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">{promptBuild.warnings.join(" ")}</p> : null}
           </details>
           <div className={`rounded-md border p-3 md:col-span-2 ${gatewayReadiness.status === "ready" ? "border-success/50 bg-success/10" : gatewayReadiness.status === "warning" ? "border-warning/50 bg-warning/10" : "border-destructive/50 bg-destructive/10"}`}>
@@ -411,6 +465,7 @@ export function AiTutorView({
         </div>
         {reply ? (
           <div className="mt-5 rounded-md border border-border bg-muted p-4">
+            <SectionLabel icon={CheckCircle2} title="Result" body="Send the output back into Studio, Practice, or Reviews without copying between pages." compact />
             <div className="mb-3 flex flex-wrap gap-2">
               <ResultAction label="Save as note" onClick={saveReplyAsNote} />
               <ResultAction label="Copy result" onClick={copyReply} />
@@ -419,6 +474,11 @@ export function AiTutorView({
             </div>
             <div className="mb-3 flex flex-wrap gap-2">
               {insertActions.map((action) => <ResultAction key={action.target} label={action.label} onClick={() => insertReply(action.target)} />)}
+            </div>
+            <div className="mb-3 flex flex-wrap gap-2">
+              <ResultAction label="Generate practice" onClick={() => useReplyAsPrompt("quiz", "Create targeted practice from this result with explanations and retry guidance.")} />
+              <ResultAction label="Create review cards" onClick={() => useReplyAsPrompt("flashcards", "Create review cards from this result with active-recall prompts.")} />
+              <ResultAction label="Format for Studio" onClick={() => useReplyAsPrompt("cleanup", "Format this result into clean Studio blocks with headings and next actions.")} />
             </div>
             {actionStatus ? <p className="mb-3 rounded-md bg-background px-3 py-2 text-xs font-semibold text-muted-foreground">{actionStatus}</p> : null}
             <div className="whitespace-pre-wrap leading-7 text-foreground">{reply}</div>
@@ -482,10 +542,24 @@ export function AiTutorView({
               placeholder="Paste text, CSV, or slide outline"
               className="min-h-28 rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none focus:border-ring"
             />
-            <button onClick={organizeImport} disabled={importLoading} className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+            <div className={`rounded-md border p-3 text-xs ${importPreview.ok ? "border-border bg-background text-muted-foreground" : "border-warning/50 bg-warning/10 text-foreground"}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-foreground">{labelImportTarget(importPreview.target)} preview</span>
+                <span className="rounded-md bg-secondary px-2 py-1 font-semibold text-secondary-foreground">{importPreview.confidence}</span>
+              </div>
+              <p className="mt-2">{importPreview.title} - {importPreview.itemLabel} - opens {importPreview.destinationView}</p>
+              {importPreview.warnings.length ? <p className="mt-2 text-warning-foreground">{importPreview.warnings.join(" ")}</p> : null}
+            </div>
+            <button onClick={organizeImport} disabled={importLoading || !importPreview.ok} className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-60">
               {importLoading ? "Organizing" : "Organize into Studio"}
             </button>
             {importStatus ? <p className="rounded-md bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground">{importStatus}</p> : null}
+            {importStatus ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button onClick={() => setView?.(importPreview.destinationView)} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Open {importPreview.destinationView}</button>
+                <button onClick={() => { setActiveTaskKey("practice_generator"); setMessage(`Generate practice from this imported ${labelImportTarget(importPreview.target)}.`); setView?.("ai") }} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Generate practice</button>
+              </div>
+            ) : null}
           </div>
         </div>
       </Panel>
@@ -583,6 +657,64 @@ function ResultAction({ label, onClick }: { label: string; onClick: () => void }
     <button onClick={onClick} className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
       {label}
     </button>
+  )
+}
+
+function StatusChip({ label, tone }: { label: string; tone: "ready" | "warning" | "blocked" | "neutral" }) {
+  const classes = tone === "ready"
+    ? "bg-success text-success-foreground"
+    : tone === "blocked"
+      ? "bg-destructive text-destructive-foreground"
+      : tone === "warning"
+        ? "bg-warning text-warning-foreground"
+        : "bg-secondary text-secondary-foreground"
+  return <span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${classes}`}>{label}</span>
+}
+
+function WorkflowCard({ detail, label, tone, value }: { detail: string; label: string; tone: "good" | "watch" | "blocked" | "neutral"; value: string }) {
+  const Icon = tone === "blocked" ? AlertTriangle : tone === "good" ? CheckCircle2 : Info
+  const classes = tone === "good"
+    ? "border-success/40 bg-success/10"
+    : tone === "blocked"
+      ? "border-destructive/40 bg-destructive/10"
+      : tone === "watch"
+        ? "border-warning/40 bg-warning/10"
+        : "border-border bg-background"
+  return (
+    <div className={`group relative rounded-md border p-3 ${classes}`}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="truncate text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">{label}</p>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <p className="mt-2 truncate text-sm font-semibold text-foreground">{value}</p>
+      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-30 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{detail}</p>
+    </div>
+  )
+}
+
+function SectionLabel({ body, compact, icon: Icon, title }: { body: string; compact?: boolean; icon: React.ComponentType<{ className?: string }>; title: string }) {
+  return (
+    <div className={`${compact ? "mb-3" : "mt-5"} flex items-center justify-between gap-3`}>
+      <div className="flex min-w-0 items-center gap-2">
+        <Icon className="h-4 w-4 text-success" />
+        <p className="font-semibold text-foreground">{title}</p>
+      </div>
+      <details className="relative">
+        <summary className="flex h-7 w-7 list-none items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${title}`}>
+          <Info className="h-3.5 w-3.5" />
+        </summary>
+        <p className="absolute right-0 top-9 z-30 w-64 rounded-md border border-border bg-popover p-3 text-xs leading-5 text-popover-foreground shadow-xl">{body}</p>
+      </details>
+    </div>
+  )
+}
+
+function PreviewBlock({ body, title }: { body: string; title: string }) {
+  return (
+    <div className="rounded-md border border-border bg-background p-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{title}</p>
+      <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{body || "None"}</pre>
+    </div>
   )
 }
 
