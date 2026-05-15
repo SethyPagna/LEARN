@@ -102,11 +102,18 @@ export function LearnShell({
       <div className={`grid min-h-screen ${preferences.density === "compact" ? "lg:grid-cols-[232px_1fr]" : "lg:grid-cols-[272px_1fr]"}`}>
         <Sidebar
           density={preferences.density}
+          locale={preferences.locale}
+          logout={logout}
           view={view}
           query={query}
+          resolvedTheme={preferences.resolvedTheme}
           setQuery={setQuery}
+          setDensity={preferences.setDensity}
+          setLocale={preferences.setLocale}
+          setTheme={preferences.setTheme}
           setView={chooseView}
           text={preferences.text}
+          user={user}
         />
         <section className="min-w-0">
           <Topbar
