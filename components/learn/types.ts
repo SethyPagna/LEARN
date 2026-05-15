@@ -92,7 +92,13 @@ export interface CalendarEvent {
 export interface WorkspaceDocument {
   id: string
   title: string
-  content?: Record<string, unknown>
+  content?: {
+    text?: string
+    blocks?: unknown
+    markdown?: string
+    plainText?: string
+    [key: string]: unknown
+  }
   tags?: string[]
   updated_at?: string
 }
@@ -101,19 +107,86 @@ export interface WorkspaceSheet {
   id: string
   title: string
   cells: string[][]
+  columnWidths?: number[]
+  rowHeights?: number[]
+  frozenRows?: number
+  filters?: Record<string, unknown>
+  formatting?: Record<string, unknown>
   updated_at?: string
 }
 
 export interface WorkspaceDeck {
   id: string
   title: string
-  slides: { title: string; body: string; accent?: string }[]
+  slides: {
+    title: string
+    body: string
+    accent?: string
+    layout?: "title" | "two-column" | "image" | "quote"
+    theme?: string
+    objects?: Array<{ id: string; type: "text" | "image" | "shape"; x: number; y: number; w: number; h: number; text?: string; src?: string }>
+    speakerNotes?: string
+  }[]
   updated_at?: string
 }
 
 export type StudioKind = "notes" | "docs" | "sheets" | "slides"
 export type StudioAction = "new" | "save" | "undo" | "redo" | "copy" | "duplicate" | "archive" | "download" | "export"
 export type StudioExportFormat = "markdown" | "text" | "csv" | "json" | "outline"
+export type StudioCommand =
+  | StudioAction
+  | "open"
+  | "format"
+  | "insert"
+  | "data"
+  | "review"
+  | "share"
+  | "split-right"
+  | "split-down"
+  | "close-pane"
+  | "close-others"
+  | "pin-pane"
+  | "ask-ai"
+
+export interface StudioTab {
+  id: string
+  kind: StudioKind
+  itemId?: string
+  title: string
+  pinned?: boolean
+}
+
+export interface StudioPane {
+  id: string
+  order: number
+  label: string
+  activeTabId: string
+  tabs: StudioTab[]
+  pinned?: boolean
+}
+
+export interface StudioPaneGroup {
+  id: string
+  direction: "horizontal" | "vertical"
+  panes: StudioPane[]
+}
+
+export interface StudioLayoutState {
+  version: 1
+  activePaneId: string
+  groups: StudioPaneGroup[]
+  inspectorOpen: boolean
+  density: "compact" | "comfortable"
+}
+
+export interface StudioContextTarget {
+  type: "record" | "editor" | "cell" | "slide" | "pane"
+  kind?: StudioKind
+  id?: string
+  rowIndex?: number
+  columnIndex?: number
+  paneId?: string
+}
 
 export interface StudioItem {
   id: string
