@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Sidebar, MobileMenu, Topbar } from "./app-nav"
+import { Sidebar, MobileMenu, Topbar, titleForView } from "./app-nav"
 import { api } from "./api"
 import type { Note, Quiz, StudioKind, User, View } from "./types"
 import { StatusMessage } from "./ui"
@@ -18,9 +18,45 @@ const studioViews = ["studio", "notes", "docs", "sheets", "slides"] as const
 const learnViews = ["learn", "vault", "feed", "discover", "graph", "reviews", "calendar", "progress"] as const
 const practiceViews = ["practice", "quizzes", "games"] as const
 const socialViews = ["social", "chat", "spaces", "rooms", "battles"] as const
+const viewRoutes: Record<View, string> = {
+  dashboard: "/dashboard",
+  learn: "/learn",
+  vault: "/vault",
+  feed: "/feed",
+  graph: "/graph",
+  reviews: "/reviews",
+  studio: "/studio",
+  notes: "/notes",
+  docs: "/docs",
+  sheets: "/sheets",
+  slides: "/slides",
+  quizzes: "/quizzes",
+  practice: "/practice",
+  games: "/games",
+  ai: "/ai",
+  files: "/files",
+  chat: "/chat",
+  social: "/social",
+  progress: "/progress",
+  calendar: "/calendar",
+  discover: "/discover",
+  spaces: "/spaces",
+  rooms: "/rooms",
+  battles: "/battles",
+  profile: "/profile",
+  settings: "/settings",
+  admin: "/admin",
+}
 
 function getStudioKind(view: View): StudioKind {
   return view === "docs" || view === "sheets" || view === "slides" ? view : "notes"
+}
+
+function viewFromPath(pathname: string): View | null {
+  const segment = pathname.split("/").filter(Boolean)[0] || "dashboard"
+  if (segment === "quiz") return "quizzes"
+  if (segment in viewRoutes) return segment as View
+  return null
 }
 
 export function LearnShell({
@@ -78,6 +114,24 @@ export function LearnShell({
   }, [])
 
   useEffect(() => {
+    function syncViewFromLocation() {
+      const nextView = viewFromPath(window.location.pathname)
+      if (!nextView) return
+      setView(nextView)
+      setMenuOpen(false)
+      setQuery("")
+    }
+
+    syncViewFromLocation()
+    window.addEventListener("popstate", syncViewFromLocation)
+    return () => window.removeEventListener("popstate", syncViewFromLocation)
+  }, [])
+
+  useEffect(() => {
+    document.title = `${titleForView(view, preferences.text)} - LEARN`
+  }, [preferences.text, view])
+
+  useEffect(() => {
     if (view !== "admin" || adminData || user?.role !== "admin") return
     api<any>("/api/admin").then(setAdminData).catch((error) => setStatus(error.message))
   }, [view, adminData, user?.role])
@@ -95,6 +149,11 @@ export function LearnShell({
   function chooseView(nextView: View) {
     setView(nextView)
     setMenuOpen(false)
+    setQuery("")
+    const nextPath = viewRoutes[nextView]
+    if (typeof window !== "undefined" && nextPath && window.location.pathname !== nextPath) {
+      window.history.pushState({ learnView: nextView }, "", nextPath)
+    }
   }
 
   return (
