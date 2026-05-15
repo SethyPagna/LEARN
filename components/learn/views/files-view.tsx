@@ -6,18 +6,28 @@ import type { WorkspaceOptions } from "../preferences"
 import type { MediaFile } from "../types"
 import { api, formatBytes, formatDate } from "../api"
 import { EmptyState, Panel } from "../ui"
+import { classifyUploadContentType, UPLOAD_HELP_TEXT, validateUploadFileShape } from "@/lib/file-security"
+
+const mediaFilters = ["all", "image", "video", "audio", "pdf", "doc", "sheet", "slides"] as const
+type MediaFilter = typeof mediaFilters[number]
 
 export function FilesView({ options }: { options: WorkspaceOptions }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<MediaFile[]>([])
   const [selectedId, setSelectedId] = useState("")
   const [query, setQuery] = useState("")
+  const [mediaFilter, setMediaFilter] = useState<MediaFilter>("all")
   const [status, setStatus] = useState("Loading files...")
+  const storageStats = useMemo(() => summarizeFiles(files), [files])
   const filteredFiles = useMemo(() => {
     const needle = query.trim().toLowerCase()
-    if (!needle) return files
-    return files.filter((file) => `${file.filename} ${file.content_type} ${file.source}`.toLowerCase().includes(needle))
-  }, [files, query])
+    return files.filter((file) => {
+      const kind = classifyUploadContentType(file.content_type)
+      const matchesKind = mediaFilter === "all" || kind === mediaFilter
+      const matchesQuery = !needle || `${file.filename} ${file.content_type} ${file.source} ${kind}`.toLowerCase().includes(needle)
+      return matchesKind && matchesQuery
+    })
+  }, [files, mediaFilter, query])
   const selectedFile = useMemo(() => files.find((file) => file.id === selectedId) || filteredFiles[0], [files, filteredFiles, selectedId])
 
   async function refresh() {
@@ -37,11 +47,24 @@ export function FilesView({ options }: { options: WorkspaceOptions }) {
 
   async function upload(file?: File) {
     if (!file) return
+    const validationError = validateUploadFileShape(file)
+    if (validationError) {
+      setStatus(validationError)
+      if (inputRef.current) inputRef.current.value = ""
+      return
+    }
     setStatus("Uploading file...")
     const form = new FormData()
     form.set("file", file)
-    await api("/api/files", { method: "POST", body: form })
-    await refresh()
+    try {
+      await api("/api/files", { method: "POST", body: form })
+      setStatus("Upload complete.")
+      await refresh()
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Upload failed.")
+    } finally {
+      if (inputRef.current) inputRef.current.value = ""
+    }
   }
 
   async function deleteFile(id: string) {
@@ -62,7 +85,7 @@ export function FilesView({ options }: { options: WorkspaceOptions }) {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-2xl font-semibold text-foreground">Files</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Upload, preview, download, copy links, and delete media in the isolated learn-files R2 bucket.</p>
+            <p className="mt-1 text-sm text-muted-foreground">{UPLOAD_HELP_TEXT}</p>
           </div>
           <button onClick={() => inputRef.current?.click()} className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
             <Upload className="h-4 w-4" />
@@ -73,6 +96,24 @@ export function FilesView({ options }: { options: WorkspaceOptions }) {
         <label className="mb-4 block">
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search filename, type, or source" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none" />
         </label>
+        <div className="mb-4 grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
+          <div className="flex flex-wrap gap-2">
+            {mediaFilters.map((filter) => (
+              <button
+                key={filter}
+                onClick={() => setMediaFilter(filter)}
+                className={`h-8 rounded-md px-3 text-xs font-semibold ${mediaFilter === filter ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+              >
+                {filter === "all" ? "All" : filter[0].toUpperCase() + filter.slice(1)}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground">
+            <span className="rounded-md bg-muted px-2 py-1">{files.length} files</span>
+            <span className="rounded-md bg-muted px-2 py-1">{formatBytes(storageStats.totalBytes)}</span>
+            <span className="rounded-md bg-muted px-2 py-1">{storageStats.mediaCount} media</span>
+          </div>
+        </div>
         {status ? <p className="mb-4 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
         {filteredFiles.length ? options.fileLayout === "grid" ? (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -88,7 +129,7 @@ export function FilesView({ options }: { options: WorkspaceOptions }) {
                     {file.content_type.startsWith("video/") ? <Video className="h-4 w-4 text-success" /> : null}
                     <p className="font-medium text-foreground">{file.filename}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">{file.content_type}</p>
+                  <p className="text-xs text-muted-foreground">{file.content_type} · {classifyUploadContentType(file.content_type)}</p>
                 </div>
                 <p className="text-muted-foreground">{formatBytes(file.size_bytes)}</p>
                 <p className="text-muted-foreground">{formatDate(file.created_at)}</p>
@@ -113,6 +154,7 @@ export function FilesView({ options }: { options: WorkspaceOptions }) {
             )}
             <p className="mt-3 break-words font-semibold text-foreground">{selectedFile.filename}</p>
             <p className="mt-1 text-sm text-muted-foreground">{formatBytes(selectedFile.size_bytes)} - {selectedFile.content_type}</p>
+            <p className="mt-1 text-sm text-muted-foreground">Kind: {classifyUploadContentType(selectedFile.content_type)}</p>
             <p className="mt-1 text-sm text-muted-foreground">Uploaded {formatDate(selectedFile.created_at)}</p>
             <div className="mt-4 grid gap-2">
               <a href={`/api/files/${selectedFile.id}/download`} className="flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-secondary text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
@@ -138,6 +180,7 @@ export function FilesView({ options }: { options: WorkspaceOptions }) {
 }
 
 function FileCard({ file, selected, preview, onSelect }: { file: MediaFile; selected: boolean; preview: boolean; onSelect: () => void }) {
+  const kind = classifyUploadContentType(file.content_type)
   return (
     <button onClick={onSelect} className={`rounded-lg border p-3 text-left text-sm ${selected ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-muted"}`}>
       {preview && file.content_type.startsWith("image/") ? (
@@ -148,7 +191,18 @@ function FileCard({ file, selected, preview, onSelect }: { file: MediaFile; sele
         </div>
       )}
       <p className="truncate font-medium text-foreground">{file.filename}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{formatBytes(file.size_bytes)} - {file.content_type}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{formatBytes(file.size_bytes)} - {kind}</p>
     </button>
   )
+}
+
+function summarizeFiles(files: MediaFile[]) {
+  let totalBytes = 0
+  let mediaCount = 0
+  for (const file of files) {
+    totalBytes += Number(file.size_bytes || 0)
+    const kind = classifyUploadContentType(file.content_type)
+    if (kind === "image" || kind === "video" || kind === "audio") mediaCount += 1
+  }
+  return { totalBytes, mediaCount }
 }
