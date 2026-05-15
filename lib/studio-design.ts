@@ -1,4 +1,4 @@
-import type { WorkspaceDeck } from "@/components/learn/types"
+import type { SlideObject, WorkspaceDeck } from "@/components/learn/types"
 
 export type DocumentInsertKind = "callout" | "reference" | "equation" | "page-break" | "two-column"
 
@@ -40,4 +40,24 @@ export function createSlideDesignObject(type: "text" | "shape" | "image") {
     return { id: `image_${Date.now().toString(36)}`, type, x: 58, y: 24, w: 30, h: 34, src: "", text: "Image cue" }
   }
   return { id: `text_${Date.now().toString(36)}`, type, x: 12, y: 54, w: 70, h: 12, text: "Supporting point" }
+}
+
+export function updateSlideDesignObject(
+  slide: WorkspaceDeck["slides"][number],
+  objectId: string,
+  patch: Partial<SlideObject>,
+) {
+  return {
+    ...slide,
+    objects: (slide.objects || []).map((object) => (
+      object.id === objectId ? { ...object, ...patch } : object
+    )),
+  }
+}
+
+export function removeSlideDesignObject(slide: WorkspaceDeck["slides"][number], objectId: string) {
+  return {
+    ...slide,
+    objects: (slide.objects || []).filter((object) => object.id !== objectId),
+  }
 }
