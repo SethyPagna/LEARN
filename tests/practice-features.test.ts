@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import type { QuizQuestion } from "../components/learn/types"
-import { buildMistakeRetrySet, buildPracticeReviewPlan, evaluateGameChoice, filterPracticeQuestions, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt } from "../lib/practice-features"
+import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, evaluateGameChoice, filterPracticeQuestions, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt } from "../lib/practice-features"
 
 const questions: QuizQuestion[] = [
   { id: "q1", question: "One?", choices: [{ id: "a", text: "1" }, { id: "b", text: "2" }], correct_answer_id: "a", topic: "Math", explanation: "One" },
@@ -43,6 +43,21 @@ test("practice review plan groups misses by topic and recommends next loop", () 
   assert.deepEqual(plan.weakTopics, [{ topic: "Math", missed: 2 }])
   assert.match(plan.primaryAction, /Retry missed/)
   assert.equal(plan.cardsToCreate, 2)
+})
+
+test("practice review cards preserve missed question prompts and explanations", () => {
+  const cards = buildPracticeReviewCards({
+    quizId: "quiz_math",
+    quizTitle: "Math quiz",
+    questions,
+    missedQuestionIds: ["q2"],
+  })
+
+  assert.equal(cards.length, 1)
+  assert.equal(cards[0].sourceId, "quiz_math:q2")
+  assert.equal(cards[0].prompt, "Two?")
+  assert.match(cards[0].answer, /Two/)
+  assert.equal(cards[0].topic, "Math")
 })
 
 test("practice summary treats unanswered questions as missed", () => {

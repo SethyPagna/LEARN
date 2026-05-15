@@ -5,6 +5,14 @@ export interface PracticeAnswer {
   selectedAnswerId: string
 }
 
+export interface PracticeReviewCard {
+  sourceId: string
+  title: string
+  prompt: string
+  answer: string
+  topic: string
+}
+
 export type PracticeQuestionFilter = "all" | "unanswered" | "marked" | "missed"
 
 export function summarizePracticeAttempt(input: {
@@ -69,6 +77,27 @@ export function buildPracticeReviewPlan(input: {
     primaryAction,
     cardsToCreate: Math.min(5, input.summary.missedQuestionIds.length),
   }
+}
+
+export function buildPracticeReviewCards(input: {
+  quizId: string
+  quizTitle: string
+  questions: QuizQuestion[]
+  missedQuestionIds: string[]
+}): PracticeReviewCard[] {
+  const missed = new Set(input.missedQuestionIds)
+  return input.questions
+    .filter((question) => missed.has(question.id))
+    .map((question) => {
+      const answer = question.choices.find((choice) => choice.id === question.correct_answer_id)?.text || question.correct_answer_id
+      return {
+        sourceId: `${input.quizId}:${question.id}`,
+        title: `${input.quizTitle} - ${question.topic || "Review"}`,
+        prompt: question.question,
+        answer: [answer, question.explanation].filter(Boolean).join("\n\n"),
+        topic: question.topic || "General",
+      }
+    })
 }
 
 export function buildMistakeRetrySet(questions: QuizQuestion[], missedQuestionIds: string[]) {
