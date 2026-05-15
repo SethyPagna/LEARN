@@ -133,6 +133,67 @@ export interface WorkspaceDeck {
 export type StudioKind = "notes" | "docs" | "sheets" | "slides"
 export type StudioAction = "new" | "save" | "undo" | "redo" | "copy" | "duplicate" | "archive" | "download" | "export"
 export type StudioExportFormat = "markdown" | "text" | "csv" | "json" | "outline"
+export type StudioDraftStatus = "saved" | "dirty" | "local-draft" | "saving" | "conflict"
+export interface StudioDirtyBadge {
+  kind: StudioKind
+  count: number
+  latestAt?: string
+}
+export type StudioPaneAction = "split-right" | "split-down" | "close" | "close-others" | "duplicate" | "pin" | "reset"
+export type StudioInsertTarget = "note-block" | "doc-section" | "sheet-rows" | "slide-outline" | "quiz" | "flashcards" | "review-cards" | "ai-note"
+export interface RichDocumentContent {
+  blocks?: unknown
+  html?: string
+  markdown?: string
+  plainText?: string
+}
+export interface SheetMetadata {
+  columnWidths?: number[]
+  rowHeights?: number[]
+  frozenRows?: number
+  selectedRange?: { startRow: number; startColumn: number; endRow: number; endColumn: number }
+  filters?: Record<string, unknown>
+  formatting?: Record<string, unknown>
+}
+export interface SlideObject {
+  id: string
+  type: "text" | "image" | "shape" | "table"
+  x: number
+  y: number
+  w: number
+  h: number
+  text?: string
+  src?: string
+  style?: Record<string, unknown>
+}
+export interface AiPromptField {
+  id: string
+  label: string
+  required?: boolean
+  placeholder?: string
+  options?: string[]
+}
+export interface AiPromptContract {
+  mode: string
+  title: string
+  requiredFields: AiPromptField[]
+  outputContract: string
+  insertTargets: StudioInsertTarget[]
+}
+export interface AiInsertBackAction {
+  target: StudioInsertTarget
+  label: string
+  description: string
+}
+export type PracticeMode = "quiz" | "exam" | "flashcards" | "matching" | "sprint" | "mistake-retry" | "fill-blank" | "true-false" | "generated"
+export interface PracticeAttemptSummary {
+  mode: PracticeMode
+  score: number
+  total: number
+  durationSeconds: number
+  missedQuestionIds: string[]
+  nextAction: "retry" | "review" | "save-to-studio" | "rest"
+}
 export type StudioCommand =
   | StudioAction
   | "open"
