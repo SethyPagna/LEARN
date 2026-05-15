@@ -1,4 +1,4 @@
-export const supportedLocales = [
+﻿export const supportedLocales = [
   "en",
   "km",
   "zh-CN",
@@ -119,251 +119,82 @@ export const baseVocabulary = {
   error: "Something went wrong",
 }
 
-type Vocabulary = typeof baseVocabulary
-type VocabularyPatch = Partial<Vocabulary>
+export type Vocabulary = typeof baseVocabulary
+export type VocabularyPatch = Partial<Vocabulary>
+export type LanguagePack = Partial<Record<SupportedLocale, VocabularyPatch>>
 
-const vocabularyPatches: Record<SupportedLocale, VocabularyPatch> = {
-  en: {},
-  km: {
-    dashboard: "ផ្ទាំងគ្រប់គ្រង",
-    notes: "កំណត់ត្រា",
-    quizzes: "សំណួរ",
-    aiTutor: "គ្រូ AI",
-    files: "ឯកសារ",
-    progress: "វឌ្ឍនភាព",
-    calendar: "ប្រតិទិន",
-    settings: "ការកំណត់",
-    admin: "អ្នកគ្រប់គ្រង",
-    signIn: "ចូល",
-    signOut: "ចេញ",
-    save: "រក្សាទុក",
-    language: "ភាសា",
-  },
-  "zh-CN": {
-    dashboard: "仪表板",
-    notes: "笔记",
-    quizzes: "测验",
-    aiTutor: "AI 导师",
-    files: "文件",
-    progress: "进度",
-    calendar: "日历",
-    settings: "设置",
-    signIn: "登录",
-    signOut: "退出",
-    save: "保存",
-  },
-  "zh-TW": {
-    dashboard: "儀表板",
-    notes: "筆記",
-    quizzes: "測驗",
-    aiTutor: "AI 導師",
-    files: "檔案",
-    progress: "進度",
-    calendar: "行事曆",
-    settings: "設定",
-    signIn: "登入",
-    signOut: "登出",
-    save: "儲存",
-  },
-  vi: {
-    dashboard: "Bảng điều khiển",
-    notes: "Ghi chú",
-    quizzes: "Bài kiểm tra",
-    aiTutor: "Gia sư AI",
-    files: "Tệp",
-    progress: "Tiến độ",
-    calendar: "Lịch",
-    settings: "Cài đặt",
-    signIn: "Đăng nhập",
-    signOut: "Đăng xuất",
-    save: "Lưu",
-  },
-  th: {
-    dashboard: "แดชบอร์ด",
-    notes: "บันทึก",
-    quizzes: "แบบทดสอบ",
-    aiTutor: "ติวเตอร์ AI",
-    files: "ไฟล์",
-    progress: "ความคืบหน้า",
-    calendar: "ปฏิทิน",
-    settings: "การตั้งค่า",
-    signIn: "เข้าสู่ระบบ",
-    signOut: "ออกจากระบบ",
-    save: "บันทึก",
-  },
-  fr: {
-    dashboard: "Tableau de bord",
-    notes: "Notes",
-    quizzes: "Quiz",
-    aiTutor: "Tuteur IA",
-    files: "Fichiers",
-    progress: "Progression",
-    calendar: "Calendrier",
-    settings: "Paramètres",
-    signIn: "Connexion",
-    signOut: "Déconnexion",
-    save: "Enregistrer",
-  },
-  es: {
-    dashboard: "Panel",
-    notes: "Notas",
-    quizzes: "Cuestionarios",
-    aiTutor: "Tutor IA",
-    files: "Archivos",
-    progress: "Progreso",
-    calendar: "Calendario",
-    settings: "Ajustes",
-    signIn: "Iniciar sesión",
-    signOut: "Cerrar sesión",
-    save: "Guardar",
-  },
-  de: {
-    dashboard: "Dashboard",
-    notes: "Notizen",
-    quizzes: "Quizze",
-    aiTutor: "KI-Tutor",
-    files: "Dateien",
-    progress: "Fortschritt",
-    calendar: "Kalender",
-    settings: "Einstellungen",
-    signIn: "Anmelden",
-    signOut: "Abmelden",
-    save: "Speichern",
-  },
-  ja: {
-    dashboard: "ダッシュボード",
-    notes: "ノート",
-    quizzes: "クイズ",
-    aiTutor: "AIチューター",
-    files: "ファイル",
-    progress: "進捗",
-    calendar: "カレンダー",
-    settings: "設定",
-    signIn: "サインイン",
-    signOut: "サインアウト",
-    save: "保存",
-  },
-  ko: {
-    dashboard: "대시보드",
-    notes: "노트",
-    quizzes: "퀴즈",
-    aiTutor: "AI 튜터",
-    files: "파일",
-    progress: "진행률",
-    calendar: "캘린더",
-    settings: "설정",
-    signIn: "로그인",
-    signOut: "로그아웃",
-    save: "저장",
-  },
-  pt: {
-    dashboard: "Painel",
-    notes: "Notas",
-    quizzes: "Questionários",
-    aiTutor: "Tutor de IA",
-    files: "Arquivos",
-    progress: "Progresso",
-    calendar: "Calendário",
-    settings: "Configurações",
-    signIn: "Entrar",
-    signOut: "Sair",
-    save: "Salvar",
-  },
-  it: {
-    dashboard: "Dashboard",
-    notes: "Note",
-    quizzes: "Quiz",
-    aiTutor: "Tutor IA",
-    files: "File",
-    progress: "Progresso",
-    calendar: "Calendario",
-    settings: "Impostazioni",
-    signIn: "Accedi",
-    signOut: "Esci",
-    save: "Salva",
-  },
-  ar: {
-    dashboard: "لوحة التحكم",
-    notes: "ملاحظات",
-    quizzes: "اختبارات",
-    aiTutor: "مدرب الذكاء الاصطناعي",
-    files: "ملفات",
-    progress: "التقدم",
-    calendar: "التقويم",
-    settings: "الإعدادات",
-    signIn: "تسجيل الدخول",
-    signOut: "تسجيل الخروج",
-    save: "حفظ",
-    language: "اللغة",
-  },
-  hi: {
-    dashboard: "डैशबोर्ड",
-    notes: "नोट्स",
-    quizzes: "क्विज़",
-    aiTutor: "AI शिक्षक",
-    files: "फ़ाइलें",
-    progress: "प्रगति",
-    calendar: "कैलेंडर",
-    settings: "सेटिंग्स",
-    signIn: "साइन इन",
-    signOut: "साइन आउट",
-    save: "सहेजें",
-  },
-  id: {
-    dashboard: "Dasbor",
-    notes: "Catatan",
-    quizzes: "Kuis",
-    aiTutor: "Tutor AI",
-    files: "Berkas",
-    progress: "Kemajuan",
-    calendar: "Kalender",
-    settings: "Pengaturan",
-    signIn: "Masuk",
-    signOut: "Keluar",
-    save: "Simpan",
-  },
-  ms: {
-    dashboard: "Papan pemuka",
-    notes: "Nota",
-    quizzes: "Kuiz",
-    aiTutor: "Tutor AI",
-    files: "Fail",
-    progress: "Kemajuan",
-    calendar: "Kalendar",
-    settings: "Tetapan",
-    signIn: "Log masuk",
-    signOut: "Log keluar",
-    save: "Simpan",
-  },
-  tr: {
-    dashboard: "Pano",
-    notes: "Notlar",
-    quizzes: "Testler",
-    aiTutor: "AI Eğitmen",
-    files: "Dosyalar",
-    progress: "İlerleme",
-    calendar: "Takvim",
-    settings: "Ayarlar",
-    signIn: "Giriş yap",
-    signOut: "Çıkış yap",
-    save: "Kaydet",
-  },
+type LocalePackLoader = () => Promise<{ default: LanguagePack }>
+
+const loadAsianPack: LocalePackLoader = () => import("./packs/asian")
+const loadLatinPack: LocalePackLoader = () => import("./packs/latin")
+const loadRtlPack: LocalePackLoader = () => import("./packs/rtl")
+
+const localePackLoaders: Partial<Record<SupportedLocale, LocalePackLoader>> = {
+  km: loadAsianPack,
+  "zh-CN": loadAsianPack,
+  "zh-TW": loadAsianPack,
+  vi: loadAsianPack,
+  th: loadAsianPack,
+  ja: loadAsianPack,
+  ko: loadAsianPack,
+  hi: loadAsianPack,
+  id: loadAsianPack,
+  ms: loadAsianPack,
+  fr: loadLatinPack,
+  es: loadLatinPack,
+  de: loadLatinPack,
+  pt: loadLatinPack,
+  it: loadLatinPack,
+  tr: loadLatinPack,
+  ar: loadRtlPack,
 }
 
 const vocabularyCache: Partial<Record<SupportedLocale, Vocabulary>> = {
   en: baseVocabulary,
 }
+const languagePackPromises = new Map<LocalePackLoader, Promise<LanguagePack>>()
 
 export function isSupportedLocale(locale: string): locale is SupportedLocale {
   return supportedLocales.includes(locale as SupportedLocale)
 }
 
+function combineVocabulary(patch: VocabularyPatch = {}): Vocabulary {
+  return { ...baseVocabulary, ...patch }
+}
+
+function cacheLanguagePack(pack: LanguagePack) {
+  for (const locale of supportedLocales) {
+    if (locale === "en") continue
+    const patch = pack[locale]
+    if (patch) vocabularyCache[locale] = combineVocabulary(patch)
+  }
+}
+
+async function getLanguagePack(locale: SupportedLocale) {
+  const loader = localePackLoaders[locale]
+  if (!loader) return {}
+
+  const existing = languagePackPromises.get(loader)
+  if (existing) return existing
+
+  const promise = loader().then((module) => {
+    cacheLanguagePack(module.default)
+    return module.default
+  })
+  languagePackPromises.set(loader, promise)
+  return promise
+}
+
 export function getVocabulary(locale: string): Vocabulary {
+  const supportedLocale = isSupportedLocale(locale) ? locale : "en"
+  return vocabularyCache[supportedLocale] ?? vocabularyCache.en ?? baseVocabulary
+}
+
+export async function loadVocabulary(locale: string): Promise<Vocabulary> {
   const supportedLocale = isSupportedLocale(locale) ? locale : "en"
   const cached = vocabularyCache[supportedLocale]
   if (cached) return cached
 
-  const vocabulary = { ...baseVocabulary, ...vocabularyPatches[supportedLocale] }
-  vocabularyCache[supportedLocale] = vocabulary
-  return vocabulary
+  await getLanguagePack(supportedLocale)
+  return vocabularyCache[supportedLocale] ?? combineVocabulary()
 }
