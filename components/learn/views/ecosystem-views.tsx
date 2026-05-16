@@ -37,7 +37,7 @@ import type {
 } from "../types"
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { reviewAnswerText, reviewPromptText, reviewSourceLabel } from "@/lib/learning-ecosystem"
-import { filterSocialRecords, socialRecordTitle, summarizeSocialWorkspace, type SocialRecordFilter } from "@/lib/social-features"
+import { buildSocialWorkspacePlan, filterSocialRecords, socialRecordTitle, summarizeSocialWorkspace, type SocialRecordFilter } from "@/lib/social-features"
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -362,6 +362,7 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
   const title = kind === "spaces" ? "Learning Spaces" : kind === "rooms" ? "Study Rooms" : "Study Battles"
   const noun = kind === "spaces" ? "space" : kind === "rooms" ? "room" : "battle"
   const socialSummary = useMemo(() => summarizeSocialWorkspace(kind, items), [items, kind])
+  const socialPlan = useMemo(() => buildSocialWorkspacePlan(kind, socialSummary), [kind, socialSummary])
   const filteredItems = useMemo(() => filterSocialRecords(items, { query, filter: recordFilter }) as Array<LearningSpace | StudyRoom | StudyBattle>, [items, query, recordFilter])
   const filterOptions = useMemo(() => socialFilterOptions(kind), [kind])
 
@@ -464,11 +465,11 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-2xl font-semibold text-foreground">{title}</h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Opt-in collaboration records with quick edit controls.</p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">{socialPlan.headline}</p>
           </div>
           <button onClick={startNew} className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground">
             <Icon className="h-4 w-4" />
-            New {noun}
+            {socialPlan.primaryAction}
           </button>
         </div>
         <label className="mt-4 flex h-10 items-center rounded-md border border-input bg-background px-3">
@@ -504,7 +505,7 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
               <span className="mt-1 block truncate text-xs opacity-80">{socialMeta(kind, item)}</span>
             </button>
           ))}
-          {!filteredItems.length ? <EmptyState title={`No ${title.toLowerCase()} yet`} body={`Use New ${noun} to create the first record.`} /> : null}
+          {!filteredItems.length ? <EmptyState title={`No ${title.toLowerCase()} yet`} body={socialPlan.emptyHint} /> : null}
         </div>
         {message ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{message}</p> : null}
       </section>
@@ -555,6 +556,7 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
       <Panel className="p-4">
         <h3 className="font-semibold text-foreground">Controls</h3>
         <p className="mt-2 rounded-md border border-border bg-background p-3 text-sm text-muted-foreground">{socialSummary.suggestedAction}</p>
+        <p className="mt-2 rounded-md border border-border bg-success/10 p-3 text-sm font-medium text-foreground">{socialPlan.safetyCue}</p>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <SocialGuideTile icon={Save} label="Save" detail={`Create or update the selected ${noun}.`} />
           <SocialGuideTile icon={Edit3} label="Edit" detail="Select a record, change fields, then save." />
@@ -813,7 +815,7 @@ function NodeCard({ node }: { node: KnowledgeNode }) {
     <article className="rounded-md border border-border bg-background p-3">
       <Network className="h-4 w-4 text-success" />
       <h4 className="mt-2 font-medium text-foreground">{node.title}</h4>
-      <p className="mt-1 text-sm text-muted-foreground">{Math.round(node.mastery * 100)}% mastery · {node.visibility}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{Math.round(node.mastery * 100)}% mastery | {node.visibility}</p>
     </article>
   )
 }
