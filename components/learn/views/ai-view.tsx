@@ -368,13 +368,17 @@ export function AiTutorView({
         </div>
 
         <SectionLabel icon={Sparkles} title="Task" body="Pick a workflow, then tune source, difficulty, tone, language, and insert target." />
-        <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {promptActions.filter((prompt) => visibleTutorModes.some((mode) => mode.id === prompt.id)).slice(0, 6).map((prompt) => {
             const Icon = prompt.icon
             return (
-              <button key={prompt.id} onClick={() => { setActiveTaskKey(prompt.id); setOptions({ aiMode: prompt.mode as WorkspaceOptions["aiMode"] }); setMessage(prompt.prompt) }} className="rounded-md border border-border bg-secondary p-3 text-left text-sm text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-                <Icon className="mb-2 h-4 w-4 text-success" />
-                {prompt.body}
+              <button key={prompt.id} onClick={() => { setActiveTaskKey(prompt.id); setOptions({ aiMode: prompt.mode as WorkspaceOptions["aiMode"] }); setMessage(prompt.prompt) }} className="group relative rounded-md border border-border bg-secondary p-3 text-left text-sm text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                <div className="flex items-center gap-2">
+                  <Icon className="h-4 w-4 text-success" />
+                  <span className="font-semibold">{prompt.label}</span>
+                </div>
+                <span className="mt-2 inline-flex rounded-md bg-background px-2 py-0.5 text-[0.68rem] font-semibold text-muted-foreground">{prompt.mode}</span>
+                <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-30 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{prompt.prompt}</p>
               </button>
             )
           })}
