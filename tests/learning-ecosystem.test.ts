@@ -3,6 +3,7 @@ import test from "node:test"
 import {
   applyReputationAction,
   buildFeedActionPlan,
+  buildKnowledgeGraphActionPlan,
   buildReviewSchedule,
   canPostInCommunity,
   calculateLevelFromXp,
@@ -13,6 +14,7 @@ import {
   reviewSourceLabel,
   selectFeedLessons,
   summarizeFeedWorkspace,
+  summarizeKnowledgeGraph,
   updateLearningStreak,
   type FeedLessonCandidate,
   type KnowledgeEdge,
@@ -148,6 +150,41 @@ test("knowledge graph detects orphan nodes and filters private artifacts", () =>
   assert.deepEqual(detectOrphanKnowledgeNodes(nodes, edges).map((entry) => entry.id), ["n3"])
   assert.deepEqual(filterPublicProfileArtifacts(nodes, "public").map((entry) => entry.id), ["n2"])
   assert.deepEqual(filterPublicProfileArtifacts(nodes, "connections").map((entry) => entry.id), ["n2", "n3"])
+})
+
+test("knowledge graph summary and action plan guide graph hygiene", () => {
+  const nodes: KnowledgeNode[] = [
+    { ...node("n1", "Operating systems", "private"), mastery: 0.7 },
+    { ...node("n2", "Round robin", "public"), mastery: 0.35 },
+    { ...node("n3", "Stoicism", "connections"), mastery: 0.9 },
+  ]
+  const edges: KnowledgeEdge[] = [{ id: "e1", sourceId: "n1", targetId: "n2", type: "related", strength: 0.8 }]
+  const summary = summarizeKnowledgeGraph(nodes, edges)
+  const plan = buildKnowledgeGraphActionPlan(nodes, edges, summary)
+
+  assert.equal(summary.totalNodes, 3)
+  assert.equal(summary.orphanCount, 1)
+  assert.equal(summary.privateCount, 1)
+  assert.equal(summary.connectionCount, 1)
+  assert.equal(summary.publicCount, 1)
+  assert.equal(summary.seedCount, 1)
+  assert.equal(summary.masteredCount, 1)
+  assert.equal(summary.strongestEdges[0].id, "e1")
+  assert.equal(plan.nextAction, "connect-orphan")
+  assert.equal(plan.targetNodeId, "n3")
+})
+
+test("knowledge graph action plan catches weak connected nodes", () => {
+  const nodes: KnowledgeNode[] = [
+    { ...node("n1", "Operating systems", "private"), mastery: 0.72 },
+    { ...node("n2", "Round robin", "public"), mastery: 0.38 },
+  ]
+  const edges: KnowledgeEdge[] = [{ id: "e1", sourceId: "n1", targetId: "n2", type: "related", strength: 0.8 }]
+  const summary = summarizeKnowledgeGraph(nodes, edges)
+  const plan = buildKnowledgeGraphActionPlan(nodes, edges, summary)
+
+  assert.equal(plan.nextAction, "review-weak")
+  assert.equal(plan.targetNodeId, "n2")
 })
 
 test("reputation gates posting and rewards high-signal actions", () => {

@@ -90,6 +90,29 @@ export interface FeedActionPlan {
   chips: string[]
 }
 
+export interface KnowledgeGraphSummary {
+  totalNodes: number
+  totalEdges: number
+  orphanCount: number
+  privateCount: number
+  connectionCount: number
+  publicCount: number
+  averageMastery: number
+  seedCount: number
+  developingCount: number
+  masteredCount: number
+  edgeDensity: number
+  strongestEdges: KnowledgeEdge[]
+}
+
+export interface KnowledgeGraphActionPlan {
+  headline: string
+  detail: string
+  nextAction: "add-node" | "connect-orphan" | "review-weak" | "open-ai" | "celebrate"
+  targetNodeId?: string
+  chips: string[]
+}
+
 export function buildReviewSchedule(input: {
   items: ReviewItem[]
   now: Date
@@ -334,6 +357,96 @@ export function detectOrphanKnowledgeNodes(nodes: KnowledgeNode[], edges: Knowle
   return orphans
 }
 
+export function summarizeKnowledgeGraph(nodes: KnowledgeNode[], edges: KnowledgeEdge[]): KnowledgeGraphSummary {
+  const kindCounts = {
+    private: 0,
+    connections: 0,
+    public: 0,
+  }
+  let masteryTotal = 0
+  let seedCount = 0
+  let developingCount = 0
+  let masteredCount = 0
+
+  for (const node of nodes) {
+    kindCounts[node.visibility] += 1
+    const mastery = clampMastery(node.mastery)
+    masteryTotal += mastery
+    if (mastery >= 0.8) masteredCount += 1
+    else if (mastery >= 0.4) developingCount += 1
+    else seedCount += 1
+  }
+
+  const possibleEdges = Math.max(1, nodes.length * Math.max(0, nodes.length - 1))
+  return {
+    totalNodes: nodes.length,
+    totalEdges: edges.length,
+    orphanCount: detectOrphanKnowledgeNodes(nodes, edges).length,
+    privateCount: kindCounts.private,
+    connectionCount: kindCounts.connections,
+    publicCount: kindCounts.public,
+    averageMastery: nodes.length ? masteryTotal / nodes.length : 0,
+    seedCount,
+    developingCount,
+    masteredCount,
+    edgeDensity: edges.length / possibleEdges,
+    strongestEdges: [...edges].sort((left, right) => right.strength - left.strength).slice(0, 3),
+  }
+}
+
+export function buildKnowledgeGraphActionPlan(
+  nodes: KnowledgeNode[],
+  edges: KnowledgeEdge[],
+  summary: KnowledgeGraphSummary,
+): KnowledgeGraphActionPlan {
+  if (summary.totalNodes === 0) {
+    return {
+      headline: "Create the first node",
+      detail: "Add a note, flashcard, or resource so the graph can start mapping your learning.",
+      nextAction: "add-node",
+      chips: ["empty graph", "private by default", "start in Studio"],
+    }
+  }
+
+  const orphan = detectOrphanKnowledgeNodes(nodes, edges)[0]
+  if (orphan) {
+    return {
+      headline: `Connect ${orphan.title}`,
+      detail: "This node is not linked yet. Add a relationship so it does not become a forgotten note.",
+      nextAction: "connect-orphan",
+      targetNodeId: orphan.id,
+      chips: [`${summary.orphanCount} orphaned`, "AI edge suggestion", "graph hygiene"],
+    }
+  }
+
+  const weakNode = findWeakestNode(nodes)
+  if (weakNode && weakNode.mastery < 0.55) {
+    return {
+      headline: `Review ${weakNode.title}`,
+      detail: "This connected concept is still fragile. Turn it into a review card or practice prompt.",
+      nextAction: "review-weak",
+      targetNodeId: weakNode.id,
+      chips: [`${Math.round(clampMastery(weakNode.mastery) * 100)}% mastery`, "review loop", "retain"],
+    }
+  }
+
+  if (summary.edgeDensity < 0.16) {
+    return {
+      headline: "Ask AI for links",
+      detail: "The graph has content, but not many relationships. Generate candidate edges from nearby concepts.",
+      nextAction: "open-ai",
+      chips: [`${summary.totalEdges} edges`, "connector mode", "suggest links"],
+    }
+  }
+
+  return {
+    headline: "Graph is healthy",
+    detail: "Your nodes are connected and mastery is trending up. Keep adding evidence and reviewing weak spots.",
+    nextAction: "celebrate",
+    chips: [`${Math.round(summary.averageMastery * 100)}% avg mastery`, `${summary.masteredCount} mastered`, "keep going"],
+  }
+}
+
 function formatFeedDuration(totalSeconds: number) {
   const minutes = Math.max(0, Math.round(totalSeconds / 60))
   return `${minutes} min`
@@ -387,4 +500,23 @@ function addDays(date: Date, days: number) {
   const next = new Date(date)
   next.setUTCDate(next.getUTCDate() + days)
   return next
+}
+
+function clampMastery(value: number) {
+  return Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0))
+}
+
+function findWeakestNode(nodes: KnowledgeNode[]) {
+  let weakest: KnowledgeNode | undefined
+  let weakestMastery = Number.POSITIVE_INFINITY
+
+  for (const node of nodes) {
+    const mastery = clampMastery(node.mastery)
+    if (mastery < weakestMastery) {
+      weakest = node
+      weakestMastery = mastery
+    }
+  }
+
+  return weakest
 }
