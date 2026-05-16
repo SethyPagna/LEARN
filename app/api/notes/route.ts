@@ -1,11 +1,12 @@
 import type { NextRequest } from "next/server"
 import { fail, isApiResponse, ok, requireApiUser } from "@/lib/api"
-import { listNotes, saveNote } from "@/lib/data"
+import { listNotes, normalizeArchiveStatus, saveNote } from "@/lib/data"
 
 export async function GET(request: NextRequest) {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
-  return ok({ items: await listNotes() })
+  const status = normalizeArchiveStatus(new URL(request.url).searchParams.get("status"))
+  return ok({ items: await listNotes(status) })
 }
 
 export async function POST(request: NextRequest) {

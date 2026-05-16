@@ -200,8 +200,24 @@ export async function getDashboardData(user: User) {
   }
 }
 
-export async function listNotes() {
+export type ArchiveListStatus = "active" | "archived" | "all"
+
+function archivedWhereClause(alias = "") {
+  const prefix = alias ? `${alias}.` : ""
+  return {
+    active: `${prefix}archived_at IS NULL`,
+    archived: `${prefix}archived_at IS NOT NULL`,
+    all: "1 = 1",
+  } satisfies Record<ArchiveListStatus, string>
+}
+
+export function normalizeArchiveStatus(value?: string | null): ArchiveListStatus {
+  return value === "archived" || value === "all" ? value : "active"
+}
+
+export async function listNotes(status: ArchiveListStatus = "active") {
   await ensureDatabase()
+  const archiveClause = archivedWhereClause("n")[status]
   const result = await query<NoteRecord>(
     `SELECT n.*,
       COALESCE((
@@ -211,7 +227,7 @@ export async function listNotes() {
         WHERE nt.note_id = n.id
       ), '[]') AS tags
      FROM notes n
-     WHERE n.archived_at IS NULL
+     WHERE ${archiveClause}
      ORDER BY n.favorite DESC, n.updated_at DESC`,
   )
   return result.rows.map(normalizeNote)
@@ -379,11 +395,12 @@ function normalizeJsonRow<T extends Record<string, unknown>>(row: T, keys: strin
   }, { ...row })
 }
 
-export async function listEditorDocuments(user: User, documentType = "doc") {
+export async function listEditorDocuments(user: User, documentType = "doc", status: ArchiveListStatus = "active") {
   await ensureDatabase()
+  const archiveClause = archivedWhereClause()[status]
   const result = await query(
     `SELECT * FROM editor_documents
-     WHERE document_type = $1 AND archived_at IS NULL AND (owner_user_id = $2 OR $3 = 'admin')
+     WHERE document_type = $1 AND ${archiveClause} AND (owner_user_id = $2 OR $3 = 'admin')
      ORDER BY updated_at DESC
      LIMIT 100`,
     [documentType, user.id, user.role],
@@ -422,11 +439,21 @@ export async function archiveEditorDocument(user: User, id: string) {
   await logAudit({ userId: user.id, action: "archive", entity: "editor_document", entityId: id })
 }
 
-export async function listSheets(user: User) {
+export async function restoreEditorDocument(user: User, id: string) {
   await ensureDatabase()
+  await query("UPDATE editor_documents SET archived_at = NULL, updated_at = now() WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin')", [id, user.id, user.role])
+  await logAudit({ userId: user.id, action: "restore", entity: "editor_document", entityId: id })
+  const result = await query("SELECT * FROM editor_documents WHERE id = $1 LIMIT 1", [id])
+  const row = result.rows[0]
+  return row ? { ...row, content: parseJsonObject(row.content), tags: parseJsonArray(row.tags) } : null
+}
+
+export async function listSheets(user: User, status: ArchiveListStatus = "active") {
+  await ensureDatabase()
+  const archiveClause = archivedWhereClause()[status]
   const result = await query(
     `SELECT * FROM sheet_documents
-     WHERE archived_at IS NULL AND (owner_user_id = $1 OR $2 = 'admin')
+     WHERE ${archiveClause} AND (owner_user_id = $1 OR $2 = 'admin')
      ORDER BY updated_at DESC
      LIMIT 100`,
     [user.id, user.role],
@@ -464,11 +491,20 @@ export async function archiveSheet(user: User, id: string) {
   await logAudit({ userId: user.id, action: "archive", entity: "sheet", entityId: id })
 }
 
-export async function listSlideDecks(user: User) {
+export async function restoreSheet(user: User, id: string) {
   await ensureDatabase()
+  await query("UPDATE sheet_documents SET archived_at = NULL, updated_at = now() WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin')", [id, user.id, user.role])
+  await logAudit({ userId: user.id, action: "restore", entity: "sheet", entityId: id })
+  const result = await query("SELECT * FROM sheet_documents WHERE id = $1 LIMIT 1", [id])
+  return result.rows[0] ? normalizeJsonRow(result.rows[0], ["cells", "history"]) : null
+}
+
+export async function listSlideDecks(user: User, status: ArchiveListStatus = "active") {
+  await ensureDatabase()
+  const archiveClause = archivedWhereClause()[status]
   const result = await query(
     `SELECT * FROM slide_decks
-     WHERE archived_at IS NULL AND (owner_user_id = $1 OR $2 = 'admin')
+     WHERE ${archiveClause} AND (owner_user_id = $1 OR $2 = 'admin')
      ORDER BY updated_at DESC
      LIMIT 100`,
     [user.id, user.role],
@@ -504,6 +540,15 @@ export async function archiveSlideDeck(user: User, id: string) {
   await ensureDatabase()
   await query("UPDATE slide_decks SET archived_at = now(), updated_at = now() WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin')", [id, user.id, user.role])
   await logAudit({ userId: user.id, action: "archive", entity: "slide_deck", entityId: id })
+}
+
+export async function restoreSlideDeck(user: User, id: string) {
+  await ensureDatabase()
+  await query("UPDATE slide_decks SET archived_at = NULL, updated_at = now() WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin')", [id, user.id, user.role])
+  await logAudit({ userId: user.id, action: "restore", entity: "slide_deck", entityId: id })
+  const result = await query("SELECT * FROM slide_decks WHERE id = $1 LIMIT 1", [id])
+  const row = result.rows[0]
+  return row ? { ...row, slides: parseJsonArray(row.slides), speaker_notes: parseJsonObject(row.speaker_notes) } : null
 }
 
 export async function listWorkspaceMembers(user: User) {
