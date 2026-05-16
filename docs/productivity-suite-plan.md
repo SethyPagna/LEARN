@@ -1,7 +1,7 @@
 # LEARN Productivity Suite Plan
 
 Status: Active
-Last updated: 2026-05-16
+Last updated: 2026-05-17
 
 ## Goal
 
@@ -49,6 +49,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-16: Moved the intro workflow into a separate `/showcase` gallery with clickable dots, thumbnails, next/previous controls, keyboard navigation, and wheel-driven slide changes across Dashboard, Studio, AI, Practice, Calendar, and Social previews.
 - 2026-05-16: Optimized `/showcase` transitions by rendering one active preview at a time instead of sliding six full offscreen screens, reducing paint work and making wheel/click slide changes smoother.
 - 2026-05-17: Fixed the login LEARN brand so desktop and mobile users can click it to return to the public intro page.
+- 2026-05-17: Reintroduced the workflow into the public intro scroll path with a sticky animated section, realistic app-content mock screens, step buttons, and scroll-driven transitions while keeping `/showcase` as a direct gallery route.
 
 ## Implementation Slices
 
