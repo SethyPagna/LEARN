@@ -44,6 +44,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-16: Made the desktop sidebar a fixed rail for long pages and expanded Calendar with a month grid, selected-day timeline, month navigation, event dots, and timezone-aware time ranges.
 - 2026-05-16: Started the Studio header refinement by hiding noisy default draft tab names, moving save status under the title, expanding Word-like style menus with saved heading presets, and aligning AI Tutor task/filter/gateway controls into a compact top-right command area.
 - 2026-05-16: Added a simple public intro page before login with a short product hook and animated workflow cards.
+- 2026-05-16: Made Studio font-size controls render through an explicit Tiptap extension and collapsed old empty draft tabs so saved browser layouts no longer duplicate placeholder tabs.
 
 ## Implementation Slices
 
