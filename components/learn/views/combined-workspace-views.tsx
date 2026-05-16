@@ -9,6 +9,7 @@ import { FeedView, GraphView, ReviewsView, SocialLearningView } from "./ecosyste
 import { CalendarView, ProgressView } from "./secondary-views"
 import { ChatView, GamesView } from "./productivity-views"
 import { QuizView } from "./quiz-view"
+import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 
 type LearnTab = "overview" | "discover" | "graph" | "reviews" | "calendar" | "progress"
@@ -228,18 +229,34 @@ function WorkspaceFrame<T extends string>({
 function LearnRoute({ dashboard, quizzes, setView }: { dashboard: any; quizzes: Quiz[]; setView: (view: View) => void }) {
   const focus = dashboard?.snapshot?.recommendedFocus ?? []
   const weakTopics = dashboard?.snapshot?.weakTopics ?? []
-  const actions = useMemo(() => [
-    { title: "Review", body: "Open recall before browsing.", view: "reviews" as View, icon: Repeat2 },
-    { title: "Create", body: "Turn notes into practice.", view: "studio" as View, icon: Sparkles },
-    { title: "Schedule", body: "Give concepts a time block.", view: "calendar" as View, icon: CalendarDays },
-  ], [])
+  const routePlan = useMemo(() => buildLearnRoutePlan({
+    goalCompletion: dashboard?.snapshot?.goalCompletion ?? 0,
+    quizCount: quizzes.length,
+    recommendedFocus: focus,
+    weakTopics,
+  }), [dashboard?.snapshot?.goalCompletion, focus, quizzes.length, weakTopics])
+  const actionIcons = useMemo(() => ({
+    create: Sparkles,
+    practice: BookOpen,
+    review: Repeat2,
+    schedule: CalendarDays,
+  }), [])
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
       <Panel className="p-5">
-        <div className="grid gap-3 md:grid-cols-3">
-          {actions.map((action) => {
-            const Icon = action.icon
+        <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Recommended route</p>
+            <h3 className="mt-1 text-2xl font-semibold text-foreground">{routePlan.headline}</h3>
+          </div>
+          <button onClick={() => setView(routePlan.primaryAction.view)} className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
+            Start: {routePlan.primaryAction.title}
+          </button>
+        </div>
+        <div className="grid gap-3 md:grid-cols-4">
+          {routePlan.actions.map((action) => {
+            const Icon = actionIcons[action.id]
             return (
               <button key={action.title} onClick={() => setView(action.view)} className="rounded-md border border-border bg-background p-4 text-left hover:bg-accent hover:text-accent-foreground">
                 <Icon className="h-6 w-6 text-success" />
@@ -253,19 +270,16 @@ function LearnRoute({ dashboard, quizzes, setView }: { dashboard: any; quizzes: 
       <Panel className="p-4">
         <h3 className="font-semibold text-foreground">Today's learning signal</h3>
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <MiniMetric label="Goal" value={`${dashboard?.snapshot?.goalCompletion ?? 0}%`} />
-          <MiniMetric label="Quiz banks" value={String(quizzes.length)} />
-          <MiniMetric label="Focus topics" value={String(focus.length)} />
-          <MiniMetric label="Weak topics" value={String(weakTopics.length)} />
+          {routePlan.signals.map((signal) => <MiniMetric key={signal.label} label={signal.label} value={signal.value} />)}
         </div>
-        <InfoStrip body="Dashboard commands. Learn routes." />
+        <InfoStrip body={routePlan.primaryAction.body} />
       </Panel>
       <Panel className="p-4 xl:col-span-2">
-        <h3 className="font-semibold text-foreground">Shortcuts</h3>
+        <h3 className="font-semibold text-foreground">Learning loop</h3>
         <div className="mt-3 grid gap-3 md:grid-cols-3">
-          <PatternCard icon={Sparkles} title="Studio" body="Create, save, export." />
-          <PatternCard icon={MessageSquare} title="Social" body="Thread, mention, react." />
-          <PatternCard icon={Repeat2} title="Loop" body="Discover, review, retry." />
+          <PatternCard icon={Sparkles} title="Capture" body="Studio keeps notes, docs, sheets, slides, and imports together." />
+          <PatternCard icon={Repeat2} title="Practice" body="Review, quiz, retry misses, and save hard items as cards." />
+          <PatternCard icon={MessageSquare} title="Reflect" body="Use Social only when you want collaboration or accountability." />
         </div>
       </Panel>
     </div>
