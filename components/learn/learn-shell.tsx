@@ -8,16 +8,16 @@ import { StatusMessage } from "./ui"
 import { AiTutorView } from "./views/ai-view"
 import { DashboardView } from "./views/dashboard-view"
 import { FilesView } from "./views/files-view"
-import { AdminView, SettingsView } from "./views/secondary-views"
+import { AdminView, ProgressView, SettingsView } from "./views/secondary-views"
 import { useWorkspacePreferences } from "./preferences"
-import { ProfileView } from "./views/ecosystem-views"
+import { FeedView, GraphView, ProfileView, VaultView } from "./views/ecosystem-views"
 import { StudioView } from "./views/studio-view"
 import { LearnWorkspaceView, PracticeWorkspaceView, SocialWorkspaceView } from "./views/combined-workspace-views"
 import { PRACTICE_DRAFT_EVENT, readPracticeDrafts, summarizePracticeDrafts, type PracticeDraftSummary } from "@/lib/practice-drafts"
 import { readStudioDrafts, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, type StudioDraftSummary } from "@/lib/studio-drafts"
 
 const studioViews = ["studio", "notes", "docs", "sheets", "slides"] as const
-const learnViews = ["learn", "vault", "feed", "discover", "graph", "reviews", "calendar", "progress"] as const
+const learnViews = ["learn", "reviews", "calendar"] as const
 const practiceViews = ["practice", "quizzes", "games"] as const
 const socialViews = ["social", "chat", "spaces", "rooms", "battles"] as const
 const viewRoutes: Record<View, string> = {
@@ -237,6 +237,10 @@ export function LearnShell({
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
             {view === "dashboard" ? <DashboardView dashboard={dashboard} notes={notes} quizzes={quizzes} options={preferences.options} setView={chooseView} /> : null}
             {learnViews.includes(view as (typeof learnViews)[number]) ? <LearnWorkspaceView dashboard={dashboard} initialView={view} options={preferences.options} quizzes={quizzes} setView={chooseView} /> : null}
+            {view === "vault" ? <VaultView setView={chooseView} /> : null}
+            {view === "feed" || view === "discover" ? <FeedView setView={chooseView} /> : null}
+            {view === "graph" ? <GraphView setView={chooseView} /> : null}
+            {view === "progress" ? <ProgressView dashboard={dashboard} quizzes={quizzes} setView={chooseView} /> : null}
             {studioViews.includes(view as (typeof studioViews)[number]) ? <StudioView initialKind={getStudioKind(view)} notes={filteredNotes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} onDraftSummary={setStudioDraftSummary} /> : null}
             {practiceViews.includes(view as (typeof practiceViews)[number]) ? <PracticeWorkspaceView initialView={view} quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={preferences.options} setView={chooseView} /> : null}
             {view === "ai" ? <AiTutorView notes={notes} options={preferences.options} setNotes={setNotes} setOptions={preferences.setOptions} setView={chooseView} /> : null}
