@@ -16,8 +16,30 @@ export interface CalendarAgendaSummary {
   scheduledMinutes: number
 }
 
+export interface CalendarPlanningInput {
+  defaultMinutes: number
+  leadMinutes: number
+  now?: Date
+}
+
+export interface CalendarPlanningSuggestion {
+  title: string
+  eventType: string
+  durationMinutes: number
+  startsAt: Date
+  reason: string
+}
+
+export interface CalendarPlanningSummary {
+  headline: string
+  tone: "good" | "watch" | "neutral"
+  chips: string[]
+  suggestion: CalendarPlanningSuggestion
+}
+
 const MINUTES_PER_HOUR = 60
 const MS_PER_MINUTE = 60_000
+const HIGH_SCHEDULED_MINUTES = 240
 
 export function summarizeCalendarAgenda(events: CalendarEventLike[], now = new Date()): CalendarAgendaSummary {
   const todayKey = dateKey(now)
@@ -62,6 +84,73 @@ export function formatCalendarDuration(minutes: number) {
   const hours = Math.floor(minutes / MINUTES_PER_HOUR)
   const remainder = minutes % MINUTES_PER_HOUR
   return remainder ? `${hours}h ${remainder}m` : `${hours}h`
+}
+
+export function buildCalendarPlanningSummary(
+  events: CalendarEventLike[],
+  input: CalendarPlanningInput,
+): CalendarPlanningSummary {
+  const now = input.now ?? new Date()
+  const summary = summarizeCalendarAgenda(events, now)
+  const startsAt = new Date(now.getTime() + Math.max(0, input.leadMinutes) * MS_PER_MINUTE)
+
+  if (summary.today === 0) {
+    return {
+      headline: "Plan the first block for today",
+      tone: "watch",
+      chips: [`${summary.upcoming} upcoming`, "today empty"],
+      suggestion: {
+        title: `${Math.max(5, input.defaultMinutes)} min focus block`,
+        eventType: "focus",
+        durationMinutes: Math.max(5, input.defaultMinutes),
+        startsAt,
+        reason: "A first block makes the dashboard route actionable.",
+      },
+    }
+  }
+
+  if (summary.review === 0) {
+    return {
+      headline: "Add one review checkpoint",
+      tone: "neutral",
+      chips: [`${summary.today} today`, "no review block"],
+      suggestion: {
+        title: "Review weak topics",
+        eventType: "review",
+        durationMinutes: Math.min(30, Math.max(10, input.defaultMinutes)),
+        startsAt,
+        reason: "A short review block keeps practice connected to retention.",
+      },
+    }
+  }
+
+  if (summary.scheduledMinutes > HIGH_SCHEDULED_MINUTES) {
+    return {
+      headline: "Schedule looks heavy",
+      tone: "watch",
+      chips: [`${formatCalendarDuration(summary.scheduledMinutes)} planned`, `${summary.upcoming} upcoming`],
+      suggestion: {
+        title: "Recovery or reflection block",
+        eventType: "study",
+        durationMinutes: 15,
+        startsAt,
+        reason: "Heavy days need a small reflection block instead of more load.",
+      },
+    }
+  }
+
+  return {
+    headline: "Calendar is ready",
+    tone: "good",
+    chips: [`${summary.today} today`, `${formatCalendarDuration(summary.scheduledMinutes)} planned`],
+    suggestion: {
+      title: "Next study block",
+      eventType: "study",
+      durationMinutes: Math.max(5, input.defaultMinutes),
+      startsAt,
+      reason: "Add the next block only when the current route needs it.",
+    },
+  }
 }
 
 function dateKey(date: Date) {
