@@ -58,7 +58,7 @@ export function LearnWorkspaceView({
     <WorkspaceFrame
       eyebrow="Learn workspace"
       title="Learn"
-      body="A compact daily loop: choose today’s next step, review due concepts, or schedule focused study time."
+      body="A compact daily loop: choose today's next step, review due concepts, or schedule focused study time."
       tabs={learnTabs}
       activeTab={tab}
       setActiveTab={(value) => {
@@ -135,7 +135,7 @@ export function PracticeWorkspaceView({
     <WorkspaceFrame
       eyebrow="Practice workspace"
       title="Practice arena"
-      body="Quizzes and games share one practice surface, so missed topics can move straight into fast recall."
+      body="Quizzes and games share one practice surface. Start simple, then use modes, timers, and retries when needed."
       tabs={practiceTabs}
       activeTab={tab}
       setActiveTab={(value) => {
