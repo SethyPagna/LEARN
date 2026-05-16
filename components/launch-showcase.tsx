@@ -75,9 +75,11 @@ const showcaseSlides = [
 ] as const
 
 type ShowcaseSlide = (typeof showcaseSlides)[number]
+type SlideDirection = -1 | 1
 
 export function LaunchShowcase({ signedIn }: { signedIn: boolean }) {
   const [activeIndex, setActiveIndex] = useState(0)
+  const [direction, setDirection] = useState<SlideDirection>(1)
   const wheelLocked = useRef(false)
   const activeSlide = showcaseSlides[activeIndex]
   const ActiveIcon = activeSlide.icon
@@ -85,7 +87,12 @@ export function LaunchShowcase({ signedIn }: { signedIn: boolean }) {
 
   function showSlide(index: number) {
     const total = showcaseSlides.length
-    setActiveIndex((index + total) % total)
+    const nextIndex = (index + total) % total
+    if (nextIndex === activeIndex) return
+    const forwardDistance = (nextIndex - activeIndex + total) % total
+    const backwardDistance = (activeIndex - nextIndex + total) % total
+    setDirection(forwardDistance <= backwardDistance ? 1 : -1)
+    setActiveIndex(nextIndex)
   }
 
   function handleWheel(event: React.WheelEvent<HTMLElement>) {
@@ -108,7 +115,7 @@ export function LaunchShowcase({ signedIn }: { signedIn: boolean }) {
 
   return (
     <main onWheel={handleWheel} className="relative h-[100svh] overflow-hidden bg-[#040506] text-white">
-      <div className={`absolute inset-0 bg-gradient-to-br ${activeSlide.accent} opacity-20 transition-all duration-700`} />
+      <div className={`absolute inset-0 bg-gradient-to-br ${activeSlide.accent} opacity-20 transition-opacity duration-500`} />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(255,255,255,0.12),transparent_24%),linear-gradient(135deg,rgba(4,5,6,0.82),rgba(4,5,6,0.96))]" />
 
       <section className="relative z-10 grid h-full grid-rows-[auto_1fr_auto] px-5 py-4 sm:px-8">
@@ -156,12 +163,8 @@ export function LaunchShowcase({ signedIn }: { signedIn: boolean }) {
           </div>
 
           <div className="relative min-h-0 max-h-[44svh] overflow-hidden rounded-3xl border border-white/10 bg-white/[0.055] p-2 shadow-2xl shadow-black/50 backdrop-blur sm:max-h-none sm:p-3">
-            <div className="flex transition-transform duration-700 ease-out" style={{ transform: `translateX(-${activeIndex * 100}%)` }}>
-              {showcaseSlides.map((slide) => (
-                <div key={slide.key} className="min-w-full">
-                  <ShowcaseScreen slide={slide} />
-                </div>
-              ))}
+            <div key={activeSlide.key} className="showcase-preview-motion" data-direction={direction}>
+              <ShowcaseScreen slide={activeSlide} />
             </div>
           </div>
         </div>
@@ -201,6 +204,32 @@ export function LaunchShowcase({ signedIn }: { signedIn: boolean }) {
           </div>
         </div>
       </section>
+      <style>{`
+        @keyframes showcase-enter-forward {
+          from { opacity: 0.42; transform: translate3d(32px, 0, 0) scale(0.985); }
+          to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+        }
+        @keyframes showcase-enter-backward {
+          from { opacity: 0.42; transform: translate3d(-32px, 0, 0) scale(0.985); }
+          to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+        }
+        .showcase-preview-motion {
+          animation: showcase-enter-forward 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          contain: layout paint;
+          transform: translateZ(0);
+          will-change: transform, opacity;
+        }
+        .showcase-preview-motion[data-direction="-1"] {
+          animation-name: showcase-enter-backward;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .showcase-preview-motion {
+            animation: none !important;
+            transform: none;
+            will-change: auto;
+          }
+        }
+      `}</style>
     </main>
   )
 }
