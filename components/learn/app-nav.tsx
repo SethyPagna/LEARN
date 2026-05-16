@@ -19,7 +19,6 @@ import {
   LogOut,
   Menu,
   Moon,
-  Network,
   PanelLeftClose,
   PanelLeftOpen,
   Repeat2,
@@ -64,8 +63,7 @@ const navGroups: NavGroup[] = [
     label: "Workspaces",
     caption: "Daily route, reviews, and calendar",
     items: [
-      { view: "learn", labelKey: "learn", icon: Compass, aliases: ["feed", "discover"] },
-      { view: "vault", labelKey: "vault", icon: Network, aliases: ["graph"] },
+      { view: "learn", labelKey: "learn", icon: Compass, aliases: ["vault", "feed", "discover", "graph", "progress"] },
       { view: "reviews", labelKey: "reviews", icon: Repeat2 },
       { view: "calendar", labelKey: "calendar", icon: CalendarDays },
     ],
@@ -105,7 +103,7 @@ const launcherCommands: LauncherCommand[] = [
   { label: "Start reviews", detail: "Open active recall queue", view: "reviews", icon: BookOpen, keywords: ["review", "recall", "flashcard", "practice"] },
   { label: "Practice now", detail: "Quizzes and games", view: "practice", icon: Gamepad2, keywords: ["quiz", "game", "practice", "test"] },
   { label: "Ask AI tutor", detail: "Prompt, rewrite, quiz, plan", view: "ai", icon: Bot, keywords: ["ai", "tutor", "prompt", "rewrite", "plan"] },
-  { label: "Plan calendar", detail: "Study blocks and due dates", view: "calendar", icon: Compass, keywords: ["calendar", "time", "schedule", "plan"] },
+  { label: "Plan calendar", detail: "Study blocks and due dates", view: "calendar", icon: CalendarDays, keywords: ["calendar", "time", "schedule", "plan"] },
   { label: "Tune settings", detail: "Theme, language, density, accessibility", view: "settings", icon: Settings, keywords: ["settings", "theme", "language", "accessibility", "density"] },
 ]
 
