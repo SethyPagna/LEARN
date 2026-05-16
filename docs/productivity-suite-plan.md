@@ -52,6 +52,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-17: Reintroduced the workflow into the public intro scroll path with a sticky animated section, realistic app-content mock screens, step buttons, and scroll-driven transitions while keeping `/showcase` as a direct gallery route.
 - 2026-05-17: Converted the intro workflow handoff from plain section scrolling into a fixed overlay transition driven by scroll progress, with the workflow anchor landing on the pinned gallery and the overlap layer no longer intercepting hero clicks while hidden.
 - 2026-05-17: Shortened the intro workflow overlay distance so the hero handoff and six-step gallery advance faster with less scrolling.
+- 2026-05-17: Tightened the intro workflow again by cutting the scroll distance to a short overlay sequence and speeding up slide/progress transitions.
 
 ## Implementation Slices
 
