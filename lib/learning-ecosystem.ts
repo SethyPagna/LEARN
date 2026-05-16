@@ -33,6 +33,25 @@ export interface ReviewSchedule {
   remainingDueCount: number
 }
 
+export interface ReviewSessionSummary {
+  totalDue: number
+  revealedCount: number
+  hiddenCount: number
+  practiceMissCount: number
+  remainingAfterCap: number
+  averageRetrievability: number
+  sourceCounts: Record<NonNullable<ReviewItem["sourceType"]>, number>
+  topTopics: Array<{ topic: string; count: number }>
+}
+
+export interface ReviewActionPlan {
+  headline: string
+  detail: string
+  nextAction: "rest" | "reveal" | "grade" | "practice" | "studio"
+  targetItemId?: string
+  chips: string[]
+}
+
 export interface LearningStreak {
   current: number
   longest: number
@@ -166,6 +185,108 @@ export function reviewAnswerText(item: ReviewItem) {
   const answer = item.answer?.trim()
   if (answer) return answer
   return "Check your Studio notes, then grade the recall honestly before moving on."
+}
+
+export function summarizeReviewSession(
+  schedule: Pick<ReviewSchedule, "items" | "remainingDueCount">,
+  revealedIds: readonly string[] = [],
+): ReviewSessionSummary {
+  const revealed = new Set(revealedIds)
+  const sourceCounts = createEmptyReviewSourceCounts()
+  const topicCounts = new Map<string, number>()
+  let retrievabilityTotal = 0
+  let practiceMissCount = 0
+
+  for (const item of schedule.items) {
+    const sourceType = item.sourceType || "note"
+    sourceCounts[sourceType] += 1
+    retrievabilityTotal += clampMastery(item.retrievability)
+    if (sourceType === "practice_mistake") practiceMissCount += 1
+    if (item.topic?.trim()) {
+      const topic = item.topic.trim()
+      topicCounts.set(topic, (topicCounts.get(topic) ?? 0) + 1)
+    }
+  }
+
+  const revealedCount = schedule.items.filter((item) => revealed.has(item.id)).length
+  return {
+    totalDue: schedule.items.length,
+    revealedCount,
+    hiddenCount: Math.max(0, schedule.items.length - revealedCount),
+    practiceMissCount,
+    remainingAfterCap: Math.max(0, schedule.remainingDueCount),
+    averageRetrievability: schedule.items.length ? retrievabilityTotal / schedule.items.length : 0,
+    sourceCounts,
+    topTopics: [...topicCounts.entries()]
+      .map(([topic, count]) => ({ topic, count }))
+      .sort((left, right) => right.count - left.count || left.topic.localeCompare(right.topic))
+      .slice(0, 4),
+  }
+}
+
+export function buildReviewActionPlan(
+  schedule: Pick<ReviewSchedule, "items" | "isRestDay" | "remainingDueCount">,
+  summary: ReviewSessionSummary,
+  revealedIds: readonly string[] = [],
+): ReviewActionPlan {
+  if (schedule.isRestDay) {
+    return {
+      headline: "Protect the rest day",
+      detail: "Today is intentionally light. You can still add a Studio note if something useful appears.",
+      nextAction: "rest",
+      chips: ["rest day", `${summary.remainingAfterCap} waiting`, "no guilt"],
+    }
+  }
+
+  if (summary.totalDue === 0) {
+    return {
+      headline: "No reviews due",
+      detail: "Capture one useful idea or generate cards from Studio to prepare tomorrow's queue.",
+      nextAction: "studio",
+      chips: ["queue clear", "build tomorrow", "Studio"],
+    }
+  }
+
+  const revealed = new Set(revealedIds)
+  const revealedItem = schedule.items.find((item) => revealed.has(item.id))
+  if (revealedItem) {
+    return {
+      headline: `Grade ${revealedItem.title}`,
+      detail: "Choose again, hard, good, or easy while the answer is visible.",
+      nextAction: "grade",
+      targetItemId: revealedItem.id,
+      chips: [`${summary.revealedCount} revealed`, "rate honestly", `${summary.hiddenCount} hidden`],
+    }
+  }
+
+  const firstPracticeMiss = schedule.items.find((item) => item.sourceType === "practice_mistake")
+  if (firstPracticeMiss && summary.practiceMissCount >= Math.max(2, Math.ceil(summary.totalDue / 2))) {
+    return {
+      headline: "Retry missed practice",
+      detail: "Most of this queue came from misses. Run a short correction loop before adding new cards.",
+      nextAction: "practice",
+      targetItemId: firstPracticeMiss.id,
+      chips: [`${summary.practiceMissCount} misses`, "retry", "explain"],
+    }
+  }
+
+  const firstItem = schedule.items[0]
+  if (firstItem) {
+    return {
+      headline: `Reveal ${firstItem.title}`,
+      detail: "Recall first, then reveal. Keep the loop small and accurate.",
+      nextAction: "reveal",
+      targetItemId: firstItem.id,
+      chips: [`${summary.totalDue} due`, `${Math.round(summary.averageRetrievability * 100)}% recall`, `${summary.remainingAfterCap} later`],
+    }
+  }
+
+  return {
+    headline: "Keep the queue light",
+    detail: "You are within today's review dose. Continue when ready or capture a new source.",
+    nextAction: "studio",
+    chips: ["minimum dose", "capture", "review later"],
+  }
 }
 
 export function updateLearningStreak(input: LearningStreak & {
@@ -500,6 +621,16 @@ function addDays(date: Date, days: number) {
   const next = new Date(date)
   next.setUTCDate(next.getUTCDate() + days)
   return next
+}
+
+function createEmptyReviewSourceCounts(): Record<NonNullable<ReviewItem["sourceType"]>, number> {
+  return {
+    block: 0,
+    flashcard: 0,
+    lesson: 0,
+    note: 0,
+    practice_mistake: 0,
+  }
 }
 
 function clampMastery(value: number) {

@@ -4,6 +4,7 @@ import {
   applyReputationAction,
   buildFeedActionPlan,
   buildKnowledgeGraphActionPlan,
+  buildReviewActionPlan,
   buildReviewSchedule,
   canPostInCommunity,
   calculateLevelFromXp,
@@ -15,6 +16,7 @@ import {
   selectFeedLessons,
   summarizeFeedWorkspace,
   summarizeKnowledgeGraph,
+  summarizeReviewSession,
   updateLearningStreak,
   type FeedLessonCandidate,
   type KnowledgeEdge,
@@ -62,6 +64,53 @@ test("review card helpers expose practice mistake context", () => {
   assert.equal(reviewPromptText(mistake), "What is the scheduler optimizing?")
   assert.equal(reviewAnswerText(mistake), "It minimizes daily review load while maintaining target retention.")
   assert.equal(reviewPromptText(item("review_plain", "2026-05-13T01:00:00.000Z", 0.8)), 'Recall the core idea behind "review_plain".')
+})
+
+test("review session summary and action plan guide reveal and grade loops", () => {
+  const schedule = {
+    items: [
+      { ...item("review_code", "2026-05-13T01:00:00.000Z", 0.4), sourceType: "block" as const, topic: "Systems" },
+      { ...item("review_note", "2026-05-13T01:00:00.000Z", 0.7), sourceType: "note" as const, topic: "Systems" },
+    ],
+    isRestDay: false,
+    remainingDueCount: 3,
+  }
+
+  const hiddenSummary = summarizeReviewSession(schedule)
+  const hiddenPlan = buildReviewActionPlan(schedule, hiddenSummary)
+  const revealedSummary = summarizeReviewSession(schedule, ["review_code"])
+  const revealedPlan = buildReviewActionPlan(schedule, revealedSummary, ["review_code"])
+
+  assert.equal(hiddenSummary.totalDue, 2)
+  assert.equal(hiddenSummary.hiddenCount, 2)
+  assert.equal(hiddenSummary.sourceCounts.block, 1)
+  assert.deepEqual(hiddenSummary.topTopics, [{ topic: "Systems", count: 2 }])
+  assert.equal(hiddenPlan.nextAction, "reveal")
+  assert.equal(hiddenPlan.targetItemId, "review_code")
+  assert.equal(revealedPlan.nextAction, "grade")
+  assert.equal(revealedPlan.targetItemId, "review_code")
+})
+
+test("review action plan handles rest days empty queues and practice misses", () => {
+  const emptySummary = summarizeReviewSession({ items: [], remainingDueCount: 0 })
+  assert.equal(buildReviewActionPlan({ items: [], isRestDay: true, remainingDueCount: 4 }, emptySummary).nextAction, "rest")
+  assert.equal(buildReviewActionPlan({ items: [], isRestDay: false, remainingDueCount: 0 }, emptySummary).nextAction, "studio")
+
+  const missSchedule = {
+    items: [
+      { ...item("miss_1", "2026-05-13T01:00:00.000Z", 0.3), sourceType: "practice_mistake" as const },
+      { ...item("miss_2", "2026-05-13T01:00:00.000Z", 0.35), sourceType: "practice_mistake" as const },
+      { ...item("note_1", "2026-05-13T01:00:00.000Z", 0.55), sourceType: "note" as const },
+    ],
+    isRestDay: false,
+    remainingDueCount: 0,
+  }
+  const missSummary = summarizeReviewSession(missSchedule)
+  const missPlan = buildReviewActionPlan(missSchedule, missSummary)
+
+  assert.equal(missSummary.practiceMissCount, 2)
+  assert.equal(missPlan.nextAction, "practice")
+  assert.equal(missPlan.targetItemId, "miss_1")
 })
 
 test("streak updates support rest days and earned freezes", () => {
