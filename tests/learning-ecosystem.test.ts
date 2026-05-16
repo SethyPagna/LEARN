@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import {
   applyReputationAction,
+  buildFeedActionPlan,
   buildReviewSchedule,
   canPostInCommunity,
   calculateLevelFromXp,
@@ -11,6 +12,7 @@ import {
   reviewPromptText,
   reviewSourceLabel,
   selectFeedLessons,
+  summarizeFeedWorkspace,
   updateLearningStreak,
   type FeedLessonCandidate,
   type KnowledgeEdge,
@@ -110,6 +112,29 @@ test("feed selection keeps mandatory serendipity while honoring topic controls",
   assert.equal(feed.length, 4)
   assert.ok(feed.some((entry) => entry.reason === "serendipity"))
   assert.ok(feed.filter((entry) => entry.reason === "preferred").every((entry) => entry.topicTags.includes("math")))
+})
+
+test("feed workspace summary tracks answered state and next action", () => {
+  const feed = selectFeedLessons({
+    lessons: [
+      lesson("math-1", ["math"], 0.92),
+      lesson("history-1", ["history"], 0.2),
+    ],
+    preferredTopics: ["math"],
+    count: 2,
+    serendipityRatio: 0.5,
+  })
+  const partialSummary = summarizeFeedWorkspace(feed, { "math-1": "a" })
+  const partialPlan = buildFeedActionPlan(feed, partialSummary, { "math-1": "a" })
+  const doneSummary = summarizeFeedWorkspace(feed, { "math-1": "a", "history-1": "b" })
+  const donePlan = buildFeedActionPlan(feed, doneSummary, { "math-1": "a", "history-1": "b" })
+
+  assert.equal(partialSummary.answered, 1)
+  assert.equal(partialSummary.unanswered, 1)
+  assert.equal(partialSummary.serendipity, 1)
+  assert.equal(partialPlan.nextAction, "answer")
+  assert.equal(partialPlan.targetLessonId, "history-1")
+  assert.equal(donePlan.nextAction, "save")
 })
 
 test("knowledge graph detects orphan nodes and filters private artifacts", () => {

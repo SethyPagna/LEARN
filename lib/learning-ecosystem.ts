@@ -73,6 +73,23 @@ export interface FeedLessonSelection extends FeedLessonCandidate {
   reason: FeedSelectionReason
 }
 
+export interface FeedWorkspaceSummary {
+  total: number
+  preferred: number
+  serendipity: number
+  answered: number
+  unanswered: number
+  totalDurationSeconds: number
+  topTopics: Array<{ topic: string; count: number }>
+}
+
+export interface FeedActionPlan {
+  headline: string
+  nextAction: "answer" | "refresh" | "save" | "review"
+  targetLessonId?: string
+  chips: string[]
+}
+
 export function buildReviewSchedule(input: {
   items: ReviewItem[]
   now: Date
@@ -228,6 +245,82 @@ export function selectFeedLessons(input: {
   return [...selectedPreferred, ...selectedSerendipity, ...fallback].slice(0, input.count)
 }
 
+export function summarizeFeedWorkspace(
+  lessons: Array<FeedLessonSelection | FeedLessonCandidate>,
+  answeredByLessonId: Record<string, unknown> = {},
+): FeedWorkspaceSummary {
+  const answeredIds = new Set(Object.keys(answeredByLessonId).filter((id) => Boolean(answeredByLessonId[id])))
+  const topicCounts = new Map<string, number>()
+  let preferred = 0
+  let serendipity = 0
+  let totalDurationSeconds = 0
+
+  for (const lesson of lessons) {
+    const reason = "reason" in lesson ? lesson.reason : "preferred"
+    if (reason === "serendipity") serendipity += 1
+    else preferred += 1
+    totalDurationSeconds += Math.max(0, lesson.durationSeconds || 0)
+    for (const topic of lesson.topicTags) {
+      const normalized = topic.trim()
+      if (!normalized) continue
+      topicCounts.set(normalized, (topicCounts.get(normalized) ?? 0) + 1)
+    }
+  }
+
+  const answered = lessons.filter((lesson) => answeredIds.has(lesson.id)).length
+  return {
+    total: lessons.length,
+    preferred,
+    serendipity,
+    answered,
+    unanswered: Math.max(0, lessons.length - answered),
+    totalDurationSeconds,
+    topTopics: [...topicCounts.entries()]
+      .map(([topic, count]) => ({ topic, count }))
+      .sort((first, second) => second.count - first.count || first.topic.localeCompare(second.topic))
+      .slice(0, 5),
+  }
+}
+
+export function buildFeedActionPlan(
+  lessons: Array<FeedLessonSelection | FeedLessonCandidate>,
+  summary: FeedWorkspaceSummary,
+  answeredByLessonId: Record<string, unknown> = {},
+): FeedActionPlan {
+  if (summary.total === 0) {
+    return {
+      headline: "Refresh discovery",
+      nextAction: "refresh",
+      chips: ["no lessons", "keep serendipity on"],
+    }
+  }
+
+  const firstUnanswered = lessons.find((lesson) => !answeredByLessonId[lesson.id])
+  if (firstUnanswered) {
+    return {
+      headline: `Answer ${firstUnanswered.title}`,
+      nextAction: "answer",
+      targetLessonId: firstUnanswered.id,
+      chips: [`${summary.unanswered} unanswered`, `${summary.serendipity} serendipity`],
+    }
+  }
+
+  if (summary.serendipity === 0) {
+    return {
+      headline: "Add more variety",
+      nextAction: "refresh",
+      chips: [`${summary.preferred} preferred`, "no outside topic"],
+    }
+  }
+
+  return {
+    headline: "Save one useful insight",
+    nextAction: "save",
+    targetLessonId: lessons[0]?.id,
+    chips: [`${summary.answered} answered`, `${formatFeedDuration(summary.totalDurationSeconds)}`],
+  }
+}
+
 export function detectOrphanKnowledgeNodes(nodes: KnowledgeNode[], edges: KnowledgeEdge[]) {
   const connected = new Set<string>()
   for (const edge of edges) {
@@ -239,6 +332,11 @@ export function detectOrphanKnowledgeNodes(nodes: KnowledgeNode[], edges: Knowle
     if (!connected.has(node.id)) orphans.push(node)
   }
   return orphans
+}
+
+function formatFeedDuration(totalSeconds: number) {
+  const minutes = Math.max(0, Math.round(totalSeconds / 60))
+  return `${minutes} min`
 }
 
 export function filterPublicProfileArtifacts(nodes: KnowledgeNode[], viewer: "public" | "connections" | "owner") {
