@@ -116,10 +116,6 @@ export function AiTutorView({
     sourceScope,
     includeRecentNotes: options.aiIncludeNotes,
   }), [message, options.aiIncludeNotes, recentContext, sourceScope])
-  const promptActions = useMemo(() => tutorModes.map((mode) => ({
-    ...mode,
-    body: `${mode.label} - ${mode.prompt}`,
-  })), [])
   const activeContract = useMemo(() => promptContracts.find((contract) => contract.mode === activeMode.id), [activeMode.id])
   const availableInsertTargets = useMemo(() => activeContract?.insertTargets || insertTargets, [activeContract?.insertTargets])
   const insertActions = useMemo(() => listInsertActions(availableInsertTargets), [availableInsertTargets])
@@ -351,12 +347,6 @@ export function AiTutorView({
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-          {workflowSummary.cards.map((card) => (
-            <WorkflowCard key={card.id} label={card.label} value={card.value} detail={card.detail} tone={card.tone} />
-          ))}
-        </div>
-
         <div className="mt-4 flex flex-wrap rounded-md border border-border bg-secondary p-1">
             {visibleTutorModes.map((item) => {
               const Icon = item.icon
@@ -378,25 +368,17 @@ export function AiTutorView({
             })}
         </div>
 
-        <SectionLabel icon={Sparkles} title="Task" body="Pick a workflow, then tune source, difficulty, tone, language, and insert target." />
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {promptActions.filter((prompt) => visibleTutorModes.some((mode) => mode.id === prompt.id)).slice(0, 6).map((prompt) => {
-            const Icon = prompt.icon
-            return (
-              <button key={prompt.id} onClick={() => { setActiveTaskKey(prompt.id); setOptions({ aiMode: prompt.mode as WorkspaceOptions["aiMode"] }); setMessage(prompt.prompt) }} className="group relative rounded-md border border-border bg-secondary p-3 text-left text-sm text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-                <div className="flex items-center gap-2">
-                  <Icon className="h-4 w-4 text-success" />
-                  <span className="font-semibold">{prompt.label}</span>
-                </div>
-                <span className="mt-2 inline-flex rounded-md bg-background px-2 py-0.5 text-[0.68rem] font-semibold text-muted-foreground">{prompt.mode}</span>
-                <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-30 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{prompt.prompt}</p>
-              </button>
-            )
-          })}
-        </div>
+        <details className="mt-3 rounded-md border border-border bg-background p-3 text-sm">
+          <summary className="cursor-pointer font-semibold text-foreground">Readiness details</summary>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+            {workflowSummary.cards.map((card) => (
+              <WorkflowCard key={card.id} label={card.label} value={card.value} detail={card.detail} tone={card.tone} />
+            ))}
+          </div>
+        </details>
 
-        <SectionLabel icon={ListFilter} title="Filters" body="These controls decide what the tutor can use, how detailed the answer should be, and where the result should land." />
-        <div className="mt-4 grid gap-3 rounded-md border border-border bg-muted/40 p-3 md:grid-cols-4">
+        <SectionLabel icon={ListFilter} title="Setup" body="Choose source, style, provider, and destination. More settings are under Advanced." />
+        <div className="mt-4 grid gap-3 rounded-md border border-border bg-muted/40 p-3 md:grid-cols-3 xl:grid-cols-6">
           <SelectControl label="Source" value={sourceScope} values={sourceScopes} onChange={setSourceScope} icon={ListFilter} />
           <SelectControl label="Difficulty" value={difficulty} values={difficulties} onChange={setDifficulty} icon={Gauge} />
           <SelectControl label="Tone" value={tone} values={tones} onChange={setTone} icon={Settings2} />
@@ -416,62 +398,61 @@ export function AiTutorView({
           </label>
         </div>
 
-        <SectionLabel icon={Settings2} title="Requirements" body="Make the request specific: audience, constraints, and preferred output shape." />
-        <div className="mt-4 grid gap-3 rounded-md border border-border bg-background p-3 md:grid-cols-2">
-          <label className="grid gap-1 text-sm text-foreground">
-            <span className="font-semibold">Audience</span>
-            <input value={targetAudience} onChange={(event) => setTargetAudience(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
-          </label>
-          <label className="grid gap-1 text-sm text-foreground">
-            <span className="font-semibold">Requirements</span>
-            <input value={requiredOutput} onChange={(event) => setRequiredOutput(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
-          </label>
-          <details className="rounded-md border border-border bg-muted/40 p-3 text-sm md:col-span-2">
-            <summary className="cursor-pointer font-semibold text-foreground">Prompt preview {promptBuild.ok ? "" : `- missing ${promptBuild.missing.length}`}</summary>
-            <div className="mt-3 grid gap-2 md:grid-cols-2">
-              <PreviewBlock title="Task" body={previewParts.task || activeMode.label} />
-              <PreviewBlock title="Output" body={previewParts.output || promptBuild.outputContract || "Structured learning response"} />
-              <PreviewBlock title="Requirements" body={previewParts.requirements.join("\n")} />
-              <PreviewBlock title="Warnings" body={previewParts.warnings.length ? previewParts.warnings.join("\n") : "None"} />
-            </div>
-            {promptBuild.warnings.length ? <p className="mt-2 rounded-md bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">{promptBuild.warnings.join(" ")}</p> : null}
-          </details>
-          <div className={`rounded-md border p-3 md:col-span-2 ${gatewayReadiness.status === "ready" ? "border-success/50 bg-success/10" : gatewayReadiness.status === "warning" ? "border-warning/50 bg-warning/10" : "border-destructive/50 bg-destructive/10"}`}>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-foreground">{gatewayReadiness.label}</p>
-              <div className="flex flex-wrap gap-2 text-xs font-semibold">
-                <span className="rounded-md bg-background px-2 py-1 text-foreground">{gatewayReadiness.readyProviderCount} ready</span>
-                <span className="rounded-md bg-background px-2 py-1 text-foreground">{gatewayReadiness.selectedProviderCount} selected</span>
+        <details className="mt-4 rounded-md border border-border bg-background p-3 text-sm">
+          <summary className="cursor-pointer font-semibold text-foreground">Advanced prompt settings</summary>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <label className="grid gap-1 text-sm text-foreground">
+              <span className="font-semibold">Audience</span>
+              <input value={targetAudience} onChange={(event) => setTargetAudience(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
+            </label>
+            <label className="grid gap-1 text-sm text-foreground">
+              <span className="font-semibold">Requirements</span>
+              <input value={requiredOutput} onChange={(event) => setRequiredOutput(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
+            </label>
+            <details className="rounded-md border border-border bg-muted/40 p-3 text-sm md:col-span-2">
+              <summary className="cursor-pointer font-semibold text-foreground">Prompt preview {promptBuild.ok ? "" : `- missing ${promptBuild.missing.length}`}</summary>
+              <div className="mt-3 grid gap-2 md:grid-cols-2">
+                <PreviewBlock title="Task" body={previewParts.task || activeMode.label} />
+                <PreviewBlock title="Output" body={previewParts.output || promptBuild.outputContract || "Structured learning response"} />
+                <PreviewBlock title="Requirements" body={previewParts.requirements.join("\n")} />
+                <PreviewBlock title="Warnings" body={previewParts.warnings.length ? previewParts.warnings.join("\n") : "None"} />
+              </div>
+              {promptBuild.warnings.length ? <p className="mt-2 rounded-md bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">{promptBuild.warnings.join(" ")}</p> : null}
+            </details>
+            <div className={`rounded-md border p-3 md:col-span-2 ${gatewayReadiness.status === "ready" ? "border-success/50 bg-success/10" : gatewayReadiness.status === "warning" ? "border-warning/50 bg-warning/10" : "border-destructive/50 bg-destructive/10"}`}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-foreground">{gatewayReadiness.label}</p>
+                <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                  <span className="rounded-md bg-background px-2 py-1 text-foreground">{gatewayReadiness.readyProviderCount} ready</span>
+                  <span className="rounded-md bg-background px-2 py-1 text-foreground">{gatewayReadiness.selectedProviderCount} selected</span>
+                </div>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {gatewayReadiness.checks.map((check) => (
+                  <span key={check} className="rounded-md bg-background px-2 py-1 text-xs font-medium text-muted-foreground">{check}</span>
+                ))}
               </div>
             </div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {gatewayReadiness.checks.map((check) => (
-                <span key={check} className="rounded-md bg-background px-2 py-1 text-xs font-medium text-muted-foreground">{check}</span>
-              ))}
+            <label className="text-sm text-foreground">
+              Creativity
+              <input className="mt-2 w-full accent-primary" type="range" min="0" max="1.2" step="0.05" value={options.aiTemperature} onChange={(event) => setOptions({ aiTemperature: Number(event.target.value) })} />
+              <span className="text-xs text-muted-foreground">{options.aiTemperature.toFixed(2)}</span>
+            </label>
+            <div className="text-sm text-foreground">
+              <div className="flex items-center justify-between gap-2">
+                <span>Max tokens</span>
+                <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground">{options.aiMaxTokens}</span>
+              </div>
+              <div className="mt-2 grid grid-cols-3 gap-1">
+                {tokenPresets.map((tokens) => (
+                  <button key={tokens} onClick={() => setOptions({ aiMaxTokens: tokens })} className={`h-8 rounded-md border px-2 text-xs font-semibold ${options.aiMaxTokens === tokens ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+                    {tokens}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-
-        <div className="mt-4 grid gap-3 rounded-md border border-border bg-background p-3 md:grid-cols-[1fr_280px]">
-          <label className="text-sm text-foreground">
-            Creativity
-            <input className="mt-2 w-full accent-primary" type="range" min="0" max="1.2" step="0.05" value={options.aiTemperature} onChange={(event) => setOptions({ aiTemperature: Number(event.target.value) })} />
-            <span className="text-xs text-muted-foreground">{options.aiTemperature.toFixed(2)}</span>
-          </label>
-          <div className="text-sm text-foreground">
-            <div className="flex items-center justify-between gap-2">
-              <span>Max tokens</span>
-              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground">{options.aiMaxTokens}</span>
-            </div>
-            <div className="mt-2 grid grid-cols-3 gap-1">
-              {tokenPresets.map((tokens) => (
-                <button key={tokens} onClick={() => setOptions({ aiMaxTokens: tokens })} className={`h-8 rounded-md border px-2 text-xs font-semibold ${options.aiMaxTokens === tokens ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
-                  {tokens}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        </details>
 
         <textarea value={message} onChange={(event) => setMessage(event.target.value)} className="mt-5 min-h-40 w-full rounded-md border border-input bg-background p-4 text-foreground outline-none focus:border-ring" />
         <div className="mt-3 flex flex-wrap gap-2">
