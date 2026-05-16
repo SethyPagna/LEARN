@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import type React from "react"
-import { AtSign, Bell, CheckCircle2, Clock, Gamepad2, Hash, Languages, MessageSquare, Reply, RotateCcw, Send, Smile, Sparkles, Trophy, XCircle } from "lucide-react"
+import { AtSign, Bell, CheckCircle2, Clock, Gamepad2, Hash, Languages, MessageSquare, MoreHorizontal, Reply, RotateCcw, Send, SlidersHorizontal, Smile, Sparkles, Trophy, XCircle } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Quiz } from "../types"
 import { api } from "../api"
@@ -12,6 +12,7 @@ import { buildChatComposerPlan, buildChatDraftPayload, filterChatThreads, parseT
 
 const quizDetailCache = new Map<string, Quiz>()
 const CHAT_DRAFT_KEY = "learn_chat_draft_v1"
+type ChatMenuId = "compose" | "tools" | "signals" | "filters" | `threadActions:${string}`
 
 export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: WorkspaceOptions }) {
   const [quizBank, setQuizBank] = useState<Quiz[]>(quizzes)
@@ -220,11 +221,20 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<ChatThreadFilter>("all")
   const [draftStatus, setDraftStatus] = useState("")
+  const [openChatMenu, setOpenChatMenu] = useState<ChatMenuId | null>(null)
   const quickIntents = [
     { id: "update" as const, label: "Update", body: "Share progress, a note, or what changed." },
     { id: "question" as const, label: "Question", body: "Ask for help and invite replies." },
     { id: "win" as const, label: "Win", body: "Celebrate a milestone or review streak." },
   ]
+  const threadFilters: Array<{ id: ChatThreadFilter; label: string }> = [
+    { id: "all", label: "All threads" },
+    { id: "questions", label: "Questions" },
+    { id: "wins", label: "Wins" },
+    { id: "saved", label: "Saved" },
+  ]
+  const activeIntent = quickIntents.find((item) => item.id === intent) || quickIntents[0]
+  const activeFilter = threadFilters.find((item) => item.id === filter) || threadFilters[0]
   const chatSummary = useMemo(() => summarizeChatWorkspace(threads), [threads])
   const composerPlan = useMemo(() => buildChatComposerPlan(chatSummary, body), [body, chatSummary])
   const visibleThreads = useMemo(() => filterChatThreads(threads, { query, filter }), [filter, query, threads])
@@ -292,70 +302,111 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               <input value={title} onChange={(event) => setTitle(event.target.value)} className="min-w-52 flex-1 bg-transparent text-2xl font-semibold text-foreground outline-none" />
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
+              <ChatChip label={activeIntent.label} tone="strong" />
               <ChatChip label={composerPlan.headline} />
-              {composerPlan.chips.map((chip) => <ChatChip key={chip} label={chip} />)}
+              {composerPlan.chips.slice(0, 2).map((chip) => <ChatChip key={chip} label={chip} />)}
             </div>
             {draftStatus ? <p className="mt-2 text-xs font-semibold text-success">{draftStatus}</p> : null}
           </div>
           <div className="flex flex-wrap gap-2">
-            <ToolbarButton label="Use suggestion" onClick={applyComposerPlan} icon={Sparkles} />
+            <ChatMenu icon={Sparkles} label="Compose" menuId="compose" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
+              <ChatMenuSection title="Draft intent">
+                {quickIntents.map((item) => (
+                  <ChatMenuAction
+                    active={intent === item.id}
+                    key={item.id}
+                    label={item.label}
+                    meta={item.body}
+                    onClick={() => {
+                      setIntent(item.id)
+                      setOpenChatMenu(null)
+                    }}
+                  />
+                ))}
+              </ChatMenuSection>
+              <ChatMenuSection title="Smart helper">
+                <ChatMenuAction
+                  icon={Sparkles}
+                  label="Use suggestion"
+                  meta={composerPlan.nextAction}
+                  onClick={() => {
+                    applyComposerPlan()
+                    setOpenChatMenu(null)
+                  }}
+                />
+              </ChatMenuSection>
+            </ChatMenu>
+            <ChatMenu icon={SlidersHorizontal} label="Signals" menuId="signals" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
+              <ChatMenuSection title="Channel signals">
+                <div className="grid grid-cols-2 gap-2">
+                  <ChatSignal label="Threads" value={String(chatSummary.total)} />
+                  <ChatSignal label="Questions" value={String(chatSummary.questions)} />
+                  <ChatSignal label="Wins" value={String(chatSummary.wins)} />
+                  <ChatSignal label="Saved" value={String(chatSummary.saved)} />
+                  <ChatSignal label="Mentions" value={String(chatSummary.mentions)} />
+                  <ChatSignal label="Studio links" value={String(chatSummary.studioLinks)} />
+                </div>
+              </ChatMenuSection>
+            </ChatMenu>
             <ToolbarButton label="Send" onClick={send} icon={Send} primary />
           </div>
-        </div>
-        <details className="mb-3 rounded-md border border-border bg-background p-3">
-          <summary className="cursor-pointer text-sm font-semibold text-foreground">Channel signals</summary>
-          <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
-            <ChatSignal label="Threads" value={String(chatSummary.total)} />
-            <ChatSignal label="Questions" value={String(chatSummary.questions)} />
-            <ChatSignal label="Wins" value={String(chatSummary.wins)} />
-            <ChatSignal label="Saved" value={String(chatSummary.saved)} />
-            <ChatSignal label="Mentions" value={String(chatSummary.mentions)} />
-            <ChatSignal label="Studio links" value={String(chatSummary.studioLinks)} />
-          </div>
-        </details>
-        <div className="mb-3 flex flex-wrap gap-1 rounded-md border border-border bg-secondary p-1">
-          {quickIntents.map((item) => (
-            <ChatIntentButton key={item.id} active={intent === item.id} body={item.body} label={item.label} onClick={() => setIntent(item.id)} />
-          ))}
         </div>
         <div className="rounded-md border border-input bg-background p-3">
           <textarea value={body} onChange={(event) => setBody(event.target.value)} className="min-h-32 w-full resize-none bg-transparent text-sm leading-6 text-foreground outline-none" placeholder="Share a study update, @mention a person, link a Studio item, or ask for a quick explanation..." />
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-            <div className="flex flex-wrap gap-2">
-              <ComposerChip icon={AtSign} label="@mention" />
-              <ComposerChip icon={Smile} label="reaction" />
-              <ComposerChip icon={Languages} label="translate" />
-              <ComposerChip icon={Bell} label="notify" />
-            </div>
-            <button onClick={() => { setBody(""); clearChatDraft(); setDraftStatus("Draft cleared") }} className="rounded-md bg-secondary px-2 py-1.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Clear draft</button>
-            <p className="text-xs text-muted-foreground">Private-first. Share only what belongs in the group.</p>
+            <ChatMenu compact icon={MoreHorizontal} label="Tools" menuId="tools" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
+              <ChatMenuSection title="Composer tools">
+                <ChatMenuAction icon={AtSign} label="@mention" meta="Mention a teammate in the draft." onClick={() => setOpenChatMenu(null)} />
+                <ChatMenuAction icon={Smile} label="Reaction" meta={`Default thread reaction: ${reaction}.`} onClick={() => setOpenChatMenu(null)} />
+                <ChatMenuAction icon={Languages} label="Translate" meta="Mark this message for translation after sending." onClick={() => setOpenChatMenu(null)} />
+                <ChatMenuAction icon={Bell} label="Notify" meta="Prepare this draft as a notification-worthy update." onClick={() => setOpenChatMenu(null)} />
+              </ChatMenuSection>
+              <ChatMenuSection title="Draft">
+                <ChatMenuAction
+                  icon={RotateCcw}
+                  label="Clear draft"
+                  meta="Remove only the local unsent draft."
+                  onClick={() => {
+                    setBody("")
+                    clearChatDraft()
+                    setDraftStatus("Draft cleared")
+                    setOpenChatMenu(null)
+                  }}
+                />
+              </ChatMenuSection>
+            </ChatMenu>
+            <p className="text-xs text-muted-foreground">Private-first sharing.</p>
           </div>
         </div>
       </Panel>
       <Panel className={options.chatCompact ? "p-3" : "p-4"}>
         <div className="flex items-center justify-between gap-3">
           <h3 className="font-semibold text-foreground">Recent threads</h3>
-          <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{visibleThreads.length}/{threads.length}</span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{activeFilter.label}</span>
+            <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{visibleThreads.length}/{threads.length}</span>
+          </div>
         </div>
         {options.collaborationPresence ? <p className="mt-1 text-xs text-muted-foreground">Presence hints are enabled for group workflows.</p> : null}
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search threads" className="mt-3 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-ring" />
-        <div className="mt-3 grid grid-cols-4 gap-1 rounded-md border border-border bg-background p-1">
-          {(["all", "questions", "wins", "saved"] as ChatThreadFilter[]).map((item) => (
-            <button key={item} onClick={() => setFilter(item)} className={`rounded-md px-2 py-1.5 text-xs font-semibold ${filter === item ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}>
-              {item}
-            </button>
-          ))}
+        <div className="mt-3 flex gap-2">
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search threads" className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-ring" />
+          <ChatMenu align="right" compact icon={SlidersHorizontal} label="Filters" menuId="filters" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
+            <ChatMenuSection title="Thread filters">
+              {threadFilters.map((item) => (
+                <ChatMenuAction
+                  active={filter === item.id}
+                  key={item.id}
+                  label={item.label}
+                  meta={item.id === "all" ? "Show every recent thread." : `Show only ${item.id}.`}
+                  onClick={() => {
+                    setFilter(item.id)
+                    setOpenChatMenu(null)
+                  }}
+                />
+              ))}
+            </ChatMenuSection>
+          </ChatMenu>
         </div>
-        <details className="mt-3 rounded-md border border-border bg-background p-2">
-          <summary className="cursor-pointer text-xs font-semibold text-foreground">Thread actions</summary>
-          <div className="mt-2 grid grid-cols-3 gap-1 rounded-md bg-secondary p-1">
-            {["helpful", "save", "reply"].map((item) => (
-              <button key={item} onClick={() => setReaction(item)} className={`rounded-md px-2 py-1.5 text-xs font-semibold ${reaction === item ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}>
-                {item}
-              </button>
-            ))}
-          </div>
-        </details>
         {chatSummary.channels.length ? (
           <div className="mt-3 flex flex-wrap gap-2">
             {chatSummary.channels.slice(0, 4).map((channelSummary) => (
@@ -379,11 +430,22 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               </div>
               <p className="mt-1 line-clamp-2 text-muted-foreground">{thread.last_message || "No messages yet"}</p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <button className="inline-flex h-8 items-center gap-1.5 rounded-md bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-                  <Smile className="h-3.5 w-3.5" />
-                  {reaction}
-                </button>
-                <button className="inline-flex h-8 items-center gap-1.5 rounded-md bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                <ChatMenu compact icon={Smile} label={reaction} menuId={`threadActions:${thread.id}`} openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
+                  <ChatMenuSection title="Thread actions">
+                    {["helpful", "save", "reply"].map((item) => (
+                      <ChatMenuAction
+                        active={reaction === item}
+                        key={item}
+                        label={item}
+                        onClick={() => {
+                          setReaction(item)
+                          setOpenChatMenu(null)
+                        }}
+                      />
+                    ))}
+                  </ChatMenuSection>
+                </ChatMenu>
+                <button className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
                   <Reply className="h-3.5 w-3.5" />
                   reply
                 </button>
@@ -417,8 +479,8 @@ function clearChatDraft() {
   window.localStorage.removeItem(CHAT_DRAFT_KEY)
 }
 
-function ChatChip({ label }: { label: string }) {
-  return <span className="rounded-md border border-border bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">{label}</span>
+function ChatChip({ label, tone }: { label: string; tone?: "muted" | "strong" }) {
+  return <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${tone === "strong" ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground"}`}>{label}</span>
 }
 
 function ChatSignal({ label, value }: { label: string; value: string }) {
@@ -430,27 +492,82 @@ function ChatSignal({ label, value }: { label: string; value: string }) {
   )
 }
 
-function ChatIntentButton({ active, body, label, onClick }: { active: boolean; body: string; label: string; onClick: () => void }) {
+function ChatMenu({
+  align = "left",
+  children,
+  compact,
+  icon: Icon,
+  label,
+  menuId,
+  openMenu,
+  setOpenMenu,
+}: {
+  align?: "left" | "right"
+  children: React.ReactNode
+  compact?: boolean
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  menuId: ChatMenuId
+  openMenu: ChatMenuId | null
+  setOpenMenu: (menuId: ChatMenuId | null) => void
+}) {
+  const open = openMenu === menuId
   return (
-    <button
-      onClick={onClick}
-      className={`group relative h-8 rounded px-3 text-xs font-semibold ${active ? "bg-primary text-primary-foreground" : "text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
-      title={body}
-    >
-      {label}
-      <span className="pointer-events-none absolute left-0 top-[calc(100%+0.35rem)] z-20 hidden w-52 rounded-md border border-border bg-popover p-2 text-left text-xs font-medium leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">
-        {body}
-      </span>
-    </button>
+    <div className="relative">
+      <button
+        aria-expanded={open}
+        onClick={() => setOpenMenu(open ? null : menuId)}
+        className={`inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground ${compact ? "px-2" : "px-3"}`}
+        type="button"
+      >
+        <Icon className="h-4 w-4" />
+        <span>{label}</span>
+      </button>
+      {open ? (
+        <div className={`absolute top-[calc(100%+0.4rem)] z-30 w-72 rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-xl ${align === "right" ? "right-0" : "left-0"}`}>
+          {children}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
-function ComposerChip({ icon: Icon, label }: { icon: React.ComponentType<{ className?: string }>; label: string }) {
+function ChatMenuSection({ children, title }: { children: React.ReactNode; title: string }) {
   return (
-    <span className="inline-flex h-8 items-center gap-1.5 rounded-md bg-secondary px-2 text-xs font-semibold text-secondary-foreground">
-      <Icon className="h-3.5 w-3.5" />
-      {label}
-    </span>
+    <div className="space-y-1 rounded-md p-1">
+      <p className="px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{title}</p>
+      {children}
+    </div>
+  )
+}
+
+function ChatMenuAction({
+  active,
+  danger,
+  icon: Icon,
+  label,
+  meta,
+  onClick,
+}: {
+  active?: boolean
+  danger?: boolean
+  icon?: React.ComponentType<{ className?: string }>
+  label: string
+  meta?: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground ${active ? "bg-primary/10 text-primary" : danger ? "text-destructive" : "text-popover-foreground"}`}
+      type="button"
+    >
+      {Icon ? <Icon className="mt-0.5 h-4 w-4 shrink-0" /> : <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-current opacity-50" />}
+      <span className="min-w-0">
+        <span className="block font-semibold">{label}</span>
+        {meta ? <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{meta}</span> : null}
+      </span>
+    </button>
   )
 }
 
