@@ -27,6 +27,11 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 | Trash/folders | Planned | Add restore/delete-forever/empty-trash and move-to-folder flows where schema supports it. |
 | Tests | In progress | Local gates are `pnpm test`, `pnpm lint`, and `pnpm build`; browser checks are run on key flows. |
 
+## Progress Log
+
+- 2026-05-16: Added the tracked Productivity Suite plan.
+- 2026-05-16: Improved Studio explorer records with type-colored cards, per-action loading labels, local error display, and archive confirmation.
+
 ## Implementation Slices
 
 1. Audit all Productivity Suite buttons and replace placeholders with working handlers.
