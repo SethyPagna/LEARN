@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react"
 import {
+  ArrowRight,
   Brain,
   CheckCircle2,
   Compass,
@@ -36,7 +37,7 @@ import type {
   View,
 } from "../types"
 import { EmptyState, Panel, StatusMessage } from "../ui"
-import { reviewAnswerText, reviewPromptText, reviewSourceLabel } from "@/lib/learning-ecosystem"
+import { buildFeedActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
 import { buildSocialWorkspacePlan, filterSocialRecords, socialRecordTitle, summarizeSocialWorkspace, type SocialRecordFilter } from "@/lib/social-features"
 
@@ -283,6 +284,10 @@ export function ReviewsView() {
 export function FeedView({ setView }: { setView: (view: View) => void }) {
   const { data, refresh } = useResource<{ items: MicroLesson[] }>("/api/feed?topic=study&topic=notes")
   const [answered, setAnswered] = useState<Record<string, string>>({})
+  const lessons = useMemo(() => data?.items ?? [], [data?.items])
+  const feedLessonsForSummary = useMemo(() => lessons.map(toFeedLessonForSummary), [lessons])
+  const feedSummary = useMemo(() => summarizeFeedWorkspace(feedLessonsForSummary, answered), [answered, feedLessonsForSummary])
+  const feedPlan = useMemo(() => buildFeedActionPlan(feedLessonsForSummary, feedSummary, answered), [answered, feedLessonsForSummary, feedSummary])
 
   async function answer(lesson: MicroLesson, choiceId: string) {
     setAnswered((current) => ({ ...current, [lesson.id]: choiceId }))
@@ -297,54 +302,125 @@ export function FeedView({ setView }: { setView: (view: View) => void }) {
     refresh()
   }
 
+  function applyFeedPlan() {
+    if (feedPlan.nextAction === "refresh") {
+      refresh()
+      return
+    }
+    if (feedPlan.nextAction === "save") {
+      setView("studio")
+      return
+    }
+    const target = feedPlan.targetLessonId ? document.getElementById(`lesson-${feedPlan.targetLessonId}`) : null
+    target?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
       <div className="grid gap-4">
-        {(data?.items ?? []).map((lesson) => (
-          <Panel key={lesson.id} className="min-h-[420px] p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="inline-flex h-8 items-center gap-2 rounded-md bg-secondary px-3 text-xs font-semibold text-secondary-foreground">
-                {lesson.reason === "serendipity" ? <Sparkles className="h-4 w-4" /> : <Compass className="h-4 w-4" />}
-                {lesson.reason || "preferred"}
-              </span>
-              <span className="text-sm text-muted-foreground">{lesson.duration_seconds || lesson.durationSeconds || 90}s</span>
+        {lessons.map((lesson) => {
+          const isAnswered = Boolean(answered[lesson.id])
+          return (
+            <div key={lesson.id} id={`lesson-${lesson.id}`}>
+              <Panel className="min-h-[420px] p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="inline-flex h-8 items-center gap-2 rounded-md bg-secondary px-3 text-xs font-semibold text-secondary-foreground">
+                    {lesson.reason === "serendipity" ? <Sparkles className="h-4 w-4" /> : <Compass className="h-4 w-4" />}
+                    {lesson.reason || "preferred"}
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`rounded-md px-2 py-1 text-xs font-semibold ${isAnswered ? "bg-success text-success-foreground" : "bg-secondary text-secondary-foreground"}`}>{isAnswered ? "answered" : "open"}</span>
+                    <span className="text-sm text-muted-foreground">{lesson.duration_seconds || lesson.durationSeconds || 90}s</span>
+                  </div>
+                </div>
+                <div className="mt-10 max-w-2xl">
+                  <h2 className="text-3xl font-semibold leading-tight text-foreground">{lesson.title}</h2>
+                  <p className="mt-3 text-lg text-muted-foreground">{lesson.summary}</p>
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {(lesson.topic_tags || lesson.topicTags || []).map((topic) => (
+                      <span key={topic} className="rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+                        {topic}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-10 grid gap-3">
+                  <p className="text-sm font-semibold text-foreground">{lesson.question}</p>
+                  {(lesson.choices ?? []).map((choice) => {
+                    const selected = answered[lesson.id] === choice.id
+                    const correct = choice.id === lesson.correct_choice_id
+                    return (
+                      <button
+                        key={choice.id}
+                        onClick={() => answer(lesson, choice.id)}
+                        className={`rounded-md border p-3 text-left text-sm transition ${
+                          selected
+                            ? correct
+                              ? "border-success bg-success/15 text-foreground"
+                              : "border-destructive bg-destructive/10 text-foreground"
+                            : "border-border bg-background text-foreground hover:bg-accent"
+                        }`}
+                      >
+                        {choice.text}
+                      </button>
+                    )
+                  })}
+                  {answered[lesson.id] ? <p className="mt-3 text-sm text-muted-foreground">{lesson.explanation}</p> : null}
+                </div>
+              </Panel>
             </div>
-            <div className="mt-10 max-w-2xl">
-              <h2 className="text-3xl font-semibold leading-tight text-foreground">{lesson.title}</h2>
-              <p className="mt-3 text-lg leading-8 text-muted-foreground">{lesson.summary}</p>
-            </div>
-            <div className="mt-8 rounded-md border border-border bg-background p-4">
-              <p className="font-medium text-foreground">{lesson.question}</p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                {(lesson.choices ?? []).map((choice) => {
-                  const selected = answered[lesson.id] === choice.id
-                  const correct = choice.id === lesson.correct_choice_id
-                  return (
-                    <button
-                      key={choice.id}
-                      onClick={() => answer(lesson, choice.id)}
-                      className={`rounded-md border p-3 text-left text-sm font-medium ${selected ? correct ? "border-success bg-success/15 text-foreground" : "border-destructive bg-destructive/10 text-foreground" : "border-border bg-secondary text-secondary-foreground"}`}
-                    >
-                      {choice.text}
-                    </button>
-                  )
-                })}
-              </div>
-              {answered[lesson.id] ? <p className="mt-3 text-sm text-muted-foreground">{lesson.explanation}</p> : null}
-            </div>
-          </Panel>
-        ))}
+          )
+        })}
       </div>
       <Panel className="h-max p-4">
-        <h3 className="font-semibold text-foreground">Feed controls</h3>
+        <h3 className="font-semibold text-foreground">Discovery controls</h3>
+        <button onClick={applyFeedPlan} className="mt-3 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-semibold text-foreground">{feedPlan.headline}</span>
+            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {feedPlan.chips.map((chip) => (
+              <span key={chip} className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">
+                {chip}
+              </span>
+            ))}
+          </div>
+        </button>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <Metric label="Lessons" value={String(feedSummary.total)} />
+          <Metric label="Open" value={String(feedSummary.unanswered)} />
+          <Metric label="Outside" value={String(feedSummary.serendipity)} />
+          <Metric label="Answered" value={String(feedSummary.answered)} />
+        </div>
+        {feedSummary.topTopics.length ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {feedSummary.topTopics.map((topic) => (
+              <span key={topic.topic} className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">
+                {topic.topic} {topic.count}
+              </span>
+            ))}
+          </div>
+        ) : null}
         <div className="mt-3 grid gap-2">
           <RitualButton icon={Brain} label="Save ideas to Studio" onClick={() => setView("studio")} />
           <RitualButton icon={Users} label="Open circles" onClick={() => setView("spaces")} />
-          <RitualButton icon={ShieldCheck} label="15% serendipity stays on" onClick={() => refresh()} />
+          <RitualButton icon={ShieldCheck} label="Refresh lesson mix" onClick={refresh} />
         </div>
       </Panel>
     </div>
   )
+}
+
+function toFeedLessonForSummary(lesson: MicroLesson) {
+  return {
+    id: lesson.id,
+    title: lesson.title,
+    topicTags: lesson.topic_tags ?? lesson.topicTags ?? [],
+    readinessScore: 1,
+    durationSeconds: lesson.duration_seconds ?? lesson.durationSeconds ?? 90,
+    reason: lesson.reason ?? ("preferred" as const),
+  }
 }
 
 export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battles" }) {
