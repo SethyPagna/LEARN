@@ -94,6 +94,7 @@ export function IntroWorkflow() {
   const sectionRef = useRef<HTMLElement | null>(null)
   const rafRef = useRef<number | null>(null)
   const activeSlide = workflowSlides[activeIndex]
+  const overlayBackgroundProgress = Math.min(1, overlayProgress * 1.2)
 
   useEffect(() => {
     function updateActiveSlide() {
@@ -103,7 +104,7 @@ export function IntroWorkflow() {
       const rect = section.getBoundingClientRect()
       const scrollable = Math.max(1, rect.height - window.innerHeight)
       const progress = Math.min(1, Math.max(0, -rect.top / scrollable))
-      const revealProgress = Math.min(1, Math.max(0, (progress - 0.004) / 0.025))
+      const revealProgress = Math.min(1, Math.max(0, (progress - 0.004) / 0.16))
       const easedReveal = revealProgress * revealProgress * (3 - 2 * revealProgress)
       const slideProgress = Math.min(1, Math.max(0, (progress - 0.04) / 0.96))
       const nextIndex = Math.min(workflowSlides.length - 1, Math.floor(slideProgress * workflowSlides.length))
@@ -142,13 +143,21 @@ export function IntroWorkflow() {
         data-workflow-overlay
         className="fixed inset-0 z-20 grid h-[100svh] overflow-hidden px-5 py-5 sm:px-8"
         style={{
-          opacity: overlayProgress,
           pointerEvents: overlayProgress > 0.92 ? "auto" : "none",
-          transform: `translate3d(0, ${(1 - overlayProgress) * 28}px, 0) scale(${0.98 + overlayProgress * 0.02})`,
+          visibility: overlayProgress > 0.01 ? "visible" : "hidden",
         }}
       >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_22%,rgba(16,185,129,0.18),transparent_26%),radial-gradient(circle_at_80%_18%,rgba(96,165,250,0.15),transparent_22%),linear-gradient(180deg,#040506_0%,#07101b_48%,#040506_100%)]" />
-        <div className="relative z-10 mx-auto grid h-full w-full max-w-7xl grid-rows-[auto_1fr_auto] gap-4">
+        <div
+          className="absolute inset-0 bg-[radial-gradient(circle_at_16%_22%,rgba(16,185,129,0.18),transparent_26%),radial-gradient(circle_at_80%_18%,rgba(96,165,250,0.15),transparent_22%),linear-gradient(180deg,#040506_0%,#07101b_48%,#040506_100%)]"
+          style={{ opacity: overlayBackgroundProgress }}
+        />
+        <div
+          className="relative z-10 mx-auto grid h-full w-full max-w-7xl grid-rows-[auto_1fr_auto] gap-4"
+          style={{
+            opacity: overlayProgress,
+            transform: `translate3d(0, ${(1 - overlayProgress) * 28}px, 0) scale(${0.98 + overlayProgress * 0.02})`,
+          }}
+        >
           <div className="flex items-center justify-between gap-4">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/58">
               <Sparkles className="h-3.5 w-3.5 text-emerald-200" />
