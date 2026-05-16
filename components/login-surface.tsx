@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { ArrowRight, BookOpen, Brain, Cloud, Lock, Sparkles } from "lucide-react"
 
 export function LoginSurface() {
@@ -31,7 +32,7 @@ export function LoginSurface() {
     <main className="min-h-screen overflow-x-hidden bg-[#edf1f5] text-[#17202a]">
       <div className="grid min-h-screen max-w-full grid-cols-[minmax(0,1fr)] lg:grid-cols-[1.1fr_0.9fr]">
         <section className="order-2 hidden min-w-0 max-w-full flex-col justify-between overflow-hidden px-6 py-8 sm:px-10 lg:order-1 lg:flex lg:px-14">
-          <div className="flex items-center gap-3">
+          <Link href="/" className="flex w-fit items-center gap-3 rounded-xl transition hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#276956]" aria-label="Go to LEARN intro">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#171717] text-white">
               <BookOpen className="h-5 w-5" />
             </div>
@@ -39,7 +40,7 @@ export function LoginSurface() {
               <p className="text-sm font-semibold">LEARN</p>
               <p className="text-xs text-[#5e6a78]">Personal study workspace</p>
             </div>
-          </div>
+          </Link>
 
           <div className="max-w-full py-8 lg:max-w-2xl lg:py-16">
             <h1 className="max-w-full break-words text-2xl font-semibold leading-[1.12] tracking-normal [overflow-wrap:anywhere] sm:text-5xl lg:max-w-xl lg:text-6xl">
@@ -67,6 +68,15 @@ export function LoginSurface() {
 
         <section className="order-1 flex min-w-0 items-center justify-center bg-[#17202a] p-4 text-white sm:p-6 lg:order-2 lg:p-10">
           <form onSubmit={handleSubmit} className="w-80 min-w-0 max-w-full rounded-lg border border-white/10 bg-white/[0.06] p-6 shadow-2xl backdrop-blur sm:w-full sm:max-w-md">
+            <Link href="/" className="mb-6 flex w-fit items-center gap-3 rounded-xl transition hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#d7ff6f] lg:hidden" aria-label="Go to LEARN intro">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#d7ff6f] text-[#171717]">
+                <BookOpen className="h-4 w-4" />
+              </span>
+              <span>
+                <span className="block text-sm font-semibold">LEARN</span>
+                <span className="block text-xs text-white/55">Intro page</span>
+              </span>
+            </Link>
             <div className="mb-8">
               <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#d7ff6f] text-[#171717]">
                 <Sparkles className="h-6 w-6" />
