@@ -11,6 +11,8 @@ export interface TutorRequest {
 }
 
 export type TutorMode = "coach" | "rewrite" | "quiz" | "flashcards" | "translate" | "route" | "cleanup" | "mistake"
+export const DEFAULT_TUTOR_COMPLETION_TOKENS = 4096
+export const MAX_TUTOR_COMPLETION_TOKENS = 8192
 
 export async function askTutor(input: TutorRequest) {
   const cloudflareEnv = await getCloudflareBindings()
@@ -28,8 +30,8 @@ export async function askTutor(input: TutorRequest) {
       apiKey: envProvider.apiKey,
       priority: envProvider.defaultPriority,
       requestsPerMinute: envProvider.safeRequestsPerMinute,
-      maxInputChars: 1400,
-      maxCompletionTokens: 1800,
+      maxInputChars: 16_000,
+      maxCompletionTokens: MAX_TUTOR_COMPLETION_TOKENS,
       timeoutMs: envProvider.safeTimeoutMs,
       cooldownSeconds: envProvider.safeCooldownSeconds,
     } satisfies RuntimeAiProviderConfig] : []),
@@ -99,6 +101,15 @@ function clamp(value: unknown, fallback: number, min: number, max: number) {
   return Math.min(max, Math.max(min, numeric))
 }
 
+export function resolveTutorTokenBudget(inputMaxTokens: unknown, providerMaxCompletionTokens: unknown) {
+  const providerMax = Number(providerMaxCompletionTokens)
+  const fallback = Math.min(
+    MAX_TUTOR_COMPLETION_TOKENS,
+    Math.max(DEFAULT_TUTOR_COMPLETION_TOKENS, Number.isFinite(providerMax) ? providerMax : 0),
+  )
+  return clamp(inputMaxTokens, fallback, 128, MAX_TUTOR_COMPLETION_TOKENS)
+}
+
 function withTimeout(timeoutMs: number) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), timeoutMs)
@@ -107,7 +118,7 @@ function withTimeout(timeoutMs: number) {
 
 async function askProvider(provider: RuntimeAiProviderConfig, systemPrompt: string, userPrompt: string, input: TutorRequest) {
   const temperature = clamp(input.temperature, 0.45, 0, 1.2)
-  const maxTokens = clamp(input.maxTokens, Math.min(provider.maxCompletionTokens, 1200), 128, provider.maxCompletionTokens || 1800)
+  const maxTokens = resolveTutorTokenBudget(input.maxTokens, provider.maxCompletionTokens)
   const timeout = withTimeout(provider.timeoutMs)
 
   if (provider.provider === "google") {

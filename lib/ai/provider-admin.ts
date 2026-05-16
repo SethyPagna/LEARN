@@ -76,12 +76,12 @@ export interface ProviderAdminSummary {
 const safeProviderDefaults: Record<AiProviderKey, Pick<NormalizedProviderConfigInput,
   "priority" | "requestsPerMinute" | "maxInputChars" | "maxCompletionTokens" | "timeoutMs" | "cooldownSeconds"
 >> = {
-  groq: fromMetadata("groq", 1200, 1800),
-  google: fromMetadata("google", 1200, 1600),
-  mistral: fromMetadata("mistral", 1100, 1400),
-  cerebras: fromMetadata("cerebras", 900, 1200),
-  cloudflare: fromMetadata("cloudflare", 1400, 1800),
-  vercel: fromMetadata("vercel", 1400, 1800),
+  groq: fromMetadata("groq", 16_000, 8192),
+  google: fromMetadata("google", 16_000, 8192),
+  mistral: fromMetadata("mistral", 16_000, 8192),
+  cerebras: fromMetadata("cerebras", 16_000, 8192),
+  cloudflare: fromMetadata("cloudflare", 16_000, 8192),
+  vercel: fromMetadata("vercel", 16_000, 8192),
   cohere: fromMetadata("cohere", 1000, 128),
 }
 

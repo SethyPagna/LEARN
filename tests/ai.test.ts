@@ -8,7 +8,7 @@ import {
   maskProviderSecret,
   normalizeProviderConfigInput,
 } from "../lib/ai/provider-admin"
-import { getTutorModeInstruction } from "../lib/ai/tutor"
+import { getTutorModeInstruction, resolveTutorTokenBudget } from "../lib/ai/tutor"
 import { getPromptTemplate } from "../lib/ai/prompt-library"
 import { buildGuidedPrompt, listInsertActions, promptContracts } from "../lib/ai/prompt-builder"
 import { buildAiGatewayReadiness } from "../lib/ai/gateway-readiness"
@@ -63,7 +63,16 @@ test("normalizeProviderConfigInput applies safe provider defaults", () => {
   assert.equal(input.defaultModel, "groq/compound")
   assert.equal(input.providerType, "chat")
   assert.equal(input.requestsPerMinute, 18)
+  assert.equal(input.maxInputChars, 16000)
+  assert.equal(input.maxCompletionTokens, 8192)
   assert.equal(input.endpointOverride, "https://api.groq.com/openai/v1/chat/completions")
+})
+
+test("AI tutor token budget keeps the UI and runtime limits aligned", () => {
+  assert.equal(resolveTutorTokenBudget(undefined, 1800), 4096)
+  assert.equal(resolveTutorTokenBudget(8192, 1800), 8192)
+  assert.equal(resolveTutorTokenBudget(12000, 8192), 8192)
+  assert.equal(resolveTutorTokenBudget(64, 8192), 128)
 })
 
 test("provider preset catalog includes chat and embedding choices", () => {

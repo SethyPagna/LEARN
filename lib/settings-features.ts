@@ -51,7 +51,7 @@ export interface SettingsControlPlan {
 
 const MIN_SERENDIPITY_PERCENT = 15
 const HIGH_REVIEW_CAP = 60
-const HIGH_TOKEN_BUDGET = 4000
+const HIGH_TOKEN_BUDGET = 8192
 const LONG_CALENDAR_BLOCK_MINUTES = 90
 
 export function summarizeSettingsOptions(options: SettingsOptionSummaryInput): SettingsOptionSummary {

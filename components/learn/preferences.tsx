@@ -64,7 +64,7 @@ export const defaultWorkspaceOptions: WorkspaceOptions = {
   aiMode: "route",
   aiIncludeNotes: true,
   aiTemperature: 0.45,
-  aiMaxTokens: 1200,
+  aiMaxTokens: 8192,
   collaborationPresence: true,
   chatCompact: false,
   adminVerbose: true,

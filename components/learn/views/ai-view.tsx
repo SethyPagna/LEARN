@@ -33,10 +33,11 @@ const tutorModes = [
 const sourceScopes = ["Recent notes", "Active Studio item", "Weak topics", "Uploaded files", "Manual only"]
 const difficulties = ["Adaptive", "Beginner", "Intermediate", "Advanced", "Exam prep"]
 const tones = ["Kind", "Direct", "Socratic", "Concise", "Detailed"]
-const outputLengths = ["Short", "Balanced", "Deep"]
+const outputLengths = ["Short", "Balanced", "Deep", "Max"]
 const languages = ["English", "Khmer", "French", "Spanish", "Korean", "Japanese", "Chinese"]
 const insertTargets: StudioInsertTarget[] = ["note-block", "doc-section", "sheet-rows", "slide-outline", "quiz", "flashcards", "review-cards", "ai-note"]
 const importTargets: Array<ImportTarget | "auto"> = ["auto", "note", "doc", "sheet", "slides"]
+const tokenPresets = [2048, 4096, 8192]
 const AI_TUTOR_DRAFT_KEY = "learn_ai_tutor_draft_v1"
 const DEFAULT_AI_MESSAGE = "Create a study plan from my recent notes."
 const tutorModeGroups = [
@@ -143,6 +144,10 @@ export function AiTutorView({
   }, [availableInsertTargets, insertTarget])
 
   useEffect(() => {
+    void loadProviders()
+  }, [])
+
+  useEffect(() => {
     const draft = readAiTutorDraft()
     if (draft) {
       setMessage(draft.message || DEFAULT_AI_MESSAGE)
@@ -221,6 +226,7 @@ export function AiTutorView({
         `Tone: ${tone}`,
         `Output length: ${outputLength}`,
         `Language: ${language}`,
+        `Max output tokens: ${options.aiMaxTokens}`,
         providerFamily !== "auto" ? `Preferred provider family: ${providerFamily}` : "",
         options.aiIncludeNotes && sourceScope !== "Manual only" ? recentContext : "",
       ].filter(Boolean)
@@ -384,8 +390,8 @@ export function AiTutorView({
           })}
         </div>
 
-        <SectionLabel icon={ListFilter} title="Context" body="These controls decide what the tutor can use and where the result should land." />
-        <div className="mt-4 grid gap-3 rounded-md border border-border bg-muted/40 p-3 md:grid-cols-3">
+        <SectionLabel icon={ListFilter} title="Filters" body="These controls decide what the tutor can use, how detailed the answer should be, and where the result should land." />
+        <div className="mt-4 grid gap-3 rounded-md border border-border bg-muted/40 p-3 md:grid-cols-4">
           <SelectControl label="Source" value={sourceScope} values={sourceScopes} onChange={setSourceScope} icon={ListFilter} />
           <SelectControl label="Difficulty" value={difficulty} values={difficulties} onChange={setDifficulty} icon={Gauge} />
           <SelectControl label="Tone" value={tone} values={tones} onChange={setTone} icon={Settings2} />
@@ -399,7 +405,7 @@ export function AiTutorView({
               {catalog.map((item) => <option key={item.id || item.provider} value={item.provider || item.id}>{item.label || item.provider}</option>)}
             </select>
           </label>
-          <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground md:col-span-3">
+          <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground">
             <span className="flex items-center gap-2"><Settings2 className="h-4 w-4" /> Include recent notes</span>
             <input type="checkbox" checked={options.aiIncludeNotes} onChange={(event) => setOptions({ aiIncludeNotes: event.target.checked })} />
           </label>
@@ -441,16 +447,25 @@ export function AiTutorView({
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 rounded-md border border-border bg-background p-3 md:grid-cols-[1fr_180px]">
+        <div className="mt-4 grid gap-3 rounded-md border border-border bg-background p-3 md:grid-cols-[1fr_280px]">
           <label className="text-sm text-foreground">
             Creativity
             <input className="mt-2 w-full accent-primary" type="range" min="0" max="1.2" step="0.05" value={options.aiTemperature} onChange={(event) => setOptions({ aiTemperature: Number(event.target.value) })} />
             <span className="text-xs text-muted-foreground">{options.aiTemperature.toFixed(2)}</span>
           </label>
-          <label className="text-sm text-foreground">
-            Max tokens
-            <input className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-foreground" type="number" min="128" max="8192" step="128" value={options.aiMaxTokens} onChange={(event) => setOptions({ aiMaxTokens: Number(event.target.value) })} />
-          </label>
+          <div className="text-sm text-foreground">
+            <div className="flex items-center justify-between gap-2">
+              <span>Max tokens</span>
+              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground">{options.aiMaxTokens}</span>
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-1">
+              {tokenPresets.map((tokens) => (
+                <button key={tokens} onClick={() => setOptions({ aiMaxTokens: tokens })} className={`h-8 rounded-md border px-2 text-xs font-semibold ${options.aiMaxTokens === tokens ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+                  {tokens}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <textarea value={message} onChange={(event) => setMessage(event.target.value)} className="mt-5 min-h-40 w-full rounded-md border border-input bg-background p-4 text-foreground outline-none focus:border-ring" />
