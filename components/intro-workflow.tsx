@@ -103,9 +103,9 @@ export function IntroWorkflow() {
       const rect = section.getBoundingClientRect()
       const scrollable = Math.max(1, rect.height - window.innerHeight)
       const progress = Math.min(1, Math.max(0, -rect.top / scrollable))
-      const revealProgress = Math.min(1, Math.max(0, (progress - 0.01) / 0.07))
+      const revealProgress = Math.min(1, Math.max(0, (progress - 0.005) / 0.045))
       const easedReveal = revealProgress * revealProgress * (3 - 2 * revealProgress)
-      const slideProgress = Math.min(1, Math.max(0, (progress - 0.14) / 0.86))
+      const slideProgress = Math.min(1, Math.max(0, (progress - 0.1) / 0.9))
       const nextIndex = Math.min(workflowSlides.length - 1, Math.floor(slideProgress * workflowSlides.length))
       setOverlayProgress((current) => (Math.abs(current - easedReveal) < 0.01 ? current : easedReveal))
       setActiveIndex((current) => (current === nextIndex ? current : nextIndex))
@@ -131,12 +131,12 @@ export function IntroWorkflow() {
     if (!section) return
     const top = section.getBoundingClientRect().top + window.scrollY
     const scrollable = section.offsetHeight - window.innerHeight
-    const target = top + scrollable * (0.14 + (index / workflowSlides.length) * 0.86)
+    const target = top + scrollable * (0.1 + (index / workflowSlides.length) * 0.9)
     window.scrollTo({ top: target, behavior: "smooth" })
   }
 
   return (
-    <section ref={sectionRef} className="pointer-events-none relative -mt-[100svh] min-h-[720svh] text-white">
+    <section ref={sectionRef} className="pointer-events-none relative -mt-[100svh] min-h-[430svh] text-white">
       <span id="workflow" className="absolute top-[100svh]" aria-hidden="true" />
       <div
         data-workflow-overlay
