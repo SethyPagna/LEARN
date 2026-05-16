@@ -3,13 +3,14 @@ import Link from "next/link"
 import type React from "react"
 import { ArrowRight, BookOpen, Brain, GraduationCap, Layers3, Play, Sparkles } from "lucide-react"
 import { SESSION_COOKIE } from "@/lib/data"
+import { IntroWorkflow } from "@/components/intro-workflow"
 
 export default async function HomePage() {
   const cookieStore = await cookies()
   const signedIn = Boolean(cookieStore.get(SESSION_COOKIE)?.value)
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#040506] text-white">
+    <main className="min-h-screen overflow-x-hidden bg-[#040506] text-white">
       <section className="relative isolate grid min-h-screen content-center px-5 py-4 sm:px-8">
         <div className="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_18%_14%,rgba(96,165,250,0.22),transparent_28%),radial-gradient(circle_at_78%_20%,rgba(16,185,129,0.18),transparent_24%),linear-gradient(135deg,#040506_0%,#08111f_54%,#040506_100%)]" />
         <div className="absolute inset-x-0 bottom-0 -z-10 h-48 bg-gradient-to-t from-emerald-400/10 to-transparent" />
@@ -47,7 +48,7 @@ export default async function HomePage() {
                 {signedIn ? "Go to LEARN" : "Start learning"}
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link href="/showcase" className="inline-flex h-11 items-center gap-2 rounded-md border border-white/14 px-4 text-sm font-semibold text-white/82 transition hover:bg-white/10">
+              <Link href="#workflow" className="inline-flex h-11 items-center gap-2 rounded-md border border-white/14 px-4 text-sm font-semibold text-white/82 transition hover:bg-white/10">
                 <Play className="h-4 w-4" />
                 View workflow
               </Link>
@@ -104,6 +105,7 @@ export default async function HomePage() {
           }
         `}</style>
       </section>
+      <IntroWorkflow />
     </main>
   )
 }
