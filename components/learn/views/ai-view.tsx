@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { AlertTriangle, Bot, Brain, CheckCircle2, CheckSquare, FileText, Gauge, Info, Languages, ListFilter, Plus, Route, Settings2, Sparkles, UploadCloud, Wand2 } from "lucide-react"
+import { AlertTriangle, Bot, Brain, CheckCircle2, CheckSquare, ChevronDown, FileText, Gauge, Info, Languages, ListFilter, Plus, Route, SlidersHorizontal, Sparkles, UploadCloud, Wand2 } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Note, StudioInsertTarget, View } from "../types"
 import { api } from "../api"
@@ -47,6 +47,7 @@ const tutorModeGroups = [
   { id: "practice", label: "Practice", modes: ["quiz_generation", "flashcard_generation", "practice_generator"] },
 ] as const
 type TutorModeGroupId = (typeof tutorModeGroups)[number]["id"]
+type TutorMenuId = "task" | "filters" | "gateway"
 
 type AiTutorDraft = {
   message: string
@@ -101,15 +102,11 @@ export function AiTutorView({
   const [requiredOutput, setRequiredOutput] = useState("Clear sections, compact examples, and one next action.")
   const [activeTaskKey, setActiveTaskKey] = useState(tutorModes[0].id)
   const [modeGroup, setModeGroup] = useState<TutorModeGroupId>("tutor")
+  const [openTutorMenu, setOpenTutorMenu] = useState<TutorMenuId | null>(null)
   const draftHydrated = useRef(false)
   const draftStatusTimer = useRef<number | null>(null)
 
   const activeMode = useMemo(() => tutorModes.find((mode) => mode.id === activeTaskKey) || tutorModes[0], [activeTaskKey])
-  const visibleTutorModes = useMemo(() => {
-    const group = tutorModeGroups.find((item) => item.id === modeGroup) || tutorModeGroups[0]
-    const allowed = new Set(group.modes)
-    return tutorModes.filter((mode) => allowed.has(mode.id))
-  }, [modeGroup])
   const recentContext = useMemo(() => notes.slice(0, 5).map((note) => `${note.title}: ${note.content}`).join("\n\n"), [notes])
   const sourceContext = useMemo(() => buildAiTutorSourceContext({
     message,
@@ -349,38 +346,83 @@ export function AiTutorView({
               {draftStatus ? <StatusChip label={draftStatus} tone="ready" /> : null}
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {tutorModeGroups.map((group) => (
-              <button
-                key={group.id}
-                onClick={() => setModeGroup(group.id)}
-                className={`h-8 rounded-md border px-3 text-xs font-semibold ${modeGroup === group.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
-              >
-                {group.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            <TutorMenu label={`Task: ${activeMode.label}`} icon={activeMode.icon} menuId="task" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
+              {tutorModeGroups.map((group) => (
+                <div key={group.id} className="grid gap-1">
+                  <button
+                    onClick={() => setModeGroup(group.id)}
+                    className={`mb-1 flex h-8 items-center justify-between rounded-md px-2 text-left text-xs font-semibold ${modeGroup === group.id ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+                    type="button"
+                  >
+                    {group.label}
+                    <span className="text-[0.66rem] opacity-70">{group.modes.length}</span>
+                  </button>
+                  {tutorModes
+                    .filter((mode) => (group.modes as readonly string[]).includes(mode.id))
+                    .map((item) => (
+                      <TutorMenuAction
+                        key={`${group.id}-${item.id}`}
+                        active={activeMode.id === item.id}
+                        icon={item.icon}
+                        label={item.label}
+                        meta={item.prompt}
+                        onClick={() => {
+                          setActiveTaskKey(item.id)
+                          setModeGroup(modeGroupForTask(item.id))
+                          setOptions({ aiMode: item.mode as WorkspaceOptions["aiMode"] })
+                          setMessage(item.prompt)
+                          setOpenTutorMenu(null)
+                        }}
+                      />
+                    ))}
+                </div>
+              ))}
+            </TutorMenu>
+            <TutorMenu label="Filters" icon={SlidersHorizontal} menuId="filters" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
+              <TutorMenuSection title="Context">
+                <TutorMenuSelect label="Source" value={sourceScope} values={sourceScopes} onChange={setSourceScope} />
+                <TutorMenuSelect label="Difficulty" value={difficulty} values={difficulties} onChange={setDifficulty} />
+                <TutorMenuSelect label="Tone" value={tone} values={tones} onChange={setTone} />
+                <TutorMenuSelect label="Length" value={outputLength} values={outputLengths} onChange={setOutputLength} />
+                <TutorMenuSelect label="Language" value={language} values={languages} onChange={setLanguage} />
+                <TutorMenuSelect label="Insert" value={insertTarget} values={availableInsertTargets} onChange={(value) => setInsertTarget(value as StudioInsertTarget)} />
+                <TutorMenuToggle checked={options.aiIncludeNotes} label="Include recent notes" onChange={(checked) => setOptions({ aiIncludeNotes: checked })} />
+              </TutorMenuSection>
+            </TutorMenu>
+            <TutorMenu label="Gateway" icon={Brain} align="right" menuId="gateway" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
+              <TutorMenuSection title="Provider">
+                <TutorMenuSelect
+                  label="Family"
+                  value={providerFamily}
+                  values={["auto", ...catalog.map((item) => item.provider || item.id).filter(Boolean)]}
+                  labels={{ auto: "Auto failover", ...Object.fromEntries(catalog.map((item) => [item.provider || item.id, item.label || item.provider || item.id])) }}
+                  onChange={setProviderFamily}
+                />
+                <div className="grid gap-1">
+                  <span className="text-xs font-semibold text-muted-foreground">Max tokens</span>
+                  <div className="grid grid-cols-3 gap-1">
+                    {tokenPresets.map((tokens) => (
+                      <button key={tokens} onClick={() => setOptions({ aiMaxTokens: tokens })} className={`h-8 rounded-md border px-2 text-xs font-semibold ${options.aiMaxTokens === tokens ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} type="button">
+                        {tokens}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+                  Creativity <span className="text-foreground">{options.aiTemperature.toFixed(2)}</span>
+                  <input className="w-full accent-primary" type="range" min="0" max="1.2" step="0.05" value={options.aiTemperature} onChange={(event) => setOptions({ aiTemperature: Number(event.target.value) })} />
+                </label>
+              </TutorMenuSection>
+            </TutorMenu>
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap rounded-md border border-border bg-secondary p-1">
-            {visibleTutorModes.map((item) => {
-              const Icon = item.icon
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveTaskKey(item.id)
-                    setOptions({ aiMode: item.mode as WorkspaceOptions["aiMode"] })
-                    setMessage(item.prompt)
-                  }}
-                  className={`flex h-8 items-center gap-1.5 rounded px-2 text-xs font-medium ${activeMode.id === item.id ? "bg-primary text-primary-foreground" : "text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
-                  title={item.prompt}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {item.label}
-                </button>
-              )
-            })}
+        <div className="mt-4 grid gap-2 rounded-md border border-border bg-muted/40 p-2 text-xs font-semibold text-muted-foreground sm:grid-cols-2 xl:grid-cols-4">
+          <CompactState label="Task" value={activeMode.label} />
+          <CompactState label="Context" value={`${sourceScope} / ${difficulty}`} />
+          <CompactState label="Output" value={`${outputLength} / ${language}`} />
+          <CompactState label="Gateway" value={`${providerFamily === "auto" ? "Auto" : providerFamily} / ${options.aiMaxTokens}`} />
         </div>
 
         <details className="mt-3 rounded-md border border-border bg-background p-3 text-sm">
@@ -391,27 +433,6 @@ export function AiTutorView({
             ))}
           </div>
         </details>
-
-        <SectionLabel icon={ListFilter} title="Setup" body="Choose source, style, provider, and destination. More settings are under Advanced." />
-        <div className="mt-4 grid gap-3 rounded-md border border-border bg-muted/40 p-3 md:grid-cols-3 xl:grid-cols-6">
-          <SelectControl label="Source" value={sourceScope} values={sourceScopes} onChange={setSourceScope} icon={ListFilter} />
-          <SelectControl label="Difficulty" value={difficulty} values={difficulties} onChange={setDifficulty} icon={Gauge} />
-          <SelectControl label="Tone" value={tone} values={tones} onChange={setTone} icon={Settings2} />
-          <SelectControl label="Length" value={outputLength} values={outputLengths} onChange={setOutputLength} icon={FileText} />
-          <SelectControl label="Language" value={language} values={languages} onChange={setLanguage} icon={Languages} />
-          <SelectControl label="Insert" value={insertTarget} values={availableInsertTargets} onChange={(value) => setInsertTarget(value as StudioInsertTarget)} icon={Plus} />
-          <label className="grid gap-1 text-sm text-foreground">
-            <span className="flex items-center gap-2 font-semibold"><Brain className="h-4 w-4" /> Provider</span>
-            <select value={providerFamily} onChange={(event) => setProviderFamily(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground">
-              <option value="auto">Auto failover</option>
-              {catalog.map((item) => <option key={item.id || item.provider} value={item.provider || item.id}>{item.label || item.provider}</option>)}
-            </select>
-          </label>
-          <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground">
-            <span className="flex items-center gap-2"><Settings2 className="h-4 w-4" /> Include recent notes</span>
-            <input type="checkbox" checked={options.aiIncludeNotes} onChange={(event) => setOptions({ aiIncludeNotes: event.target.checked })} />
-          </label>
-        </div>
 
         <details className="mt-4 rounded-md border border-border bg-background p-3 text-sm">
           <summary className="cursor-pointer font-semibold text-foreground">Advanced prompt settings</summary>
@@ -445,24 +466,6 @@ export function AiTutorView({
               <div className="mt-2 flex flex-wrap gap-2">
                 {gatewayReadiness.checks.map((check) => (
                   <span key={check} className="rounded-md bg-background px-2 py-1 text-xs font-medium text-muted-foreground">{check}</span>
-                ))}
-              </div>
-            </div>
-            <label className="text-sm text-foreground">
-              Creativity
-              <input className="mt-2 w-full accent-primary" type="range" min="0" max="1.2" step="0.05" value={options.aiTemperature} onChange={(event) => setOptions({ aiTemperature: Number(event.target.value) })} />
-              <span className="text-xs text-muted-foreground">{options.aiTemperature.toFixed(2)}</span>
-            </label>
-            <div className="text-sm text-foreground">
-              <div className="flex items-center justify-between gap-2">
-                <span>Max tokens</span>
-                <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground">{options.aiMaxTokens}</span>
-              </div>
-              <div className="mt-2 grid grid-cols-3 gap-1">
-                {tokenPresets.map((tokens) => (
-                  <button key={tokens} onClick={() => setOptions({ aiMaxTokens: tokens })} className={`h-8 rounded-md border px-2 text-xs font-semibold ${options.aiMaxTokens === tokens ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
-                    {tokens}
-                  </button>
                 ))}
               </div>
             </div>
@@ -593,6 +596,126 @@ export function AiTutorView({
         </div>
       </Panel>
     </div>
+  )
+}
+
+function CompactState({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-md bg-background px-3 py-2">
+      <p className="text-[0.66rem] uppercase tracking-[0.12em]">{label}</p>
+      <p className="mt-0.5 truncate text-sm text-foreground">{value}</p>
+    </div>
+  )
+}
+
+function TutorMenu({
+  align = "left",
+  children,
+  icon: Icon,
+  label,
+  menuId,
+  openMenu,
+  setOpenMenu,
+}: {
+  align?: "left" | "right"
+  children: React.ReactNode
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  menuId: TutorMenuId
+  openMenu: TutorMenuId | null
+  setOpenMenu: (menuId: TutorMenuId | null) => void
+}) {
+  const open = openMenu === menuId
+  return (
+    <div className="relative inline-block">
+      <button
+        aria-expanded={open}
+        className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
+        onClick={() => setOpenMenu(open ? null : menuId)}
+        title={label}
+        type="button"
+      >
+        <Icon className="h-3.5 w-3.5" />
+        <span className="max-w-40 truncate">{label}</span>
+        <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+      </button>
+      {open ? (
+        <div className={`absolute top-10 z-40 max-h-[min(34rem,calc(100vh-8rem))] w-80 overflow-y-auto rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl ${align === "right" ? "right-0" : "left-0"}`}>
+          {children}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function TutorMenuSection({ children, title }: { children: React.ReactNode; title: string }) {
+  return (
+    <div className="grid gap-2">
+      <p className="px-1 text-[0.66rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{title}</p>
+      {children}
+    </div>
+  )
+}
+
+function TutorMenuAction({
+  active,
+  icon: Icon,
+  label,
+  meta,
+  onClick,
+}: {
+  active?: boolean
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  meta?: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm font-semibold ${
+        active ? "bg-primary text-primary-foreground" : "text-popover-foreground hover:bg-accent hover:text-accent-foreground"
+      }`}
+      type="button"
+    >
+      <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+      <span className="min-w-0">
+        <span className="block truncate">{label}</span>
+        {meta ? <span className={`mt-0.5 block line-clamp-2 text-xs font-medium ${active ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{meta}</span> : null}
+      </span>
+    </button>
+  )
+}
+
+function TutorMenuSelect({
+  label,
+  labels,
+  onChange,
+  value,
+  values,
+}: {
+  label: string
+  labels?: Record<string, string>
+  onChange: (value: string) => void
+  value: string
+  values: string[]
+}) {
+  return (
+    <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+      {label}
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground">
+        {values.map((item) => <option key={item} value={item}>{labels?.[item] || item}</option>)}
+      </select>
+    </label>
+  )
+}
+
+function TutorMenuToggle({ checked, label, onChange }: { checked: boolean; label: string; onChange: (checked: boolean) => void }) {
+  return (
+    <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground">
+      {label}
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+    </label>
   )
 }
 
@@ -771,16 +894,5 @@ function PreviewBlock({ body, title }: { body: string; title: string }) {
       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{title}</p>
       <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{body || "None"}</pre>
     </div>
-  )
-}
-
-function SelectControl({ icon: Icon, label, onChange, value, values }: { icon: React.ComponentType<{ className?: string }>; label: string; onChange: (value: string) => void; value: string; values: string[] }) {
-  return (
-    <label className="grid gap-1 text-sm text-foreground">
-      <span className="flex items-center gap-2 font-semibold"><Icon className="h-4 w-4" /> {label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground">
-        {values.map((item) => <option key={item} value={item}>{item}</option>)}
-      </select>
-    </label>
   )
 }
