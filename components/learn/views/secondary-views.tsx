@@ -570,25 +570,27 @@ export function SettingsView({
             <SettingsSectionButton key={guide.id} guide={guide} active={section === guide.id} suggested={settingsPlan.suggestedSection === guide.id} onClick={() => setSection(guide.id)} />
           ))}
         </div>
-      </Panel>
-
-      <Panel className="p-4">
-        <SettingsSectionHeader icon={Gauge} title="Workspace signals" body="Quick checks for privacy, review load, feed variety, focus length, and AI budget." />
-        <div className="mt-4 grid gap-2">
-          {settingsSummary.statuses.map((item) => (
-            <div key={item.id} className="flex items-center justify-between gap-3 rounded-md border border-border bg-background p-3 text-sm">
-              <span className="font-medium text-foreground">{item.label}</span>
-              <span className={`rounded-md px-2 py-1 text-xs font-semibold ${settingsToneClass(item.tone)}`}>{item.value}</span>
-            </div>
-          ))}
-        </div>
-        <button
-          onClick={() => setSection(settingsPlan.suggestedSection)}
-          className="mt-4 flex w-full items-center justify-between gap-3 rounded-md border border-border bg-secondary p-3 text-left text-sm font-semibold text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground"
-        >
-          <span className="min-w-0 truncate">{settingsPlan.nextAction}</span>
-          <ArrowRight className="h-4 w-4 shrink-0" />
-        </button>
+        <details className="mt-4 rounded-md border border-border bg-background p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-foreground">
+            Workspace signals
+            <span className="ml-2 rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{settingsPlan.nextAction}</span>
+          </summary>
+          <div className="mt-3 grid gap-2 md:grid-cols-5">
+            {settingsSummary.statuses.map((item) => (
+              <div key={item.id} className="rounded-md border border-border bg-card p-2 text-sm">
+                <span className="block truncate font-medium text-foreground">{item.label}</span>
+                <span className={`mt-2 inline-flex rounded-md px-2 py-1 text-xs font-semibold ${settingsToneClass(item.tone)}`}>{item.value}</span>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => setSection(settingsPlan.suggestedSection)}
+            className="mt-3 flex w-full items-center justify-between gap-3 rounded-md border border-border bg-secondary p-3 text-left text-sm font-semibold text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground"
+          >
+            <span className="min-w-0 truncate">{settingsPlan.nextAction}</span>
+            <ArrowRight className="h-4 w-4 shrink-0" />
+          </button>
+        </details>
       </Panel>
 
       {section === "profile" ? (
