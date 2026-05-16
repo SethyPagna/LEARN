@@ -159,7 +159,7 @@ export function Sidebar({
   practiceDraftSummary: PracticeDraftSummary
 }) {
   return (
-    <aside className="sticky top-0 hidden h-screen border-r border-border bg-sidebar px-3 py-4 text-sidebar-foreground lg:flex lg:flex-col">
+    <aside className={`fixed inset-y-0 left-0 z-30 hidden border-r border-border bg-sidebar px-3 py-4 text-sidebar-foreground lg:flex lg:flex-col ${density === "compact" ? "w-[232px]" : "w-[272px]"}`}>
       <Brand text={text} />
       <LauncherSearch query={query} setQuery={setQuery} setView={setView} text={text} />
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
