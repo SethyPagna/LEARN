@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
+import { buildLearnRoutePlan } from "../lib/learn-route-features"
 import { buildLearningSnapshot, rankWeakTopics } from "../lib/learning"
 
 test("rankWeakTopics prioritizes topics with lower accuracy and more attempts", () => {
@@ -36,4 +37,25 @@ test("buildLearningSnapshot creates dashboard-ready personalization metrics", ()
   assert.equal(snapshot.goalCompletion, 50)
   assert.equal(snapshot.recentNotes[0].title, "SQL")
   assert.equal(snapshot.recommendedFocus[0], "Databases")
+})
+
+test("buildLearnRoutePlan prioritizes weak-topic repair", () => {
+  const plan = buildLearnRoutePlan({
+    goalCompletion: 38,
+    recommendedFocus: ["Databases"],
+    weakTopics: [{ topic: "Indexes", accuracy: 40 }],
+    quizCount: 2,
+  })
+
+  assert.equal(plan.headline, "Repair Indexes")
+  assert.equal(plan.primaryAction.id, "review")
+  assert.deepEqual(plan.signals.map((signal) => signal.value), ["38%", "2", "1", "1"])
+})
+
+test("buildLearnRoutePlan makes Studio primary when the route is empty", () => {
+  const plan = buildLearnRoutePlan({ goalCompletion: 140, quizCount: -3 })
+
+  assert.equal(plan.headline, "Build today's learning route")
+  assert.equal(plan.primaryAction.id, "create")
+  assert.equal(plan.signals[0].value, "100%")
 })
