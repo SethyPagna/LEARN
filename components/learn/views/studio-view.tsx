@@ -7,6 +7,7 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { CSS } from "@dnd-kit/utilities"
 import * as ContextMenu from "@radix-ui/react-context-menu"
 import { useVirtualizer } from "@tanstack/react-virtual"
+import { Extension } from "@tiptap/core"
 import { Panel as ResizePanel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import { EditorContent, useEditor, type Editor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
@@ -196,6 +197,24 @@ type HeadingStylePreset = {
   fontFamily?: string
   fontSize?: string
 }
+
+const FontSize = Extension.create({
+  name: "fontSize",
+  addGlobalAttributes() {
+    return [
+      {
+        types: ["textStyle"],
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: (element: HTMLElement) => element.style.fontSize || null,
+            renderHTML: (attributes: { fontSize?: string | null }) => attributes.fontSize ? { style: `font-size: ${attributes.fontSize}` } : {},
+          },
+        },
+      },
+    ]
+  },
+})
 
 const studioKindStyles: Record<StudioKind, { accent: string; card: string; chip: string; icon: string; label: string }> = {
   notes: {
@@ -1843,6 +1862,11 @@ function StudioPaneSurface({
   const viewTitle = active ? activeTitle : panePreview.title
   const activeTab = studioTabs.find((tab) => tab.kind === viewKind) || studioTabs[0]
   const Icon = activeTab.icon
+  const activePaneTab = pane.tabs.find((tab) => tab.id === pane.activeTabId) || pane.tabs[0]
+  const itemTabs = pane.tabs.filter((tab) => tab.itemId)
+  const visiblePaneTabs = itemTabs.length > 0
+    ? activePaneTab?.itemId ? itemTabs : [activePaneTab, ...itemTabs].filter(Boolean)
+    : activePaneTab ? [activePaneTab] : []
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger asChild>
@@ -1852,7 +1876,7 @@ function StudioPaneSurface({
               <input value={pane.label} onChange={(event) => onRenamePane(event.target.value)} className="h-8 w-24 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground outline-none focus:border-ring" title="Rename order group" />
               {pane.pinned ? <span className="inline-flex h-8 items-center rounded-md border border-primary/40 bg-primary/10 px-2 text-xs font-semibold text-primary">Pinned</span> : null}
               <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-                {pane.tabs.map((tab: StudioTab) => {
+                {visiblePaneTabs.map((tab: StudioTab) => {
                   const tabActive = tab.id === pane.activeTabId
                   const tabLabel = formatStudioTabLabel(tab)
                   return (
@@ -2382,6 +2406,7 @@ function RichTextEditor({ large, onChange, placeholder, value }: { large?: boole
       Underline,
       TextStyle,
       FontFamily,
+      FontSize,
       Typography,
       Color,
       Highlight.configure({ multicolor: true }),
