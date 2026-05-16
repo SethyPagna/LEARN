@@ -525,20 +525,20 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             <ToolbarButton label="Send" onClick={send} icon={Send} primary />
           </div>
         </div>
-        <div className="mb-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
-          <ChatSignal label="Threads" value={String(chatSummary.total)} />
-          <ChatSignal label="Questions" value={String(chatSummary.questions)} />
-          <ChatSignal label="Wins" value={String(chatSummary.wins)} />
-          <ChatSignal label="Saved" value={String(chatSummary.saved)} />
-          <ChatSignal label="Mentions" value={String(chatSummary.mentions)} />
-          <ChatSignal label="Studio links" value={String(chatSummary.studioLinks)} />
-        </div>
-        <div className="mb-3 grid gap-2 sm:grid-cols-3">
+        <details className="mb-3 rounded-md border border-border bg-background p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-foreground">Channel signals</summary>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            <ChatSignal label="Threads" value={String(chatSummary.total)} />
+            <ChatSignal label="Questions" value={String(chatSummary.questions)} />
+            <ChatSignal label="Wins" value={String(chatSummary.wins)} />
+            <ChatSignal label="Saved" value={String(chatSummary.saved)} />
+            <ChatSignal label="Mentions" value={String(chatSummary.mentions)} />
+            <ChatSignal label="Studio links" value={String(chatSummary.studioLinks)} />
+          </div>
+        </details>
+        <div className="mb-3 flex flex-wrap gap-1 rounded-md border border-border bg-secondary p-1">
           {quickIntents.map((item) => (
-            <button key={item.id} onClick={() => setIntent(item.id)} className={`rounded-md border p-3 text-left text-sm transition ${intent === item.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
-              <span className="font-semibold">{item.label}</span>
-              <span className={`mt-1 block text-xs leading-5 ${intent === item.id ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{item.body}</span>
-            </button>
+            <ChatIntentButton key={item.id} active={intent === item.id} body={item.body} label={item.label} onClick={() => setIntent(item.id)} />
           ))}
         </div>
         <div className="rounded-md border border-input bg-background p-3">
@@ -562,13 +562,6 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
         </div>
         {options.collaborationPresence ? <p className="mt-1 text-xs text-muted-foreground">Presence hints are enabled for group workflows.</p> : null}
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search threads" className="mt-3 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-ring" />
-        <div className="mt-3 grid grid-cols-3 gap-1 rounded-md border border-border bg-background p-1">
-          {["helpful", "save", "reply"].map((item) => (
-            <button key={item} onClick={() => setReaction(item)} className={`rounded-md px-2 py-1.5 text-xs font-semibold ${reaction === item ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}>
-              {item}
-            </button>
-          ))}
-        </div>
         <div className="mt-3 grid grid-cols-4 gap-1 rounded-md border border-border bg-background p-1">
           {(["all", "questions", "wins", "saved"] as ChatThreadFilter[]).map((item) => (
             <button key={item} onClick={() => setFilter(item)} className={`rounded-md px-2 py-1.5 text-xs font-semibold ${filter === item ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}>
@@ -576,6 +569,16 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             </button>
           ))}
         </div>
+        <details className="mt-3 rounded-md border border-border bg-background p-2">
+          <summary className="cursor-pointer text-xs font-semibold text-foreground">Thread actions</summary>
+          <div className="mt-2 grid grid-cols-3 gap-1 rounded-md bg-secondary p-1">
+            {["helpful", "save", "reply"].map((item) => (
+              <button key={item} onClick={() => setReaction(item)} className={`rounded-md px-2 py-1.5 text-xs font-semibold ${reaction === item ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+                {item}
+              </button>
+            ))}
+          </div>
+        </details>
         {chatSummary.channels.length ? (
           <div className="mt-3 flex flex-wrap gap-2">
             {chatSummary.channels.slice(0, 4).map((channelSummary) => (
@@ -647,6 +650,21 @@ function ChatSignal({ label, value }: { label: string; value: string }) {
       <p className="text-[0.65rem] font-semibold uppercase text-muted-foreground">{label}</p>
       <p className="mt-1 text-lg font-semibold leading-none text-foreground">{value}</p>
     </div>
+  )
+}
+
+function ChatIntentButton({ active, body, label, onClick }: { active: boolean; body: string; label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`group relative h-8 rounded px-3 text-xs font-semibold ${active ? "bg-primary text-primary-foreground" : "text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+      title={body}
+    >
+      {label}
+      <span className="pointer-events-none absolute left-0 top-[calc(100%+0.35rem)] z-20 hidden w-52 rounded-md border border-border bg-popover p-2 text-left text-xs font-medium leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">
+        {body}
+      </span>
+    </button>
   )
 }
 
