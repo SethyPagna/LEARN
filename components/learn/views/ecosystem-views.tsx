@@ -694,15 +694,15 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
 
   return (
     <div className="grid gap-4 xl:grid-cols-[360px_1fr_320px]">
-      <section className="rounded-lg border border-border bg-card p-5">
+      <section className="rounded-lg border border-border bg-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-2xl font-semibold text-foreground">{title}</h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">{socialPlan.headline}</p>
+            <span className="mt-2 inline-flex rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{socialPlan.headline}</span>
           </div>
           <button onClick={startNew} className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground">
             <Icon className="h-4 w-4" />
-            {socialPlan.primaryAction}
+            New
           </button>
         </div>
         <label className="mt-4 flex h-10 items-center rounded-md border border-input bg-background px-3">
@@ -786,15 +786,29 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
         </div>
       </Panel>
 
-      <Panel className="p-4">
-        <h3 className="font-semibold text-foreground">Controls</h3>
-        <p className="mt-2 rounded-md border border-border bg-background p-3 text-sm text-muted-foreground">{socialSummary.suggestedAction}</p>
-        <p className="mt-2 rounded-md border border-border bg-success/10 p-3 text-sm font-medium text-foreground">{socialPlan.safetyCue}</p>
+      <Panel className="p-3">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="font-semibold text-foreground">Actions</h3>
+          <details className="relative">
+            <summary className="flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label="About social actions">
+              <ShieldCheck className="h-4 w-4" />
+            </summary>
+            <p className="absolute right-0 top-10 z-20 w-64 rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-xl">{socialPlan.safetyCue}</p>
+          </details>
+        </div>
+        <button onClick={startNew} className="mt-3 flex w-full items-center justify-between rounded-md border border-primary/30 bg-primary/10 p-3 text-left text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
+          <span>{socialPlan.primaryAction}</span>
+          <Icon className="h-4 w-4" />
+        </button>
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <SocialGuideTile icon={Save} label="Save" detail={`Create or update the selected ${noun}.`} />
-          <SocialGuideTile icon={Edit3} label="Edit" detail="Select a record, change fields, then save." />
-          <SocialGuideTile icon={Play} label="Toggle" detail="Cycle visibility or status quickly." />
-          <SocialGuideTile icon={Trash2} label="Delete" detail="Remove stale or test records." />
+          <SocialGuideTile icon={Save} label="Save" detail={`Create or update the selected ${noun}.`} onClick={saveDraft} />
+          <SocialGuideTile icon={Edit3} label="Reset" detail="Restore the selected record or clear the current draft." onClick={() => setDraft(selected ? draftFromSocialItem(kind, selected) : createSocialDraft(kind))} />
+          <SocialGuideTile icon={Play} label="Toggle" detail="Cycle visibility or status quickly." onClick={toggleDraft} />
+          <SocialGuideTile icon={Trash2} label="Delete" detail="Remove stale or test records." onClick={deleteDraft} />
+        </div>
+        <div className="mt-3 rounded-md border border-border bg-background p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Next</p>
+          <p className="mt-1 text-sm font-medium text-foreground">{socialSummary.suggestedAction}</p>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Metric label="Records" value={String(items.length)} />
@@ -965,12 +979,25 @@ function SocialActionButton({ icon: Icon, label, onClick, primary, danger }: { i
   )
 }
 
-function SocialGuideTile({ detail, icon: Icon, label }: { detail: string; icon: ComponentType<{ className?: string }>; label: string }) {
-  return (
-    <div className="group relative flex min-h-20 flex-col justify-between rounded-md border border-border bg-background p-3">
+function SocialGuideTile({ detail, icon: Icon, label, onClick }: { detail: string; icon: ComponentType<{ className?: string }>; label: string; onClick?: () => void }) {
+  const className = "group relative flex min-h-20 flex-col justify-between rounded-md border border-border bg-background p-3 text-left hover:bg-accent hover:text-accent-foreground"
+  const content = (
+    <>
       <Icon className="h-5 w-5 text-success" />
-      <p className="text-sm font-semibold text-foreground">{label}</p>
+      <p className="text-sm font-semibold text-foreground group-hover:text-accent-foreground">{label}</p>
       <p className="pointer-events-none absolute right-2 top-[calc(100%+0.35rem)] z-20 hidden w-56 rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{detail}</p>
+    </>
+  )
+  if (onClick) {
+    return (
+      <button onClick={onClick} className={className}>
+        {content}
+      </button>
+    )
+  }
+  return (
+    <div className={className}>
+      {content}
     </div>
   )
 }
