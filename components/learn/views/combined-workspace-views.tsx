@@ -1,29 +1,26 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ComponentType } from "react"
-import { BarChart3, BookOpen, CalendarDays, Clock, Compass, Gamepad2, GitFork, Info, MessageSquare, MoreHorizontal, Play, Radio, Repeat2, Sparkles, Swords, Target, Trash2, Users } from "lucide-react"
+import { BookOpen, CalendarDays, Clock, Gamepad2, Info, MessageSquare, MoreHorizontal, Play, Radio, Repeat2, Sparkles, Swords, Target, Trash2, Users } from "lucide-react"
 import type { Quiz, View } from "../types"
 import type { WorkspaceOptions } from "../preferences"
 import { Panel } from "../ui"
-import { FeedView, GraphView, ReviewsView, SocialLearningView } from "./ecosystem-views"
-import { CalendarView, ProgressView } from "./secondary-views"
+import { ReviewsView, SocialLearningView } from "./ecosystem-views"
+import { CalendarView } from "./secondary-views"
 import { ChatView, GamesView } from "./productivity-views"
 import { QuizView } from "./quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeWorkspacePlan, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
 
-type LearnTab = "overview" | "discover" | "graph" | "reviews" | "calendar" | "progress"
+type LearnTab = "overview" | "reviews" | "calendar"
 type PracticeTab = "quizzes" | "games"
 type SocialTab = "chat" | "spaces" | "rooms" | "battles"
 
 const learnTabs: Array<{ id: LearnTab; label: string; icon: ComponentType<{ className?: string }>; caption: string }> = [
-  { id: "overview", label: "Route", icon: Target, caption: "Daily path and next moves" },
-  { id: "discover", label: "Discover", icon: Compass, caption: "Micro-lessons and sparks" },
-  { id: "graph", label: "Graph", icon: GitFork, caption: "Concept map and links" },
+  { id: "overview", label: "Today", icon: Target, caption: "One recommended next step" },
   { id: "reviews", label: "Reviews", icon: Repeat2, caption: "Active recall queue" },
-  { id: "calendar", label: "Calendar", icon: CalendarDays, caption: "Time blocks and due dates" },
-  { id: "progress", label: "Progress", icon: BarChart3, caption: "Goals and weak topics" },
+  { id: "calendar", label: "Calendar", icon: CalendarDays, caption: "Study blocks and due dates" },
 ]
 
 const practiceTabs: Array<{ id: PracticeTab; label: string; icon: ComponentType<{ className?: string }>; caption: string }> = [
@@ -60,8 +57,8 @@ export function LearnWorkspaceView({
   return (
     <WorkspaceFrame
       eyebrow="Learn workspace"
-      title="Learn loop"
-      body="One route with discovery, graph, reviews, time, and progress grouped together."
+      title="Learn"
+      body="A compact daily loop: choose today’s next step, review due concepts, or schedule focused study time."
       tabs={learnTabs}
       activeTab={tab}
       setActiveTab={(value) => {
@@ -71,11 +68,8 @@ export function LearnWorkspaceView({
       }}
     >
       {tab === "overview" ? <LearnRoute dashboard={dashboard} quizzes={quizzes} setView={setView} /> : null}
-      {tab === "discover" ? <FeedView setView={setView} /> : null}
-      {tab === "graph" ? <GraphView setView={setView} /> : null}
       {tab === "reviews" ? <ReviewsView setView={setView} /> : null}
       {tab === "calendar" ? <CalendarView options={options} /> : null}
-      {tab === "progress" ? <ProgressView dashboard={dashboard} quizzes={quizzes} setView={setView} /> : null}
     </WorkspaceFrame>
   )
 }
@@ -448,17 +442,13 @@ function PatternCard({ body, icon: Icon, title }: { body: string; icon: Componen
 }
 
 function learnTabFromView(view: View): LearnTab {
-  if (view === "feed" || view === "discover") return "discover"
-  if (view === "graph") return "graph"
   if (view === "reviews") return "reviews"
   if (view === "calendar") return "calendar"
-  if (view === "progress") return "progress"
   return "overview"
 }
 
 function viewFromLearnTab(tab: LearnTab): View {
   if (tab === "overview") return "learn"
-  if (tab === "discover") return "discover"
   return tab
 }
 

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react"
 import {
   Bell,
   BookOpen,
+  CalendarDays,
   Check,
   CheckCheck,
   Bot,
@@ -20,6 +21,7 @@ import {
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
+  Repeat2,
   Search,
   Settings,
   Shield,
@@ -47,7 +49,7 @@ type NavGroup = { label: string; caption: string; items: NavItem[] }
 type LauncherCommand = { label: string; detail: string; view: View; icon: React.ComponentType<{ className?: string }>; keywords: string[] }
 
 const studioViews: View[] = ["studio", "notes", "docs", "sheets", "slides"]
-const learnViews: View[] = ["learn", "vault", "feed", "discover", "graph", "reviews", "calendar", "progress"]
+const learnViews: View[] = ["learn", "vault", "feed", "discover", "graph", "progress"]
 const practiceViews: View[] = ["practice", "quizzes", "games"]
 const socialViews: View[] = ["social", "chat", "spaces", "rooms", "battles"]
 
@@ -59,8 +61,12 @@ const navGroups: NavGroup[] = [
   },
   {
     label: "Workspaces",
-    caption: "Vault, feed, graph, reviews, progress, and calendar",
-    items: [{ view: "learn", labelKey: "learn", icon: Compass, aliases: ["vault", "feed", "discover", "graph", "reviews", "calendar", "progress"] }],
+    caption: "Daily route, reviews, and calendar",
+    items: [
+      { view: "learn", labelKey: "learn", icon: Compass, aliases: ["vault", "feed", "discover", "graph"] },
+      { view: "reviews", labelKey: "reviews", icon: Repeat2 },
+      { view: "calendar", labelKey: "calendar", icon: CalendarDays },
+    ],
   },
   {
     label: "Studio",
