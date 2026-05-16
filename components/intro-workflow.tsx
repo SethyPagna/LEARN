@@ -13,6 +13,9 @@ import {
   MessageSquare,
   Sparkles,
 } from "lucide-react"
+import { isSupportedLocale, type SupportedLocale } from "@/lib/i18n/vocabulary"
+
+const LANGUAGE_KEY = "learn_locale"
 
 const workflowSlides = [
   {
@@ -78,23 +81,105 @@ const workflowSlides = [
 ] as const
 
 type WorkflowSlide = (typeof workflowSlides)[number]
+type WorkflowSlideKey = WorkflowSlide["key"]
+type WorkflowDisplaySlide = Omit<WorkflowSlide, "body" | "label" | "signals" | "title"> & {
+  body: string
+  label: string
+  signals: [string, string, string]
+  title: string
+}
 
 const colorStyles: Record<WorkflowSlide["color"], { bg: string; text: string; line: string; chip: string }> = {
-  amber: { bg: "bg-amber-300", text: "text-amber-200", line: "bg-amber-300", chip: "border-amber-200/30 bg-amber-200/10 text-amber-100" },
-  cyan: { bg: "bg-cyan-300", text: "text-cyan-200", line: "bg-cyan-300", chip: "border-cyan-200/30 bg-cyan-200/10 text-cyan-100" },
-  emerald: { bg: "bg-emerald-300", text: "text-emerald-200", line: "bg-emerald-300", chip: "border-emerald-200/30 bg-emerald-200/10 text-emerald-100" },
-  rose: { bg: "bg-rose-300", text: "text-rose-200", line: "bg-rose-300", chip: "border-rose-200/30 bg-rose-200/10 text-rose-100" },
-  sky: { bg: "bg-sky-300", text: "text-sky-200", line: "bg-sky-300", chip: "border-sky-200/30 bg-sky-200/10 text-sky-100" },
-  violet: { bg: "bg-violet-300", text: "text-violet-200", line: "bg-violet-300", chip: "border-violet-200/30 bg-violet-200/10 text-violet-100" },
+  amber: { bg: "bg-amber-300", text: "text-amber-700 dark:text-amber-200", line: "bg-amber-400 dark:bg-amber-300", chip: "border-amber-300/60 bg-amber-100/80 text-amber-900 dark:border-amber-200/30 dark:bg-amber-200/10 dark:text-amber-100" },
+  cyan: { bg: "bg-cyan-300", text: "text-cyan-700 dark:text-cyan-200", line: "bg-cyan-400 dark:bg-cyan-300", chip: "border-cyan-300/60 bg-cyan-100/80 text-cyan-900 dark:border-cyan-200/30 dark:bg-cyan-200/10 dark:text-cyan-100" },
+  emerald: { bg: "bg-emerald-300", text: "text-emerald-700 dark:text-emerald-200", line: "bg-emerald-500 dark:bg-emerald-300", chip: "border-emerald-300/60 bg-emerald-100/80 text-emerald-900 dark:border-emerald-200/30 dark:bg-emerald-200/10 dark:text-emerald-100" },
+  rose: { bg: "bg-rose-300", text: "text-rose-700 dark:text-rose-200", line: "bg-rose-400 dark:bg-rose-300", chip: "border-rose-300/60 bg-rose-100/80 text-rose-900 dark:border-rose-200/30 dark:bg-rose-200/10 dark:text-rose-100" },
+  sky: { bg: "bg-sky-300", text: "text-sky-700 dark:text-sky-200", line: "bg-sky-500 dark:bg-sky-300", chip: "border-sky-300/60 bg-sky-100/80 text-sky-900 dark:border-sky-200/30 dark:bg-sky-200/10 dark:text-sky-100" },
+  violet: { bg: "bg-violet-300", text: "text-violet-700 dark:text-violet-200", line: "bg-violet-500 dark:bg-violet-300", chip: "border-violet-300/60 bg-violet-100/80 text-violet-900 dark:border-violet-200/30 dark:bg-violet-200/10 dark:text-violet-100" },
+}
+
+const workflowTranslations: Partial<Record<SupportedLocale, {
+  scroll: string
+  hero: string
+  workflow: string
+  workspace: string
+  slides: Partial<Record<WorkflowSlideKey, Pick<WorkflowDisplaySlide, "body" | "label" | "signals" | "title">>>
+}>> = {
+  en: {
+    scroll: "Scroll workflow",
+    hero: "Hero",
+    workflow: "Workflow",
+    workspace: "Workspace",
+    slides: {},
+  },
+  fr: {
+    scroll: "Parcours défilant",
+    hero: "Accueil",
+    workflow: "Parcours",
+    workspace: "Espace",
+    slides: {
+      dashboard: { label: "Tableau", title: "Commencez par la prochaine action utile.", body: "Un centre de commande montre quoi réviser, ce qui arrive, ce qui demande attention, et ce que vous avez créé récemment.", signals: ["Parcours du jour prêt", "2 sujets faibles", "Bloc focus à 19:30"] },
+      studio: { label: "Studio", title: "Transformez vos idées en matière réutilisable.", body: "Notes, documents, feuilles et slides partagent un espace avec brouillons, outils propres et exports clairs.", signals: ["Brouillon sauvegardé", "3 panneaux ouverts", "Plan de slides prêt"] },
+      ai: { label: "Tuteur IA", title: "Utilisez l'IA avec du contexte.", body: "La tâche, les filtres, la passerelle, les sources et la destination restent visibles avant l'envoi.", signals: ["12 fournisseurs prêts", "Cible quiz choisie", "Aperçu vérifié"] },
+      practice: { label: "Pratique", title: "Transformez le savoir en répétitions.", body: "Quiz, cartes, sprints chronométrés, reprises d'erreurs et explications reviennent vers Studio et Reviews.", signals: ["8 questions", "Objectif 4 min", "Erreurs en revue"] },
+      calendar: { label: "Calendrier", title: "Protégez le temps d'étude.", body: "Mois, jour, agenda, révisions dues et blocs focus rendent l'apprentissage visible dans le temps.", signals: ["3 révisions dues", "45 min focus", "Fuseau horaire prêt"] },
+      social: { label: "Social", title: "Partagez quand c'est utile, privé par défaut.", body: "Espaces, salles, chats, défis et invitations sont centrés sur l'apprentissage, avec votre coffre privé protégé.", signals: ["Salle focus active", "2 notes de groupe", "Défi bientôt"] },
+    },
+  },
+  km: {
+    scroll: "លំហូររមូរ",
+    hero: "ទំព័រដើម",
+    workflow: "លំហូរ",
+    workspace: "កន្លែងធ្វើការ",
+    slides: {
+      dashboard: { label: "ផ្ទាំងសង្ខេប", title: "ចាប់ផ្តើមពីជំហានដែលមានប្រយោជន៍បន្ទាប់។", body: "មជ្ឈមណ្ឌលបញ្ជាបង្ហាញអ្វីត្រូវរំលឹក អ្វីដល់កំណត់ អ្វីត្រូវជួសជុល និងអ្វីដែលអ្នកបានបង្កើតថ្មីៗ។", signals: ["ផ្លូវថ្ងៃនេះរួចរាល់", "ប្រធានបទខ្សោយ 2", "វគ្គផ្តោត 7:30"] },
+      studio: { label: "ស្ទូឌីយោ", title: "បម្លែងគំនិតឆៅទៅជាសម្ភារៈប្រើបាន។", body: "កំណត់ចំណាំ ឯកសារ តារាង និងស្លាយ ស្ថិតក្នុងកន្លែងតែមួយដែលមានសេចក្តីព្រាង ឧបករណ៍ស្អាត និងការនាំចេញច្បាស់។", signals: ["រក្សាទុកព្រាង", "បើកផ្ទាំង 3", "គ្រោងស្លាយរួច"] },
+      ai: { label: "គ្រូ AI", title: "ប្រើ AI ជាមួយបរិបទច្បាស់។", body: "ភារកិច្ច តម្រង ស្ថានភាព gateway ឯកសារយោង និងគោលដៅបញ្ចូល ត្រូវបានបង្ហាញមុនដំណើរការ។", signals: ["អ្នកផ្តល់ 12 រួចរាល់", "ជ្រើសគោលដៅ quiz", "ពិនិត្យ prompt"] },
+      practice: { label: "អនុវត្ត", title: "បម្លែងចំណេះដឹងទៅជាការហាត់។", body: "Quiz, flashcards, sprint, ការហាត់កំហុស និងការពន្យល់ភ្ជាប់ត្រឡប់ទៅ Studio និង Reviews។", signals: ["សំណួរ 8", "គោលដៅ 4 នាទី", "រក្សាកំហុសទៅ review"] },
+      calendar: { label: "ប្រតិទិន", title: "ការពារពេលសិក្សា។", body: "ខែ ថ្ងៃ កាលវិភាគ ការរំលឹកដល់កំណត់ និង focus blocks ធ្វើឱ្យការសិក្សាមើលឃើញតាមពេលវេលា។", signals: ["review ដល់កំណត់ 3", "focus 45 នាទី", "តំបន់ពេលវេលា"] },
+      social: { label: "សង្គម", title: "ចែករំលែកនៅពេលមានប្រយោជន៍ ឯកជនជាលំនាំដើម។", body: "Spaces, rooms, chats, battles និង invites ត្រូវបានរៀបចំជុំវិញការសិក្សា ខណៈ vault ឯកជននៅតែការពារ។", signals: ["បន្ទប់ focus កំពុងដំណើរការ", "កំណត់ចំណាំក្រុម 2", "battle ជិតចាប់ផ្តើម"] },
+    },
+  },
+}
+
+function toDisplaySlide(
+  slide: WorkflowSlide,
+  translation?: Pick<WorkflowDisplaySlide, "body" | "label" | "signals" | "title">,
+): WorkflowDisplaySlide {
+  return {
+    ...slide,
+    body: translation?.body ?? slide.body,
+    label: translation?.label ?? slide.label,
+    signals: translation?.signals ?? [...slide.signals],
+    title: translation?.title ?? slide.title,
+  }
 }
 
 export function IntroWorkflow() {
   const [activeIndex, setActiveIndex] = useState(0)
+  const [locale, setLocale] = useState<SupportedLocale>("en")
   const [overlayProgress, setOverlayProgress] = useState(0)
   const sectionRef = useRef<HTMLElement | null>(null)
   const rafRef = useRef<number | null>(null)
-  const activeSlide = workflowSlides[activeIndex]
+  const activeBaseSlide = workflowSlides[activeIndex]
+  const translation = workflowTranslations[locale] || workflowTranslations.en!
+  const activeSlide = toDisplaySlide(activeBaseSlide, translation.slides[activeBaseSlide.key])
   const overlayBackgroundProgress = Math.min(1, overlayProgress * 1.2)
+
+  useEffect(() => {
+    function readLocale() {
+      const storedLocale = window.localStorage.getItem(LANGUAGE_KEY) || ""
+      setLocale(isSupportedLocale(storedLocale) ? storedLocale : "en")
+    }
+
+    readLocale()
+    window.addEventListener("storage", readLocale)
+    window.addEventListener("learn:locale-change", readLocale)
+    return () => {
+      window.removeEventListener("storage", readLocale)
+      window.removeEventListener("learn:locale-change", readLocale)
+    }
+  }, [])
 
   useEffect(() => {
     function updateActiveSlide() {
@@ -137,7 +222,7 @@ export function IntroWorkflow() {
   }
 
   return (
-    <section ref={sectionRef} className="pointer-events-none relative -mt-[100svh] min-h-[255svh] text-white">
+    <section ref={sectionRef} className="pointer-events-none relative -mt-[100svh] min-h-[255svh] text-slate-950 dark:text-white">
       <span id="workflow" className="absolute top-[100svh]" aria-hidden="true" />
       <div
         data-workflow-overlay
@@ -148,7 +233,7 @@ export function IntroWorkflow() {
         }}
       >
         <div
-          className="absolute inset-0 bg-[radial-gradient(circle_at_16%_22%,rgba(16,185,129,0.18),transparent_26%),radial-gradient(circle_at_80%_18%,rgba(96,165,250,0.15),transparent_22%),linear-gradient(180deg,#040506_0%,#07101b_48%,#040506_100%)]"
+          className="absolute inset-0 bg-[radial-gradient(circle_at_16%_22%,rgba(16,185,129,0.16),transparent_26%),radial-gradient(circle_at_80%_18%,rgba(14,165,233,0.14),transparent_22%),linear-gradient(180deg,#f8fbff_0%,#eaf7f0_48%,#f6faf7_100%)] dark:bg-[radial-gradient(circle_at_16%_22%,rgba(16,185,129,0.18),transparent_26%),radial-gradient(circle_at_80%_18%,rgba(96,165,250,0.15),transparent_22%),linear-gradient(180deg,#040506_0%,#07101b_48%,#040506_100%)]"
           style={{ opacity: overlayBackgroundProgress }}
         />
         <div
@@ -159,16 +244,16 @@ export function IntroWorkflow() {
           }}
         >
           <div className="flex items-center justify-between gap-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/58">
-              <Sparkles className="h-3.5 w-3.5 text-emerald-200" />
-              Scroll workflow
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-300/70 bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:border-white/10 dark:bg-white/[0.06] dark:text-white/58">
+              <Sparkles className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-200" />
+              {translation.scroll}
             </div>
-            <div className="hidden items-center gap-2 text-xs font-semibold text-white/46 sm:flex">
-              <span>Hero</span>
-              <span className="h-px w-8 bg-white/20" />
-              <span>Workflow</span>
-              <span className="h-px w-8 bg-white/20" />
-              <span>Workspace</span>
+            <div className="hidden items-center gap-2 text-xs font-semibold text-slate-500 dark:text-white/46 sm:flex">
+              <span>{translation.hero}</span>
+              <span className="h-px w-8 bg-slate-300 dark:bg-white/20" />
+              <span>{translation.workflow}</span>
+              <span className="h-px w-8 bg-slate-300 dark:bg-white/20" />
+              <span>{translation.workspace}</span>
             </div>
           </div>
 
@@ -182,7 +267,7 @@ export function IntroWorkflow() {
           </div>
 
           <div className="grid gap-3">
-            <div className="h-1 overflow-hidden rounded-full bg-white/10">
+            <div className="h-1 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
               <div className={`h-full ${colorStyles[activeSlide.color].line} transition-all duration-500 ease-out`} style={{ width: `${((activeIndex + 1) / workflowSlides.length) * 100}%` }} />
             </div>
             <div className="grid grid-cols-3 gap-2 lg:grid-cols-6">
@@ -194,15 +279,15 @@ export function IntroWorkflow() {
                     key={slide.key}
                     onClick={() => scrollToSlide(index)}
                     className={`group flex min-w-0 items-center gap-2 rounded-xl border p-2 text-left transition ${
-                      active ? "border-white bg-white text-black shadow-xl shadow-black/30" : "border-white/10 bg-black/22 text-white hover:bg-white/8"
+                      active ? "border-slate-950 bg-slate-950 text-white shadow-xl shadow-slate-900/15 dark:border-white dark:bg-white dark:text-black dark:shadow-black/30" : "border-slate-300/70 bg-white/60 text-slate-700 hover:bg-white dark:border-white/10 dark:bg-black/22 dark:text-white dark:hover:bg-white/8"
                     }`}
                   >
-                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${active ? "bg-black text-white" : "bg-white/10 text-white"}`}>
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${active ? "bg-white text-slate-950 dark:bg-black dark:text-white" : "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-white"}`}>
                       <Icon className="h-4 w-4" />
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate text-xs font-semibold">{slide.label}</span>
-                      <span className={`block truncate text-[11px] ${active ? "text-black/52" : "text-white/42"}`}>{slide.step}</span>
+                      <span className="block truncate text-xs font-semibold">{(translation.slides[slide.key]?.label) || slide.label}</span>
+                      <span className={`block truncate text-[11px] ${active ? "text-white/62 dark:text-black/52" : "text-slate-400 dark:text-white/42"}`}>{slide.step}</span>
                     </span>
                   </button>
                 )
@@ -230,7 +315,7 @@ export function IntroWorkflow() {
   )
 }
 
-function WorkflowCopy({ slide }: { slide: WorkflowSlide }) {
+function WorkflowCopy({ slide }: { slide: WorkflowDisplaySlide }) {
   const Icon = slide.icon
   const colors = colorStyles[slide.color]
   return (
@@ -240,14 +325,14 @@ function WorkflowCopy({ slide }: { slide: WorkflowSlide }) {
         {slide.step} / {workflowSlides.length.toString().padStart(2, "0")}
       </div>
       <h2 className="mt-4 max-w-2xl text-balance text-3xl font-semibold leading-[1.04] tracking-tight sm:mt-5 sm:text-6xl">{slide.title}</h2>
-      <p className="mt-3 max-w-xl text-sm leading-6 text-white/62 sm:mt-4 sm:text-lg sm:leading-8">{slide.body}</p>
-      <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm font-semibold text-white/72 sm:hidden">
+      <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600 dark:text-white/62 sm:mt-4 sm:text-lg sm:leading-8">{slide.body}</p>
+      <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-300/70 bg-white/70 px-3 py-2 text-sm font-semibold text-slate-700 dark:border-white/10 dark:bg-white/[0.055] dark:text-white/72 sm:hidden">
         <CheckCircle2 className={`h-4 w-4 ${colors.text}`} />
         <span>{slide.signals[0]}</span>
       </div>
       <div className="mt-6 hidden max-w-xl gap-2 sm:grid">
         {slide.signals.map((signal) => (
-          <div key={signal} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm font-semibold text-white/72">
+          <div key={signal} className="flex items-center gap-3 rounded-xl border border-slate-300/70 bg-white/70 px-3 py-2 text-sm font-semibold text-slate-700 dark:border-white/10 dark:bg-white/[0.055] dark:text-white/72">
             <CheckCircle2 className={`h-4 w-4 ${colors.text}`} />
             <span>{signal}</span>
           </div>
@@ -257,7 +342,7 @@ function WorkflowCopy({ slide }: { slide: WorkflowSlide }) {
   )
 }
 
-function WorkflowScreen({ slide }: { slide: WorkflowSlide }) {
+function WorkflowScreen({ slide }: { slide: WorkflowDisplaySlide }) {
   if (slide.key === "dashboard") return <DashboardScreen />
   if (slide.key === "studio") return <StudioScreen />
   if (slide.key === "ai") return <AiScreen />
