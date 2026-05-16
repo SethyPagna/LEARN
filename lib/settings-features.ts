@@ -33,6 +33,22 @@ export interface SettingsOptionSummary {
   statuses: SettingsOptionStatus[]
 }
 
+export type SettingsSectionId = "profile" | "experience" | "learning" | "privacy"
+
+export interface SettingsSectionGuide {
+  id: SettingsSectionId
+  label: string
+  detail: string
+  badge: string
+  tone: "good" | "watch" | "neutral"
+}
+
+export interface SettingsControlPlan {
+  suggestedSection: SettingsSectionId
+  nextAction: string
+  guides: SettingsSectionGuide[]
+}
+
 const MIN_SERENDIPITY_PERCENT = 15
 const HIGH_REVIEW_CAP = 60
 const HIGH_TOKEN_BUDGET = 4000
@@ -109,6 +125,56 @@ export function normalizeSettingsNumber(input: {
   return Math.min(input.max, Math.max(input.min, Math.round(parsed)))
 }
 
+export function buildSettingsControlPlan(summary: SettingsOptionSummary): SettingsControlPlan {
+  const statusById = new Map(summary.statuses.map((status) => [status.id, status]))
+  const privacyTone = statusById.get("privacy")?.tone ?? "neutral"
+  const reviewTone = statusById.get("review-cap")?.tone ?? "neutral"
+  const focusTone = statusById.get("focus-block")?.tone ?? "neutral"
+  const aiTone = statusById.get("ai-budget")?.tone ?? "neutral"
+  const serendipityTone = statusById.get("serendipity")?.tone ?? "neutral"
+  const learningTone = strongestTone([reviewTone, focusTone, aiTone, serendipityTone])
+  const experienceTone = summary.enabledAccessibilityCount > 0 ? "good" : "neutral"
+  const privacySectionTone = privacyTone === "watch" ? "watch" : summary.enabledNotificationCount > 0 ? "good" : "neutral"
+
+  const guides: SettingsSectionGuide[] = [
+    {
+      id: "profile",
+      label: "Profile",
+      detail: "Identity, email, role, and daily goal.",
+      badge: summary.dailyReviewLabel,
+      tone: "neutral",
+    },
+    {
+      id: "experience",
+      label: "Experience",
+      detail: "Theme comfort, density, language, and previews.",
+      badge: `${summary.enabledAccessibilityCount}/3 comfort`,
+      tone: experienceTone,
+    },
+    {
+      id: "learning",
+      label: "Learning",
+      detail: "Review caps, games, calendar defaults, and AI budget.",
+      badge: `${summary.enabledWorkflowCount}/4 workflow`,
+      tone: learningTone,
+    },
+    {
+      id: "privacy",
+      label: "Privacy",
+      detail: "Default sharing, presence, notifications, and admin verbosity.",
+      badge: summary.privacyLabel,
+      tone: privacySectionTone,
+    },
+  ]
+
+  const suggestedSection = chooseSuggestedSection(guides)
+  return {
+    suggestedSection,
+    nextAction: actionForSection(suggestedSection),
+    guides,
+  }
+}
+
 function countEnabled(values: boolean[]) {
   let count = 0
   for (const value of values) {
@@ -121,4 +187,21 @@ function labelPrivacy(value: SettingsOptionSummaryInput["privacyDefault"]) {
   if (value === "public") return "Public"
   if (value === "connections") return "Connections"
   return "Private"
+}
+
+function strongestTone(values: SettingsOptionStatus["tone"][]): SettingsOptionStatus["tone"] {
+  if (values.includes("watch")) return "watch"
+  if (values.includes("good")) return "good"
+  return "neutral"
+}
+
+function chooseSuggestedSection(guides: SettingsSectionGuide[]): SettingsSectionId {
+  return guides.find((guide) => guide.tone === "watch")?.id ?? guides.find((guide) => guide.tone === "neutral")?.id ?? "profile"
+}
+
+function actionForSection(section: SettingsSectionId) {
+  if (section === "privacy") return "Review sharing and notification defaults"
+  if (section === "learning") return "Tune review load, focus length, and AI budget"
+  if (section === "experience") return "Enable comfort controls for this device"
+  return "Confirm profile and daily goal"
 }

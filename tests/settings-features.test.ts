@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { normalizeSettingsNumber, summarizeSettingsOptions } from "../lib/settings-features"
+import { buildSettingsControlPlan, normalizeSettingsNumber, summarizeSettingsOptions } from "../lib/settings-features"
 
 test("summarizeSettingsOptions counts enabled controls and flags risky settings", () => {
   const summary = summarizeSettingsOptions({
@@ -36,4 +36,28 @@ test("normalizeSettingsNumber clamps invalid preference numbers", () => {
   assert.equal(normalizeSettingsNumber({ value: "2", fallback: 45, min: 5, max: 180 }), 5)
   assert.equal(normalizeSettingsNumber({ value: "220", fallback: 45, min: 5, max: 180 }), 180)
   assert.equal(normalizeSettingsNumber({ value: "44.6", fallback: 45, min: 5, max: 180 }), 45)
+})
+
+test("buildSettingsControlPlan recommends the riskiest settings section", () => {
+  const summary = summarizeSettingsOptions({
+    aiMaxTokens: 1200,
+    calendarDefaultMinutes: 45,
+    collaborationPresence: true,
+    dailyReviewCap: 30,
+    dyslexiaFriendly: false,
+    feedSerendipity: 15,
+    filePreview: true,
+    highContrast: false,
+    notesAutosave: true,
+    privacyDefault: "public",
+    reducedMotion: false,
+    revealAnswers: true,
+  })
+
+  const plan = buildSettingsControlPlan(summary)
+
+  assert.equal(plan.suggestedSection, "privacy")
+  assert.equal(plan.guides.length, 4)
+  assert.equal(plan.guides.find((guide) => guide.id === "privacy")?.tone, "watch")
+  assert.match(plan.nextAction, /sharing/i)
 })
