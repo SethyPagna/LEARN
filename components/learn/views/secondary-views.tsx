@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, ArrowRight, BookOpen, Bot, CalendarPlus, Check, ChevronRight, Clock, Copy, FileText, Filter, Gauge, Languages, Lock, Palette, Repeat2, Save, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserRound, Users } from "lucide-react"
 import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
 import { buildCalendarPlanningSummary, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
-import { summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
+import { buildProgressCommandPlan, summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
 import { buildSettingsControlPlan, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
 import { buildAdminOperationalPlan, filterAdminList, summarizeAdminOperations, type AdminPanelTab } from "@/lib/admin-features"
 import type { WorkspaceOptions } from "../preferences"
@@ -36,11 +36,14 @@ export function ProgressView({ dashboard, quizzes, setView }: { dashboard: any; 
     () => summarizeLearningProgress({ snapshot: dashboard?.snapshot, quizCount: quizzes.length }),
     [dashboard?.snapshot, quizzes.length],
   )
+  const progressPlan = useMemo(() => buildProgressCommandPlan(progress), [progress])
+  const ProgressPlanIcon = progressActionIcons[progressPlan.target]
+  const topicSeverityCounts = useMemo(() => summarizeProgressTopicSeverity(progress.weakTopics), [progress.weakTopics])
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
       <Panel className="p-4 xl:col-span-2">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
               <TrendingUp className="h-6 w-6" />
@@ -51,16 +54,33 @@ export function ProgressView({ dashboard, quizzes, setView }: { dashboard: any; 
                 <StatusPill label={progress.momentumLabel} />
                 <StatusPill label={`${progress.focusTopics.length} focus`} />
                 <StatusPill label={`${progress.reviewCount} review`} />
+                <StatusPill label={`${topicSeverityCounts.critical} critical`} />
               </div>
             </div>
           </div>
-          <div className="w-full max-w-sm">
+          <button onClick={() => setView?.(progressPlan.target)} className="rounded-md border border-border bg-secondary p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
+            <div className="flex items-center gap-3">
+              <ProgressPlanIcon className="h-5 w-5 text-success" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold text-foreground">{progressPlan.headline}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{progressPlan.detail}</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {progressPlan.chips.map((chip) => <span key={chip} className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">{chip}</span>)}
+            </div>
+          </button>
+          <div className="xl:col-span-2">
             <div className="flex items-center justify-between text-xs font-semibold uppercase text-muted-foreground">
               <span>Goal route</span>
               <span>{progress.goalCompletion}%</span>
             </div>
             <div className="mt-2 h-3 overflow-hidden rounded-full bg-muted">
               <div className="h-full rounded-full bg-success transition-all" style={{ width: `${Math.max(4, progress.goalCompletion)}%` }} />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {progress.focusTopics.length ? progress.focusTopics.map((topic) => <StatusPill key={topic} label={topic} />) : <StatusPill label="No focus set" />}
             </div>
           </div>
         </div>
@@ -86,6 +106,11 @@ export function ProgressView({ dashboard, quizzes, setView }: { dashboard: any; 
 
       <Panel className="p-4">
         <ProgressHeader icon={AlertTriangle} title="Weak topics" info="Lower accuracy appears first. Use these cards to decide what should become review or practice next." />
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <MiniProgressStat label="Critical" value={String(topicSeverityCounts.critical)} tone="critical" />
+          <MiniProgressStat label="Watch" value={String(topicSeverityCounts.watch)} tone="watch" />
+          <MiniProgressStat label="Steady" value={String(topicSeverityCounts.steady)} tone="steady" />
+        </div>
         <div className="mt-4 grid gap-2">
           {progress.weakTopics.length ? progress.weakTopics.map((topic) => (
             <div key={topic.topic} className="rounded-md border border-border bg-background p-3">
@@ -171,6 +196,21 @@ function ProgressHeader({ icon: Icon, info, title }: { icon: typeof Target; info
 
 function StatusPill({ label }: { label: string }) {
   return <span className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-semibold text-muted-foreground">{label}</span>
+}
+
+function MiniProgressStat({ label, tone, value }: { label: string; tone: "critical" | "watch" | "steady"; value: string }) {
+  return (
+    <div className={`rounded-md border p-2 ${severityClass(tone)}`}>
+      <p className="text-[0.65rem] font-semibold uppercase opacity-80">{label}</p>
+      <p className="mt-1 text-lg font-semibold leading-none">{value}</p>
+    </div>
+  )
+}
+
+function summarizeProgressTopicSeverity(topics: Array<{ severity: "critical" | "watch" | "steady" }>) {
+  const counts = { critical: 0, steady: 0, watch: 0 }
+  for (const topic of topics) counts[topic.severity] += 1
+  return counts
 }
 
 function severityClass(severity: "critical" | "watch" | "steady") {
