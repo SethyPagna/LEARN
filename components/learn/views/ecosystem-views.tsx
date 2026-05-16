@@ -37,6 +37,7 @@ import type {
 } from "../types"
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { reviewAnswerText, reviewPromptText, reviewSourceLabel } from "@/lib/learning-ecosystem"
+import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
 import { buildSocialWorkspacePlan, filterSocialRecords, socialRecordTitle, summarizeSocialWorkspace, type SocialRecordFilter } from "@/lib/social-features"
 
 type VaultGraphPayload = {
@@ -742,17 +743,24 @@ function SocialGuideTile({ detail, icon: Icon, label }: { detail: string; icon: 
   )
 }
 
-export function ProfileView({ user }: { user: User | null }) {
+export function ProfileView({ setView, user }: { setView?: (view: View) => void; user: User | null }) {
   const username = user?.username || "admin"
   const { data, status } = useResource<{ item: PublicProfile }>(`/api/profile/public?username=${encodeURIComponent(username)}&viewer=owner`)
   const profile = data?.item
   const achievements = useResource<{ items: Achievement[] }>("/api/achievements")
+  const achievementItems = achievements.data?.items ?? []
+  const profilePlan = useMemo(() => buildProfileActionPlan({ profile, achievements: achievementItems }), [achievementItems, profile])
+  const unlockedAchievements = achievementItems.filter((achievement) => achievement.unlocked)
+  const lockedAchievements = achievementItems.filter((achievement) => !achievement.unlocked)
 
   return (
     <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
       <Panel className="p-5">
-        <div className="flex h-16 w-16 items-center justify-center rounded-md bg-primary text-xl font-semibold text-primary-foreground">
-          {(profile?.name || user?.name || "L").slice(0, 1)}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex h-16 w-16 items-center justify-center rounded-md bg-primary text-xl font-semibold text-primary-foreground">
+            {(profile?.name || user?.name || "L").slice(0, 1)}
+          </div>
+          <span className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">{profilePlan.privacyLabel}</span>
         </div>
         <h2 className="mt-4 text-2xl font-semibold text-foreground">{profile?.name || user?.name || "Learner"}</h2>
         <p className="text-sm text-muted-foreground">@{profile?.username || username}</p>
@@ -763,31 +771,84 @@ export function ProfileView({ user }: { user: User | null }) {
           <Metric label="XP" value={String(profile?.metrics.xp ?? 0)} />
           <Metric label="Reputation" value={String(profile?.metrics.reputation ?? 0)} />
         </div>
+        <button
+          onClick={() => setView?.(profileTargetView(profilePlan.target))}
+          className="mt-4 flex w-full items-center justify-between gap-3 rounded-md border border-border bg-secondary p-3 text-left text-sm font-semibold text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground"
+        >
+          <span>{profilePlan.nextAction}</span>
+          <Sparkles className="h-4 w-4" />
+        </button>
       </Panel>
       <div className="grid gap-4">
         <Panel className="p-4">
-          <h3 className="font-semibold text-foreground">Public artifacts</h3>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="font-semibold text-foreground">{profilePlan.headline}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{profilePlan.masteryLabel}</p>
+            </div>
+            <span className="rounded-md bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">{status}</span>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {profilePlan.stats.map((stat) => (
+              <div key={stat.id} className="rounded-md border border-border bg-background p-3">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">{stat.label}</p>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <p className="text-lg font-semibold text-foreground">{stat.value}</p>
+                  <span className={`h-2 w-2 rounded-full ${profileToneDotClass(stat.tone)}`} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+        <Panel className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="font-semibold text-foreground">Public artifacts</h3>
+            <button onClick={() => setView?.("settings")} className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+              Manage sharing
+            </button>
+          </div>
           <div className="mt-3 grid gap-3 md:grid-cols-3">
             {(profile?.artifacts ?? []).map((node) => <NodeCard key={node.id} node={node} />)}
           </div>
           {profile && profile.artifacts.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">No public artifacts yet. Sharing remains opt-in.</p> : null}
         </Panel>
         <Panel className="p-4">
-          <h3 className="font-semibold text-foreground">Achievements</h3>
-          <div className="mt-3 grid gap-2 md:grid-cols-3">
-            {(achievements.data?.items ?? []).map((achievement) => (
-              <div key={achievement.id} className="rounded-md border border-border p-3">
-                <CheckCircle2 className={`h-4 w-4 ${achievement.unlocked ? "text-success" : "text-muted-foreground"}`} />
-                <p className="mt-2 font-medium text-foreground">{achievement.name}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{achievement.description}</p>
-              </div>
-            ))}
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="font-semibold text-foreground">Achievements</h3>
+            <span className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">{unlockedAchievements.length}/{achievementItems.length}</span>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">{status}</p>
+          <div className="mt-3 grid gap-2 md:grid-cols-3">
+            {[...unlockedAchievements, ...lockedAchievements].map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} />)}
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">{achievements.status}</p>
         </Panel>
       </div>
     </div>
   )
+}
+
+function AchievementTile({ achievement }: { achievement: Achievement }) {
+  return (
+    <div className={`rounded-md border p-3 ${achievement.unlocked ? "border-success/40 bg-success/10" : "border-border bg-background"}`}>
+      <CheckCircle2 className={`h-4 w-4 ${achievement.unlocked ? "text-success" : "text-muted-foreground"}`} />
+      <p className="mt-2 font-medium text-foreground">{achievement.name}</p>
+      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{achievement.description}</p>
+      <span className="mt-2 inline-flex rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{achievement.xp_reward} XP</span>
+    </div>
+  )
+}
+
+function profileTargetView(target: ProfilePlanTarget): View {
+  if (target === "settings") return "settings"
+  if (target === "studio") return "studio"
+  if (target === "reviews") return "reviews"
+  return "social"
+}
+
+function profileToneDotClass(tone: "good" | "watch" | "neutral") {
+  if (tone === "good") return "bg-success"
+  if (tone === "watch") return "bg-warning"
+  return "bg-muted-foreground"
 }
 
 function useResource<T>(path: string) {
