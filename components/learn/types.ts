@@ -44,6 +44,7 @@ export interface Note {
   favorite: boolean
   template: string
   updated_at: string
+  archived_at?: string | null
   tags?: string[]
 }
 
@@ -101,6 +102,7 @@ export interface WorkspaceDocument {
   }
   tags?: string[]
   updated_at?: string
+  archived_at?: string | null
 }
 
 export interface WorkspaceSheet {
@@ -113,6 +115,7 @@ export interface WorkspaceSheet {
   filters?: Record<string, unknown>
   formatting?: Record<string, unknown>
   updated_at?: string
+  archived_at?: string | null
 }
 
 export interface WorkspaceDeck {
@@ -131,6 +134,7 @@ export interface WorkspaceDeck {
     speakerNotes?: string
   }[]
   updated_at?: string
+  archived_at?: string | null
 }
 
 export type StudioKind = "notes" | "docs" | "sheets" | "slides"
