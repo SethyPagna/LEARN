@@ -90,6 +90,7 @@ const colorStyles: Record<WorkflowSlide["color"], { bg: string; text: string; li
 
 export function IntroWorkflow() {
   const [activeIndex, setActiveIndex] = useState(0)
+  const [overlayProgress, setOverlayProgress] = useState(0)
   const sectionRef = useRef<HTMLElement | null>(null)
   const rafRef = useRef<number | null>(null)
   const activeSlide = workflowSlides[activeIndex]
@@ -102,7 +103,11 @@ export function IntroWorkflow() {
       const rect = section.getBoundingClientRect()
       const scrollable = Math.max(1, rect.height - window.innerHeight)
       const progress = Math.min(1, Math.max(0, -rect.top / scrollable))
-      const nextIndex = Math.min(workflowSlides.length - 1, Math.floor(progress * workflowSlides.length))
+      const revealProgress = Math.min(1, Math.max(0, (progress - 0.01) / 0.07))
+      const easedReveal = revealProgress * revealProgress * (3 - 2 * revealProgress)
+      const slideProgress = Math.min(1, Math.max(0, (progress - 0.14) / 0.86))
+      const nextIndex = Math.min(workflowSlides.length - 1, Math.floor(slideProgress * workflowSlides.length))
+      setOverlayProgress((current) => (Math.abs(current - easedReveal) < 0.01 ? current : easedReveal))
       setActiveIndex((current) => (current === nextIndex ? current : nextIndex))
     }
 
@@ -126,13 +131,22 @@ export function IntroWorkflow() {
     if (!section) return
     const top = section.getBoundingClientRect().top + window.scrollY
     const scrollable = section.offsetHeight - window.innerHeight
-    const target = top + scrollable * (index / workflowSlides.length)
+    const target = top + scrollable * (0.14 + (index / workflowSlides.length) * 0.86)
     window.scrollTo({ top: target, behavior: "smooth" })
   }
 
   return (
-    <section ref={sectionRef} id="workflow" className="relative min-h-[620svh] bg-[#040506] text-white">
-      <div className="sticky top-0 grid h-[100svh] overflow-hidden px-5 py-5 sm:px-8">
+    <section ref={sectionRef} className="pointer-events-none relative -mt-[100svh] min-h-[720svh] text-white">
+      <span id="workflow" className="absolute top-[100svh]" aria-hidden="true" />
+      <div
+        data-workflow-overlay
+        className="fixed inset-0 z-20 grid h-[100svh] overflow-hidden px-5 py-5 sm:px-8"
+        style={{
+          opacity: overlayProgress,
+          pointerEvents: overlayProgress > 0.92 ? "auto" : "none",
+          transform: `translate3d(0, ${(1 - overlayProgress) * 28}px, 0) scale(${0.98 + overlayProgress * 0.02})`,
+        }}
+      >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_22%,rgba(16,185,129,0.18),transparent_26%),radial-gradient(circle_at_80%_18%,rgba(96,165,250,0.15),transparent_22%),linear-gradient(180deg,#040506_0%,#07101b_48%,#040506_100%)]" />
         <div className="relative z-10 mx-auto grid h-full w-full max-w-7xl grid-rows-[auto_1fr_auto] gap-4">
           <div className="flex items-center justify-between gap-4">
