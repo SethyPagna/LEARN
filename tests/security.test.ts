@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { filterFileLibrary, fileKindLabel, summarizeFileLibrary } from "../lib/file-library-features"
+import { buildFileLibraryActionPlan, filterFileLibrary, fileKindLabel, summarizeFileLibrary } from "../lib/file-library-features"
 import { classifyUploadContentType, MAX_UPLOAD_BYTES, validateUploadFile, validateUploadFileShape } from "../lib/file-security"
 import { checkRateLimit } from "../lib/rate-limit"
 
@@ -51,6 +51,25 @@ test("file library filter matches kind labels and query text", () => {
 
   assert.deepEqual(filterFileLibrary(files, { kind: "image" }).map((file) => file.id), ["image"])
   assert.deepEqual(filterFileLibrary(files, { query: "pdfs" }).map((file) => file.id), ["pdf"])
+})
+
+test("file library action plan guides upload selection and Studio conversion", () => {
+  const files = [
+    { id: "image", filename: "diagram.png", content_type: "image/png", size_bytes: 10, created_at: "2026-01-01T00:00:00.000Z", source: "r2" },
+    { id: "pdf", filename: "reading.pdf", content_type: "application/pdf", size_bytes: 20, created_at: "2026-01-02T00:00:00.000Z", source: "r2" },
+  ]
+  const summary = summarizeFileLibrary(files)
+
+  assert.equal(buildFileLibraryActionPlan([], summarizeFileLibrary([])).nextAction, "upload")
+  assert.equal(buildFileLibraryActionPlan(files, summary, { visibleFileCount: 0, query: "missing" }).nextAction, "clear-filter")
+
+  const selectPlan = buildFileLibraryActionPlan(files, summary)
+  assert.equal(selectPlan.nextAction, "select")
+  assert.equal(selectPlan.targetFileId, "pdf")
+
+  const studioPlan = buildFileLibraryActionPlan(files, summary, { selectedId: "pdf" })
+  assert.equal(studioPlan.nextAction, "open-studio")
+  assert.deepEqual(studioPlan.chips, ["PDFs", "AI-ready", "study source"])
 })
 
 test("checkRateLimit blocks after the configured burst", async () => {

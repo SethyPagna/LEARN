@@ -20,6 +20,23 @@ export interface FileLibrarySummary {
   kindCounts: Record<FileLibraryKind, number>
 }
 
+export type FileLibraryNextAction = "upload" | "select" | "preview" | "open-studio" | "download" | "clear-filter"
+
+export interface FileLibraryActionPlan {
+  headline: string
+  detail: string
+  nextAction: FileLibraryNextAction
+  targetFileId?: string
+  chips: string[]
+}
+
+export interface FileLibraryActionInput {
+  selectedId?: string
+  query?: string
+  filter?: FileLibraryFilter
+  visibleFileCount?: number
+}
+
 const FILE_KIND_LABELS: Record<FileLibraryKind, string> = {
   audio: "Audio",
   doc: "Docs",
@@ -78,6 +95,74 @@ export function filterFileLibrary(
   })
 }
 
+export function buildFileLibraryActionPlan(
+  files: readonly FileLibraryRecord[],
+  summary: FileLibrarySummary,
+  input: FileLibraryActionInput = {},
+): FileLibraryActionPlan {
+  const selectedFile = files.find((file) => file.id === input.selectedId)
+  const hasActiveFilter = Boolean((input.query || "").trim()) || Boolean(input.filter && input.filter !== "all")
+  const visibleFileCount = input.visibleFileCount ?? files.length
+
+  if (summary.totalFiles === 0) {
+    return {
+      headline: "Upload a learning source",
+      detail: "Add a PDF, image, video, doc, sheet, or slide deck before connecting it to Studio or AI.",
+      nextAction: "upload",
+      chips: ["empty library", "R2 storage", "validated uploads"],
+    }
+  }
+
+  if (hasActiveFilter && visibleFileCount === 0) {
+    return {
+      headline: "Clear the current filter",
+      detail: "No files match this view, so reset filters before uploading duplicates.",
+      nextAction: "clear-filter",
+      chips: [`${summary.totalFiles} total`, "no matches", "reset view"],
+    }
+  }
+
+  if (!selectedFile) {
+    const recentFile = findMostRecentFile(files)
+    return {
+      headline: recentFile ? `Select ${recentFile.filename}` : "Select a file",
+      detail: "Choose one resource to preview, copy, download, or send into the learning workflow.",
+      nextAction: "select",
+      targetFileId: recentFile?.id,
+      chips: [`${summary.mediaCount} media`, `${summary.documentCount} docs`, `${summary.totalFiles} total`],
+    }
+  }
+
+  const selectedKind = classifyUploadContentType(selectedFile.content_type)
+  if (selectedKind === "pdf" || selectedKind === "doc" || selectedKind === "sheet" || selectedKind === "slides") {
+    return {
+      headline: "Convert into Studio",
+      detail: "Use this document as source material for notes, cleanup, practice, or AI-guided study.",
+      nextAction: "open-studio",
+      targetFileId: selectedFile.id,
+      chips: [fileKindLabel(selectedKind), "AI-ready", "study source"],
+    }
+  }
+
+  if (selectedKind === "image" || selectedKind === "video" || selectedKind === "audio") {
+    return {
+      headline: "Preview and attach media",
+      detail: "Check the media before using it in notes, slides, explanations, or generated lessons.",
+      nextAction: "preview",
+      targetFileId: selectedFile.id,
+      chips: [fileKindLabel(selectedKind), "media", "preview"],
+    }
+  }
+
+  return {
+    headline: "Download or copy source",
+    detail: "Keep this file available for manual review or attach it to the next Studio item.",
+    nextAction: "download",
+    targetFileId: selectedFile.id,
+    chips: [fileKindLabel(selectedKind), "stored", "download"],
+  }
+}
+
 function createEmptyKindCounts(): Record<FileLibraryKind, number> {
   return {
     audio: 0,
@@ -89,4 +174,20 @@ function createEmptyKindCounts(): Record<FileLibraryKind, number> {
     slides: 0,
     video: 0,
   }
+}
+
+function findMostRecentFile(files: readonly FileLibraryRecord[]) {
+  let recentFile: FileLibraryRecord | undefined
+  let recentTime = Number.NEGATIVE_INFINITY
+
+  for (const file of files) {
+    const time = Date.parse(file.created_at)
+    const comparableTime = Number.isFinite(time) ? time : 0
+    if (comparableTime > recentTime) {
+      recentFile = file
+      recentTime = comparableTime
+    }
+  }
+
+  return recentFile
 }
