@@ -183,7 +183,7 @@ export function IntroWorkflow() {
 
           <div className="grid gap-3">
             <div className="h-1 overflow-hidden rounded-full bg-white/10">
-              <div className={`h-full ${colorStyles[activeSlide.color].line} transition-all duration-300`} style={{ width: `${((activeIndex + 1) / workflowSlides.length) * 100}%` }} />
+              <div className={`h-full ${colorStyles[activeSlide.color].line} transition-all duration-500 ease-out`} style={{ width: `${((activeIndex + 1) / workflowSlides.length) * 100}%` }} />
             </div>
             <div className="grid grid-cols-3 gap-2 lg:grid-cols-6">
               {workflowSlides.map((slide, index) => {
@@ -213,11 +213,12 @@ export function IntroWorkflow() {
       </div>
       <style>{`
         @keyframes workflow-screen-in {
-          from { opacity: 0.2; transform: translate3d(0, 28px, 0) scale(0.985); filter: blur(5px); }
+          from { opacity: 0.04; transform: translate3d(0, 18px, 0) scale(0.992); filter: blur(2px); }
+          55% { opacity: 0.82; filter: blur(0.5px); }
           to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
         }
         .workflow-screen-motion {
-          animation: workflow-screen-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          animation: workflow-screen-in 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
           contain: layout paint;
           transform: translateZ(0);
         }
