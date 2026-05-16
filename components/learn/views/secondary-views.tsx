@@ -6,7 +6,7 @@ import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18
 import { buildCalendarPlanningSummary, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
 import { summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
 import { buildSettingsControlPlan, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
-import { filterAdminList, summarizeAdminOperations, type AdminPanelTab } from "@/lib/admin-features"
+import { buildAdminOperationalPlan, filterAdminList, summarizeAdminOperations, type AdminPanelTab } from "@/lib/admin-features"
 import type { WorkspaceOptions } from "../preferences"
 import type { CalendarEvent, Quiz, User, View } from "../types"
 import { api, formatDate } from "../api"
@@ -685,6 +685,7 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
   const [tab, setTab] = useState<AdminPanelTab>("overview")
   const [query, setQuery] = useState("")
   const adminSummary = useMemo(() => summarizeAdminOperations({ adminData, automationData }), [adminData, automationData])
+  const adminPlan = useMemo(() => buildAdminOperationalPlan(adminSummary), [adminSummary])
   const users = useMemo(() => filterAdminList(adminData?.users || [], query, ["name", "username", "email", "role"]), [adminData?.users, query])
   const providers = useMemo(() => filterAdminList(adminData?.providers || [], query, ["name", "provider", "last_status", "last_error"]), [adminData?.providers, query])
   const audit = useMemo(() => filterAdminList(adminData?.audit || [], query, ["action", "entity", "details", "user_id"]), [adminData?.audit, query])
@@ -725,6 +726,18 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
             </button>
           ))}
         </div>
+        <button onClick={() => setTab(adminPlan.targetTab)} className="mt-4 flex w-full items-center justify-between gap-3 rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold text-foreground">{adminPlan.headline}</span>
+            <span className="mt-1 flex flex-wrap gap-2">
+              {adminPlan.chips.map((chip) => <span key={chip} className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">{chip}</span>)}
+            </span>
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-2 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">
+            {adminPlan.nextAction}
+            <ArrowRight className="h-3.5 w-3.5" />
+          </span>
+        </button>
         <div className="mt-4 flex flex-wrap gap-2">
           {([
             ["overview", "Overview", Gauge],
@@ -747,23 +760,23 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
 
       {tab === "overview" ? (
         <div className="grid gap-4 xl:grid-cols-3">
-          <AdminList title="Provider attention" items={adminSummary.providerIssues} emptyLabel="No provider issues." />
-          <AdminList title="Recent audit" items={adminSummary.recentAudit} emptyLabel="No audit rows yet." />
-          <AdminList title="Automation jobs" items={adminSummary.visibleAutomation} emptyLabel="No automation jobs loaded." />
+          <AdminList title="Provider attention" items={adminSummary.providerIssues} emptyLabel="No provider issues." accent={adminSummary.providerIssues.length ? "watch" : "good"} />
+          <AdminList title="Recent audit" items={adminSummary.recentAudit} emptyLabel="No audit rows yet." accent={adminSummary.recentAudit.length ? "neutral" : "watch"} />
+          <AdminList title="Automation jobs" items={adminSummary.visibleAutomation} emptyLabel="No automation jobs loaded." accent={adminSummary.visibleAutomation.length ? "good" : "neutral"} />
         </div>
       ) : null}
-      {tab === "users" ? <AdminList title="Users" items={users} emptyLabel="No users match this search." /> : null}
+      {tab === "users" ? <AdminList title="Users" items={users} emptyLabel="No users match this search." query={query} /> : null}
       {tab === "providers" ? (
         <div className="grid gap-4">
-          <AdminList title="Provider records" items={providers} emptyLabel="No provider records match this search." />
+          <AdminList title="Provider records" items={providers} emptyLabel="No provider records match this search." query={query} accent={adminPlan.riskCount ? "watch" : "good"} />
           <ProviderAdminPanel />
         </div>
       ) : null}
-      {tab === "audit" ? <AdminList title="Audit" items={audit} emptyLabel="No audit rows match this search." /> : null}
+      {tab === "audit" ? <AdminList title="Audit" items={audit} emptyLabel="No audit rows match this search." query={query} /> : null}
       {tab === "automation" ? (
         <div className="grid gap-4 xl:grid-cols-2">
-          <AdminList title="Automation jobs" items={jobs} emptyLabel="No automation jobs match this search." />
-          <AdminList title="AI prompt contracts" items={prompts} emptyLabel="No prompt contracts match this search." />
+          <AdminList title="Automation jobs" items={jobs} emptyLabel="No automation jobs match this search." query={query} accent={jobs.length ? "good" : "neutral"} />
+          <AdminList title="AI prompt contracts" items={prompts} emptyLabel="No prompt contracts match this search." query={query} accent={prompts.length ? "good" : "neutral"} />
         </div>
       ) : null}
 
@@ -823,12 +836,27 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
   )
 }
 
-function AdminList({ emptyLabel = "No records yet.", items, title }: { emptyLabel?: string; title: string; items: any[] }) {
+function AdminList({
+  accent = "neutral",
+  emptyLabel = "No records yet.",
+  items,
+  query = "",
+  title,
+}: {
+  accent?: "good" | "watch" | "neutral"
+  emptyLabel?: string
+  items: any[]
+  query?: string
+  title: string
+}) {
   return (
     <Panel className="p-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="font-semibold text-foreground">{title}</p>
-        <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{items.length}</span>
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-foreground">{title}</p>
+          {query ? <p className="mt-1 text-xs text-muted-foreground">Filtered by "{query}"</p> : null}
+        </div>
+        <span className={`rounded-md px-2 py-1 text-xs font-semibold ${settingsToneClass(accent)}`}>{items.length}</span>
       </div>
       <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
         {items.slice(0, 12).map((item, index) => (
