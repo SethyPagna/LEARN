@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, ArrowRight, BookOpen, Bot, CalendarPlus, Check, ChevronRight, Clock, Copy, FileText, Filter, Gauge, Languages, Lock, Palette, Repeat2, Save, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserRound, Users } from "lucide-react"
 import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
-import { filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
+import { buildCalendarPlanningSummary, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
 import { summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
 import { buildSettingsControlPlan, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
 import { filterAdminList, summarizeAdminOperations, type AdminPanelTab } from "@/lib/admin-features"
@@ -20,6 +20,16 @@ const progressActionIcons: Record<ProgressActionTarget, typeof Target> = {
   reviews: Repeat2,
   studio: FileText,
 }
+
+const calendarEventTypes = [
+  ["study", "Study"],
+  ["review", "Review"],
+  ["deadline", "Deadline"],
+  ["focus", "Focus"],
+  ["completed", "Completed"],
+] as const
+
+const calendarDurationPresets = [15, 30, 45, 60, 90]
 
 export function ProgressView({ dashboard, quizzes, setView }: { dashboard: any; quizzes: Quiz[]; setView?: (view: View) => void }) {
   const progress = useMemo(
@@ -187,8 +197,13 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
   const [agendaFilter, setAgendaFilter] = useState<CalendarAgendaFilter>("upcoming")
   const selected = events.find((event) => event.id === selectedId)
   const agendaSummary = useMemo(() => summarizeCalendarAgenda(events), [events])
+  const calendarPlan = useMemo(
+    () => buildCalendarPlanningSummary(events, { defaultMinutes: options.calendarDefaultMinutes, leadMinutes: options.calendarLeadMinutes }),
+    [events, options.calendarDefaultMinutes, options.calendarLeadMinutes],
+  )
   const filteredEvents = useMemo(() => filterCalendarAgenda(events, agendaFilter), [agendaFilter, events])
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const canSave = title.trim().length > 0 && Number.isFinite(Date.parse(startsAt)) && durationMinutes >= 5
 
   async function refresh() {
     const response = await api<{ items: CalendarEvent[] }>("/api/calendar")
@@ -221,6 +236,10 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
   }
 
   async function saveEvent(id = selectedId) {
+    if (!canSave) {
+      setStatus("Add a title, valid start time, and duration of at least 5 minutes.")
+      return
+    }
     const startDate = new Date(startsAt)
     const endDate = new Date(startDate.getTime() + durationMinutes * 60 * 1000)
     const response = await api<{ item: CalendarEvent }>("/api/calendar", {
@@ -275,27 +294,59 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
     await refresh()
   }
 
+  function applyPlanSuggestion() {
+    const suggestion = calendarPlan.suggestion
+    setSelectedId("")
+    setTitle(suggestion.title)
+    setEventType(suggestion.eventType)
+    setStartsAt(toLocalInputValue(suggestion.startsAt))
+    setDurationMinutes(suggestion.durationMinutes)
+    setNotes(suggestion.reason)
+    setStatus("Suggestion loaded as a draft.")
+  }
+
   return (
     <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
       <Panel className="p-4">
         <h2 className="text-2xl font-semibold text-foreground">Study calendar</h2>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">Defaults: {options.calendarDefaultMinutes} minutes, {options.calendarLeadMinutes} minutes from now. Timezone: {timezone}.</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <StatusPill label={`${options.calendarDefaultMinutes}m default`} />
+          <StatusPill label={`${options.calendarLeadMinutes}m lead`} />
+          <StatusPill label={timezone} />
+        </div>
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Info label="Today" value={agendaSummary.today} />
           <Info label="Upcoming" value={agendaSummary.upcoming} />
           <Info label="Review" value={agendaSummary.review} />
           <Info label="Planned" value={formatCalendarDuration(agendaSummary.scheduledMinutes)} />
         </div>
+        <button onClick={applyPlanSuggestion} className="mt-4 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-semibold text-foreground">{calendarPlan.headline}</span>
+            <span className={`rounded-md px-2 py-1 text-xs font-semibold ${settingsToneClass(calendarPlan.tone)}`}>{calendarPlan.suggestion.eventType}</span>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {calendarPlan.chips.map((chip) => <span key={chip} className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">{chip}</span>)}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">{calendarPlan.suggestion.reason}</p>
+        </button>
         <div className="mt-4 grid gap-3">
           <Field label="Title" value={title} onChange={setTitle} />
           <label className="block rounded-lg bg-muted p-4">
             <span className="text-xs font-semibold uppercase text-muted-foreground">Type</span>
             <select value={eventType} onChange={(event) => setEventType(event.target.value)} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none">
-              {["study", "review", "deadline", "focus", "completed"].map((type) => <option key={type} value={type}>{type}</option>)}
+              {calendarEventTypes.map(([type, label]) => <option key={type} value={type}>{label}</option>)}
             </select>
           </label>
           <Field label="Starts at" value={startsAt} onChange={setStartsAt} />
           <Field label="Duration minutes" value={String(durationMinutes)} onChange={(value) => setDurationMinutes(Number(value) || options.calendarDefaultMinutes)} />
+          <div className="flex flex-wrap gap-2">
+            {calendarDurationPresets.map((minutes) => (
+              <button key={minutes} onClick={() => setDurationMinutes(minutes)} className={`h-8 rounded-md px-3 text-xs font-semibold ${durationMinutes === minutes ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+                {formatCalendarDuration(minutes)}
+              </button>
+            ))}
+          </div>
           <label className="block rounded-lg bg-muted p-4">
             <span className="text-xs font-semibold uppercase text-muted-foreground">Notes</span>
             <textarea value={notes} onChange={(event) => setNotes(event.target.value)} className="mt-2 min-h-24 w-full resize-none rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none" />
@@ -337,7 +388,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
               <div className="flex items-start justify-between gap-3">
                 <button onClick={() => setSelectedId(event.id)} className="min-w-0 flex-1 text-left">
                   <p className="truncate font-semibold text-foreground">{event.title}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{formatDate(event.starts_at)} · {event.event_type}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{formatDate(event.starts_at)} | {labelCalendarEventType(event.event_type)}</p>
                   <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground"><Clock className="h-3.5 w-3.5" /> {duration}</p>
                   {event.notes ? <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{event.notes}</p> : null}
                 </button>
@@ -356,6 +407,10 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
 function toLocalInputValue(date: Date) {
   const offset = date.getTimezoneOffset()
   return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16)
+}
+
+function labelCalendarEventType(type: string) {
+  return calendarEventTypes.find(([value]) => value === type)?.[1] ?? type
 }
 
 function CalendarAction({ icon: Icon, label, onClick, primary }: { icon: typeof Save; label: string; onClick: () => void; primary?: boolean }) {
