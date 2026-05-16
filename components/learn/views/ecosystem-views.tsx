@@ -5,18 +5,21 @@ import {
   ArrowRight,
   Brain,
   CheckCircle2,
+  ChevronDown,
   Compass,
   Edit3,
   Eye,
   GitFork,
   Lock,
   MessageSquare,
+  MoreHorizontal,
   Network,
   Play,
   Radio,
   Repeat2,
   Save,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   Swords,
   Trash2,
@@ -587,6 +590,7 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
   const [query, setQuery] = useState("")
   const [recordFilter, setRecordFilter] = useState<SocialRecordFilter>("all")
   const [message, setMessage] = useState("")
+  const [openSocialMenu, setOpenSocialMenu] = useState<"filters" | "actions" | null>(null)
   const draftHydrated = useRef(false)
   const restoredDraftId = useRef<string | null>(null)
   const items = useMemo(() => data?.items ?? [], [data?.items])
@@ -633,8 +637,7 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
     if (!draftHydrated.current || !data) return
     if (!items.length) {
       if (!hasMeaningfulSocialDraft(kind, draft)) {
-        setSelectedId("")
-        setDraft(createSocialDraft(kind))
+        if (selectedId) setSelectedId("")
       }
       return
     }
@@ -708,16 +711,31 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
         <label className="mt-4 flex h-10 items-center rounded-md border border-input bg-background px-3">
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${title.toLowerCase()}`} className="w-full bg-transparent text-sm outline-none" />
         </label>
-        <div className="mt-3 grid grid-cols-3 gap-1 rounded-md border border-border bg-background p-1">
-          {filterOptions.map((option) => (
-            <button
-              key={option}
-              onClick={() => setRecordFilter(option)}
-              className={`rounded-md px-2 py-1.5 text-xs font-semibold capitalize ${recordFilter === option ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}
-            >
-              {option}
-            </button>
-          ))}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-background p-2">
+          <div className="flex min-w-0 flex-wrap gap-1">
+            <SocialSummaryChip label="Showing" value={recordFilter} />
+            <SocialSummaryChip label="Visible" value={String(filteredItems.length)} />
+          </div>
+          <SocialMenu icon={SlidersHorizontal} label="Filters" menuId="filters" openMenu={openSocialMenu} setOpenMenu={setOpenSocialMenu}>
+            <SocialMenuSection title="Show records">
+              {filterOptions.map((option) => {
+                const count = filterSocialRecords(items, { query, filter: option }).length
+                return (
+                  <SocialMenuAction
+                    key={option}
+                    active={recordFilter === option}
+                    icon={SlidersHorizontal}
+                    label={socialFilterLabel(option)}
+                    meta={`${count} ${noun}${count === 1 ? "" : "s"}`}
+                    onClick={() => {
+                      setRecordFilter(option)
+                      setOpenSocialMenu(null)
+                    }}
+                  />
+                )
+              })}
+            </SocialMenuSection>
+          </SocialMenu>
         </div>
         <div className="mt-3 grid grid-cols-3 gap-2">
           <Metric label="Total" value={String(socialSummary.total)} />
@@ -749,7 +767,17 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
             <p className="text-xs font-semibold uppercase text-muted-foreground">{draft.id ? "Editing" : "New draft"}</p>
             <h3 className="mt-1 text-xl font-semibold text-foreground">{draft.name || draft.title || `Untitled ${noun}`}</h3>
           </div>
-          <span className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">{socialDraftStatus(kind, draft)}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">{socialDraftStatus(kind, draft)}</span>
+            <SocialActionButton label="Save" icon={Save} onClick={saveDraft} primary />
+            <SocialMenu align="right" compact icon={MoreHorizontal} label="More actions" menuId="actions" openMenu={openSocialMenu} setOpenMenu={setOpenSocialMenu}>
+              <SocialMenuSection title="Record actions">
+                <SocialMenuAction icon={Play} label="Toggle state" meta="Cycle visibility or activity status." onClick={() => { setOpenSocialMenu(null); void toggleDraft() }} />
+                <SocialMenuAction icon={Edit3} label="Reset draft" meta="Restore selected record values or clear the new draft." onClick={() => { setOpenSocialMenu(null); setDraft(selected ? draftFromSocialItem(kind, selected) : createSocialDraft(kind)) }} />
+                <SocialMenuAction danger icon={Trash2} label="Delete" meta={`Remove the selected ${noun} record.`} onClick={() => { setOpenSocialMenu(null); void deleteDraft() }} />
+              </SocialMenuSection>
+            </SocialMenu>
+          </div>
         </div>
         <div className="grid gap-3">
           {kind === "battles" ? (
@@ -778,26 +806,15 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
             </>
           )}
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <SocialActionButton label="Save" icon={Save} onClick={saveDraft} primary />
-          <SocialActionButton label="Toggle" icon={Play} onClick={toggleDraft} />
-          <SocialActionButton label="Reset" icon={Edit3} onClick={() => setDraft(selected ? draftFromSocialItem(kind, selected) : createSocialDraft(kind))} />
-          <SocialActionButton label="Delete" icon={Trash2} onClick={deleteDraft} danger />
-        </div>
         <details className="mt-4 rounded-md border border-border bg-background p-3">
-          <summary className="cursor-pointer text-sm font-semibold text-foreground">Guided actions</summary>
+          <summary className="cursor-pointer text-sm font-semibold text-foreground">Plan and safety</summary>
           <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_220px]">
             <div>
               <button onClick={startNew} className="flex w-full items-center justify-between rounded-md border border-primary/30 bg-primary/10 p-3 text-left text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
                 <span>{socialPlan.primaryAction}</span>
                 <Icon className="h-4 w-4" />
               </button>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <SocialGuideTile icon={Save} label="Save" detail={`Create or update the selected ${noun}.`} onClick={saveDraft} />
-                <SocialGuideTile icon={Edit3} label="Reset" detail="Restore the selected record or clear the current draft." onClick={() => setDraft(selected ? draftFromSocialItem(kind, selected) : createSocialDraft(kind))} />
-                <SocialGuideTile icon={Play} label="Toggle" detail="Cycle visibility or status quickly." onClick={toggleDraft} />
-                <SocialGuideTile icon={Trash2} label="Delete" detail="Remove stale or test records." onClick={deleteDraft} />
-              </div>
+              <p className="mt-3 rounded-md border border-border bg-card p-3 text-sm leading-6 text-muted-foreground">{socialPlan.safetyCue}</p>
             </div>
             <div className="grid gap-2">
               <div className="rounded-md border border-border bg-card p-3">
@@ -931,6 +948,15 @@ function socialFilterOptions(kind: SocialKind): SocialRecordFilter[] {
   return ["all", "active", "team"]
 }
 
+function socialFilterLabel(filter: SocialRecordFilter) {
+  if (filter === "all") return "All records"
+  if (filter === "active") return "Active now"
+  if (filter === "private") return "Private"
+  if (filter === "public") return "Public"
+  if (filter === "team") return "Team mode"
+  return "Focus mode"
+}
+
 function socialDraftStatus(kind: SocialKind, draft: SocialDraft) {
   if (kind === "spaces") return draft.visibility
   return draft.status
@@ -982,26 +1008,94 @@ function SocialActionButton({ icon: Icon, label, onClick, primary, danger }: { i
   )
 }
 
-function SocialGuideTile({ detail, icon: Icon, label, onClick }: { detail: string; icon: ComponentType<{ className?: string }>; label: string; onClick?: () => void }) {
-  const className = "group relative flex min-h-20 flex-col justify-between rounded-md border border-border bg-background p-3 text-left hover:bg-accent hover:text-accent-foreground"
-  const content = (
-    <>
-      <Icon className="h-5 w-5 text-success" />
-      <p className="text-sm font-semibold text-foreground group-hover:text-accent-foreground">{label}</p>
-      <p className="pointer-events-none absolute right-2 top-[calc(100%+0.35rem)] z-20 hidden w-56 rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{detail}</p>
-    </>
-  )
-  if (onClick) {
-    return (
-      <button onClick={onClick} className={className}>
-        {content}
-      </button>
-    )
-  }
+function SocialSummaryChip({ label, value }: { label: string; value: string }) {
   return (
-    <div className={className}>
-      {content}
+    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
+      <span>{label}</span>
+      <span className="capitalize text-foreground">{value}</span>
+    </span>
+  )
+}
+
+function SocialMenu({
+  align = "left",
+  children,
+  compact,
+  icon: Icon,
+  label,
+  menuId,
+  openMenu,
+  setOpenMenu,
+}: {
+  align?: "left" | "right"
+  children: React.ReactNode
+  compact?: boolean
+  icon: ComponentType<{ className?: string }>
+  label: string
+  menuId: "filters" | "actions"
+  openMenu: "filters" | "actions" | null
+  setOpenMenu: (menuId: "filters" | "actions" | null) => void
+}) {
+  const open = openMenu === menuId
+  return (
+    <div className="relative inline-block">
+      <button
+        aria-expanded={open}
+        className={`flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground ${compact ? "px-2" : ""}`}
+        onClick={() => setOpenMenu(open ? null : menuId)}
+        title={label}
+        type="button"
+      >
+        <Icon className="h-3.5 w-3.5" />
+        <span className={compact ? "sr-only" : ""}>{label}</span>
+        {!compact ? <ChevronDown className="h-3.5 w-3.5 opacity-70" /> : null}
+      </button>
+      {open ? (
+        <div className={`absolute top-10 z-40 w-72 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl ${align === "right" ? "right-0" : "left-0"}`}>
+          {children}
+        </div>
+      ) : null}
     </div>
+  )
+}
+
+function SocialMenuSection({ children, title }: { children: React.ReactNode; title: string }) {
+  return (
+    <div className="grid gap-1">
+      <p className="px-1 text-[0.66rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{title}</p>
+      {children}
+    </div>
+  )
+}
+
+function SocialMenuAction({
+  active,
+  danger,
+  icon: Icon,
+  label,
+  meta,
+  onClick,
+}: {
+  active?: boolean
+  danger?: boolean
+  icon: ComponentType<{ className?: string }>
+  label: string
+  meta?: string
+  onClick: () => void
+}) {
+  const tone = danger
+    ? "text-destructive hover:bg-destructive hover:text-destructive-foreground"
+    : active
+      ? "bg-primary text-primary-foreground"
+      : "text-popover-foreground hover:bg-accent hover:text-accent-foreground"
+  return (
+    <button onClick={onClick} className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm font-semibold ${tone}`} type="button">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+      <span className="min-w-0">
+        <span className="block truncate">{label}</span>
+        {meta ? <span className={`mt-0.5 block line-clamp-2 text-xs font-medium ${active ? "text-primary-foreground/80" : danger ? "text-current/80" : "text-muted-foreground"}`}>{meta}</span> : null}
+      </span>
+    </button>
   )
 }
 
