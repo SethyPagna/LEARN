@@ -1,26 +1,31 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
-import { Copy, Download, FileText, ImageIcon, Trash2, Upload, Video } from "lucide-react"
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react"
+import { ArrowRight, Copy, Download, FileText, ImageIcon, RefreshCw, ShieldCheck, Trash2, Upload, Video } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
-import type { MediaFile } from "../types"
+import type { MediaFile, View } from "../types"
 import { api, formatBytes, formatDate } from "../api"
 import { EmptyState, Panel } from "../ui"
-import { filterFileLibrary, fileKindLabel, summarizeFileLibrary, type FileLibraryFilter } from "@/lib/file-library-features"
-import { classifyUploadContentType, UPLOAD_HELP_TEXT, validateUploadFileShape } from "@/lib/file-security"
+import { buildFileLibraryActionPlan, filterFileLibrary, fileKindLabel, summarizeFileLibrary, type FileLibraryFilter } from "@/lib/file-library-features"
+import { classifyUploadContentType, validateUploadFileShape } from "@/lib/file-security"
 
 const mediaFilters: FileLibraryFilter[] = ["all", "image", "video", "audio", "pdf", "doc", "sheet", "slides"]
 
-export function FilesView({ options }: { options: WorkspaceOptions }) {
+export function FilesView({ options, setView }: { options: WorkspaceOptions; setView?: (view: View) => void }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<MediaFile[]>([])
   const [selectedId, setSelectedId] = useState("")
   const [query, setQuery] = useState("")
   const [mediaFilter, setMediaFilter] = useState<FileLibraryFilter>("all")
   const [status, setStatus] = useState("Loading files...")
+  const [dragActive, setDragActive] = useState(false)
   const storageStats = useMemo(() => summarizeFileLibrary(files), [files])
   const filteredFiles = useMemo(() => filterFileLibrary(files, { query, kind: mediaFilter }), [files, mediaFilter, query])
   const selectedFile = useMemo(() => files.find((file) => file.id === selectedId) || filteredFiles[0], [files, filteredFiles, selectedId])
+  const fileActionPlan = useMemo(
+    () => buildFileLibraryActionPlan(files, storageStats, { selectedId: selectedFile?.id, query, filter: mediaFilter, visibleFileCount: filteredFiles.length }),
+    [files, filteredFiles.length, mediaFilter, query, selectedFile?.id, storageStats],
+  )
 
   async function refresh() {
     try {
@@ -71,18 +76,68 @@ export function FilesView({ options }: { options: WorkspaceOptions }) {
     setStatus("Download link copied.")
   }
 
+  function resetFilters() {
+    setQuery("")
+    setMediaFilter("all")
+  }
+
+  function applyFileActionPlan() {
+    if (fileActionPlan.nextAction === "upload") {
+      inputRef.current?.click()
+      return
+    }
+    if (fileActionPlan.nextAction === "clear-filter") {
+      resetFilters()
+      return
+    }
+    if (fileActionPlan.targetFileId) {
+      setSelectedId(fileActionPlan.targetFileId)
+    }
+    if (fileActionPlan.nextAction === "open-studio") {
+      setView?.("studio")
+      return
+    }
+    if (fileActionPlan.nextAction === "download" && fileActionPlan.targetFileId) {
+      window.location.assign(`/api/files/${fileActionPlan.targetFileId}/download`)
+    }
+  }
+
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault()
+    setDragActive(false)
+    upload(event.dataTransfer.files?.[0])
+  }
+
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
-      <Panel className="p-4">
+      <div
+        onDragOver={(event) => {
+          event.preventDefault()
+          setDragActive(true)
+        }}
+        onDragLeave={() => setDragActive(false)}
+        onDrop={handleDrop}
+      >
+        <Panel className={`p-4 transition ${dragActive ? "border-primary bg-primary/5" : ""}`}>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-2xl font-semibold text-foreground">Files</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{UPLOAD_HELP_TEXT}</p>
+            <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground">
+              <span className="rounded-md bg-muted px-2 py-1">Drag files here</span>
+              <span className="rounded-md bg-muted px-2 py-1">Preview media</span>
+              <span className="rounded-md bg-muted px-2 py-1">Send docs to Studio</span>
+            </div>
           </div>
-          <button onClick={() => inputRef.current?.click()} className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
-            <Upload className="h-4 w-4" />
-            Upload
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={resetFilters} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+              <RefreshCw className="h-4 w-4" />
+              Reset
+            </button>
+            <button onClick={() => inputRef.current?.click()} className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
+              <Upload className="h-4 w-4" />
+              Upload
+            </button>
+          </div>
           <input ref={inputRef} type="file" className="hidden" onChange={(event) => upload(event.target.files?.[0])} />
         </div>
         <label className="mb-4 block">
@@ -132,10 +187,25 @@ export function FilesView({ options }: { options: WorkspaceOptions }) {
         ) : (
           <EmptyState title="No files yet" body="Upload PDFs, images, videos, and study materials to attach durable context to the workspace." />
         )}
-      </Panel>
+        </Panel>
+      </div>
 
       <Panel className="p-4">
-        <h3 className="font-semibold text-foreground">File actions</h3>
+        <h3 className="font-semibold text-foreground">File command</h3>
+        <button onClick={applyFileActionPlan} className="mt-3 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-semibold text-foreground">{fileActionPlan.headline}</span>
+            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">{fileActionPlan.detail}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {fileActionPlan.chips.map((chip) => (
+              <span key={chip} className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">
+                {chip}
+              </span>
+            ))}
+          </div>
+        </button>
         {selectedFile ? (
           <div className="mt-3">
             {options.filePreview && selectedFile.content_type.startsWith("image/") ? (
@@ -150,10 +220,10 @@ export function FilesView({ options }: { options: WorkspaceOptions }) {
             <p className="mt-1 text-sm text-muted-foreground">Kind: {fileKindLabel(classifyUploadContentType(selectedFile.content_type))}</p>
             <p className="mt-1 text-sm text-muted-foreground">Uploaded {formatDate(selectedFile.created_at)}</p>
             <div className="mt-3 grid grid-cols-2 gap-2 rounded-md border border-border bg-background p-2 text-xs font-semibold text-muted-foreground">
-              <span className="rounded-md bg-muted px-2 py-1">R2-backed</span>
-              <span className="rounded-md bg-muted px-2 py-1">Private route</span>
-              <span className="rounded-md bg-muted px-2 py-1">Validated type</span>
-              <span className="rounded-md bg-muted px-2 py-1">Downloadable</span>
+              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1"><ShieldCheck className="h-3 w-3" /> R2-backed</span>
+              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1"><ShieldCheck className="h-3 w-3" /> Private route</span>
+              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1"><ShieldCheck className="h-3 w-3" /> Validated type</span>
+              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1"><ShieldCheck className="h-3 w-3" /> Downloadable</span>
             </div>
             <div className="mt-4 grid gap-2">
               <a href={`/api/files/${selectedFile.id}/download`} className="flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-secondary text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
