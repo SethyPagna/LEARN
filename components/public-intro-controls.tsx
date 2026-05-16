@@ -49,6 +49,7 @@ export function PublicIntroControls({ signedIn }: { signedIn: boolean }) {
   function setLocale(nextLocale: SupportedLocale) {
     setLocaleState(nextLocale)
     window.localStorage.setItem(LANGUAGE_KEY, nextLocale)
+    window.dispatchEvent(new Event("learn:locale-change"))
     setLanguageOpen(false)
   }
 
