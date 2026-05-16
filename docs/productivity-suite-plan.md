@@ -50,6 +50,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-16: Optimized `/showcase` transitions by rendering one active preview at a time instead of sliding six full offscreen screens, reducing paint work and making wheel/click slide changes smoother.
 - 2026-05-17: Fixed the login LEARN brand so desktop and mobile users can click it to return to the public intro page.
 - 2026-05-17: Reintroduced the workflow into the public intro scroll path with a sticky animated section, realistic app-content mock screens, step buttons, and scroll-driven transitions while keeping `/showcase` as a direct gallery route.
+- 2026-05-17: Converted the intro workflow handoff from plain section scrolling into a fixed overlay transition driven by scroll progress, with the workflow anchor landing on the pinned gallery and the overlap layer no longer intercepting hero clicks while hidden.
 
 ## Implementation Slices
 
