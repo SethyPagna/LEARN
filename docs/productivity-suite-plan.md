@@ -56,6 +56,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-17: Refined the public intro with clearer product messaging, a concrete note-to-AI-to-practice preview, and a slower hero-to-workflow overlay reveal while preserving the shorter workflow sequence.
 - 2026-05-17: Smoothed the scroll workflow slide appearance with a longer soft fade/rise animation and calmer progress-bar easing while keeping the compact scroll distance.
 - 2026-05-17: Added public intro theme and language icon controls beside Sign in, sharing the app theme and `learn_locale` preferences while giving the intro a readable light mode.
+- 2026-05-17: Applied public theme and language preferences to the scroll workflow overlay with light-mode surfaces, translated workflow labels/copy for key public locales, and a locale-change event so the workflow updates without reload.
 
 ## Implementation Slices
 
