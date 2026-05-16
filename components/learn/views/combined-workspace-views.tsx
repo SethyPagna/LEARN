@@ -11,6 +11,7 @@ import { ChatView, GamesView } from "./productivity-views"
 import { QuizView } from "./quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
+import { buildPracticeWorkspacePlan, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
 
 type LearnTab = "overview" | "discover" | "graph" | "reviews" | "calendar" | "progress"
 type PracticeTab = "quizzes" | "games"
@@ -97,6 +98,14 @@ export function PracticeWorkspaceView({
   const [tab, setTab] = useState<PracticeTab>(initialView === "games" ? "games" : "quizzes")
   const [draftCards, setDraftCards] = useState<PracticeDraftCard[]>([])
   const quizTitles = useMemo(() => Object.fromEntries(quizzes.map((quiz) => [quiz.id, quiz.title])), [quizzes])
+  const practicePlan = useMemo(() => buildPracticeWorkspacePlan({
+    activeTarget: tab,
+    quizCount: quizzes.length,
+    draftCount: draftCards.length,
+    answeredDraftCount: draftCards.reduce((sum, draft) => sum + draft.answeredCount, 0),
+    markedDraftCount: draftCards.reduce((sum, draft) => sum + draft.markedCount, 0),
+    retryDraftCount: draftCards.reduce((sum, draft) => sum + draft.retryCount, 0),
+  }), [draftCards, quizzes.length, tab])
 
   useEffect(() => {
     setTab(initialView === "games" ? "games" : "quizzes")
@@ -123,6 +132,11 @@ export function PracticeWorkspaceView({
     setDraftCards(listPracticeDraftCards(readPracticeDrafts(), quizTitles))
   }
 
+  function openPracticeTarget(target: PracticeWorkspaceTarget) {
+    setTab(target)
+    setView(viewFromPracticeTab(target))
+  }
+
   return (
     <WorkspaceFrame
       eyebrow="Practice workspace"
@@ -138,7 +152,7 @@ export function PracticeWorkspaceView({
     >
       <div className="grid gap-4 xl:grid-cols-[1fr_300px]">
         <div>{tab === "quizzes" ? <QuizView quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={options} /> : <GamesView quizzes={quizzes} options={options} />}</div>
-        <PracticeGuide draftCards={draftCards} onClearDraft={discardDraft} onResumeDraft={resumeDraft} />
+        <PracticeGuide draftCards={draftCards} onClearDraft={discardDraft} onCreatePractice={() => setView("ai")} onOpenTarget={openPracticeTarget} onResumeDraft={resumeDraft} plan={practicePlan} />
       </div>
     </WorkspaceFrame>
   )
@@ -311,25 +325,59 @@ function InfoStrip({ body }: { body: string }) {
 function PracticeGuide({
   draftCards,
   onClearDraft,
+  onCreatePractice,
+  onOpenTarget,
   onResumeDraft,
+  plan,
 }: {
   draftCards: PracticeDraftCard[]
   onClearDraft: (quizId: string) => void
+  onCreatePractice: () => void
+  onOpenTarget: (target: PracticeWorkspaceTarget) => void
   onResumeDraft: (quizId: string) => void
+  plan: PracticeWorkspacePlan
 }) {
-  const items = [
-    { icon: BookOpen, title: "Quiz", body: "Use for accuracy, explanations, and slower correction." },
-    { icon: Gamepad2, title: "Game", body: "Use for momentum, speed, and repeated retrieval." },
-    { icon: Repeat2, title: "Loop", body: "Quiz missed topics, then replay them as a short game." },
-  ]
+  function runAction(action: PracticeWorkspaceAction) {
+    if (action.id === "resume" && draftCards[0]) {
+      onResumeDraft(draftCards[0].quizId)
+      return
+    }
+    if (action.id === "create") {
+      onCreatePractice()
+      return
+    }
+    onOpenTarget(action.target)
+  }
+
   return (
-    <Panel className="h-max p-4">
+    <Panel className="h-max p-3">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="font-semibold text-foreground">Practice guide</h3>
-        <InfoMenu title="Practice guide" body="Pick quiz mode for careful correction, game mode for fast repetition." />
+        <h3 className="font-semibold text-foreground">Practice next</h3>
+        <InfoMenu title="Practice next" body="Choose the plain action first. The detailed quiz modes, timers, marks, drafts, and game runs stay inside each practice area." />
+      </div>
+      <div className="mt-3 rounded-md border border-primary/25 bg-primary/10 p-3">
+        <p className="text-sm font-semibold text-foreground">{plan.headline}</p>
+        <div className="mt-3 grid grid-cols-4 gap-1.5">
+          {plan.signals.map((signal) => (
+            <div key={signal.label} className="rounded-md bg-background/80 px-2 py-1.5 text-center">
+              <p className="text-base font-semibold text-foreground">{signal.value}</p>
+              <p className="text-[0.66rem] font-semibold uppercase text-muted-foreground">{signal.label}</p>
+            </div>
+          ))}
+        </div>
+        <button onClick={() => runAction(plan.primaryAction)} className="mt-3 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground">
+          <Play className="h-3.5 w-3.5" />
+          {plan.primaryAction.label}
+        </button>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        {plan.actions.map((action) => (
+          <PracticeActionButton key={action.id} action={action} onClick={() => runAction(action)} />
+        ))}
       </div>
       {draftCards.length ? (
         <div className="mt-3 grid gap-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Saved work</p>
           {draftCards.slice(0, 3).map((draft) => (
             <div key={draft.quizId} className="rounded-md border border-warning/50 bg-warning/10 p-3">
               <div className="flex items-start justify-between gap-2">
@@ -356,19 +404,21 @@ function PracticeGuide({
           ))}
         </div>
       ) : null}
-      <div className="mt-3 grid gap-2">
-        {items.map((item) => {
-          const Icon = item.icon
-          return (
-            <div key={item.title} className="group relative flex items-center gap-3 rounded-md border border-border bg-background p-3">
-              <Icon className="h-6 w-6 text-success" />
-              <p className="font-semibold text-foreground">{item.title}</p>
-              <p className="pointer-events-none absolute right-2 top-[calc(100%+0.35rem)] z-20 hidden w-56 rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{item.body}</p>
-            </div>
-          )
-        })}
-      </div>
     </Panel>
+  )
+}
+
+function PracticeActionButton({ action, onClick }: { action: PracticeWorkspaceAction; onClick: () => void }) {
+  const Icon = action.id === "speed" ? Gamepad2 : action.id === "repair" ? Repeat2 : action.id === "create" ? Sparkles : BookOpen
+  return (
+    <button onClick={onClick} className="group relative rounded-md border border-border bg-background p-2.5 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
+      <div className="flex items-center gap-2">
+        <Icon className="h-4 w-4 text-success" />
+        <span className="min-w-0 truncate text-sm font-semibold text-foreground group-hover:text-accent-foreground">{action.label}</span>
+      </div>
+      <span className="mt-2 inline-flex rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{action.badge}</span>
+      <p className="pointer-events-none absolute right-0 top-[calc(100%+0.35rem)] z-20 hidden w-60 rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{action.caption}</p>
+    </button>
   )
 }
 
