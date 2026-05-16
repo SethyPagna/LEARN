@@ -103,9 +103,9 @@ export function IntroWorkflow() {
       const rect = section.getBoundingClientRect()
       const scrollable = Math.max(1, rect.height - window.innerHeight)
       const progress = Math.min(1, Math.max(0, -rect.top / scrollable))
-      const revealProgress = Math.min(1, Math.max(0, (progress - 0.005) / 0.045))
+      const revealProgress = Math.min(1, Math.max(0, (progress - 0.004) / 0.025))
       const easedReveal = revealProgress * revealProgress * (3 - 2 * revealProgress)
-      const slideProgress = Math.min(1, Math.max(0, (progress - 0.1) / 0.9))
+      const slideProgress = Math.min(1, Math.max(0, (progress - 0.04) / 0.96))
       const nextIndex = Math.min(workflowSlides.length - 1, Math.floor(slideProgress * workflowSlides.length))
       setOverlayProgress((current) => (Math.abs(current - easedReveal) < 0.01 ? current : easedReveal))
       setActiveIndex((current) => (current === nextIndex ? current : nextIndex))
@@ -131,12 +131,12 @@ export function IntroWorkflow() {
     if (!section) return
     const top = section.getBoundingClientRect().top + window.scrollY
     const scrollable = section.offsetHeight - window.innerHeight
-    const target = top + scrollable * (0.1 + (index / workflowSlides.length) * 0.9)
+    const target = top + scrollable * (0.04 + (index / workflowSlides.length) * 0.96)
     window.scrollTo({ top: target, behavior: "smooth" })
   }
 
   return (
-    <section ref={sectionRef} className="pointer-events-none relative -mt-[100svh] min-h-[430svh] text-white">
+    <section ref={sectionRef} className="pointer-events-none relative -mt-[100svh] min-h-[255svh] text-white">
       <span id="workflow" className="absolute top-[100svh]" aria-hidden="true" />
       <div
         data-workflow-overlay
@@ -174,7 +174,7 @@ export function IntroWorkflow() {
 
           <div className="grid gap-3">
             <div className="h-1 overflow-hidden rounded-full bg-white/10">
-              <div className={`h-full ${colorStyles[activeSlide.color].line} transition-all duration-500`} style={{ width: `${((activeIndex + 1) / workflowSlides.length) * 100}%` }} />
+              <div className={`h-full ${colorStyles[activeSlide.color].line} transition-all duration-300`} style={{ width: `${((activeIndex + 1) / workflowSlides.length) * 100}%` }} />
             </div>
             <div className="grid grid-cols-3 gap-2 lg:grid-cols-6">
               {workflowSlides.map((slide, index) => {
@@ -208,7 +208,7 @@ export function IntroWorkflow() {
           to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
         }
         .workflow-screen-motion {
-          animation: workflow-screen-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          animation: workflow-screen-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
           contain: layout paint;
           transform: translateZ(0);
         }
