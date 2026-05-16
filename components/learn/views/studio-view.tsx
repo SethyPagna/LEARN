@@ -1339,7 +1339,15 @@ function StudioPaneSurface({
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{activeTab.label} Studio</p>
                 <input value={activeTitle} onChange={(event) => onSetActiveTitle(event.target.value)} className="mt-1 w-full bg-transparent text-2xl font-semibold text-foreground outline-none" />
-                <p className="mt-1 text-xs text-muted-foreground">{saving ? "Saving..." : lastSaved ? `Saved ${lastSaved}` : `${activeSummary} - ${activeTab.description}`}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span>{saving ? "Saving..." : lastSaved ? `Saved ${lastSaved}` : activeSummary}</span>
+                  <details className="relative">
+                    <summary className="inline-flex h-6 w-6 list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${activeTab.label}`}>
+                      <MoreHorizontal className="h-3.5 w-3.5" />
+                    </summary>
+                    <p className="absolute left-0 top-7 z-30 w-64 rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-xl">{activeTab.description}</p>
+                  </details>
+                </div>
               </div>
               <div className="flex flex-wrap gap-1">
                 <MiniAction icon={Save} label="Save" onClick={onSave} />
