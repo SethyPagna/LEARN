@@ -39,6 +39,13 @@ export interface SocialWorkspaceSummary {
   modeCounts: Array<{ label: string; count: number }>
 }
 
+export interface SocialWorkspacePlan {
+  headline: string
+  primaryAction: string
+  safetyCue: string
+  emptyHint: string
+}
+
 export function parseThreadTitle(title = "") {
   const [maybeChannel, ...rest] = title.split(" - ")
   const channel = maybeChannel.startsWith("#") ? maybeChannel : "#general"
@@ -125,6 +132,31 @@ export function summarizeSocialWorkspace(kind: SocialWorkspaceKind, records: Soc
     secondaryLabel: "Team",
     suggestedAction: activeCount ? "Start the next round" : "Create a fresh battle",
     modeCounts,
+  }
+}
+
+export function buildSocialWorkspacePlan(kind: SocialWorkspaceKind, summary: SocialWorkspaceSummary): SocialWorkspacePlan {
+  if (kind === "spaces") {
+    return {
+      headline: summary.total ? "Curate circles deliberately" : "Start with a private circle",
+      primaryAction: summary.primaryCount ? "Review public spaces" : "Create private space",
+      safetyCue: "Sharing is opt-in. Keep new spaces private until the purpose is clear.",
+      emptyHint: "Create a small topic circle before inviting others.",
+    }
+  }
+  if (kind === "rooms") {
+    return {
+      headline: summary.primaryCount ? "Run the next focus block" : "Open a quiet study room",
+      primaryAction: summary.primaryCount ? "Join active room" : "Create focus room",
+      safetyCue: "Presence is for accountability, not surveillance.",
+      emptyHint: "Create a room with a Pomodoro length and a clear mode.",
+    }
+  }
+  return {
+    headline: summary.primaryCount ? "Continue playable battles" : "Create a short study battle",
+    primaryAction: summary.secondaryCount ? "Run team round" : "Start solo battle",
+    safetyCue: "Battles should reinforce recall, not punish mistakes.",
+    emptyHint: "Create a 3-5 minute battle from a shared topic.",
   }
 }
 

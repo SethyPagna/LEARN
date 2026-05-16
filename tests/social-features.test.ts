@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatDraftPayload, filterChatThreads, filterSocialRecords, parseThreadTitle, summarizeSocialWorkspace } from "../lib/social-features"
+import { buildChatDraftPayload, buildSocialWorkspacePlan, filterChatThreads, filterSocialRecords, parseThreadTitle, summarizeSocialWorkspace } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -54,6 +54,21 @@ test("summarizeSocialWorkspace creates kind-specific operational signals", () =>
   assert.equal(rooms.primaryCount, 1)
   assert.equal(battles.secondaryLabel, "Team")
   assert.equal(battles.secondaryCount, 1)
+})
+
+test("buildSocialWorkspacePlan recommends kind-specific next moves", () => {
+  const emptySpaces = buildSocialWorkspacePlan("spaces", summarizeSocialWorkspace("spaces", []))
+  const activeRooms = buildSocialWorkspacePlan("rooms", summarizeSocialWorkspace("rooms", [
+    { name: "Focus", status: "open", mode: "focus" },
+  ]))
+  const teamBattles = buildSocialWorkspacePlan("battles", summarizeSocialWorkspace("battles", [
+    { title: "Team round", status: "waiting", mode: "team" },
+  ]))
+
+  assert.equal(emptySpaces.primaryAction, "Create private space")
+  assert.equal(activeRooms.primaryAction, "Join active room")
+  assert.equal(teamBattles.primaryAction, "Run team round")
+  assert.match(emptySpaces.safetyCue, /opt-in/)
 })
 
 test("filterSocialRecords combines text search with workspace filters", () => {
