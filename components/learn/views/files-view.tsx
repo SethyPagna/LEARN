@@ -122,11 +122,7 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-2xl font-semibold text-foreground">Files</h2>
-            <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground">
-              <span className="rounded-md bg-muted px-2 py-1">Drag files here</span>
-              <span className="rounded-md bg-muted px-2 py-1">Preview media</span>
-              <span className="rounded-md bg-muted px-2 py-1">Send docs to Studio</span>
-            </div>
+            <p className="mt-1 text-sm text-muted-foreground">Drop in study sources, media, and exports for Studio or AI.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button onClick={resetFilters} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
@@ -143,25 +139,31 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
         <label className="mb-4 block">
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search filename, type, or source" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none" />
         </label>
-        <div className="mb-4 grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
-          <div className="flex flex-wrap gap-2">
-            {mediaFilters.map((filter) => (
-              <button
-                key={filter}
-                onClick={() => setMediaFilter(filter)}
-                className={`h-8 rounded-md px-3 text-xs font-semibold ${mediaFilter === filter ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
-              >
-                {fileKindLabel(filter)}
-              </button>
-            ))}
+        <details className="mb-4 rounded-md border border-border bg-background p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-foreground">
+            Filters and totals
+            <span className="ml-2 rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{fileKindLabel(mediaFilter)}</span>
+          </summary>
+          <div className="mt-3 grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
+            <div className="flex flex-wrap gap-2">
+              {mediaFilters.map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setMediaFilter(filter)}
+                  className={`h-8 rounded-md px-3 text-xs font-semibold ${mediaFilter === filter ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+                >
+                  {fileKindLabel(filter)}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-muted-foreground sm:grid-cols-4 md:w-[360px]">
+              <FileStat label="Files" value={String(storageStats.totalFiles)} />
+              <FileStat label="Size" value={formatBytes(storageStats.totalBytes)} />
+              <FileStat label="Media" value={String(storageStats.mediaCount)} />
+              <FileStat label="Docs" value={String(storageStats.documentCount)} />
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground">
-            <span className="rounded-md bg-muted px-2 py-1">{storageStats.totalFiles} files</span>
-            <span className="rounded-md bg-muted px-2 py-1">{formatBytes(storageStats.totalBytes)}</span>
-            <span className="rounded-md bg-muted px-2 py-1">{storageStats.mediaCount} media</span>
-            <span className="rounded-md bg-muted px-2 py-1">{storageStats.documentCount} docs</span>
-          </div>
-        </div>
+        </details>
         {status ? <p className="mb-4 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
         {filteredFiles.length ? options.fileLayout === "grid" ? (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -191,7 +193,7 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
       </div>
 
       <Panel className="p-4">
-        <h3 className="font-semibold text-foreground">File command</h3>
+        <h3 className="font-semibold text-foreground">Next action</h3>
         <button onClick={applyFileActionPlan} className="mt-3 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
           <div className="flex items-center justify-between gap-3">
             <span className="font-semibold text-foreground">{fileActionPlan.headline}</span>
@@ -219,12 +221,15 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
             <p className="mt-1 text-sm text-muted-foreground">{formatBytes(selectedFile.size_bytes)} - {selectedFile.content_type}</p>
             <p className="mt-1 text-sm text-muted-foreground">Kind: {fileKindLabel(classifyUploadContentType(selectedFile.content_type))}</p>
             <p className="mt-1 text-sm text-muted-foreground">Uploaded {formatDate(selectedFile.created_at)}</p>
-            <div className="mt-3 grid grid-cols-2 gap-2 rounded-md border border-border bg-background p-2 text-xs font-semibold text-muted-foreground">
-              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1"><ShieldCheck className="h-3 w-3" /> R2-backed</span>
-              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1"><ShieldCheck className="h-3 w-3" /> Private route</span>
-              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1"><ShieldCheck className="h-3 w-3" /> Validated type</span>
-              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1"><ShieldCheck className="h-3 w-3" /> Downloadable</span>
-            </div>
+            <details className="mt-3 rounded-md border border-border bg-background p-2 text-xs font-semibold text-muted-foreground">
+              <summary className="cursor-pointer text-foreground">Security and storage</summary>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1"><ShieldCheck className="h-3 w-3" /> R2-backed</span>
+                <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1"><ShieldCheck className="h-3 w-3" /> Private route</span>
+                <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1"><ShieldCheck className="h-3 w-3" /> Validated type</span>
+                <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1"><ShieldCheck className="h-3 w-3" /> Downloadable</span>
+              </div>
+            </details>
             <div className="mt-4 grid gap-2">
               <a href={`/api/files/${selectedFile.id}/download`} className="flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-secondary text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
                 <Download className="h-4 w-4" />
@@ -263,5 +268,14 @@ function FileCard({ file, selected, preview, onSelect }: { file: MediaFile; sele
       <p className="truncate font-medium text-foreground">{file.filename}</p>
       <p className="mt-1 text-xs text-muted-foreground">{formatBytes(file.size_bytes)} - {fileKindLabel(kind)}</p>
     </button>
+  )
+}
+
+function FileStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md bg-muted px-2 py-1.5">
+      <p className="text-[0.66rem] uppercase tracking-[0.08em]">{label}</p>
+      <p className="truncate text-foreground">{value}</p>
+    </div>
   )
 }
