@@ -1938,16 +1938,25 @@ function StudioCanvas({
     }
     return (
       <div className="grid gap-3">
-        <div className="flex flex-wrap gap-2">
-          <SheetButton label="Row +" onClick={() => onSetCells((current) => addRow(ensureCells(current), selectedCell.row))} icon={Rows3} />
-          <SheetButton label="Row -" onClick={() => onSetCells((current) => deleteRow(ensureCells(current), selectedCell.row))} icon={Trash2} />
-          <SheetButton label="Col +" onClick={() => onSetCells((current) => addColumn(ensureCells(current), selectedCell.column))} icon={Columns3} />
-          <SheetButton label="Col -" onClick={() => onSetCells((current) => deleteColumn(ensureCells(current), selectedCell.column))} icon={Trash2} />
-          <SheetButton label="Move row" onClick={() => onSetCells((current) => moveRow(ensureCells(current), selectedCell.row, -1))} icon={Scissors} />
-          <SheetButton label="Move col" onClick={() => onSetCells((current) => moveColumn(ensureCells(current), selectedCell.column, 1))} icon={Scissors} />
-          <SheetButton label="Fill down" onClick={() => onSetCells((current) => fillSheetRange(ensureCells(current), { selectedRange: { startRow: selectedCell.row, startColumn: selectedCell.column, endRow: ensureCells(current).length - 1, endColumn: selectedCell.column } }, "down"))} icon={Rows3} />
-          <SheetButton label="Fill right" onClick={() => onSetCells((current) => fillSheetRange(ensureCells(current), { selectedRange: { startRow: selectedCell.row, startColumn: selectedCell.column, endRow: selectedCell.row, endColumn: (ensureCells(current)[0]?.length || 1) - 1 } }, "right"))} icon={Columns3} />
-          <SheetButton label="Sort A-Z" onClick={() => onSetCells((current) => sortSheetByColumn(ensureCells(current), selectedCell.column, "asc"))} icon={ListOrdered} />
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2">
+          <ActionMenu label="Rows" icon={Rows3}>
+            <MenuAction icon={Rows3} label="Insert row" onClick={() => onSetCells((current) => addRow(ensureCells(current), selectedCell.row))} />
+            <MenuAction icon={Scissors} label="Move row up" onClick={() => onSetCells((current) => moveRow(ensureCells(current), selectedCell.row, -1))} />
+            <MenuAction danger icon={Trash2} label="Delete row" onClick={() => onSetCells((current) => deleteRow(ensureCells(current), selectedCell.row))} />
+          </ActionMenu>
+          <ActionMenu label="Columns" icon={Columns3}>
+            <MenuAction icon={Columns3} label="Insert column" onClick={() => onSetCells((current) => addColumn(ensureCells(current), selectedCell.column))} />
+            <MenuAction icon={Scissors} label="Move column right" onClick={() => onSetCells((current) => moveColumn(ensureCells(current), selectedCell.column, 1))} />
+            <MenuAction danger icon={Trash2} label="Delete column" onClick={() => onSetCells((current) => deleteColumn(ensureCells(current), selectedCell.column))} />
+          </ActionMenu>
+          <ActionMenu label="Fill" icon={Grid2X2}>
+            <MenuAction icon={Rows3} label="Fill down" onClick={() => onSetCells((current) => fillSheetRange(ensureCells(current), { selectedRange: { startRow: selectedCell.row, startColumn: selectedCell.column, endRow: ensureCells(current).length - 1, endColumn: selectedCell.column } }, "down"))} />
+            <MenuAction icon={Columns3} label="Fill right" onClick={() => onSetCells((current) => fillSheetRange(ensureCells(current), { selectedRange: { startRow: selectedCell.row, startColumn: selectedCell.column, endRow: selectedCell.row, endColumn: (ensureCells(current)[0]?.length || 1) - 1 } }, "right"))} />
+            <MenuAction icon={ListOrdered} label="Sort A-Z" onClick={() => onSetCells((current) => sortSheetByColumn(ensureCells(current), selectedCell.column, "asc"))} />
+          </ActionMenu>
+          <span className="ml-auto rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">
+            R{selectedCell.row + 1} C{selectedCell.column + 1}
+          </span>
         </div>
         <div className="grid gap-2 rounded-md border border-border bg-card p-2 md:grid-cols-[1fr_auto]">
           <label className="flex min-h-9 items-center gap-2 rounded-md border border-input bg-background px-2 text-sm text-foreground">
@@ -1959,28 +1968,32 @@ function StudioCanvas({
               className="w-full bg-transparent outline-none"
             />
           </label>
-          <div className="flex flex-wrap gap-1">
+          <ActionMenu align="right" label="Formula" icon={Braces}>
             {(["SUM", "AVERAGE", "MIN", "MAX", "COUNT"] as const).map((formula) => (
-              <button key={formula} onClick={() => applyFormula(formula)} className="h-9 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-                {formula}
-              </button>
+              <MenuAction key={formula} icon={Braces} label={formula} onClick={() => applyFormula(formula)} />
             ))}
-          </div>
+          </ActionMenu>
           {formulaPreview ? (
             <p className={`text-xs font-semibold md:col-span-2 ${formulaPreview.ok ? "text-success" : "text-destructive"}`}>
               {formulaPreview.ok ? `Result ${formulaPreview.value} - ${formulaPreview.reason}` : formulaPreview.reason}
             </p>
           ) : null}
         </div>
-        <textarea
-          onBlur={(event) => {
-            if (!event.target.value.trim()) return
-            onSetCells(importCsvToSheet(event.target.value).cells)
-            event.target.value = ""
-          }}
-          placeholder="Paste CSV here, then leave the field to import rows into the grid."
-          className="h-16 w-full rounded-md border border-input bg-background p-3 text-sm outline-none focus:border-ring"
-        />
+        <details className="rounded-md border border-border bg-background p-2">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            <span className="flex items-center gap-2"><UploadCloud className="h-3.5 w-3.5" /> CSV import</span>
+            <ChevronDown className="h-3.5 w-3.5" />
+          </summary>
+          <textarea
+            onBlur={(event) => {
+              if (!event.target.value.trim()) return
+              onSetCells(importCsvToSheet(event.target.value).cells)
+              event.target.value = ""
+            }}
+            placeholder="Paste CSV here, then leave the field to import rows into the grid."
+            className="mt-2 h-16 w-full rounded-md border border-input bg-background p-3 text-sm outline-none focus:border-ring"
+          />
+        </details>
         <div className="overflow-auto rounded-md border border-border">
           <table className="min-w-full border-collapse text-sm">
             <tbody>
@@ -2072,27 +2085,39 @@ function StudioCanvas({
           <span className="rounded-md bg-secondary px-2 py-1 text-secondary-foreground">{slideShowSummary.totalMinutes} min</span>
           <span className="rounded-md bg-secondary px-2 py-1 text-secondary-foreground">{Math.ceil((slideShowSummary.slideTimings[selectedSlideIndex]?.durationMs || 0) / 1000)}s here</span>
         </div>
-        <SelectLike label="Layout" value={selectedSlide?.layout || "title"} options={["title", "two-column", "image", "quote"]} onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, layout: value as WorkspaceDeck["slides"][number]["layout"] } : item))} />
-        <SelectLike label="Theme" value={selectedSlide?.theme || "midnight"} options={Object.keys(slideDesignPresets)} onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? applySlideDesignPreset(item, value as keyof typeof slideDesignPresets) : item))} />
-        <SelectLike label="Transition" value={selectedSlide?.transition || "none"} options={Object.keys(slideTransitionPresets)} onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, transition: value as WorkspaceDeck["slides"][number]["transition"] } : item))} />
-        <p className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{selectedTransition.description}</p>
-        <SelectLike label="Animation" value={selectedSlide?.animation || "none"} options={Object.keys(slideAnimationPresets)} onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, animation: value as WorkspaceDeck["slides"][number]["animation"] } : item))} />
-        <p className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{selectedAnimation.description}</p>
-        <label className="grid gap-1 text-sm text-foreground">
-          Background
-          <input value={selectedSlide?.background || "#111827"} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, background: event.target.value } : item))} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
-        </label>
-        <textarea value={selectedSlide?.speakerNotes || ""} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, speakerNotes: event.target.value } : item))} placeholder="Speaker notes" className="min-h-32 rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none focus:border-ring" />
-        <div className="grid grid-cols-2 gap-2">
-          <SheetButton label="Text" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("text")] } : item))} icon={Type} />
-          <SheetButton label="Shape" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("shape")] } : item))} icon={LayoutPanelLeft} />
-          <SheetButton label="Image" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("image")] } : item))} icon={ImageIcon} />
-          <SheetButton label="Table" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("table")] } : item))} icon={Table2} />
-          <SheetButton label="Up" onClick={() => onSetSlides((current) => moveSlide(current, selectedSlideIndex, -1))} icon={ChevronDown} />
-          <SheetButton label="Down" onClick={() => onSetSlides((current) => moveSlide(current, selectedSlideIndex, 1))} icon={ChevronDown} />
-          <SheetButton label="Copy" onClick={() => onSetSlides((current) => duplicateSlide(current, selectedSlideIndex))} icon={Copy} />
-          <SheetButton label="Delete" onClick={() => onSetSlides((current) => current.length > 1 ? current.filter((_, index) => index !== selectedSlideIndex) : current)} icon={Trash2} />
-        </div>
+        <ActionMenu label="Design" icon={LayoutPanelLeft}>
+          <MenuSelect label="Layout" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, layout: value as WorkspaceDeck["slides"][number]["layout"] } : item))} options={["title", "two-column", "image", "quote"].map((value) => ({ label: value, value }))} />
+          <MenuSelect label="Theme" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? applySlideDesignPreset(item, value as keyof typeof slideDesignPresets) : item))} options={Object.keys(slideDesignPresets).map((value) => ({ label: value, value }))} />
+          <label className="grid gap-1 px-2 py-1 text-xs font-semibold text-muted-foreground">
+            Background
+            <input value={selectedSlide?.background || "#111827"} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, background: event.target.value } : item))} className="h-8 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
+          </label>
+        </ActionMenu>
+        <ActionMenu label="Motion" icon={Maximize2}>
+          <MenuSelect label="Transition" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, transition: value as WorkspaceDeck["slides"][number]["transition"] } : item))} options={Object.keys(slideTransitionPresets).map((value) => ({ label: value, value }))} />
+          <p className="mx-2 rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{selectedTransition.description}</p>
+          <MenuSelect label="Animation" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, animation: value as WorkspaceDeck["slides"][number]["animation"] } : item))} options={Object.keys(slideAnimationPresets).map((value) => ({ label: value, value }))} />
+          <p className="mx-2 rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{selectedAnimation.description}</p>
+        </ActionMenu>
+        <ActionMenu label="Insert" icon={Plus}>
+          <MenuAction icon={Type} label="Text box" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("text")] } : item))} />
+          <MenuAction icon={LayoutPanelLeft} label="Shape" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("shape")] } : item))} />
+          <MenuAction icon={ImageIcon} label="Image" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("image")] } : item))} />
+          <MenuAction icon={Table2} label="Table" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("table")] } : item))} />
+        </ActionMenu>
+        <ActionMenu label="Arrange" icon={Scissors}>
+          <MenuAction icon={ChevronDown} label="Move up" onClick={() => onSetSlides((current) => moveSlide(current, selectedSlideIndex, -1))} />
+          <MenuAction icon={ChevronDown} label="Move down" onClick={() => onSetSlides((current) => moveSlide(current, selectedSlideIndex, 1))} />
+          <MenuAction icon={Copy} label="Duplicate slide" onClick={() => onSetSlides((current) => duplicateSlide(current, selectedSlideIndex))} />
+          <MenuAction danger icon={Trash2} label="Delete slide" onClick={() => onSetSlides((current) => current.length > 1 ? current.filter((_, index) => index !== selectedSlideIndex) : current)} />
+        </ActionMenu>
+        <details className="rounded-md border border-border bg-background p-2">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            Speaker notes
+            <ChevronDown className="h-3.5 w-3.5" />
+          </summary>
+          <textarea value={selectedSlide?.speakerNotes || ""} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, speakerNotes: event.target.value } : item))} placeholder="Speaker notes" className="mt-2 min-h-32 w-full rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none focus:border-ring" />
+        </details>
         {selectedSlide?.objects?.length ? (
           <div className="grid gap-2 rounded-md border border-border bg-background p-2">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Objects</p>
