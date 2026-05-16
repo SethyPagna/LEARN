@@ -1,6 +1,5 @@
 import { cookies } from "next/headers"
 import Link from "next/link"
-import type React from "react"
 import { ArrowRight, BookOpen, Brain, GraduationCap, Layers3, Play, Sparkles } from "lucide-react"
 import { SESSION_COOKIE } from "@/lib/data"
 import { IntroWorkflow } from "@/components/intro-workflow"
@@ -35,13 +34,13 @@ export default async function HomePage() {
           <div className="intro-copy">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-sm text-emerald-100">
               <Sparkles className="h-4 w-4" />
-              Launching your learning loop
+              Notes, AI, practice, and review in one loop
             </div>
             <h1 className="mt-4 max-w-3xl text-balance text-5xl font-semibold tracking-tight sm:text-6xl">
-              Learn once. Reuse it everywhere.
+              Capture what you learn. Turn it into practice.
             </h1>
             <p className="mt-4 max-w-xl text-lg leading-8 text-white/64">
-              Capture, organize, practice, and return with a workspace that keeps your mind in motion.
+              LEARN is a personal study workspace where notes, docs, AI tutoring, quizzes, reviews, and your calendar stay connected.
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Link href={signedIn ? "/dashboard" : "/login"} className="inline-flex h-11 items-center gap-2 rounded-md bg-white px-4 text-sm font-semibold text-black transition hover:bg-emerald-100">
@@ -53,24 +52,15 @@ export default async function HomePage() {
                 View workflow
               </Link>
             </div>
-            <div className="mt-6 grid max-w-xl grid-cols-3 gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/52">
-              <span>Vault</span>
-              <span>Studio</span>
-              <span>Practice</span>
+            <div className="mt-6 grid max-w-xl grid-cols-2 gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/58 sm:grid-cols-4">
+              {["Capture", "Organize", "Practice", "Remember"].map((step) => (
+                <span key={step} className="rounded-full border border-white/10 bg-white/[0.045] px-3 py-2 text-center">{step}</span>
+              ))}
             </div>
           </div>
 
           <div className="intro-stage">
-            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.055] p-3 shadow-2xl shadow-black/50 backdrop-blur">
-              <div className="absolute right-6 top-5 z-20 rounded-full border border-white/10 bg-black/45 px-3 py-1 text-xs font-semibold text-white/72">
-                Live workspace preview
-              </div>
-              <div className="intro-product-stack">
-                <ProductShot kind="studio" />
-                <ProductShot kind="ai" />
-                <ProductShot kind="practice" />
-              </div>
-            </div>
+            <LearningLoopPreview />
           </div>
         </div>
 
@@ -79,29 +69,15 @@ export default async function HomePage() {
             from { opacity: 0; transform: translateY(18px); }
             to { opacity: 1; transform: translateY(0); }
           }
-          @keyframes intro-float-one {
-            0%, 100% { transform: translate3d(0, 0, 0) rotate(-2deg); opacity: 1; }
-            50% { transform: translate3d(0, -12px, 0) rotate(-1deg); opacity: 0.96; }
-          }
-          @keyframes intro-float-two {
-            0%, 100% { transform: translate3d(18px, 24px, 0) rotate(2deg); opacity: 0.82; }
-            50% { transform: translate3d(18px, 8px, 0) rotate(1deg); opacity: 0.95; }
-          }
-          @keyframes intro-float-three {
-            0%, 100% { transform: translate3d(-18px, 48px, 0) rotate(1deg); opacity: 0.68; }
-            50% { transform: translate3d(-18px, 30px, 0) rotate(0deg); opacity: 0.86; }
+          @keyframes intro-scan {
+            0%, 100% { transform: translateX(-18%); opacity: 0.36; }
+            50% { transform: translateX(18%); opacity: 0.72; }
           }
           .intro-copy, .intro-stage { animation: intro-rise 720ms ease-out both; }
           .intro-stage { animation-delay: 120ms; }
-          .intro-product-stack { min-height: 430px; position: relative; }
-          .intro-product-stack > article:nth-child(1) { animation: intro-float-one 7s ease-in-out infinite; left: 7%; top: 12%; z-index: 3; }
-          .intro-product-stack > article:nth-child(2) { animation: intro-float-two 8s ease-in-out infinite; right: 3%; top: 4%; z-index: 2; }
-          .intro-product-stack > article:nth-child(3) { animation: intro-float-three 9s ease-in-out infinite; left: 0; bottom: 4%; z-index: 1; }
+          .intro-loop-scan { animation: intro-scan 6s ease-in-out infinite; }
           @media (prefers-reduced-motion: reduce) {
-            .intro-copy, .intro-stage, .intro-product-stack > article { animation: none !important; }
-          }
-          @media (max-width: 1023px) {
-            .intro-product-stack { min-height: 360px; }
+            .intro-copy, .intro-stage, .intro-loop-scan { animation: none !important; }
           }
         `}</style>
       </section>
@@ -110,76 +86,79 @@ export default async function HomePage() {
   )
 }
 
-function ProductShot({ kind }: { kind: "studio" | "ai" | "practice" }) {
-  if (kind === "ai") {
-    return (
-      <article className="absolute w-[72%] max-w-[390px] rounded-2xl border border-white/12 bg-[#0b111b]/95 p-4 shadow-2xl">
-        <ShotHeader icon={Brain} title="AI tutor" meta="Task | Filters | Gateway" />
-        <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
-          {["Task ready", "12 keys", "Quiz target"].map((item) => (
-            <span key={item} className="rounded-lg border border-emerald-300/18 bg-emerald-300/8 px-2 py-2 text-emerald-100">{item}</span>
-          ))}
+function LearningLoopPreview() {
+  return (
+    <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.055] p-3 shadow-2xl shadow-black/50 backdrop-blur">
+      <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-emerald-200/60 to-transparent" />
+      <div className="intro-loop-scan pointer-events-none absolute left-8 right-8 top-24 h-24 rounded-full bg-emerald-300/15 blur-3xl" />
+      <div className="relative rounded-2xl border border-white/10 bg-[#07101b]/92 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200">Learning loop</p>
+            <h2 className="mt-1 text-2xl font-semibold text-white">From idea to memory</h2>
+          </div>
+          <span className="rounded-full border border-emerald-200/20 bg-emerald-200/10 px-3 py-1 text-xs font-semibold text-emerald-100">Live preview</span>
         </div>
-        <div className="mt-4 rounded-xl border border-white/10 bg-white/6 p-3 text-sm leading-6 text-white/72">
-          Generate a mixed quiz from my latest Studio notes with explanations.
-        </div>
-      </article>
-    )
-  }
 
-  if (kind === "practice") {
-    return (
-      <article className="absolute w-[72%] max-w-[390px] rounded-2xl border border-white/12 bg-[#0a1018]/95 p-4 shadow-2xl">
-        <ShotHeader icon={GraduationCap} title="Practice" meta="Timed loop" />
-        <div className="mt-4 grid gap-2">
-          {["Fill-in-the-blank", "Mistake retry", "Save to reviews"].map((item, index) => (
-            <div key={item} className="flex items-center justify-between rounded-lg bg-white/7 px-3 py-2 text-sm text-white/72">
-              <span>{item}</span>
-              <span className="text-emerald-200">{index + 1}/3</span>
+        <div className="mt-5 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
+          <section className="rounded-2xl bg-[#eef5ff] p-4 text-slate-950">
+            <div className="flex flex-wrap items-center gap-2">
+              {["Style", "Text", "Insert", "Find"].map((item) => (
+                <span key={item} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">{item}</span>
+              ))}
             </div>
+            <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                <Layers3 className="h-4 w-4 text-sky-500" />
+                Studio note
+              </div>
+              <h3 className="mt-2 text-3xl font-semibold">Database Indexing</h3>
+              <p className="mt-3 text-sm leading-6 text-slate-600">B-tree indexes help range queries. Hash indexes are best for exact matches.</p>
+              <div className="mt-4 grid gap-2">
+                <div className="h-2 w-4/5 rounded bg-emerald-300" />
+                <div className="h-2 w-3/5 rounded bg-sky-200" />
+              </div>
+            </div>
+          </section>
+
+          <section className="grid gap-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-black">
+                  <Brain className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">AI Tutor</p>
+                  <p className="text-xs text-white/48">Turns the note into questions</p>
+                </div>
+              </div>
+              <p className="mt-4 rounded-xl bg-black/28 p-3 text-sm leading-6 text-white/72">Generate a mixed quiz with explanations and save misses to review.</p>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-200/16 bg-emerald-200/8 p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-200 text-slate-950">
+                  <GraduationCap className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">Practice</p>
+                  <p className="text-xs text-white/48">Reviews remember what you missed</p>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-2">
+                {["Quiz ready", "Mistakes tracked", "Next review scheduled"].map((item) => (
+                  <span key={item} className="rounded-lg bg-black/24 px-3 py-2 text-sm font-semibold text-emerald-100">{item}</span>
+                ))}
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div className="mt-4 grid grid-cols-4 gap-2 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-white/56">
+          {["Capture", "Clean", "Quiz", "Review"].map((item) => (
+            <span key={item} className="rounded-full border border-white/10 bg-white/[0.045] px-2 py-2">{item}</span>
           ))}
         </div>
-      </article>
-    )
-  }
-
-  return (
-    <article className="absolute w-[76%] max-w-[430px] rounded-2xl border border-white/12 bg-[#eef5ff] p-4 text-slate-950 shadow-2xl">
-      <ShotHeader dark icon={Layers3} title="Studio" meta="Docs | Sheets | Slides" />
-      <div className="mt-4 flex gap-2">
-        {["Style", "Text", "Insert", "Find"].map((item) => (
-          <span key={item} className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">{item}</span>
-        ))}
-      </div>
-      <div className="mt-4 rounded-xl bg-white p-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Notes studio</p>
-        <h2 className="mt-2 text-2xl font-semibold">Database Indexing</h2>
-        <div className="mt-3 h-2 w-2/3 rounded bg-emerald-300" />
-        <div className="mt-2 h-2 w-1/2 rounded bg-sky-200" />
-      </div>
-    </article>
-  )
-}
-
-function ShotHeader({
-  dark,
-  icon: Icon,
-  meta,
-  title,
-}: {
-  dark?: boolean
-  icon: React.ComponentType<{ className?: string }>
-  meta: string
-  title: string
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${dark ? "bg-slate-950 text-white" : "bg-white text-black"}`}>
-        <Icon className="h-5 w-5" />
-      </div>
-      <div>
-        <p className={`text-sm font-semibold ${dark ? "text-slate-950" : "text-white"}`}>{title}</p>
-        <p className={`text-xs ${dark ? "text-slate-500" : "text-white/48"}`}>{meta}</p>
       </div>
     </div>
   )
