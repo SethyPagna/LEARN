@@ -54,7 +54,7 @@ test("review card helpers expose practice mistake context", () => {
     topic: "FSRS",
   }
 
-  assert.equal(reviewSourceLabel(mistake), "Practice miss · FSRS")
+  assert.equal(reviewSourceLabel(mistake), "Practice miss | FSRS")
   assert.equal(reviewPromptText(mistake), "What is the scheduler optimizing?")
   assert.equal(reviewAnswerText(mistake), "It minimizes daily review load while maintaining target retention.")
   assert.equal(reviewPromptText(item("review_plain", "2026-05-13T01:00:00.000Z", 0.8)), 'Recall the core idea behind "review_plain".')

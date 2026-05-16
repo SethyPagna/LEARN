@@ -113,7 +113,7 @@ export function reviewSourceLabel(item: ReviewItem) {
     practice_mistake: "Practice miss",
   }
   const base = labels[item.sourceType || "note"]
-  return item.topic ? `${base} · ${item.topic}` : base
+  return item.topic ? `${base} | ${item.topic}` : base
 }
 
 export function reviewPromptText(item: ReviewItem) {
