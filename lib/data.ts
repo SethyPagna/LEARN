@@ -627,6 +627,7 @@ export async function listChatThreads(user: User) {
     `SELECT t.*,
        (SELECT body FROM chat_messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1) AS last_message
      FROM chat_threads t
+     WHERE t.created_by_user_id = $1
      ORDER BY t.updated_at DESC
      LIMIT 80`,
     [user.id],
