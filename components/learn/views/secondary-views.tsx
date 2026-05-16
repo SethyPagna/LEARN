@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, ArrowRight, BookOpen, Bot, CalendarPlus, Check, ChevronRight, Clock, Copy, FileText, Filter, Gauge, Languages, Lock, Palette, Repeat2, Save, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserRound, Users } from "lucide-react"
+import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, Bot, CalendarDays, CalendarPlus, Check, ChevronRight, Clock, Copy, FileText, Filter, Gauge, Languages, Lock, Palette, Repeat2, Save, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserRound, Users } from "lucide-react"
 import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
 import { buildCalendarPlanningSummary, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
 import { buildProgressCommandPlan, summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
@@ -238,6 +238,8 @@ function urgencyClass(urgency: ProgressNextAction["urgency"]) {
 export function CalendarView({ options }: { options: WorkspaceOptions }) {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [selectedId, setSelectedId] = useState("")
+  const [visibleMonth, setVisibleMonth] = useState(() => new Date())
+  const [selectedDayKey, setSelectedDayKey] = useState(() => localDateKey(new Date()))
   const [title, setTitle] = useState("45 min focus block")
   const [eventType, setEventType] = useState("study")
   const [startsAt, setStartsAt] = useState(toLocalInputValue(new Date(Date.now() + options.calendarLeadMinutes * 60 * 1000)))
@@ -252,6 +254,11 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
     [events, options.calendarDefaultMinutes, options.calendarLeadMinutes],
   )
   const filteredEvents = useMemo(() => filterCalendarAgenda(events, agendaFilter), [agendaFilter, events])
+  const monthDays = useMemo(() => buildCalendarMonthDays(visibleMonth, events), [events, visibleMonth])
+  const selectedDayEvents = useMemo(
+    () => events.filter((event) => localDateKey(new Date(event.starts_at)) === selectedDayKey).sort(compareCalendarEvents),
+    [events, selectedDayKey],
+  )
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const canSave = title.trim().length > 0 && Number.isFinite(Date.parse(startsAt)) && durationMinutes >= 5
 
@@ -355,6 +362,10 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
     setStatus("Suggestion loaded as a draft.")
   }
 
+  function shiftVisibleMonth(delta: number) {
+    setVisibleMonth((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1))
+  }
+
   return (
     <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
       <Panel className="p-4">
@@ -411,6 +422,74 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
         {status ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
       </Panel>
       <Panel className="p-4">
+        <div className="mb-4 grid gap-4 2xl:grid-cols-[minmax(0,1.1fr)_minmax(300px,0.9fr)]">
+          <section className="rounded-lg border border-border bg-background p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-5 w-5 text-primary" />
+                <div>
+                  <h3 className="font-semibold text-foreground">{visibleMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h3>
+                  <p className="text-xs text-muted-foreground">Month view</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={() => shiftVisibleMonth(-1)} className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label="Previous month">
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+                <button onClick={() => { setVisibleMonth(new Date()); setSelectedDayKey(localDateKey(new Date())) }} className="h-8 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                  Today
+                </button>
+                <button onClick={() => shiftVisibleMonth(1)} className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label="Next month">
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-7 gap-1 text-center text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day} className="py-1">{day}</span>)}
+            </div>
+            <div className="mt-1 grid grid-cols-7 gap-1">
+              {monthDays.map((day) => (
+                <button
+                  key={day.key}
+                  onClick={() => setSelectedDayKey(day.key)}
+                  className={`min-h-20 rounded-md border p-2 text-left transition hover:border-primary/60 hover:bg-accent hover:text-accent-foreground ${day.key === selectedDayKey ? "border-primary bg-primary/10 text-primary" : day.inMonth ? "border-border bg-card text-foreground" : "border-border/60 bg-muted/40 text-muted-foreground"}`}
+                >
+                  <span className="text-xs font-semibold">{day.label}</span>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {day.events.slice(0, 3).map((event) => <span key={event.id} className={`h-1.5 w-1.5 rounded-full ${calendarDotClass(event.event_type)}`} title={event.title} />)}
+                    {day.events.length > 3 ? <span className="text-[0.65rem] font-semibold text-muted-foreground">+{day.events.length - 3}</span> : null}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+          <section className="rounded-lg border border-border bg-background p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="font-semibold text-foreground">{formatCalendarDayLabel(selectedDayKey)}</h3>
+                <p className="text-xs text-muted-foreground">{selectedDayEvents.length} scheduled blocks</p>
+              </div>
+              <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{timezone}</span>
+            </div>
+            <div className="space-y-2">
+              {selectedDayEvents.map((event) => (
+                <button key={event.id} onClick={() => setSelectedId(event.id)} className={`flex w-full items-start gap-3 rounded-md border p-3 text-left ${selectedId === event.id ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-accent hover:text-accent-foreground"}`}>
+                  <span className={`mt-1 h-2.5 w-2.5 rounded-full ${calendarDotClass(event.event_type)}`} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs font-semibold text-muted-foreground">{formatCalendarTimeRange(event)}</span>
+                    <span className="mt-1 block truncate font-semibold text-foreground">{event.title}</span>
+                    <span className="mt-1 block text-xs text-muted-foreground">{labelCalendarEventType(event.event_type)} · {formatCalendarDuration(calendarEventDurationFromRecord(event))}</span>
+                  </span>
+                </button>
+              ))}
+              {!selectedDayEvents.length ? (
+                <div className="rounded-md border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                  No blocks on this date. Pick a time on the left and save a focus, review, or deadline block.
+                </div>
+              ) : null}
+            </div>
+          </section>
+        </div>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="font-semibold text-foreground">Agenda records</h3>
@@ -452,6 +531,71 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
       </Panel>
     </div>
   )
+}
+
+function buildCalendarMonthDays(month: Date, events: CalendarEvent[]) {
+  const first = new Date(month.getFullYear(), month.getMonth(), 1)
+  const start = new Date(first)
+  start.setDate(first.getDate() - first.getDay())
+  const eventsByDay = new Map<string, CalendarEvent[]>()
+  for (const event of events) {
+    const key = localDateKey(new Date(event.starts_at))
+    const list = eventsByDay.get(key) || []
+    list.push(event)
+    eventsByDay.set(key, list)
+  }
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(start)
+    date.setDate(start.getDate() + index)
+    const key = localDateKey(date)
+    return {
+      key,
+      label: String(date.getDate()),
+      inMonth: date.getMonth() === month.getMonth(),
+      events: (eventsByDay.get(key) || []).sort(compareCalendarEvents),
+    }
+  })
+}
+
+function compareCalendarEvents(first: CalendarEvent, second: CalendarEvent) {
+  return Date.parse(first.starts_at) - Date.parse(second.starts_at)
+}
+
+function calendarEventDurationFromRecord(event: CalendarEvent) {
+  const start = Date.parse(event.starts_at)
+  const end = Date.parse(event.ends_at)
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0
+  return Math.round((end - start) / 60000)
+}
+
+function calendarDotClass(type: string) {
+  if (type === "review") return "bg-warning"
+  if (type === "deadline") return "bg-destructive"
+  if (type === "completed") return "bg-success"
+  if (type === "focus") return "bg-primary"
+  return "bg-sky-500"
+}
+
+function formatCalendarDayLabel(key: string) {
+  const date = dateFromLocalKey(key)
+  return date.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })
+}
+
+function formatCalendarTimeRange(event: CalendarEvent) {
+  const format = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" })
+  return `${format.format(new Date(event.starts_at))} - ${format.format(new Date(event.ends_at))}`
+}
+
+function dateFromLocalKey(key: string) {
+  const [year, month, day] = key.split("-").map(Number)
+  return new Date(year, (month || 1) - 1, day || 1)
+}
+
+function localDateKey(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
 }
 
 function toLocalInputValue(date: Date) {
