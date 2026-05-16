@@ -5,7 +5,7 @@ import { AlertTriangle, ArrowRight, BookOpen, Bot, CalendarPlus, Check, ChevronR
 import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
 import { filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
 import { summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
-import { normalizeSettingsNumber, summarizeSettingsOptions } from "@/lib/settings-features"
+import { buildSettingsControlPlan, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
 import { filterAdminList, summarizeAdminOperations, type AdminPanelTab } from "@/lib/admin-features"
 import type { WorkspaceOptions } from "../preferences"
 import type { CalendarEvent, Quiz, User, View } from "../types"
@@ -367,6 +367,44 @@ function CalendarAction({ icon: Icon, label, onClick, primary }: { icon: typeof 
   )
 }
 
+const settingsSectionIcons: Record<SettingsSectionId, typeof Target> = {
+  experience: Palette,
+  learning: Target,
+  privacy: Lock,
+  profile: UserRound,
+}
+
+function SettingsSectionButton({
+  active,
+  guide,
+  onClick,
+  suggested,
+}: {
+  active: boolean
+  guide: SettingsSectionGuide
+  onClick: () => void
+  suggested: boolean
+}) {
+  const Icon = settingsSectionIcons[guide.id]
+  return (
+    <button
+      onClick={onClick}
+      className={`group relative rounded-md border p-3 text-left transition hover:-translate-y-0.5 ${active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex min-w-0 items-center gap-3">
+          <Icon className="h-5 w-5 shrink-0" />
+          <span className="truncate font-semibold">{guide.label}</span>
+        </span>
+        <span className={`rounded-md px-2 py-1 text-[0.68rem] font-semibold ${active ? "bg-primary-foreground/15 text-primary-foreground" : settingsToneClass(guide.tone)}`}>
+          {suggested ? "next" : guide.badge}
+        </span>
+      </div>
+      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{guide.detail}</p>
+    </button>
+  )
+}
+
 export function SettingsView({
   user,
   automationData,
@@ -385,9 +423,10 @@ export function SettingsView({
   const [name, setName] = useState(user?.name || "")
   const [email, setEmail] = useState(user?.email || "")
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState(Number(user?.preferences?.dailyGoalMinutes || 45))
-  const [section, setSection] = useState<"profile" | "experience" | "learning" | "privacy">("profile")
+  const [section, setSection] = useState<SettingsSectionId>("profile")
   const [status, setStatus] = useState("")
   const settingsSummary = useMemo(() => summarizeSettingsOptions(options), [options])
+  const settingsPlan = useMemo(() => buildSettingsControlPlan(settingsSummary), [settingsSummary])
   const profileDirty = name !== (user?.name || "") || email !== (user?.email || "") || dailyGoalMinutes !== Number(user?.preferences?.dailyGoalMinutes || 45)
 
   useEffect(() => {
@@ -432,20 +471,8 @@ export function SettingsView({
         </div>
         {status ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
         <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-          {([
-            ["profile", "Profile", UserRound],
-            ["experience", "Experience", Palette],
-            ["learning", "Learning", Target],
-            ["privacy", "Privacy", Lock],
-          ] as const).map(([id, label, Icon]) => (
-            <button
-              key={id}
-              onClick={() => setSection(id)}
-              className={`flex items-center gap-3 rounded-md border p-3 text-left transition hover:-translate-y-0.5 ${section === id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
-            >
-              <Icon className="h-5 w-5" />
-              <span className="font-semibold">{label}</span>
-            </button>
+          {settingsPlan.guides.map((guide) => (
+            <SettingsSectionButton key={guide.id} guide={guide} active={section === guide.id} suggested={settingsPlan.suggestedSection === guide.id} onClick={() => setSection(guide.id)} />
           ))}
         </div>
       </Panel>
@@ -460,6 +487,13 @@ export function SettingsView({
             </div>
           ))}
         </div>
+        <button
+          onClick={() => setSection(settingsPlan.suggestedSection)}
+          className="mt-4 flex w-full items-center justify-between gap-3 rounded-md border border-border bg-secondary p-3 text-left text-sm font-semibold text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground"
+        >
+          <span className="min-w-0 truncate">{settingsPlan.nextAction}</span>
+          <ArrowRight className="h-4 w-4 shrink-0" />
+        </button>
       </Panel>
 
       {section === "profile" ? (
