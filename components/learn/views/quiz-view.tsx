@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Clock, Flag, Info, Pause, Play, RotateCcw, Sparkles, XCircle } from "lucide-react"
+import { CheckCircle2, ChevronDown, Clock, Flag, ListFilter, MoreHorizontal, Pause, Play, RotateCcw, Sparkles, XCircle } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { PracticeAttemptSummary, PracticeMode, Quiz } from "../types"
 import { api } from "../api"
@@ -227,16 +227,24 @@ export function QuizView({
   return (
     <div className="grid gap-4 xl:grid-cols-[300px_1fr]">
       <Panel className="p-3">
-        {quizzes.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setSelectedQuizId(item.id)}
-            className={`mb-2 w-full rounded-md p-3 text-left ${selected === item.id ? "bg-primary text-primary-foreground" : "bg-muted text-foreground hover:bg-accent hover:text-accent-foreground"}`}
-          >
-            <p className="font-semibold">{item.title}</p>
-            <p className="mt-1 text-sm opacity-70">{item.question_count || 0} questions</p>
-          </button>
-        ))}
+        <details open>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground xl:hidden">
+            Quiz bank
+            <ChevronDown className="h-4 w-4" />
+          </summary>
+          <div className="mt-2 xl:mt-0">
+            {quizzes.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setSelectedQuizId(item.id)}
+                className={`mb-2 w-full rounded-md p-3 text-left ${selected === item.id ? "bg-primary text-primary-foreground" : "bg-muted text-foreground hover:bg-accent hover:text-accent-foreground"}`}
+              >
+                <p className="font-semibold">{item.title}</p>
+                <p className="mt-1 text-sm opacity-70">{item.question_count || 0} questions</p>
+              </button>
+            ))}
+          </div>
+        </details>
       </Panel>
       <Panel className="p-4">
         {quiz ? (
@@ -248,36 +256,38 @@ export function QuizView({
               </div>
               <div className="flex flex-wrap gap-2 lg:justify-end">
                 <ModeStatusChip label={modeSummary.activeGroup.label} value={modeSummary.activeModeLabel} />
-                <button
-                  onClick={() => setPracticeMode(modeSummary.recommendedNextMode)}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
-                  title={modeSummary.caption}
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Next: {practiceModeLabel(modeSummary.recommendedNextMode)}
+                <PracticeMenu label="Mode" icon={Sparkles}>
+                  <PracticeMenuAction icon={Sparkles} label={`Next: ${practiceModeLabel(modeSummary.recommendedNextMode)}`} onClick={() => setPracticeMode(modeSummary.recommendedNextMode)} meta={modeSummary.caption} />
+                  {practiceModeGroups.map((group) => (
+                    <div key={group.id} className="grid gap-1">
+                      <p className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground first:pt-0">{group.label}</p>
+                      {group.modes.map((mode) => (
+                        <PracticeMenuAction key={mode} active={practiceMode === mode} icon={CheckCircle2} label={practiceModeLabel(mode)} onClick={() => setPracticeMode(mode)} meta={group.caption} />
+                      ))}
+                    </div>
+                  ))}
+                </PracticeMenu>
+                <PracticeMenu label="Filters" icon={ListFilter}>
+                  {questionFilters.map((filter) => {
+                    const count = filter.id === "all"
+                      ? visibleQuestions.length
+                      : filterPracticeQuestions(visibleQuestions, {
+                        filter: filter.id,
+                        answeredQuestionIds,
+                        markedQuestionIds,
+                        missedQuestionIds: attemptSummary?.missedQuestionIds || retryQuestionIds,
+                      }).length
+                    return (
+                      <PracticeMenuAction key={filter.id} active={questionFilter === filter.id} icon={ListFilter} label={filter.label} onClick={() => setQuestionFilter(filter.id)} meta={`${count} question${count === 1 ? "" : "s"}`} />
+                    )
+                  })}
+                </PracticeMenu>
+                <button onClick={submit} className="inline-flex h-9 items-center gap-1.5 rounded-md bg-success px-3 text-xs font-semibold text-success-foreground">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Submit
                 </button>
               </div>
             </div>
-            <details className="mt-4 rounded-md border border-border bg-card p-3">
-              <summary className="cursor-pointer text-sm font-semibold text-foreground">Practice modes</summary>
-              <div className="mt-3 grid gap-2 lg:grid-cols-4">
-                {practiceModeGroups.map((group) => (
-                  <div key={group.id} className={`rounded-md border p-2 ${modeSummary.activeGroup.id === group.id ? "border-primary bg-primary/10" : "border-border bg-background"}`}>
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{group.label}</p>
-                      <InfoPopover title={group.label} body={group.caption} />
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {group.modes.map((mode) => (
-                        <button key={mode} onClick={() => setPracticeMode(mode)} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${practiceMode === mode ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
-                          {practiceModeLabel(mode)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </details>
             <PracticeProgressBar
               answeredCount={answeredCount}
               draftStatus={draftStatus}
@@ -291,24 +301,7 @@ export function QuizView({
               totalCount={visibleQuestions.length}
             />
             <QuizTimerControls paused={paused} setPaused={setPracticePaused} targetMinutes={targetMinutes} elapsedSeconds={elapsedSeconds} remainingSeconds={remainingSeconds} resetTimer={resetTimer} setTargetMinutes={setTargetMinutes} />
-            <div className="mt-4 flex flex-wrap gap-2 rounded-md border border-border bg-card p-2">
-              {questionFilters.map((filter) => {
-                const count = filter.id === "all"
-                  ? visibleQuestions.length
-                  : filterPracticeQuestions(visibleQuestions, {
-                    filter: filter.id,
-                    answeredQuestionIds,
-                    markedQuestionIds,
-                    missedQuestionIds: attemptSummary?.missedQuestionIds || retryQuestionIds,
-                  }).length
-                return (
-                  <button key={filter.id} onClick={() => setQuestionFilter(filter.id)} className={`h-8 rounded-md px-3 text-xs font-semibold ${questionFilter === filter.id ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
-                    {filter.label} <span className="opacity-70">{count}</span>
-                  </button>
-                )
-              })}
-              {missedCount ? <span className="ml-auto rounded-md bg-warning px-2 py-1 text-xs font-semibold text-warning-foreground">{missedCount} to repair</span> : null}
-            </div>
+            {missedCount ? <p className="mt-3 inline-flex rounded-md bg-warning px-2 py-1 text-xs font-semibold text-warning-foreground">{missedCount} to repair</p> : null}
             <div className="mt-5 space-y-3">
               {filteredQuestions.map((question, index) => {
                 const marked = markedQuestionIds.includes(question.id)
@@ -319,16 +312,10 @@ export function QuizView({
                       <p className="text-sm text-muted-foreground">Question {index + 1}</p>
                       <h3 className="mt-1 font-semibold text-foreground">{question.question}</h3>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => toggleMarked(question.id)} className={`flex h-8 items-center gap-1.5 rounded-md border px-2 text-xs font-semibold ${marked ? "border-warning bg-warning text-warning-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
-                        <Flag className="h-3.5 w-3.5" />
-                        {marked ? "Marked" : "Mark"}
-                      </button>
-                      <button onClick={() => clearAnswer(question.id)} disabled={!answers[question.id]} className="flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50">
-                        <XCircle className="h-3.5 w-3.5" />
-                        Clear
-                      </button>
-                    </div>
+                    <PracticeMenu align="right" compact label="Question actions" icon={MoreHorizontal}>
+                      <PracticeMenuAction active={marked} icon={Flag} label={marked ? "Unmark" : "Mark for review"} onClick={() => toggleMarked(question.id)} />
+                      <PracticeMenuAction disabled={!answers[question.id]} icon={XCircle} label="Clear answer" onClick={() => clearAnswer(question.id)} />
+                    </PracticeMenu>
                   </div>
                   <div className="mt-4 grid gap-2 md:grid-cols-2">
                     {question.choices.map((choice) => (
@@ -386,7 +373,6 @@ export function QuizView({
                 {reviewCardStatus ? <p className="mt-2 rounded-md bg-background px-3 py-2 text-xs font-semibold text-foreground">{reviewCardStatus}</p> : null}
               </div>
             ) : null}
-            <button onClick={submit} className="mt-4 rounded-md bg-success px-4 py-2 text-sm font-semibold text-success-foreground">Submit attempt</button>
           </>
         ) : (
           <>
@@ -462,16 +448,63 @@ function PracticeStat({ label, tone = "neutral", value }: { label: string; tone?
   )
 }
 
-function InfoPopover({ body, title }: { body: string; title: string }) {
+function PracticeMenu({
+  align = "left",
+  children,
+  compact,
+  icon: Icon,
+  label,
+}: {
+  align?: "left" | "right"
+  children: React.ReactNode
+  compact?: boolean
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+}) {
   return (
-    <details className="relative">
-      <summary className="flex h-7 w-7 list-none items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${title}`}>
-        <Info className="h-3.5 w-3.5" />
+    <details className="group relative inline-block">
+      <summary className={`flex h-9 cursor-pointer list-none items-center gap-2 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden ${compact ? "px-2" : ""}`} title={label}>
+        <Icon className="h-3.5 w-3.5" />
+        <span className={compact ? "sr-only" : ""}>{label}</span>
+        {!compact ? <ChevronDown className="h-3.5 w-3.5 opacity-70" /> : null}
       </summary>
-      <p className="absolute right-0 top-8 z-20 w-56 rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-xl">
-        {body}
-      </p>
+      <div className={`absolute top-10 z-40 max-h-[min(32rem,calc(100vh-8rem))] w-64 overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-xl ${align === "right" ? "right-0" : "left-0"}`}>
+        {children}
+      </div>
     </details>
+  )
+}
+
+function PracticeMenuAction({
+  active,
+  disabled,
+  icon: Icon,
+  label,
+  meta,
+  onClick,
+}: {
+  active?: boolean
+  disabled?: boolean
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  meta?: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${
+        active ? "bg-primary text-primary-foreground" : "text-popover-foreground hover:bg-accent hover:text-accent-foreground"
+      }`}
+      type="button"
+    >
+      <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+      <span className="min-w-0">
+        <span className="block truncate">{label}</span>
+        {meta ? <span className={`mt-0.5 block line-clamp-2 text-xs font-medium ${active ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{meta}</span> : null}
+      </span>
+    </button>
   )
 }
 
@@ -493,32 +526,36 @@ function QuizTimerControls({
   targetMinutes: number
 }) {
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2">
-      <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
-        <Clock className="h-3.5 w-3.5" />
-        {formatDuration(elapsedSeconds)} elapsed
-      </span>
-      <span className={`rounded-md px-2 py-1 text-xs font-semibold ${remainingSeconds === 0 ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>
-        {formatDuration(remainingSeconds)} left
-      </span>
-      {[5, 10, 20, 45].map((minutes) => (
-        <button
-          key={minutes}
-          onClick={() => setTargetMinutes(minutes)}
-          className={`rounded-md px-3 py-1.5 text-xs font-semibold ${targetMinutes === minutes ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
-        >
-          {minutes}m
+    <details className="mt-4 rounded-md border border-border bg-card p-2">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        <span className="flex items-center gap-2">
+          <Clock className="h-3.5 w-3.5" />
+          Timer
+          <span className="normal-case tracking-normal text-foreground">{formatDuration(elapsedSeconds)} elapsed</span>
+          <span className={remainingSeconds === 0 ? "normal-case tracking-normal text-destructive" : "normal-case tracking-normal"}>{formatDuration(remainingSeconds)} left</span>
+        </span>
+        <ChevronDown className="h-3.5 w-3.5" />
+      </summary>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {[5, 10, 20, 45].map((minutes) => (
+          <button
+            key={minutes}
+            onClick={() => setTargetMinutes(minutes)}
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold ${targetMinutes === minutes ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+          >
+            {minutes}m
+          </button>
+        ))}
+        <button onClick={resetTimer} className="ml-auto flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+          <RotateCcw className="h-3.5 w-3.5" />
+          Reset
         </button>
-      ))}
-      <button onClick={resetTimer} className="ml-auto flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-        <RotateCcw className="h-3.5 w-3.5" />
-        Reset timer
-      </button>
-      <button onClick={() => setPaused(!paused)} className="flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-        {paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
-        {paused ? "Resume" : "Pause"}
-      </button>
-    </div>
+        <button onClick={() => setPaused(!paused)} className="flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+          {paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+          {paused ? "Resume" : "Pause"}
+        </button>
+      </div>
+    </details>
   )
 }
 
