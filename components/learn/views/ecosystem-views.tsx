@@ -37,7 +37,7 @@ import type {
   View,
 } from "../types"
 import { EmptyState, Panel, StatusMessage } from "../ui"
-import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph } from "@/lib/learning-ecosystem"
+import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
 import { buildSocialWorkspacePlan, filterSocialRecords, socialRecordTitle, summarizeSocialWorkspace, type SocialRecordFilter } from "@/lib/social-features"
 
@@ -294,12 +294,19 @@ function graphFilterLabel(filter: GraphFilter) {
   return "All"
 }
 
-export function ReviewsView() {
+export function ReviewsView({ setView }: { setView: (view: View) => void }) {
   const { data, status, refresh } = useResource<ReviewPayload>("/api/reviews")
   const [busyId, setBusyId] = useState("")
   const [revealedIds, setRevealedIds] = useState<string[]>([])
   const revealed = useMemo(() => new Set(revealedIds), [revealedIds])
-  const practiceMissCount = useMemo(() => (data?.items ?? []).filter((item) => item.sourceType === "practice_mistake").length, [data?.items])
+  const reviewSummary = useMemo(
+    () => summarizeReviewSession({ items: data?.items ?? [], remainingDueCount: data?.remainingDueCount ?? 0 }, revealedIds),
+    [data?.items, data?.remainingDueCount, revealedIds],
+  )
+  const reviewPlan = useMemo(
+    () => buildReviewActionPlan({ items: data?.items ?? [], isRestDay: Boolean(data?.isRestDay), remainingDueCount: data?.remainingDueCount ?? 0 }, reviewSummary, revealedIds),
+    [data?.isRestDay, data?.items, data?.remainingDueCount, revealedIds, reviewSummary],
+  )
 
   async function record(item: ReviewItem, rating: string) {
     setBusyId(item.id)
@@ -316,24 +323,65 @@ export function ReviewsView() {
     setRevealedIds((current) => current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id])
   }
 
+  function applyReviewPlan() {
+    if (reviewPlan.nextAction === "studio" || reviewPlan.nextAction === "rest") {
+      setView("studio")
+      return
+    }
+    if (reviewPlan.nextAction === "practice") {
+      setView("practice")
+      return
+    }
+    if (reviewPlan.targetItemId) {
+      if (reviewPlan.nextAction === "reveal") {
+        setRevealedIds((current) => current.includes(reviewPlan.targetItemId!) ? current : [...current, reviewPlan.targetItemId!])
+      }
+      document.getElementById(`review-${reviewPlan.targetItemId}`)?.scrollIntoView({ behavior: "smooth", block: "start" })
+    }
+  }
+
   return (
     <div className="grid gap-4 xl:grid-cols-[340px_1fr]">
       <Panel className="p-4">
         <h2 className="font-semibold text-foreground">Review ritual</h2>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          {data?.isRestDay ? "Today is protected as a rest day." : `${data?.items.length ?? 0} due now, ${data?.remainingDueCount ?? 0} left after the cap.`}
-        </p>
+        <button onClick={applyReviewPlan} className="mt-3 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-semibold text-foreground">{reviewPlan.headline}</span>
+            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">{reviewPlan.detail}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {reviewPlan.chips.map((chip) => (
+              <span key={chip} className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">
+                {chip}
+              </span>
+            ))}
+          </div>
+        </button>
         <div className="mt-4 grid gap-2">
           <Metric label="Status" value={status} />
-          <Metric label="Dose" value="Minimum effective" />
-          <Metric label="Practice misses" value={String(practiceMissCount)} />
+          <Metric label="Due" value={String(reviewSummary.totalDue)} />
+          <Metric label="Revealed" value={String(reviewSummary.revealedCount)} />
+          <Metric label="Practice misses" value={String(reviewSummary.practiceMissCount)} />
+          <Metric label="Recall" value={`${Math.round(reviewSummary.averageRetrievability * 100)}%`} />
+          <Metric label="Later" value={String(reviewSummary.remainingAfterCap)} />
         </div>
+        {reviewSummary.topTopics.length ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {reviewSummary.topTopics.map((topic) => (
+              <span key={topic.topic} className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
+                {topic.topic} {topic.count}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </Panel>
       <div className="grid gap-3">
         {(data?.items ?? []).map((item) => {
           const isRevealed = revealed.has(item.id)
           return (
-          <Panel key={item.id} className="p-4">
+          <div key={item.id} id={`review-${item.id}`}>
+          <Panel className="p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -342,7 +390,11 @@ export function ReviewsView() {
                     {reviewSourceLabel(item)}
                   </span>
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">Retrievability {Math.round(item.retrievability * 100)}%</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground">
+                  <span className="rounded-md bg-muted px-2 py-1">Retrievability {Math.round(item.retrievability * 100)}%</span>
+                  <span className="rounded-md bg-muted px-2 py-1">Difficulty {Math.round(item.difficulty * 100)}%</span>
+                  <span className="rounded-md bg-muted px-2 py-1">Stability {Math.round(item.stability * 10) / 10}</span>
+                </div>
               </div>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -352,12 +404,12 @@ export function ReviewsView() {
                   <Eye className="h-4 w-4" />
                   {isRevealed ? "Hide answer" : "Reveal"}
                 </button>
-                {["again", "hard", "good", "easy"].map((rating) => (
+                {(["again", "hard", "good", "easy"] as const).map((rating) => (
                   <button
                     key={rating}
                     disabled={busyId === item.id}
                     onClick={() => record(item, rating)}
-                    className="h-9 rounded-md border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-60"
+                    className={`h-9 rounded-md border px-3 text-sm font-medium disabled:opacity-60 ${reviewRatingClassName(rating)}`}
                   >
                     {rating[0].toUpperCase() + rating.slice(1)}
                   </button>
@@ -369,12 +421,20 @@ export function ReviewsView() {
               {isRevealed ? <p className="mt-3 text-sm leading-6 text-muted-foreground">{reviewAnswerText(item)}</p> : null}
             </div>
           </Panel>
+          </div>
           )
         })}
         {data && data.items.length === 0 ? <EmptyState title="No reviews due" body="Rest or save a feed lesson into Studio for the next session." /> : null}
       </div>
     </div>
   )
+}
+
+function reviewRatingClassName(rating: "again" | "hard" | "good" | "easy") {
+  if (rating === "again") return "border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+  if (rating === "hard") return "border-warning text-warning hover:bg-warning hover:text-warning-foreground"
+  if (rating === "easy") return "border-success text-success hover:bg-success hover:text-success-foreground"
+  return "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
 }
 
 export function FeedView({ setView }: { setView: (view: View) => void }) {

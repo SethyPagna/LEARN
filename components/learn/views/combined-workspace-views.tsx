@@ -72,7 +72,7 @@ export function LearnWorkspaceView({
       {tab === "overview" ? <LearnRoute dashboard={dashboard} quizzes={quizzes} setView={setView} /> : null}
       {tab === "discover" ? <FeedView setView={setView} /> : null}
       {tab === "graph" ? <GraphView setView={setView} /> : null}
-      {tab === "reviews" ? <ReviewsView /> : null}
+      {tab === "reviews" ? <ReviewsView setView={setView} /> : null}
       {tab === "calendar" ? <CalendarView options={options} /> : null}
       {tab === "progress" ? <ProgressView dashboard={dashboard} quizzes={quizzes} setView={setView} /> : null}
     </WorkspaceFrame>
