@@ -13,7 +13,7 @@ import { getPromptTemplate } from "../lib/ai/prompt-library"
 import { buildGuidedPrompt, listInsertActions, promptContracts } from "../lib/ai/prompt-builder"
 import { buildAiGatewayReadiness } from "../lib/ai/gateway-readiness"
 import { buildInsertBackPayload, parseAiJson } from "../lib/ai/insert-back"
-import { splitPromptPreview, summarizeAiTutorWorkflow } from "../lib/ai/tutor-workflow"
+import { buildAiTutorSourceContext, splitPromptPreview, summarizeAiTutorWorkflow } from "../lib/ai/tutor-workflow"
 import { listProviderPresets, getProviderMetadata, resolveConfiguredProvider } from "../lib/ai/providers"
 
 test("resolveConfiguredProvider selects the requested provider when a key exists", () => {
@@ -323,6 +323,38 @@ test("AI tutor workflow blocks missing prompts and splits previews", () => {
   assert.match(summary.nextAction, /Fill/)
   assert.ok(preview.task)
   assert.ok(preview.output.length >= 0)
+})
+
+test("AI tutor source context respects source filters", () => {
+  const recentContext = "Note A: Hooks\n\nNote B: SQL"
+
+  assert.equal(buildAiTutorSourceContext({
+    message: "Explain this",
+    recentContext,
+    sourceScope: "Manual only",
+    includeRecentNotes: true,
+  }), "Explain this")
+
+  assert.match(buildAiTutorSourceContext({
+    message: "Explain this",
+    recentContext,
+    sourceScope: "Recent notes",
+    includeRecentNotes: false,
+  }), /Note A/)
+
+  assert.equal(buildAiTutorSourceContext({
+    message: "Clean upload",
+    recentContext,
+    sourceScope: "Uploaded files",
+    includeRecentNotes: false,
+  }), "Clean upload")
+
+  assert.match(buildAiTutorSourceContext({
+    message: "Clean upload",
+    recentContext,
+    sourceScope: "Uploaded files",
+    includeRecentNotes: true,
+  }), /Recent notes:/)
 })
 
 test("AI insert-back parses JSON fenced responses", () => {

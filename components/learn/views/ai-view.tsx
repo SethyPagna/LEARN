@@ -9,7 +9,7 @@ import { Panel } from "../ui"
 import { buildAiGatewayReadiness } from "@/lib/ai/gateway-readiness"
 import { buildGuidedPrompt, listInsertActions, promptContracts } from "@/lib/ai/prompt-builder"
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
-import { splitPromptPreview, summarizeAiTutorWorkflow } from "@/lib/ai/tutor-workflow"
+import { buildAiTutorSourceContext, splitPromptPreview, summarizeAiTutorWorkflow } from "@/lib/ai/tutor-workflow"
 import type { AiTaskKey } from "@/lib/ai/prompt-library"
 import { previewImportedLearningContent, type ImportTarget } from "@/lib/import-gateway"
 
@@ -110,6 +110,12 @@ export function AiTutorView({
     return tutorModes.filter((mode) => allowed.has(mode.id))
   }, [modeGroup])
   const recentContext = useMemo(() => notes.slice(0, 5).map((note) => `${note.title}: ${note.content}`).join("\n\n"), [notes])
+  const sourceContext = useMemo(() => buildAiTutorSourceContext({
+    message,
+    recentContext,
+    sourceScope,
+    includeRecentNotes: options.aiIncludeNotes,
+  }), [message, options.aiIncludeNotes, recentContext, sourceScope])
   const promptActions = useMemo(() => tutorModes.map((mode) => ({
     ...mode,
     body: `${mode.label} - ${mode.prompt}`,
@@ -119,9 +125,9 @@ export function AiTutorView({
   const insertActions = useMemo(() => listInsertActions(availableInsertTargets), [availableInsertTargets])
   const promptBuild = useMemo(() => buildGuidedPrompt({
     taskKey: activeMode.id as AiTaskKey,
-    fields: buildPromptFields(message, recentContext, targetAudience, requiredOutput, difficulty, tone, outputLength, language),
+    fields: buildPromptFields(message, sourceContext, targetAudience, requiredOutput, difficulty, tone, outputLength, language),
     filters: { sourceScope, difficulty, tone, language, outputLength, providerFamily, insertTarget },
-  }), [activeMode.id, difficulty, insertTarget, language, message, outputLength, providerFamily, recentContext, requiredOutput, sourceScope, targetAudience, tone])
+  }), [activeMode.id, difficulty, insertTarget, language, message, outputLength, providerFamily, requiredOutput, sourceContext, sourceScope, targetAudience, tone])
   const gatewayReadiness = useMemo(() => buildAiGatewayReadiness({
     prompt: promptBuild,
     providers,
@@ -228,7 +234,6 @@ export function AiTutorView({
         `Language: ${language}`,
         `Max output tokens: ${options.aiMaxTokens}`,
         providerFamily !== "auto" ? `Preferred provider family: ${providerFamily}` : "",
-        options.aiIncludeNotes && sourceScope !== "Manual only" ? recentContext : "",
       ].filter(Boolean)
       const response = await api<any>("/api/ai/chat", {
         method: "POST",

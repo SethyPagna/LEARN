@@ -22,6 +22,20 @@ export interface AiTutorWorkflowSummary {
   }>
 }
 
+export function buildAiTutorSourceContext(input: {
+  message: string
+  recentContext: string
+  sourceScope: string
+  includeRecentNotes: boolean
+}) {
+  const message = input.message.trim()
+  const recentContext = input.recentContext.trim()
+  if (input.sourceScope === "Manual only") return message
+  if (input.sourceScope === "Recent notes") return [message, recentContext].filter(Boolean).join("\n\n")
+  if (input.includeRecentNotes && recentContext) return [message, `Recent notes:\n${recentContext}`].filter(Boolean).join("\n\n")
+  return message
+}
+
 export function summarizeAiTutorWorkflow(input: {
   taskLabel: string
   sourceScope: string
@@ -39,7 +53,9 @@ export function summarizeAiTutorWorkflow(input: {
   const insertLabel = labelInsertTarget(input.insertTarget)
   const contextLabel = input.sourceScope === "Manual only"
     ? "Manual"
-    : `${input.sourceScope} (${input.recentNoteCount} notes)`
+    : input.sourceScope === "Recent notes"
+      ? `${input.sourceScope} (${input.recentNoteCount} notes)`
+      : input.sourceScope
 
   return {
     status,
