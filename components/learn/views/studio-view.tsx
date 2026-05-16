@@ -1285,47 +1285,49 @@ export function StudioView({
   const activePanes = layout.groups[0]?.panes || []
   const canUndoRedo = kind === "notes" || kind === "docs"
   const hasActiveItem = kind === "notes" ? Boolean(noteDraft) : true
+  const activeStudioTab = studioTabs.find((tab) => tab.kind === kind) || studioTabs[0]
+  const ActiveStudioIcon = activeStudioTab.icon
 
   return (
     <div className="grid gap-3">
       <Panel className="p-2">
         <div className="flex flex-wrap items-center gap-2">
-          {studioTabs.map((tab) => {
-            const Icon = tab.icon
-            const active = kind === tab.kind
-            const badge = dirtyBadgeMap.get(tab.kind)
-            return (
-              <button
-                key={tab.kind}
-                onClick={() => selectKind(tab.kind)}
-                className={`flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-semibold ${active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
-                title={tab.description}
-              >
-                <Icon className="h-4 w-4" />
-                {tab.label}
-                {badge ? <span className={`ml-1 rounded px-1.5 py-0.5 text-[10px] ${active ? "bg-background/20" : "bg-primary text-primary-foreground"}`}>{badge.count}</span> : null}
-              </button>
-            )
-          })}
-          <span className="mx-1 hidden h-6 w-px bg-border md:block" />
-          <StudioButton label="New" icon={Plus} onClick={createActive} primary />
+          <ActionMenu label={activeStudioTab.label} icon={ActiveStudioIcon} primary>
+            <div className="grid gap-1">
+              {studioTabs.map((tab) => {
+                const Icon = tab.icon
+                const active = kind === tab.kind
+                const badge = dirtyBadgeMap.get(tab.kind)
+                return (
+                  <MenuAction key={tab.kind} active={active} icon={Icon} label={tab.label} onClick={() => selectKind(tab.kind)} meta={badge ? `${badge.count} draft${badge.count === 1 ? "" : "s"}` : tab.description} />
+                )
+              })}
+            </div>
+          </ActionMenu>
+          <ActionMenu label="Create" icon={Plus} primary>
+            <MenuAction icon={Plus} label={studioCreateLabels[kind]} onClick={createActive} meta={`Create in ${activeStudioTab.label}`} />
+            <MenuAction icon={UploadCloud} label="Import content" onClick={() => setImportOpen((open) => !open)} meta="Paste raw notes, CSV, or slide outlines" />
+          </ActionMenu>
           <StudioButton label="Save" icon={Save} onClick={() => saveActive()} disabled={!hasActiveItem} />
-          <StudioButton label="Import" icon={UploadCloud} onClick={() => setImportOpen((open) => !open)} />
-          <StudioButton label="Undo" icon={Undo2} onClick={() => kind === "notes" ? setNoteHistory(undoHistory(noteHistory)) : setDocHistory(undoHistory(docHistory))} disabled={!canUndoRedo} />
-          <StudioButton label="Redo" icon={Redo2} onClick={() => kind === "notes" ? setNoteHistory(redoHistory(noteHistory)) : setDocHistory(redoHistory(docHistory))} disabled={!canUndoRedo} />
-          <StudioMenu
-            onCopy={copyActive}
-            onDuplicate={duplicateActive}
-            onArchive={archiveActive}
-            onDownload={() => downloadActive(false)}
-            onExport={() => downloadActive(true)}
-            onSplitRight={() => setLayout((current) => splitStudioPane(current, current.activePaneId, "horizontal"))}
-            onSplitDown={() => setLayout((current) => splitStudioPane(current, current.activePaneId, "vertical"))}
-            onReset={() => setLayout(createDefaultStudioLayout(kind, activeTitle()))}
-          />
+          <ActionMenu label="Edit" icon={Undo2}>
+            <MenuAction disabled={!canUndoRedo} icon={Undo2} label="Undo" onClick={() => kind === "notes" ? setNoteHistory(undoHistory(noteHistory)) : setDocHistory(undoHistory(docHistory))} />
+            <MenuAction disabled={!canUndoRedo} icon={Redo2} label="Redo" onClick={() => kind === "notes" ? setNoteHistory(redoHistory(noteHistory)) : setDocHistory(redoHistory(docHistory))} />
+            <MenuAction icon={Clipboard} label="Copy" onClick={copyActive} />
+            <MenuAction icon={Copy} label="Duplicate" onClick={duplicateActive} />
+            <MenuAction danger icon={Archive} label="Archive/Delete" onClick={archiveActive} />
+          </ActionMenu>
+          <ActionMenu label="Export" icon={Download}>
+            <MenuAction icon={Download} label="Download" onClick={() => downloadActive(false)} />
+            <MenuAction icon={PanelRight} label="Export" onClick={() => downloadActive(true)} meta={kind === "slides" ? "PPTX when available" : "Portable text format"} />
+          </ActionMenu>
+          <ActionMenu label="Layout" icon={SplitSquareHorizontal}>
+            <MenuAction icon={SplitSquareHorizontal} label="Split right" onClick={() => setLayout((current) => splitStudioPane(current, current.activePaneId, "horizontal"))} />
+            <MenuAction icon={SplitSquareVertical} label="Split down" onClick={() => setLayout((current) => splitStudioPane(current, current.activePaneId, "vertical"))} />
+            <MenuAction icon={Settings2} label="Reset layout" onClick={() => setLayout(createDefaultStudioLayout(kind, activeTitle()))} />
+          </ActionMenu>
           <button onClick={() => setLayout((current) => ({ ...current, inspectorOpen: !current.inspectorOpen }))} className="ml-auto flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
             <PanelRight className="h-4 w-4" />
-            Inspector
+            <span className="hidden sm:inline">Inspector</span>
           </button>
         </div>
         {importOpen ? (
@@ -1506,22 +1508,23 @@ function StudioLibrary({
 
   return (
     <div className="grid gap-3">
-      <div className="flex flex-wrap gap-1">
-        {sections.map((item) => (
-          <button key={item} onClick={() => onSection(item)} className={`h-8 rounded-md px-2 text-xs font-semibold ${section === item ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
-            {item}
-          </button>
-        ))}
+      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+        <label className="grid gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          Filter
+          <select value={section} onChange={(event) => onSection(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-sm font-semibold normal-case tracking-normal text-foreground">
+            {sections.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
+        <div className="grid grid-cols-3 gap-1 self-end rounded-md border border-border bg-background p-1">
+          <ViewModeButton active={viewMode === "list"} icon={FileText} label="List" onClick={() => onViewMode("list")} compact />
+          <ViewModeButton active={viewMode === "board"} icon={Columns3} label="Board" onClick={() => onViewMode("board")} compact />
+          <ViewModeButton active={viewMode === "gallery"} icon={LayoutPanelLeft} label="Gallery" onClick={() => onViewMode("gallery")} compact />
+        </div>
       </div>
       <label className="flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3">
         <Search className="h-4 w-4 text-muted-foreground" />
         <input value={query} onChange={(event) => onQuery(event.target.value)} placeholder="Search Studio" className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
       </label>
-      <div className="grid grid-cols-3 gap-1 rounded-md border border-border bg-background p-1">
-        <ViewModeButton active={viewMode === "list"} icon={FileText} label="List" onClick={() => onViewMode("list")} />
-        <ViewModeButton active={viewMode === "board"} icon={Columns3} label="Board" onClick={() => onViewMode("board")} />
-        <ViewModeButton active={viewMode === "gallery"} icon={LayoutPanelLeft} label="Gallery" onClick={() => onViewMode("gallery")} />
-      </div>
       <div ref={listRef} className="max-h-[44vh] overflow-auto pr-1">
         {useVirtualList ? (
           <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
@@ -1541,19 +1544,19 @@ function StudioLibrary({
         )}
         {!items.length ? <EmptyState title="No Studio items" body="Create a note, doc, sheet, or deck, then open it in a split pane." /> : null}
       </div>
-      <div className="rounded-md border border-border bg-background p-2">
-        <p className="mb-2 flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-          <FilePlus2 className="h-3.5 w-3.5" />
-          Templates
-        </p>
-        <div className="grid grid-cols-2 gap-1">
+      <details className="rounded-md border border-border bg-background p-2">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          <span className="flex items-center gap-2"><FilePlus2 className="h-3.5 w-3.5" /> Templates</span>
+          <ChevronDown className="h-3.5 w-3.5" />
+        </summary>
+        <div className="mt-2 grid grid-cols-2 gap-1">
           {studioTemplates[activeKind].map((template) => (
             <button key={template.label} onClick={() => onApplyTemplate(template)} className="rounded-md bg-secondary px-2 py-2 text-left text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
               {template.label}
             </button>
           ))}
         </div>
-      </div>
+      </details>
     </div>
   )
 }
@@ -1620,18 +1623,20 @@ function StudioItemButton({
               </span>
             </span>
           </button>
-          <div className="mt-3 flex flex-wrap gap-1.5">
+          <div className="mt-3 flex items-center gap-2">
             <RecordAction disabled={Boolean(pendingAction)} icon={FileText} label="Open" onClick={() => runRecordAction("Opening", () => onSelect(item))} />
-            <RecordAction disabled={Boolean(pendingAction)} icon={Clipboard} label={pendingAction === "Copying" ? "Copying" : "Copy"} onClick={() => runRecordAction("Copying", () => onCopy(item))} />
-            <RecordAction disabled={Boolean(pendingAction)} icon={Copy} label={pendingAction === "Duplicating" ? "Duplicating" : "Duplicate"} onClick={() => runRecordAction("Duplicating", () => onDuplicate(item))} />
-            <RecordAction disabled={Boolean(pendingAction)} icon={Download} label={pendingAction === "Exporting" ? "Exporting" : "Export"} onClick={() => runRecordAction("Exporting", () => onExport(item))} />
-            {!archived ? <RecordAction disabled={Boolean(pendingAction)} icon={SplitSquareHorizontal} label="Split" onClick={() => runRecordAction("Opening split", () => onOpenInSplit(item))} /> : null}
-            <RecordAction disabled={Boolean(pendingAction)} icon={Bot} label="AI" onClick={() => runRecordAction("Opening AI", () => onAskAi(item))} />
-            {archived ? (
-              <RecordAction disabled={Boolean(pendingAction)} icon={Undo2} label={pendingAction === "Restoring" ? "Restoring" : "Restore"} onClick={() => runRecordAction("Restoring", () => onRestore(item))} />
-            ) : (
-              <RecordAction danger disabled={Boolean(pendingAction)} icon={Archive} label={pendingAction === "Archiving" ? "Archiving" : "Archive"} onClick={() => runRecordAction("Archiving", () => onArchive(item), `Archive "${item.title}"? You can restore it from the Archived section.`)} />
-            )}
+            <ActionMenu align="right" compact label={pendingAction || "More"} icon={MoreHorizontal}>
+              <MenuAction disabled={Boolean(pendingAction)} icon={Clipboard} label={pendingAction === "Copying" ? "Copying" : "Copy"} onClick={() => runRecordAction("Copying", () => onCopy(item))} />
+              <MenuAction disabled={Boolean(pendingAction)} icon={Copy} label={pendingAction === "Duplicating" ? "Duplicating" : "Duplicate"} onClick={() => runRecordAction("Duplicating", () => onDuplicate(item))} />
+              <MenuAction disabled={Boolean(pendingAction)} icon={Download} label={pendingAction === "Exporting" ? "Exporting" : "Export"} onClick={() => runRecordAction("Exporting", () => onExport(item))} />
+              {!archived ? <MenuAction disabled={Boolean(pendingAction)} icon={SplitSquareHorizontal} label="Open in split" onClick={() => runRecordAction("Opening split", () => onOpenInSplit(item))} /> : null}
+              <MenuAction disabled={Boolean(pendingAction)} icon={Bot} label="Ask AI" onClick={() => runRecordAction("Opening AI", () => onAskAi(item))} />
+              {archived ? (
+                <MenuAction disabled={Boolean(pendingAction)} icon={Undo2} label={pendingAction === "Restoring" ? "Restoring" : "Restore"} onClick={() => runRecordAction("Restoring", () => onRestore(item))} />
+              ) : (
+                <MenuAction danger disabled={Boolean(pendingAction)} icon={Archive} label={pendingAction === "Archiving" ? "Archiving" : "Archive"} onClick={() => runRecordAction("Archiving", () => onArchive(item), `Archive "${item.title}"? You can restore it from the Archived section.`)} />
+              )}
+            </ActionMenu>
           </div>
           {actionError ? <p className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">{actionError}</p> : null}
         </article>
@@ -1749,7 +1754,7 @@ function StudioPaneSurface({
       <ContextMenu.Trigger asChild>
         <section onFocus={onSelectPane} onClick={onSelectPane} className={`flex h-full min-w-0 flex-col border-border ${active ? "bg-card" : "bg-background/70"}`}>
           <div className={`border-b border-border p-3 ${active ? "ring-1 ring-inset ring-primary/40" : ""}`}>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2">
               <input value={pane.label} onChange={(event) => onRenamePane(event.target.value)} className="h-8 w-24 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground outline-none focus:border-ring" title="Rename order group" />
               {pane.pinned ? <span className="inline-flex h-8 items-center rounded-md border border-primary/40 bg-primary/10 px-2 text-xs font-semibold text-primary">Pinned</span> : null}
               <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
@@ -1764,11 +1769,13 @@ function StudioPaneSurface({
                   )
                 })}
               </div>
-              <button onClick={onSplitRight} className="icon-button" title="Split right"><SplitSquareHorizontal className="h-4 w-4" /></button>
-              <button onClick={onSplitDown} className="icon-button" title="Split down"><SplitSquareVertical className="h-4 w-4" /></button>
-              <button onClick={onPinPane} className={`icon-button ${pane.pinned ? "border-primary bg-primary text-primary-foreground" : ""}`} title={pane.pinned ? "Unpin pane" : "Pin pane"}><Maximize2 className="h-4 w-4" /></button>
-              <button onClick={onCloseOthers} className="icon-button" title="Close other panes"><Scissors className="h-4 w-4" /></button>
-              <button onClick={onClosePane} className="icon-button" title="Close pane"><X className="h-4 w-4" /></button>
+              <ActionMenu align="right" compact label="Pane" icon={MoreHorizontal}>
+                <MenuAction icon={SplitSquareHorizontal} label="Split right" onClick={onSplitRight} />
+                <MenuAction icon={SplitSquareVertical} label="Split down" onClick={onSplitDown} />
+                <MenuAction icon={Maximize2} label={pane.pinned ? "Unpin pane" : "Pin pane"} onClick={onPinPane} />
+                <MenuAction icon={Scissors} label="Close other panes" onClick={onCloseOthers} />
+                <MenuAction danger icon={X} label="Close pane" onClick={onClosePane} />
+              </ActionMenu>
             </div>
             <div className="mt-3 flex flex-wrap items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
@@ -1787,12 +1794,18 @@ function StudioPaneSurface({
                   </details>
                 </div>
               </div>
-              {active ? <div className="flex flex-wrap gap-1">
-                <MiniAction icon={Save} label="Save" onClick={onSave} />
-                <MiniAction icon={Clipboard} label="Copy" onClick={onCopy} />
-                <MiniAction icon={Download} label="Download" onClick={onDownload} />
-                <MiniAction icon={PanelRight} label="Export" onClick={onExport} />
-              </div> : null}
+              {active ? (
+                <div className="flex items-center gap-1">
+                  <MiniAction icon={Save} label="Save" onClick={onSave} />
+                  <ActionMenu align="right" compact label="Actions" icon={MoreHorizontal}>
+                    <MenuAction icon={Clipboard} label="Copy" onClick={onCopy} />
+                    <MenuAction icon={Copy} label="Duplicate" onClick={onDuplicate} />
+                    <MenuAction icon={Download} label="Download" onClick={onDownload} />
+                    <MenuAction icon={PanelRight} label="Export" onClick={onExport} />
+                    <MenuAction danger icon={Archive} label="Archive/Delete" onClick={onArchive} />
+                  </ActionMenu>
+                </div>
+              ) : null}
             </div>
           </div>
           {status ? <p className="mx-3 mt-3 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">{status}</p> : null}
@@ -2300,65 +2313,64 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
     setReplaceStatus(`${result.count} replaced`)
   }
   return (
-    <div className="sticky top-0 z-10 flex flex-wrap items-center gap-1 border-b border-border bg-card/95 p-2 backdrop-blur">
-      <ToolbarIcon label="Paragraph" icon={Type} onClick={() => run((item) => item.chain().focus().setParagraph().run())} />
-      <ToolbarIcon label="H1" icon={Heading1} onClick={() => run((item) => item.chain().focus().toggleHeading({ level: 1 }).run())} />
-      <ToolbarIcon label="H2" icon={Heading2} onClick={() => run((item) => item.chain().focus().toggleHeading({ level: 2 }).run())} />
-      <select onChange={(event) => run((item) => item.chain().focus().setFontFamily(event.target.value).run())} defaultValue="" className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground">
-        <option value="" disabled>Font</option>
-        <option value="Inter, sans-serif">Sans</option>
-        <option value="Georgia, serif">Serif</option>
-        <option value="'Courier New', monospace">Mono</option>
-      </select>
-      <select onChange={(event) => run((item) => item.chain().focus().setMark("textStyle", { fontSize: event.target.value }).run())} defaultValue="" className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground">
-        <option value="" disabled>Size</option>
-        <option value="14px">14</option>
-        <option value="16px">16</option>
-        <option value="20px">20</option>
-        <option value="28px">28</option>
-      </select>
-      <select onChange={(event) => {
-        const value = event.target.value as DocumentInsertKind
-        run((item) => item.chain().focus().insertContent(getDocumentInsertBlock(value)).run())
-        event.target.value = ""
-      }} defaultValue="" className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground">
-        <option value="" disabled>Insert</option>
+    <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-border bg-card/95 p-2 backdrop-blur">
+      <ActionMenu label="Style" icon={Type}>
+        <MenuAction icon={Type} label="Paragraph" onClick={() => run((item) => item.chain().focus().setParagraph().run())} />
+        <MenuAction icon={Heading1} label="Heading 1" onClick={() => run((item) => item.chain().focus().toggleHeading({ level: 1 }).run())} />
+        <MenuAction icon={Heading2} label="Heading 2" onClick={() => run((item) => item.chain().focus().toggleHeading({ level: 2 }).run())} />
+        <MenuSelect label="Font" onChange={(value) => run((item) => item.chain().focus().setFontFamily(value).run())} options={[
+          { label: "Sans", value: "Inter, sans-serif" },
+          { label: "Serif", value: "Georgia, serif" },
+          { label: "Mono", value: "'Courier New', monospace" },
+        ]} />
+        <MenuSelect label="Size" onChange={(value) => run((item) => item.chain().focus().setMark("textStyle", { fontSize: value }).run())} options={["14px", "16px", "20px", "28px"].map((value) => ({ label: value.replace("px", ""), value }))} />
+      </ActionMenu>
+      <ActionMenu label="Text" icon={Bold}>
+        <MenuAction icon={Bold} label="Bold" onClick={() => run((item) => item.chain().focus().toggleBold().run())} />
+        <MenuAction icon={Italic} label="Italic" onClick={() => run((item) => item.chain().focus().toggleItalic().run())} />
+        <MenuAction icon={UnderlineIcon} label="Underline" onClick={() => run((item) => item.chain().focus().toggleUnderline().run())} />
+        <MenuAction icon={Highlighter} label="Highlight" onClick={() => run((item) => item.chain().focus().toggleHighlight({ color: "#fef08a" }).run())} />
+      </ActionMenu>
+      <ActionMenu label="Paragraph" icon={AlignLeft}>
+        <MenuAction icon={AlignLeft} label="Align left" onClick={() => run((item) => item.chain().focus().setTextAlign("left").run())} />
+        <MenuAction icon={AlignCenter} label="Align center" onClick={() => run((item) => item.chain().focus().setTextAlign("center").run())} />
+        <MenuAction icon={AlignRight} label="Align right" onClick={() => run((item) => item.chain().focus().setTextAlign("right").run())} />
+        <MenuAction icon={List} label="Bullets" onClick={() => run((item) => item.chain().focus().toggleBulletList().run())} />
+        <MenuAction icon={ListOrdered} label="Numbers" onClick={() => run((item) => item.chain().focus().toggleOrderedList().run())} />
+        <MenuAction icon={CheckSquare} label="Tasks" onClick={() => run((item) => item.chain().focus().toggleTaskList().run())} />
+      </ActionMenu>
+      <ActionMenu label="Insert" icon={Plus}>
         {documentInsertGroups.map((group) => (
-          <optgroup key={group.label} label={group.label}>
-            {group.items.map((item) => <option key={item} value={item}>{insertLabel(item)}</option>)}
-          </optgroup>
+          <div key={group.label} className="grid gap-1">
+            <p className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground first:pt-0">{group.label}</p>
+            {group.items.map((insertKind) => (
+              <MenuAction key={insertKind} icon={FilePlus2} label={insertLabel(insertKind)} onClick={() => run((item) => item.chain().focus().insertContent(getDocumentInsertBlock(insertKind)).run())} />
+            ))}
+          </div>
         ))}
-      </select>
-      <span className="mx-1 h-5 w-px bg-border" />
-      <ToolbarIcon label="Bold" icon={Bold} onClick={() => run((item) => item.chain().focus().toggleBold().run())} />
-      <ToolbarIcon label="Italic" icon={Italic} onClick={() => run((item) => item.chain().focus().toggleItalic().run())} />
-      <ToolbarIcon label="Underline" icon={UnderlineIcon} onClick={() => run((item) => item.chain().focus().toggleUnderline().run())} />
-      <ToolbarIcon label="Highlight" icon={Highlighter} onClick={() => run((item) => item.chain().focus().toggleHighlight({ color: "#fef08a" }).run())} />
-      <span className="mx-1 h-5 w-px bg-border" />
-      <ToolbarIcon label="Left" icon={AlignLeft} onClick={() => run((item) => item.chain().focus().setTextAlign("left").run())} />
-      <ToolbarIcon label="Center" icon={AlignCenter} onClick={() => run((item) => item.chain().focus().setTextAlign("center").run())} />
-      <ToolbarIcon label="Right" icon={AlignRight} onClick={() => run((item) => item.chain().focus().setTextAlign("right").run())} />
-      <ToolbarIcon label="Bullets" icon={List} onClick={() => run((item) => item.chain().focus().toggleBulletList().run())} />
-      <ToolbarIcon label="Numbers" icon={ListOrdered} onClick={() => run((item) => item.chain().focus().toggleOrderedList().run())} />
-      <ToolbarIcon label="Tasks" icon={CheckSquare} onClick={() => run((item) => item.chain().focus().toggleTaskList().run())} />
-      <ToolbarIcon label="Table" icon={Grid2X2} onClick={() => run((item) => item.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())} />
-      <ToolbarIcon label="Table row" icon={Rows3} onClick={() => run((item) => item.chain().focus().addRowAfter().run())} />
-      <ToolbarIcon label="Table column" icon={Columns3} onClick={() => run((item) => item.chain().focus().addColumnAfter().run())} />
-      <ToolbarIcon label="Delete table row" icon={Trash2} onClick={() => run((item) => item.chain().focus().deleteRow().run())} />
-      <ToolbarIcon label="Code" icon={Braces} onClick={() => run((item) => item.chain().focus().toggleCodeBlock().run())} />
-      <ToolbarIcon label="Image cue" icon={ImageIcon} onClick={() => {
-        const src = window.prompt("Image URL")
-        if (src) run((item) => item.chain().focus().setImage({ src }).run())
-      }} />
-      <span className="mx-1 h-5 w-px bg-border" />
-      <label className="flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs text-muted-foreground">
-        <Search className="h-3.5 w-3.5" />
-        <input value={findText} onChange={(event) => setFindText(event.target.value)} placeholder="Find" className="w-20 bg-transparent text-foreground outline-none" />
-      </label>
-      <input value={replaceText} onChange={(event) => setReplaceText(event.target.value)} placeholder="Replace" className="h-8 w-24 rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none" />
-      <button onClick={replaceAll} className="h-8 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-        Replace all
-      </button>
+        <MenuAction icon={Grid2X2} label="Table" onClick={() => run((item) => item.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())} />
+        <MenuAction icon={Rows3} label="Table row" onClick={() => run((item) => item.chain().focus().addRowAfter().run())} />
+        <MenuAction icon={Columns3} label="Table column" onClick={() => run((item) => item.chain().focus().addColumnAfter().run())} />
+        <MenuAction danger icon={Trash2} label="Delete table row" onClick={() => run((item) => item.chain().focus().deleteRow().run())} />
+        <MenuAction icon={Braces} label="Code block" onClick={() => run((item) => item.chain().focus().toggleCodeBlock().run())} />
+        <MenuAction icon={ImageIcon} label="Image URL" onClick={() => {
+          const src = window.prompt("Image URL")
+          if (src) run((item) => item.chain().focus().setImage({ src }).run())
+        }} />
+      </ActionMenu>
+      <ActionMenu label="Find" icon={Search} align="right">
+        <label className="grid gap-1 px-2 py-1 text-xs font-semibold text-muted-foreground">
+          Find
+          <input value={findText} onChange={(event) => setFindText(event.target.value)} placeholder="Find" className="h-8 rounded-md border border-input bg-background px-2 text-foreground outline-none" />
+        </label>
+        <label className="grid gap-1 px-2 py-1 text-xs font-semibold text-muted-foreground">
+          Replace
+          <input value={replaceText} onChange={(event) => setReplaceText(event.target.value)} placeholder="Replace" className="h-8 rounded-md border border-input bg-background px-2 text-foreground outline-none" />
+        </label>
+        <button onClick={replaceAll} className="mx-2 mt-1 h-8 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+          Replace all
+        </button>
+      </ActionMenu>
       {replaceStatus ? <span className="text-xs font-semibold text-success">{replaceStatus}</span> : null}
     </div>
   )
@@ -2394,13 +2406,12 @@ function StudioInspector({
 }) {
   return (
     <aside className="hidden border-l border-border bg-background p-3 xl:block">
-      <div className="mb-3 flex flex-wrap gap-1">
-        {inspectorTabs.map((tab) => (
-          <button key={tab} onClick={() => onSetInspectorTab(tab)} className={`rounded-md px-2 py-1 text-xs font-semibold ${inspectorTab === tab ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
-            {tab}
-          </button>
-        ))}
-      </div>
+      <label className="mb-3 grid gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        Inspector
+        <select value={inspectorTab} onChange={(event) => onSetInspectorTab(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-sm font-semibold normal-case tracking-normal text-foreground">
+          {inspectorTabs.map((tab) => <option key={tab} value={tab}>{tab}</option>)}
+        </select>
+      </label>
       <div className="space-y-3 text-sm">
         <InspectorCard title="Item" body={currentTitle} />
         <InspectorCard title="Type" body={activeKind} />
@@ -2415,41 +2426,92 @@ function StudioInspector({
   )
 }
 
-function StudioMenu({
-  onArchive,
-  onCopy,
-  onDownload,
-  onDuplicate,
-  onExport,
-  onReset,
-  onSplitDown,
-  onSplitRight,
+function ActionMenu({
+  align = "left",
+  children,
+  compact,
+  icon: Icon,
+  label,
+  primary,
 }: {
-  onArchive: () => void
-  onCopy: () => void
-  onDownload: () => void
-  onDuplicate: () => void
-  onExport: () => void
-  onReset: () => void
-  onSplitDown: () => void
-  onSplitRight: () => void
+  align?: "left" | "right"
+  children: React.ReactNode
+  compact?: boolean
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  primary?: boolean
 }) {
   return (
-    <ContextMenu.Root>
-      <ContextMenu.Trigger asChild>
-        <button className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-          <MoreHorizontal className="h-4 w-4" />
-          More
-        </button>
-      </ContextMenu.Trigger>
-      <StudioContextContent onCopy={onCopy} onDuplicate={onDuplicate} onArchive={onArchive} onAskAi={() => undefined}>
-        <ContextMenu.Item onClick={onDownload} className="context-item"><Download className="h-4 w-4" /> Download</ContextMenu.Item>
-        <ContextMenu.Item onClick={onExport} className="context-item"><PanelRight className="h-4 w-4" /> Export</ContextMenu.Item>
-        <ContextMenu.Item onClick={onSplitRight} className="context-item"><SplitSquareHorizontal className="h-4 w-4" /> Split right</ContextMenu.Item>
-        <ContextMenu.Item onClick={onSplitDown} className="context-item"><SplitSquareVertical className="h-4 w-4" /> Split down</ContextMenu.Item>
-        <ContextMenu.Item onClick={onReset} className="context-item"><Settings2 className="h-4 w-4" /> Reset layout</ContextMenu.Item>
-      </StudioContextContent>
-    </ContextMenu.Root>
+    <details className="group relative inline-block">
+      <summary
+        className={`flex h-9 cursor-pointer list-none items-center gap-2 rounded-md border px-3 text-sm font-medium [&::-webkit-details-marker]:hidden ${
+          compact ? "px-2" : ""
+        } ${
+          primary
+            ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+            : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
+        }`}
+        title={label}
+      >
+        <Icon className="h-4 w-4" />
+        <span className={compact ? "sr-only" : ""}>{label}</span>
+        {!compact ? <ChevronDown className="h-3.5 w-3.5 opacity-70" /> : null}
+      </summary>
+      <div className={`absolute top-10 z-50 w-64 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-xl ${align === "right" ? "right-0" : "left-0"}`}>
+        {children}
+      </div>
+    </details>
+  )
+}
+
+function MenuAction({
+  active,
+  danger,
+  disabled,
+  icon: Icon,
+  label,
+  meta,
+  onClick,
+}: {
+  active?: boolean
+  danger?: boolean
+  disabled?: boolean
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  meta?: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${
+        danger
+          ? "text-destructive hover:bg-destructive/10"
+          : active
+            ? "bg-primary text-primary-foreground"
+            : "text-popover-foreground hover:bg-accent hover:text-accent-foreground"
+      }`}
+      type="button"
+    >
+      <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+      <span className="min-w-0">
+        <span className="block truncate">{label}</span>
+        {meta ? <span className={`mt-0.5 block line-clamp-2 text-xs font-medium ${active ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{meta}</span> : null}
+      </span>
+    </button>
+  )
+}
+
+function MenuSelect({ label, onChange, options }: { label: string; onChange: (value: string) => void; options: Array<{ label: string; value: string }> }) {
+  return (
+    <label className="grid gap-1 px-2 py-1 text-xs font-semibold text-muted-foreground">
+      {label}
+      <select defaultValue="" onChange={(event) => event.target.value ? onChange(event.target.value) : undefined} className="h-8 rounded-md border border-input bg-background px-2 text-sm font-medium text-foreground">
+        <option value="" disabled>Choose {label.toLowerCase()}</option>
+        {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+      </select>
+    </label>
   )
 }
 
@@ -2472,11 +2534,11 @@ function StudioContextContent({ children, onArchive, onAskAi, onCopy, onDuplicat
   )
 }
 
-function ViewModeButton({ active, icon: Icon, label, onClick }: { active: boolean; icon: React.ComponentType<{ className?: string }>; label: string; onClick: () => void }) {
+function ViewModeButton({ active, compact, icon: Icon, label, onClick }: { active: boolean; compact?: boolean; icon: React.ComponentType<{ className?: string }>; label: string; onClick: () => void }) {
   return (
     <button onClick={onClick} className={`flex h-8 items-center justify-center gap-1.5 rounded-md text-xs font-semibold ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}>
       <Icon className="h-3.5 w-3.5" />
-      {label}
+      <span className={compact ? "sr-only" : ""}>{label}</span>
     </button>
   )
 }
