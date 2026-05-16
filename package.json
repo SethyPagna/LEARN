@@ -50,6 +50,7 @@
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "1.1.6",
     "@tanstack/react-virtual": "^3.13.24",
+    "@tiptap/core": "3.23.4",
     "@tiptap/extension-character-count": "^3.23.4",
     "@tiptap/extension-color": "^3.23.4",
     "@tiptap/extension-font-family": "^3.23.4",
