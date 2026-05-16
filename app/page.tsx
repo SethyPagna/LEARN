@@ -3,58 +3,56 @@ import Link from "next/link"
 import { ArrowRight, BookOpen, Brain, GraduationCap, Layers3, Play, Sparkles } from "lucide-react"
 import { SESSION_COOKIE } from "@/lib/data"
 import { IntroWorkflow } from "@/components/intro-workflow"
+import { PublicIntroControls } from "@/components/public-intro-controls"
 
 export default async function HomePage() {
   const cookieStore = await cookies()
   const signedIn = Boolean(cookieStore.get(SESSION_COOKIE)?.value)
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#040506] text-white">
+    <main className="min-h-screen overflow-x-hidden bg-[#f6faf7] text-slate-950 dark:bg-[#040506] dark:text-white">
       <section className="relative isolate grid min-h-screen content-center px-5 py-4 sm:px-8">
-        <div className="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_18%_14%,rgba(96,165,250,0.22),transparent_28%),radial-gradient(circle_at_78%_20%,rgba(16,185,129,0.18),transparent_24%),linear-gradient(135deg,#040506_0%,#08111f_54%,#040506_100%)]" />
-        <div className="absolute inset-x-0 bottom-0 -z-10 h-48 bg-gradient-to-t from-emerald-400/10 to-transparent" />
+        <div className="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_18%_14%,rgba(14,165,233,0.18),transparent_28%),radial-gradient(circle_at_78%_20%,rgba(16,185,129,0.16),transparent_24%),linear-gradient(135deg,#f8fbff_0%,#eaf7f0_54%,#f6faf7_100%)] dark:bg-[radial-gradient(circle_at_18%_14%,rgba(96,165,250,0.22),transparent_28%),radial-gradient(circle_at_78%_20%,rgba(16,185,129,0.18),transparent_24%),linear-gradient(135deg,#040506_0%,#08111f_54%,#040506_100%)]" />
+        <div className="absolute inset-x-0 bottom-0 -z-10 h-48 bg-gradient-to-t from-emerald-400/12 to-transparent" />
 
         <nav className="mx-auto mb-5 flex w-full max-w-7xl items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-black shadow-lg shadow-emerald-300/10">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-white shadow-lg shadow-emerald-300/10 dark:bg-white dark:text-black">
               <BookOpen className="h-5 w-5" />
             </div>
             <div>
               <p className="text-sm font-semibold tracking-[0.18em]">LEARN</p>
-              <p className="text-xs text-white/50">Vault to practice</p>
+              <p className="text-xs text-slate-500 dark:text-white/50">Vault to practice</p>
             </div>
           </div>
-          <Link href={signedIn ? "/dashboard" : "/login"} className="inline-flex h-10 items-center gap-2 rounded-md border border-white/12 bg-white/8 px-3 text-sm font-semibold text-white/82 transition hover:border-emerald-300/45 hover:bg-white/14">
-            {signedIn ? "Open workspace" : "Sign in"}
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+          <PublicIntroControls signedIn={signedIn} />
         </nav>
 
         <div className="mx-auto grid w-full max-w-7xl items-center gap-6 lg:grid-cols-[0.86fr_1.14fr]">
           <div className="intro-copy">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-sm text-emerald-100">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-sm text-emerald-800 dark:border-emerald-300/20 dark:bg-emerald-300/10 dark:text-emerald-100">
               <Sparkles className="h-4 w-4" />
               Notes, AI, practice, and review in one loop
             </div>
             <h1 className="mt-4 max-w-3xl text-balance text-5xl font-semibold tracking-tight sm:text-6xl">
               Capture what you learn. Turn it into practice.
             </h1>
-            <p className="mt-4 max-w-xl text-lg leading-8 text-white/64">
+            <p className="mt-4 max-w-xl text-lg leading-8 text-slate-600 dark:text-white/64">
               LEARN is a personal study workspace where notes, docs, AI tutoring, quizzes, reviews, and your calendar stay connected.
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Link href={signedIn ? "/dashboard" : "/login"} className="inline-flex h-11 items-center gap-2 rounded-md bg-white px-4 text-sm font-semibold text-black transition hover:bg-emerald-100">
+              <Link href={signedIn ? "/dashboard" : "/login"} className="inline-flex h-11 items-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-emerald-900 dark:bg-white dark:text-black dark:hover:bg-emerald-100">
                 {signedIn ? "Go to LEARN" : "Start learning"}
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link href="#workflow" className="inline-flex h-11 items-center gap-2 rounded-md border border-white/14 px-4 text-sm font-semibold text-white/82 transition hover:bg-white/10">
+              <Link href="#workflow" className="inline-flex h-11 items-center gap-2 rounded-md border border-slate-300/80 bg-white/50 px-4 text-sm font-semibold text-slate-800 transition hover:bg-white dark:border-white/14 dark:bg-transparent dark:text-white/82 dark:hover:bg-white/10">
                 <Play className="h-4 w-4" />
                 View workflow
               </Link>
             </div>
-            <div className="mt-6 grid max-w-xl grid-cols-2 gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/58 sm:grid-cols-4">
+            <div className="mt-6 grid max-w-xl grid-cols-2 gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-white/58 sm:grid-cols-4">
               {["Capture", "Organize", "Practice", "Remember"].map((step) => (
-                <span key={step} className="rounded-full border border-white/10 bg-white/[0.045] px-3 py-2 text-center">{step}</span>
+                <span key={step} className="rounded-full border border-slate-300/70 bg-white/50 px-3 py-2 text-center dark:border-white/10 dark:bg-white/[0.045]">{step}</span>
               ))}
             </div>
           </div>
