@@ -23,6 +23,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 | Sheets | In progress | Row/column operations, CSV helpers, formulas, and basic context actions exist. Next steps: richer range actions, filters, and formatting presets. |
 | Slides | In progress | Thumbnail rail, canvas-style editor, themes, transitions, animations, objects, notes, JSON/PPTX export exist. Next steps: preview transitions and better master templates. |
 | AI insert-back | In progress | AI prompt builder and insert-back helpers exist. Next steps: richer preview formatting and sheet/slide result validation before insertion. |
+| Architecture/performance | In progress | Keep TypeScript/React as the primary Workers runtime; isolate heavier Studio libraries behind Studio surfaces, debounce local drafts, virtualize long lists, and avoid adding another language runtime unless a measured bottleneck justifies it. |
 | Templates | Planned | Add suite-wide template picker with colors, fonts, and slide master settings. |
 | Trash/folders | Planned | Add restore/delete-forever/empty-trash and move-to-folder flows where schema supports it. |
 | Tests | In progress | Local gates are `pnpm test`, `pnpm lint`, and `pnpm build`; browser checks are run on key flows. |
@@ -38,6 +39,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-16: Started AI Tutor declutter by moving task modes, context filters, provider family, creativity, and token controls into compact menus with summary chips.
 - 2026-05-16: Started Social workspace declutter by moving filters and secondary record actions into compact menus while keeping save and selected record context visible.
 - 2026-05-16: Continued Social Chat declutter by grouping compose intent, channel signals, composer tools, thread filters, and thread reactions into menus while keeping Send, search, drafts, and thread context visible.
+- 2026-05-16: Moved Studio draft/status feedback into a floating active-pane toast so autosave no longer inserts a row that pushes the editor while typing. Architecture review kept the Workers app TypeScript-first and focused optimization on debounced drafts, isolated heavy Studio libraries, and measured React cleanup.
 
 ## Implementation Slices
 
