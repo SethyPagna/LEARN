@@ -1,39 +1,8 @@
 import { cookies } from "next/headers"
 import Link from "next/link"
 import type React from "react"
-import { ArrowRight, BookOpen, Brain, CalendarDays, FileText, GraduationCap, Layers3, Play, Sparkles } from "lucide-react"
+import { ArrowRight, BookOpen, Brain, GraduationCap, Layers3, Play, Sparkles } from "lucide-react"
 import { SESSION_COOKIE } from "@/lib/data"
-
-const workflowSlides = [
-  {
-    accent: "Vault",
-    title: "Capture the idea",
-    body: "Notes, files, highlights, and study sheets land in one private workspace.",
-    icon: BookOpen,
-    rows: ["Operating systems review", "Database indexing", "React patterns"],
-  },
-  {
-    accent: "Studio",
-    title: "Shape it",
-    body: "Turn raw learning into docs, sheets, slides, summaries, and clean study material.",
-    icon: FileText,
-    rows: ["Heading style saved", "Slide deck ready", "CSV tracker organized"],
-  },
-  {
-    accent: "Tutor",
-    title: "Make practice",
-    body: "AI builds quizzes, flashcards, explanations, and a route from your own material.",
-    icon: Brain,
-    rows: ["Quiz generated", "Mistakes explained", "Review cards queued"],
-  },
-  {
-    accent: "Progress",
-    title: "Return smarter",
-    body: "Reviews, calendar blocks, and progress signals keep the next step obvious.",
-    icon: CalendarDays,
-    rows: ["12 concepts ready", "45 min focus block", "Weak topic repaired"],
-  },
-]
 
 export default async function HomePage() {
   const cookieStore = await cookies()
@@ -78,7 +47,7 @@ export default async function HomePage() {
                 {signedIn ? "Go to LEARN" : "Start learning"}
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link href={signedIn ? "/studio" : "/login"} className="inline-flex h-11 items-center gap-2 rounded-md border border-white/14 px-4 text-sm font-semibold text-white/82 transition hover:bg-white/10">
+              <Link href="/showcase" className="inline-flex h-11 items-center gap-2 rounded-md border border-white/14 px-4 text-sm font-semibold text-white/82 transition hover:bg-white/10">
                 <Play className="h-4 w-4" />
                 View workflow
               </Link>
@@ -104,14 +73,6 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <div id="intro-gallery" className="mx-auto mt-5 w-full max-w-7xl overflow-hidden rounded-2xl border border-white/10 bg-black/24 p-2 shadow-2xl shadow-black/30">
-          <div className="intro-gallery-track">
-            {workflowSlides.map((slide) => (
-              <WorkflowSlide key={slide.accent} {...slide} />
-            ))}
-          </div>
-        </div>
-
         <style>{`
           @keyframes intro-rise {
             from { opacity: 0; transform: translateY(18px); }
@@ -129,25 +90,17 @@ export default async function HomePage() {
             0%, 100% { transform: translate3d(-18px, 48px, 0) rotate(1deg); opacity: 0.68; }
             50% { transform: translate3d(-18px, 30px, 0) rotate(0deg); opacity: 0.86; }
           }
-          @keyframes intro-gallery {
-            0%, 19% { transform: translateX(0); }
-            25%, 44% { transform: translateX(-25%); }
-            50%, 69% { transform: translateX(-50%); }
-            75%, 94% { transform: translateX(-75%); }
-            100% { transform: translateX(0); }
-          }
           .intro-copy, .intro-stage { animation: intro-rise 720ms ease-out both; }
           .intro-stage { animation-delay: 120ms; }
-          .intro-product-stack { min-height: 360px; position: relative; }
+          .intro-product-stack { min-height: 430px; position: relative; }
           .intro-product-stack > article:nth-child(1) { animation: intro-float-one 7s ease-in-out infinite; left: 7%; top: 12%; z-index: 3; }
           .intro-product-stack > article:nth-child(2) { animation: intro-float-two 8s ease-in-out infinite; right: 3%; top: 4%; z-index: 2; }
           .intro-product-stack > article:nth-child(3) { animation: intro-float-three 9s ease-in-out infinite; left: 0; bottom: 4%; z-index: 1; }
-          .intro-gallery-track { animation: intro-gallery 18s ease-in-out infinite; display: flex; width: 400%; }
           @media (prefers-reduced-motion: reduce) {
-            .intro-copy, .intro-stage, .intro-gallery-track, .intro-product-stack > article { animation: none !important; }
+            .intro-copy, .intro-stage, .intro-product-stack > article { animation: none !important; }
           }
           @media (max-width: 1023px) {
-            .intro-product-stack { min-height: 330px; }
+            .intro-product-stack { min-height: 360px; }
           }
         `}</style>
       </section>
@@ -227,42 +180,5 @@ function ShotHeader({
         <p className={`text-xs ${dark ? "text-slate-500" : "text-white/48"}`}>{meta}</p>
       </div>
     </div>
-  )
-}
-
-function WorkflowSlide({
-  accent,
-  body,
-  icon: Icon,
-  rows,
-  title,
-}: {
-  accent: string
-  body: string
-  icon: React.ComponentType<{ className?: string }>
-  rows: string[]
-  title: string
-}) {
-  return (
-    <article className="grid min-w-0 basis-1/4 gap-3 p-2 md:grid-cols-[0.78fr_1.22fr]">
-      <div className="flex items-center gap-3 rounded-xl bg-white/[0.055] p-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-black">
-          <Icon className="h-6 w-6" />
-        </div>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200">{accent}</p>
-          <h2 className="mt-1 text-2xl font-semibold">{title}</h2>
-          <p className="mt-2 max-w-md text-sm leading-6 text-white/58">{body}</p>
-        </div>
-      </div>
-      <div className="grid gap-2 rounded-xl bg-white/[0.055] p-3">
-        {rows.map((row) => (
-          <div key={row} className="flex items-center justify-between rounded-lg border border-white/10 bg-black/24 px-3 py-2 text-sm text-white/70">
-            <span>{row}</span>
-            <span className="h-2 w-10 rounded-full bg-emerald-300/70" />
-          </div>
-        ))}
-      </div>
-    </article>
   )
 }
