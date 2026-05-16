@@ -47,6 +47,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-16: Made Studio font-size controls render through an explicit Tiptap extension and collapsed old empty draft tabs so saved browser layouts no longer duplicate placeholder tabs.
 - 2026-05-16: Reworked the public intro into a launch-style animated product preview with layered Studio/AI/Practice mock screenshots and a horizontal workflow slideshow instead of a scrolling feature explainer.
 - 2026-05-16: Moved the intro workflow into a separate `/showcase` gallery with clickable dots, thumbnails, next/previous controls, keyboard navigation, and wheel-driven slide changes across Dashboard, Studio, AI, Practice, Calendar, and Social previews.
+- 2026-05-16: Optimized `/showcase` transitions by rendering one active preview at a time instead of sliding six full offscreen screens, reducing paint work and making wheel/click slide changes smoother.
 
 ## Implementation Slices
 
