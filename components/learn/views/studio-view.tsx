@@ -116,6 +116,17 @@ const sections = ["All", "Notes", "Docs", "Sheets", "Slides", "Recent", "Favorit
 const inspectorTabs = ["Info", "Outline", "Comments", "History", "AI", "Export"]
 const importTargets: Array<ImportTarget | "auto"> = ["auto", "note", "doc", "sheet", "slides"]
 
+type StudioListItem = {
+  id: string
+  kind: StudioKind
+  title: string
+  updated_at?: string
+  summary?: string
+  favorite?: boolean
+}
+
+type StudioRecordItem = Pick<StudioListItem, "id" | "kind" | "title">
+
 const studioCreateLabels: Record<StudioKind, string> = {
   notes: "New Note",
   docs: "New Doc",
@@ -608,11 +619,11 @@ export function StudioView({
   const dirtyBadgeMap = useMemo(() => new Map(dirtyBadges.map((badge) => [badge.kind, badge])), [dirtyBadges])
   const allItems = useMemo(() => {
     const needle = deferredQuery.trim().toLowerCase()
-    const mapped: Array<{ id: string; kind: StudioKind; title: string; updated_at?: string; summary?: string; favorite?: boolean }> = []
+    const mapped: StudioListItem[] = []
     const acceptsSection = (itemKind: StudioKind, favorite?: boolean) => (
       section === "All" || section === "Recent" || (section === "Favorites" ? favorite : itemKind === section.toLowerCase())
     )
-    const append = (item: { id: string; kind: StudioKind; title: string; updated_at?: string; summary?: string; favorite?: boolean }) => {
+    const append = (item: StudioListItem) => {
       if (!acceptsSection(item.kind, item.favorite)) return
       if (needle && !`${item.title} ${item.summary || ""}`.toLowerCase().includes(needle)) return
       mapped.push(item)
@@ -899,6 +910,126 @@ export function StudioView({
     setSlides(slidesFromDeck(deck))
   }
 
+  function findStudioItem(item: Pick<StudioRecordItem, "id" | "kind">) {
+    if (item.kind === "notes") return notes.find((entry) => entry.id === item.id)
+    if (item.kind === "docs") return docs.find((entry) => entry.id === item.id)
+    if (item.kind === "sheets") return sheets.find((entry) => entry.id === item.id)
+    return decks.find((entry) => entry.id === item.id)
+  }
+
+  function payloadForStudioItem(item: Pick<StudioRecordItem, "id" | "kind">) {
+    const source = findStudioItem(item)
+    if (!source) return ""
+    if (item.kind === "notes") return (source as Note).content || ""
+    if (item.kind === "docs") return textFromDocument(source as WorkspaceDocument)
+    if (item.kind === "sheets") return exportSheetToCsv({ cells: cellsFromSheet(source as WorkspaceSheet) })
+    return buildSlidePresenterOutline(slidesFromDeck(source as WorkspaceDeck))
+  }
+
+  async function copyStudioItem(item: StudioRecordItem) {
+    await navigator.clipboard?.writeText(payloadForStudioItem(item) || item.title)
+    setStatus(`Copied ${item.title}.`)
+  }
+
+  async function duplicateStudioItem(item: StudioRecordItem) {
+    const title = `${item.title || studioCreateLabels[item.kind]} copy`
+    const source = findStudioItem(item)
+    if (!source) {
+      setStatus("Open the item first, then try duplicating again.")
+      return
+    }
+    if (item.kind === "notes") {
+      const note = source as Note
+      const response = await api<{ item: Note }>("/api/notes", { method: "POST", body: JSON.stringify({ title, content: note.content || "", icon: note.icon || "FileText", favorite: false, template: note.template || "blank" }) })
+      setNotes((current) => [response.item, ...current])
+      selectItem({ id: response.item.id, kind: "notes", title: response.item.title })
+      setStatus("Duplicated note.")
+      return
+    }
+    if (item.kind === "docs") {
+      const doc = source as WorkspaceDocument
+      const plainText = textFromDocument(doc)
+      const response = await api<{ item: WorkspaceDocument }>("/api/docs", { method: "POST", body: JSON.stringify({ title, content: { ...(doc.content || {}), text: plainText, plainText }, tags: doc.tags || [] }) })
+      setDocs((current) => [response.item, ...current])
+      selectItem({ id: response.item.id, kind: "docs", title: response.item.title })
+      setStatus("Duplicated document.")
+      return
+    }
+    if (item.kind === "sheets") {
+      const sheet = source as WorkspaceSheet
+      const response = await api<{ item: WorkspaceSheet }>("/api/sheets", { method: "POST", body: JSON.stringify({ title, cells: cellsFromSheet(sheet), history: [], frozenRows: sheet.frozenRows || 1, filters: sheet.filters || {}, formatting: sheet.formatting || {} }) })
+      setSheets((current) => [response.item, ...current])
+      selectItem({ id: response.item.id, kind: "sheets", title: response.item.title })
+      setStatus("Duplicated sheet.")
+      return
+    }
+    const deck = source as WorkspaceDeck
+    const response = await api<{ item: WorkspaceDeck }>("/api/slides", { method: "POST", body: JSON.stringify({ title, slides: slidesFromDeck(deck), speakerNotes: {} }) })
+    setDecks((current) => [response.item, ...current])
+    selectItem({ id: response.item.id, kind: "slides", title: response.item.title })
+    setStatus("Duplicated deck.")
+  }
+
+  function closeArchivedStudioTabs(item: Pick<StudioRecordItem, "id" | "kind">) {
+    setLayout((current) => {
+      const group = current.groups[0] || createDefaultStudioLayout().groups[0]
+      const panes = group.panes.map((pane) => {
+        const tabs = pane.tabs.filter((tab) => tab.kind !== item.kind || tab.itemId !== item.id)
+        if (tabs.length) {
+          return {
+            ...pane,
+            activeTabId: tabs.some((tab) => tab.id === pane.activeTabId) ? pane.activeTabId : tabs[0].id,
+            tabs,
+          }
+        }
+        const fallbackTab = createStudioTab(item.kind, studioCreateLabels[item.kind])
+        return { ...pane, activeTabId: fallbackTab.id, tabs: [fallbackTab] }
+      })
+      return normalizeStudioLayout({ ...current, groups: [{ ...group, panes }] })
+    })
+  }
+
+  async function archiveStudioItem(item: StudioRecordItem) {
+    if (item.kind === "notes") {
+      await api(`/api/notes/${item.id}`, { method: "DELETE" })
+      setNotes((current) => current.filter((entry) => entry.id !== item.id))
+      if (noteDraft?.id === item.id) {
+        setSelectedNoteId("")
+        setNoteDraft(null)
+        setNoteHistory(createHistoryState(""))
+      }
+    }
+    if (item.kind === "docs") {
+      await api(`/api/docs?id=${item.id}`, { method: "DELETE" })
+      setDocs((current) => current.filter((entry) => entry.id !== item.id))
+      if (docId === item.id) {
+        setDocId("")
+        setDocTitle("Untitled document")
+        setDocHistory(createHistoryState(docTemplates[options.docsTemplate]))
+      }
+    }
+    if (item.kind === "sheets") {
+      await api(`/api/sheets?id=${item.id}`, { method: "DELETE" })
+      setSheets((current) => current.filter((entry) => entry.id !== item.id))
+      if (sheetId === item.id) {
+        setSheetId("")
+        setSheetTitle("Study tracker")
+        setCells(starterCells)
+      }
+    }
+    if (item.kind === "slides") {
+      await api(`/api/slides?id=${item.id}`, { method: "DELETE" })
+      setDecks((current) => current.filter((entry) => entry.id !== item.id))
+      if (deckId === item.id) {
+        setDeckId("")
+        setDeckTitle("Learning deck")
+        setSlides(starterSlides)
+      }
+    }
+    closeArchivedStudioTabs(item)
+    setStatus(`Archived ${item.title}.`)
+  }
+
   async function archiveActive() {
     if (kind === "notes" && noteDraft) {
       await api(`/api/notes/${noteDraft.id}`, { method: "DELETE" })
@@ -1049,6 +1180,13 @@ export function StudioView({
             section={section}
             viewMode={viewMode}
             onApplyTemplate={applyTemplate}
+            onArchive={archiveStudioItem}
+            onAskAi={(item) => {
+              selectItem(item)
+              setInspectorTab("AI")
+            }}
+            onCopy={copyStudioItem}
+            onDuplicate={duplicateStudioItem}
             onQuery={setQuery}
             onSection={setSection}
             onSelect={selectItem}
@@ -1126,6 +1264,10 @@ function StudioLibrary({
   activeKind,
   items,
   onApplyTemplate,
+  onArchive,
+  onAskAi,
+  onCopy,
+  onDuplicate,
   onQuery,
   onSection,
   onSelect,
@@ -1135,11 +1277,15 @@ function StudioLibrary({
   viewMode,
 }: {
   activeKind: StudioKind
-  items: Array<{ id: string; kind: StudioKind; title: string; updated_at?: string; summary?: string }>
+  items: StudioListItem[]
   onApplyTemplate: (template: { title: string; body: string }) => void
+  onArchive: (item: StudioRecordItem) => void
+  onAskAi: (item: StudioRecordItem) => void
+  onCopy: (item: StudioRecordItem) => void
+  onDuplicate: (item: StudioRecordItem) => void
   onQuery: (value: string) => void
   onSection: (value: string) => void
-  onSelect: (item: { id: string; kind: StudioKind; title: string }) => void
+  onSelect: (item: StudioRecordItem) => void
   onViewMode: (value: StudioViewMode) => void
   query: string
   section: string
@@ -1180,14 +1326,14 @@ function StudioLibrary({
               const item = items[virtualRow.index]
               return item ? (
                 <div key={`${item.kind}_${item.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${virtualRow.start}px)` }}>
-                  <StudioItemButton item={item} onSelect={onSelect} />
+                  <StudioItemButton item={item} onArchive={onArchive} onAskAi={onAskAi} onCopy={onCopy} onDuplicate={onDuplicate} onSelect={onSelect} />
                 </div>
               ) : null
             })}
           </div>
         ) : (
           <div className={`grid gap-2 ${viewMode === "gallery" ? "grid-cols-2" : ""}`}>
-            {items.map((item) => <StudioItemButton key={`${item.kind}_${item.id}`} item={item} onSelect={onSelect} />)}
+            {items.map((item) => <StudioItemButton key={`${item.kind}_${item.id}`} item={item} onArchive={onArchive} onAskAi={onAskAi} onCopy={onCopy} onDuplicate={onDuplicate} onSelect={onSelect} />)}
           </div>
         )}
         {!items.length ? <EmptyState title="No Studio items" body="Create a note, doc, sheet, or deck, then open it in a split pane." /> : null}
@@ -1209,19 +1355,47 @@ function StudioLibrary({
   )
 }
 
-function StudioItemButton({ item, onSelect }: { item: { id: string; kind: StudioKind; title: string; updated_at?: string; summary?: string }; onSelect: (item: { id: string; kind: StudioKind; title: string }) => void }) {
+function StudioItemButton({
+  item,
+  onArchive,
+  onAskAi,
+  onCopy,
+  onDuplicate,
+  onSelect,
+}: {
+  item: StudioListItem
+  onArchive: (item: StudioRecordItem) => void
+  onAskAi: (item: StudioRecordItem) => void
+  onCopy: (item: StudioRecordItem) => void
+  onDuplicate: (item: StudioRecordItem) => void
+  onSelect: (item: StudioRecordItem) => void
+}) {
+  const Icon = item.kind === "sheets" ? Table2 : item.kind === "slides" ? Presentation : item.kind === "docs" ? BookOpen : FileText
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger asChild>
-        <button onClick={() => onSelect(item)} className="mb-2 w-full rounded-md border border-border bg-background p-3 text-left text-sm hover:bg-accent hover:text-accent-foreground">
-          <span className="flex items-center gap-2 font-medium text-foreground">
-            {item.kind === "sheets" ? <Table2 className="h-4 w-4" /> : item.kind === "slides" ? <Presentation className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
-            <span className="line-clamp-1">{item.title}</span>
-          </span>
-          <span className="mt-1 block text-xs capitalize text-muted-foreground">{item.kind} - {item.updated_at ? formatDate(item.updated_at) : item.summary || "Draft"}</span>
-        </button>
+        <article className="mb-2 rounded-md border border-border bg-background p-3 text-sm transition hover:border-primary/50 hover:bg-accent/60">
+          <button onClick={() => onSelect(item)} className="w-full text-left">
+            <span className="flex items-center gap-2 font-medium text-foreground">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
+                <Icon className="h-4 w-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="line-clamp-1">{item.title}</span>
+                <span className="mt-0.5 block text-xs capitalize text-muted-foreground">{item.kind} - {item.updated_at ? formatDate(item.updated_at) : item.summary || "Draft"}</span>
+              </span>
+            </span>
+          </button>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <RecordAction icon={FileText} label="Open" onClick={() => onSelect(item)} />
+            <RecordAction icon={Clipboard} label="Copy" onClick={() => onCopy(item)} />
+            <RecordAction icon={Copy} label="Duplicate" onClick={() => onDuplicate(item)} />
+            <RecordAction icon={Bot} label="AI" onClick={() => onAskAi(item)} />
+            <RecordAction danger icon={Archive} label="Archive" onClick={() => onArchive(item)} />
+          </div>
+        </article>
       </ContextMenu.Trigger>
-      <StudioContextContent onCopy={() => navigator.clipboard?.writeText(item.title)} onDuplicate={() => undefined} onArchive={() => undefined} onAskAi={() => undefined} />
+      <StudioContextContent onCopy={() => onCopy(item)} onDuplicate={() => onDuplicate(item)} onArchive={() => onArchive(item)} onAskAi={() => onAskAi(item)} />
     </ContextMenu.Root>
   )
 }
@@ -2005,6 +2179,24 @@ function StudioContextContent({ children, onArchive, onAskAi, onCopy, onDuplicat
 function ViewModeButton({ active, icon: Icon, label, onClick }: { active: boolean; icon: React.ComponentType<{ className?: string }>; label: string; onClick: () => void }) {
   return (
     <button onClick={onClick} className={`flex h-8 items-center justify-center gap-1.5 rounded-md text-xs font-semibold ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </button>
+  )
+}
+
+function RecordAction({ danger, icon: Icon, label, onClick }: { danger?: boolean; icon: React.ComponentType<{ className?: string }>; label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[0.68rem] font-semibold ${
+        danger
+          ? "border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+          : "border-border bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"
+      }`}
+      title={label}
+      type="button"
+    >
       <Icon className="h-3.5 w-3.5" />
       {label}
     </button>
