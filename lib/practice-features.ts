@@ -30,6 +30,25 @@ export interface PracticeModeSummary {
   caption: string
 }
 
+export type PracticeWorkspaceTarget = "quizzes" | "games"
+export type PracticeWorkspaceActionId = "resume" | "careful" | "speed" | "repair" | "create"
+
+export interface PracticeWorkspaceAction {
+  id: PracticeWorkspaceActionId
+  label: string
+  caption: string
+  target: PracticeWorkspaceTarget
+  badge: string
+}
+
+export interface PracticeWorkspacePlan {
+  headline: string
+  caption: string
+  primaryAction: PracticeWorkspaceAction
+  actions: PracticeWorkspaceAction[]
+  signals: Array<{ label: string; value: string }>
+}
+
 export const practiceModeGroups: PracticeModeGroup[] = [
   {
     id: "core",
@@ -225,6 +244,98 @@ export function summarizePracticeMode(input: {
       : hasAnsweredAll
         ? "You have a complete pass. Switch to fast recall or level up."
         : activeGroup.caption,
+  }
+}
+
+export function buildPracticeWorkspacePlan(input: {
+  activeTarget: PracticeWorkspaceTarget
+  quizCount: number
+  draftCount?: number
+  answeredDraftCount?: number
+  markedDraftCount?: number
+  retryDraftCount?: number
+}): PracticeWorkspacePlan {
+  const draftCount = input.draftCount ?? 0
+  const answeredDraftCount = input.answeredDraftCount ?? 0
+  const markedDraftCount = input.markedDraftCount ?? 0
+  const retryDraftCount = input.retryDraftCount ?? 0
+  const hasDrafts = draftCount > 0
+  const hasRepairWork = retryDraftCount > 0 || markedDraftCount > 0
+  const hasQuizBanks = input.quizCount > 0
+
+  const resumeAction: PracticeWorkspaceAction = {
+    id: "resume",
+    label: "Continue",
+    caption: "Pick up a saved run without losing answers, marks, or timer progress.",
+    target: "quizzes",
+    badge: `${draftCount} saved`,
+  }
+  const carefulAction: PracticeWorkspaceAction = {
+    id: "careful",
+    label: "Quiz",
+    caption: "Work through questions slowly, mark hard ones, then review explanations.",
+    target: "quizzes",
+    badge: "Accuracy",
+  }
+  const speedAction: PracticeWorkspaceAction = {
+    id: "speed",
+    label: "Sprint",
+    caption: "Turn the same question banks into a short recall game.",
+    target: "games",
+    badge: "Speed",
+  }
+  const repairAction: PracticeWorkspaceAction = {
+    id: "repair",
+    label: "Fix misses",
+    caption: "Return to marked or missed questions before starting something new.",
+    target: "quizzes",
+    badge: `${Math.max(markedDraftCount, retryDraftCount)} flagged`,
+  }
+  const createAction: PracticeWorkspaceAction = {
+    id: "create",
+    label: "Make practice",
+    caption: "Use Studio or AI Tutor to generate a quiz, flashcards, or review cards.",
+    target: "quizzes",
+    badge: "New",
+  }
+
+  const actions = [
+    ...(hasDrafts ? [resumeAction] : []),
+    carefulAction,
+    speedAction,
+    ...(hasRepairWork ? [repairAction] : []),
+    createAction,
+  ]
+
+  const primaryAction = hasDrafts
+    ? resumeAction
+    : hasRepairWork
+      ? repairAction
+      : !hasQuizBanks
+        ? createAction
+        : input.activeTarget === "games"
+          ? speedAction
+          : carefulAction
+
+  return {
+    headline: hasDrafts
+      ? "Continue where you stopped"
+      : hasQuizBanks
+        ? "Pick a simple practice path"
+        : "Create practice from your learning material",
+    caption: hasDrafts
+      ? "Saved answers, marks, timers, and retry sets stay available until you submit or clear them."
+      : hasQuizBanks
+        ? "Choose accuracy first, speed next, or generate practice from Studio when you need new material."
+        : "Practice works best after you add notes, docs, or quiz questions.",
+    primaryAction,
+    actions,
+    signals: [
+      { label: "Banks", value: String(input.quizCount) },
+      { label: "Drafts", value: String(draftCount) },
+      { label: "Answered", value: String(answeredDraftCount) },
+      { label: "Flagged", value: String(markedDraftCount + retryDraftCount) },
+    ],
   }
 }
 

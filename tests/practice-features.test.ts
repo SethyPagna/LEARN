@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import type { QuizQuestion } from "../components/learn/types"
 import { hasPracticeDraftContent, listPracticeDraftCards, normalizePracticeDraft, summarizePracticeDrafts } from "../lib/practice-drafts"
-import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../lib/practice-features"
+import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeWorkspacePlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../lib/practice-features"
 
 const questions: QuizQuestion[] = [
   { id: "q1", question: "One?", choices: [{ id: "a", text: "1" }, { id: "b", text: "2" }], correct_answer_id: "a", topic: "Math", explanation: "One" },
@@ -41,6 +41,26 @@ test("practice mode summary recommends the next useful loop", () => {
   assert.deepEqual(summarizePracticeMode({ mode: "quiz", missedCount: 2, answeredCount: 3, totalCount: 5 }).recommendedNextMode, "mistake-retry")
   assert.equal(summarizePracticeMode({ mode: "exam", answeredCount: 5, totalCount: 5 }).recommendedNextMode, "flashcards")
   assert.match(summarizePracticeMode({ mode: "matching" }).caption, /Fast retrieval/)
+})
+
+test("practice workspace plan turns quiz state into friendly next actions", () => {
+  const plan = buildPracticeWorkspacePlan({
+    activeTarget: "quizzes",
+    quizCount: 3,
+    draftCount: 2,
+    answeredDraftCount: 4,
+    markedDraftCount: 1,
+    retryDraftCount: 2,
+  })
+
+  assert.equal(plan.primaryAction.id, "resume")
+  assert.equal(plan.headline, "Continue where you stopped")
+  assert.deepEqual(plan.signals.map((signal) => signal.value), ["3", "2", "4", "3"])
+  assert.deepEqual(plan.actions.map((action) => action.id), ["resume", "careful", "speed", "repair", "create"])
+
+  const emptyPlan = buildPracticeWorkspacePlan({ activeTarget: "games", quizCount: 0 })
+  assert.equal(emptyPlan.primaryAction.id, "create")
+  assert.match(emptyPlan.caption, /Practice works best/)
 })
 
 test("practice review plan groups misses by topic and recommends next loop", () => {
