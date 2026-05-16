@@ -127,6 +127,12 @@ type StudioListItem = {
 }
 
 type StudioRecordItem = Pick<StudioListItem, "id" | "kind" | "title">
+type StudioPanePreview = {
+  kind: StudioKind
+  summary: string
+  title: string
+  updatedAt?: string
+}
 
 const studioCreateLabels: Record<StudioKind, string> = {
   notes: "New Note",
@@ -1183,13 +1189,58 @@ export function StudioView({
     await pptx.writeFile({ fileName: `${base}.pptx` })
   }
 
-  function selectItem(item: { id: string; kind: StudioKind; title: string }) {
+  function loadStudioItem(item: { id: string; kind: StudioKind }) {
     setKind(item.kind)
     if (item.kind === "notes") setSelectedNoteId(item.id)
     if (item.kind === "docs") setDocId(item.id)
     if (item.kind === "sheets") setSheetId(item.id)
     if (item.kind === "slides") setDeckId(item.id)
+  }
+
+  function selectItem(item: { id: string; kind: StudioKind; title: string }) {
+    loadStudioItem(item)
     updateActivePaneKind(item.kind, item.id, item.title)
+  }
+
+  function paneActiveTab(pane: StudioPane) {
+    return pane.tabs.find((tab) => tab.id === pane.activeTabId) || pane.tabs[0]
+  }
+
+  function previewForPane(pane: StudioPane): StudioPanePreview {
+    const tab = paneActiveTab(pane)
+    if (!tab) return { kind: "notes", title: "Studio item", summary: "No item open" }
+    const source = tab.itemId ? findStudioItem({ id: tab.itemId, kind: tab.kind }) : undefined
+    if (!source) return { kind: tab.kind, title: tab.title || studioCreateLabels[tab.kind], summary: "Draft pane" }
+    if (tab.kind === "notes") return { kind: tab.kind, title: (source as Note).title, summary: plainTextFromHtml((source as Note).content || "").slice(0, 180) || "Empty note", updatedAt: (source as Note).updated_at }
+    if (tab.kind === "docs") return { kind: tab.kind, title: (source as WorkspaceDocument).title, summary: textFromDocument(source as WorkspaceDocument).slice(0, 180) || "Empty doc", updatedAt: (source as WorkspaceDocument).updated_at }
+    if (tab.kind === "sheets") return { kind: tab.kind, title: (source as WorkspaceSheet).title, summary: `${cellsFromSheet(source as WorkspaceSheet).length} rows`, updatedAt: (source as WorkspaceSheet).updated_at }
+    return { kind: tab.kind, title: (source as WorkspaceDeck).title, summary: `${slidesFromDeck(source as WorkspaceDeck).length} slides`, updatedAt: (source as WorkspaceDeck).updated_at }
+  }
+
+  function activatePane(pane: StudioPane) {
+    const tab = paneActiveTab(pane)
+    if (tab?.itemId) loadStudioItem({ id: tab.itemId, kind: tab.kind })
+    else if (tab) setKind(tab.kind)
+    setLayout((current) => ({ ...current, activePaneId: pane.id }))
+  }
+
+  function openItemInSplit(item: StudioListItem) {
+    if (item.archived_at) {
+      setStatus("Restore this item before opening it in a split pane.")
+      return
+    }
+    loadStudioItem(item)
+    setLayout((current) => {
+      const group = current.groups[0]
+      const split = splitStudioPane(current, current.activePaneId, group.direction || "horizontal")
+      const splitGroup = split.groups[0]
+      const tab = createStudioTab(item.kind, item.title, item.id)
+      const panes = splitGroup.panes.map((pane) => (
+        pane.id === split.activePaneId ? { ...pane, activeTabId: tab.id, tabs: [tab] } : pane
+      ))
+      return normalizeStudioLayout({ ...split, groups: [{ ...splitGroup, panes }] })
+    })
+    setStatus(`Opened ${item.title} in a split pane.`)
   }
 
   function updateCell(rowIndex: number, cellIndex: number, value: string) {
@@ -1288,6 +1339,7 @@ export function StudioView({
             onDownload={(item) => downloadStudioItem(item)}
             onDuplicate={duplicateStudioItem}
             onExport={(item) => downloadStudioItem(item, true)}
+            onOpenInSplit={openItemInSplit}
             onQuery={setQuery}
             onRestore={restoreStudioItem}
             onSection={setSection}
@@ -1322,15 +1374,20 @@ export function StudioView({
                     onExport={() => downloadActive(true)}
                     onRenamePane={(label) => setLayout((current) => normalizeStudioLayout({ ...current, groups: [{ ...current.groups[0], panes: current.groups[0].panes.map((item) => item.id === pane.id ? { ...item, label } : item) }] }))}
                     onSave={() => saveActive()}
-                    onSelectPane={() => setLayout((current) => ({ ...current, activePaneId: pane.id }))}
+                    onSelectPane={() => activatePane(pane)}
+                    onSelectTab={(tab) => {
+                      if (tab.itemId) loadStudioItem({ id: tab.itemId, kind: tab.kind })
+                      else setKind(tab.kind)
+                      setLayout((current) => {
+                        const group = current.groups[0]
+                        const panes = group.panes.map((item) => item.id === pane.id ? { ...item, activeTabId: tab.id } : item)
+                        return normalizeStudioLayout({ ...current, activePaneId: pane.id, groups: [{ ...group, panes }] })
+                      })
+                    }}
                     onSetActiveTitle={setActiveTitle}
                     onSetCells={setCells}
                     onSetDocHistory={setDocHistory}
                     onSetInspectorTab={setInspectorTab}
-                    onSetKind={(nextKind) => {
-                      setKind(nextKind)
-                      setLayout((current) => ({ ...current, activePaneId: pane.id }))
-                    }}
                     onSetNoteHistory={setNoteHistory}
                     onSetSelectedCell={setSelectedCell}
                     onSetSelectedSlideIndex={setSelectedSlideIndex}
@@ -1339,6 +1396,7 @@ export function StudioView({
                     onSplitRight={() => setLayout((current) => splitStudioPane(current, pane.id, "horizontal"))}
                     options={options}
                     pane={pane}
+                    panePreview={previewForPane(pane)}
                     saving={saving}
                     selectedCell={selectedCell}
                     selectedSlideIndex={selectedSlideIndex}
@@ -1372,6 +1430,7 @@ function StudioLibrary({
   onDownload,
   onDuplicate,
   onExport,
+  onOpenInSplit,
   onQuery,
   onRestore,
   onSection,
@@ -1390,6 +1449,7 @@ function StudioLibrary({
   onDownload: (item: StudioRecordItem) => void
   onDuplicate: (item: StudioRecordItem) => void
   onExport: (item: StudioRecordItem) => void
+  onOpenInSplit: (item: StudioListItem) => void
   onQuery: (value: string) => void
   onRestore: (item: StudioRecordItem) => void
   onSection: (value: string) => void
@@ -1434,14 +1494,14 @@ function StudioLibrary({
               const item = items[virtualRow.index]
               return item ? (
                 <div key={`${item.kind}_${item.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${virtualRow.start}px)` }}>
-                  <StudioItemButton item={item} onArchive={onArchive} onAskAi={onAskAi} onCopy={onCopy} onDownload={onDownload} onDuplicate={onDuplicate} onExport={onExport} onRestore={onRestore} onSelect={onSelect} />
+                  <StudioItemButton item={item} onArchive={onArchive} onAskAi={onAskAi} onCopy={onCopy} onDownload={onDownload} onDuplicate={onDuplicate} onExport={onExport} onOpenInSplit={onOpenInSplit} onRestore={onRestore} onSelect={onSelect} />
                 </div>
               ) : null
             })}
           </div>
         ) : (
           <div className={`grid gap-2 ${viewMode === "gallery" ? "grid-cols-2" : ""}`}>
-            {items.map((item) => <StudioItemButton key={`${item.kind}_${item.id}`} item={item} onArchive={onArchive} onAskAi={onAskAi} onCopy={onCopy} onDownload={onDownload} onDuplicate={onDuplicate} onExport={onExport} onRestore={onRestore} onSelect={onSelect} />)}
+            {items.map((item) => <StudioItemButton key={`${item.kind}_${item.id}`} item={item} onArchive={onArchive} onAskAi={onAskAi} onCopy={onCopy} onDownload={onDownload} onDuplicate={onDuplicate} onExport={onExport} onOpenInSplit={onOpenInSplit} onRestore={onRestore} onSelect={onSelect} />)}
           </div>
         )}
         {!items.length ? <EmptyState title="No Studio items" body="Create a note, doc, sheet, or deck, then open it in a split pane." /> : null}
@@ -1471,6 +1531,7 @@ function StudioItemButton({
   onDownload,
   onDuplicate,
   onExport,
+  onOpenInSplit,
   onRestore,
   onSelect,
 }: {
@@ -1481,6 +1542,7 @@ function StudioItemButton({
   onDownload: (item: StudioRecordItem) => void
   onDuplicate: (item: StudioRecordItem) => void
   onExport: (item: StudioRecordItem) => void
+  onOpenInSplit: (item: StudioListItem) => void
   onRestore: (item: StudioRecordItem) => void
   onSelect: (item: StudioRecordItem) => void
 }) {
@@ -1506,6 +1568,7 @@ function StudioItemButton({
             <RecordAction icon={Clipboard} label="Copy" onClick={() => onCopy(item)} />
             <RecordAction icon={Copy} label="Duplicate" onClick={() => onDuplicate(item)} />
             <RecordAction icon={Download} label="Export" onClick={() => onExport(item)} />
+            {!archived ? <RecordAction icon={SplitSquareHorizontal} label="Split" onClick={() => onOpenInSplit(item)} /> : null}
             <RecordAction icon={Bot} label="AI" onClick={() => onAskAi(item)} />
             {archived ? (
               <RecordAction icon={Undo2} label="Restore" onClick={() => onRestore(item)} />
@@ -1518,6 +1581,7 @@ function StudioItemButton({
       <StudioContextContent onCopy={() => onCopy(item)} onDuplicate={() => onDuplicate(item)} onArchive={() => onArchive(item)} onAskAi={() => onAskAi(item)} showArchive={!archived}>
         <ContextMenu.Item onClick={() => onDownload(item)} className="context-item"><Download className="h-4 w-4" /> Download</ContextMenu.Item>
         <ContextMenu.Item onClick={() => onExport(item)} className="context-item"><PanelRight className="h-4 w-4" /> Export</ContextMenu.Item>
+        {!archived ? <ContextMenu.Item onClick={() => onOpenInSplit(item)} className="context-item"><SplitSquareHorizontal className="h-4 w-4" /> Open in split</ContextMenu.Item> : null}
         {archived ? <ContextMenu.Item onClick={() => onRestore(item)} className="context-item"><Undo2 className="h-4 w-4" /> Restore</ContextMenu.Item> : null}
       </StudioContextContent>
     </ContextMenu.Root>
@@ -1545,11 +1609,11 @@ function StudioPaneSurface({
   onRenamePane,
   onSave,
   onSelectPane,
+  onSelectTab,
   onSetActiveTitle,
   onSetCells,
   onSetDocHistory,
   onSetInspectorTab,
-  onSetKind,
   onSetNoteHistory,
   onSetSelectedCell,
   onSetSelectedSlideIndex,
@@ -1558,6 +1622,7 @@ function StudioPaneSurface({
   onSplitRight,
   options,
   pane,
+  panePreview,
   saving,
   selectedCell,
   selectedSlideIndex,
@@ -1585,11 +1650,11 @@ function StudioPaneSurface({
   onRenamePane: (value: string) => void
   onSave: () => void
   onSelectPane: () => void
+  onSelectTab: (tab: StudioTab) => void
   onSetActiveTitle: (value: string) => void
   onSetCells: React.Dispatch<React.SetStateAction<string[][]>>
   onSetDocHistory: React.Dispatch<React.SetStateAction<HistoryState<string>>>
   onSetInspectorTab: (value: string) => void
-  onSetKind: (kind: StudioKind) => void
   onSetNoteHistory: React.Dispatch<React.SetStateAction<HistoryState<string>>>
   onSetSelectedCell: (value: { row: number; column: number }) => void
   onSetSelectedSlideIndex: (value: number) => void
@@ -1598,6 +1663,7 @@ function StudioPaneSurface({
   onSplitRight: () => void
   options: WorkspaceOptions
   pane: StudioPane
+  panePreview: StudioPanePreview
   saving: boolean
   selectedCell: { row: number; column: number }
   selectedSlideIndex: number
@@ -1605,7 +1671,10 @@ function StudioPaneSurface({
   status: string
   updateCell: (rowIndex: number, cellIndex: number, value: string) => void
 }) {
-  const activeTab = studioTabs.find((tab) => tab.kind === activeKind) || studioTabs[0]
+  const viewKind = active ? activeKind : panePreview.kind
+  const viewSummary = active ? activeSummary : panePreview.summary
+  const viewTitle = active ? activeTitle : panePreview.title
+  const activeTab = studioTabs.find((tab) => tab.kind === viewKind) || studioTabs[0]
   const Icon = activeTab.icon
   return (
     <ContextMenu.Root>
@@ -1616,9 +1685,9 @@ function StudioPaneSurface({
               <input value={pane.label} onChange={(event) => onRenamePane(event.target.value)} className="h-8 w-24 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground outline-none focus:border-ring" title="Rename order group" />
               <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
                 {pane.tabs.map((tab: StudioTab) => {
-                  const tabActive = tab.kind === activeKind
+                  const tabActive = tab.id === pane.activeTabId
                   return (
-                    <button key={tab.id} onClick={() => onSetKind(tab.kind)} className={`flex h-8 max-w-40 items-center gap-1.5 rounded-md border px-2 text-xs font-semibold ${tabActive ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} title={tab.title}>
+                    <button key={tab.id} onClick={() => onSelectTab(tab)} className={`flex h-8 max-w-40 items-center gap-1.5 rounded-md border px-2 text-xs font-semibold ${tabActive ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} title={tab.title}>
                       <span className="rounded bg-background/20 px-1">{pane.order}</span>
                       <span className="truncate">{tab.title || tab.kind}</span>
                       {tab.pinned ? <Maximize2 className="h-3 w-3" /> : null}
@@ -1636,9 +1705,9 @@ function StudioPaneSurface({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{activeTab.label} Studio</p>
-                <input value={activeTitle} onChange={(event) => onSetActiveTitle(event.target.value)} className="mt-1 w-full bg-transparent text-2xl font-semibold text-foreground outline-none" />
+                <input value={viewTitle} onChange={(event) => onSetActiveTitle(event.target.value)} readOnly={!active} className="mt-1 w-full bg-transparent text-2xl font-semibold text-foreground outline-none" />
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <span>{saving ? "Saving..." : lastSaved ? `Saved ${lastSaved}` : activeSummary}</span>
+                  <span>{active && saving ? "Saving..." : active && lastSaved ? `Saved ${lastSaved}` : viewSummary}</span>
                   <details className="relative">
                     <summary className="inline-flex h-6 w-6 list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${activeTab.label}`}>
                       <MoreHorizontal className="h-3.5 w-3.5" />
@@ -1647,15 +1716,18 @@ function StudioPaneSurface({
                   </details>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-1">
+              {active ? <div className="flex flex-wrap gap-1">
                 <MiniAction icon={Save} label="Save" onClick={onSave} />
                 <MiniAction icon={Clipboard} label="Copy" onClick={onCopy} />
                 <MiniAction icon={Download} label="Download" onClick={onDownload} />
                 <MiniAction icon={PanelRight} label="Export" onClick={onExport} />
-              </div>
+              </div> : null}
             </div>
           </div>
           {status ? <p className="mx-3 mt-3 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">{status}</p> : null}
+          {!active ? (
+            <StudioPanePreviewCard preview={panePreview} onOpen={onSelectPane} />
+          ) : (
           <div className={`grid min-h-0 flex-1 ${inspectorOpen ? "xl:grid-cols-[1fr_260px]" : ""}`}>
             <div className="min-h-0 overflow-auto p-3">
               <StudioCanvas
@@ -1693,10 +1765,35 @@ function StudioPaneSurface({
               />
             ) : null}
           </div>
+          )}
         </section>
       </ContextMenu.Trigger>
       <StudioContextContent onCopy={onCopy} onDuplicate={onDuplicate} onArchive={onArchive} onAskAi={() => onSetInspectorTab("AI")} />
     </ContextMenu.Root>
+  )
+}
+
+function StudioPanePreviewCard({ onOpen, preview }: { onOpen: () => void; preview: StudioPanePreview }) {
+  const tab = studioTabs.find((item) => item.kind === preview.kind) || studioTabs[0]
+  const Icon = tab.icon
+  return (
+    <div className="flex min-h-0 flex-1 items-center justify-center p-4">
+      <button onClick={onOpen} className="w-full max-w-md rounded-md border border-border bg-background p-4 text-left shadow-sm transition hover:border-primary/60 hover:bg-accent/40">
+        <span className="mb-3 flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
+            <Icon className="h-5 w-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{tab.label}</span>
+            <span className="line-clamp-1 text-base font-semibold text-foreground">{preview.title}</span>
+          </span>
+        </span>
+        <span className="line-clamp-3 text-sm leading-6 text-muted-foreground">{preview.summary}</span>
+        <span className="mt-4 inline-flex h-8 items-center rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground">
+          Edit this pane
+        </span>
+      </button>
+    </div>
   )
 }
 
