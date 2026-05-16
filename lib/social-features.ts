@@ -12,6 +12,23 @@ export interface ChatThreadLike {
   updatedAt?: string
 }
 
+export interface ChatWorkspaceSummary {
+  total: number
+  questions: number
+  wins: number
+  saved: number
+  mentions: number
+  studioLinks: number
+  channels: Array<{ label: string; count: number }>
+}
+
+export interface ChatComposerPlan {
+  headline: string
+  recommendedIntent: ChatIntent
+  nextAction: string
+  chips: string[]
+}
+
 export interface SocialRecordLike {
   id?: string
   name?: string
@@ -94,6 +111,73 @@ export function filterChatThreads(threads: ChatThreadLike[], input: { query?: st
   })
 }
 
+export function summarizeChatWorkspace(threads: ChatThreadLike[]): ChatWorkspaceSummary {
+  const channelCounts = new Map<string, number>()
+  let questions = 0
+  let wins = 0
+  let saved = 0
+  let mentions = 0
+  let studioLinks = 0
+
+  for (const thread of threads) {
+    const parsed = parseThreadTitle(thread.title)
+    const body = String(thread.last_message || thread.lastMessage || "")
+    const searchable = `${thread.title || ""} ${body}`.toLowerCase()
+    channelCounts.set(parsed.channel, (channelCounts.get(parsed.channel) ?? 0) + 1)
+    if (searchable.includes("[question]") || searchable.includes("?")) questions += 1
+    if (searchable.includes("[win]") || searchable.includes("#wins")) wins += 1
+    if (searchable.includes("[saved]") || searchable.includes(" saved ") || searchable.includes("bookmark")) saved += 1
+    if (/(^|\s)@\w+/.test(body)) mentions += 1
+    if (/\/(studio|notes|docs|sheets|slides)\b/.test(body)) studioLinks += 1
+  }
+
+  return {
+    total: threads.length,
+    questions,
+    wins,
+    saved,
+    mentions,
+    studioLinks,
+    channels: [...channelCounts.entries()]
+      .map(([label, count]) => ({ label, count }))
+      .sort((first, second) => second.count - first.count || first.label.localeCompare(second.label)),
+  }
+}
+
+export function buildChatComposerPlan(summary: ChatWorkspaceSummary, draftBody = ""): ChatComposerPlan {
+  const hasDraft = Boolean(draftBody.trim())
+  if (hasDraft) {
+    return {
+      headline: "Finish the current draft",
+      recommendedIntent: detectDraftIntent(draftBody),
+      nextAction: "Send or clear the saved draft",
+      chips: [`${draftBody.trim().split(/\s+/).length} words`, summary.total ? `${summary.total} threads` : "first thread"],
+    }
+  }
+  if (summary.questions > summary.wins) {
+    return {
+      headline: "Answer an open question",
+      recommendedIntent: "question",
+      nextAction: "Filter questions and reply with context",
+      chips: [`${summary.questions} questions`, `${summary.mentions} mentions`],
+    }
+  }
+  if (summary.wins === 0 && summary.total > 0) {
+    return {
+      headline: "Capture one learning win",
+      recommendedIntent: "win",
+      nextAction: "Post a short win from today",
+      chips: [`${summary.total} threads`, "no wins yet"],
+    }
+  }
+  return {
+    headline: summary.total ? "Keep the channel tidy" : "Start a study thread",
+    recommendedIntent: "update",
+    nextAction: summary.total ? "Share one focused update" : "Create the first group update",
+    chips: [`${summary.saved} saved`, `${summary.studioLinks} Studio links`],
+  }
+}
+
 export function summarizeSocialWorkspace(kind: SocialWorkspaceKind, records: SocialRecordLike[]): SocialWorkspaceSummary {
   const modeCounts = countSocialModes(kind, records)
   if (kind === "spaces") {
@@ -133,6 +217,13 @@ export function summarizeSocialWorkspace(kind: SocialWorkspaceKind, records: Soc
     suggestedAction: activeCount ? "Start the next round" : "Create a fresh battle",
     modeCounts,
   }
+}
+
+function detectDraftIntent(body: string): ChatIntent {
+  const text = body.toLowerCase()
+  if (text.includes("?")) return "question"
+  if (text.includes("finished") || text.includes("completed") || text.includes("win")) return "win"
+  return "update"
 }
 
 export function buildSocialWorkspacePlan(kind: SocialWorkspaceKind, summary: SocialWorkspaceSummary): SocialWorkspacePlan {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatDraftPayload, buildSocialWorkspacePlan, filterChatThreads, filterSocialRecords, parseThreadTitle, summarizeSocialWorkspace } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildSocialWorkspacePlan, filterChatThreads, filterSocialRecords, parseThreadTitle, summarizeChatWorkspace, summarizeSocialWorkspace } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -32,6 +32,34 @@ test("chat thread filtering supports query questions wins and saved", () => {
   assert.equal(filterChatThreads(threads, { filter: "questions" }).length, 1)
   assert.equal(filterChatThreads(threads, { filter: "wins" }).length, 1)
   assert.equal(filterChatThreads(threads, { filter: "saved" }).length, 1)
+})
+
+test("summarizeChatWorkspace counts intent signals and channels", () => {
+  const summary = summarizeChatWorkspace([
+    { title: "#study-help - React", last_message: "[question] Can @alex check /studio notes?" },
+    { title: "#wins - Streak", last_message: "[win] Finished reviews" },
+    { title: "#general - Links", last_message: "[saved] bookmark this resource" },
+  ])
+
+  assert.equal(summary.total, 3)
+  assert.equal(summary.questions, 1)
+  assert.equal(summary.wins, 1)
+  assert.equal(summary.saved, 1)
+  assert.equal(summary.mentions, 1)
+  assert.equal(summary.studioLinks, 1)
+  assert.equal(summary.channels[0].count, 1)
+})
+
+test("buildChatComposerPlan recommends draft and thread next actions", () => {
+  const empty = summarizeChatWorkspace([])
+  const questions = summarizeChatWorkspace([
+    { title: "#study-help - React", last_message: "[question] Why hooks?" },
+    { title: "#study-help - SQL", last_message: "[question] Index order?" },
+  ])
+
+  assert.equal(buildChatComposerPlan(empty).nextAction, "Create the first group update")
+  assert.equal(buildChatComposerPlan(questions).recommendedIntent, "question")
+  assert.equal(buildChatComposerPlan(questions, "Did anyone review this?").headline, "Finish the current draft")
 })
 
 test("summarizeSocialWorkspace creates kind-specific operational signals", () => {
