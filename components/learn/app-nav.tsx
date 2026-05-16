@@ -19,6 +19,7 @@ import {
   LogOut,
   Menu,
   Moon,
+  Network,
   PanelLeftClose,
   PanelLeftOpen,
   Repeat2,
@@ -63,7 +64,8 @@ const navGroups: NavGroup[] = [
     label: "Workspaces",
     caption: "Daily route, reviews, and calendar",
     items: [
-      { view: "learn", labelKey: "learn", icon: Compass, aliases: ["vault", "feed", "discover", "graph"] },
+      { view: "learn", labelKey: "learn", icon: Compass, aliases: ["feed", "discover"] },
+      { view: "vault", labelKey: "vault", icon: Network, aliases: ["graph"] },
       { view: "reviews", labelKey: "reviews", icon: Repeat2 },
       { view: "calendar", labelKey: "calendar", icon: CalendarDays },
     ],
