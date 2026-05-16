@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { filterAdminList, summarizeAdminOperations } from "../lib/admin-features"
+import { buildAdminOperationalPlan, filterAdminList, summarizeAdminOperations } from "../lib/admin-features"
 
 test("summarizeAdminOperations flags enabled providers missing keys or failing", () => {
   const summary = summarizeAdminOperations({
@@ -35,4 +35,28 @@ test("filterAdminList searches selected fields only", () => {
 
   assert.deepEqual(results.map((item) => item.name), ["Ada"])
   assert.equal(filterAdminList(results, "", ["name"]).length, 1)
+})
+
+test("buildAdminOperationalPlan points admins to the riskiest tab", () => {
+  const providerPlan = buildAdminOperationalPlan(summarizeAdminOperations({
+    adminData: {
+      providers: [{ name: "Groq", enabled: true, has_key: false }],
+      audit: [{ action: "login" }],
+    },
+    automationData: { jobs: [{ key: "daily", label: "Daily" }] },
+  }))
+  const auditPlan = buildAdminOperationalPlan(summarizeAdminOperations({
+    adminData: { providers: [{ name: "Groq", enabled: true, has_key: true, last_status: "ok" }], audit: [] },
+    automationData: { jobs: [{ key: "daily", label: "Daily" }] },
+  }))
+  const readyPlan = buildAdminOperationalPlan(summarizeAdminOperations({
+    adminData: { providers: [{ name: "Groq", enabled: true, has_key: true, last_status: "ok" }], audit: [{ action: "update" }] },
+    automationData: { jobs: [{ key: "daily", label: "Daily" }] },
+  }))
+
+  assert.equal(providerPlan.targetTab, "providers")
+  assert.equal(providerPlan.riskCount, 1)
+  assert.equal(auditPlan.targetTab, "audit")
+  assert.equal(readyPlan.targetTab, "overview")
+  assert.match(readyPlan.headline, /ready/i)
 })

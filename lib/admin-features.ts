@@ -49,6 +49,14 @@ export interface AdminOperationalSummary {
   systemTone: "good" | "watch" | "neutral"
 }
 
+export interface AdminOperationalPlan {
+  targetTab: AdminPanelTab
+  headline: string
+  nextAction: string
+  chips: string[]
+  riskCount: number
+}
+
 const MAX_ADMIN_LIST = 8
 
 export function summarizeAdminOperations(input: {
@@ -119,6 +127,51 @@ export function filterAdminList<T extends Record<string, unknown>>(items: T[], q
     }
   }
   return results
+}
+
+export function buildAdminOperationalPlan(summary: AdminOperationalSummary): AdminOperationalPlan {
+  const providerCard = summary.cards.find((card) => card.id === "providers")
+  const auditCard = summary.cards.find((card) => card.id === "audit")
+  const automationCard = summary.cards.find((card) => card.id === "automation")
+  const riskCount = summary.providerIssues.length
+
+  if (riskCount > 0) {
+    return {
+      targetTab: "providers",
+      headline: "Provider routing needs attention",
+      nextAction: "Open provider admin",
+      chips: [`${riskCount} provider issue${riskCount === 1 ? "" : "s"}`, providerCard?.value ?? "0/0 ready"],
+      riskCount,
+    }
+  }
+
+  if (summary.recentAudit.length === 0) {
+    return {
+      targetTab: "audit",
+      headline: "Audit trail is quiet",
+      nextAction: "Review audit setup",
+      chips: [auditCard?.value ?? "0 events", "no recent rows"],
+      riskCount,
+    }
+  }
+
+  if (summary.visibleAutomation.length === 0) {
+    return {
+      targetTab: "automation",
+      headline: "Automation catalog is empty",
+      nextAction: "Inspect automation jobs",
+      chips: [automationCard?.value ?? "0 jobs", "manual checks only"],
+      riskCount,
+    }
+  }
+
+  return {
+    targetTab: "overview",
+    headline: "Operations look ready",
+    nextAction: "Review overview",
+    chips: [providerCard?.value ?? "providers ready", `${summary.recentAudit.length} audit rows`, `${summary.visibleAutomation.length} jobs`],
+    riskCount,
+  }
 }
 
 function readyProviderCount(providers: AdminProviderLike[]) {
