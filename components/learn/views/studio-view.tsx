@@ -47,6 +47,7 @@ import {
   Grid2X2,
   Heading1,
   Heading2,
+  Heading3,
   Highlighter,
   ImageIcon,
   Italic,
@@ -54,11 +55,15 @@ import {
   List,
   ListOrdered,
   Maximize2,
+  Minus,
   MoreHorizontal,
   PanelRight,
+  Paintbrush,
   Plus,
   Presentation,
+  Quote,
   Redo2,
+  RotateCcw,
   Rows3,
   Save,
   Scissors,
@@ -66,6 +71,7 @@ import {
   Settings2,
   SplitSquareHorizontal,
   SplitSquareVertical,
+  Strikethrough,
   Table2,
   Trash2,
   Type,
@@ -106,6 +112,9 @@ import type { ImportTarget } from "@/lib/import-gateway"
 import { applySlideDesignPreset, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
+const HEADING_STYLE_KEY = "learn_heading_styles_v1"
+const DRAFT_TAB_TITLE_PATTERN = /^New (Note|Doc|Sheet|Deck)$/i
+const NUMBERED_EMPTY_TAB_PATTERN = /^\d+\s+(Notes|Docs|Sheets|Slides)$/i
 
 const studioTabs: { kind: StudioKind; label: string; description: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { kind: "notes", label: "Notes", description: "Fast capture, review seeds, and daily learning reflections.", icon: FileText },
@@ -141,6 +150,51 @@ const studioCreateLabels: Record<StudioKind, string> = {
   docs: "New Doc",
   sheets: "New Sheet",
   slides: "New Deck",
+}
+
+const studioEmptyTabLabels: Record<StudioKind, string> = {
+  notes: "Notes",
+  docs: "Docs",
+  sheets: "Sheets",
+  slides: "Slides",
+}
+
+const fontOptions = [
+  { label: "Aptos", value: "Aptos, Inter, sans-serif" },
+  { label: "Calibri", value: "Calibri, Inter, sans-serif" },
+  { label: "Inter", value: "Inter, sans-serif" },
+  { label: "Arial", value: "Arial, sans-serif" },
+  { label: "Georgia", value: "Georgia, serif" },
+  { label: "Times New Roman", value: "'Times New Roman', serif" },
+  { label: "Mono", value: "'Courier New', monospace" },
+]
+
+const fontSizeOptions = ["8px", "9px", "10px", "11px", "12px", "14px", "16px", "18px", "20px", "24px", "28px", "32px", "36px", "48px", "72px"].map((value) => ({
+  label: value.replace("px", ""),
+  value,
+}))
+
+const textColorOptions = [
+  { label: "Default", value: "inherit" },
+  { label: "Ink", value: "#111827" },
+  { label: "Blue", value: "#2563eb" },
+  { label: "Green", value: "#059669" },
+  { label: "Red", value: "#dc2626" },
+  { label: "Purple", value: "#7c3aed" },
+]
+
+const highlightColorOptions = [
+  { label: "Yellow", value: "#fef08a" },
+  { label: "Green", value: "#bbf7d0" },
+  { label: "Blue", value: "#bfdbfe" },
+  { label: "Pink", value: "#fbcfe8" },
+]
+
+type HeadingStyleLevel = 1 | 2 | 3
+type HeadingStylePreset = {
+  color?: string
+  fontFamily?: string
+  fontSize?: string
 }
 
 const studioKindStyles: Record<StudioKind, { accent: string; card: string; chip: string; icon: string; label: string }> = {
@@ -304,6 +358,46 @@ function richTextContent(value: string) {
     .join("")
 }
 
+function formatStudioTabLabel(tab: StudioTab) {
+  const trimmedTitle = tab.title?.trim()
+  if (!trimmedTitle || (!tab.itemId && (DRAFT_TAB_TITLE_PATTERN.test(trimmedTitle) || NUMBERED_EMPTY_TAB_PATTERN.test(trimmedTitle) || trimmedTitle === "Studio item"))) {
+    return studioEmptyTabLabels[tab.kind]
+  }
+  return trimmedTitle
+}
+
+function readHeadingStyles(): Record<HeadingStyleLevel, HeadingStylePreset> {
+  const fallback: Record<HeadingStyleLevel, HeadingStylePreset> = {
+    1: { color: "inherit", fontFamily: "Aptos, Inter, sans-serif", fontSize: "32px" },
+    2: { color: "inherit", fontFamily: "Aptos, Inter, sans-serif", fontSize: "24px" },
+    3: { color: "inherit", fontFamily: "Aptos, Inter, sans-serif", fontSize: "20px" },
+  }
+  if (typeof window === "undefined") return fallback
+  try {
+    return { ...fallback, ...JSON.parse(window.localStorage.getItem(HEADING_STYLE_KEY) || "{}") }
+  } catch {
+    return fallback
+  }
+}
+
+function writeHeadingStyles(styles: Record<HeadingStyleLevel, HeadingStylePreset>) {
+  if (typeof window === "undefined") return
+  window.localStorage.setItem(HEADING_STYLE_KEY, JSON.stringify(styles))
+}
+
+function selectedHeadingStyle(editor: Editor): HeadingStylePreset {
+  const textStyle = editor.getAttributes("textStyle") as HeadingStylePreset
+  return {
+    color: typeof textStyle.color === "string" ? textStyle.color : undefined,
+    fontFamily: typeof textStyle.fontFamily === "string" ? textStyle.fontFamily : undefined,
+    fontSize: typeof textStyle.fontSize === "string" ? textStyle.fontSize : undefined,
+  }
+}
+
+function applyHeadingStyle(editor: Editor, level: HeadingStyleLevel, style: HeadingStylePreset) {
+  editor.chain().focus().setHeading({ level }).setMark("textStyle", style).run()
+}
+
 function plainTextFromHtml(value: string) {
   return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
 }
@@ -378,7 +472,7 @@ export function StudioView({
   const [archivedDecks, setArchivedDecks] = useState<WorkspaceDeck[]>([])
   const [archivedLoaded, setArchivedLoaded] = useState(false)
 
-  const [layout, setLayout] = useState<StudioLayoutState>(() => createDefaultStudioLayout(initialKind, studioCreateLabels[initialKind]))
+  const [layout, setLayout] = useState<StudioLayoutState>(() => createDefaultStudioLayout(initialKind, "Studio"))
 
   const [noteDraft, setNoteDraft] = useState<Note | null>(selectedNote || null)
   const [noteHistory, setNoteHistory] = useState<HistoryState<string>>(createHistoryState(selectedNote?.content || ""))
@@ -485,7 +579,7 @@ export function StudioView({
       const saved = window.localStorage.getItem(LAYOUT_KEY)
       if (saved) setLayout(normalizeStudioLayout(JSON.parse(saved)))
     } catch {
-      setLayout(createDefaultStudioLayout(initialKind, studioCreateLabels[initialKind]))
+      setLayout(createDefaultStudioLayout(initialKind, "Studio"))
     }
   }, [])
 
@@ -1088,7 +1182,7 @@ export function StudioView({
             tabs,
           }
         }
-        const fallbackTab = createStudioTab(item.kind, studioCreateLabels[item.kind])
+        const fallbackTab = createStudioTab(item.kind, studioEmptyTabLabels[item.kind])
         return { ...pane, activeTabId: fallbackTab.id, tabs: [fallbackTab] }
       })
       return normalizeStudioLayout({ ...current, groups: [{ ...group, panes }] })
@@ -1323,7 +1417,7 @@ export function StudioView({
           <ActionMenu label="Layout" icon={SplitSquareHorizontal}>
             <MenuAction icon={SplitSquareHorizontal} label="Split right" onClick={() => setLayout((current) => splitStudioPane(current, current.activePaneId, "horizontal"))} />
             <MenuAction icon={SplitSquareVertical} label="Split down" onClick={() => setLayout((current) => splitStudioPane(current, current.activePaneId, "vertical"))} />
-            <MenuAction icon={Settings2} label="Reset layout" onClick={() => setLayout(createDefaultStudioLayout(kind, activeTitle()))} />
+            <MenuAction icon={Settings2} label="Reset layout" onClick={() => setLayout(createDefaultStudioLayout(kind, activeTitle() || "Studio"))} />
           </ActionMenu>
           <button onClick={() => setLayout((current) => ({ ...current, inspectorOpen: !current.inspectorOpen }))} className="ml-auto flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
             <PanelRight className="h-4 w-4" />
@@ -1760,10 +1854,11 @@ function StudioPaneSurface({
               <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
                 {pane.tabs.map((tab: StudioTab) => {
                   const tabActive = tab.id === pane.activeTabId
+                  const tabLabel = formatStudioTabLabel(tab)
                   return (
-                    <button key={tab.id} onClick={() => onSelectTab(tab)} className={`flex h-8 max-w-40 items-center gap-1.5 rounded-md border px-2 text-xs font-semibold ${tabActive ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} title={tab.title}>
+                    <button key={tab.id} onClick={() => onSelectTab(tab)} className={`flex h-8 max-w-40 items-center gap-1.5 rounded-md border px-2 text-xs font-semibold ${tabActive ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} title={tabLabel}>
                       <span className="rounded bg-background/20 px-1">{pane.order}</span>
-                      <span className="truncate">{tab.title || tab.kind}</span>
+                      <span className="truncate">{tabLabel}</span>
                       {tab.pinned ? <Maximize2 className="h-3 w-3" /> : null}
                     </button>
                   )
@@ -1784,8 +1879,11 @@ function StudioPaneSurface({
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{activeTab.label} Studio</p>
                 <input value={viewTitle} onChange={(event) => onSetActiveTitle(event.target.value)} readOnly={!active} className="mt-1 w-full bg-transparent text-2xl font-semibold text-foreground outline-none" />
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <span>{active && saving ? "Saving..." : active && lastSaved ? `Saved ${lastSaved}` : viewSummary}</span>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span className="inline-flex h-6 items-center rounded-md border border-border bg-background px-2 font-medium text-foreground">
+                    {active && saving ? "Saving..." : active && lastSaved ? `Saved ${lastSaved}` : "Draft"}
+                  </span>
+                  <span>{viewSummary}</span>
                   <details className="relative">
                     <summary className="inline-flex h-6 w-6 list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${activeTab.label}`}>
                       <MoreHorizontal className="h-3.5 w-3.5" />
@@ -2332,6 +2430,8 @@ function RichTextEditor({ large, onChange, placeholder, value }: { large?: boole
 
 function RichTextToolbar({ editor }: { editor: Editor | null }) {
   const [findText, setFindText] = useState("")
+  const [headingStyles, setHeadingStyles] = useState<Record<HeadingStyleLevel, HeadingStylePreset>>(() => readHeadingStyles())
+  const [headingStatus, setHeadingStatus] = useState("")
   const [replaceText, setReplaceText] = useState("")
   const [replaceStatus, setReplaceStatus] = useState("")
   const run = (fn: (editor: Editor) => void) => {
@@ -2345,29 +2445,47 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
     editor.commands.setContent(result.html)
     setReplaceStatus(`${result.count} replaced`)
   }
+  function saveHeadingStyle(level: HeadingStyleLevel) {
+    if (!editor) return
+    const next = { ...headingStyles, [level]: selectedHeadingStyle(editor) }
+    setHeadingStyles(next)
+    writeHeadingStyles(next)
+    setHeadingStatus(`H${level} updated`)
+  }
+  function resetHeadingStyles() {
+    if (typeof window !== "undefined") window.localStorage.removeItem(HEADING_STYLE_KEY)
+    const next = readHeadingStyles()
+    setHeadingStyles(next)
+    setHeadingStatus("Styles reset")
+  }
   return (
     <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-border bg-card/95 p-2 backdrop-blur">
       <ActionMenu label="Style" icon={Type}>
         <MenuAction icon={Type} label="Paragraph" onClick={() => run((item) => item.chain().focus().setParagraph().run())} />
-        <MenuAction icon={Heading1} label="Heading 1" onClick={() => run((item) => item.chain().focus().toggleHeading({ level: 1 }).run())} />
-        <MenuAction icon={Heading2} label="Heading 2" onClick={() => run((item) => item.chain().focus().toggleHeading({ level: 2 }).run())} />
-        <MenuSelect label="Font" onChange={(value) => run((item) => item.chain().focus().setFontFamily(value).run())} options={[
-          { label: "Sans", value: "Inter, sans-serif" },
-          { label: "Serif", value: "Georgia, serif" },
-          { label: "Mono", value: "'Courier New', monospace" },
-        ]} />
-        <MenuSelect label="Size" onChange={(value) => run((item) => item.chain().focus().setMark("textStyle", { fontSize: value }).run())} options={["14px", "16px", "20px", "28px"].map((value) => ({ label: value.replace("px", ""), value }))} />
+        <MenuAction icon={Heading1} label="Apply Heading 1" onClick={() => run((item) => applyHeadingStyle(item, 1, headingStyles[1]))} />
+        <MenuAction icon={Heading2} label="Apply Heading 2" onClick={() => run((item) => applyHeadingStyle(item, 2, headingStyles[2]))} />
+        <MenuAction icon={Heading3} label="Apply Heading 3" onClick={() => run((item) => applyHeadingStyle(item, 3, headingStyles[3]))} />
+        <MenuAction icon={Paintbrush} label="Update H1 from selection" onClick={() => saveHeadingStyle(1)} />
+        <MenuAction icon={Paintbrush} label="Update H2 from selection" onClick={() => saveHeadingStyle(2)} />
+        <MenuAction icon={Paintbrush} label="Update H3 from selection" onClick={() => saveHeadingStyle(3)} />
+        <MenuAction icon={RotateCcw} label="Reset saved headings" onClick={resetHeadingStyles} />
+        <MenuSelect label="Font" onChange={(value) => run((item) => item.chain().focus().setFontFamily(value).run())} options={fontOptions} />
+        <MenuSelect label="Size" onChange={(value) => run((item) => item.chain().focus().setMark("textStyle", { fontSize: value }).run())} options={fontSizeOptions} />
       </ActionMenu>
       <ActionMenu label="Text" icon={Bold}>
         <MenuAction icon={Bold} label="Bold" onClick={() => run((item) => item.chain().focus().toggleBold().run())} />
         <MenuAction icon={Italic} label="Italic" onClick={() => run((item) => item.chain().focus().toggleItalic().run())} />
         <MenuAction icon={UnderlineIcon} label="Underline" onClick={() => run((item) => item.chain().focus().toggleUnderline().run())} />
-        <MenuAction icon={Highlighter} label="Highlight" onClick={() => run((item) => item.chain().focus().toggleHighlight({ color: "#fef08a" }).run())} />
+        <MenuAction icon={Strikethrough} label="Strike" onClick={() => run((item) => item.chain().focus().toggleStrike().run())} />
+        <MenuAction icon={Braces} label="Inline code" onClick={() => run((item) => item.chain().focus().toggleCode().run())} />
+        <MenuSelect label="Text color" onChange={(value) => run((item) => value === "inherit" ? item.chain().focus().unsetColor().run() : item.chain().focus().setColor(value).run())} options={textColorOptions} />
+        <MenuSelect label="Highlight" onChange={(value) => run((item) => item.chain().focus().toggleHighlight({ color: value }).run())} options={highlightColorOptions} />
       </ActionMenu>
       <ActionMenu label="Paragraph" icon={AlignLeft}>
         <MenuAction icon={AlignLeft} label="Align left" onClick={() => run((item) => item.chain().focus().setTextAlign("left").run())} />
         <MenuAction icon={AlignCenter} label="Align center" onClick={() => run((item) => item.chain().focus().setTextAlign("center").run())} />
         <MenuAction icon={AlignRight} label="Align right" onClick={() => run((item) => item.chain().focus().setTextAlign("right").run())} />
+        <MenuAction icon={Quote} label="Quote" onClick={() => run((item) => item.chain().focus().toggleBlockquote().run())} />
         <MenuAction icon={List} label="Bullets" onClick={() => run((item) => item.chain().focus().toggleBulletList().run())} />
         <MenuAction icon={ListOrdered} label="Numbers" onClick={() => run((item) => item.chain().focus().toggleOrderedList().run())} />
         <MenuAction icon={CheckSquare} label="Tasks" onClick={() => run((item) => item.chain().focus().toggleTaskList().run())} />
@@ -2384,7 +2502,9 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
         <MenuAction icon={Grid2X2} label="Table" onClick={() => run((item) => item.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())} />
         <MenuAction icon={Rows3} label="Table row" onClick={() => run((item) => item.chain().focus().addRowAfter().run())} />
         <MenuAction icon={Columns3} label="Table column" onClick={() => run((item) => item.chain().focus().addColumnAfter().run())} />
+        <MenuAction danger icon={Trash2} label="Delete table column" onClick={() => run((item) => item.chain().focus().deleteColumn().run())} />
         <MenuAction danger icon={Trash2} label="Delete table row" onClick={() => run((item) => item.chain().focus().deleteRow().run())} />
+        <MenuAction icon={Minus} label="Divider" onClick={() => run((item) => item.chain().focus().setHorizontalRule().run())} />
         <MenuAction icon={Braces} label="Code block" onClick={() => run((item) => item.chain().focus().toggleCodeBlock().run())} />
         <MenuAction icon={ImageIcon} label="Image URL" onClick={() => {
           const src = window.prompt("Image URL")
@@ -2405,6 +2525,7 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
         </button>
       </ActionMenu>
       {replaceStatus ? <span className="text-xs font-semibold text-success">{replaceStatus}</span> : null}
+      {headingStatus ? <span className="text-xs font-semibold text-success">{headingStatus}</span> : null}
     </div>
   )
 }
