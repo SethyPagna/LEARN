@@ -337,7 +337,7 @@ export function AiTutorView({
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
       <Panel className="p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
           <div>
             <h2 className="text-2xl font-semibold text-foreground">AI tutor</h2>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -346,7 +346,7 @@ export function AiTutorView({
               {draftStatus ? <StatusChip label={draftStatus} tone="ready" /> : null}
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 lg:justify-end">
+          <div className="flex flex-wrap items-center gap-2 self-start rounded-lg border border-border bg-background p-2 shadow-sm lg:justify-end">
             <TutorMenu label={`Task: ${activeMode.label}`} icon={activeMode.icon} menuId="task" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
               {tutorModeGroups.map((group) => (
                 <div key={group.id} className="grid gap-1">
@@ -417,6 +417,8 @@ export function AiTutorView({
             </TutorMenu>
           </div>
         </div>
+
+        <div className="mt-3 h-px bg-border" />
 
         <div className="mt-4 grid gap-2 rounded-md border border-border bg-muted/40 p-2 text-xs font-semibold text-muted-foreground sm:grid-cols-2 xl:grid-cols-4">
           <CompactState label="Task" value={activeMode.label} />
