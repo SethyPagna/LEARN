@@ -258,39 +258,38 @@ export function QuizView({
                 </button>
               </div>
             </div>
-            <div className="mt-4 grid gap-2 lg:grid-cols-4">
-              {practiceModeGroups.map((group) => (
-                <div key={group.id} className={`rounded-md border p-2 ${modeSummary.activeGroup.id === group.id ? "border-primary bg-primary/10" : "border-border bg-card"}`}>
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{group.label}</p>
-                    <InfoPopover title={group.label} body={group.caption} />
+            <details className="mt-4 rounded-md border border-border bg-card p-3">
+              <summary className="cursor-pointer text-sm font-semibold text-foreground">Practice modes</summary>
+              <div className="mt-3 grid gap-2 lg:grid-cols-4">
+                {practiceModeGroups.map((group) => (
+                  <div key={group.id} className={`rounded-md border p-2 ${modeSummary.activeGroup.id === group.id ? "border-primary bg-primary/10" : "border-border bg-background"}`}>
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{group.label}</p>
+                      <InfoPopover title={group.label} body={group.caption} />
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {group.modes.map((mode) => (
+                        <button key={mode} onClick={() => setPracticeMode(mode)} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${practiceMode === mode ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+                          {practiceModeLabel(mode)}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {group.modes.map((mode) => (
-                      <button key={mode} onClick={() => setPracticeMode(mode)} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${practiceMode === mode ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
-                        {practiceModeLabel(mode)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2 text-xs">
-              <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">Mode: {practiceModeLabel(practiceMode)}</span>
-              <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">{options.revealAnswers ? "Answers reveal after selection" : "Exam-style hidden answers"}</span>
-              <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">{answeredCount}/{visibleQuestions.length} answered</span>
-              <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">{markedQuestionIds.length} marked</span>
-              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-muted-foreground"><Clock className="h-3.5 w-3.5" /> {elapsedLabel} elapsed</span>
-              <span className={`rounded-md px-2 py-1 ${remainingSeconds === 0 ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>{remainingLabel} left</span>
-              {draftStatus ? (
-                <button onClick={discardDraft} className="rounded-md bg-secondary px-2 py-1 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-                  {draftStatus} Clear
-                </button>
-              ) : null}
-            </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} />
-            </div>
+                ))}
+              </div>
+            </details>
+            <PracticeProgressBar
+              answeredCount={answeredCount}
+              draftStatus={draftStatus}
+              elapsedLabel={elapsedLabel}
+              markedCount={markedQuestionIds.length}
+              onClearDraft={discardDraft}
+              progressPercent={progressPercent}
+              revealAnswers={options.revealAnswers}
+              remainingLabel={remainingLabel}
+              remainingSeconds={remainingSeconds}
+              totalCount={visibleQuestions.length}
+            />
             <QuizTimerControls paused={paused} setPaused={setPracticePaused} targetMinutes={targetMinutes} elapsedSeconds={elapsedSeconds} remainingSeconds={remainingSeconds} resetTimer={resetTimer} setTargetMinutes={setTargetMinutes} />
             <div className="mt-4 flex flex-wrap gap-2 rounded-md border border-border bg-card p-2">
               {questionFilters.map((filter) => {
@@ -406,6 +405,60 @@ function ModeStatusChip({ label, value }: { label: string; value: string }) {
       {label}
       <span className="rounded bg-background px-1.5 py-0.5 text-foreground">{value}</span>
     </span>
+  )
+}
+
+function PracticeProgressBar({
+  answeredCount,
+  draftStatus,
+  elapsedLabel,
+  markedCount,
+  onClearDraft,
+  progressPercent,
+  revealAnswers,
+  remainingLabel,
+  remainingSeconds,
+  totalCount,
+}: {
+  answeredCount: number
+  draftStatus: string
+  elapsedLabel: string
+  markedCount: number
+  onClearDraft: () => void
+  progressPercent: number
+  revealAnswers: boolean
+  remainingLabel: string
+  remainingSeconds: number
+  totalCount: number
+}) {
+  return (
+    <div className="mt-4 rounded-md border border-border bg-card p-3">
+      <div className="grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-5">
+        <PracticeStat label="Answered" value={`${answeredCount}/${totalCount}`} />
+        <PracticeStat label="Marked" value={String(markedCount)} />
+        <PracticeStat label="Mode" value={revealAnswers ? "Guided" : "Exam"} />
+        <PracticeStat label="Elapsed" value={elapsedLabel} />
+        <PracticeStat label="Left" value={remainingLabel} tone={remainingSeconds === 0 ? "danger" : "neutral"} />
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} />
+      </div>
+      {draftStatus ? (
+        <button onClick={onClearDraft} className="mt-3 rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+          {draftStatus} Clear
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
+function PracticeStat({ label, tone = "neutral", value }: { label: string; tone?: "danger" | "neutral"; value: string }) {
+  const valueClass = tone === "danger" ? "text-destructive" : "text-foreground"
+  return (
+    <div className="rounded-md bg-background px-2.5 py-2">
+      <p className="text-[0.66rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{label}</p>
+      <p className={`mt-1 truncate font-semibold ${valueClass}`}>{value}</p>
+    </div>
   )
 }
 
