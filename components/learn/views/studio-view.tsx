@@ -123,6 +123,7 @@ type StudioListItem = {
   updated_at?: string
   summary?: string
   favorite?: boolean
+  archived_at?: string | null
 }
 
 type StudioRecordItem = Pick<StudioListItem, "id" | "kind" | "title">
@@ -332,6 +333,11 @@ export function StudioView({
   const [inspectorTab, setInspectorTab] = useState("Info")
   const [selectedCell, setSelectedCell] = useState({ row: 0, column: 0 })
   const [selectedSlideIndex, setSelectedSlideIndex] = useState(0)
+  const [archivedNotes, setArchivedNotes] = useState<Note[]>([])
+  const [archivedDocs, setArchivedDocs] = useState<WorkspaceDocument[]>([])
+  const [archivedSheets, setArchivedSheets] = useState<WorkspaceSheet[]>([])
+  const [archivedDecks, setArchivedDecks] = useState<WorkspaceDeck[]>([])
+  const [archivedLoaded, setArchivedLoaded] = useState(false)
 
   const [layout, setLayout] = useState<StudioLayoutState>(() => createDefaultStudioLayout(initialKind, studioCreateLabels[initialKind]))
 
@@ -492,6 +498,11 @@ export function StudioView({
   }, [])
 
   useEffect(() => {
+    if (section !== "Archived" || archivedLoaded) return
+    refreshArchivedItems()
+  }, [archivedLoaded, section])
+
+  useEffect(() => {
     const stored = readStudioDrafts().docs
     if (!hydratedDraftKinds.current.has("docs") && stored?.kind === "docs") {
       hydratedDraftKinds.current.add("docs")
@@ -620,8 +631,12 @@ export function StudioView({
   const allItems = useMemo(() => {
     const needle = deferredQuery.trim().toLowerCase()
     const mapped: StudioListItem[] = []
+    const notesSource = section === "Archived" ? archivedNotes : notes
+    const docsSource = section === "Archived" ? archivedDocs : docs
+    const sheetsSource = section === "Archived" ? archivedSheets : sheets
+    const decksSource = section === "Archived" ? archivedDecks : decks
     const acceptsSection = (itemKind: StudioKind, favorite?: boolean) => (
-      section === "All" || section === "Recent" || (section === "Favorites" ? favorite : itemKind === section.toLowerCase())
+      section === "Archived" || section === "All" || section === "Recent" || (section === "Favorites" ? favorite : itemKind === section.toLowerCase())
     )
     const append = (item: StudioListItem) => {
       if (!acceptsSection(item.kind, item.favorite)) return
@@ -629,13 +644,13 @@ export function StudioView({
       mapped.push(item)
     }
 
-    for (const item of notes) append({ id: item.id, kind: "notes", title: item.title, updated_at: item.updated_at, summary: item.content, favorite: item.favorite })
-    for (const item of docs) append({ id: item.id, kind: "docs", title: item.title, updated_at: item.updated_at, summary: textFromDocument(item) })
-    for (const item of sheets) append({ id: item.id, kind: "sheets", title: item.title, updated_at: item.updated_at, summary: `${cellsFromSheet(item).length} rows` })
-    for (const item of decks) append({ id: item.id, kind: "slides", title: item.title, updated_at: item.updated_at, summary: `${slidesFromDeck(item).length} slides` })
+    for (const item of notesSource) append({ id: item.id, kind: "notes", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: item.content, favorite: item.favorite })
+    for (const item of docsSource) append({ id: item.id, kind: "docs", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: textFromDocument(item) })
+    for (const item of sheetsSource) append({ id: item.id, kind: "sheets", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: `${cellsFromSheet(item).length} rows` })
+    for (const item of decksSource) append({ id: item.id, kind: "slides", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: `${slidesFromDeck(item).length} slides` })
 
     return mapped.sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")))
-  }, [decks, deferredQuery, docs, notes, section, sheets])
+  }, [archivedDecks, archivedDocs, archivedNotes, archivedSheets, decks, deferredQuery, docs, notes, section, sheets])
 
   function updateActivePaneKind(nextKind: StudioKind, itemId?: string, title?: string) {
     setLayout((current) => {
@@ -910,11 +925,31 @@ export function StudioView({
     setSlides(slidesFromDeck(deck))
   }
 
+  async function refreshArchivedItems() {
+    setStatus("Loading archived Studio items...")
+    try {
+      const [notesResponse, docsResponse, sheetsResponse, decksResponse] = await Promise.all([
+        api<{ items: Note[] }>("/api/notes?status=archived"),
+        api<{ items: WorkspaceDocument[] }>("/api/docs?status=archived"),
+        api<{ items: WorkspaceSheet[] }>("/api/sheets?status=archived"),
+        api<{ items: WorkspaceDeck[] }>("/api/slides?status=archived"),
+      ])
+      setArchivedNotes(notesResponse.items)
+      setArchivedDocs(docsResponse.items)
+      setArchivedSheets(sheetsResponse.items)
+      setArchivedDecks(decksResponse.items)
+      setArchivedLoaded(true)
+      setStatus("")
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to load archived Studio items.")
+    }
+  }
+
   function findStudioItem(item: Pick<StudioRecordItem, "id" | "kind">) {
-    if (item.kind === "notes") return notes.find((entry) => entry.id === item.id)
-    if (item.kind === "docs") return docs.find((entry) => entry.id === item.id)
-    if (item.kind === "sheets") return sheets.find((entry) => entry.id === item.id)
-    return decks.find((entry) => entry.id === item.id)
+    if (item.kind === "notes") return notes.find((entry) => entry.id === item.id) || archivedNotes.find((entry) => entry.id === item.id)
+    if (item.kind === "docs") return docs.find((entry) => entry.id === item.id) || archivedDocs.find((entry) => entry.id === item.id)
+    if (item.kind === "sheets") return sheets.find((entry) => entry.id === item.id) || archivedSheets.find((entry) => entry.id === item.id)
+    return decks.find((entry) => entry.id === item.id) || archivedDecks.find((entry) => entry.id === item.id)
   }
 
   function payloadForStudioItem(item: Pick<StudioRecordItem, "id" | "kind">) {
@@ -989,7 +1024,24 @@ export function StudioView({
     })
   }
 
+  function keepArchivedItem(item: StudioRecordItem, source = findStudioItem(item)) {
+    const archivedAt = new Date().toISOString()
+    if (!source) return
+    if (item.kind === "notes") setArchivedNotes((current) => [{ ...(source as Note), archived_at: archivedAt }, ...current.filter((entry) => entry.id !== item.id)])
+    if (item.kind === "docs") setArchivedDocs((current) => [{ ...(source as WorkspaceDocument), archived_at: archivedAt }, ...current.filter((entry) => entry.id !== item.id)])
+    if (item.kind === "sheets") setArchivedSheets((current) => [{ ...(source as WorkspaceSheet), archived_at: archivedAt }, ...current.filter((entry) => entry.id !== item.id)])
+    if (item.kind === "slides") setArchivedDecks((current) => [{ ...(source as WorkspaceDeck), archived_at: archivedAt }, ...current.filter((entry) => entry.id !== item.id)])
+  }
+
+  function removeArchivedItem(item: Pick<StudioRecordItem, "id" | "kind">) {
+    if (item.kind === "notes") setArchivedNotes((current) => current.filter((entry) => entry.id !== item.id))
+    if (item.kind === "docs") setArchivedDocs((current) => current.filter((entry) => entry.id !== item.id))
+    if (item.kind === "sheets") setArchivedSheets((current) => current.filter((entry) => entry.id !== item.id))
+    if (item.kind === "slides") setArchivedDecks((current) => current.filter((entry) => entry.id !== item.id))
+  }
+
   async function archiveStudioItem(item: StudioRecordItem) {
+    const source = findStudioItem(item)
     if (item.kind === "notes") {
       await api(`/api/notes/${item.id}`, { method: "DELETE" })
       setNotes((current) => current.filter((entry) => entry.id !== item.id))
@@ -1026,33 +1078,48 @@ export function StudioView({
         setSlides(starterSlides)
       }
     }
+    keepArchivedItem(item, source)
     closeArchivedStudioTabs(item)
     setStatus(`Archived ${item.title}.`)
   }
 
+  async function restoreStudioItem(item: StudioRecordItem) {
+    if (item.kind === "notes") {
+      const response = await api<{ item: Note }>(`/api/notes/${item.id}`, { method: "PATCH", body: JSON.stringify({ action: "restore" }) })
+      if (response.item) setNotes((current) => [response.item, ...current.filter((entry) => entry.id !== response.item.id)])
+    }
+    if (item.kind === "docs") {
+      const response = await api<{ item: WorkspaceDocument }>("/api/docs", { method: "PATCH", body: JSON.stringify({ action: "restore", id: item.id }) })
+      if (response.item) setDocs((current) => [response.item, ...current.filter((entry) => entry.id !== response.item.id)])
+    }
+    if (item.kind === "sheets") {
+      const response = await api<{ item: WorkspaceSheet }>("/api/sheets", { method: "PATCH", body: JSON.stringify({ action: "restore", id: item.id }) })
+      if (response.item) setSheets((current) => [response.item, ...current.filter((entry) => entry.id !== response.item.id)])
+    }
+    if (item.kind === "slides") {
+      const response = await api<{ item: WorkspaceDeck }>("/api/slides", { method: "PATCH", body: JSON.stringify({ action: "restore", id: item.id }) })
+      if (response.item) setDecks((current) => [response.item, ...current.filter((entry) => entry.id !== response.item.id)])
+    }
+    removeArchivedItem(item)
+    selectItem(item)
+    setStatus(`Restored ${item.title}.`)
+  }
+
+  function activeStudioItem(): StudioRecordItem | null {
+    if (kind === "notes" && noteDraft?.id) return { id: noteDraft.id, kind, title: noteDraft.title }
+    if (kind === "docs" && selectedDoc?.id) return { id: selectedDoc.id, kind, title: docTitle || selectedDoc.title }
+    if (kind === "sheets" && selectedSheet?.id) return { id: selectedSheet.id, kind, title: sheetTitle || selectedSheet.title }
+    if (kind === "slides" && selectedDeck?.id) return { id: selectedDeck.id, kind, title: deckTitle || selectedDeck.title }
+    return null
+  }
+
   async function archiveActive() {
-    if (kind === "notes" && noteDraft) {
-      await api(`/api/notes/${noteDraft.id}`, { method: "DELETE" })
-      setNotes((current) => current.filter((item) => item.id !== noteDraft.id))
-      setSelectedNoteId("")
-      setNoteDraft(null)
+    const item = activeStudioItem()
+    if (!item) {
+      setStatus("Save this Studio item before archiving it.")
+      return
     }
-    if (kind === "docs" && selectedDoc?.id) {
-      await api(`/api/docs?id=${selectedDoc.id}`, { method: "DELETE" })
-      setDocs((current) => current.filter((item) => item.id !== selectedDoc.id))
-      setDocId("")
-    }
-    if (kind === "sheets" && selectedSheet?.id) {
-      await api(`/api/sheets?id=${selectedSheet.id}`, { method: "DELETE" })
-      setSheets((current) => current.filter((item) => item.id !== selectedSheet.id))
-      setSheetId("")
-    }
-    if (kind === "slides" && selectedDeck?.id) {
-      await api(`/api/slides?id=${selectedDeck.id}`, { method: "DELETE" })
-      setDecks((current) => current.filter((item) => item.id !== selectedDeck.id))
-      setDeckId("")
-    }
-    setStatus("Archived.")
+    await archiveStudioItem(item)
   }
 
   async function copyActive() {
@@ -1188,6 +1255,7 @@ export function StudioView({
             onCopy={copyStudioItem}
             onDuplicate={duplicateStudioItem}
             onQuery={setQuery}
+            onRestore={restoreStudioItem}
             onSection={setSection}
             onSelect={selectItem}
             onViewMode={setViewMode}
@@ -1269,6 +1337,7 @@ function StudioLibrary({
   onCopy,
   onDuplicate,
   onQuery,
+  onRestore,
   onSection,
   onSelect,
   onViewMode,
@@ -1284,6 +1353,7 @@ function StudioLibrary({
   onCopy: (item: StudioRecordItem) => void
   onDuplicate: (item: StudioRecordItem) => void
   onQuery: (value: string) => void
+  onRestore: (item: StudioRecordItem) => void
   onSection: (value: string) => void
   onSelect: (item: StudioRecordItem) => void
   onViewMode: (value: StudioViewMode) => void
@@ -1326,14 +1396,14 @@ function StudioLibrary({
               const item = items[virtualRow.index]
               return item ? (
                 <div key={`${item.kind}_${item.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${virtualRow.start}px)` }}>
-                  <StudioItemButton item={item} onArchive={onArchive} onAskAi={onAskAi} onCopy={onCopy} onDuplicate={onDuplicate} onSelect={onSelect} />
+                  <StudioItemButton item={item} onArchive={onArchive} onAskAi={onAskAi} onCopy={onCopy} onDuplicate={onDuplicate} onRestore={onRestore} onSelect={onSelect} />
                 </div>
               ) : null
             })}
           </div>
         ) : (
           <div className={`grid gap-2 ${viewMode === "gallery" ? "grid-cols-2" : ""}`}>
-            {items.map((item) => <StudioItemButton key={`${item.kind}_${item.id}`} item={item} onArchive={onArchive} onAskAi={onAskAi} onCopy={onCopy} onDuplicate={onDuplicate} onSelect={onSelect} />)}
+            {items.map((item) => <StudioItemButton key={`${item.kind}_${item.id}`} item={item} onArchive={onArchive} onAskAi={onAskAi} onCopy={onCopy} onDuplicate={onDuplicate} onRestore={onRestore} onSelect={onSelect} />)}
           </div>
         )}
         {!items.length ? <EmptyState title="No Studio items" body="Create a note, doc, sheet, or deck, then open it in a split pane." /> : null}
@@ -1361,6 +1431,7 @@ function StudioItemButton({
   onAskAi,
   onCopy,
   onDuplicate,
+  onRestore,
   onSelect,
 }: {
   item: StudioListItem
@@ -1368,9 +1439,11 @@ function StudioItemButton({
   onAskAi: (item: StudioRecordItem) => void
   onCopy: (item: StudioRecordItem) => void
   onDuplicate: (item: StudioRecordItem) => void
+  onRestore: (item: StudioRecordItem) => void
   onSelect: (item: StudioRecordItem) => void
 }) {
   const Icon = item.kind === "sheets" ? Table2 : item.kind === "slides" ? Presentation : item.kind === "docs" ? BookOpen : FileText
+  const archived = Boolean(item.archived_at)
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger asChild>
@@ -1382,7 +1455,7 @@ function StudioItemButton({
               </span>
               <span className="min-w-0 flex-1">
                 <span className="line-clamp-1">{item.title}</span>
-                <span className="mt-0.5 block text-xs capitalize text-muted-foreground">{item.kind} - {item.updated_at ? formatDate(item.updated_at) : item.summary || "Draft"}</span>
+                <span className="mt-0.5 block text-xs capitalize text-muted-foreground">{archived ? "archived" : item.kind} - {item.updated_at ? formatDate(item.updated_at) : item.summary || "Draft"}</span>
               </span>
             </span>
           </button>
@@ -1391,11 +1464,17 @@ function StudioItemButton({
             <RecordAction icon={Clipboard} label="Copy" onClick={() => onCopy(item)} />
             <RecordAction icon={Copy} label="Duplicate" onClick={() => onDuplicate(item)} />
             <RecordAction icon={Bot} label="AI" onClick={() => onAskAi(item)} />
-            <RecordAction danger icon={Archive} label="Archive" onClick={() => onArchive(item)} />
+            {archived ? (
+              <RecordAction icon={Undo2} label="Restore" onClick={() => onRestore(item)} />
+            ) : (
+              <RecordAction danger icon={Archive} label="Archive" onClick={() => onArchive(item)} />
+            )}
           </div>
         </article>
       </ContextMenu.Trigger>
-      <StudioContextContent onCopy={() => onCopy(item)} onDuplicate={() => onDuplicate(item)} onArchive={() => onArchive(item)} onAskAi={() => onAskAi(item)} />
+      <StudioContextContent onCopy={() => onCopy(item)} onDuplicate={() => onDuplicate(item)} onArchive={() => onArchive(item)} onAskAi={() => onAskAi(item)} showArchive={!archived}>
+        {archived ? <ContextMenu.Item onClick={() => onRestore(item)} className="context-item"><Undo2 className="h-4 w-4" /> Restore</ContextMenu.Item> : null}
+      </StudioContextContent>
     </ContextMenu.Root>
   )
 }
@@ -2161,7 +2240,7 @@ function StudioMenu({
   )
 }
 
-function StudioContextContent({ children, onArchive, onAskAi, onCopy, onDuplicate }: { children?: React.ReactNode; onArchive: () => void; onAskAi: () => void; onCopy: () => void; onDuplicate: () => void }) {
+function StudioContextContent({ children, onArchive, onAskAi, onCopy, onDuplicate, showArchive = true }: { children?: React.ReactNode; onArchive: () => void; onAskAi: () => void; onCopy: () => void; onDuplicate: () => void; showArchive?: boolean }) {
   return (
     <ContextMenu.Portal>
       <ContextMenu.Content className="z-50 min-w-48 rounded-md border border-border bg-popover p-1 text-sm text-popover-foreground shadow-xl">
@@ -2169,8 +2248,12 @@ function StudioContextContent({ children, onArchive, onAskAi, onCopy, onDuplicat
         <ContextMenu.Item onClick={onDuplicate} className="context-item"><Copy className="h-4 w-4" /> Duplicate</ContextMenu.Item>
         <ContextMenu.Item onClick={onAskAi} className="context-item"><Bot className="h-4 w-4" /> Ask AI</ContextMenu.Item>
         {children}
-        <ContextMenu.Separator className="my-1 h-px bg-border" />
-        <ContextMenu.Item onClick={onArchive} className="context-item text-destructive"><Archive className="h-4 w-4" /> Archive/Delete</ContextMenu.Item>
+        {showArchive ? (
+          <>
+            <ContextMenu.Separator className="my-1 h-px bg-border" />
+            <ContextMenu.Item onClick={onArchive} className="context-item text-destructive"><Archive className="h-4 w-4" /> Archive/Delete</ContextMenu.Item>
+          </>
+        ) : null}
       </ContextMenu.Content>
     </ContextMenu.Portal>
   )

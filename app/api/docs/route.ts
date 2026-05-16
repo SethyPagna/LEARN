@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server"
-import { isApiResponse, ok, requireApiUser } from "@/lib/api"
+import { fail, isApiResponse, ok, requireApiUser } from "@/lib/api"
 import { archiveEditorDocument, listEditorDocuments, normalizeArchiveStatus, restoreEditorDocument, saveEditorDocument } from "@/lib/data"
 
 export async function GET(request: NextRequest) {
@@ -37,5 +37,5 @@ export async function PATCH(request: NextRequest) {
   if (body.action === "restore") {
     return ok({ item: await restoreEditorDocument(user, String(body.id || "")) })
   }
-  return ok({ success: false }, { status: 400 })
+  return fail("Unsupported document action.", 400)
 }
