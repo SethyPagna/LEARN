@@ -52,6 +52,14 @@ export interface ProgressSummary {
   nextActions: ProgressNextAction[]
 }
 
+export interface ProgressCommandPlan {
+  headline: string
+  detail: string
+  target: ProgressActionTarget
+  targetTopic?: string
+  chips: string[]
+}
+
 const LOW_ACCURACY = 50
 const WATCH_ACCURACY = 80
 const STRONG_GOAL_COMPLETION = 80
@@ -107,6 +115,55 @@ export function summarizeLearningProgress(input: {
       },
     ],
     nextActions: buildProgressActions({ focusTopics, goalCompletion, quizCount, weakTopics }),
+  }
+}
+
+export function buildProgressCommandPlan(summary: ProgressSummary): ProgressCommandPlan {
+  const criticalTopic = summary.weakTopics.find((topic) => topic.severity === "critical")
+  if (criticalTopic) {
+    return {
+      headline: `Repair ${criticalTopic.topic}`,
+      detail: "This is the weakest active topic. Review the concept, then retry a short practice loop.",
+      target: summary.quizCount ? "quizzes" : "reviews",
+      targetTopic: criticalTopic.topic,
+      chips: [`${criticalTopic.accuracy}% accuracy`, `${criticalTopic.attempts} attempts`, "highest risk"],
+    }
+  }
+
+  const focusTopic = summary.focusTopics[0]
+  if (focusTopic && summary.reviewCount > 0) {
+    return {
+      headline: `Review ${focusTopic}`,
+      detail: "Keep the daily route narrow: recall the focus topic before adding more material.",
+      target: "reviews",
+      targetTopic: focusTopic,
+      chips: [`${summary.reviewCount} review`, summary.momentumLabel, "active recall"],
+    }
+  }
+
+  if (summary.goalCompletion < BUILDING_GOAL_COMPLETION) {
+    return {
+      headline: "Schedule a focus block",
+      detail: "The goal route needs time on the calendar before more content is added.",
+      target: "calendar",
+      chips: [`${summary.goalCompletion}% goal`, "time block", "protect focus"],
+    }
+  }
+
+  if (summary.recentCount === 0) {
+    return {
+      headline: "Create a Studio seed",
+      detail: "Progress gets smarter after you capture a note, import, sheet, or slide source.",
+      target: "studio",
+      chips: ["no recent items", "capture", "start vault"],
+    }
+  }
+
+  return {
+    headline: "Generate the next route",
+    detail: "Use AI to turn recent Studio material into practice, reviews, or a short study plan.",
+    target: "ai",
+    chips: [`${summary.recentCount} recent`, `${summary.goalCompletion}% goal`, "AI route"],
   }
 }
 

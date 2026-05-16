@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { summarizeLearningProgress } from "../lib/progress-features"
+import { buildProgressCommandPlan, summarizeLearningProgress } from "../lib/progress-features"
 
 test("summarizeLearningProgress ranks weak topics and builds next actions", () => {
   const summary = summarizeLearningProgress({
@@ -25,6 +25,10 @@ test("summarizeLearningProgress ranks weak topics and builds next actions", () =
   assert.equal(summary.nextActions[0].target, "reviews")
   assert.equal(summary.nextActions[0].urgency, "high")
   assert.equal(summary.nextActions[1].target, "quizzes")
+  const plan = buildProgressCommandPlan(summary)
+  assert.equal(plan.headline, "Repair Databases")
+  assert.equal(plan.target, "quizzes")
+  assert.equal(plan.targetTopic, "Databases")
 })
 
 test("summarizeLearningProgress handles empty and out-of-range data", () => {
@@ -43,4 +47,27 @@ test("summarizeLearningProgress handles empty and out-of-range data", () => {
   assert.deepEqual(summary.focusTopics, ["Graph"])
   assert.equal(summary.nextActions[1].target, "ai")
   assert.equal(summary.nextActions[2].target, "studio")
+})
+
+test("buildProgressCommandPlan prioritizes critical repair and route seeds", () => {
+  const critical = summarizeLearningProgress({
+    quizCount: 2,
+    snapshot: {
+      goalCompletion: 42,
+      weakTopics: [{ topic: "Queues", accuracy: 28, attempts: 5 }],
+    },
+  })
+  const empty = summarizeLearningProgress({ quizCount: 0, snapshot: { goalCompletion: 35 } })
+  const ready = summarizeLearningProgress({
+    quizCount: 0,
+    snapshot: {
+      goalCompletion: 82,
+      recentNotes: [{ title: "FSRS" }],
+    },
+  })
+
+  assert.equal(buildProgressCommandPlan(critical).target, "quizzes")
+  assert.equal(buildProgressCommandPlan(critical).targetTopic, "Queues")
+  assert.equal(buildProgressCommandPlan(empty).target, "calendar")
+  assert.equal(buildProgressCommandPlan(ready).target, "ai")
 })
