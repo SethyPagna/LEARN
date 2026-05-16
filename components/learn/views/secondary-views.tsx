@@ -134,25 +134,35 @@ export function ProgressView({ dashboard, quizzes, setView }: { dashboard: any; 
       </Panel>
 
       <Panel className="p-4 xl:col-span-2">
-        <ProgressHeader icon={Gauge} title="Learning loop" info="Capture, clean, practice, review, then schedule only what matters." />
-        <div className="mt-4 grid gap-3 md:grid-cols-5">
-          {[
-            ["Studio", "Capture"],
-            ["AI", "Clean"],
-            ["Practice", "Attempt"],
-            ["Reviews", "Recall"],
-            ["Calendar", "Schedule"],
-          ].map(([label, detail], index) => (
-            <div key={label} className="rounded-md border border-border bg-background p-3">
-              <div className="flex items-center justify-between gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-secondary text-sm font-semibold text-secondary-foreground">{index + 1}</span>
-                {index < 4 ? <ArrowRight className="h-4 w-4 text-muted-foreground" /> : <Check className="h-4 w-4 text-success" />}
+        <details>
+          <summary className="flex cursor-pointer items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
+                <Gauge className="h-5 w-5" />
               </div>
-              <p className="mt-3 font-semibold text-foreground">{label}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+              <h3 className="truncate font-semibold text-foreground">Learning loop</h3>
             </div>
-          ))}
-        </div>
+            <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">Guide</span>
+          </summary>
+          <div className="mt-4 grid gap-3 md:grid-cols-5">
+            {[
+              ["Studio", "Capture"],
+              ["AI", "Clean"],
+              ["Practice", "Attempt"],
+              ["Reviews", "Recall"],
+              ["Calendar", "Schedule"],
+            ].map(([label, detail], index) => (
+              <div key={label} className="rounded-md border border-border bg-background p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-secondary text-sm font-semibold text-secondary-foreground">{index + 1}</span>
+                  {index < 4 ? <ArrowRight className="h-4 w-4 text-muted-foreground" /> : <Check className="h-4 w-4 text-success" />}
+                </div>
+                <p className="mt-3 font-semibold text-foreground">{label}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+              </div>
+            ))}
+          </div>
+        </details>
       </Panel>
     </div>
   )
