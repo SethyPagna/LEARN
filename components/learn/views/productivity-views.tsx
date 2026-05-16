@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react"
 import type React from "react"
-import { AtSign, Bell, CheckCircle2, Clock, Download, Gamepad2, Hash, Languages, MessageSquare, Plus, Redo2, Reply, RotateCcw, Save, Send, Smile, Trophy, Undo2, XCircle } from "lucide-react"
+import { AtSign, Bell, CheckCircle2, Clock, Download, Gamepad2, Hash, Languages, MessageSquare, Plus, Redo2, Reply, RotateCcw, Save, Send, Smile, Sparkles, Trophy, Undo2, XCircle } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Quiz, WorkspaceDeck, WorkspaceDocument, WorkspaceSheet } from "../types"
 import { api } from "../api"
 import { EmptyState, Panel } from "../ui"
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, undoHistory, type HistoryState } from "@/lib/workspace-features"
 import { evaluateGameChoice, summarizeGameRun } from "@/lib/practice-features"
-import { buildChatDraftPayload, filterChatThreads, parseThreadTitle, type ChatThreadFilter } from "@/lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatIntent, type ChatThreadFilter } from "@/lib/social-features"
 
 const emojiSet = ["*", "+", "Idea", "Pin", "Goal", "Hot", "Brain", "Book"]
 const starterCells = [
@@ -437,7 +437,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const [threads, setThreads] = useState<any[]>([])
   const [body, setBody] = useState("")
   const [title, setTitle] = useState("Study room")
-  const [intent, setIntent] = useState<"update" | "question" | "win">("update")
+  const [intent, setIntent] = useState<ChatIntent>("update")
   const [channel, setChannel] = useState("#general")
   const [reaction, setReaction] = useState("helpful")
   const [query, setQuery] = useState("")
@@ -448,7 +448,19 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     { id: "question" as const, label: "Question", body: "Ask for help and invite replies." },
     { id: "win" as const, label: "Win", body: "Celebrate a milestone or review streak." },
   ]
+  const chatSummary = useMemo(() => summarizeChatWorkspace(threads), [threads])
+  const composerPlan = useMemo(() => buildChatComposerPlan(chatSummary, body), [body, chatSummary])
   const visibleThreads = useMemo(() => filterChatThreads(threads, { query, filter }), [filter, query, threads])
+
+  function applyComposerPlan() {
+    setIntent(composerPlan.recommendedIntent)
+    if (composerPlan.recommendedIntent === "question") setFilter("questions")
+    if (composerPlan.recommendedIntent === "win") {
+      setFilter("wins")
+      setChannel("#wins")
+    }
+    if (!body.trim()) setDraftStatus(composerPlan.nextAction)
+  }
 
   async function refresh() {
     const response = await api<{ items: any[] }>("/api/chat")
@@ -502,10 +514,24 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               </label>
               <input value={title} onChange={(event) => setTitle(event.target.value)} className="min-w-52 flex-1 bg-transparent text-2xl font-semibold text-foreground outline-none" />
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">Use channels, mentions, and message intent so discussion stays searchable instead of becoming one long stream.</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <ChatChip label={composerPlan.headline} />
+              {composerPlan.chips.map((chip) => <ChatChip key={chip} label={chip} />)}
+            </div>
             {draftStatus ? <p className="mt-2 text-xs font-semibold text-success">{draftStatus}</p> : null}
           </div>
-          <ToolbarButton label="Send" onClick={send} icon={Send} primary />
+          <div className="flex flex-wrap gap-2">
+            <ToolbarButton label="Use suggestion" onClick={applyComposerPlan} icon={Sparkles} />
+            <ToolbarButton label="Send" onClick={send} icon={Send} primary />
+          </div>
+        </div>
+        <div className="mb-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          <ChatSignal label="Threads" value={String(chatSummary.total)} />
+          <ChatSignal label="Questions" value={String(chatSummary.questions)} />
+          <ChatSignal label="Wins" value={String(chatSummary.wins)} />
+          <ChatSignal label="Saved" value={String(chatSummary.saved)} />
+          <ChatSignal label="Mentions" value={String(chatSummary.mentions)} />
+          <ChatSignal label="Studio links" value={String(chatSummary.studioLinks)} />
         </div>
         <div className="mb-3 grid gap-2 sm:grid-cols-3">
           {quickIntents.map((item) => (
@@ -530,7 +556,10 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
         </div>
       </Panel>
       <Panel className={options.chatCompact ? "p-3" : "p-4"}>
-        <h3 className="font-semibold text-foreground">Recent threads</h3>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="font-semibold text-foreground">Recent threads</h3>
+          <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{visibleThreads.length}/{threads.length}</span>
+        </div>
         {options.collaborationPresence ? <p className="mt-1 text-xs text-muted-foreground">Presence hints are enabled for group workflows.</p> : null}
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search threads" className="mt-3 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-ring" />
         <div className="mt-3 grid grid-cols-3 gap-1 rounded-md border border-border bg-background p-1">
@@ -547,6 +576,15 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             </button>
           ))}
         </div>
+        {chatSummary.channels.length ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {chatSummary.channels.slice(0, 4).map((channelSummary) => (
+              <button key={channelSummary.label} onClick={() => setQuery(channelSummary.label)} className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                {channelSummary.label} {channelSummary.count}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div className="mt-3 space-y-2">
           {visibleThreads.map((thread) => {
             const parsed = parseThreadTitle(thread.title)
@@ -597,6 +635,19 @@ function writeChatDraft(draft: { body: string; title: string; intent: "update" |
 function clearChatDraft() {
   if (typeof window === "undefined") return
   window.localStorage.removeItem(CHAT_DRAFT_KEY)
+}
+
+function ChatChip({ label }: { label: string }) {
+  return <span className="rounded-md border border-border bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">{label}</span>
+}
+
+function ChatSignal({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-background p-2">
+      <p className="text-[0.65rem] font-semibold uppercase text-muted-foreground">{label}</p>
+      <p className="mt-1 text-lg font-semibold leading-none text-foreground">{value}</p>
+    </div>
+  )
 }
 
 function ComposerChip({ icon: Icon, label }: { icon: React.ComponentType<{ className?: string }>; label: string }) {
