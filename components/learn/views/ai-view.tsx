@@ -140,6 +140,16 @@ export function AiTutorView({
   }), [activeMode.label, draftStatus, gatewayReadiness, insertTarget, notes.length, promptBuild, sourceScope])
   const previewParts = useMemo(() => splitPromptPreview(promptBuild.preview), [promptBuild.preview])
   const importPreview = useMemo(() => previewImportedLearningContent({ raw: importText, title: importTitle, target: importTarget }), [importTarget, importText, importTitle])
+  const providerSummary = useMemo(() => {
+    const readyCount = providers.filter(providerIsReady).length
+    const configuredCount = providers.filter((provider) => provider.has_key).length
+    return {
+      readyCount,
+      configuredCount,
+      familyCount: catalog.length,
+      presetCount: presets.length,
+    }
+  }, [catalog.length, presets.length, providers])
 
   useEffect(() => {
     if (!availableInsertTargets.includes(insertTarget)) setInsertTarget(availableInsertTargets[0] || "ai-note")
@@ -492,34 +502,43 @@ export function AiTutorView({
       </Panel>
 
       <Panel className="p-4">
-        <p className="font-semibold text-foreground">AI provider routing</p>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          Enabled encrypted D1 provider configs are tried first by priority. Runtime secrets remain masked and outside git.
-        </p>
-        <button onClick={loadProviders} className="mt-4 h-9 rounded-md border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-          Load providers
-        </button>
-        <div className="mt-3 space-y-2">
-          {providers.map((provider) => (
-            <div key={provider.id} className="rounded-md bg-muted p-3 text-sm">
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-medium text-foreground">{provider.name}</p>
-                <span className="rounded bg-background px-2 py-0.5 text-xs text-muted-foreground">P{provider.priority}</span>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                <span className="rounded bg-background px-2 py-0.5 text-muted-foreground">{provider.provider}</span>
-                <span className="rounded bg-background px-2 py-0.5 text-muted-foreground">{provider.default_model}</span>
-                <span className={`rounded px-2 py-0.5 font-semibold ${provider.enabled && provider.has_key && provider.last_status !== "error" ? "bg-success text-success-foreground" : "bg-warning text-warning-foreground"}`}>
-                  {provider.enabled && provider.has_key && provider.last_status !== "error" ? "Ready" : provider.has_key ? provider.last_status || "Untested" : "Missing key"}
-                </span>
-              </div>
-            </div>
-          ))}
-          {!providers.length ? <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">Admin providers appear here after loading.</p> : null}
+        <div className="flex items-center justify-between gap-3">
+          <p className="flex items-center gap-2 font-semibold text-foreground"><Brain className="h-4 w-4 text-success" /> Gateway</p>
+          <button onClick={loadProviders} className="h-8 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+            Refresh
+          </button>
         </div>
-        <div className="mt-4 border-t border-border pt-4">
-          <p className="flex items-center gap-2 text-sm font-semibold text-foreground"><Gauge className="h-4 w-4" /> Presets</p>
-          <div className="mt-2 space-y-2">
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <GatewayMetric label="Ready" value={String(providerSummary.readyCount)} tone={providerSummary.readyCount ? "ready" : "warning"} />
+          <GatewayMetric label="Keys" value={String(providerSummary.configuredCount)} tone={providerSummary.configuredCount ? "ready" : "warning"} />
+          <GatewayMetric label="Families" value={String(providerSummary.familyCount)} tone="neutral" />
+          <GatewayMetric label="Presets" value={String(providerSummary.presetCount)} tone="neutral" />
+        </div>
+        <details className="mt-3 rounded-md border border-border bg-background p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-foreground">Provider details</summary>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">Keys stay masked. LEARN tries enabled providers by priority with failover.</p>
+          <div className="mt-3 space-y-2">
+            {providers.map((provider) => (
+              <div key={provider.id} className="rounded-md bg-muted p-3 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium text-foreground">{provider.name}</p>
+                  <span className="rounded bg-background px-2 py-0.5 text-xs text-muted-foreground">P{provider.priority}</span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <span className="rounded bg-background px-2 py-0.5 text-muted-foreground">{provider.provider}</span>
+                  <span className="rounded bg-background px-2 py-0.5 text-muted-foreground">{provider.default_model}</span>
+                  <span className={`rounded px-2 py-0.5 font-semibold ${providerIsReady(provider) ? "bg-success text-success-foreground" : "bg-warning text-warning-foreground"}`}>
+                    {providerStatusLabel(provider)}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {!providers.length ? <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">Refresh to load admin provider status.</p> : null}
+          </div>
+        </details>
+        <details className="mt-3 rounded-md border border-border bg-background p-3">
+          <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-foreground"><Gauge className="h-4 w-4" /> Presets</summary>
+          <div className="mt-3 space-y-2">
             {presets.slice(0, 6).map((preset) => (
               <div key={preset.id} className="rounded-md border border-border p-2 text-xs">
                 <p className="font-medium text-foreground">{preset.label}</p>
@@ -528,7 +547,7 @@ export function AiTutorView({
             ))}
           </div>
           {catalog.length ? <p className="mt-3 text-xs text-muted-foreground">{catalog.length} provider families available.</p> : null}
-        </div>
+        </details>
         <div className="mt-4 border-t border-border pt-4">
           <p className="flex items-center gap-2 text-sm font-semibold text-foreground"><UploadCloud className="h-4 w-4" /> Import gateway</p>
           <div className="mt-3 grid gap-2">
@@ -674,6 +693,29 @@ function StatusChip({ label, tone }: { label: string; tone: "ready" | "warning" 
         ? "bg-warning text-warning-foreground"
         : "bg-secondary text-secondary-foreground"
   return <span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${classes}`}>{label}</span>
+}
+
+function GatewayMetric({ label, tone, value }: { label: string; tone: "ready" | "warning" | "neutral"; value: string }) {
+  const valueClass = tone === "ready"
+    ? "text-success"
+    : tone === "warning"
+      ? "text-warning-foreground"
+      : "text-foreground"
+  return (
+    <div className="rounded-md border border-border bg-background p-3">
+      <p className="text-[0.66rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{label}</p>
+      <p className={`mt-1 text-xl font-semibold ${valueClass}`}>{value}</p>
+    </div>
+  )
+}
+
+function providerIsReady(provider: { enabled?: boolean; has_key?: boolean; last_status?: string }) {
+  return Boolean(provider.enabled && provider.has_key && provider.last_status !== "error")
+}
+
+function providerStatusLabel(provider: { has_key?: boolean; last_status?: string }) {
+  if (!provider.has_key) return "Missing key"
+  return provider.last_status === "error" ? "Error" : provider.last_status || "Untested"
 }
 
 function WorkflowCard({ detail, label, tone, value }: { detail: string; label: string; tone: "good" | "watch" | "blocked" | "neutral"; value: string }) {
