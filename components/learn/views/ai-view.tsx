@@ -46,6 +46,7 @@ const tutorModeGroups = [
   { id: "studio", label: "Studio", modes: ["note_design", "document_formatter", "document_editor", "sheet_organizer", "sheet_formula_builder", "slide_builder", "slide_design_director"] },
   { id: "practice", label: "Practice", modes: ["quiz_generation", "flashcard_generation", "practice_generator"] },
 ] as const
+type TutorModeGroupId = (typeof tutorModeGroups)[number]["id"]
 
 type AiTutorDraft = {
   message: string
@@ -99,7 +100,7 @@ export function AiTutorView({
   const [targetAudience, setTargetAudience] = useState("Self-directed learner")
   const [requiredOutput, setRequiredOutput] = useState("Clear sections, compact examples, and one next action.")
   const [activeTaskKey, setActiveTaskKey] = useState(tutorModes[0].id)
-  const [modeGroup, setModeGroup] = useState<(typeof tutorModeGroups)[number]["id"]>("all")
+  const [modeGroup, setModeGroup] = useState<TutorModeGroupId>("tutor")
   const draftHydrated = useRef(false)
   const draftStatusTimer = useRef<number | null>(null)
 
@@ -173,7 +174,10 @@ export function AiTutorView({
       setInsertTarget(insertTargets.includes(draft.insertTarget) ? draft.insertTarget : "ai-note")
       setTargetAudience(draft.targetAudience || "Self-directed learner")
       setRequiredOutput(draft.requiredOutput || "Clear sections, compact examples, and one next action.")
-      if (tutorModes.some((mode) => mode.id === draft.activeTaskKey)) setActiveTaskKey(draft.activeTaskKey)
+      if (tutorModes.some((mode) => mode.id === draft.activeTaskKey)) {
+        setActiveTaskKey(draft.activeTaskKey)
+        setModeGroup(modeGroupForTask(draft.activeTaskKey))
+      }
     }
     draftHydrated.current = true
     return () => {
@@ -219,6 +223,7 @@ export function AiTutorView({
     setTargetAudience("Self-directed learner")
     setRequiredOutput("Clear sections, compact examples, and one next action.")
     setActiveTaskKey(tutorModes[0].id)
+    setModeGroup("tutor")
     clearAiTutorDraft()
     setDraftStatus("Draft reset")
   }
@@ -581,7 +586,7 @@ export function AiTutorView({
             {importStatus ? (
               <div className="grid gap-2 sm:grid-cols-2">
                 <button onClick={() => setView?.(importPreview.destinationView)} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Open {importPreview.destinationView}</button>
-                <button onClick={() => { setActiveTaskKey("practice_generator"); setMessage(`Generate practice from this imported ${labelImportTarget(importPreview.target)}.`); setView?.("ai") }} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Generate practice</button>
+                <button onClick={() => { setActiveTaskKey("practice_generator"); setModeGroup("practice"); setMessage(`Generate practice from this imported ${labelImportTarget(importPreview.target)}.`); setView?.("ai") }} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Generate practice</button>
               </div>
             ) : null}
           </div>
@@ -613,6 +618,10 @@ function clearAiTutorDraft() {
 
 function normalizeChoice(value: string, options: string[], fallback: string) {
   return options.includes(value) ? value : fallback
+}
+
+function modeGroupForTask(taskId: string): TutorModeGroupId {
+  return tutorModeGroups.find((group) => group.id !== "all" && (group.modes as readonly string[]).includes(taskId))?.id ?? "all"
 }
 
 function labelImportTarget(target: ImportTarget | "auto") {
