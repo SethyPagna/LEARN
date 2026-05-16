@@ -82,6 +82,7 @@ import {
   addColumn,
   addRow,
   buildSheetFormula,
+  closeOtherStudioPanes,
   closeStudioPane,
   computeStudioDirtyBadges,
   createDefaultStudioLayout,
@@ -95,6 +96,7 @@ import {
   moveRow,
   moveSlide,
   normalizeStudioLayout,
+  pinStudioPane,
   sortSheetByColumn,
   splitStudioPane,
 } from "@/lib/studio-features"
@@ -1368,10 +1370,12 @@ export function StudioView({
                     noteHistory={noteHistory}
                     onArchive={archiveActive}
                     onClosePane={() => setLayout((current) => closeStudioPane(current, pane.id))}
+                    onCloseOthers={() => setLayout((current) => closeOtherStudioPanes(current, pane.id))}
                     onCopy={copyActive}
                     onDownload={() => downloadActive(false)}
                     onDuplicate={duplicateActive}
                     onExport={() => downloadActive(true)}
+                    onPinPane={() => setLayout((current) => pinStudioPane(current, pane.id))}
                     onRenamePane={(label) => setLayout((current) => normalizeStudioLayout({ ...current, groups: [{ ...current.groups[0], panes: current.groups[0].panes.map((item) => item.id === pane.id ? { ...item, label } : item) }] }))}
                     onSave={() => saveActive()}
                     onSelectPane={() => activatePane(pane)}
@@ -1602,10 +1606,12 @@ function StudioPaneSurface({
   noteHistory,
   onArchive,
   onClosePane,
+  onCloseOthers,
   onCopy,
   onDownload,
   onDuplicate,
   onExport,
+  onPinPane,
   onRenamePane,
   onSave,
   onSelectPane,
@@ -1643,10 +1649,12 @@ function StudioPaneSurface({
   noteHistory: HistoryState<string>
   onArchive: () => void
   onClosePane: () => void
+  onCloseOthers: () => void
   onCopy: () => void
   onDownload: () => void
   onDuplicate: () => void
   onExport: () => void
+  onPinPane: () => void
   onRenamePane: (value: string) => void
   onSave: () => void
   onSelectPane: () => void
@@ -1683,6 +1691,7 @@ function StudioPaneSurface({
           <div className={`border-b border-border p-3 ${active ? "ring-1 ring-inset ring-primary/40" : ""}`}>
             <div className="flex flex-wrap items-center gap-2">
               <input value={pane.label} onChange={(event) => onRenamePane(event.target.value)} className="h-8 w-24 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground outline-none focus:border-ring" title="Rename order group" />
+              {pane.pinned ? <span className="inline-flex h-8 items-center rounded-md border border-primary/40 bg-primary/10 px-2 text-xs font-semibold text-primary">Pinned</span> : null}
               <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
                 {pane.tabs.map((tab: StudioTab) => {
                   const tabActive = tab.id === pane.activeTabId
@@ -1697,6 +1706,8 @@ function StudioPaneSurface({
               </div>
               <button onClick={onSplitRight} className="icon-button" title="Split right"><SplitSquareHorizontal className="h-4 w-4" /></button>
               <button onClick={onSplitDown} className="icon-button" title="Split down"><SplitSquareVertical className="h-4 w-4" /></button>
+              <button onClick={onPinPane} className={`icon-button ${pane.pinned ? "border-primary bg-primary text-primary-foreground" : ""}`} title={pane.pinned ? "Unpin pane" : "Pin pane"}><Maximize2 className="h-4 w-4" /></button>
+              <button onClick={onCloseOthers} className="icon-button" title="Close other panes"><Scissors className="h-4 w-4" /></button>
               <button onClick={onClosePane} className="icon-button" title="Close pane"><X className="h-4 w-4" /></button>
             </div>
             <div className="mt-3 flex flex-wrap items-start gap-3">
