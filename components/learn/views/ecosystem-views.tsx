@@ -37,7 +37,7 @@ import type {
   View,
 } from "../types"
 import { EmptyState, Panel, StatusMessage } from "../ui"
-import { buildFeedActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace } from "@/lib/learning-ecosystem"
+import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
 import { buildSocialWorkspacePlan, filterSocialRecords, socialRecordTitle, summarizeSocialWorkspace, type SocialRecordFilter } from "@/lib/social-features"
 
@@ -124,23 +124,59 @@ export function VaultView({ setView }: { setView: (view: View) => void }) {
   )
 }
 
-export function GraphView() {
+type GraphFilter = "all" | "weak" | "orphan" | "public"
+
+export function GraphView({ setView }: { setView: (view: View) => void }) {
   const { data, status } = useResource<VaultGraphPayload>("/api/vault/graph")
+  const [selectedId, setSelectedId] = useState("")
+  const [graphFilter, setGraphFilter] = useState<GraphFilter>("all")
   const nodes = data?.nodes ?? []
   const edges = data?.edges ?? []
+  const orphanIds = useMemo(() => new Set((data?.orphanNodes ?? []).map((node) => node.id)), [data?.orphanNodes])
+  const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes])
+  const graphSummary = useMemo(() => summarizeKnowledgeGraph(nodes, edges), [edges, nodes])
+  const graphPlan = useMemo(() => buildKnowledgeGraphActionPlan(nodes, edges, graphSummary), [edges, graphSummary, nodes])
+  const selectedNode = useMemo(() => nodes.find((node) => node.id === selectedId) ?? nodes[0], [nodes, selectedId])
+  const filteredNodes = useMemo(() => filterGraphNodes(nodes, orphanIds, graphFilter), [graphFilter, nodes, orphanIds])
+
+  function applyGraphPlan() {
+    if (graphPlan.nextAction === "add-node") {
+      setView("studio")
+      return
+    }
+    if (graphPlan.nextAction === "review-weak") {
+      setView("reviews")
+      return
+    }
+    if (graphPlan.nextAction === "open-ai") {
+      setView("ai")
+      return
+    }
+    if (graphPlan.targetNodeId) {
+      setSelectedId(graphPlan.targetNodeId)
+      setGraphFilter("all")
+    }
+  }
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
       <Panel className="min-h-[520px] overflow-hidden p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold text-foreground">Living graph</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-foreground">Living graph</h2>
+            <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground">
+              <span className="rounded-md bg-muted px-2 py-1">{graphSummary.seedCount} seeds</span>
+              <span className="rounded-md bg-muted px-2 py-1">{graphSummary.developingCount} developing</span>
+              <span className="rounded-md bg-muted px-2 py-1">{graphSummary.masteredCount} mastered</span>
+            </div>
+          </div>
           <span className="text-sm text-muted-foreground">{status}</span>
         </div>
         <div className="relative h-[440px] rounded-md border border-border bg-background">
           <svg className="absolute inset-0 h-full w-full" role="img" aria-label="Knowledge graph preview">
             {edges.map((edge) => {
-              const source = nodes.find((node) => node.id === edge.sourceId)
-              const target = nodes.find((node) => node.id === edge.targetId)
+              const source = nodeById.get(edge.sourceId)
+              const target = nodeById.get(edge.targetId)
               if (!source || !target) return null
               return (
                 <line
@@ -156,14 +192,14 @@ export function GraphView() {
               )
             })}
             {nodes.map((node, index) => (
-              <g key={node.id}>
+              <g key={node.id} className="cursor-pointer" onClick={() => setSelectedId(node.id)}>
                 <circle
                   cx={`${50 + ((node.position?.x ?? index * 12) / 4)}%`}
                   cy={`${50 + ((node.position?.y ?? index * 8) / 4)}%`}
                   r={18 + node.mastery * 12}
-                  fill="hsl(var(--card))"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth="2"
+                  fill={selectedNode?.id === node.id ? "hsl(var(--primary) / 0.18)" : "hsl(var(--card))"}
+                  stroke={orphanIds.has(node.id) ? "hsl(var(--warning))" : "hsl(var(--primary))"}
+                  strokeWidth={selectedNode?.id === node.id ? "4" : "2"}
                 />
                 <text
                   x={`${50 + ((node.position?.x ?? index * 12) / 4)}%`}
@@ -181,21 +217,81 @@ export function GraphView() {
       </Panel>
 
       <Panel className="p-4">
-        <h3 className="font-semibold text-foreground">Accessible graph table</h3>
+        <h3 className="font-semibold text-foreground">Graph command</h3>
+        <button onClick={applyGraphPlan} className="mt-3 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-semibold text-foreground">{graphPlan.headline}</span>
+            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">{graphPlan.detail}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {graphPlan.chips.map((chip) => (
+              <span key={chip} className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">
+                {chip}
+              </span>
+            ))}
+          </div>
+        </button>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <Metric label="Nodes" value={String(graphSummary.totalNodes)} />
+          <Metric label="Edges" value={String(graphSummary.totalEdges)} />
+          <Metric label="Avg" value={`${Math.round(graphSummary.averageMastery * 100)}%`} />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {(["all", "weak", "orphan", "public"] as GraphFilter[]).map((filter) => (
+            <button
+              key={filter}
+              onClick={() => setGraphFilter(filter)}
+              className={`h-8 rounded-md px-3 text-xs font-semibold ${graphFilter === filter ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+            >
+              {graphFilterLabel(filter)}
+            </button>
+          ))}
+        </div>
+        {selectedNode ? (
+          <div className="mt-3 rounded-md border border-border bg-background p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-semibold text-foreground">{selectedNode.title}</p>
+                <p className="mt-1 text-xs font-semibold text-muted-foreground">{selectedNode.type} | {selectedNode.visibility}</p>
+              </div>
+              {selectedNode.visibility === "private" ? <Lock className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-success" />}
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-primary" style={{ width: `${Math.round(Math.max(0, Math.min(1, selectedNode.mastery)) * 100)}%` }} />
+            </div>
+          </div>
+        ) : null}
+        <h3 className="mt-4 font-semibold text-foreground">Accessible graph table</h3>
         <div className="mt-3 max-h-[470px] space-y-2 overflow-auto">
-          {nodes.map((node) => (
-            <div key={node.id} className="rounded-md border border-border p-3">
+          {filteredNodes.map((node) => (
+            <button key={node.id} onClick={() => setSelectedId(node.id)} className={`w-full rounded-md border p-3 text-left ${selectedNode?.id === node.id ? "border-primary bg-primary/10" : "border-border hover:bg-muted"}`}>
               <div className="flex items-center justify-between gap-2">
                 <p className="font-medium text-foreground">{node.title}</p>
                 {node.visibility === "private" ? <Lock className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-success" />}
               </div>
               <p className="mt-1 text-sm text-muted-foreground">{Math.round(node.mastery * 100)}% mastery</p>
-            </div>
+            </button>
           ))}
+          {!filteredNodes.length ? <EmptyState title="No nodes match" body="Change the graph filter or add a new Studio item." /> : null}
         </div>
       </Panel>
     </div>
   )
+}
+
+function filterGraphNodes(nodes: KnowledgeNode[], orphanIds: Set<string>, filter: GraphFilter) {
+  if (filter === "weak") return nodes.filter((node) => node.mastery < 0.55)
+  if (filter === "orphan") return nodes.filter((node) => orphanIds.has(node.id))
+  if (filter === "public") return nodes.filter((node) => node.visibility !== "private")
+  return nodes
+}
+
+function graphFilterLabel(filter: GraphFilter) {
+  if (filter === "weak") return "Weak"
+  if (filter === "orphan") return "Orphan"
+  if (filter === "public") return "Shared"
+  return "All"
 }
 
 export function ReviewsView() {
