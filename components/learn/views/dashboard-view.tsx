@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  ArrowRight,
   BarChart3,
   BookOpen,
   Bot,
@@ -19,12 +20,23 @@ import {
   Sparkles,
   Table2,
 } from "lucide-react"
+import { useMemo } from "react"
 import type React from "react"
+import { buildDashboardCommandPlan, buildDashboardSignals, type DashboardCommandTarget } from "@/lib/dashboard-features"
 import type { WorkspaceOptions } from "../preferences"
 import type { Note, Quiz, View } from "../types"
 import { Panel } from "../ui"
 
 type DashboardAction = { label: string; body: string; view: View; icon: React.ComponentType<{ className?: string }> }
+
+const dashboardCommandIcons: Record<DashboardCommandTarget, React.ComponentType<{ className?: string }>> = {
+  ai: Sparkles,
+  calendar: CalendarDays,
+  files: Plus,
+  practice: BookOpen,
+  reviews: Repeat2,
+  studio: FileText,
+}
 
 export function DashboardView({
   dashboard,
@@ -44,6 +56,15 @@ export function DashboardView({
   const goalCompletion = dashboard?.snapshot?.goalCompletion ?? 0
   const recentNotes = notes.slice(0, 4)
   const reviewCount = Math.max(weakTopics.length, dashboard?.snapshot?.recommendedFocus?.length || 1)
+  const commandPlan = useMemo(
+    () => buildDashboardCommandPlan({ noteCount: notes.length, quizCount: quizzes.length, snapshot: dashboard?.snapshot }),
+    [dashboard?.snapshot, notes.length, quizzes.length],
+  )
+  const dashboardSignals = useMemo(
+    () => buildDashboardSignals({ noteCount: notes.length, quizCount: quizzes.length, snapshot: dashboard?.snapshot }),
+    [dashboard?.snapshot, notes.length, quizzes.length],
+  )
+  const CommandIcon = dashboardCommandIcons[commandPlan.target]
   const actionGroups: { label: string; actions: DashboardAction[] }[] = [
     {
       label: "Create",
@@ -86,23 +107,32 @@ export function DashboardView({
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
       <section className="rounded-lg border border-border bg-card text-card-foreground shadow-sm xl:col-span-2">
-        <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:p-5">
+        <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-center lg:p-5">
           <div className="min-w-0">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">Today</span>
-              <StatusChip label="Studio" />
-              <StatusChip label="Review" />
-              <StatusChip label="Tutor" />
+              {dashboardSignals.map((signal) => <StatusChip key={signal.label} label={`${signal.label} ${signal.value}`} tone={signal.tone} />)}
             </div>
             <h2 className="max-w-4xl text-2xl font-semibold leading-tight text-foreground md:text-4xl">
-              {focus}
+              {commandPlan.headline}
             </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">{commandPlan.detail}</p>
           </div>
-          <div className="flex flex-wrap gap-2 lg:justify-end">
-            <HeroAction icon={FileText} label="Create" onClick={() => setView("studio")} />
-            <HeroAction icon={Repeat2} label="Review" onClick={() => setView("reviews")} />
-            <HeroAction icon={Sparkles} label="Tutor" onClick={() => setView("ai")} primary />
-          </div>
+          <button onClick={() => setView(commandPlan.target)} className="rounded-md border border-border bg-secondary p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                <CommandIcon className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-foreground">Start now</p>
+                <p className="mt-1 truncate text-xs text-muted-foreground">{commandPlan.targetTopic || commandPlan.target}</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {commandPlan.chips.map((chip) => <StatusChip key={chip} label={chip} />)}
+            </div>
+          </button>
         </div>
         <div className="grid border-t border-border bg-background/45 sm:grid-cols-2 xl:grid-cols-4">
           <BigMetric icon={CheckCircle2} label="Goal" value={`${goalCompletion}%`} body="Learning goals completed" />
@@ -122,7 +152,7 @@ export function DashboardView({
                 <Info className="h-4 w-4" />
               </summary>
               <p className="absolute right-0 top-10 z-20 w-72 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">
-                "Use my latest Studio notes to make a short review route for {focus}, including one example and three recall questions."
+                {`Use my latest Studio notes to make a short review route for ${focus}, including one example and three recall questions.`}
               </p>
             </details>
           </div>
@@ -238,8 +268,8 @@ function BigMetric({ body, icon: Icon, label, value }: { body: string; icon: Rea
   )
 }
 
-function StatusChip({ label }: { label: string }) {
-  return <span className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-semibold text-muted-foreground">{label}</span>
+function StatusChip({ label, tone = "watch" }: { label: string; tone?: "critical" | "steady" | "watch" }) {
+  return <span className={`rounded-md border px-2.5 py-1 text-xs font-semibold ${statusToneClass(tone)}`}>{label}</span>
 }
 
 function HeroAction({ icon: Icon, label, onClick, primary }: { icon: React.ComponentType<{ className?: string }>; label: string; onClick: () => void; primary?: boolean }) {
@@ -282,4 +312,10 @@ function AgendaItem({ label, value }: { label: string; value: string }) {
       <span className="text-muted-foreground">{value}</span>
     </div>
   )
+}
+
+function statusToneClass(tone: "critical" | "steady" | "watch") {
+  if (tone === "critical") return "border-destructive/40 bg-destructive/10 text-destructive"
+  if (tone === "steady") return "border-success/40 bg-success/10 text-success"
+  return "border-border bg-background text-muted-foreground"
 }
