@@ -143,6 +143,37 @@ const studioCreateLabels: Record<StudioKind, string> = {
   slides: "New Deck",
 }
 
+const studioKindStyles: Record<StudioKind, { accent: string; card: string; chip: string; icon: string; label: string }> = {
+  notes: {
+    accent: "bg-amber-400",
+    card: "hover:border-amber-400/70 hover:bg-amber-50/70 dark:hover:bg-amber-950/20",
+    chip: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
+    icon: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-200",
+    label: "Note",
+  },
+  docs: {
+    accent: "bg-sky-500",
+    card: "hover:border-sky-500/70 hover:bg-sky-50/70 dark:hover:bg-sky-950/20",
+    chip: "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200",
+    icon: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-200",
+    label: "Doc",
+  },
+  sheets: {
+    accent: "bg-emerald-500",
+    card: "hover:border-emerald-500/70 hover:bg-emerald-50/70 dark:hover:bg-emerald-950/20",
+    chip: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200",
+    icon: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200",
+    label: "Sheet",
+  },
+  slides: {
+    accent: "bg-orange-500",
+    card: "hover:border-orange-500/70 hover:bg-orange-50/70 dark:hover:bg-orange-950/20",
+    chip: "bg-orange-100 text-orange-900 dark:bg-orange-950 dark:text-orange-200",
+    icon: "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-200",
+    label: "Slide",
+  },
+}
+
 const docTemplates = {
   study: "<h1>New learning doc</h1><h2>Summary</h2><p></p><h2>Key examples</h2><p></p><h2>Practice tasks</h2><p></p>",
   cornell: "<h1>Cornell notes</h1><h2>Cues</h2><p></p><h2>Notes</h2><p></p><h2>Summary</h2><p></p>",
@@ -1552,41 +1583,70 @@ function StudioItemButton({
 }) {
   const Icon = item.kind === "sheets" ? Table2 : item.kind === "slides" ? Presentation : item.kind === "docs" ? BookOpen : FileText
   const archived = Boolean(item.archived_at)
+  const [actionError, setActionError] = useState("")
+  const [pendingAction, setPendingAction] = useState("")
+  const styles = studioKindStyles[item.kind]
+
+  async function runRecordAction(label: string, action: () => void | Promise<void>, confirmMessage?: string) {
+    if (pendingAction) return
+    if (confirmMessage && !window.confirm(confirmMessage)) return
+    setActionError("")
+    setPendingAction(label)
+    try {
+      await action()
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : `${label} failed.`)
+    } finally {
+      setPendingAction("")
+    }
+  }
+
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger asChild>
-        <article className="mb-2 rounded-md border border-border bg-background p-3 text-sm transition hover:border-primary/50 hover:bg-accent/60">
+        <article className={`relative mb-2 overflow-hidden rounded-md border border-border bg-background p-3 text-sm transition hover:-translate-y-0.5 hover:shadow-sm ${styles.card}`}>
+          <span className={`absolute inset-y-0 left-0 w-1 ${styles.accent}`} />
           <button onClick={() => onSelect(item)} className="w-full text-left">
             <span className="flex items-center gap-2 font-medium text-foreground">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
+              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${styles.icon}`}>
                 <Icon className="h-4 w-4" />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="line-clamp-1">{item.title}</span>
-                <span className="mt-0.5 block text-xs capitalize text-muted-foreground">{archived ? "archived" : item.kind} - {item.updated_at ? formatDate(item.updated_at) : item.summary || "Draft"}</span>
+                <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className={`rounded px-1.5 py-0.5 font-semibold ${styles.chip}`}>{archived ? "Archived" : styles.label}</span>
+                  <span>{item.updated_at ? formatDate(item.updated_at) : item.summary || "Draft"}</span>
+                </span>
               </span>
             </span>
           </button>
           <div className="mt-3 flex flex-wrap gap-1.5">
-            <RecordAction icon={FileText} label="Open" onClick={() => onSelect(item)} />
-            <RecordAction icon={Clipboard} label="Copy" onClick={() => onCopy(item)} />
-            <RecordAction icon={Copy} label="Duplicate" onClick={() => onDuplicate(item)} />
-            <RecordAction icon={Download} label="Export" onClick={() => onExport(item)} />
-            {!archived ? <RecordAction icon={SplitSquareHorizontal} label="Split" onClick={() => onOpenInSplit(item)} /> : null}
-            <RecordAction icon={Bot} label="AI" onClick={() => onAskAi(item)} />
+            <RecordAction disabled={Boolean(pendingAction)} icon={FileText} label="Open" onClick={() => runRecordAction("Opening", () => onSelect(item))} />
+            <RecordAction disabled={Boolean(pendingAction)} icon={Clipboard} label={pendingAction === "Copying" ? "Copying" : "Copy"} onClick={() => runRecordAction("Copying", () => onCopy(item))} />
+            <RecordAction disabled={Boolean(pendingAction)} icon={Copy} label={pendingAction === "Duplicating" ? "Duplicating" : "Duplicate"} onClick={() => runRecordAction("Duplicating", () => onDuplicate(item))} />
+            <RecordAction disabled={Boolean(pendingAction)} icon={Download} label={pendingAction === "Exporting" ? "Exporting" : "Export"} onClick={() => runRecordAction("Exporting", () => onExport(item))} />
+            {!archived ? <RecordAction disabled={Boolean(pendingAction)} icon={SplitSquareHorizontal} label="Split" onClick={() => runRecordAction("Opening split", () => onOpenInSplit(item))} /> : null}
+            <RecordAction disabled={Boolean(pendingAction)} icon={Bot} label="AI" onClick={() => runRecordAction("Opening AI", () => onAskAi(item))} />
             {archived ? (
-              <RecordAction icon={Undo2} label="Restore" onClick={() => onRestore(item)} />
+              <RecordAction disabled={Boolean(pendingAction)} icon={Undo2} label={pendingAction === "Restoring" ? "Restoring" : "Restore"} onClick={() => runRecordAction("Restoring", () => onRestore(item))} />
             ) : (
-              <RecordAction danger icon={Archive} label="Archive" onClick={() => onArchive(item)} />
+              <RecordAction danger disabled={Boolean(pendingAction)} icon={Archive} label={pendingAction === "Archiving" ? "Archiving" : "Archive"} onClick={() => runRecordAction("Archiving", () => onArchive(item), `Archive "${item.title}"? You can restore it from the Archived section.`)} />
             )}
           </div>
+          {actionError ? <p className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">{actionError}</p> : null}
         </article>
       </ContextMenu.Trigger>
-      <StudioContextContent onCopy={() => onCopy(item)} onDuplicate={() => onDuplicate(item)} onArchive={() => onArchive(item)} onAskAi={() => onAskAi(item)} showArchive={!archived}>
-        <ContextMenu.Item onClick={() => onDownload(item)} className="context-item"><Download className="h-4 w-4" /> Download</ContextMenu.Item>
-        <ContextMenu.Item onClick={() => onExport(item)} className="context-item"><PanelRight className="h-4 w-4" /> Export</ContextMenu.Item>
-        {!archived ? <ContextMenu.Item onClick={() => onOpenInSplit(item)} className="context-item"><SplitSquareHorizontal className="h-4 w-4" /> Open in split</ContextMenu.Item> : null}
-        {archived ? <ContextMenu.Item onClick={() => onRestore(item)} className="context-item"><Undo2 className="h-4 w-4" /> Restore</ContextMenu.Item> : null}
+      <StudioContextContent
+        onCopy={() => runRecordAction("Copying", () => onCopy(item))}
+        onDuplicate={() => runRecordAction("Duplicating", () => onDuplicate(item))}
+        onArchive={() => runRecordAction("Archiving", () => onArchive(item), `Archive "${item.title}"? You can restore it from the Archived section.`)}
+        onAskAi={() => runRecordAction("Opening AI", () => onAskAi(item))}
+        showArchive={!archived}
+      >
+        <ContextMenu.Item onClick={() => runRecordAction("Downloading", () => onDownload(item))} className="context-item"><Download className="h-4 w-4" /> Download</ContextMenu.Item>
+        <ContextMenu.Item onClick={() => runRecordAction("Exporting", () => onExport(item))} className="context-item"><PanelRight className="h-4 w-4" /> Export</ContextMenu.Item>
+        {!archived ? <ContextMenu.Item onClick={() => runRecordAction("Opening split", () => onOpenInSplit(item))} className="context-item"><SplitSquareHorizontal className="h-4 w-4" /> Open in split</ContextMenu.Item> : null}
+        {archived ? <ContextMenu.Item onClick={() => runRecordAction("Restoring", () => onRestore(item))} className="context-item"><Undo2 className="h-4 w-4" /> Restore</ContextMenu.Item> : null}
       </StudioContextContent>
     </ContextMenu.Root>
   )
@@ -2421,15 +2481,16 @@ function ViewModeButton({ active, icon: Icon, label, onClick }: { active: boolea
   )
 }
 
-function RecordAction({ danger, icon: Icon, label, onClick }: { danger?: boolean; icon: React.ComponentType<{ className?: string }>; label: string; onClick: () => void }) {
+function RecordAction({ danger, disabled, icon: Icon, label, onClick }: { danger?: boolean; disabled?: boolean; icon: React.ComponentType<{ className?: string }>; label: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[0.68rem] font-semibold ${
         danger
           ? "border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground"
           : "border-border bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"
-      }`}
+      } disabled:cursor-not-allowed disabled:opacity-55`}
       title={label}
       type="button"
     >
