@@ -961,6 +961,38 @@ export function StudioView({
     return buildSlidePresenterOutline(slidesFromDeck(source as WorkspaceDeck))
   }
 
+  function downloadStudioItem(item: StudioRecordItem, exportMode = false) {
+    const source = findStudioItem(item)
+    if (!source) {
+      setStatus("Open the item first, then try exporting again.")
+      return
+    }
+
+    const base = fileTitle(item.title, item.kind)
+    if (item.kind === "sheets") {
+      downloadText(`${base}.csv`, exportSheetToCsv({ cells: cellsFromSheet(source as WorkspaceSheet) }), "text/csv")
+      setStatus(`Exported ${item.title} as CSV.`)
+      return
+    }
+
+    if (item.kind === "slides") {
+      const deckSlides = slidesFromDeck(source as WorkspaceDeck)
+      if (exportMode) {
+        downloadText(`${base}.slides.json`, JSON.stringify(buildSlideExportPayload(item.title, deckSlides), null, 2), "application/json")
+        setStatus(`Exported ${item.title} as slide JSON.`)
+        return
+      }
+      downloadText(`${base}.outline.txt`, buildSlidePresenterOutline(deckSlides), "text/plain")
+      setStatus(`Downloaded ${item.title} outline.`)
+      return
+    }
+
+    const content = item.kind === "docs" ? textFromDocument(source as WorkspaceDocument) : (source as Note).content || ""
+    const body = exportMode ? plainTextFromHtml(content) : richTextContent(content)
+    downloadText(`${base}.${exportMode ? "txt" : "html"}`, body, exportMode ? "text/plain" : "text/html")
+    setStatus(`${exportMode ? "Exported" : "Downloaded"} ${item.title}.`)
+  }
+
   async function copyStudioItem(item: StudioRecordItem) {
     await navigator.clipboard?.writeText(payloadForStudioItem(item) || item.title)
     setStatus(`Copied ${item.title}.`)
@@ -1253,7 +1285,9 @@ export function StudioView({
               setInspectorTab("AI")
             }}
             onCopy={copyStudioItem}
+            onDownload={(item) => downloadStudioItem(item)}
             onDuplicate={duplicateStudioItem}
+            onExport={(item) => downloadStudioItem(item, true)}
             onQuery={setQuery}
             onRestore={restoreStudioItem}
             onSection={setSection}
@@ -1335,7 +1369,9 @@ function StudioLibrary({
   onArchive,
   onAskAi,
   onCopy,
+  onDownload,
   onDuplicate,
+  onExport,
   onQuery,
   onRestore,
   onSection,
@@ -1351,7 +1387,9 @@ function StudioLibrary({
   onArchive: (item: StudioRecordItem) => void
   onAskAi: (item: StudioRecordItem) => void
   onCopy: (item: StudioRecordItem) => void
+  onDownload: (item: StudioRecordItem) => void
   onDuplicate: (item: StudioRecordItem) => void
+  onExport: (item: StudioRecordItem) => void
   onQuery: (value: string) => void
   onRestore: (item: StudioRecordItem) => void
   onSection: (value: string) => void
@@ -1396,14 +1434,14 @@ function StudioLibrary({
               const item = items[virtualRow.index]
               return item ? (
                 <div key={`${item.kind}_${item.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${virtualRow.start}px)` }}>
-                  <StudioItemButton item={item} onArchive={onArchive} onAskAi={onAskAi} onCopy={onCopy} onDuplicate={onDuplicate} onRestore={onRestore} onSelect={onSelect} />
+                  <StudioItemButton item={item} onArchive={onArchive} onAskAi={onAskAi} onCopy={onCopy} onDownload={onDownload} onDuplicate={onDuplicate} onExport={onExport} onRestore={onRestore} onSelect={onSelect} />
                 </div>
               ) : null
             })}
           </div>
         ) : (
           <div className={`grid gap-2 ${viewMode === "gallery" ? "grid-cols-2" : ""}`}>
-            {items.map((item) => <StudioItemButton key={`${item.kind}_${item.id}`} item={item} onArchive={onArchive} onAskAi={onAskAi} onCopy={onCopy} onDuplicate={onDuplicate} onRestore={onRestore} onSelect={onSelect} />)}
+            {items.map((item) => <StudioItemButton key={`${item.kind}_${item.id}`} item={item} onArchive={onArchive} onAskAi={onAskAi} onCopy={onCopy} onDownload={onDownload} onDuplicate={onDuplicate} onExport={onExport} onRestore={onRestore} onSelect={onSelect} />)}
           </div>
         )}
         {!items.length ? <EmptyState title="No Studio items" body="Create a note, doc, sheet, or deck, then open it in a split pane." /> : null}
@@ -1430,7 +1468,9 @@ function StudioItemButton({
   onArchive,
   onAskAi,
   onCopy,
+  onDownload,
   onDuplicate,
+  onExport,
   onRestore,
   onSelect,
 }: {
@@ -1438,7 +1478,9 @@ function StudioItemButton({
   onArchive: (item: StudioRecordItem) => void
   onAskAi: (item: StudioRecordItem) => void
   onCopy: (item: StudioRecordItem) => void
+  onDownload: (item: StudioRecordItem) => void
   onDuplicate: (item: StudioRecordItem) => void
+  onExport: (item: StudioRecordItem) => void
   onRestore: (item: StudioRecordItem) => void
   onSelect: (item: StudioRecordItem) => void
 }) {
@@ -1463,6 +1505,7 @@ function StudioItemButton({
             <RecordAction icon={FileText} label="Open" onClick={() => onSelect(item)} />
             <RecordAction icon={Clipboard} label="Copy" onClick={() => onCopy(item)} />
             <RecordAction icon={Copy} label="Duplicate" onClick={() => onDuplicate(item)} />
+            <RecordAction icon={Download} label="Export" onClick={() => onExport(item)} />
             <RecordAction icon={Bot} label="AI" onClick={() => onAskAi(item)} />
             {archived ? (
               <RecordAction icon={Undo2} label="Restore" onClick={() => onRestore(item)} />
@@ -1473,6 +1516,8 @@ function StudioItemButton({
         </article>
       </ContextMenu.Trigger>
       <StudioContextContent onCopy={() => onCopy(item)} onDuplicate={() => onDuplicate(item)} onArchive={() => onArchive(item)} onAskAi={() => onAskAi(item)} showArchive={!archived}>
+        <ContextMenu.Item onClick={() => onDownload(item)} className="context-item"><Download className="h-4 w-4" /> Download</ContextMenu.Item>
+        <ContextMenu.Item onClick={() => onExport(item)} className="context-item"><PanelRight className="h-4 w-4" /> Export</ContextMenu.Item>
         {archived ? <ContextMenu.Item onClick={() => onRestore(item)} className="context-item"><Undo2 className="h-4 w-4" /> Restore</ContextMenu.Item> : null}
       </StudioContextContent>
     </ContextMenu.Root>
