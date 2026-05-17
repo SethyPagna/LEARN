@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Sidebar, MobileMenu, Topbar, titleForView } from "./app-nav"
 import { api } from "./api"
-import type { Note, Quiz, StudioKind, User, View } from "./types"
+import type { Note, Quiz, User, View } from "./types"
 import { StatusMessage } from "./ui"
 import { AiTutorView } from "./views/ai-view"
 import { DashboardView } from "./views/dashboard-view"
@@ -15,51 +15,7 @@ import { StudioView } from "./views/studio-view"
 import { LearnWorkspaceView, PracticeWorkspaceView, SocialWorkspaceView } from "./views/combined-workspace-views"
 import { PRACTICE_DRAFT_EVENT, readPracticeDrafts, summarizePracticeDrafts, type PracticeDraftSummary } from "@/lib/practice-drafts"
 import { readStudioDrafts, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, type StudioDraftSummary } from "@/lib/studio-drafts"
-
-const studioViews = ["studio", "notes", "docs", "sheets", "slides"] as const
-const learnViews = ["learn", "reviews", "calendar"] as const
-const practiceViews = ["practice", "quizzes", "games"] as const
-const socialViews = ["social", "chat", "spaces", "rooms", "battles"] as const
-const viewRoutes: Record<View, string> = {
-  dashboard: "/dashboard",
-  learn: "/learn",
-  vault: "/vault",
-  feed: "/feed",
-  graph: "/graph",
-  reviews: "/reviews",
-  studio: "/studio",
-  notes: "/notes",
-  docs: "/docs",
-  sheets: "/sheets",
-  slides: "/slides",
-  quizzes: "/quizzes",
-  practice: "/practice",
-  games: "/games",
-  ai: "/ai",
-  files: "/files",
-  chat: "/chat",
-  social: "/social",
-  progress: "/progress",
-  calendar: "/calendar",
-  discover: "/discover",
-  spaces: "/spaces",
-  rooms: "/rooms",
-  battles: "/battles",
-  profile: "/profile",
-  settings: "/settings",
-  admin: "/admin",
-}
-
-function getStudioKind(view: View): StudioKind {
-  return view === "docs" || view === "sheets" || view === "slides" ? view : "notes"
-}
-
-function viewFromPath(pathname: string): View | null {
-  const segment = pathname.split("/").filter(Boolean)[0] || "dashboard"
-  if (segment === "quiz") return "quizzes"
-  if (segment in viewRoutes) return segment as View
-  return null
-}
+import { getStudioKind, learnWorkspaceViews, practiceViews, socialViews, studioViews, viewFromPath, viewRoutes } from "@/lib/navigation"
 
 export function LearnShell({
   initialView = "dashboard",
@@ -236,7 +192,7 @@ export function LearnShell({
           <div className={preferences.density === "compact" ? "p-3 lg:p-4" : "p-4 lg:p-6"}>
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
             {view === "dashboard" ? <DashboardView dashboard={dashboard} notes={notes} quizzes={quizzes} options={preferences.options} setView={chooseView} /> : null}
-            {learnViews.includes(view as (typeof learnViews)[number]) ? <LearnWorkspaceView dashboard={dashboard} initialView={view} options={preferences.options} quizzes={quizzes} setView={chooseView} /> : null}
+            {learnWorkspaceViews.includes(view as (typeof learnWorkspaceViews)[number]) ? <LearnWorkspaceView dashboard={dashboard} initialView={view} options={preferences.options} quizzes={quizzes} setView={chooseView} /> : null}
             {view === "vault" ? <VaultView setView={chooseView} /> : null}
             {view === "feed" || view === "discover" ? <FeedView setView={chooseView} /> : null}
             {view === "graph" ? <GraphView setView={chooseView} /> : null}
