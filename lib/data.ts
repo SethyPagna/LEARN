@@ -408,7 +408,7 @@ function normalizeJsonRow<T extends Record<string, unknown>>(row: T, keys: strin
 export async function listEditorDocuments(user: User, documentType = "doc", status: ArchiveListStatus = "active") {
   await ensureDatabase()
   const archiveClause = archivedWhereClause()[status]
-  const result = await query<WorkspaceInviteRow>(
+  const result = await query(
     `SELECT * FROM editor_documents
      WHERE document_type = $1 AND ${archiveClause} AND (owner_user_id = $2 OR $3 = 'admin')
      ORDER BY updated_at DESC
@@ -599,7 +599,7 @@ export async function createWorkspaceInvite(user: User, input: Record<string, un
 export async function getWorkspaceInviteByToken(token: string) {
   await ensureDatabase()
   const tokenHash = await hashSessionToken(token)
-  const result = await query(
+  const result = await query<WorkspaceInviteRow>(
     `SELECT id, workspace_id, invited_email, role, status, expires_at, created_at
      FROM workspace_invites
      WHERE token_hash = $1
