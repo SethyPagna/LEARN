@@ -12,6 +12,7 @@ import type { CalendarEvent, Quiz, User, View } from "../types"
 import { api, formatDate } from "../api"
 import { ControlButton, Panel, StatusPill as SharedStatusPill } from "../ui"
 import { ProviderAdminPanel } from "./provider-admin-panel"
+import { toneSurfaceClasses } from "@/lib/design-system"
 
 const progressActionIcons: Record<ProgressActionTarget, typeof Target> = {
   ai: Sparkles,
@@ -871,12 +872,6 @@ function LanguagePicker({ locale, setLocale }: { locale: SupportedLocale; setLoc
   )
 }
 
-function settingsToneClass(tone: "good" | "watch" | "neutral") {
-  if (tone === "good") return "bg-success text-success-foreground"
-  if (tone === "watch") return "bg-warning text-warning-foreground"
-  return "bg-secondary text-secondary-foreground"
-}
-
 function settingsTone(tone: "good" | "watch" | "neutral") {
   if (tone === "good") return "steady"
   if (tone === "watch") return "watch"
@@ -920,7 +915,7 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
       <Panel className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-md ${adminSummary.systemTone === "watch" ? "bg-warning text-warning-foreground" : "bg-primary text-primary-foreground"}`}>
+            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-md ${toneSurfaceClasses(adminSummary.systemTone === "watch" ? "watch" : "primary")}`}>
               <ShieldCheck className="h-6 w-6" />
             </div>
             <div className="min-w-0">
@@ -942,7 +937,7 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
             <button key={card.id} onClick={() => setTab(tabFromCard(card.id))} className="group relative rounded-md border border-border bg-background p-4 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{card.label}</p>
               <p className="mt-2 text-2xl font-semibold text-foreground">{card.value}</p>
-              <span className={`mt-3 inline-flex rounded-md px-2 py-1 text-xs font-semibold ${settingsToneClass(card.tone)}`}>{card.tone}</span>
+              <span className="mt-3 inline-flex"><SharedStatusPill label={card.tone} tone={settingsTone(card.tone)} /></span>
               <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{card.detail}</p>
             </button>
           ))}
@@ -951,7 +946,7 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold text-foreground">{adminPlan.headline}</span>
             <span className="mt-1 flex flex-wrap gap-2">
-              {adminPlan.chips.map((chip) => <span key={chip} className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">{chip}</span>)}
+              {adminPlan.chips.map((chip) => <SharedStatusPill key={chip} label={chip} />)}
             </span>
           </span>
           <span className="inline-flex shrink-0 items-center gap-2 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">
@@ -968,14 +963,15 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
             ["audit", "Audit", ShieldCheck],
             ["automation", "Automation", Sparkles],
           ] as const).map(([id, label, Icon]) => (
-            <button
+            <ControlButton
               key={id}
               onClick={() => setTab(id)}
-              className={`inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-semibold ${tab === id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+              active={tab === id}
+              size="compact"
             >
               <Icon className="h-4 w-4" />
               {label}
-            </button>
+            </ControlButton>
           ))}
         </div>
       </Panel>
@@ -1087,7 +1083,7 @@ function AdminList({
           <p className="truncate font-semibold text-foreground">{title}</p>
           {query ? <p className="mt-1 text-xs text-muted-foreground">Filtered by "{query}"</p> : null}
         </div>
-        <span className={`rounded-md px-2 py-1 text-xs font-semibold ${settingsToneClass(accent)}`}>{items.length}</span>
+        <SharedStatusPill label={String(items.length)} tone={settingsTone(accent)} />
       </div>
       <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
         {items.slice(0, 12).map((item, index) => (
@@ -1097,11 +1093,11 @@ function AdminList({
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
             </div>
             <p className="mt-1 truncate text-xs text-muted-foreground">{item.email || item.role || item.entity || item.description || item.default_model || item.details || item.provider_type || item.key || "No detail"}</p>
-            {item.last_status || item.enabled !== undefined ? (
+            {item.last_status || item.enabled !== undefined || item.has_key !== undefined ? (
               <div className="mt-2 flex flex-wrap gap-1">
-                {item.last_status ? <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{item.last_status}</span> : null}
-                {item.enabled !== undefined ? <span className={`rounded-md px-2 py-0.5 text-[0.68rem] font-semibold ${item.enabled ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground"}`}>{item.enabled ? "enabled" : "off"}</span> : null}
-                {item.has_key !== undefined ? <span className={`rounded-md px-2 py-0.5 text-[0.68rem] font-semibold ${item.has_key ? "bg-success/20 text-success" : "bg-warning text-warning-foreground"}`}>{item.has_key ? "key stored" : "key missing"}</span> : null}
+                {item.last_status ? <SharedStatusPill label={item.last_status} /> : null}
+                {item.enabled !== undefined ? <SharedStatusPill label={item.enabled ? "enabled" : "off"} tone={item.enabled ? "steady" : "neutral"} /> : null}
+                {item.has_key !== undefined ? <SharedStatusPill label={item.has_key ? "key stored" : "key missing"} tone={item.has_key ? "steady" : "watch"} /> : null}
               </div>
             ) : null}
           </div>
@@ -1133,7 +1129,7 @@ function AdminAccessRequests({
           <p className="mt-1 text-sm text-muted-foreground">Review request-access audit rows and issue invite links without digging through raw logs.</p>
           {query ? <p className="mt-1 text-xs text-muted-foreground">Filtered by "{query}"</p> : null}
         </div>
-        <span className={`rounded-md px-2 py-1 text-xs font-semibold ${settingsToneClass(items.length ? "watch" : "good")}`}>{items.length}</span>
+        <SharedStatusPill label={String(items.length)} tone={items.length ? "watch" : "steady"} />
       </div>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
@@ -1144,30 +1140,32 @@ function AdminAccessRequests({
                 <p className="truncate text-sm font-semibold text-foreground">{item.name}</p>
                 <p className="mt-1 truncate text-xs text-muted-foreground">{item.email}</p>
               </div>
-              <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{item.role}</span>
+              <SharedStatusPill label={item.role} />
             </div>
             <p className="mt-3 line-clamp-3 text-sm leading-6 text-muted-foreground">{item.goal || "No learning goal included."}</p>
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              <button
+              <ControlButton
                 type="button"
                 onClick={() => onIssueInvite(item)}
-                className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+                active
+                size="compact"
               >
                 <UserPlus className="h-4 w-4" />
                 Issue invite
-              </button>
+              </ControlButton>
               {inviteLinks[item.id] ? (
-                <button
+                <ControlButton
                   type="button"
                   onClick={() => navigator.clipboard?.writeText(inviteLinks[item.id]).catch(() => undefined)}
-                  className="inline-flex h-9 min-w-0 max-w-full items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground"
+                  size="compact"
+                  className="min-w-0 max-w-full"
                   title={inviteLinks[item.id]}
                 >
                   <LinkIcon className="h-4 w-4 shrink-0" />
                   <span className="truncate">Copy invite link</span>
-                </button>
+                </ControlButton>
               ) : null}
-              {inviteStatus[item.id] ? <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">{inviteStatus[item.id]}</span> : null}
+              {inviteStatus[item.id] ? <SharedStatusPill label={inviteStatus[item.id]} tone={inviteStatus[item.id].toLowerCase().includes("ready") ? "steady" : "neutral"} /> : null}
             </div>
           </article>
         ))}
