@@ -7,7 +7,6 @@ import {
   Bot,
   Brain,
   CalendarDays,
-  CheckCircle2,
   Clock3,
   Compass,
   FileText,
@@ -19,15 +18,18 @@ import {
   Repeat2,
   Sparkles,
   Table2,
+  Trophy,
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import type React from "react"
-import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardSignals, type DashboardCommandTarget } from "@/lib/dashboard-features"
+import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardSignals, type DashboardCommandTarget } from "@/lib/dashboard-features"
 import { normalizeOnboardingPreferences, onboardingTargetView, shouldShowOnboarding, type OnboardingStudioKind, type OnboardingWorkflow } from "@/lib/onboarding-features"
 import { api } from "../api"
 import type { WorkspaceOptions } from "../preferences"
 import type { Note, Quiz, User, View } from "../types"
 import { Panel } from "../ui"
+import type { PracticeDraftSummary } from "@/lib/practice-drafts"
+import type { StudioDraftSummary } from "@/lib/studio-drafts"
 
 type DashboardAction = { label: string; body: string; view: View; icon: React.ComponentType<{ className?: string }> }
 
@@ -40,13 +42,23 @@ const dashboardCommandIcons: Record<DashboardCommandTarget, React.ComponentType<
   studio: FileText,
 }
 
+const dashboardMetricIcons = {
+  drafts: FileText,
+  focus: CalendarDays,
+  reviews: Repeat2,
+  streak: Trophy,
+  xp: Sparkles,
+} satisfies Record<ReturnType<typeof buildDashboardMetricTiles>[number]["id"], React.ComponentType<{ className?: string }>>
+
 export function DashboardView({
   dashboard,
   forceOnboarding = false,
   notes,
   quizzes,
   options,
+  practiceDraftSummary,
   setView,
+  studioDraftSummary,
   user,
 }: {
   dashboard: any
@@ -54,15 +66,15 @@ export function DashboardView({
   notes: Note[]
   quizzes: Quiz[]
   options: WorkspaceOptions
+  practiceDraftSummary: PracticeDraftSummary
   setView: (view: View) => void
+  studioDraftSummary: StudioDraftSummary
   user: User | null
 }) {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const focus = dashboard?.snapshot?.recommendedFocus?.[0] || "your next concept"
   const weakTopics = dashboard?.snapshot?.weakTopics || []
-  const goalCompletion = dashboard?.snapshot?.goalCompletion ?? 0
   const recentNotes = notes.slice(0, 4)
-  const reviewCount = Math.max(weakTopics.length, dashboard?.snapshot?.recommendedFocus?.length || 1)
   const commandPlan = useMemo(
     () => buildDashboardCommandPlan({ noteCount: notes.length, quizCount: quizzes.length, snapshot: dashboard?.snapshot }),
     [dashboard?.snapshot, notes.length, quizzes.length],
@@ -74,6 +86,18 @@ export function DashboardView({
   const emptyStates = useMemo(
     () => buildDashboardEmptyStates({ noteCount: notes.length, quizCount: quizzes.length, snapshot: dashboard?.snapshot }),
     [dashboard?.snapshot, notes.length, quizzes.length],
+  )
+  const metricTiles = useMemo(
+    () => buildDashboardMetricTiles({
+      calendarDefaultMinutes: options.calendarDefaultMinutes,
+      noteCount: notes.length,
+      practiceDraftCount: practiceDraftSummary.count,
+      quizCount: quizzes.length,
+      snapshot: dashboard?.snapshot,
+      studioDraftCount: studioDraftSummary.count,
+      userMetrics: user?.metrics,
+    }),
+    [dashboard?.snapshot, notes.length, options.calendarDefaultMinutes, practiceDraftSummary.count, quizzes.length, studioDraftSummary.count, user?.metrics],
   )
   const CommandIcon = dashboardCommandIcons[commandPlan.target]
   const actionGroups: { label: string; actions: DashboardAction[] }[] = [
@@ -151,10 +175,9 @@ export function DashboardView({
           </button>
         </div>
         <div className="grid border-t border-border bg-background/45 sm:grid-cols-2 xl:grid-cols-4">
-          <BigMetric icon={CheckCircle2} label="Goal" value={`${goalCompletion}%`} body="Learning goals completed" />
-          <BigMetric icon={FileText} label="Studio" value={String(notes.length)} body="Recent notes and workspace items" />
-          <BigMetric icon={BookOpen} label="Quiz" value={String(quizzes.length)} body="Practice sets available" />
-          <BigMetric icon={Repeat2} label="Review" value={String(reviewCount)} body="Concepts needing attention" />
+          {metricTiles.slice(0, 4).map((metric) => (
+            <BigMetric key={metric.id} icon={dashboardMetricIcons[metric.id]} label={metric.label} value={metric.value} body={metric.detail} tone={metric.tone} />
+          ))}
         </div>
       </section>
 
@@ -386,11 +409,13 @@ function OnboardingCard({
   )
 }
 
-function BigMetric({ body, icon: Icon, label, value }: { body: string; icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
+function BigMetric({ body, icon: Icon, label, tone, value }: { body: string; icon: React.ComponentType<{ className?: string }>; label: string; tone: "critical" | "steady" | "watch"; value: string }) {
   return (
     <div className="group relative border-b border-border p-4 sm:border-r xl:border-b-0">
       <div className="flex items-center gap-3">
-        <Icon className="h-8 w-8 text-primary" />
+        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md ${metricToneClass(tone)}`}>
+          <Icon className="h-6 w-6" />
+        </span>
         <div className="min-w-0">
           <p className="truncate text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
           <p className="text-3xl font-semibold leading-none text-foreground">{value}</p>
@@ -399,6 +424,12 @@ function BigMetric({ body, icon: Icon, label, value }: { body: string; icon: Rea
       <p className="pointer-events-none absolute left-3 right-3 top-[calc(100%-0.2rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{body}</p>
     </div>
   )
+}
+
+function metricToneClass(tone: "critical" | "steady" | "watch") {
+  if (tone === "critical") return "bg-destructive/10 text-destructive"
+  if (tone === "steady") return "bg-success/10 text-success"
+  return "bg-primary/10 text-primary"
 }
 
 function StatusChip({ label, tone = "watch" }: { label: string; tone?: "critical" | "steady" | "watch" }) {
