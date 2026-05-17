@@ -10,7 +10,7 @@ import { buildAdminOperationalPlan, filterAdminList, summarizeAdminOperations, t
 import type { WorkspaceOptions } from "../preferences"
 import type { CalendarEvent, Quiz, User, View } from "../types"
 import { api, formatDate } from "../api"
-import { Panel } from "../ui"
+import { ControlButton, Panel, StatusPill as SharedStatusPill } from "../ui"
 import { ProviderAdminPanel } from "./provider-admin-panel"
 
 const progressActionIcons: Record<ProgressActionTarget, typeof Target> = {
@@ -371,9 +371,9 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
       <Panel className="p-4">
         <h2 className="text-2xl font-semibold text-foreground">Study calendar</h2>
         <div className="mt-2 flex flex-wrap gap-2">
-          <StatusPill label={`${options.calendarDefaultMinutes}m default`} />
-          <StatusPill label={`${options.calendarLeadMinutes}m lead`} />
-          <StatusPill label={timezone} />
+          <SharedStatusPill label={`${options.calendarDefaultMinutes}m default`} />
+          <SharedStatusPill label={`${options.calendarLeadMinutes}m lead`} />
+          <SharedStatusPill label={timezone} />
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Info label="Today" value={agendaSummary.today} />
@@ -384,10 +384,10 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
         <button onClick={applyPlanSuggestion} className="mt-4 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
           <div className="flex items-center justify-between gap-3">
             <span className="font-semibold text-foreground">{calendarPlan.headline}</span>
-            <span className={`rounded-md px-2 py-1 text-xs font-semibold ${settingsToneClass(calendarPlan.tone)}`}>{calendarPlan.suggestion.eventType}</span>
+            <SharedStatusPill label={calendarPlan.suggestion.eventType} tone={settingsTone(calendarPlan.tone)} />
           </div>
           <div className="mt-2 flex flex-wrap gap-2">
-            {calendarPlan.chips.map((chip) => <span key={chip} className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">{chip}</span>)}
+            {calendarPlan.chips.map((chip) => <SharedStatusPill key={chip} label={chip} />)}
           </div>
           <p className="mt-2 text-xs text-muted-foreground">{calendarPlan.suggestion.reason}</p>
         </button>
@@ -403,9 +403,9 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
           <Field label="Duration minutes" value={String(durationMinutes)} onChange={(value) => setDurationMinutes(Number(value) || options.calendarDefaultMinutes)} />
           <div className="flex flex-wrap gap-2">
             {calendarDurationPresets.map((minutes) => (
-              <button key={minutes} onClick={() => setDurationMinutes(minutes)} className={`h-8 rounded-md px-3 text-xs font-semibold ${durationMinutes === minutes ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+              <ControlButton key={minutes} onClick={() => setDurationMinutes(minutes)} active={durationMinutes === minutes} size="compact">
                 {formatCalendarDuration(minutes)}
-              </button>
+              </ControlButton>
             ))}
           </div>
           <label className="block rounded-lg bg-muted p-4">
@@ -433,15 +433,15 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                <button onClick={() => shiftVisibleMonth(-1)} className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label="Previous month">
+                <ControlButton onClick={() => shiftVisibleMonth(-1)} className="h-8 w-8 px-0" size="compact" aria-label="Previous month">
                   <ArrowLeft className="h-4 w-4" />
-                </button>
-                <button onClick={() => { setVisibleMonth(new Date()); setSelectedDayKey(localDateKey(new Date())) }} className="h-8 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                </ControlButton>
+                <ControlButton onClick={() => { setVisibleMonth(new Date()); setSelectedDayKey(localDateKey(new Date())) }} size="compact">
                   Today
-                </button>
-                <button onClick={() => shiftVisibleMonth(1)} className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label="Next month">
+                </ControlButton>
+                <ControlButton onClick={() => shiftVisibleMonth(1)} className="h-8 w-8 px-0" size="compact" aria-label="Next month">
                   <ArrowRight className="h-4 w-4" />
-                </button>
+                </ControlButton>
               </div>
             </div>
             <div className="grid grid-cols-7 gap-1 text-center text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
@@ -469,7 +469,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
                 <h3 className="font-semibold text-foreground">{formatCalendarDayLabel(selectedDayKey)}</h3>
                 <p className="text-xs text-muted-foreground">{selectedDayEvents.length} scheduled blocks</p>
               </div>
-              <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{timezone}</span>
+              <SharedStatusPill label={timezone} />
             </div>
             <div className="space-y-2">
               {selectedDayEvents.map((event) => (
@@ -495,18 +495,19 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
             <h3 className="font-semibold text-foreground">Agenda records</h3>
             <p className="text-sm text-muted-foreground">Select a block to edit it in the left panel.</p>
           </div>
-          <span className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">{filteredEvents.length}/{events.length} blocks</span>
+          <SharedStatusPill label={`${filteredEvents.length}/${events.length} blocks`} />
         </div>
         <div className="mb-4 flex flex-wrap gap-2">
           {(["all", "today", "upcoming", "review", "completed"] as CalendarAgendaFilter[]).map((filter) => (
-            <button
+            <ControlButton
               key={filter}
               onClick={() => setAgendaFilter(filter)}
-              className={`inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-semibold ${agendaFilter === filter ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+              active={agendaFilter === filter}
+              size="compact"
             >
               <Filter className="h-3.5 w-3.5" />
               {filter[0].toUpperCase() + filter.slice(1)}
-            </button>
+            </ControlButton>
           ))}
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -609,10 +610,10 @@ function labelCalendarEventType(type: string) {
 
 function CalendarAction({ icon: Icon, label, onClick, primary }: { icon: typeof Save; label: string; onClick: () => void; primary?: boolean }) {
   return (
-    <button onClick={onClick} className={`inline-flex h-10 items-center justify-center gap-2 rounded-md border px-3 text-sm font-semibold ${primary ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+    <ControlButton onClick={onClick} active={primary}>
       <Icon className="h-4 w-4" />
       {label}
-    </button>
+    </ControlButton>
   )
 }
 
@@ -875,6 +876,12 @@ function settingsToneClass(tone: "good" | "watch" | "neutral") {
   if (tone === "good") return "bg-success text-success-foreground"
   if (tone === "watch") return "bg-warning text-warning-foreground"
   return "bg-secondary text-secondary-foreground"
+}
+
+function settingsTone(tone: "good" | "watch" | "neutral") {
+  if (tone === "good") return "steady"
+  if (tone === "watch") return "watch"
+  return "neutral"
 }
 
 export function AdminView({ user, adminData, automationData, options }: { user: User | null; adminData: any; automationData: any; options: WorkspaceOptions }) {
