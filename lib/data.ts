@@ -180,7 +180,7 @@ export async function revokeSession(token: string) {
 
 export async function getDashboardData(user: User) {
   await ensureDatabase()
-  const [notes, goals, answers, chats] = await Promise.all([
+  const [notes, goals, answers, chats, attempts, files] = await Promise.all([
     query<NoteRecord>(
       `SELECT n.*,
         COALESCE((
@@ -205,6 +205,23 @@ export async function getDashboardData(user: User) {
       [user.id],
     ),
     query("SELECT id, title, updated_at FROM ai_chats WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 5", [user.id]),
+    query(
+      `SELECT a.id, a.score, a.total, a.created_at, q.title AS quiz_title
+       FROM quiz_attempts a
+       LEFT JOIN quizzes q ON q.id = a.quiz_id
+       WHERE a.user_id = $1
+       ORDER BY a.created_at DESC
+       LIMIT 5`,
+      [user.id],
+    ),
+    query(
+      `SELECT id, filename, content_type, created_at
+       FROM media_assets
+       WHERE owner_user_id = $1 OR $2 = 'admin'
+       ORDER BY created_at DESC
+       LIMIT 5`,
+      [user.id, user.role],
+    ),
   ])
 
   const normalizedNotes = notes.rows.map(normalizeNote)
@@ -224,6 +241,8 @@ export async function getDashboardData(user: User) {
     notes: normalizedNotes,
     goals: goals.rows,
     chats: chats.rows,
+    attempts: attempts.rows,
+    files: files.rows,
   }
 }
 
