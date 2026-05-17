@@ -1,7 +1,7 @@
 import { cookies } from "next/headers"
 import { buildProviderAdminSummary, decryptProviderSecret, encryptProviderSecret, maskProviderSecret, normalizeProviderConfigInput, type ProviderConfigInput } from "./ai/provider-admin"
 import type { AiProviderKey } from "./ai/providers"
-import { createSessionToken, hashSessionToken, verifyPassword } from "./auth"
+import { createSessionToken, hashPassword, hashSessionToken, verifyPassword } from "./auth"
 import { query } from "./db"
 import { buildLearningSnapshot, type TopicAnswer } from "./learning"
 import {
@@ -584,6 +584,107 @@ export async function createWorkspaceInvite(user: User, input: Record<string, un
   )
   await logAudit({ userId: user.id, action: "create", entity: "workspace_invite", entityId: id })
   return { id, token, status: "pending" }
+}
+
+export async function getWorkspaceInviteByToken(token: string) {
+  await ensureDatabase()
+  const tokenHash = await hashSessionToken(token)
+  const result = await query(
+    `SELECT id, workspace_id, invited_email, role, status, expires_at, created_at
+     FROM workspace_invites
+     WHERE token_hash = $1
+     LIMIT 1`,
+    [tokenHash],
+  )
+  const invite = result.rows[0]
+  if (!invite) return null
+  const expired = new Date(String(invite.expires_at)).getTime() < Date.now()
+  return {
+    ...invite,
+    expired,
+    ready: invite.status === "pending" && !expired,
+  }
+}
+
+async function createUniqueUsername(email: string) {
+  const base = email
+    .split("@")[0]
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 24) || "learner"
+
+  for (let index = 0; index < 5; index += 1) {
+    const username = index === 0 ? base : `${base}_${index + 1}`
+    const existing = await query("SELECT id FROM users WHERE lower(username) = lower($1) LIMIT 1", [username])
+    if (!existing.rowCount) return username
+  }
+
+  return `${base}_${createId("user").slice(-6)}`
+}
+
+export async function acceptWorkspaceInvite(input: {
+  email: string
+  name: string
+  password: string
+  token: string
+}) {
+  await ensureDatabase()
+  const invite = await getWorkspaceInviteByToken(input.token)
+  if (!invite) throw new Error("Invite not found.")
+  if (invite.status !== "pending") throw new Error("Invite has already been used.")
+  if (invite.expired) {
+    await query("UPDATE workspace_invites SET status = 'expired' WHERE id = $1", [invite.id])
+    throw new Error("Invite has expired. Ask an admin for a new invite.")
+  }
+
+  if (String(invite.invited_email).toLowerCase() !== input.email.toLowerCase()) {
+    throw new Error("Use the same email address that received the invite.")
+  }
+
+  const existing = await query("SELECT * FROM users WHERE lower(email) = lower($1) LIMIT 1", [input.email])
+  const user = existing.rows[0]
+    ? normalizeUser(existing.rows[0])
+    : await (async () => {
+        const newUser = {
+          id: createId("user"),
+          username: await createUniqueUsername(input.email),
+          email: input.email,
+          name: input.name,
+          role: invite.role === "admin" ? "admin" as const : "learner" as const,
+          preferences: { theme: "system", focusMode: "balanced", dailyGoalMinutes: 45, firstRun: true },
+        }
+        await query(
+          `INSERT INTO users (id, username, email, name, password_hash, role, preferences)
+           VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
+          [
+            newUser.id,
+            newUser.username,
+            newUser.email,
+            newUser.name,
+            await hashPassword(input.password),
+            newUser.role,
+            JSON.stringify(newUser.preferences),
+          ],
+        )
+        return newUser
+      })()
+
+  await query(
+    `INSERT INTO workspace_members (workspace_id, user_id, role, status)
+     VALUES ($1, $2, $3, 'active')
+     ON CONFLICT (workspace_id, user_id) DO UPDATE
+     SET role = EXCLUDED.role,
+         status = 'active'`,
+    [String(invite.workspace_id || "workspace_demo"), user.id, String(invite.role || "learner")],
+  )
+  await query("UPDATE workspace_invites SET status = 'accepted' WHERE id = $1", [invite.id])
+  await logAudit({ userId: user.id, action: "accept", entity: "workspace_invite", entityId: String(invite.id) })
+  return {
+    createdUser: !existing.rows[0],
+    inviteId: String(invite.id),
+    user,
+  }
 }
 
 export async function listGroups(user: User) {
