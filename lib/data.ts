@@ -43,6 +43,16 @@ export interface NoteRecord {
   tags?: string[]
 }
 
+interface WorkspaceInviteRow {
+  id: string
+  workspace_id: string
+  invited_email: string
+  role: string
+  status: string
+  expires_at: string
+  created_at: string
+}
+
 function normalizeUser(row: Record<string, unknown>): User {
   const preferences = parseJsonObject(row.preferences)
   return {
@@ -299,7 +309,7 @@ export async function listNoteVersions(user: User, noteId: string) {
   await ensureDatabase()
   const note = await query("SELECT id FROM notes WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin') LIMIT 1", [noteId, user.id, user.role])
   if (!note.rowCount) return []
-  const result = await query(
+  const result = await query<WorkspaceInviteRow>(
     `SELECT id, note_id, user_id, title, content, metadata, created_at
      FROM note_versions
      WHERE note_id = $1
