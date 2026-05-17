@@ -28,9 +28,10 @@ import { normalizeOnboardingPreferences, onboardingTargetView, shouldShowOnboard
 import { api } from "../api"
 import type { WorkspaceOptions } from "../preferences"
 import type { Note, Quiz, User, View } from "../types"
-import { Panel } from "../ui"
+import { Panel, StatusPill } from "../ui"
 import type { PracticeDraftSummary } from "@/lib/practice-drafts"
 import type { StudioDraftSummary } from "@/lib/studio-drafts"
+import { toneSurfaceClasses } from "@/lib/design-system"
 
 const dashboardCommandIcons: Record<DashboardCommandTarget, React.ComponentType<{ className?: string }>> = {
   ai: Sparkles,
@@ -145,7 +146,7 @@ export function DashboardView({
           <div className="min-w-0">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">Today</span>
-              {dashboardSignals.map((signal) => <StatusChip key={signal.label} label={`${signal.label} ${signal.value}`} tone={signal.tone} />)}
+              {dashboardSignals.map((signal) => <StatusPill key={signal.label} label={`${signal.label} ${signal.value}`} tone={signal.tone} />)}
             </div>
             <h2 className="max-w-4xl text-2xl font-semibold leading-tight text-foreground md:text-4xl">
               {commandPlan.headline}
@@ -185,7 +186,7 @@ export function DashboardView({
               })}
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
-              {commandPlan.chips.map((chip) => <StatusChip key={chip} label={chip} />)}
+              {commandPlan.chips.map((chip) => <StatusPill key={chip} label={chip} />)}
             </div>
           </div>
         </div>
@@ -381,7 +382,7 @@ function OnboardingCard({
         <div className="min-w-0">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <span className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">First run</span>
-            <StatusChip label="3 steps" tone="steady" />
+            <StatusPill label="3 steps" tone="steady" />
           </div>
           <h2 className="text-2xl font-semibold text-foreground">Set up your learning loop.</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Pick a goal, your first useful move, and where Studio should start. You can change all of this later in Settings.</p>
@@ -431,7 +432,7 @@ function BigMetric({ body, icon: Icon, label, tone, value }: { body: string; ico
   return (
     <div className="group relative border-b border-border p-4 sm:border-r xl:border-b-0">
       <div className="flex items-center gap-3">
-        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md ${metricToneClass(tone)}`}>
+        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md ${toneSurfaceClasses(tone)}`}>
           <Icon className="h-6 w-6" />
         </span>
         <div className="min-w-0">
@@ -441,28 +442,6 @@ function BigMetric({ body, icon: Icon, label, tone, value }: { body: string; ico
       </div>
       <p className="pointer-events-none absolute left-3 right-3 top-[calc(100%-0.2rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{body}</p>
     </div>
-  )
-}
-
-function metricToneClass(tone: "critical" | "steady" | "watch") {
-  if (tone === "critical") return "bg-destructive/10 text-destructive"
-  if (tone === "steady") return "bg-success/10 text-success"
-  return "bg-primary/10 text-primary"
-}
-
-function StatusChip({ label, tone = "watch" }: { label: string; tone?: "critical" | "steady" | "watch" }) {
-  return <span className={`rounded-md border px-2.5 py-1 text-xs font-semibold ${statusToneClass(tone)}`}>{label}</span>
-}
-
-function HeroAction({ icon: Icon, label, onClick, primary }: { icon: React.ComponentType<{ className?: string }>; label: string; onClick: () => void; primary?: boolean }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex h-11 items-center gap-2 rounded-md border px-3 text-sm font-semibold transition hover:-translate-y-0.5 ${primary ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
-    >
-      <Icon className="h-5 w-5" />
-      {label}
-    </button>
   )
 }
 
@@ -494,10 +473,4 @@ function AgendaItem({ label, value }: { label: string; value: string }) {
       <span className="text-muted-foreground">{value}</span>
     </div>
   )
-}
-
-function statusToneClass(tone: "critical" | "steady" | "watch") {
-  if (tone === "critical") return "border-destructive/40 bg-destructive/10 text-destructive"
-  if (tone === "steady") return "border-success/40 bg-success/10 text-success"
-  return "border-border bg-background text-muted-foreground"
 }
