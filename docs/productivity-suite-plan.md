@@ -62,6 +62,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-17: Continued Phase 2 auth maturity with safe redirect-back login handling, explicit admin-reset guidance for forgotten passwords, and a token-based invite acceptance path that creates or attaches learner accounts and signs them in.
 - 2026-05-17: Added an Admin Access tab that turns request-access audit rows into readable request cards and lets admins issue copyable invite links from each request.
 - 2026-05-17: Added Dashboard first-run onboarding for invite-created learners and `/dashboard?onboarding=1`, saving learning goal, preferred workflow, and first Studio type before routing to the next useful page.
+- 2026-05-17: Started Phase 3 dashboard maturity by adding tested setup-gap helpers and compact Dashboard cards that only appear when Studio material, practice, or route signals are missing.
 
 ## Implementation Slices
 
