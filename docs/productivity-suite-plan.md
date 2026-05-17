@@ -28,6 +28,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 | Trash/folders | Planned | Add restore/delete-forever/empty-trash and move-to-folder flows where schema supports it. |
 | Tests | In progress | Local gates are `pnpm test`, `pnpm lint`, and `pnpm build`; browser checks are run on key flows. |
 | Shell and calendar | In progress | Desktop sidebar is fixed for long pages. Calendar now needs to keep growing toward true date/time planning with month, day, agenda, and editing views. |
+| Schema and sharing | Planned | A final Phase 6 schema/workflow plan now maps current D1 tables, social polymorphism, sharing gaps, review/practice loops, realtime snapshots, and UI declutter targets. |
 
 ## Progress Log
 
@@ -73,6 +74,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-17: Continued Phase 4 by moving Calendar duration presets, month navigation, agenda filters, planning chips, timezone chips, and event action buttons onto shared design-system primitives.
 - 2026-05-17: Continued Phase 4 by moving Progress, Settings, and Admin header chips plus Settings save/language/suggested-section controls onto shared design-system primitives.
 - 2026-05-18: Continued Phase 4 by replacing Admin overview, provider/key, access-request, tab, invite, and plan chips/buttons with shared design-system primitives.
+- 2026-05-18: Completed a multi-pass schema/workflow sweep and added the final Phase 6 relational schema plan covering content registry, universal sharing, friends/follows, content versions, practice sessions, collaboration logs, search/feed cache, and cleaner grouped UI workflows.
 
 ## Implementation Slices
 
