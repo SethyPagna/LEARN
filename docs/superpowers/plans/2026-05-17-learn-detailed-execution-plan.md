@@ -123,7 +123,7 @@
 
 ## Phase 4: Design System And Theme Maturity
 
-**Progress note (2026-05-17):** Phase 4 has started with tested shared tone/control helpers in `lib/design-system.ts`, reusable `StatusPill` and `ControlButton` primitives in `components/learn/ui.tsx`, Dashboard status/metric tone logic wired to the shared helpers, AI Tutor status/menu/gateway/result controls moved off one-off color helpers, Practice timer/submit/retry/review controls moved onto the same primitives, Calendar duration/month/filter/action controls now using the shared primitives, and Progress/Settings/Admin header chips plus Settings save/language/suggestion controls moved onto shared primitives.
+**Progress note (2026-05-18):** Phase 4 has started with tested shared tone/control helpers in `lib/design-system.ts`, reusable `StatusPill` and `ControlButton` primitives in `components/learn/ui.tsx`, Dashboard status/metric tone logic wired to the shared helpers, AI Tutor status/menu/gateway/result controls moved off one-off color helpers, Practice timer/submit/retry/review controls moved onto the same primitives, Calendar duration/month/filter/action controls now using the shared primitives, Progress/Settings/Admin header chips plus Settings save/language/suggestion controls moved onto shared primitives, and Admin overview, provider/key, access-request, tab, invite, and plan chips/buttons now use the shared design-system primitives.
 
 **Primary files:**
 - `app/globals.css`
