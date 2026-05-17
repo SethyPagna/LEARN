@@ -50,7 +50,7 @@
 
 ### Sub-phases
 
-- [ ] **3.1 Today Route:** Show one prioritized route: review, create, practice, schedule, or repair weak topic.
+- [x] **3.1 Today Route:** Show one prioritized route: review, create, practice, schedule, or repair weak topic.
 - [x] **3.2 Compact metrics:** Use large icon tiles for streak, XP, due reviews, Studio drafts, and calendar focus.
 - [x] **3.3 Recent work:** Show Studio recents, last AI result, last quiz attempt, and file imports.
 - [x] **3.4 Empty states:** Guide new users without long explanations.
