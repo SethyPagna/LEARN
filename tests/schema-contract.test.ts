@@ -1,0 +1,107 @@
+import assert from "node:assert/strict"
+import { readdirSync, readFileSync } from "node:fs"
+import { join } from "node:path"
+import test from "node:test"
+
+const migrationsDir = join(process.cwd(), "migrations")
+
+function readMigrationSql() {
+  return readdirSync(migrationsDir)
+    .filter((name) => name.endsWith(".sql"))
+    .sort()
+    .map((name) => readFileSync(join(migrationsDir, name), "utf8"))
+    .join("\n")
+}
+
+function createdTables(sql: string) {
+  return new Set(
+    Array.from(sql.matchAll(/CREATE\s+(?:VIRTUAL\s+)?TABLE\s+IF\s+NOT\s+EXISTS\s+([a-zA-Z0-9_]+)/gi))
+      .map((match) => match[1]),
+  )
+}
+
+function createdIndexes(sql: string) {
+  return new Map(
+    Array.from(sql.matchAll(/CREATE\s+INDEX\s+IF\s+NOT\s+EXISTS\s+([a-zA-Z0-9_]+)\s+ON\s+([a-zA-Z0-9_]+)\s*\(([^)]+)\)/gi))
+      .map((match) => [
+        match[1],
+        {
+          columns: match[3].replace(/\s+/g, " ").trim(),
+          table: match[2],
+        },
+      ]),
+  )
+}
+
+test("D1 migrations include the current LEARN product tables", () => {
+  const tables = createdTables(readMigrationSql())
+  const requiredTables = [
+    "users",
+    "user_sessions",
+    "workspaces",
+    "notes",
+    "note_blocks",
+    "note_versions",
+    "editor_documents",
+    "sheet_documents",
+    "slide_decks",
+    "media_assets",
+    "quizzes",
+    "quiz_questions",
+    "quiz_attempts",
+    "quiz_attempt_answers",
+    "game_attempts",
+    "review_items",
+    "review_logs",
+    "knowledge_nodes",
+    "knowledge_edges",
+    "micro_lessons",
+    "feed_interactions",
+    "learning_spaces",
+    "learning_space_members",
+    "workspace_groups",
+    "group_members",
+    "chat_threads",
+    "chat_messages",
+    "study_rooms",
+    "study_battles",
+    "social_actions",
+    "moderation_items",
+    "ai_provider_configs",
+    "ai_chats",
+    "ai_messages",
+    "ai_response_logs",
+    "rate_limit_buckets",
+    "audit_logs",
+  ]
+
+  assert.deepEqual(
+    requiredTables.filter((table) => !tables.has(table)),
+    [],
+  )
+})
+
+test("D1 migrations keep indexes for the current hot product queries", () => {
+  const indexes = createdIndexes(readMigrationSql())
+  const requiredIndexes = {
+    idx_notes_updated_at: { table: "notes", includes: ["updated_at"] },
+    idx_editor_documents_workspace: { table: "editor_documents", includes: ["workspace_id", "updated_at DESC"] },
+    idx_sheet_documents_workspace: { table: "sheet_documents", includes: ["workspace_id", "updated_at DESC"] },
+    idx_slide_decks_workspace: { table: "slide_decks", includes: ["workspace_id", "updated_at DESC"] },
+    idx_media_assets_workspace_id: { table: "media_assets", includes: ["workspace_id"] },
+    idx_review_items_due: { table: "review_items", includes: ["user_id", "due_at"] },
+    idx_feed_interactions_user: { table: "feed_interactions", includes: ["user_id", "created_at DESC"] },
+    idx_social_actions_target: { table: "social_actions", includes: ["target_type", "target_id", "created_at DESC"] },
+    idx_chat_messages_thread: { table: "chat_messages", includes: ["thread_id", "created_at"] },
+    idx_ai_provider_configs_priority: { table: "ai_provider_configs", includes: ["enabled", "priority", "provider"] },
+  }
+
+  for (const [name, expected] of Object.entries(requiredIndexes)) {
+    const actual = indexes.get(name)
+    assert.ok(actual, `${name} should exist`)
+    assert.equal(actual.table, expected.table)
+    for (const column of expected.includes) {
+      assert.ok(actual.columns.includes(column), `${name} should include ${column}`)
+    }
+  }
+})
