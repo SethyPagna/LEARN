@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardRecentWork, buildDashboardSignals } from "../lib/dashboard-features"
+import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardRecentWork, buildDashboardRouteActions, buildDashboardSignals } from "../lib/dashboard-features"
 
 test("buildDashboardCommandPlan prioritizes weak topic repair", () => {
   const plan = buildDashboardCommandPlan({
@@ -35,6 +35,27 @@ test("buildDashboardCommandPlan falls through to focus studio ai and calendar ro
 
   assert.equal(focusPlan.headline, "Continue Graphs")
   assert.equal(focusPlan.target, "reviews")
+})
+
+test("buildDashboardRouteActions gives one primary and unique backups", () => {
+  const actions = buildDashboardRouteActions({
+    noteCount: 4,
+    quizCount: 2,
+    snapshot: { weakTopics: [{ topic: "Indexes", accuracy: 25, attempts: 4 }] },
+  })
+
+  assert.equal(actions[0].primary, true)
+  assert.equal(actions[0].target, "practice")
+  assert.equal(actions[0].label, "Practice weak topic")
+  assert.equal(new Set(actions.map((action) => action.target)).size, actions.length)
+  assert.ok(actions.length <= 3)
+})
+
+test("buildDashboardRouteActions keeps empty learner moves useful", () => {
+  const actions = buildDashboardRouteActions({ noteCount: 0, quizCount: 0, snapshot: { goalCompletion: 0 } })
+
+  assert.deepEqual(actions.map((action) => action.target), ["studio", "files", "calendar"])
+  assert.equal(actions[0].detail, "Capture the first reusable learning item.")
 })
 
 test("buildDashboardSignals summarizes dashboard state with tones", () => {

@@ -27,6 +27,14 @@ export interface DashboardCommandPlan {
   chips: string[]
 }
 
+export interface DashboardRouteAction {
+  id: string
+  label: string
+  detail: string
+  target: DashboardCommandTarget
+  primary: boolean
+}
+
 export interface DashboardSignal {
   label: string
   value: string
@@ -158,6 +166,60 @@ export function buildDashboardCommandPlan(input: DashboardCommandInput): Dashboa
     target: "calendar",
     chips: [`${input.quizCount} practice sets`, `${input.noteCount} Studio items`, "time block"],
   }
+}
+
+export function buildDashboardRouteActions(input: DashboardCommandInput): DashboardRouteAction[] {
+  const plan = buildDashboardCommandPlan(input)
+  const actions: DashboardRouteAction[] = [
+    {
+      id: `primary-${plan.target}`,
+      label: primaryActionLabel(plan),
+      detail: primaryActionDetail(plan),
+      target: plan.target,
+      primary: true,
+    },
+  ]
+
+  const snapshot = input.snapshot ?? {}
+  const hasWeakTopics = (snapshot.weakTopics ?? []).length > 0
+  const hasFocus = uniqueNonEmpty(snapshot.recommendedFocus ?? []).length > 0
+  const backupCandidates: DashboardRouteAction[] = []
+
+  if (input.noteCount === 0) {
+    backupCandidates.push(
+      { id: "backup-files", label: "Upload source", detail: "Add a file, image, or video.", target: "files", primary: false },
+      { id: "backup-calendar", label: "Plan time", detail: "Reserve a short study block.", target: "calendar", primary: false },
+      { id: "backup-ai", label: "Ask tutor", detail: "Get a starter route.", target: "ai", primary: false },
+    )
+  } else if (input.quizCount === 0) {
+    backupCandidates.push(
+      { id: "backup-studio", label: "Refine Studio", detail: "Clean up the source material.", target: "studio", primary: false },
+      { id: "backup-calendar", label: "Plan time", detail: "Reserve a short study block.", target: "calendar", primary: false },
+      { id: "backup-files", label: "Upload source", detail: "Add more raw material.", target: "files", primary: false },
+    )
+  } else if (hasWeakTopics || hasFocus) {
+    backupCandidates.push(
+      { id: "backup-reviews", label: "Review queue", detail: "Recall before more input.", target: "reviews", primary: false },
+      { id: "backup-ai", label: "Ask tutor", detail: "Get an explanation or route.", target: "ai", primary: false },
+      { id: "backup-calendar", label: "Plan time", detail: "Schedule the next block.", target: "calendar", primary: false },
+    )
+  } else {
+    backupCandidates.push(
+      { id: "backup-practice", label: "Practice", detail: "Run a short quiz loop.", target: "practice", primary: false },
+      { id: "backup-reviews", label: "Review", detail: "Refresh older concepts.", target: "reviews", primary: false },
+      { id: "backup-ai", label: "Ask tutor", detail: "Create a focused plan.", target: "ai", primary: false },
+    )
+  }
+
+  const usedTargets = new Set<DashboardCommandTarget>([plan.target])
+  for (const candidate of backupCandidates) {
+    if (usedTargets.has(candidate.target)) continue
+    actions.push(candidate)
+    usedTargets.add(candidate.target)
+    if (actions.length === 3) break
+  }
+
+  return actions
 }
 
 export function buildDashboardSignals(input: DashboardCommandInput): DashboardSignal[] {
@@ -333,6 +395,26 @@ function pickWeakestTopic(topics: DashboardWeakTopic[]) {
 
 function firstNonEmpty(values: string[]) {
   return uniqueNonEmpty(values)[0]
+}
+
+function primaryActionLabel(plan: DashboardCommandPlan) {
+  if (plan.target === "practice") return "Practice weak topic"
+  if (plan.target === "reviews") return "Start review"
+  if (plan.target === "studio") return "Create Studio seed"
+  if (plan.target === "ai") return "Generate practice"
+  if (plan.target === "calendar") return "Schedule block"
+  if (plan.target === "files") return "Upload source"
+  return "Start now"
+}
+
+function primaryActionDetail(plan: DashboardCommandPlan) {
+  if (plan.target === "practice") return plan.targetTopic ? `Repair ${plan.targetTopic}.` : "Retry the highest-risk material."
+  if (plan.target === "reviews") return plan.targetTopic ? `Recall ${plan.targetTopic}.` : "Open the active recall queue."
+  if (plan.target === "studio") return "Capture the first reusable learning item."
+  if (plan.target === "ai") return "Turn recent material into practice."
+  if (plan.target === "calendar") return "Protect the next focus window."
+  if (plan.target === "files") return "Add source material."
+  return plan.detail
 }
 
 function uniqueNonEmpty(values: string[]) {
