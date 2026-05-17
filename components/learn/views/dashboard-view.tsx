@@ -23,7 +23,7 @@ import {
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import type React from "react"
-import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardRecentWork, buildDashboardRouteActions, buildDashboardSignals, type DashboardCommandTarget, type DashboardRecentWorkItem } from "@/lib/dashboard-features"
+import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardQuickActionGroups, buildDashboardRecentWork, buildDashboardRouteActions, buildDashboardSignals, type DashboardCommandTarget, type DashboardQuickActionIcon, type DashboardRecentWorkItem } from "@/lib/dashboard-features"
 import { normalizeOnboardingPreferences, onboardingTargetView, shouldShowOnboarding, type OnboardingStudioKind, type OnboardingWorkflow } from "@/lib/onboarding-features"
 import { api } from "../api"
 import type { WorkspaceOptions } from "../preferences"
@@ -31,8 +31,6 @@ import type { Note, Quiz, User, View } from "../types"
 import { Panel } from "../ui"
 import type { PracticeDraftSummary } from "@/lib/practice-drafts"
 import type { StudioDraftSummary } from "@/lib/studio-drafts"
-
-type DashboardAction = { label: string; body: string; view: View; icon: React.ComponentType<{ className?: string }> }
 
 const dashboardCommandIcons: Record<DashboardCommandTarget, React.ComponentType<{ className?: string }>> = {
   ai: Sparkles,
@@ -57,6 +55,19 @@ const recentWorkIcons = {
   practice: Gamepad2,
   studio: FileText,
 } satisfies Record<DashboardRecentWorkItem["kind"], React.ComponentType<{ className?: string }>>
+
+const quickActionIcons = {
+  brain: Brain,
+  calendar: CalendarDays,
+  compass: Compass,
+  file: FileText,
+  game: Gamepad2,
+  graph: GitFork,
+  message: MessageSquare,
+  plus: Plus,
+  repeat: Repeat2,
+  stats: BarChart3,
+} satisfies Record<DashboardQuickActionIcon, React.ComponentType<{ className?: string }>>
 
 export function DashboardView({
   dashboard,
@@ -120,44 +131,7 @@ export function DashboardView({
     [dashboard?.attempts, dashboard?.chats, dashboard?.files, notes],
   )
   const CommandIcon = dashboardCommandIcons[commandPlan.target]
-  const actionGroups: { label: string; actions: DashboardAction[] }[] = [
-    {
-      label: "Create",
-      actions: [
-        { label: "Open Studio", body: "Notes, docs, sheets, and slides", view: "studio", icon: FileText },
-        { label: "Upload media", body: "Images, video, and files", view: "files", icon: Plus },
-      ],
-    },
-    {
-      label: "Review",
-      actions: [
-        { label: "Learn route", body: "Route, graph, reviews, and calendar", view: "learn", icon: Brain },
-        { label: "Review queue", body: "Due concepts and mistake cards", view: "reviews", icon: Repeat2 },
-        { label: "Knowledge map", body: "Graph links and weak areas", view: "graph", icon: GitFork },
-      ],
-    },
-    {
-      label: "Practice",
-      actions: [
-        { label: "Practice hub", body: "Quizzes, games, exams, and retries", view: "practice", icon: BookOpen },
-        { label: "Sprint mode", body: "Timed review and matching games", view: "practice", icon: Gamepad2 },
-      ],
-    },
-    {
-      label: "Share",
-      actions: [
-        { label: "Social hub", body: "Chat, spaces, rooms, and battles", view: "social", icon: MessageSquare },
-        { label: "Focus room", body: "Pomodoro presence and study rooms", view: "rooms", icon: Compass },
-      ],
-    },
-    {
-      label: "Manage",
-      actions: [
-        { label: "Calendar", body: "Plan study blocks", view: "calendar", icon: CalendarDays },
-        { label: "Settings", body: "Tune the workspace", view: "settings", icon: BarChart3 },
-      ],
-    },
-  ]
+  const actionGroups = useMemo(() => buildDashboardQuickActionGroups(), [])
 
   useEffect(() => {
     setShowOnboarding(shouldShowOnboarding({ force: forceOnboarding, preferences: user?.preferences }))
@@ -346,14 +320,14 @@ export function DashboardView({
               <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{group.label}</p>
               <div className="grid gap-2">
                 {group.actions.map((action) => {
-                  const Icon = action.icon
+                  const Icon = quickActionIcons[action.icon]
                   return (
-                    <button key={action.label} onClick={() => setView(action.view)} className="group relative rounded-md border border-border bg-background p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground" title={action.body}>
+                    <button key={action.id} onClick={() => setView(action.target as View)} className="group relative rounded-md border border-border bg-background p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground" title={action.detail}>
                       <div className="flex items-center gap-2">
                         <Icon className="h-6 w-6 text-success" />
                         <p className="text-sm font-semibold">{action.label}</p>
                       </div>
-                      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{action.body}</p>
+                      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{action.detail}</p>
                     </button>
                   )
                 })}
