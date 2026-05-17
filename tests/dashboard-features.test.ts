@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardSignals } from "../lib/dashboard-features"
+import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardRecentWork, buildDashboardSignals } from "../lib/dashboard-features"
 
 test("buildDashboardCommandPlan prioritizes weak topic repair", () => {
   const plan = buildDashboardCommandPlan({
@@ -94,4 +94,18 @@ test("buildDashboardMetricTiles combines learner progress drafts and focus time"
   assert.equal(metrics.find((metric) => metric.id === "xp")?.value, "260")
   assert.equal(metrics.find((metric) => metric.id === "reviews")?.value, "2")
   assert.equal(metrics.find((metric) => metric.id === "drafts")?.detail, "2 Studio and 1 practice draft")
+})
+
+test("buildDashboardRecentWork sorts mixed work and maps routes", () => {
+  const recents = buildDashboardRecentWork({
+    aiChats: [{ id: "chat_1", title: "Explain indexes", updated_at: "2026-05-17T03:00:00.000Z" }],
+    files: [{ id: "asset_1", filename: "syllabus.pdf", created_at: "2026-05-17T04:00:00.000Z", content_type: "application/pdf" }],
+    notes: [{ id: "note_1", title: "Database notes", updated_at: "2026-05-17T02:00:00.000Z" }],
+    quizAttempts: [{ id: "attempt_1", quiz_title: "SQL quiz", score: 4, total: 5, created_at: "2026-05-17T05:00:00.000Z" }],
+  })
+
+  assert.deepEqual(recents.map((recent) => recent.kind), ["practice", "file", "ai", "studio"])
+  assert.equal(recents[0].detail, "4/5 score")
+  assert.equal(recents[1].target, "files")
+  assert.equal(recents[2].target, "ai")
 })

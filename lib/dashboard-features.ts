@@ -61,6 +61,55 @@ export interface DashboardMetricTile {
   tone: "critical" | "steady" | "watch"
 }
 
+export interface DashboardRecentNoteLike {
+  id: string
+  title: string
+  updated_at?: string
+  updatedAt?: string
+}
+
+export interface DashboardRecentAiLike {
+  id: string
+  title: string
+  updated_at?: string
+  updatedAt?: string
+}
+
+export interface DashboardRecentAttemptLike {
+  id: string
+  quiz_title?: string
+  title?: string
+  score?: number
+  total?: number
+  created_at?: string
+  createdAt?: string
+}
+
+export interface DashboardRecentFileLike {
+  id: string
+  filename: string
+  content_type?: string
+  contentType?: string
+  created_at?: string
+  createdAt?: string
+}
+
+export interface DashboardRecentWorkInput {
+  aiChats?: DashboardRecentAiLike[]
+  files?: DashboardRecentFileLike[]
+  notes?: DashboardRecentNoteLike[]
+  quizAttempts?: DashboardRecentAttemptLike[]
+}
+
+export interface DashboardRecentWorkItem {
+  id: string
+  kind: "ai" | "file" | "practice" | "studio"
+  title: string
+  detail: string
+  target: DashboardCommandTarget
+  timestamp: string
+}
+
 export function buildDashboardCommandPlan(input: DashboardCommandInput): DashboardCommandPlan {
   const snapshot = input.snapshot ?? {}
   const weakTopic = pickWeakestTopic(snapshot.weakTopics ?? [])
@@ -211,6 +260,60 @@ export function buildDashboardMetricTiles(input: DashboardMetricInput): Dashboar
   ]
 }
 
+export function buildDashboardRecentWork(input: DashboardRecentWorkInput): DashboardRecentWorkItem[] {
+  const items: DashboardRecentWorkItem[] = []
+
+  for (const note of input.notes ?? []) {
+    items.push({
+      id: `studio:${note.id}`,
+      kind: "studio",
+      title: cleanTitle(note.title, "Untitled Studio item"),
+      detail: "Studio item",
+      target: "studio",
+      timestamp: normalizeTimestamp(note.updated_at ?? note.updatedAt),
+    })
+  }
+
+  for (const chat of input.aiChats ?? []) {
+    items.push({
+      id: `ai:${chat.id}`,
+      kind: "ai",
+      title: cleanTitle(chat.title, "AI tutor chat"),
+      detail: "AI result",
+      target: "ai",
+      timestamp: normalizeTimestamp(chat.updated_at ?? chat.updatedAt),
+    })
+  }
+
+  for (const attempt of input.quizAttempts ?? []) {
+    const score = Number.isFinite(Number(attempt.score)) ? Number(attempt.score) : 0
+    const total = Number.isFinite(Number(attempt.total)) ? Number(attempt.total) : 0
+    items.push({
+      id: `practice:${attempt.id}`,
+      kind: "practice",
+      title: cleanTitle(attempt.quiz_title ?? attempt.title, "Practice attempt"),
+      detail: total ? `${score}/${total} score` : "Practice attempt",
+      target: "practice",
+      timestamp: normalizeTimestamp(attempt.created_at ?? attempt.createdAt),
+    })
+  }
+
+  for (const file of input.files ?? []) {
+    items.push({
+      id: `file:${file.id}`,
+      kind: "file",
+      title: cleanTitle(file.filename, "Uploaded file"),
+      detail: readableContentType(file.content_type ?? file.contentType),
+      target: "files",
+      timestamp: normalizeTimestamp(file.created_at ?? file.createdAt),
+    })
+  }
+
+  return items
+    .sort((left, right) => Date.parse(right.timestamp) - Date.parse(left.timestamp) || left.title.localeCompare(right.title))
+    .slice(0, 6)
+}
+
 function pickWeakestTopic(topics: DashboardWeakTopic[]) {
   let weakest: DashboardWeakTopic | undefined
   let weakestAccuracy = Number.POSITIVE_INFINITY
@@ -248,4 +351,26 @@ function uniqueNonEmpty(values: string[]) {
 function clampPercentage(value: number) {
   if (!Number.isFinite(value)) return 0
   return Math.min(100, Math.max(0, Math.round(value)))
+}
+
+function cleanTitle(value: unknown, fallback: string) {
+  const title = String(value || "").trim()
+  return title || fallback
+}
+
+function normalizeTimestamp(value: unknown) {
+  const timestamp = String(value || "").trim()
+  const parsed = Date.parse(timestamp)
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : new Date(0).toISOString()
+}
+
+function readableContentType(value: unknown) {
+  const type = String(value || "").toLowerCase()
+  if (type.startsWith("image/")) return "Image upload"
+  if (type.startsWith("video/")) return "Video upload"
+  if (type.includes("pdf")) return "PDF upload"
+  if (type.includes("csv") || type.includes("spreadsheet")) return "Sheet upload"
+  if (type.includes("presentation")) return "Slide upload"
+  if (type.includes("text")) return "Text upload"
+  return "File upload"
 }
