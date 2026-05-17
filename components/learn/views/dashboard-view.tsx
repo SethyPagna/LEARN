@@ -174,8 +174,8 @@ export function DashboardView({
             </div>
           </button>
         </div>
-        <div className="grid border-t border-border bg-background/45 sm:grid-cols-2 xl:grid-cols-4">
-          {metricTiles.slice(0, 4).map((metric) => (
+        <div className="grid border-t border-border bg-background/45 sm:grid-cols-2 xl:grid-cols-5">
+          {metricTiles.map((metric) => (
             <BigMetric key={metric.id} icon={dashboardMetricIcons[metric.id]} label={metric.label} value={metric.value} body={metric.detail} tone={metric.tone} />
           ))}
         </div>
