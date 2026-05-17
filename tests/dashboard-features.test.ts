@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardRecentWork, buildDashboardRouteActions, buildDashboardSignals } from "../lib/dashboard-features"
+import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardQuickActionGroups, buildDashboardRecentWork, buildDashboardRouteActions, buildDashboardSignals } from "../lib/dashboard-features"
 
 test("buildDashboardCommandPlan prioritizes weak topic repair", () => {
   const plan = buildDashboardCommandPlan({
@@ -129,4 +129,16 @@ test("buildDashboardRecentWork sorts mixed work and maps routes", () => {
   assert.equal(recents[0].detail, "4/5 score")
   assert.equal(recents[1].target, "files")
   assert.equal(recents[2].target, "ai")
+})
+
+test("buildDashboardQuickActionGroups keeps dashboard buttons routeable and compact", () => {
+  const groups = buildDashboardQuickActionGroups()
+  const actions = groups.flatMap((group) => group.actions)
+
+  assert.deepEqual(groups.map((group) => group.label), ["Create", "Review", "Practice", "Share", "Manage"])
+  assert.ok(actions.length >= 10)
+  assert.ok(actions.every((action) => action.label.length <= 18))
+  assert.ok(actions.every((action) => action.detail.length <= 52))
+  assert.ok(actions.every((action) => action.target))
+  assert.equal(new Set(actions.map((action) => `${action.label}:${action.target}`)).size, actions.length)
 })

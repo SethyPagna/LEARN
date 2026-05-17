@@ -1,4 +1,11 @@
 export type DashboardCommandTarget = "ai" | "calendar" | "files" | "practice" | "reviews" | "studio"
+export type DashboardQuickActionTarget =
+  | DashboardCommandTarget
+  | "graph"
+  | "learn"
+  | "rooms"
+  | "settings"
+  | "social"
 
 export interface DashboardWeakTopic {
   topic: string
@@ -116,6 +123,22 @@ export interface DashboardRecentWorkItem {
   detail: string
   target: DashboardCommandTarget
   timestamp: string
+}
+
+export type DashboardQuickActionIcon = "brain" | "calendar" | "compass" | "file" | "game" | "graph" | "message" | "plus" | "repeat" | "stats"
+
+export interface DashboardQuickAction {
+  id: string
+  label: string
+  detail: string
+  target: DashboardQuickActionTarget
+  icon: DashboardQuickActionIcon
+}
+
+export interface DashboardQuickActionGroup {
+  id: "create" | "manage" | "practice" | "review" | "share"
+  label: string
+  actions: DashboardQuickAction[]
 }
 
 export function buildDashboardCommandPlan(input: DashboardCommandInput): DashboardCommandPlan {
@@ -374,6 +397,52 @@ export function buildDashboardRecentWork(input: DashboardRecentWorkInput): Dashb
   return items
     .sort((left, right) => Date.parse(right.timestamp) - Date.parse(left.timestamp) || left.title.localeCompare(right.title))
     .slice(0, 6)
+}
+
+export function buildDashboardQuickActionGroups(): DashboardQuickActionGroup[] {
+  return [
+    {
+      id: "create",
+      label: "Create",
+      actions: [
+        { id: "open-studio", label: "Open Studio", detail: "Notes, docs, sheets, and slides", target: "studio", icon: "file" },
+        { id: "upload-media", label: "Upload media", detail: "Images, video, and files", target: "files", icon: "plus" },
+      ],
+    },
+    {
+      id: "review",
+      label: "Review",
+      actions: [
+        { id: "learn-route", label: "Learn route", detail: "Route, graph, reviews, calendar", target: "learn", icon: "brain" },
+        { id: "review-queue", label: "Review queue", detail: "Due concepts and mistakes", target: "reviews", icon: "repeat" },
+        { id: "knowledge-map", label: "Knowledge map", detail: "Links and weak areas", target: "graph", icon: "graph" },
+      ],
+    },
+    {
+      id: "practice",
+      label: "Practice",
+      actions: [
+        { id: "practice-hub", label: "Practice hub", detail: "Quizzes, games, exams", target: "practice", icon: "brain" },
+        { id: "sprint-mode", label: "Sprint mode", detail: "Timed recall and matching", target: "practice", icon: "game" },
+      ],
+    },
+    {
+      id: "share",
+      label: "Share",
+      actions: [
+        { id: "social-hub", label: "Social hub", detail: "Chat, spaces, rooms", target: "social", icon: "message" },
+        { id: "focus-room", label: "Focus room", detail: "Pomodoro presence", target: "rooms", icon: "compass" },
+      ],
+    },
+    {
+      id: "manage",
+      label: "Manage",
+      actions: [
+        { id: "calendar", label: "Calendar", detail: "Plan study blocks", target: "calendar", icon: "calendar" },
+        { id: "settings", label: "Settings", detail: "Tune the workspace", target: "settings", icon: "stats" },
+      ],
+    },
+  ]
 }
 
 function pickWeakestTopic(topics: DashboardWeakTopic[]) {
