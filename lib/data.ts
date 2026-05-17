@@ -351,7 +351,7 @@ export async function listAuditLogs(user: User) {
 
 export async function listCalendarEvents(user: User) {
   await ensureDatabase()
-  const result = await query(
+  const result = await query<WorkspaceInviteRow>(
     `SELECT * FROM calendar_events
      WHERE owner_user_id = $1 OR $2 = 'admin'
      ORDER BY starts_at ASC
