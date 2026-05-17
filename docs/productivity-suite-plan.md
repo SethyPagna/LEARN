@@ -71,6 +71,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-17: Continued Phase 4 by moving AI Tutor status pills, task menu buttons, result actions, provider status chips, gateway metrics, and readiness cards onto shared design-system primitives.
 - 2026-05-17: Continued Phase 4 by moving Practice submit/timer/retry/review-card actions, repair badges, review summary chips, and dropdown menu surfaces onto shared design-system primitives.
 - 2026-05-17: Continued Phase 4 by moving Calendar duration presets, month navigation, agenda filters, planning chips, timezone chips, and event action buttons onto shared design-system primitives.
+- 2026-05-17: Continued Phase 4 by moving Progress, Settings, and Admin header chips plus Settings save/language/suggested-section controls onto shared design-system primitives.
 
 ## Implementation Slices
 
