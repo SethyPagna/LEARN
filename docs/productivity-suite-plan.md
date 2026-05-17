@@ -58,6 +58,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-17: Added public intro theme and language icon controls beside Sign in, sharing the app theme and `learn_locale` preferences while giving the intro a readable light mode.
 - 2026-05-17: Applied public theme and language preferences to the scroll workflow overlay with light-mode surfaces, translated workflow labels/copy for key public locales, and a locale-change event so the workflow updates without reload.
 - 2026-05-17: Started the auth-entry refinement with a cleaner sign-in/request-access surface, theme/language controls on login, password visibility, demo account helpers, and a rate-limited access-request API that records audit activity for admin review.
+- 2026-05-17: Started Phase 1 of the product maturity roadmap by moving route, alias, sidebar, and launcher definitions into a shared navigation contract so the app has fewer primary sidebar destinations while preserving stable routes.
 
 ## Implementation Slices
 
