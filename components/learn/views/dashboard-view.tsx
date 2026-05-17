@@ -23,7 +23,7 @@ import {
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import type React from "react"
-import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardRecentWork, buildDashboardSignals, type DashboardCommandTarget, type DashboardRecentWorkItem } from "@/lib/dashboard-features"
+import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardRecentWork, buildDashboardRouteActions, buildDashboardSignals, type DashboardCommandTarget, type DashboardRecentWorkItem } from "@/lib/dashboard-features"
 import { normalizeOnboardingPreferences, onboardingTargetView, shouldShowOnboarding, type OnboardingStudioKind, type OnboardingWorkflow } from "@/lib/onboarding-features"
 import { api } from "../api"
 import type { WorkspaceOptions } from "../preferences"
@@ -106,6 +106,10 @@ export function DashboardView({
     }),
     [dashboard?.snapshot, notes.length, options.calendarDefaultMinutes, practiceDraftSummary.count, quizzes.length, studioDraftSummary.count, user?.metrics],
   )
+  const routeActions = useMemo(
+    () => buildDashboardRouteActions({ noteCount: notes.length, quizCount: quizzes.length, snapshot: dashboard?.snapshot }),
+    [dashboard?.snapshot, notes.length, quizzes.length],
+  )
   const recentWork = useMemo(
     () => buildDashboardRecentWork({
       aiChats: dashboard?.chats ?? [],
@@ -174,21 +178,42 @@ export function DashboardView({
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">{commandPlan.detail}</p>
           </div>
-          <button onClick={() => setView(commandPlan.target)} className="rounded-md border border-border bg-secondary p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                <CommandIcon className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold text-foreground">Start now</p>
-                <p className="mt-1 truncate text-xs text-muted-foreground">{commandPlan.targetTopic || commandPlan.target}</p>
-              </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+          <div className="rounded-md border border-border bg-secondary p-3">
+            {routeActions.slice(0, 1).map((action) => {
+              const Icon = dashboardCommandIcons[action.target] || CommandIcon
+              return (
+                <button key={action.id} onClick={() => setView(action.target)} className="w-full rounded-md bg-primary p-3 text-left text-primary-foreground transition hover:opacity-90">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary-foreground/15">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold">{action.label}</p>
+                      <p className="mt-1 truncate text-xs opacity-85">{action.detail}</p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 opacity-80" />
+                  </div>
+                </button>
+              )
+            })}
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {routeActions.slice(1).map((action) => {
+                const Icon = dashboardCommandIcons[action.target]
+                return (
+                  <button key={action.id} onClick={() => setView(action.target)} className="rounded-md border border-border bg-background p-2 text-left transition hover:bg-accent hover:text-accent-foreground">
+                    <div className="flex items-center gap-2">
+                      <Icon className="h-4 w-4 text-success" />
+                      <span className="truncate text-sm font-semibold">{action.label}</span>
+                    </div>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">{action.detail}</p>
+                  </button>
+                )
+              })}
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               {commandPlan.chips.map((chip) => <StatusChip key={chip} label={chip} />)}
             </div>
-          </button>
+          </div>
         </div>
         <div className="grid border-t border-border bg-background/45 sm:grid-cols-2 xl:grid-cols-5">
           {metricTiles.map((metric) => (
