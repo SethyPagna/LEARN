@@ -11,7 +11,6 @@ import {
   Bot,
   ChevronDown,
   Compass,
-  Files,
   FileText,
   Gamepad2,
   Home,
@@ -21,10 +20,8 @@ import {
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
-  Repeat2,
   Search,
   Settings,
-  Shield,
   Sun,
   MessagesSquare,
   Trash2,
@@ -38,91 +35,42 @@ import {
   viewBelongsToNavigationItem,
   type NavigationSearchCandidate,
 } from "@/lib/navigation-features"
+import {
+  getNavigationItemDetail,
+  launcherCommands,
+  navigationGroups,
+  navigationItems,
+  practiceViews,
+  studioViews,
+  viewLabelKeys,
+  type LauncherCommandConfig,
+  type LearnNavigationItem,
+  type NavigationIconKey,
+} from "@/lib/navigation"
 import type { PracticeDraftSummary } from "@/lib/practice-drafts"
 import type { StudioDraftSummary } from "@/lib/studio-drafts"
 import type { View, User } from "./types"
 
 type Text = typeof baseVocabulary
 type Density = "compact" | "comfortable"
-type NavItem = { view: View; labelKey: keyof Text; icon: React.ComponentType<{ className?: string }>; aliases?: View[] }
-type NavGroup = { label: string; caption: string; items: NavItem[] }
-type LauncherCommand = { label: string; detail: string; view: View; icon: React.ComponentType<{ className?: string }>; keywords: string[] }
 
-const studioViews: View[] = ["studio", "notes", "docs", "sheets", "slides"]
-const learnViews: View[] = ["learn", "vault", "feed", "discover", "graph", "progress"]
-const practiceViews: View[] = ["practice", "quizzes", "games"]
-const socialViews: View[] = ["social", "chat", "spaces", "rooms", "battles"]
-
-const navGroups: NavGroup[] = [
-  {
-    label: "Home",
-    caption: "Dashboard and next steps",
-    items: [{ view: "dashboard", labelKey: "dashboard", icon: Home }],
-  },
-  {
-    label: "Workspaces",
-    caption: "Daily route, reviews, and calendar",
-    items: [
-      { view: "learn", labelKey: "learn", icon: Compass, aliases: ["vault", "feed", "discover", "graph", "progress"] },
-      { view: "reviews", labelKey: "reviews", icon: Repeat2 },
-      { view: "calendar", labelKey: "calendar", icon: CalendarDays },
-    ],
-  },
-  {
-    label: "Studio",
-    caption: "Create, import, files, and AI workflows",
-    items: [
-      { view: "studio", labelKey: "studio", icon: FileText, aliases: ["notes", "docs", "sheets", "slides"] },
-      { view: "files", labelKey: "files", icon: Files },
-      { view: "ai", labelKey: "aiTutor", icon: Bot },
-    ],
-  },
-  {
-    label: "Practice",
-    caption: "Quizzes, games, retries, and review loops",
-    items: [{ view: "practice", labelKey: "practice", icon: Gamepad2, aliases: ["quizzes", "games"] }],
-  },
-  {
-    label: "Social",
-    caption: "Chat, spaces, rooms, and battles",
-    items: [{ view: "social", labelKey: "social", icon: MessagesSquare, aliases: ["chat", "spaces", "rooms", "battles"] }],
-  },
-  {
-    label: "Manage",
-    caption: "Profile, preferences, security, and admin",
-    items: [
-      { view: "profile", labelKey: "profile", icon: BookOpen },
-      { view: "settings", labelKey: "settings", icon: Settings },
-      { view: "admin", labelKey: "admin", icon: Shield },
-    ],
-  },
-]
-const navItems = navGroups.flatMap((group) => group.items)
-const launcherCommands: LauncherCommand[] = [
-  { label: "Create in Studio", detail: "New note, doc, sheet, or slide", view: "studio", icon: FileText, keywords: ["new", "create", "note", "doc", "sheet", "slide", "studio"] },
-  { label: "Start reviews", detail: "Open active recall queue", view: "reviews", icon: BookOpen, keywords: ["review", "recall", "flashcard", "practice"] },
-  { label: "Practice now", detail: "Quizzes and games", view: "practice", icon: Gamepad2, keywords: ["quiz", "game", "practice", "test"] },
-  { label: "Ask AI tutor", detail: "Prompt, rewrite, quiz, plan", view: "ai", icon: Bot, keywords: ["ai", "tutor", "prompt", "rewrite", "plan"] },
-  { label: "Plan calendar", detail: "Study blocks and due dates", view: "calendar", icon: CalendarDays, keywords: ["calendar", "time", "schedule", "plan"] },
-  { label: "Tune settings", detail: "Theme, language, density, accessibility", view: "settings", icon: Settings, keywords: ["settings", "theme", "language", "accessibility", "density"] },
-]
-
-function detailForNavItem(item: NavItem) {
-  const group = navGroups.find((entry) => entry.items.some((candidate) => candidate.view === item.view))
-  return group?.caption ?? "Open section"
+const navIconMap: Record<NavigationIconKey, React.ComponentType<{ className?: string }>> = {
+  ai: Bot,
+  calendar: CalendarDays,
+  dashboard: Home,
+  practice: Gamepad2,
+  settings: Settings,
+  social: MessagesSquare,
+  studio: FileText,
+  workspaces: Compass,
 }
 
-function keywordsForNavItem(item: NavItem, text: Text) {
-  return [item.view, String(text[item.labelKey]), ...(item.aliases ?? []), detailForNavItem(item)]
+function keywordsForNavItem(item: LearnNavigationItem, text: Text) {
+  return [item.view, String(text[item.labelKey]), ...(item.aliases ?? []), getNavigationItemDetail(item)]
 }
 
 export function titleForView(view: View, text: Text) {
-  if (studioViews.includes(view)) return text.studio
-  if (learnViews.includes(view)) return text.learn
-  if (practiceViews.includes(view)) return text.practice
-  if (socialViews.includes(view)) return text.social
-  const item = navItems.find((entry) => entry.view === view)
-  return item ? text[item.labelKey] : text.dashboard
+  return text[viewLabelKeys[view]] || text.dashboard
 }
 
 export function Sidebar({
@@ -193,13 +141,13 @@ function LauncherSearch({
 }) {
   const [focused, setFocused] = useState(false)
   const needle = query.trim().toLowerCase()
-  const navCandidates = useMemo<NavigationSearchCandidate<NavItem>[]>(() => navItems.map((item) => ({
+  const navCandidates = useMemo<NavigationSearchCandidate<LearnNavigationItem>[]>(() => navigationItems.map((item) => ({
     value: item,
     label: String(text[item.labelKey]),
-    detail: detailForNavItem(item),
+    detail: getNavigationItemDetail(item),
     keywords: keywordsForNavItem(item, text),
   })), [text])
-  const commandCandidates = useMemo<NavigationSearchCandidate<LauncherCommand>[]>(() => launcherCommands.map((item) => ({
+  const commandCandidates = useMemo<NavigationSearchCandidate<LauncherCommandConfig>[]>(() => launcherCommands.map((item) => ({
     value: item,
     label: item.label,
     detail: item.detail,
@@ -257,8 +205,8 @@ function LauncherSearch({
             <div className="grid gap-2">
               {navResults.length ? (
                 <LauncherGroup label="Go to">
-                  {navResults.map((item) => {
-                    const Icon = item.value.icon
+              {navResults.map((item) => {
+                    const Icon = navIconMap[item.value.iconKey]
                     return (
                       <LauncherItem key={item.value.view} icon={Icon} label={item.label} detail={item.detail} onClick={() => choose(item.value.view)} />
                     )
@@ -268,7 +216,7 @@ function LauncherSearch({
               {visibleCommands.length ? (
                 <LauncherGroup label={needle ? "Actions" : "Quick actions"}>
                   {visibleCommands.map((item) => (
-                    <LauncherItem key={item.label} icon={item.value.icon} label={item.label} detail={item.detail} onClick={() => choose(item.value.view)} />
+                    <LauncherItem key={item.label} icon={navIconMap[item.value.iconKey]} label={item.label} detail={item.detail} onClick={() => choose(item.value.view)} />
                   ))}
                 </LauncherGroup>
               ) : null}
@@ -364,12 +312,12 @@ export function Topbar({
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase text-muted-foreground">LEARN</p>
           <h1 className="truncate text-lg font-semibold">{titleForView(view, text)}</h1>
-          {studioDraftSummary.count && studioViews.includes(view) ? (
+          {studioDraftSummary.count && studioViews.includes(view as (typeof studioViews)[number]) ? (
             <span className="mt-1 inline-flex rounded-md bg-warning px-2 py-0.5 text-[0.68rem] font-semibold text-warning-foreground">
               {studioDraftSummary.count} draft{studioDraftSummary.count === 1 ? "" : "s"}
             </span>
           ) : null}
-          {practiceDraftSummary.count && practiceViews.includes(view) ? (
+          {practiceDraftSummary.count && practiceViews.includes(view as (typeof practiceViews)[number]) ? (
             <span className="mt-1 inline-flex rounded-md bg-warning px-2 py-0.5 text-[0.68rem] font-semibold text-warning-foreground">
               {practiceDraftSummary.count} saved attempt{practiceDraftSummary.count === 1 ? "" : "s"}
             </span>
@@ -657,10 +605,10 @@ function Navigation({
   practiceDraftSummary: PracticeDraftSummary
 }) {
   const rowHeight = density === "compact" ? "h-9" : "h-11"
-  const activeGroup = summarizeActiveNavigationGroup(view, navGroups)
+  const activeGroup = summarizeActiveNavigationGroup(view, navigationGroups)
   return (
     <nav className="grid gap-3">
-      {navGroups.map((group) => (
+      {navigationGroups.map((group) => (
         <details key={group.label} className="group/navigation" open>
           <summary className="mb-1 flex cursor-pointer list-none items-center justify-between px-2 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground" title={group.caption}>
             <span className="flex min-w-0 items-center gap-2">
@@ -672,7 +620,7 @@ function Navigation({
           <div className="grid gap-1">
             {group.items.map((item) => {
               const active = viewBelongsToNavigationItem(view, item)
-              const Icon = item.icon
+              const Icon = navIconMap[item.iconKey]
               const badge = item.view === "studio" ? studioDraftSummary.count : item.view === "practice" ? practiceDraftSummary.count : 0
               const badgeTitle = item.view === "practice"
                 ? formatNavigationBadge(badge, "saved Practice attempt", "saved Practice attempts")
@@ -681,7 +629,7 @@ function Navigation({
                 <button
                   key={item.view}
                   onClick={() => setView(item.view)}
-                  title={detailForNavItem(item)}
+                  title={getNavigationItemDetail(item)}
                   className={`flex ${rowHeight} w-full items-center gap-3 rounded-md px-3 text-sm font-medium transition ${
                     active
                       ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm ring-1 ring-sidebar-ring/20"
