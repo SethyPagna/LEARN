@@ -71,7 +71,13 @@ export function LearnShell({
       setSelectedQuizId((current) => current || initialQuizId || quizzesData.items[0]?.id || "")
       setStatus("")
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to load workspace.")
+      const message = error instanceof Error ? error.message : "Unable to load workspace."
+      if (/sign in/i.test(message) && typeof window !== "undefined") {
+        const redirect = encodeURIComponent(`${window.location.pathname}${window.location.search}`)
+        window.location.href = `/login?redirect=${redirect}`
+        return
+      }
+      setStatus(message)
     }
   }
 
