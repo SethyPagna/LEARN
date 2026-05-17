@@ -66,6 +66,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-17: Continued Phase 3 dashboard maturity by exposing D1 streak/XP metrics and replacing raw dashboard counts with compact streak, XP, review, draft, and focus tiles.
 - 2026-05-17: Continued Phase 3 dashboard maturity by expanding `/api/dashboard` with recent AI chats, quiz attempts, and uploads, then replacing Studio-only recents with a mixed Recent Work panel.
 - 2026-05-17: Completed the Phase 3 Today Route slice by adding tested primary/backup route actions and rendering a compact dashboard action stack for create, review, practice, schedule, and weak-topic repair paths.
+- 2026-05-17: Completed Phase 3 acceptance by moving Dashboard quick actions into a tested route contract and wiring the UI to shared compact action groups.
 
 ## Implementation Slices
 

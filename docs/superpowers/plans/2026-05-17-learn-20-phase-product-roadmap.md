@@ -54,7 +54,7 @@
 - [x] **3.2 Compact metrics:** Use large icon tiles for streak, XP, due reviews, Studio drafts, and calendar focus.
 - [x] **3.3 Recent work:** Show Studio recents, last AI result, last quiz attempt, and file imports.
 - [x] **3.4 Empty states:** Guide new users without long explanations.
-- [ ] **3.5 Acceptance:** Dashboard loads fast, has no long text blocks, and every button routes to a real action.
+- [x] **3.5 Acceptance:** Dashboard loads fast, has no long text blocks, and every button routes to a real action.
 
 ## Phase 4: Design System And Theme Maturity
 
