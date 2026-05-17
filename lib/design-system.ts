@@ -9,6 +9,14 @@ export function statusToneClasses(tone: UiTone = "neutral") {
   return "border-border bg-background text-muted-foreground"
 }
 
+export function toneSurfaceClasses(tone: UiTone = "neutral") {
+  if (tone === "critical") return "bg-destructive/10 text-destructive"
+  if (tone === "primary") return "bg-primary/10 text-primary"
+  if (tone === "steady") return "bg-success/10 text-success"
+  if (tone === "watch") return "bg-warning/15 text-warning-foreground dark:text-warning"
+  return "bg-secondary text-secondary-foreground"
+}
+
 export function controlButtonClasses(input: {
   active?: boolean
   destructive?: boolean
@@ -24,4 +32,3 @@ export function controlButtonClasses(input: {
 export function menuSurfaceClasses() {
   return "rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl"
 }
-
