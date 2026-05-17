@@ -6,7 +6,8 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(path, { ...options, headers })
   const json = await response.json().catch(() => ({}))
   if (response.status === 401) {
-    window.location.href = "/login"
+    const redirect = encodeURIComponent(`${window.location.pathname}${window.location.search}`)
+    window.location.href = `/login?redirect=${redirect}`
     throw new Error("Please sign in.")
   }
   if (!response.ok) throw new Error(json.error || "Request failed.")
