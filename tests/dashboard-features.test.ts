@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildDashboardCommandPlan, buildDashboardSignals } from "../lib/dashboard-features"
+import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardSignals } from "../lib/dashboard-features"
 
 test("buildDashboardCommandPlan prioritizes weak topic repair", () => {
   const plan = buildDashboardCommandPlan({
@@ -50,4 +50,28 @@ test("buildDashboardSignals summarizes dashboard state with tones", () => {
 
   assert.deepEqual(signals.map((signal) => signal.value), ["100%", "1", "2", "3"])
   assert.deepEqual(signals.map((signal) => signal.tone), ["steady", "critical", "steady", "steady"])
+})
+
+test("buildDashboardEmptyStates guides new learners without noisy copy", () => {
+  const emptyStates = buildDashboardEmptyStates({ noteCount: 0, quizCount: 0, snapshot: { goalCompletion: 0 } })
+
+  assert.deepEqual(emptyStates.map((state) => state.id), ["studio", "practice", "route"])
+  assert.equal(emptyStates[0].actionLabel, "Create in Studio")
+  assert.equal(emptyStates[0].target, "studio")
+  assert.ok(emptyStates.every((state) => state.detail.length <= 86))
+})
+
+test("buildDashboardEmptyStates stays quiet when the loop has material", () => {
+  const emptyStates = buildDashboardEmptyStates({
+    noteCount: 4,
+    quizCount: 2,
+    snapshot: {
+      goalCompletion: 50,
+      recommendedFocus: ["SQL"],
+      recentNotes: [{ title: "Indexes" }],
+      weakTopics: [{ topic: "SQL", accuracy: 75 }],
+    },
+  })
+
+  assert.deepEqual(emptyStates, [])
 })

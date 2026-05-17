@@ -33,6 +33,14 @@ export interface DashboardSignal {
   tone: "critical" | "steady" | "watch"
 }
 
+export interface DashboardEmptyState {
+  id: "practice" | "route" | "studio"
+  title: string
+  detail: string
+  actionLabel: string
+  target: DashboardCommandTarget
+}
+
 export function buildDashboardCommandPlan(input: DashboardCommandInput): DashboardCommandPlan {
   const snapshot = input.snapshot ?? {}
   const weakTopic = pickWeakestTopic(snapshot.weakTopics ?? [])
@@ -95,6 +103,45 @@ export function buildDashboardSignals(input: DashboardCommandInput): DashboardSi
     { label: "Focus", value: String(focusCount), tone: focusCount ? "steady" : "watch" },
     { label: "Studio", value: String(Math.max(0, input.noteCount)), tone: input.noteCount ? "steady" : "watch" },
   ]
+}
+
+export function buildDashboardEmptyStates(input: DashboardCommandInput): DashboardEmptyState[] {
+  const snapshot = input.snapshot ?? {}
+  const states: DashboardEmptyState[] = []
+  const hasRecentWork = input.noteCount > 0 || (snapshot.recentNotes?.length ?? 0) > 0
+  const hasRoute = uniqueNonEmpty(snapshot.recommendedFocus ?? []).length > 0 || (snapshot.weakTopics?.length ?? 0) > 0
+
+  if (!hasRecentWork) {
+    states.push({
+      id: "studio",
+      title: "No Studio seed yet",
+      detail: "Capture one note, file, table, or deck so LEARN has material to work with.",
+      actionLabel: "Create in Studio",
+      target: "studio",
+    })
+  }
+
+  if (input.quizCount === 0) {
+    states.push({
+      id: "practice",
+      title: "No practice set",
+      detail: "Generate a quiz or flashcards from Studio when you are ready to test recall.",
+      actionLabel: "Generate practice",
+      target: hasRecentWork ? "ai" : "studio",
+    })
+  }
+
+  if (!hasRoute && clampPercentage(snapshot.goalCompletion ?? 0) === 0) {
+    states.push({
+      id: "route",
+      title: "No route signal",
+      detail: "Add a goal or complete one practice loop so the dashboard can prioritize today.",
+      actionLabel: "Tune settings",
+      target: "calendar",
+    })
+  }
+
+  return states.slice(0, 3)
 }
 
 function pickWeakestTopic(topics: DashboardWeakTopic[]) {
