@@ -34,6 +34,12 @@ export interface User {
   email: string
   role: "admin" | "learner"
   preferences: Record<string, unknown>
+  metrics?: {
+    streakCurrent: number
+    streakLongest: number
+    streakFreezesAvailable: number
+    xpTotal: number
+  }
 }
 
 export interface Note {

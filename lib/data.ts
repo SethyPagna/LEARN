@@ -28,6 +28,12 @@ export interface User {
   name: string
   role: "admin" | "learner"
   preferences: Record<string, unknown>
+  metrics?: {
+    streakCurrent: number
+    streakLongest: number
+    streakFreezesAvailable: number
+    xpTotal: number
+  }
 }
 
 export interface NoteRecord {
@@ -62,7 +68,18 @@ function normalizeUser(row: Record<string, unknown>): User {
     name: String(row.name),
     role: row.role === "admin" ? "admin" : "learner",
     preferences,
+    metrics: {
+      streakCurrent: normalizeInteger(row.streak_current),
+      streakLongest: normalizeInteger(row.streak_longest),
+      streakFreezesAvailable: normalizeInteger(row.streak_freezes_available),
+      xpTotal: normalizeInteger(row.xp_total),
+    },
   }
+}
+
+function normalizeInteger(value: unknown) {
+  const number = Number(value)
+  return Number.isFinite(number) ? Math.max(0, Math.floor(number)) : 0
 }
 
 function parseJsonObject(value: unknown): Record<string, unknown> {
