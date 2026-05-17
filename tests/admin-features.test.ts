@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildAdminOperationalPlan, filterAdminList, summarizeAdminOperations } from "../lib/admin-features"
+import { buildAdminOperationalPlan, extractAccessRequests, filterAdminList, summarizeAdminOperations } from "../lib/admin-features"
 
 test("summarizeAdminOperations flags enabled providers missing keys or failing", () => {
   const summary = summarizeAdminOperations({
@@ -59,4 +59,57 @@ test("buildAdminOperationalPlan points admins to the riskiest tab", () => {
   assert.equal(auditPlan.targetTab, "audit")
   assert.equal(readyPlan.targetTab, "overview")
   assert.match(readyPlan.headline, /ready/i)
+})
+
+test("extractAccessRequests turns audit rows into invite-ready cards", () => {
+  const requests = extractAccessRequests([
+    {
+      action: "request_access",
+      created_at: "2026-05-17T00:00:00.000Z",
+      details: JSON.stringify({
+        email: " ADA@Example.COM ",
+        goal: "Build a study vault.",
+        name: "Ada Lovelace",
+        role: "Teacher",
+      }),
+      id: "audit_1",
+    },
+    {
+      action: "request_access",
+      details: { email: "ada@example.com", goal: "Duplicate", name: "Ada", role: "Learner" },
+      id: "audit_2",
+    },
+    { action: "login", details: "{}" },
+  ])
+
+  assert.deepEqual(requests, [
+    {
+      id: "audit_1",
+      created_at: "2026-05-17T00:00:00.000Z",
+      email: "ada@example.com",
+      goal: "Build a study vault.",
+      name: "Ada Lovelace",
+      role: "Teacher",
+      roleKey: "teacher",
+    },
+  ])
+})
+
+test("admin plan prioritizes access requests after provider health", () => {
+  const summary = summarizeAdminOperations({
+    adminData: {
+      audit: [
+        {
+          action: "request_access",
+          details: { email: "learner@example.com", name: "Learner", goal: "Use LEARN for finals.", role: "Learner" },
+        },
+      ],
+      providers: [{ name: "Groq", enabled: true, has_key: true, last_status: "ok" }],
+    },
+    automationData: { jobs: [{ key: "daily", label: "Daily" }] },
+  })
+
+  assert.equal(summary.accessRequests.length, 1)
+  assert.equal(summary.cards.find((card) => card.id === "access")?.tone, "watch")
+  assert.equal(buildAdminOperationalPlan(summary).targetTab, "access")
 })
