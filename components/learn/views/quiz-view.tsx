@@ -5,7 +5,8 @@ import { CheckCircle2, ChevronDown, Clock, Flag, ListFilter, MoreHorizontal, Pau
 import type { WorkspaceOptions } from "../preferences"
 import type { PracticeAttemptSummary, PracticeMode, Quiz } from "../types"
 import { api } from "../api"
-import { EmptyState, Panel } from "../ui"
+import { ControlButton, EmptyState, Panel, StatusPill } from "../ui"
+import { menuSurfaceClasses, toneTextClasses } from "@/lib/design-system"
 import { clearPracticeDraft, hasPracticeDraftContent, readPracticeDraft, writePracticeDraft } from "@/lib/practice-drafts"
 import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, filterPracticeQuestions, practiceModeGroups, practiceModeLabel, summarizePracticeAttempt, summarizePracticeMode, type PracticeQuestionFilter } from "@/lib/practice-features"
 
@@ -282,10 +283,10 @@ export function QuizView({
                     )
                   })}
                 </PracticeMenu>
-                <button onClick={submit} className="inline-flex h-9 items-center gap-1.5 rounded-md bg-success px-3 text-xs font-semibold text-success-foreground">
+                <ControlButton onClick={submit} active size="compact">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   Submit
-                </button>
+                </ControlButton>
               </div>
             </div>
             <PracticeProgressBar
@@ -301,7 +302,7 @@ export function QuizView({
               totalCount={visibleQuestions.length}
             />
             <QuizTimerControls paused={paused} setPaused={setPracticePaused} targetMinutes={targetMinutes} elapsedSeconds={elapsedSeconds} remainingSeconds={remainingSeconds} resetTimer={resetTimer} setTargetMinutes={setTargetMinutes} />
-            {missedCount ? <p className="mt-3 inline-flex rounded-md bg-warning px-2 py-1 text-xs font-semibold text-warning-foreground">{missedCount} to repair</p> : null}
+            {missedCount ? <div className="mt-3"><StatusPill label={`${missedCount} to repair`} tone="watch" /></div> : null}
             <div className="mt-5 space-y-3">
               {filteredQuestions.map((question, index) => {
                 const marked = markedQuestionIds.includes(question.id)
@@ -350,25 +351,23 @@ export function QuizView({
                       <p className="mt-1 text-xs text-muted-foreground">{reviewPlan.primaryAction}</p>
                     </div>
                     <div className="flex flex-wrap gap-2 md:justify-end">
-                      <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{reviewPlan.accuracy}% accuracy</span>
-                      <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{reviewPlan.durationMinutes} min</span>
-                      <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{reviewPlan.cardsToCreate} cards</span>
+                      <StatusPill label={`${reviewPlan.accuracy}% accuracy`} />
+                      <StatusPill label={`${reviewPlan.durationMinutes} min`} />
+                      <StatusPill label={`${reviewPlan.cardsToCreate} cards`} />
                     </div>
                     {reviewPlan.weakTopics.length ? (
                       <div className="flex flex-wrap gap-2 md:col-span-2">
                         {reviewPlan.weakTopics.map((topic) => (
-                          <span key={topic.topic} className="rounded-md bg-warning px-2 py-1 text-xs font-semibold text-warning-foreground">
-                            {topic.topic}: {topic.missed}
-                          </span>
+                          <StatusPill key={topic.topic} label={`${topic.topic}: ${topic.missed}`} tone="watch" />
                         ))}
                       </div>
                     ) : null}
                   </div>
                 ) : null}
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button onClick={retryMissed} disabled={!attemptSummary.missedQuestionIds.length} className="rounded-md bg-background px-3 py-1.5 text-xs font-semibold text-foreground disabled:opacity-50">Retry missed</button>
-                  <button onClick={saveMissesToReviews} disabled={!attemptSummary.missedQuestionIds.length} className="rounded-md bg-background px-3 py-1.5 text-xs font-semibold text-foreground disabled:opacity-50">Save review cards</button>
-                  <button onClick={() => setRetryQuestionIds([])} className="rounded-md bg-background px-3 py-1.5 text-xs font-semibold text-foreground">Full set</button>
+                  <ControlButton onClick={retryMissed} disabled={!attemptSummary.missedQuestionIds.length} size="compact">Retry missed</ControlButton>
+                  <ControlButton onClick={saveMissesToReviews} disabled={!attemptSummary.missedQuestionIds.length} size="compact">Save review cards</ControlButton>
+                  <ControlButton onClick={() => setRetryQuestionIds([])} size="compact">Full set</ControlButton>
                 </div>
                 {reviewCardStatus ? <p className="mt-2 rounded-md bg-background px-3 py-2 text-xs font-semibold text-foreground">{reviewCardStatus}</p> : null}
               </div>
@@ -387,9 +386,9 @@ export function QuizView({
 
 function ModeStatusChip({ label, value }: { label: string; value: string }) {
   return (
-    <span className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-muted px-3 text-xs font-semibold text-muted-foreground">
+    <span className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-xs font-semibold text-muted-foreground">
       {label}
-      <span className="rounded bg-background px-1.5 py-0.5 text-foreground">{value}</span>
+      <span className="rounded bg-secondary px-1.5 py-0.5 text-secondary-foreground">{value}</span>
     </span>
   )
 }
@@ -430,16 +429,16 @@ function PracticeProgressBar({
         <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} />
       </div>
       {draftStatus ? (
-        <button onClick={onClearDraft} className="mt-3 rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+        <ControlButton onClick={onClearDraft} className="mt-3" size="compact">
           {draftStatus} Clear
-        </button>
+        </ControlButton>
       ) : null}
     </div>
   )
 }
 
 function PracticeStat({ label, tone = "neutral", value }: { label: string; tone?: "danger" | "neutral"; value: string }) {
-  const valueClass = tone === "danger" ? "text-destructive" : "text-foreground"
+  const valueClass = toneTextClasses(tone === "danger" ? "critical" : "neutral")
   return (
     <div className="rounded-md bg-background px-2.5 py-2">
       <p className="text-[0.66rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{label}</p>
@@ -468,7 +467,7 @@ function PracticeMenu({
         <span className={compact ? "sr-only" : ""}>{label}</span>
         {!compact ? <ChevronDown className="h-3.5 w-3.5 opacity-70" /> : null}
       </summary>
-      <div className={`absolute top-10 z-40 max-h-[min(32rem,calc(100vh-8rem))] w-64 overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-xl ${align === "right" ? "right-0" : "left-0"}`}>
+      <div className={`absolute top-10 z-40 max-h-[min(32rem,calc(100vh-8rem))] w-64 overflow-y-auto ${menuSurfaceClasses()} ${align === "right" ? "right-0" : "left-0"}`}>
         {children}
       </div>
     </details>
@@ -538,22 +537,23 @@ function QuizTimerControls({
       </summary>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {[5, 10, 20, 45].map((minutes) => (
-          <button
+          <ControlButton
             key={minutes}
             onClick={() => setTargetMinutes(minutes)}
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold ${targetMinutes === minutes ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+            active={targetMinutes === minutes}
+            size="compact"
           >
             {minutes}m
-          </button>
+          </ControlButton>
         ))}
-        <button onClick={resetTimer} className="ml-auto flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+        <ControlButton onClick={resetTimer} className="ml-auto" size="compact">
           <RotateCcw className="h-3.5 w-3.5" />
           Reset
-        </button>
-        <button onClick={() => setPaused(!paused)} className="flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+        </ControlButton>
+        <ControlButton onClick={() => setPaused(!paused)} size="compact">
           {paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
           {paused ? "Resume" : "Pause"}
-        </button>
+        </ControlButton>
       </div>
     </details>
   )
