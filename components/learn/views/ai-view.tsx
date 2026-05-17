@@ -5,7 +5,8 @@ import { AlertTriangle, Bot, Brain, CheckCircle2, CheckSquare, ChevronDown, File
 import type { WorkspaceOptions } from "../preferences"
 import type { Note, StudioInsertTarget, View } from "../types"
 import { api } from "../api"
-import { Panel } from "../ui"
+import { ControlButton, Panel, StatusPill } from "../ui"
+import { menuSurfaceClasses, statusToneClasses, toneTextClasses, type UiTone } from "@/lib/design-system"
 import { buildAiGatewayReadiness } from "@/lib/ai/gateway-readiness"
 import { buildGuidedPrompt, listInsertActions, promptContracts } from "@/lib/ai/prompt-builder"
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
@@ -341,23 +342,25 @@ export function AiTutorView({
           <div>
             <h2 className="text-2xl font-semibold text-foreground">AI tutor</h2>
             <div className="mt-2 flex flex-wrap gap-2">
-              <StatusChip label={workflowSummary.statusLabel} tone={workflowSummary.status} />
-              <StatusChip label={workflowSummary.nextAction} tone="neutral" />
-              {draftStatus ? <StatusChip label={draftStatus} tone="ready" /> : null}
+              <StatusPill label={workflowSummary.statusLabel} tone={readinessTone(workflowSummary.status)} />
+              <StatusPill label={workflowSummary.nextAction} />
+              {draftStatus ? <StatusPill label={draftStatus} tone="steady" /> : null}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 self-start rounded-lg border border-border bg-background p-2 shadow-sm lg:justify-end">
             <TutorMenu label={`Task: ${activeMode.label}`} icon={activeMode.icon} menuId="task" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
               {tutorModeGroups.map((group) => (
                 <div key={group.id} className="grid gap-1">
-                  <button
+                  <ControlButton
                     onClick={() => setModeGroup(group.id)}
-                    className={`mb-1 flex h-8 items-center justify-between rounded-md px-2 text-left text-xs font-semibold ${modeGroup === group.id ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+                    active={modeGroup === group.id}
+                    className="mb-1 flex w-full justify-between"
+                    size="compact"
                     type="button"
                   >
                     {group.label}
                     <span className="text-[0.66rem] opacity-70">{group.modes.length}</span>
-                  </button>
+                  </ControlButton>
                   {tutorModes
                     .filter((mode) => (group.modes as readonly string[]).includes(mode.id))
                     .map((item) => (
@@ -537,9 +540,7 @@ export function AiTutorView({
                 <div className="mt-2 flex flex-wrap gap-2 text-xs">
                   <span className="rounded bg-background px-2 py-0.5 text-muted-foreground">{provider.provider}</span>
                   <span className="rounded bg-background px-2 py-0.5 text-muted-foreground">{provider.default_model}</span>
-                  <span className={`rounded px-2 py-0.5 font-semibold ${providerIsReady(provider) ? "bg-success text-success-foreground" : "bg-warning text-warning-foreground"}`}>
-                    {providerStatusLabel(provider)}
-                  </span>
+                  <StatusPill label={providerStatusLabel(provider)} tone={providerIsReady(provider) ? "steady" : "watch"} />
                 </div>
               </div>
             ))}
@@ -630,19 +631,19 @@ function TutorMenu({
   const open = openMenu === menuId
   return (
     <div className="relative inline-block">
-      <button
+      <ControlButton
         aria-expanded={open}
-        className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
         onClick={() => setOpenMenu(open ? null : menuId)}
+        size="compact"
         title={label}
         type="button"
       >
         <Icon className="h-3.5 w-3.5" />
         <span className="max-w-40 truncate">{label}</span>
         <ChevronDown className="h-3.5 w-3.5 opacity-70" />
-      </button>
+      </ControlButton>
       {open ? (
-        <div className={`absolute top-10 z-40 max-h-[min(34rem,calc(100vh-8rem))] w-80 overflow-y-auto rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl ${align === "right" ? "right-0" : "left-0"}`}>
+        <div className={`absolute top-10 z-40 max-h-[min(34rem,calc(100vh-8rem))] w-80 overflow-y-auto ${menuSurfaceClasses()} ${align === "right" ? "right-0" : "left-0"}`}>
           {children}
         </div>
       ) : null}
@@ -812,33 +813,18 @@ function escapeHtml(value: string) {
 
 function ResultAction({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
+    <ControlButton onClick={onClick} size="compact">
       {label}
-    </button>
+    </ControlButton>
   )
 }
 
-function StatusChip({ label, tone }: { label: string; tone: "ready" | "warning" | "blocked" | "neutral" }) {
-  const classes = tone === "ready"
-    ? "bg-success text-success-foreground"
-    : tone === "blocked"
-      ? "bg-destructive text-destructive-foreground"
-      : tone === "warning"
-        ? "bg-warning text-warning-foreground"
-        : "bg-secondary text-secondary-foreground"
-  return <span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${classes}`}>{label}</span>
-}
-
 function GatewayMetric({ label, tone, value }: { label: string; tone: "ready" | "warning" | "neutral"; value: string }) {
-  const valueClass = tone === "ready"
-    ? "text-success"
-    : tone === "warning"
-      ? "text-warning-foreground"
-      : "text-foreground"
+  const uiTone = readinessTone(tone)
   return (
-    <div className="rounded-md border border-border bg-background p-3">
+    <div className={`rounded-md border p-3 ${statusToneClasses(uiTone)}`}>
       <p className="text-[0.66rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{label}</p>
-      <p className={`mt-1 text-xl font-semibold ${valueClass}`}>{value}</p>
+      <p className={`mt-1 text-xl font-semibold ${toneTextClasses(uiTone)}`}>{value}</p>
     </div>
   )
 }
@@ -852,17 +838,25 @@ function providerStatusLabel(provider: { has_key?: boolean; last_status?: string
   return provider.last_status === "error" ? "Error" : provider.last_status || "Untested"
 }
 
+function readinessTone(tone: "ready" | "warning" | "blocked" | "neutral"): UiTone {
+  if (tone === "ready") return "steady"
+  if (tone === "blocked") return "critical"
+  if (tone === "warning") return "watch"
+  return "neutral"
+}
+
+function workflowTone(tone: "good" | "watch" | "blocked" | "neutral"): UiTone {
+  if (tone === "good") return "steady"
+  if (tone === "blocked") return "critical"
+  if (tone === "watch") return "watch"
+  return "neutral"
+}
+
 function WorkflowCard({ detail, label, tone, value }: { detail: string; label: string; tone: "good" | "watch" | "blocked" | "neutral"; value: string }) {
   const Icon = tone === "blocked" ? AlertTriangle : tone === "good" ? CheckCircle2 : Info
-  const classes = tone === "good"
-    ? "border-success/40 bg-success/10"
-    : tone === "blocked"
-      ? "border-destructive/40 bg-destructive/10"
-      : tone === "watch"
-        ? "border-warning/40 bg-warning/10"
-        : "border-border bg-background"
+  const uiTone = workflowTone(tone)
   return (
-    <div className={`group relative rounded-md border p-3 ${classes}`}>
+    <div className={`group relative rounded-md border p-3 ${statusToneClasses(uiTone)}`}>
       <div className="flex items-center justify-between gap-2">
         <p className="truncate text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">{label}</p>
         <Icon className="h-4 w-4 text-muted-foreground" />
