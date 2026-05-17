@@ -19,10 +19,11 @@ import {
   Sparkles,
   Table2,
   Trophy,
+  UploadCloud,
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import type React from "react"
-import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardSignals, type DashboardCommandTarget } from "@/lib/dashboard-features"
+import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardRecentWork, buildDashboardSignals, type DashboardCommandTarget, type DashboardRecentWorkItem } from "@/lib/dashboard-features"
 import { normalizeOnboardingPreferences, onboardingTargetView, shouldShowOnboarding, type OnboardingStudioKind, type OnboardingWorkflow } from "@/lib/onboarding-features"
 import { api } from "../api"
 import type { WorkspaceOptions } from "../preferences"
@@ -50,6 +51,13 @@ const dashboardMetricIcons = {
   xp: Sparkles,
 } satisfies Record<ReturnType<typeof buildDashboardMetricTiles>[number]["id"], React.ComponentType<{ className?: string }>>
 
+const recentWorkIcons = {
+  ai: Sparkles,
+  file: UploadCloud,
+  practice: Gamepad2,
+  studio: FileText,
+} satisfies Record<DashboardRecentWorkItem["kind"], React.ComponentType<{ className?: string }>>
+
 export function DashboardView({
   dashboard,
   forceOnboarding = false,
@@ -74,7 +82,6 @@ export function DashboardView({
   const [showOnboarding, setShowOnboarding] = useState(false)
   const focus = dashboard?.snapshot?.recommendedFocus?.[0] || "your next concept"
   const weakTopics = dashboard?.snapshot?.weakTopics || []
-  const recentNotes = notes.slice(0, 4)
   const commandPlan = useMemo(
     () => buildDashboardCommandPlan({ noteCount: notes.length, quizCount: quizzes.length, snapshot: dashboard?.snapshot }),
     [dashboard?.snapshot, notes.length, quizzes.length],
@@ -98,6 +105,15 @@ export function DashboardView({
       userMetrics: user?.metrics,
     }),
     [dashboard?.snapshot, notes.length, options.calendarDefaultMinutes, practiceDraftSummary.count, quizzes.length, studioDraftSummary.count, user?.metrics],
+  )
+  const recentWork = useMemo(
+    () => buildDashboardRecentWork({
+      aiChats: dashboard?.chats ?? [],
+      files: dashboard?.files ?? [],
+      notes,
+      quizAttempts: dashboard?.attempts ?? [],
+    }),
+    [dashboard?.attempts, dashboard?.chats, dashboard?.files, notes],
   )
   const CommandIcon = dashboardCommandIcons[commandPlan.target]
   const actionGroups: { label: string; actions: DashboardAction[] }[] = [
@@ -249,21 +265,24 @@ export function DashboardView({
       </Panel>
 
       <Panel className="p-4">
-        <SectionHeader icon={FileText} title="Studio recents" body="Notes, docs, sheets, and slides live together in Studio." />
+        <SectionHeader icon={FileText} title="Recent work" body="Recent Studio items, AI chats, practice attempts, and uploads appear together so resuming is simpler." />
         <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {recentNotes.length ? recentNotes.map((note) => (
-            <button key={note.id} onClick={() => setView("studio")} className="rounded-md border border-border bg-background p-3 text-left hover:bg-accent hover:text-accent-foreground">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
-                  <FileText className="h-5 w-5" />
+          {recentWork.length ? recentWork.slice(0, 4).map((item) => {
+            const Icon = recentWorkIcons[item.kind]
+            return (
+              <button key={item.id} onClick={() => setView(item.target)} className="rounded-md border border-border bg-background p-3 text-left hover:bg-accent hover:text-accent-foreground">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{item.title}</p>
+                    <p className="line-clamp-1 text-xs text-muted-foreground">{item.detail}</p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">{note.title}</p>
-                  <p className="line-clamp-1 text-xs text-muted-foreground">{note.content || "Open in Studio to keep building."}</p>
-                </div>
-              </div>
-            </button>
-          )) : (
+              </button>
+            )
+          }) : (
             <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground md:col-span-2">
               Create a Studio item to start building your learning workspace.
             </div>
