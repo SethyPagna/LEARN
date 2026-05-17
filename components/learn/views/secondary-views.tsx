@@ -51,10 +51,10 @@ export function ProgressView({ dashboard, quizzes, setView }: { dashboard: any; 
             <div className="min-w-0">
               <h2 className="text-2xl font-semibold text-foreground">Progress command center</h2>
               <div className="mt-2 flex flex-wrap gap-2">
-                <StatusPill label={progress.momentumLabel} />
-                <StatusPill label={`${progress.focusTopics.length} focus`} />
-                <StatusPill label={`${progress.reviewCount} review`} />
-                <StatusPill label={`${topicSeverityCounts.critical} critical`} />
+                <SharedStatusPill label={progress.momentumLabel} />
+                <SharedStatusPill label={`${progress.focusTopics.length} focus`} />
+                <SharedStatusPill label={`${progress.reviewCount} review`} />
+                <SharedStatusPill label={`${topicSeverityCounts.critical} critical`} tone={topicSeverityCounts.critical ? "watch" : "neutral"} />
               </div>
             </div>
           </div>
@@ -68,7 +68,7 @@ export function ProgressView({ dashboard, quizzes, setView }: { dashboard: any; 
               <ArrowRight className="h-4 w-4 text-muted-foreground" />
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
-              {progressPlan.chips.map((chip) => <span key={chip} className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">{chip}</span>)}
+              {progressPlan.chips.map((chip) => <SharedStatusPill key={chip} label={chip} />)}
             </div>
           </button>
           <div className="xl:col-span-2">
@@ -80,7 +80,7 @@ export function ProgressView({ dashboard, quizzes, setView }: { dashboard: any; 
               <div className="h-full rounded-full bg-success transition-all" style={{ width: `${Math.max(4, progress.goalCompletion)}%` }} />
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
-              {progress.focusTopics.length ? progress.focusTopics.map((topic) => <StatusPill key={topic} label={topic} />) : <StatusPill label="No focus set" />}
+              {progress.focusTopics.length ? progress.focusTopics.map((topic) => <SharedStatusPill key={topic} label={topic} />) : <SharedStatusPill label="No focus set" />}
             </div>
           </div>
         </div>
@@ -176,7 +176,7 @@ function ProgressActionButton({ action, onClick }: { action: ProgressNextAction;
         <Icon className="h-5 w-5 text-success" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{action.label}</p>
-          <span className={`mt-1 inline-flex rounded-md px-2 py-0.5 text-[0.68rem] font-semibold ${urgencyClass(action.urgency)}`}>{action.urgency}</span>
+          <SharedStatusPill label={action.urgency} tone={urgencyTone(action.urgency)} />
         </div>
         <ArrowRight className="h-4 w-4 text-muted-foreground" />
       </div>
@@ -204,10 +204,6 @@ function ProgressHeader({ icon: Icon, info, title }: { icon: typeof Target; info
   )
 }
 
-function StatusPill({ label }: { label: string }) {
-  return <span className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-semibold text-muted-foreground">{label}</span>
-}
-
 function MiniProgressStat({ label, tone, value }: { label: string; tone: "critical" | "watch" | "steady"; value: string }) {
   return (
     <div className={`rounded-md border p-2 ${severityClass(tone)}`}>
@@ -229,10 +225,10 @@ function severityClass(severity: "critical" | "watch" | "steady") {
   return "bg-success/20 text-success"
 }
 
-function urgencyClass(urgency: ProgressNextAction["urgency"]) {
-  if (urgency === "high") return "bg-destructive text-destructive-foreground"
-  if (urgency === "medium") return "bg-warning/20 text-warning-foreground"
-  return "bg-success/20 text-success"
+function urgencyTone(urgency: ProgressNextAction["urgency"]) {
+  if (urgency === "high") return "critical"
+  if (urgency === "medium") return "watch"
+  return "steady"
 }
 
 export function CalendarView({ options }: { options: WorkspaceOptions }) {
@@ -646,9 +642,11 @@ function SettingsSectionButton({
           <Icon className="h-5 w-5 shrink-0" />
           <span className="truncate font-semibold">{guide.label}</span>
         </span>
-        <span className={`rounded-md px-2 py-1 text-[0.68rem] font-semibold ${active ? "bg-primary-foreground/15 text-primary-foreground" : settingsToneClass(guide.tone)}`}>
-          {suggested ? "next" : guide.badge}
-        </span>
+        {active ? (
+          <span className="rounded-md bg-primary-foreground/15 px-2 py-1 text-[0.68rem] font-semibold text-primary-foreground">{suggested ? "next" : guide.badge}</span>
+        ) : (
+          <SharedStatusPill label={suggested ? "next" : guide.badge} tone={settingsTone(guide.tone)} />
+        )}
       </div>
       <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{guide.detail}</p>
     </button>
@@ -708,16 +706,16 @@ export function SettingsView({
             <div className="min-w-0">
               <h2 className="text-2xl font-semibold text-foreground">Settings control center</h2>
               <div className="mt-2 flex flex-wrap gap-2">
-                <StatusPill label={settingsSummary.privacyLabel} />
-                <StatusPill label={settingsSummary.dailyReviewLabel} />
-                {profileDirty ? <StatusPill label="profile draft" /> : <StatusPill label="profile saved" />}
+                <SharedStatusPill label={settingsSummary.privacyLabel} />
+                <SharedStatusPill label={settingsSummary.dailyReviewLabel} />
+                {profileDirty ? <SharedStatusPill label="profile draft" tone="watch" /> : <SharedStatusPill label="profile saved" tone="steady" />}
               </div>
             </div>
           </div>
-          <button onClick={saveProfile} className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
+          <ControlButton onClick={saveProfile} active>
             <Save className="h-4 w-4" />
             Save profile
-          </button>
+          </ControlButton>
         </div>
         {status ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
         <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
@@ -734,17 +732,17 @@ export function SettingsView({
             {settingsSummary.statuses.map((item) => (
               <div key={item.id} className="rounded-md border border-border bg-card p-2 text-sm">
                 <span className="block truncate font-medium text-foreground">{item.label}</span>
-                <span className={`mt-2 inline-flex rounded-md px-2 py-1 text-xs font-semibold ${settingsToneClass(item.tone)}`}>{item.value}</span>
+                <span className="mt-2 inline-flex"><SharedStatusPill label={item.value} tone={settingsTone(item.tone)} /></span>
               </div>
             ))}
           </div>
-          <button
+          <ControlButton
             onClick={() => setSection(settingsPlan.suggestedSection)}
-            className="mt-3 flex w-full items-center justify-between gap-3 rounded-md border border-border bg-secondary p-3 text-left text-sm font-semibold text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground"
+            className="mt-3 w-full justify-between"
           >
             <span className="min-w-0 truncate">{settingsPlan.nextAction}</span>
             <ArrowRight className="h-4 w-4 shrink-0" />
-          </button>
+          </ControlButton>
         </details>
       </Panel>
 
@@ -858,14 +856,15 @@ function LanguagePicker({ locale, setLocale }: { locale: SupportedLocale; setLoc
       </div>
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {supportedLocales.map((item) => (
-          <button
+          <ControlButton
             key={item}
             onClick={() => setLocale(item)}
-            className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm font-semibold transition hover:-translate-y-0.5 ${locale === item ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+            active={locale === item}
+            className="w-full justify-between"
           >
             <span>{languageNames[item]}</span>
             {locale === item ? <Check className="h-4 w-4" /> : null}
-          </button>
+          </ControlButton>
         ))}
       </div>
     </div>
@@ -927,9 +926,9 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
             <div className="min-w-0">
               <h2 className="text-2xl font-semibold text-foreground">Admin control center</h2>
               <div className="mt-2 flex flex-wrap gap-2">
-                <StatusPill label={adminSummary.systemTone === "watch" ? "review needed" : "healthy"} />
-                <StatusPill label={`${adminSummary.providerIssues.length} provider issue${adminSummary.providerIssues.length === 1 ? "" : "s"}`} />
-                <StatusPill label={`${adminSummary.recentAudit.length} audit rows`} />
+                <SharedStatusPill label={adminSummary.systemTone === "watch" ? "review needed" : "healthy"} tone={adminSummary.systemTone === "watch" ? "watch" : "steady"} />
+                <SharedStatusPill label={`${adminSummary.providerIssues.length} provider issue${adminSummary.providerIssues.length === 1 ? "" : "s"}`} tone={adminSummary.providerIssues.length ? "watch" : "neutral"} />
+                <SharedStatusPill label={`${adminSummary.recentAudit.length} audit rows`} />
               </div>
             </div>
           </div>
