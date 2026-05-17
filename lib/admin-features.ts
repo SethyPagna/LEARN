@@ -15,6 +15,7 @@ export interface AdminAuditLike {
   id?: string
   action?: string
   entity?: string
+  entity_id?: string
   details?: Record<string, unknown> | string
   created_at?: string
   user_id?: string
@@ -134,7 +135,7 @@ export function summarizeAdminOperations(input: {
   }
 }
 
-export function filterAdminList<T extends Record<string, unknown>>(items: T[], query: string, fields: Array<keyof T>) {
+export function filterAdminList<T>(items: T[], query: string, fields: Array<keyof T>) {
   const needle = query.trim().toLowerCase()
   if (!needle) return items
   const results: T[] = []
