@@ -75,6 +75,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-17: Continued Phase 4 by moving Progress, Settings, and Admin header chips plus Settings save/language/suggested-section controls onto shared design-system primitives.
 - 2026-05-18: Continued Phase 4 by replacing Admin overview, provider/key, access-request, tab, invite, and plan chips/buttons with shared design-system primitives.
 - 2026-05-18: Completed a multi-pass schema/workflow sweep and added the final Phase 6 relational schema plan covering content registry, universal sharing, friends/follows, content versions, practice sessions, collaboration logs, search/feed cache, and cleaner grouped UI workflows.
+- 2026-05-18: Started executing the final Phase 6 schema plan by adding migration-parsing schema contract tests for the current D1 product tables and hot-query indexes.
 
 ## Implementation Slices
 

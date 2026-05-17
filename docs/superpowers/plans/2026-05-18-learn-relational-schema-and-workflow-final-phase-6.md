@@ -539,8 +539,8 @@ These targets merge the earlier product maturity, navigation, Studio, AI Tutor, 
 - Create: `tests/schema-contract.test.ts`
 - Modify: `docs/superpowers/plans/2026-05-18-learn-relational-schema-and-workflow-final-phase-6.md`
 
-- [ ] Add a test that parses `migrations/*.sql` and asserts required current tables exist.
-- [ ] Include required tables:
+- [x] Add a test that parses `migrations/*.sql` and asserts required current tables exist.
+- [x] Include required tables:
   - `users`
   - `notes`
   - `editor_documents`
@@ -552,8 +552,8 @@ These targets merge the earlier product maturity, navigation, Studio, AI Tutor, 
   - `study_battles`
   - `social_actions`
   - `media_assets`
-- [ ] Run `corepack pnpm test`.
-- [ ] Commit: `Add schema contract coverage`.
+- [x] Run `corepack pnpm test`.
+- [x] Commit: `Add schema contract coverage`.
 
 ### Task 2: Content Registry Migration
 
