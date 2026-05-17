@@ -17,6 +17,14 @@ export function toneSurfaceClasses(tone: UiTone = "neutral") {
   return "bg-secondary text-secondary-foreground"
 }
 
+export function toneTextClasses(tone: UiTone = "neutral") {
+  if (tone === "critical") return "text-destructive"
+  if (tone === "primary") return "text-primary"
+  if (tone === "steady") return "text-success"
+  if (tone === "watch") return "text-warning-foreground dark:text-warning"
+  return "text-foreground"
+}
+
 export function controlButtonClasses(input: {
   active?: boolean
   destructive?: boolean

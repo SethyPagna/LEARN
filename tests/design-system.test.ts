@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { controlButtonClasses, menuSurfaceClasses, statusToneClasses, toneSurfaceClasses } from "../lib/design-system"
+import { controlButtonClasses, menuSurfaceClasses, statusToneClasses, toneSurfaceClasses, toneTextClasses } from "../lib/design-system"
 
 test("statusToneClasses returns readable semantic tone classes", () => {
   assert.match(statusToneClasses("critical"), /border-destructive\/40/)
@@ -28,6 +28,13 @@ test("toneSurfaceClasses returns borderless icon surfaces", () => {
   assert.match(toneSurfaceClasses("primary"), /bg-primary\/10/)
   assert.match(toneSurfaceClasses("watch"), /bg-warning\/15/)
   assert.match(toneSurfaceClasses(), /bg-secondary/)
+})
+
+test("toneTextClasses keeps text-only semantic states reusable", () => {
+  assert.equal(toneTextClasses("critical"), "text-destructive")
+  assert.equal(toneTextClasses("steady"), "text-success")
+  assert.match(toneTextClasses("watch"), /text-warning/)
+  assert.equal(toneTextClasses(), "text-foreground")
 })
 
 test("menuSurfaceClasses uses shared popover contrast tokens", () => {
