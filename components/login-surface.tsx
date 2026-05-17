@@ -17,7 +17,7 @@ import {
   Sun,
   UserPlus,
 } from "lucide-react"
-import { buildAuthEntryPlan } from "@/lib/auth-entry"
+import { buildAuthEntryPlan, buildForgotPasswordPlan, safeRedirectPath } from "@/lib/auth-entry"
 import { isSupportedLocale, languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
 
 const LANGUAGE_KEY = "learn_locale"
@@ -55,15 +55,20 @@ export function LoginSurface() {
   const [loading, setLoading] = useState(false)
   const [locale, setLocaleState] = useState<SupportedLocale>("en")
   const [languageOpen, setLanguageOpen] = useState(false)
+  const [forgotOpen, setForgotOpen] = useState(false)
+  const [redirectPath, setRedirectPath] = useState("/dashboard")
   const plan = useMemo(
     () => buildAuthEntryPlan({ accessRequestStatus: success ? "success" : error ? "error" : "idle", identifier, mode, password }),
     [error, identifier, mode, password, success],
   )
+  const forgotPlan = useMemo(() => buildForgotPasswordPlan(identifier), [identifier])
   const nextTheme = resolvedTheme === "dark" ? "light" : "dark"
   const ThemeIcon = resolvedTheme === "dark" ? Sun : Moon
 
   useEffect(() => {
     setLocaleState(getStoredLocale())
+    const params = new URLSearchParams(window.location.search)
+    setRedirectPath(safeRedirectPath(params.get("redirect")))
   }, [])
 
   useEffect(() => {
@@ -102,7 +107,14 @@ export function LoginSurface() {
       setError(json.error || "Unable to sign in.")
       return
     }
-    window.location.href = "/dashboard"
+    window.location.href = redirectPath
+  }
+
+  function handleForgotPassword() {
+    const resetPlan = buildForgotPasswordPlan(identifier)
+    setForgotOpen(true)
+    setError(resetPlan.tone === "watch" ? resetPlan.nextAction : "")
+    setSuccess(resetPlan.tone === "neutral" ? resetPlan.nextAction : "")
   }
 
   async function handleAccessRequest(event: FormEvent<HTMLFormElement>) {
@@ -281,7 +293,16 @@ export function LoginSurface() {
                   />
                 </label>
                 <label className="grid gap-2 text-sm font-semibold">
-                  Password
+                  <span className="flex items-center justify-between gap-3">
+                    <span>Password</span>
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 dark:text-white/55 dark:hover:bg-white/8 dark:hover:text-white"
+                    >
+                      Forgot?
+                    </button>
+                  </span>
                   <span className="flex h-12 items-center rounded-xl border border-slate-200 bg-slate-50 pr-2 transition focus-within:border-emerald-500 focus-within:bg-white dark:border-white/10 dark:bg-white/[0.055] dark:focus-within:border-emerald-300">
                     <input
                       value={password}
@@ -301,6 +322,13 @@ export function LoginSurface() {
                     </button>
                   </span>
                 </label>
+
+                {forgotOpen ? (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm dark:border-white/10 dark:bg-white/[0.045]">
+                    <p className="font-semibold">{forgotPlan.label}</p>
+                    <p className="mt-1 text-slate-500 dark:text-white/55">{forgotPlan.nextAction}</p>
+                  </div>
+                ) : null}
 
                 <details className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/[0.045] lg:hidden">
                   <summary className="cursor-pointer text-sm font-semibold">Sample accounts</summary>
