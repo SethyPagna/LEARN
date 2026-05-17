@@ -41,6 +41,26 @@ export interface DashboardEmptyState {
   target: DashboardCommandTarget
 }
 
+export interface DashboardUserMetrics {
+  streakCurrent?: number
+  xpTotal?: number
+}
+
+export interface DashboardMetricInput extends DashboardCommandInput {
+  calendarDefaultMinutes: number
+  practiceDraftCount: number
+  studioDraftCount: number
+  userMetrics?: DashboardUserMetrics | null
+}
+
+export interface DashboardMetricTile {
+  id: "drafts" | "focus" | "reviews" | "streak" | "xp"
+  label: string
+  value: string
+  detail: string
+  tone: "critical" | "steady" | "watch"
+}
+
 export function buildDashboardCommandPlan(input: DashboardCommandInput): DashboardCommandPlan {
   const snapshot = input.snapshot ?? {}
   const weakTopic = pickWeakestTopic(snapshot.weakTopics ?? [])
@@ -142,6 +162,53 @@ export function buildDashboardEmptyStates(input: DashboardCommandInput): Dashboa
   }
 
   return states.slice(0, 3)
+}
+
+export function buildDashboardMetricTiles(input: DashboardMetricInput): DashboardMetricTile[] {
+  const snapshot = input.snapshot ?? {}
+  const streak = Math.max(0, Math.floor(input.userMetrics?.streakCurrent ?? 0))
+  const xp = Math.max(0, Math.floor(input.userMetrics?.xpTotal ?? 0))
+  const reviewCount = Math.max((snapshot.weakTopics ?? []).length, uniqueNonEmpty(snapshot.recommendedFocus ?? []).length)
+  const totalDrafts = Math.max(0, input.studioDraftCount) + Math.max(0, input.practiceDraftCount)
+  const focusMinutes = Math.max(0, Math.floor(input.calendarDefaultMinutes))
+
+  return [
+    {
+      id: "streak",
+      label: "Streak",
+      value: String(streak),
+      detail: streak ? `${streak} active learning day${streak === 1 ? "" : "s"}` : "Start with one small action today",
+      tone: streak ? "steady" : "watch",
+    },
+    {
+      id: "xp",
+      label: "XP",
+      value: String(xp),
+      detail: xp ? "Progress earned from learning actions" : "Practice and reviews will build XP",
+      tone: xp ? "steady" : "watch",
+    },
+    {
+      id: "reviews",
+      label: "Reviews",
+      value: String(reviewCount),
+      detail: reviewCount ? "Due focus and weak-topic signals" : "No review pressure yet",
+      tone: reviewCount ? "critical" : "steady",
+    },
+    {
+      id: "drafts",
+      label: "Drafts",
+      value: String(totalDrafts),
+      detail: `${input.studioDraftCount} Studio and ${input.practiceDraftCount} practice draft${input.practiceDraftCount === 1 ? "" : "s"}`,
+      tone: totalDrafts ? "watch" : "steady",
+    },
+    {
+      id: "focus",
+      label: "Focus",
+      value: `${focusMinutes}m`,
+      detail: "Default calendar block length",
+      tone: focusMinutes >= 20 ? "steady" : "watch",
+    },
+  ]
 }
 
 function pickWeakestTopic(topics: DashboardWeakTopic[]) {

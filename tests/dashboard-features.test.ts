@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardSignals } from "../lib/dashboard-features"
+import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardSignals } from "../lib/dashboard-features"
 
 test("buildDashboardCommandPlan prioritizes weak topic repair", () => {
   const plan = buildDashboardCommandPlan({
@@ -74,4 +74,24 @@ test("buildDashboardEmptyStates stays quiet when the loop has material", () => {
   })
 
   assert.deepEqual(emptyStates, [])
+})
+
+test("buildDashboardMetricTiles combines learner progress drafts and focus time", () => {
+  const metrics = buildDashboardMetricTiles({
+    calendarDefaultMinutes: 45,
+    noteCount: 5,
+    practiceDraftCount: 1,
+    quizCount: 3,
+    snapshot: {
+      recommendedFocus: ["Databases"],
+      weakTopics: [{ topic: "Databases", accuracy: 42 }, { topic: "Memory", accuracy: 71 }],
+    },
+    studioDraftCount: 2,
+    userMetrics: { streakCurrent: 6, xpTotal: 260 },
+  })
+
+  assert.deepEqual(metrics.map((metric) => metric.id), ["streak", "xp", "reviews", "drafts", "focus"])
+  assert.equal(metrics.find((metric) => metric.id === "xp")?.value, "260")
+  assert.equal(metrics.find((metric) => metric.id === "reviews")?.value, "2")
+  assert.equal(metrics.find((metric) => metric.id === "drafts")?.detail, "2 Studio and 1 practice draft")
 })
