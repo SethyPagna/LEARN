@@ -64,6 +64,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-17: Added Dashboard first-run onboarding for invite-created learners and `/dashboard?onboarding=1`, saving learning goal, preferred workflow, and first Studio type before routing to the next useful page.
 - 2026-05-17: Started Phase 3 dashboard maturity by adding tested setup-gap helpers and compact Dashboard cards that only appear when Studio material, practice, or route signals are missing.
 - 2026-05-17: Continued Phase 3 dashboard maturity by exposing D1 streak/XP metrics and replacing raw dashboard counts with compact streak, XP, review, draft, and focus tiles.
+- 2026-05-17: Continued Phase 3 dashboard maturity by expanding `/api/dashboard` with recent AI chats, quiz attempts, and uploads, then replacing Studio-only recents with a mixed Recent Work panel.
 
 ## Implementation Slices
 
