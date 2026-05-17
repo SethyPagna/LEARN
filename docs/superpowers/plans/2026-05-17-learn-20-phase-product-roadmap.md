@@ -38,9 +38,9 @@
 
 ### Sub-phases
 
-- [ ] **2.1 Login completion:** Add forgot-password placeholder flow, session status, better error messages, and redirect-back behavior after protected route access.
+- [x] **2.1 Login completion:** Add forgot-password placeholder flow, session status, better error messages, and redirect-back behavior after protected route access.
 - [ ] **2.2 Request access:** Connect access requests to Admin audit and a real invite review panel.
-- [ ] **2.3 Invite acceptance:** Add token-based invite acceptance with password creation and role assignment.
+- [x] **2.3 Invite acceptance:** Add token-based invite acceptance with password creation and role assignment.
 - [ ] **2.4 First-run onboarding:** Add a three-step learner setup: goal, preferred workflow, first Studio item.
 - [ ] **2.5 Acceptance:** Login, logout, request access, invite review, invite acceptance, and first-run setup work on desktop/mobile.
 
