@@ -309,7 +309,7 @@ export async function listNoteVersions(user: User, noteId: string) {
   await ensureDatabase()
   const note = await query("SELECT id FROM notes WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin') LIMIT 1", [noteId, user.id, user.role])
   if (!note.rowCount) return []
-  const result = await query<WorkspaceInviteRow>(
+  const result = await query(
     `SELECT id, note_id, user_id, title, content, metadata, created_at
      FROM note_versions
      WHERE note_id = $1
@@ -351,7 +351,7 @@ export async function listAuditLogs(user: User) {
 
 export async function listCalendarEvents(user: User) {
   await ensureDatabase()
-  const result = await query<WorkspaceInviteRow>(
+  const result = await query(
     `SELECT * FROM calendar_events
      WHERE owner_user_id = $1 OR $2 = 'admin'
      ORDER BY starts_at ASC
@@ -408,7 +408,7 @@ function normalizeJsonRow<T extends Record<string, unknown>>(row: T, keys: strin
 export async function listEditorDocuments(user: User, documentType = "doc", status: ArchiveListStatus = "active") {
   await ensureDatabase()
   const archiveClause = archivedWhereClause()[status]
-  const result = await query(
+  const result = await query<WorkspaceInviteRow>(
     `SELECT * FROM editor_documents
      WHERE document_type = $1 AND ${archiveClause} AND (owner_user_id = $2 OR $3 = 'admin')
      ORDER BY updated_at DESC
