@@ -1,12 +1,12 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, Bot, CalendarDays, CalendarPlus, Check, ChevronRight, Clock, Copy, FileText, Filter, Gauge, Languages, Lock, Palette, Repeat2, Save, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserRound, Users } from "lucide-react"
+import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, Bot, CalendarDays, CalendarPlus, Check, ChevronRight, Clock, Copy, FileText, Filter, Gauge, Languages, Link as LinkIcon, Lock, Palette, Repeat2, Save, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserPlus, UserRound, Users } from "lucide-react"
 import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
 import { buildCalendarPlanningSummary, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
 import { buildProgressCommandPlan, summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
 import { buildSettingsControlPlan, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
-import { buildAdminOperationalPlan, filterAdminList, summarizeAdminOperations, type AdminPanelTab } from "@/lib/admin-features"
+import { buildAdminOperationalPlan, filterAdminList, summarizeAdminOperations, type AdminAccessRequest, type AdminPanelTab } from "@/lib/admin-features"
 import type { WorkspaceOptions } from "../preferences"
 import type { CalendarEvent, Quiz, User, View } from "../types"
 import { api, formatDate } from "../api"
@@ -880,8 +880,11 @@ function settingsToneClass(tone: "good" | "watch" | "neutral") {
 export function AdminView({ user, adminData, automationData, options }: { user: User | null; adminData: any; automationData: any; options: WorkspaceOptions }) {
   const [tab, setTab] = useState<AdminPanelTab>("overview")
   const [query, setQuery] = useState("")
+  const [inviteLinks, setInviteLinks] = useState<Record<string, string>>({})
+  const [inviteStatus, setInviteStatus] = useState<Record<string, string>>({})
   const adminSummary = useMemo(() => summarizeAdminOperations({ adminData, automationData }), [adminData, automationData])
   const adminPlan = useMemo(() => buildAdminOperationalPlan(adminSummary), [adminSummary])
+  const accessRequests = useMemo(() => filterAdminList(adminSummary.accessRequests, query, ["name", "email", "goal", "role"]), [adminSummary.accessRequests, query])
   const users = useMemo(() => filterAdminList(adminData?.users || [], query, ["name", "username", "email", "role"]), [adminData?.users, query])
   const providers = useMemo(() => filterAdminList(adminData?.providers || [], query, ["name", "provider", "last_status", "last_error"]), [adminData?.providers, query])
   const audit = useMemo(() => filterAdminList(adminData?.audit || [], query, ["action", "entity", "details", "user_id"]), [adminData?.audit, query])
@@ -889,6 +892,22 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
   const prompts = useMemo(() => filterAdminList(automationData?.prompts || [], query, ["label", "description", "key", "mode"]), [automationData?.prompts, query])
 
   if (user?.role !== "admin") return <Panel className="p-4">Admin access required.</Panel>
+
+  async function issueInvite(request: AdminAccessRequest) {
+    setInviteStatus((current) => ({ ...current, [request.id]: "Creating invite..." }))
+    try {
+      const response = await api<{ item: { token: string } }>("/api/invites", {
+        method: "POST",
+        body: JSON.stringify({ email: request.email, role: request.roleKey }),
+      })
+      const link = `${window.location.origin}/invite/${response.item.token}`
+      setInviteLinks((current) => ({ ...current, [request.id]: link }))
+      setInviteStatus((current) => ({ ...current, [request.id]: "Invite ready" }))
+      await navigator.clipboard?.writeText(link).catch(() => undefined)
+    } catch (error) {
+      setInviteStatus((current) => ({ ...current, [request.id]: error instanceof Error ? error.message : "Unable to create invite." }))
+    }
+  }
 
   return (
     <div className="grid gap-4">
@@ -937,6 +956,7 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
         <div className="mt-4 flex flex-wrap gap-2">
           {([
             ["overview", "Overview", Gauge],
+            ["access", "Access", UserPlus],
             ["users", "Users", Users],
             ["providers", "Providers", Bot],
             ["audit", "Audit", ShieldCheck],
@@ -960,6 +980,15 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
           <AdminList title="Recent audit" items={adminSummary.recentAudit} emptyLabel="No audit rows yet." accent={adminSummary.recentAudit.length ? "neutral" : "watch"} />
           <AdminList title="Automation jobs" items={adminSummary.visibleAutomation} emptyLabel="No automation jobs loaded." accent={adminSummary.visibleAutomation.length ? "good" : "neutral"} />
         </div>
+      ) : null}
+      {tab === "access" ? (
+        <AdminAccessRequests
+          inviteLinks={inviteLinks}
+          inviteStatus={inviteStatus}
+          items={accessRequests}
+          onIssueInvite={issueInvite}
+          query={query}
+        />
       ) : null}
       {tab === "users" ? <AdminList title="Users" items={users} emptyLabel="No users match this search." query={query} /> : null}
       {tab === "providers" ? (
@@ -1072,6 +1101,75 @@ function AdminList({
           </div>
         ))}
         {!items.length ? <p className="rounded-md border border-dashed border-border bg-background p-4 text-sm text-muted-foreground md:col-span-2 xl:col-span-4">{emptyLabel}</p> : null}
+      </div>
+    </Panel>
+  )
+}
+
+function AdminAccessRequests({
+  inviteLinks,
+  inviteStatus,
+  items,
+  onIssueInvite,
+  query,
+}: {
+  inviteLinks: Record<string, string>
+  inviteStatus: Record<string, string>
+  items: AdminAccessRequest[]
+  onIssueInvite: (request: AdminAccessRequest) => void
+  query: string
+}) {
+  return (
+    <Panel className="p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-semibold text-foreground">Access requests</p>
+          <p className="mt-1 text-sm text-muted-foreground">Review request-access audit rows and issue invite links without digging through raw logs.</p>
+          {query ? <p className="mt-1 text-xs text-muted-foreground">Filtered by "{query}"</p> : null}
+        </div>
+        <span className={`rounded-md px-2 py-1 text-xs font-semibold ${settingsToneClass(items.length ? "watch" : "good")}`}>{items.length}</span>
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        {items.map((item) => (
+          <article key={item.id} className="rounded-md border border-border bg-background p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-foreground">{item.name}</p>
+                <p className="mt-1 truncate text-xs text-muted-foreground">{item.email}</p>
+              </div>
+              <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{item.role}</span>
+            </div>
+            <p className="mt-3 line-clamp-3 text-sm leading-6 text-muted-foreground">{item.goal || "No learning goal included."}</p>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onIssueInvite(item)}
+                className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+              >
+                <UserPlus className="h-4 w-4" />
+                Issue invite
+              </button>
+              {inviteLinks[item.id] ? (
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard?.writeText(inviteLinks[item.id]).catch(() => undefined)}
+                  className="inline-flex h-9 min-w-0 max-w-full items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground"
+                  title={inviteLinks[item.id]}
+                >
+                  <LinkIcon className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Copy invite link</span>
+                </button>
+              ) : null}
+              {inviteStatus[item.id] ? <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">{inviteStatus[item.id]}</span> : null}
+            </div>
+          </article>
+        ))}
+        {!items.length ? (
+          <p className="rounded-md border border-dashed border-border bg-background p-4 text-sm text-muted-foreground lg:col-span-2">
+            No pending access requests match this search. New request-access submissions appear here after learners submit the login form.
+          </p>
+        ) : null}
       </div>
     </Panel>
   )
