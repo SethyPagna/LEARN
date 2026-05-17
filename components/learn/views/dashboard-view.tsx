@@ -22,7 +22,7 @@ import {
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import type React from "react"
-import { buildDashboardCommandPlan, buildDashboardSignals, type DashboardCommandTarget } from "@/lib/dashboard-features"
+import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardSignals, type DashboardCommandTarget } from "@/lib/dashboard-features"
 import { normalizeOnboardingPreferences, onboardingTargetView, shouldShowOnboarding, type OnboardingStudioKind, type OnboardingWorkflow } from "@/lib/onboarding-features"
 import { api } from "../api"
 import type { WorkspaceOptions } from "../preferences"
@@ -69,6 +69,10 @@ export function DashboardView({
   )
   const dashboardSignals = useMemo(
     () => buildDashboardSignals({ noteCount: notes.length, quizCount: quizzes.length, snapshot: dashboard?.snapshot }),
+    [dashboard?.snapshot, notes.length, quizzes.length],
+  )
+  const emptyStates = useMemo(
+    () => buildDashboardEmptyStates({ noteCount: notes.length, quizCount: quizzes.length, snapshot: dashboard?.snapshot }),
     [dashboard?.snapshot, notes.length, quizzes.length],
   )
   const CommandIcon = dashboardCommandIcons[commandPlan.target]
@@ -153,6 +157,36 @@ export function DashboardView({
           <BigMetric icon={Repeat2} label="Review" value={String(reviewCount)} body="Concepts needing attention" />
         </div>
       </section>
+
+      {emptyStates.length ? (
+        <Panel className="p-4 xl:col-span-2">
+          <SectionHeader icon={Compass} title="Setup gaps" body="Small setup cards appear only while the workspace needs source material, practice, or a route signal." />
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            {emptyStates.map((state) => {
+              const Icon = dashboardCommandIcons[state.target]
+              return (
+                <button
+                  key={state.id}
+                  type="button"
+                  onClick={() => setView(state.target)}
+                  className="rounded-md border border-border bg-background p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-foreground">{state.title}</span>
+                      <span className="mt-1 block text-xs text-muted-foreground">{state.actionLabel}</span>
+                    </span>
+                  </div>
+                  <p className="mt-3 text-xs leading-5 text-muted-foreground">{state.detail}</p>
+                </button>
+              )
+            })}
+          </div>
+        </Panel>
+      ) : null}
 
       <Panel className="p-4">
         <SectionHeader icon={Sparkles} title="AI suggestion" body="Use the tutor as a quiet co-pilot, not a replacement for your work." />
