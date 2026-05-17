@@ -40,6 +40,7 @@ export function LearnShell({
   const [query, setQuery] = useState("")
   const [studioDraftSummary, setStudioDraftSummary] = useState<StudioDraftSummary>({ count: 0, labels: [] })
   const [practiceDraftSummary, setPracticeDraftSummary] = useState<PracticeDraftSummary>({ count: 0, quizIds: [] })
+  const [forceOnboarding, setForceOnboarding] = useState(false)
   const preferences = useWorkspacePreferences()
 
   const selectedNote = useMemo(() => notes.find((note) => note.id === selectedNoteId) || notes[0], [notes, selectedNoteId])
@@ -108,6 +109,7 @@ export function LearnShell({
     function syncViewFromLocation() {
       const nextView = viewFromPath(window.location.pathname)
       if (!nextView) return
+      setForceOnboarding(new URLSearchParams(window.location.search).get("onboarding") === "1")
       setView(nextView)
       setMenuOpen(false)
       setQuery("")
@@ -197,7 +199,7 @@ export function LearnShell({
           />
           <div className={preferences.density === "compact" ? "p-3 lg:p-4" : "p-4 lg:p-6"}>
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
-            {view === "dashboard" ? <DashboardView dashboard={dashboard} notes={notes} quizzes={quizzes} options={preferences.options} setView={chooseView} /> : null}
+            {view === "dashboard" ? <DashboardView dashboard={dashboard} forceOnboarding={forceOnboarding} notes={notes} quizzes={quizzes} options={preferences.options} setView={chooseView} user={user} /> : null}
             {learnWorkspaceViews.includes(view as (typeof learnWorkspaceViews)[number]) ? <LearnWorkspaceView dashboard={dashboard} initialView={view} options={preferences.options} quizzes={quizzes} setView={chooseView} /> : null}
             {view === "vault" ? <VaultView setView={chooseView} /> : null}
             {view === "feed" || view === "discover" ? <FeedView setView={chooseView} /> : null}
