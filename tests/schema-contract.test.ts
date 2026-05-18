@@ -80,6 +80,9 @@ test("D1 migrations include the current LEARN product tables", () => {
     "user_connections",
     "practice_sessions",
     "practice_session_items",
+    "collaboration_sessions",
+    "collaboration_events",
+    "client_mutations",
   ]
 
   assert.deepEqual(
@@ -118,6 +121,12 @@ test("D1 migrations keep indexes for the current hot product queries", () => {
     idx_practice_session_items_session: { table: "practice_session_items", includes: ["session_id", "created_at"] },
     idx_practice_session_items_review: { table: "practice_session_items", includes: ["review_item_id", "created_at DESC"] },
     idx_practice_session_items_content: { table: "practice_session_items", includes: ["content_item_id", "created_at DESC"] },
+    idx_collaboration_sessions_type_status: { table: "collaboration_sessions", includes: ["session_type", "status", "started_at DESC"] },
+    idx_collaboration_sessions_content: { table: "collaboration_sessions", includes: ["content_item_id", "started_at DESC"] },
+    idx_collaboration_events_session: { table: "collaboration_events", includes: ["session_id", "created_at DESC"] },
+    idx_collaboration_events_type: { table: "collaboration_events", includes: ["event_type", "created_at DESC"] },
+    idx_client_mutations_user_status: { table: "client_mutations", includes: ["user_id", "status", "server_received_at DESC"] },
+    idx_client_mutations_content: { table: "client_mutations", includes: ["content_item_id", "server_received_at DESC"] },
   }
 
   for (const [name, expected] of Object.entries(requiredIndexes)) {

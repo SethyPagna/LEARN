@@ -5,6 +5,14 @@
   "main": "workers/realtime.js",
   "compatibility_date": "2026-05-13",
   "workers_dev": false,
+  "d1_databases": [
+    {
+      "binding": "LEARN_DB",
+      "database_name": "learn-db",
+      "database_id": "3eeb04af-c283-48c0-9469-82b64392fa79",
+      "migrations_dir": "migrations"
+    }
+  ],
   "durable_objects": {
     "bindings": [
       {
