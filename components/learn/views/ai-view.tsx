@@ -104,6 +104,7 @@ export function AiTutorView({
   const [activeTaskKey, setActiveTaskKey] = useState(tutorModes[0].id)
   const [modeGroup, setModeGroup] = useState<TutorModeGroupId>("tutor")
   const [openTutorMenu, setOpenTutorMenu] = useState<TutorMenuId | null>(null)
+  const [sidePanel, setSidePanel] = useState<"gateway" | "import" | "presets">("gateway")
   const draftHydrated = useRef(false)
   const draftStatusTimer = useRef<number | null>(null)
 
@@ -522,51 +523,49 @@ export function AiTutorView({
 
       <Panel className="p-4">
         <div className="flex items-center justify-between gap-3">
-          <p className="flex items-center gap-2 font-semibold text-foreground"><Brain className="h-4 w-4 text-success" /> Gateway</p>
+          <p className="flex items-center gap-2 font-semibold text-foreground"><Brain className="h-4 w-4 text-success" /> AI center</p>
           <button onClick={loadProviders} className="h-8 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
             Refresh
           </button>
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <GatewayMetric label="Ready" value={String(providerSummary.readyCount)} tone={providerSummary.readyCount ? "ready" : "warning"} />
-          <GatewayMetric label="Keys" value={String(providerSummary.configuredCount)} tone={providerSummary.configuredCount ? "ready" : "warning"} />
-          <GatewayMetric label="Families" value={String(providerSummary.familyCount)} tone="neutral" />
-          <GatewayMetric label="Presets" value={String(providerSummary.presetCount)} tone="neutral" />
+        <div className="mt-3 grid grid-cols-3 gap-1 rounded-md border border-border bg-background p-1">
+          <SidePanelButton active={sidePanel === "gateway"} count={providerSummary.readyCount} icon={Brain} label="Gateway" onClick={() => setSidePanel("gateway")} />
+          <SidePanelButton active={sidePanel === "import"} count={importPreview.ok ? 1 : 0} icon={UploadCloud} label="Import" onClick={() => setSidePanel("import")} />
+          <SidePanelButton active={sidePanel === "presets"} count={providerSummary.presetCount} icon={Gauge} label="Presets" onClick={() => setSidePanel("presets")} />
         </div>
-        <details className="mt-3 rounded-md border border-border bg-background p-3">
-          <summary className="cursor-pointer text-sm font-semibold text-foreground">Provider details</summary>
-          <p className="mt-2 text-xs leading-5 text-muted-foreground">Keys stay masked. LEARN tries enabled providers by priority with failover.</p>
-          <div className="mt-3 space-y-2">
-            {providers.map((provider) => (
-              <div key={provider.id} className="rounded-md bg-muted p-3 text-sm">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-medium text-foreground">{provider.name}</p>
-                  <span className="rounded bg-background px-2 py-0.5 text-xs text-muted-foreground">P{provider.priority}</span>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                  <span className="rounded bg-background px-2 py-0.5 text-muted-foreground">{provider.provider}</span>
-                  <span className="rounded bg-background px-2 py-0.5 text-muted-foreground">{provider.default_model}</span>
-                  <StatusPill label={providerStatusLabel(provider)} tone={providerIsReady(provider) ? "steady" : "watch"} />
-                </div>
+
+        {sidePanel === "gateway" ? (
+          <div className="mt-3">
+            <div className="grid grid-cols-2 gap-2">
+              <GatewayMetric label="Ready" value={String(providerSummary.readyCount)} tone={providerSummary.readyCount ? "ready" : "warning"} />
+              <GatewayMetric label="Keys" value={String(providerSummary.configuredCount)} tone={providerSummary.configuredCount ? "ready" : "warning"} />
+              <GatewayMetric label="Families" value={String(providerSummary.familyCount)} tone="neutral" />
+              <GatewayMetric label="Presets" value={String(providerSummary.presetCount)} tone="neutral" />
+            </div>
+            <details className="mt-3 rounded-md border border-border bg-background p-3">
+              <summary className="cursor-pointer text-sm font-semibold text-foreground">Provider details</summary>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">Keys stay masked. LEARN tries enabled providers by priority with failover.</p>
+              <div className="mt-3 space-y-2">
+                {providers.map((provider) => (
+                  <div key={provider.id} className="rounded-md bg-muted p-3 text-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium text-foreground">{provider.name}</p>
+                      <span className="rounded bg-background px-2 py-0.5 text-xs text-muted-foreground">P{provider.priority}</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                      <span className="rounded bg-background px-2 py-0.5 text-muted-foreground">{provider.provider}</span>
+                      <span className="rounded bg-background px-2 py-0.5 text-muted-foreground">{provider.default_model}</span>
+                      <StatusPill label={providerStatusLabel(provider)} tone={providerIsReady(provider) ? "steady" : "watch"} />
+                    </div>
+                  </div>
+                ))}
+                {!providers.length ? <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">Refresh to load admin provider status.</p> : null}
               </div>
-            ))}
-            {!providers.length ? <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">Refresh to load admin provider status.</p> : null}
+            </details>
           </div>
-        </details>
-        <details className="mt-3 rounded-md border border-border bg-background p-3">
-          <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-foreground"><Gauge className="h-4 w-4" /> Presets</summary>
-          <div className="mt-3 space-y-2">
-            {presets.slice(0, 6).map((preset) => (
-              <div key={preset.id} className="rounded-md border border-border p-2 text-xs">
-                <p className="font-medium text-foreground">{preset.label}</p>
-                <p className="text-muted-foreground">{preset.model}</p>
-              </div>
-            ))}
-          </div>
-          {catalog.length ? <p className="mt-3 text-xs text-muted-foreground">{catalog.length} provider families available.</p> : null}
-        </details>
-        <div className="mt-4 border-t border-border pt-4">
-          <p className="flex items-center gap-2 text-sm font-semibold text-foreground"><UploadCloud className="h-4 w-4" /> Import gateway</p>
+        ) : null}
+
+        {sidePanel === "import" ? (
           <div className="mt-3 grid gap-2">
             <input
               value={importTitle}
@@ -581,7 +580,7 @@ export function AiTutorView({
               value={importText}
               onChange={(event) => setImportText(event.target.value)}
               placeholder="Paste text, CSV, or slide outline"
-              className="min-h-28 rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none focus:border-ring"
+              className="min-h-36 rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none focus:border-ring"
             />
             <div className={`rounded-md border p-3 text-xs ${importPreview.ok ? "border-border bg-background text-muted-foreground" : "border-warning/50 bg-warning/10 text-foreground"}`}>
               <div className="flex items-center justify-between gap-2">
@@ -602,9 +601,58 @@ export function AiTutorView({
               </div>
             ) : null}
           </div>
-        </div>
+        ) : null}
+
+        {sidePanel === "presets" ? (
+          <div className="mt-3">
+            <div className="grid gap-2">
+              {presets.slice(0, 8).map((preset) => (
+                <button
+                  key={preset.id}
+                  onClick={() => {
+                    setProviderFamily(preset.provider || "auto")
+                    if (preset.max_tokens) setOptions({ aiMaxTokens: preset.max_tokens })
+                  }}
+                  className="rounded-md border border-border bg-background p-3 text-left text-xs hover:bg-accent hover:text-accent-foreground"
+                  type="button"
+                >
+                  <p className="font-semibold text-foreground">{preset.label}</p>
+                  <p className="mt-1 truncate text-muted-foreground">{preset.model}</p>
+                </button>
+              ))}
+              {!presets.length ? <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">Refresh to load provider presets.</p> : null}
+            </div>
+            {catalog.length ? <p className="mt-3 text-xs text-muted-foreground">{catalog.length} provider families available.</p> : null}
+          </div>
+        ) : null}
       </Panel>
     </div>
+  )
+}
+
+function SidePanelButton({
+  active,
+  count,
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  active: boolean
+  count: number
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex min-w-0 items-center justify-center gap-1.5 rounded px-2 py-2 text-xs font-semibold transition ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}
+      type="button"
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0" />
+      <span className="truncate">{label}</span>
+      <span className={active ? "text-primary-foreground/80" : "text-muted-foreground"}>{count}</span>
+    </button>
   )
 }
 
