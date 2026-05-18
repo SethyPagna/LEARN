@@ -182,7 +182,7 @@ function WorkspaceFrame<T extends string>({
             </div>
           </div>
           {visibleTabs.length ? (
-          <div className="flex gap-2 overflow-x-auto pb-1 xl:w-[560px]">
+          <div className="flex gap-1.5 overflow-x-auto pb-1 xl:w-[520px]">
             {visibleTabs.map((tab) => {
               const Icon = tab.icon
               const active = activeTab === tab.id
@@ -190,13 +190,11 @@ function WorkspaceFrame<T extends string>({
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab?.(tab.id)}
-                  className={`group relative min-w-[8.25rem] flex-1 rounded-md border p-2.5 text-left transition hover:-translate-y-0.5 ${active ? "border-primary bg-primary text-primary-foreground shadow-sm" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+                  className={`group relative inline-flex h-10 min-w-[7rem] flex-1 items-center gap-2 rounded-md border px-2.5 text-left text-sm transition hover:-translate-y-0.5 ${active ? "border-primary bg-primary text-primary-foreground shadow-sm" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
                 >
-                  <div className="flex items-center gap-2">
-                    <Icon className="h-5 w-5" />
-                    <span className="font-semibold">{tab.label}</span>
-                    <MoreHorizontal className="ml-auto h-4 w-4 opacity-60" />
-                  </div>
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="truncate font-semibold">{tab.label}</span>
+                  <MoreHorizontal className="ml-auto h-4 w-4 shrink-0 opacity-60" />
                   <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-50 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{tab.caption}</p>
                 </button>
               )
@@ -228,7 +226,7 @@ function LearnRoute({ dashboard, quizzes, setView }: { dashboard: any; quizzes: 
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
-      <Panel className="p-5">
+      <Panel className="p-4">
         <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Recommended route</p>
@@ -238,16 +236,16 @@ function LearnRoute({ dashboard, quizzes, setView }: { dashboard: any; quizzes: 
             Start: {routePlan.primaryAction.title}
           </button>
         </div>
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid gap-2 md:grid-cols-4">
           {routePlan.actions.map((action) => {
             const Icon = actionIcons[action.id]
             return (
-              <button key={action.title} onClick={() => setView(action.view)} className="group relative rounded-md border border-border bg-background p-4 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
+              <button key={action.title} onClick={() => setView(action.view)} className="group relative rounded-md border border-border bg-background p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground" title={action.body}>
                 <div className="flex items-start justify-between gap-3">
                   <Icon className="h-6 w-6 text-success" />
                   <MoreHorizontal className="h-4 w-4 text-muted-foreground group-hover:text-accent-foreground" />
                 </div>
-                <h3 className="mt-4 font-semibold text-foreground group-hover:text-accent-foreground">{action.title}</h3>
+                <h3 className="mt-3 font-semibold text-foreground group-hover:text-accent-foreground">{action.title}</h3>
                 <span className="mt-2 inline-flex rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold uppercase text-secondary-foreground group-hover:bg-background/80">Open</span>
                 <p className="pointer-events-none absolute left-3 right-3 top-[calc(100%+0.35rem)] z-50 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{action.body}</p>
               </button>
@@ -335,7 +333,7 @@ function PracticeGuide({
         <p className="text-sm font-semibold text-foreground">{plan.headline}</p>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {plan.signals.map((signal) => (
-            <span key={signal.label} className="inline-flex items-center gap-1 rounded-md bg-background/80 px-2 py-1 text-[0.68rem] font-semibold uppercase text-muted-foreground">
+            <span key={signal.label} className="inline-flex items-center gap-1 rounded-md bg-background/80 px-2 py-1 text-[0.65rem] font-semibold uppercase text-muted-foreground" title={`${signal.label}: ${signal.value}`}>
               <strong className="text-sm text-foreground">{signal.value}</strong>
               {signal.label}
             </span>
@@ -348,7 +346,7 @@ function PracticeGuide({
       </div>
       <details className="group/practice mt-3 rounded-md border border-border bg-background">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-          <span>More practice paths</span>
+          <span>More paths</span>
           <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/practice:rotate-180" />
         </summary>
         <div className="grid gap-2 border-t border-border p-2">
@@ -360,7 +358,7 @@ function PracticeGuide({
       {draftCards.length ? (
         <details className="group/drafts mt-3 rounded-md border border-warning/50 bg-warning/10">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-            <span>Saved drafts</span>
+            <span>Drafts</span>
             <span className="ml-auto rounded-md bg-background px-2 py-0.5 text-[0.68rem] font-semibold text-foreground">{draftCards.length}</span>
             <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/drafts:rotate-180" />
           </summary>
