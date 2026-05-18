@@ -85,6 +85,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-18: Continued Phase 6 UI declutter by replacing Studio explorer's exposed filter selector and view-mode button row with compact Browse/View menus plus an item-count chip.
 - 2026-05-18: Continued Phase 6 UI declutter by reducing the Practice workspace side panel to a primary next action, compact signal chips, and collapsible sections for alternate paths and saved drafts.
 - 2026-05-18: Continued Phase 6 UI declutter by keeping Social's primary action visible and folding safety cues, status, and mode counts into one compact expandable signal panel.
+- 2026-05-18: Continued Phase 6 UI declutter by simplifying the Learn route overview: route cards now expose details on hover, the route rationale is collapsible, and the learning loop is tucked behind an expandable section.
 
 ## Implementation Slices
 
