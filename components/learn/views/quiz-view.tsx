@@ -429,9 +429,12 @@ function PracticeProgressBar({
         <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} />
       </div>
       {draftStatus ? (
-        <ControlButton onClick={onClearDraft} className="mt-3" size="compact">
-          {draftStatus} Clear
-        </ControlButton>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-2">
+          <span className="truncate text-xs font-semibold text-muted-foreground">{draftStatus}</span>
+          <ControlButton onClick={onClearDraft} size="compact">
+            Clear
+          </ControlButton>
+        </div>
       ) : null}
     </div>
   )
