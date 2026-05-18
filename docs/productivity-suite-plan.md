@@ -89,6 +89,8 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-18: Continued Phase 6 UI declutter by simplifying the Learn route overview: route cards now expose details on hover, the route rationale is collapsible, and the learning loop is tucked behind an expandable section.
 - 2026-05-18: Added the folder architecture track to the Phase 6 plan, confirmed the app should stay TypeScript-first on Cloudflare unless profiling proves otherwise, and started grouping workspace views under `components/learn/views/workspaces`.
 - 2026-05-18: Smoothed the public intro and workflow gallery transitions by lengthening the pinned scroll sequence, centering slide jump targets, and slowing the gallery wheel/preview animation so each transition feels more natural.
+- 2026-05-18: Split Reviews and Calendar back into separate sidebar destinations, simplified Learn into a focused daily route page, made workspace tabs a compact one-line scroller, and raised hover/info overlays above busy backgrounds.
+- 2026-05-18: Expanded Studio samples to 10 templates per type for Notes, Docs, Sheets, and Slides, and expanded slide visual presets to 10 styles with a regression test.
 
 ## Implementation Slices
 
