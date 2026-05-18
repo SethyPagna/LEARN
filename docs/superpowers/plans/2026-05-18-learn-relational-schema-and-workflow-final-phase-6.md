@@ -638,12 +638,12 @@ These targets merge the earlier product maturity, navigation, Studio, AI Tutor, 
 - Create: `tests/content-search.test.ts`
 - Modify: `lib/data.ts`
 
-- [ ] Add `content_search` FTS table if D1 FTS support is enabled for the environment.
-- [ ] Add fallback search query over `content_items(title, summary)` if FTS is unavailable.
-- [ ] Add `feed_rank_cache` with expiry.
-- [ ] Update feed selection to use cache first, then recompute.
-- [ ] Add tests for friend/shared search visibility and mandatory serendipity.
-- [ ] Commit search and feed-cache changes separately.
+- [x] Add `content_search` projection table as the D1-safe fallback search layer; FTS can be layered on later after remote capability verification.
+- [x] Add fallback search ranking over content title, summary, body, tags, and visibility context.
+- [x] Add `feed_rank_cache` with expiry.
+- [x] Update feed selection to use cache first, then recompute.
+- [x] Add tests for friend/shared search visibility and mandatory serendipity.
+- [x] Commit search and feed-cache changes separately.
 
 ### Task 7: UI Workflow Declutter Bound To Schema
 
