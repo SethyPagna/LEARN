@@ -806,42 +806,40 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
             </>
           )}
         </div>
-        <details className="mt-4 rounded-md border border-border bg-background p-3">
-          <summary className="cursor-pointer text-sm font-semibold text-foreground">Plan and safety</summary>
-          <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_220px]">
-            <div>
-              <button onClick={startNew} className="flex w-full items-center justify-between rounded-md border border-primary/30 bg-primary/10 p-3 text-left text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
-                <span>{socialPlan.primaryAction}</span>
-                <Icon className="h-4 w-4" />
-              </button>
-              <p className="mt-3 rounded-md border border-border bg-card p-3 text-sm leading-6 text-muted-foreground">{socialPlan.safetyCue}</p>
-            </div>
-            <div className="grid gap-2">
-              <div className="rounded-md border border-border bg-card p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Next</p>
-                  <details className="relative">
-                    <summary className="flex h-7 w-7 list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label="About social safety">
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                    </summary>
-                    <p className="absolute right-0 top-9 z-20 w-64 rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-xl">{socialPlan.safetyCue}</p>
-                  </details>
-                </div>
-                <p className="mt-1 text-sm font-medium text-foreground">{socialSummary.suggestedAction}</p>
+        <div className="mt-4 grid gap-2">
+          <button onClick={startNew} className="flex w-full items-center justify-between rounded-md border border-primary/30 bg-primary/10 p-3 text-left text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
+            <span>{socialPlan.primaryAction}</span>
+            <Icon className="h-4 w-4" />
+          </button>
+          <details className="group/social rounded-md border border-border bg-background">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+              <span>Safety and signals</span>
+              <div className="ml-auto flex items-center gap-1.5">
+                <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{items.length} records</span>
+                <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{status}</span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Metric label="Records" value={String(items.length)} />
-                <Metric label="State" value={status} />
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/social:rotate-180" />
+            </summary>
+            <div className="grid gap-2 border-t border-border p-3">
+              <div className="flex items-start gap-2 rounded-md border border-border bg-card p-3 text-sm text-muted-foreground">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                <span>{socialPlan.safetyCue}</span>
               </div>
-              {socialSummary.modeCounts.slice(0, 3).map((mode) => (
-                <div key={mode.label} className="flex items-center justify-between rounded-md border border-border bg-card p-2 text-sm">
-                  <span className="font-medium text-foreground capitalize">{mode.label}</span>
-                  <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{mode.count}</span>
-                </div>
-              ))}
+              <div className="rounded-md border border-border bg-card p-3 text-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Next</p>
+                <p className="mt-1 font-medium text-foreground">{socialSummary.suggestedAction}</p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {socialSummary.modeCounts.slice(0, 3).map((mode) => (
+                  <div key={mode.label} className="flex items-center justify-between rounded-md border border-border bg-card p-2 text-sm">
+                    <span className="min-w-0 truncate font-medium text-foreground capitalize">{mode.label}</span>
+                    <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{mode.count}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        </details>
+          </details>
+        </div>
       </Panel>
     </div>
   )
