@@ -289,6 +289,27 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
     setStatus("Drafting a new time block.")
   }
 
+  function createEventForDay(hour = 9) {
+    const selectedDate = dateFromLocalKey(selectedDayKey)
+    const now = new Date()
+    const isToday = localDateKey(now) === selectedDayKey
+    const start = isToday
+      ? new Date(now.getTime() + options.calendarLeadMinutes * 60 * 1000)
+      : new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), hour, 0)
+    setSelectedId("")
+    setTitle(hour < 12 ? "Morning focus block" : hour < 17 ? "Afternoon review block" : "Evening learning block")
+    setEventType(hour < 17 ? "study" : "review")
+    setStartsAt(toLocalInputValue(start))
+    setDurationMinutes(options.calendarDefaultMinutes)
+    setNotes("")
+    setStatus(`Drafting ${formatCalendarDayLabel(selectedDayKey)} at ${start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}.`)
+  }
+
+  function selectCalendarDay(key: string) {
+    setSelectedDayKey(key)
+    if (!selectedId) setStartsAt(moveLocalInputDate(startsAt, key))
+  }
+
   async function saveEvent(id = selectedId) {
     if (!canSave) {
       setStatus("Add a title, valid start time, and duration of at least 5 minutes.")
@@ -396,8 +417,8 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
               {calendarEventTypes.map(([type, label]) => <option key={type} value={type}>{label}</option>)}
             </select>
           </label>
-          <Field label="Starts at" value={startsAt} onChange={setStartsAt} />
-          <Field label="Duration minutes" value={String(durationMinutes)} onChange={(value) => setDurationMinutes(Number(value) || options.calendarDefaultMinutes)} />
+          <DateTimeField label="Starts at" value={startsAt} onChange={setStartsAt} />
+          <NumberField label="Duration minutes" value={durationMinutes} min={5} step={5} onChange={(value) => setDurationMinutes(value || options.calendarDefaultMinutes)} />
           <div className="flex flex-wrap gap-2">
             {calendarDurationPresets.map((minutes) => (
               <ControlButton key={minutes} onClick={() => setDurationMinutes(minutes)} active={durationMinutes === minutes} size="compact">
@@ -448,7 +469,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
               {monthDays.map((day) => (
                 <button
                   key={day.key}
-                  onClick={() => setSelectedDayKey(day.key)}
+                  onClick={() => selectCalendarDay(day.key)}
                   className={`min-h-20 rounded-md border p-2 text-left transition hover:border-primary/60 hover:bg-accent hover:text-accent-foreground ${day.key === selectedDayKey ? "border-primary bg-primary/10 text-primary" : day.inMonth ? "border-border bg-card text-foreground" : "border-border/60 bg-muted/40 text-muted-foreground"}`}
                 >
                   <span className="text-xs font-semibold">{day.label}</span>
@@ -468,6 +489,18 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
               </div>
               <SharedStatusPill label={timezone} />
             </div>
+            <div className="mb-3 grid grid-cols-3 gap-2">
+              {([
+                [9, "Morning"],
+                [13, "Afternoon"],
+                [19, "Evening"],
+              ] as const).map(([hour, label]) => (
+                <ControlButton key={hour} onClick={() => createEventForDay(hour)} size="compact" className="justify-center">
+                  <CalendarPlus className="h-3.5 w-3.5" />
+                  {label}
+                </ControlButton>
+              ))}
+            </div>
             <div className="space-y-2">
               {selectedDayEvents.map((event) => (
                 <button key={event.id} onClick={() => setSelectedId(event.id)} className={`flex w-full items-start gap-3 rounded-md border p-3 text-left ${selectedId === event.id ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-accent hover:text-accent-foreground"}`}>
@@ -475,7 +508,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
                   <span className="min-w-0 flex-1">
                     <span className="block text-xs font-semibold text-muted-foreground">{formatCalendarTimeRange(event)}</span>
                     <span className="mt-1 block truncate font-semibold text-foreground">{event.title}</span>
-                    <span className="mt-1 block text-xs text-muted-foreground">{labelCalendarEventType(event.event_type)} · {formatCalendarDuration(calendarEventDurationFromRecord(event))}</span>
+                    <span className="mt-1 block text-xs text-muted-foreground">{labelCalendarEventType(event.event_type)} | {formatCalendarDuration(calendarEventDurationFromRecord(event))}</span>
                   </span>
                 </button>
               ))}
@@ -525,6 +558,11 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
               </div>
             </article>
           )})}
+          {!filteredEvents.length ? (
+            <div className="rounded-lg border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
+              No blocks match this filter. Use the selected-day quick slots or save a new block from the editor.
+            </div>
+          ) : null}
         </div>
       </Panel>
     </div>
@@ -599,6 +637,13 @@ function localDateKey(date: Date) {
 function toLocalInputValue(date: Date) {
   const offset = date.getTimezoneOffset()
   return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16)
+}
+
+function moveLocalInputDate(value: string, dayKey: string) {
+  const parsed = new Date(value)
+  const nextDate = dateFromLocalKey(dayKey)
+  if (!Number.isFinite(parsed.getTime())) return toLocalInputValue(new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate(), 9, 0))
+  return toLocalInputValue(new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate(), parsed.getHours(), parsed.getMinutes()))
 }
 
 function labelCalendarEventType(type: string) {
@@ -1030,6 +1075,24 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
     <label className="block rounded-lg bg-muted p-4">
       <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
       <input value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none" />
+    </label>
+  )
+}
+
+function DateTimeField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="block rounded-lg bg-muted p-4">
+      <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
+      <input type="datetime-local" value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none" />
+    </label>
+  )
+}
+
+function NumberField({ label, min, onChange, step, value }: { label: string; min: number; onChange: (value: number) => void; step: number; value: number }) {
+  return (
+    <label className="block rounded-lg bg-muted p-4">
+      <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
+      <input type="number" min={min} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none" />
     </label>
   )
 }
