@@ -17,6 +17,7 @@ import {
   type ReviewItem,
   type Weekday,
 } from "./learning-ecosystem"
+import { buildGamePracticeSessionDraft, buildQuizPracticeSessionDraft, buildReviewCardsFromPracticeItems, type PracticeSessionDraft, type PracticeSessionQuestion } from "./practice-sessions"
 import { createId, ensureDatabase, logAudit } from "./schema"
 import { normalizeConnectionInput, normalizeSocialActionInput } from "./sharing"
 
@@ -1043,24 +1044,81 @@ export async function listGameAttempts(user: User) {
   return result.rows.map((row) => ({ ...row, metadata: parseJsonObject(row.metadata) }))
 }
 
+async function insertPracticeSession(user: User, draft: PracticeSessionDraft, sourceContentItemId?: string | null) {
+  const sessionId = createId("practice")
+  await query(
+    `INSERT INTO practice_sessions (
+       id, user_id, workspace_id, session_type, source_content_item_id,
+       ended_at, duration_seconds, score, total, metadata
+     )
+     VALUES ($1, $2, $3, $4, $5, now(), $6, $7, $8, $9::jsonb)`,
+    [
+      sessionId,
+      user.id,
+      DEFAULT_WORKSPACE_ID,
+      draft.sessionType,
+      sourceContentItemId || null,
+      draft.durationSeconds,
+      draft.score,
+      draft.total,
+      JSON.stringify(draft.metadata),
+    ],
+  )
+  for (const item of draft.items) {
+    await query(
+      `INSERT INTO practice_session_items (
+         id, session_id, question_id, review_item_id, content_item_id,
+         prompt, answer, user_answer, correct, elapsed_ms, metadata
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)`,
+      [
+        createId("practiceitem"),
+        sessionId,
+        item.questionId || null,
+        item.reviewItemId || null,
+        item.contentItemId || null,
+        item.prompt,
+        item.answer,
+        item.userAnswer,
+        item.correct ? 1 : 0,
+        item.elapsedMs,
+        JSON.stringify(item.metadata),
+      ],
+    )
+  }
+  return sessionId
+}
+
 export async function recordGameAttempt(user: User, input: Record<string, unknown>) {
   await ensureDatabase()
   const id = createId("game")
+  const gameKey = String(input.gameKey || input.game_key || "flashcard-sprint")
+  const metadata = input.metadata && typeof input.metadata === "object" ? input.metadata as Record<string, unknown> : {}
+  const items = Array.isArray(input.items) ? input.items as Array<Record<string, unknown>> : Array.isArray(metadata.items) ? metadata.items as Array<Record<string, unknown>> : []
+  const draft = buildGamePracticeSessionDraft({
+    gameKey,
+    score: Number(input.score || 0),
+    total: Number(input.total || 0),
+    durationSeconds: Number(input.durationSeconds || input.duration_seconds || 0),
+    metadata,
+    items,
+  })
+  const practiceSessionId = await insertPracticeSession(user, draft)
   await query(
     `INSERT INTO game_attempts (id, user_id, game_key, score, total, duration_seconds, metadata)
      VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
     [
       id,
       user.id,
-      String(input.gameKey || input.game_key || "flashcard-sprint"),
-      Number(input.score || 0),
-      Number(input.total || 0),
-      Number(input.durationSeconds || input.duration_seconds || 0),
-      JSON.stringify(input.metadata || {}),
+      gameKey,
+      draft.score,
+      draft.total,
+      draft.durationSeconds,
+      JSON.stringify({ ...metadata, practiceSessionId }),
     ],
   )
   await logAudit({ userId: user.id, action: "complete", entity: "game_attempt", entityId: id })
-  return { id }
+  return { id, practiceSessionId }
 }
 
 export async function listQuizzes() {
@@ -1108,6 +1166,24 @@ export async function recordQuizAttempt(user: User, input: {
   })
   const attemptId = createId("attempt")
   const durationSeconds = Math.max(0, Math.round(Number(input.durationSeconds || 0)))
+  const practiceDraft = buildQuizPracticeSessionDraft({
+    quizId: input.quizId,
+    quizTitle: String((quiz as Record<string, unknown>).title || "Quiz"),
+    questions: quiz.questions.map((question: Record<string, unknown>): PracticeSessionQuestion => ({
+      id: String(question.id),
+      question: String(question.question || ""),
+      topic: String(question.topic || "General"),
+      choices: parseJsonArray<{ id: string; text: string }>(question.choices),
+      correct_answer_id: String(question.correct_answer_id || ""),
+      explanation: String(question.explanation || ""),
+    })),
+    answers: input.answers.map((answer) => ({
+      questionId: answer.questionId,
+      selectedAnswerId: answer.selectedAnswerId,
+    })),
+    durationSeconds,
+  })
+  const practiceSessionId = await insertPracticeSession(user, practiceDraft)
   await query(
     "INSERT INTO quiz_attempts (id, quiz_id, user_id, score, total, duration_seconds) VALUES ($1, $2, $3, $4, $5, $6)",
     [attemptId, input.quizId, user.id, score, input.answers.length, durationSeconds],
@@ -1120,7 +1196,7 @@ export async function recordQuizAttempt(user: User, input: {
     )
   }
   await logAudit({ userId: user.id, action: "complete", entity: "quiz_attempt", entityId: attemptId })
-  return { attemptId, score, total: input.answers.length, durationSeconds }
+  return { attemptId, practiceSessionId, score, total: input.answers.length, durationSeconds }
 }
 
 export async function listAdminData() {
@@ -1626,6 +1702,35 @@ export async function createPracticeReviewItems(user: User, input: Record<string
     await logAudit({ userId: user.id, action: "create", entity: "review_items", entityId: "practice_mistakes", details: { count: created.length } })
   }
   return { created, count: created.length }
+}
+
+export async function createPracticeReviewItemsFromSession(user: User, sessionId: string) {
+  await ensureDatabase()
+  const session = await query(
+    "SELECT id FROM practice_sessions WHERE id = $1 AND user_id = $2 LIMIT 1",
+    [sessionId, user.id],
+  )
+  if (!session.rowCount) return { created: [], count: 0 }
+
+  const result = await query(
+    `SELECT question_id, prompt, answer, user_answer, correct, elapsed_ms, metadata
+     FROM practice_session_items
+     WHERE session_id = $1 AND correct = 0
+     ORDER BY created_at ASC
+     LIMIT 20`,
+    [sessionId],
+  )
+  const items = result.rows.map((row) => ({
+    questionId: row.question_id ? String(row.question_id) : undefined,
+    prompt: String(row.prompt || ""),
+    answer: String(row.answer || ""),
+    userAnswer: String(row.user_answer || ""),
+    correct: false,
+    elapsedMs: Number(row.elapsed_ms || 0),
+    metadata: parseJsonObject(row.metadata),
+  }))
+  const cards = buildReviewCardsFromPracticeItems({ sessionId, items })
+  return createPracticeReviewItems(user, { items: cards })
 }
 
 export async function recordReviewResult(user: User, input: Record<string, unknown>) {
