@@ -6,6 +6,10 @@ const CHANNELS = {
   presence: "PRESENCE_DO",
 }
 
+const EVENT_TYPES = new Set(["presence", "pomodoro", "battle-answer", "editor-change", "snapshot"])
+const POMODORO_STATUSES = new Set(["start", "pause", "resume", "complete", "reset", "tick"])
+const MAX_PAYLOAD_BYTES = 16 * 1024
+
 class RealtimeLearningObject extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env)
@@ -27,22 +31,34 @@ class RealtimeLearningObject extends DurableObject {
     const pair = new WebSocketPair()
     const [client, server] = Object.values(pair)
     this.ctx.acceptWebSocket(server)
+    const context = channelContextFromRequest(request)
     server.serializeAttachment({
       connectedAt: new Date().toISOString(),
-      path: new URL(request.url).pathname,
+      ...context,
     })
     this.broadcast({ type: "presence", count: this.ctx.getWebSockets().length })
     return new Response(null, { status: 101, webSocket: client })
   }
 
   async webSocketMessage(socket, message) {
-    const payload = this.parseMessage(message)
-    if (!payload) {
-      socket.send(JSON.stringify({ type: "error", message: "Invalid message." }))
+    const validation = validateRealtimeMessage(message)
+    if (!validation.ok) {
+      socket.send(JSON.stringify({ type: "error", message: validation.error || "Invalid message." }))
       return
     }
 
-    await this.ctx.storage.put(`event:${Date.now()}:${crypto.randomUUID()}`, payload)
+    const eventKey = `event:${Date.now()}:${crypto.randomUUID()}`
+    const attachment = socket.deserializeAttachment?.() || {}
+    const payload = {
+      ...validation.event,
+      channel: {
+        kind: attachment.kind || "presence",
+        id: attachment.channelId || "global",
+      },
+    }
+
+    await this.ctx.storage.put(eventKey, payload)
+    await this.persistUsefulEvent(payload, eventKey)
     this.broadcast({ ...payload, receivedAt: new Date().toISOString() })
   }
 
@@ -65,14 +81,34 @@ class RealtimeLearningObject extends DurableObject {
     }
   }
 
-  parseMessage(message) {
-    if (typeof message !== "string") return null
+  async persistUsefulEvent(event, eventKey) {
+    if (!this.env.LEARN_DB || event.type === "presence") return
+
     try {
-      const parsed = JSON.parse(message)
-      if (!parsed || typeof parsed !== "object" || typeof parsed.type !== "string") return null
-      return parsed
-    } catch {
-      return null
+      const sessionId = collaborationSessionId(event.channel.kind, event.channel.id)
+      const sessionType = sessionTypeForKind(event.channel.kind)
+      const storedPayload = JSON.stringify({
+        ...event.payload,
+        channel: event.channel,
+        sourceUserId: event.userId || null,
+      })
+
+      await this.env.LEARN_DB.prepare(
+        "INSERT INTO collaboration_sessions (id, session_type, status) VALUES (?, ?, 'active') ON CONFLICT(id) DO UPDATE SET status = 'active'",
+      )
+        .bind(sessionId, sessionType)
+        .run()
+
+      await this.env.LEARN_DB.prepare(
+        "INSERT INTO collaboration_events (id, session_id, user_id, event_type, payload, durable_object_key) VALUES (?, ?, ?, ?, ?, ?)",
+      )
+        .bind(`collab_event_${crypto.randomUUID()}`, sessionId, null, event.type, storedPayload, eventKey)
+        .run()
+    } catch (error) {
+      await this.ctx.storage.put("projection:lastError", {
+        message: error instanceof Error ? error.message : "Unknown realtime projection error.",
+        at: new Date().toISOString(),
+      })
     }
   }
 }
@@ -100,4 +136,111 @@ export default {
     const objectId = namespace.idFromName(`${kind}:${id}`)
     return namespace.get(objectId).fetch(request)
   },
+}
+
+function validateRealtimeMessage(message) {
+  if (typeof message !== "string") return { ok: false, error: "Message must be JSON text." }
+
+  const parsed = safeJson(message)
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return { ok: false, error: "Message must be a JSON object." }
+  if (payloadSize(parsed) > MAX_PAYLOAD_BYTES) return { ok: false, error: "Message is too large." }
+
+  const type = cleanString(parsed.type, 48)
+  if (!EVENT_TYPES.has(type)) return { ok: false, error: "Unsupported realtime event type." }
+
+  const payload = objectPayload(parsed.payload)
+  const userId = cleanString(parsed.userId || parsed.user_id, 120) || undefined
+
+  if (type === "presence") {
+    const count = Number(parsed.count ?? payload.count)
+    if (!Number.isFinite(count) || count < 0) return { ok: false, error: "Presence events require a non-negative count." }
+    return { ok: true, event: { type, userId, payload: { count: Math.floor(count) } } }
+  }
+
+  if (type === "pomodoro") {
+    const status = cleanString(parsed.status || payload.status, 32)
+    if (!POMODORO_STATUSES.has(status)) return { ok: false, error: "Pomodoro events require a valid status." }
+    return {
+      ok: true,
+      event: {
+        type,
+        userId,
+        payload: {
+          status,
+          minutes: Math.max(0, Math.min(240, Math.round(Number(parsed.minutes ?? payload.minutes ?? 25)))),
+        },
+      },
+    }
+  }
+
+  if (type === "battle-answer") {
+    const questionId = cleanString(parsed.questionId || parsed.question_id || payload.questionId || payload.question_id)
+    const answerId = cleanString(parsed.answerId || parsed.answer_id || parsed.selectedAnswerId || parsed.selected_answer_id || payload.answerId || payload.answer_id)
+    if (!questionId || !answerId) return { ok: false, error: "Battle answers require question and answer ids." }
+    return { ok: true, event: { type, userId, payload: { questionId, answerId } } }
+  }
+
+  if (type === "editor-change") {
+    const contentItemId = cleanString(parsed.contentItemId || parsed.content_item_id || payload.contentItemId || payload.content_item_id, 120)
+    const operation = cleanString(parsed.operation || payload.operation, 80)
+    if (!contentItemId || !operation) return { ok: false, error: "Editor changes require a content item and operation." }
+    return {
+      ok: true,
+      event: {
+        type,
+        userId,
+        payload: {
+          contentItemId,
+          operation,
+          clientMutationId: cleanString(parsed.clientMutationId || parsed.client_mutation_id || payload.clientMutationId || payload.client_mutation_id, 120),
+        },
+      },
+    }
+  }
+
+  const summary = cleanString(parsed.summary || payload.summary, 500)
+  return { ok: true, event: { type, userId, payload: { summary, ...payload } } }
+}
+
+function channelContextFromRequest(request) {
+  const [kind, ...idParts] = new URL(request.url).pathname.replace(/^\/+/, "").split("/")
+  return {
+    kind: CHANNELS[kind] ? kind : "presence",
+    channelId: decodeURIComponent(idParts.join("/") || "global"),
+  }
+}
+
+function collaborationSessionId(kind, channelId) {
+  const safeChannel = String(channelId || "channel").replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 96) || "channel"
+  return `collab_${kind}_${safeChannel}`
+}
+
+function sessionTypeForKind(kind) {
+  if (kind === "rooms") return "room"
+  if (kind === "battles") return "battle"
+  return "presence"
+}
+
+function payloadSize(value) {
+  try {
+    return new TextEncoder().encode(JSON.stringify(value)).byteLength
+  } catch {
+    return Number.POSITIVE_INFINITY
+  }
+}
+
+function cleanString(value, maxLength = 160) {
+  return typeof value === "string" ? value.trim().slice(0, maxLength) : ""
+}
+
+function objectPayload(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {}
+}
+
+function safeJson(value) {
+  try {
+    return JSON.parse(value)
+  } catch {
+    return null
+  }
 }

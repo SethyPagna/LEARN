@@ -1,18 +1,13 @@
 import type { NextRequest } from "next/server"
 import { fail, isApiResponse, requireApiUser } from "@/lib/api"
 import { getCloudflareBindings, type DurableObjectNamespaceLike } from "@/lib/cloudflare"
-
-type RealtimeKind = "rooms" | "battles" | "presence"
+import { isRealtimeKind, type RealtimeKind } from "@/lib/collaboration-events"
 
 function namespaceFor(kind: string, env: Awaited<ReturnType<typeof getCloudflareBindings>>): DurableObjectNamespaceLike | null {
   if (kind === "rooms") return env?.STUDY_ROOM_DO || null
   if (kind === "battles") return env?.STUDY_BATTLE_DO || null
   if (kind === "presence") return env?.PRESENCE_DO || null
   return null
-}
-
-function isRealtimeKind(value: string): value is RealtimeKind {
-  return ["rooms", "battles", "presence"].includes(value)
 }
 
 function serviceRequest(request: NextRequest, kind: RealtimeKind, id: string) {
