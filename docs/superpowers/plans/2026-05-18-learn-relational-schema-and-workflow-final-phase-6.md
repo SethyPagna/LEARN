@@ -562,15 +562,15 @@ These targets merge the earlier product maturity, navigation, Studio, AI Tutor, 
 - Modify: `lib/data.ts`
 - Test: `tests/schema-contract.test.ts`
 
-- [ ] Add `content_items`, `shared_access`, `content_versions`, `content_attachments`, and indexes.
-- [ ] Add helper functions in `lib/data.ts`:
+- [x] Add `content_items`, `shared_access`, `content_versions`, `content_attachments`, and indexes.
+- [x] Add helper functions in `lib/data.ts`:
   - `upsertContentItemForSource(input)`
   - `archiveContentItemForSource(sourceTable, sourceId)`
   - `appendContentVersion(input)`
-- [ ] Update note/doc/sheet/slide/media/micro-lesson save paths to upsert content registry rows.
-- [ ] Keep existing specialized tables and route payloads stable.
-- [ ] Run `corepack pnpm test`, `corepack pnpm lint`, `corepack pnpm build`.
-- [ ] Commit migration and helpers separately.
+- [x] Update note/doc/sheet/slide/media/micro-lesson save paths to upsert content registry rows.
+- [x] Keep existing specialized tables and route payloads stable.
+- [x] Run `corepack pnpm test`, `corepack pnpm lint`, `corepack pnpm build`.
+- [x] Commit migration and helpers separately.
 
 ### Task 3: Social Graph And Sharing Layer
 
