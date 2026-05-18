@@ -125,6 +125,11 @@ const studioTabs: { kind: StudioKind; label: string; description: string; icon: 
 ]
 
 const sections = ["All", "Notes", "Docs", "Sheets", "Slides", "Recent", "Favorites", "Archived"]
+const studioViewModes: Array<{ id: StudioViewMode; label: string; icon: React.ComponentType<{ className?: string }> }> = [
+  { id: "list", label: "List", icon: FileText },
+  { id: "board", label: "Board", icon: Columns3 },
+  { id: "gallery", label: "Gallery", icon: LayoutPanelLeft },
+]
 const inspectorTabs = ["Info", "Outline", "Comments", "History", "AI", "Export"]
 const importTargets: Array<ImportTarget | "auto"> = ["auto", "note", "doc", "sheet", "slides"]
 
@@ -1618,21 +1623,25 @@ function StudioLibrary({
   })
   const virtualItems = virtualizer.getVirtualItems()
   const useVirtualList = viewMode !== "gallery" && items.length > 12
+  const activeViewMode = studioViewModes.find((item) => item.id === viewMode) || studioViewModes[0]
+  const ActiveViewIcon = activeViewMode.icon
 
   return (
     <div className="grid gap-3">
-      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-        <label className="grid gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-          Filter
-          <select value={section} onChange={(event) => onSection(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-sm font-semibold normal-case tracking-normal text-foreground">
-            {sections.map((item) => <option key={item} value={item}>{item}</option>)}
-          </select>
-        </label>
-        <div className="grid grid-cols-3 gap-1 self-end rounded-md border border-border bg-background p-1">
-          <ViewModeButton active={viewMode === "list"} icon={FileText} label="List" onClick={() => onViewMode("list")} compact />
-          <ViewModeButton active={viewMode === "board"} icon={Columns3} label="Board" onClick={() => onViewMode("board")} compact />
-          <ViewModeButton active={viewMode === "gallery"} icon={LayoutPanelLeft} label="Gallery" onClick={() => onViewMode("gallery")} compact />
-        </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <ActionMenu label={section} icon={List} compact>
+          {sections.map((item) => (
+            <MenuAction key={item} active={section === item} icon={List} label={item} onClick={() => onSection(item)} />
+          ))}
+        </ActionMenu>
+        <ActionMenu label={activeViewMode.label} icon={ActiveViewIcon} compact>
+          {studioViewModes.map((item) => (
+            <MenuAction key={item.id} active={viewMode === item.id} icon={item.icon} label={item.label} onClick={() => onViewMode(item.id)} />
+          ))}
+        </ActionMenu>
+        <span className="rounded-md border border-border bg-background px-2.5 py-2 text-xs font-semibold text-muted-foreground">
+          {items.length} item{items.length === 1 ? "" : "s"}
+        </span>
       </div>
       <label className="flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3">
         <Search className="h-4 w-4 text-muted-foreground" />
