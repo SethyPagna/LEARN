@@ -73,6 +73,10 @@ test("D1 migrations include the current LEARN product tables", () => {
     "ai_response_logs",
     "rate_limit_buckets",
     "audit_logs",
+    "content_items",
+    "shared_access",
+    "content_versions",
+    "content_attachments",
   ]
 
   assert.deepEqual(
@@ -94,6 +98,13 @@ test("D1 migrations keep indexes for the current hot product queries", () => {
     idx_social_actions_target: { table: "social_actions", includes: ["target_type", "target_id", "created_at DESC"] },
     idx_chat_messages_thread: { table: "chat_messages", includes: ["thread_id", "created_at"] },
     idx_ai_provider_configs_priority: { table: "ai_provider_configs", includes: ["enabled", "priority", "provider"] },
+    idx_content_items_workspace_recent: { table: "content_items", includes: ["workspace_id", "archived_at", "updated_at DESC"] },
+    idx_content_items_owner_type_recent: { table: "content_items", includes: ["owner_user_id", "item_type", "archived_at", "updated_at DESC"] },
+    idx_content_items_visibility_recent: { table: "content_items", includes: ["visibility", "updated_at DESC"] },
+    idx_shared_access_grantee: { table: "shared_access", includes: ["grantee_type", "grantee_id", "role"] },
+    idx_shared_access_content: { table: "shared_access", includes: ["content_item_id", "role"] },
+    idx_content_versions_item: { table: "content_versions", includes: ["content_item_id", "version_number DESC"] },
+    idx_content_attachments_media: { table: "content_attachments", includes: ["media_asset_id", "created_at DESC"] },
   }
 
   for (const [name, expected] of Object.entries(requiredIndexes)) {
