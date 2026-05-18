@@ -35,6 +35,11 @@ export const slideDesignPresets = {
   plain: { background: "#f8fafc", accent: "#2563eb", foreground: "#0f172a" },
   forest: { background: "#052e2b", accent: "#bbf7d0", foreground: "#ecfeff" },
   grape: { background: "#2e1065", accent: "#f0abfc", foreground: "#faf5ff" },
+  atlas: { background: "#f7f2e8", accent: "#0f766e", foreground: "#172554" },
+  obsidian: { background: "#05070a", accent: "#38bdf8", foreground: "#f8fafc" },
+  blossom: { background: "#fff1f2", accent: "#be123c", foreground: "#3f1d2b" },
+  circuit: { background: "#031b1f", accent: "#22d3ee", foreground: "#ecfeff" },
+  parchment: { background: "#fffbeb", accent: "#a16207", foreground: "#292524" },
 }
 
 export const slideTransitionPresets = {

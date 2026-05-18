@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { applySlideDesignPreset, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject } from "../lib/studio-design"
+import { applySlideDesignPreset, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject } from "../lib/studio-design"
 
 test("document insert blocks expose reusable editor snippets", () => {
   assert.match(getDocumentInsertBlock("callout"), /Callout/)
@@ -13,6 +13,7 @@ test("document insert blocks expose reusable editor snippets", () => {
 test("slide design presets add theme and background metadata", () => {
   const slide = applySlideDesignPreset({ title: "One", body: "Body" }, "forest")
 
+  assert.equal(Object.keys(slideDesignPresets).length >= 10, true)
   assert.equal(slide.theme, "forest")
   assert.equal(slide.background, "#052e2b")
 })
