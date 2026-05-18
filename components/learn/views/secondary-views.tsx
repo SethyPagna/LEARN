@@ -681,20 +681,17 @@ function SettingsSectionButton({
   return (
     <button
       onClick={onClick}
-      className={`group relative rounded-md border p-3 text-left transition hover:-translate-y-0.5 ${active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+      className={`group relative inline-flex h-10 min-w-[9.5rem] items-center gap-2 rounded-md border px-3 text-left text-sm transition hover:-translate-y-0.5 ${active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+      title={guide.detail}
     >
-      <div className="flex items-center justify-between gap-3">
-        <span className="flex min-w-0 items-center gap-3">
-          <Icon className="h-5 w-5 shrink-0" />
-          <span className="truncate font-semibold">{guide.label}</span>
-        </span>
-        {active ? (
-          <span className="rounded-md bg-primary-foreground/15 px-2 py-1 text-[0.68rem] font-semibold text-primary-foreground">{suggested ? "next" : guide.badge}</span>
-        ) : (
-          <SharedStatusPill label={suggested ? "next" : guide.badge} tone={settingsTone(guide.tone)} />
-        )}
-      </div>
-      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{guide.detail}</p>
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="min-w-0 flex-1 truncate font-semibold">{guide.label}</span>
+      {active ? (
+        <span className="rounded-md bg-primary-foreground/15 px-2 py-0.5 text-[0.65rem] font-semibold text-primary-foreground">{suggested ? "next" : guide.badge}</span>
+      ) : (
+        <span className="rounded-md bg-background/80 px-2 py-0.5 text-[0.65rem] font-semibold text-muted-foreground">{suggested ? "next" : guide.badge}</span>
+      )}
+      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-[70] hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{guide.detail}</p>
     </button>
   )
 }
@@ -750,7 +747,7 @@ export function SettingsView({
               <SlidersHorizontal className="h-6 w-6" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-2xl font-semibold text-foreground">Settings control center</h2>
+              <h2 className="text-2xl font-semibold text-foreground">Settings</h2>
               <div className="mt-2 flex flex-wrap gap-2">
                 <SharedStatusPill label={settingsSummary.privacyLabel} />
                 <SharedStatusPill label={settingsSummary.dailyReviewLabel} />
@@ -760,19 +757,22 @@ export function SettingsView({
           </div>
           <ControlButton onClick={saveProfile} active>
             <Save className="h-4 w-4" />
-            Save profile
+            Save
           </ControlButton>
         </div>
         {status ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
           {settingsPlan.guides.map((guide) => (
             <SettingsSectionButton key={guide.id} guide={guide} active={section === guide.id} suggested={settingsPlan.suggestedSection === guide.id} onClick={() => setSection(guide.id)} />
           ))}
         </div>
-        <details className="mt-4 rounded-md border border-border bg-background p-3">
-          <summary className="cursor-pointer text-sm font-semibold text-foreground">
-            Workspace signals
-            <span className="ml-2 rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{settingsPlan.nextAction}</span>
+        <details className="mt-3 rounded-md border border-border bg-background p-2">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
+            <span>Signals</span>
+            <span className="flex items-center gap-2">
+              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{settingsSummary.statuses.length}</span>
+              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{settingsPlan.nextAction}</span>
+            </span>
           </summary>
           <div className="mt-3 grid gap-2 md:grid-cols-5">
             {settingsSummary.statuses.map((item) => (
@@ -887,7 +887,7 @@ function SettingsSectionHeader({ body, icon: Icon, title }: { body: string; icon
         <summary className="flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${title}`}>
           <Filter className="h-4 w-4" />
         </summary>
-        <p className="absolute right-0 top-10 z-20 w-64 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">{body}</p>
+        <p className="absolute right-0 top-10 z-[80] w-64 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">{body}</p>
       </details>
     </div>
   )
@@ -895,12 +895,15 @@ function SettingsSectionHeader({ body, icon: Icon, title }: { body: string; icon
 
 function LanguagePicker({ locale, setLocale }: { locale: SupportedLocale; setLocale: (locale: SupportedLocale) => void }) {
   return (
-    <div className="mt-4 rounded-lg border border-border bg-background p-3">
-      <div className="mb-3 flex items-center gap-2">
-        <Languages className="h-4 w-4 text-success" />
-        <p className="text-sm font-semibold text-foreground">Language</p>
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+    <details className="mt-4 rounded-lg border border-border bg-background p-3">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
+        <span className="flex min-w-0 items-center gap-2">
+          <Languages className="h-4 w-4 shrink-0 text-success" />
+          <span className="truncate">Language</span>
+        </span>
+        <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{languageNames[locale]}</span>
+      </summary>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {supportedLocales.map((item) => (
           <ControlButton
             key={item}
@@ -913,7 +916,7 @@ function LanguagePicker({ locale, setLocale }: { locale: SupportedLocale; setLoc
           </ControlButton>
         ))}
       </div>
-    </div>
+    </details>
   )
 }
 
