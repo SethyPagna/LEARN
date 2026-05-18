@@ -354,7 +354,7 @@
 **Primary files:**
 - `lib/learning-ecosystem.ts`
 - `lib/reviews.ts` if created
-- `components/learn/views/combined-workspace-views.tsx`
+- `components/learn/views/workspaces/combined-workspace-views.tsx`
 - `app/api/reviews/route.ts`
 - `tests/learning-ecosystem.test.ts`
 

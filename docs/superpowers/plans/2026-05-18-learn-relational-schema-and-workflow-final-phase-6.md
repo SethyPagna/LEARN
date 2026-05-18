@@ -4,9 +4,9 @@
 
 **Goal:** Turn the current LEARN data model into a cleaner, faster, collaboration-ready relational schema while merging the existing product maturity plans into one detailed implementation track for schema, UI organization, workflows, and verification.
 
-**Architecture:** Keep the Cloudflare-first runtime: Next.js App Router, TypeScript, Cloudflare Workers, D1, R2, Durable Objects, and encrypted AI provider routing. Normalize the core relational model around users, workspaces, content items, practice/review, sharing, permissions, realtime snapshots, and audit events, while leaving heavy editor payloads in JSON columns only where that is the right storage boundary.
+**Architecture:** Keep the Cloudflare-first runtime: Next.js App Router, TypeScript, Cloudflare Workers, D1, R2, Durable Objects, and encrypted AI provider routing. Normalize the core relational model around users, workspaces, content items, practice/review, sharing, permissions, realtime snapshots, and audit events, while leaving heavy editor payloads in JSON columns only where that is the right storage boundary. Keep TypeScript as the primary language because the deployment target, route handlers, Durable Objects, React UI, shared validators, and tests already share one type system; introduce another language only for measured offline tooling or a separately deployed service with a proven bottleneck.
 
-**Tech Stack:** TypeScript, React, Next.js, Cloudflare D1, Cloudflare R2, Cloudflare Durable Objects, Tiptap, Univer, PptxGenJS, Radix UI, TanStack Virtual, dnd-kit, React Resizable Panels, localStorage drafts as the current offline layer, optional future Yjs/Automerge after schema preparation.
+**Tech Stack:** TypeScript, React, Next.js, Cloudflare D1, Cloudflare R2, Cloudflare Durable Objects, Tiptap, Univer, PptxGenJS, Radix UI, TanStack Virtual, dnd-kit, React Resizable Panels, localStorage drafts as the current offline layer, optional future Yjs/Automerge after schema preparation. Python/Rust/Go are not a default app-runtime conversion target for this repo; they can be added later for isolated migration scripts, media processing, or performance-critical workers only after profiling shows TypeScript/Workers is the limiter.
 
 ---
 
@@ -651,7 +651,7 @@ These targets merge the earlier product maturity, navigation, Studio, AI Tutor, 
 - Modify: `components/learn/app-nav.tsx`
 - Modify: `components/learn/views/studio-view.tsx`
 - Modify: `components/learn/views/ai-view.tsx`
-- Modify: `components/learn/views/combined-workspace-views.tsx`
+- Modify: `components/learn/views/workspaces/combined-workspace-views.tsx`
 - Modify: `components/learn/views/ecosystem-views.tsx`
 - Modify: `components/learn/views/dashboard-view.tsx`
 - Test: existing UI helper tests plus browser smoke.
@@ -676,7 +676,33 @@ These targets merge the earlier product maturity, navigation, Studio, AI Tutor, 
 - [ ] Browser-test desktop/mobile for no horizontal overflow.
 - [ ] Commit each page cleanup separately.
 
-### Task 8: Migration Backfill And Compatibility
+### Task 8: Folder Architecture And Module Organization
+
+**Files:**
+- Modify: `components/learn/**/*`
+- Modify: `lib/**/*`
+- Modify: route imports only where needed.
+- Modify: this plan and `docs/productivity-suite-plan.md`.
+
+- [x] Add a language/runtime decision record: TypeScript-first for the Cloudflare app; add other languages only for measured isolated services or tooling.
+- [x] Start grouping workspace UI under `components/learn/views/workspaces`.
+- [ ] Split the largest view surfaces into feature folders without changing routes:
+  - `components/learn/views/studio/*`
+  - `components/learn/views/ai/*`
+  - `components/learn/views/ecosystem/*`
+  - `components/learn/views/productivity/*`
+- [ ] Split large `lib` files into domain folders with stable barrel exports:
+  - `lib/server/data/*` for D1 data access slices.
+  - `lib/features/studio/*`
+  - `lib/features/practice/*`
+  - `lib/features/social/*`
+  - `lib/features/dashboard/*`
+  - `lib/platform/cloudflare/*`
+- [ ] Keep existing public routes and API URLs unchanged.
+- [ ] Move one file/folder group per commit, run `corepack pnpm lint` after each move, then full gates before push.
+- [ ] Remove dead imports and obsolete compatibility files only after search proves no references remain.
+
+### Task 9: Migration Backfill And Compatibility
 
 **Files:**
 - Create: `scripts/backfill-content-items.mjs`

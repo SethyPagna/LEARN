@@ -23,12 +23,13 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 | Sheets | In progress | Row/column operations, CSV helpers, formulas, and basic context actions exist. Next steps: richer range actions, filters, and formatting presets. |
 | Slides | In progress | Thumbnail rail, canvas-style editor, themes, transitions, animations, objects, notes, JSON/PPTX export exist. Next steps: preview transitions and better master templates. |
 | AI insert-back | In progress | AI prompt builder and insert-back helpers exist. Next steps: richer preview formatting and sheet/slide result validation before insertion. |
-| Architecture/performance | In progress | Keep TypeScript/React as the primary Workers runtime; isolate heavier Studio libraries behind Studio surfaces, debounce local drafts, virtualize long lists, and avoid adding another language runtime unless a measured bottleneck justifies it. |
+| Architecture/performance | In progress | Keep TypeScript/React as the primary Workers runtime for the Cloudflare app; use other languages only for isolated tooling or services after profiling proves a real bottleneck. Continue grouping large UI and feature modules into folders with stable imports. |
 | Templates | Planned | Add suite-wide template picker with colors, fonts, and slide master settings. |
 | Trash/folders | Planned | Add restore/delete-forever/empty-trash and move-to-folder flows where schema supports it. |
 | Tests | In progress | Local gates are `pnpm test`, `pnpm lint`, and `pnpm build`; browser checks are run on key flows. |
 | Shell and calendar | In progress | Desktop sidebar is fixed for long pages. Calendar now needs to keep growing toward true date/time planning with month, day, agenda, and editing views. |
 | Schema and sharing | Planned | A final Phase 6 schema/workflow plan now maps current D1 tables, social polymorphism, sharing gaps, review/practice loops, realtime snapshots, and UI declutter targets. |
+| Folder organization | In progress | Group large flat surfaces into domain folders first, starting with workspace views, then split Studio/AI/Ecosystem/lib data slices in small verified commits. |
 
 ## Progress Log
 
@@ -86,6 +87,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-18: Continued Phase 6 UI declutter by reducing the Practice workspace side panel to a primary next action, compact signal chips, and collapsible sections for alternate paths and saved drafts.
 - 2026-05-18: Continued Phase 6 UI declutter by keeping Social's primary action visible and folding safety cues, status, and mode counts into one compact expandable signal panel.
 - 2026-05-18: Continued Phase 6 UI declutter by simplifying the Learn route overview: route cards now expose details on hover, the route rationale is collapsible, and the learning loop is tucked behind an expandable section.
+- 2026-05-18: Added the folder architecture track to the Phase 6 plan, confirmed the app should stay TypeScript-first on Cloudflare unless profiling proves otherwise, and started grouping workspace views under `components/learn/views/workspaces`.
 
 ## Implementation Slices
 
