@@ -106,11 +106,12 @@ export function Sidebar({
   studioDraftSummary: StudioDraftSummary
   practiceDraftSummary: PracticeDraftSummary
 }) {
+  const compact = density === "compact"
   return (
-    <aside className={`fixed inset-y-0 left-0 z-30 hidden border-r border-border bg-sidebar px-3 py-4 text-sidebar-foreground lg:flex lg:flex-col ${density === "compact" ? "w-[232px]" : "w-[272px]"}`}>
-      <Brand text={text} />
-      <LauncherSearch query={query} setQuery={setQuery} setView={setView} text={text} />
-      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+    <aside className={`fixed inset-y-0 left-0 z-30 hidden border-r border-border bg-sidebar py-4 text-sidebar-foreground lg:flex lg:flex-col ${compact ? "w-[84px] px-2" : "w-[272px] px-3"}`}>
+      <Brand compact={compact} text={text} />
+      <LauncherSearch compact={compact} query={query} setQuery={setQuery} setView={setView} text={text} />
+      <div className={`min-h-0 flex-1 overflow-y-auto ${compact ? "pr-0" : "pr-1"}`}>
         <Navigation density={density} text={text} view={view} setView={setView} studioDraftSummary={studioDraftSummary} practiceDraftSummary={practiceDraftSummary} />
       </div>
       <SidebarControls
@@ -129,11 +130,13 @@ export function Sidebar({
 }
 
 function LauncherSearch({
+  compact,
   query,
   setQuery,
   setView,
   text,
 }: {
+  compact?: boolean
   query: string
   setQuery: (query: string) => void
   setView: (view: View) => void
@@ -184,6 +187,70 @@ function LauncherSearch({
     }
   }
 
+  const resultsPanel = (
+    <>
+      {hasResults ? (
+        <div className="grid gap-2">
+          {navResults.length ? (
+            <LauncherGroup label="Go to">
+              {navResults.map((item) => {
+                const Icon = navIconMap[item.value.iconKey]
+                return (
+                  <LauncherItem key={item.value.view} icon={Icon} label={item.label} detail={item.detail} onClick={() => choose(item.value.view)} />
+                )
+              })}
+            </LauncherGroup>
+          ) : null}
+          {visibleCommands.length ? (
+            <LauncherGroup label={needle ? "Actions" : "Quick actions"}>
+              {visibleCommands.map((item) => (
+                <LauncherItem key={item.label} icon={navIconMap[item.value.iconKey]} label={item.label} detail={item.detail} onClick={() => choose(item.value.view)} />
+              ))}
+            </LauncherGroup>
+          ) : null}
+        </div>
+      ) : (
+        <div className="rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">
+          No command found
+        </div>
+      )}
+    </>
+  )
+
+  if (compact) {
+    return (
+      <div className="relative mb-3 flex justify-center" onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false)
+      }}>
+        <button
+          onClick={() => setFocused(true)}
+          className="flex h-11 w-11 items-center justify-center rounded-xl border border-sidebar-border bg-background text-muted-foreground transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          aria-label="Search or jump"
+          title="Search or jump"
+        >
+          <Search className="h-4 w-4" />
+        </button>
+        {showPanel ? (
+          <div className="absolute left-full top-0 z-[80] ml-3 w-80 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95">
+            <div className="mb-2 flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 focus-within:ring-2 focus-within:ring-ring/30">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <input
+                autoFocus
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onFocus={() => setFocused(true)}
+                onKeyDown={handleKeyDown}
+                placeholder="Search or jump"
+                className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+            {resultsPanel}
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <div className="relative mb-3" onBlur={(event) => {
       if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false)
@@ -200,32 +267,8 @@ function LauncherSearch({
         />
       </div>
       {showPanel ? (
-        <div className="absolute left-0 right-0 top-11 z-50 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95">
-          {hasResults ? (
-            <div className="grid gap-2">
-              {navResults.length ? (
-                <LauncherGroup label="Go to">
-              {navResults.map((item) => {
-                    const Icon = navIconMap[item.value.iconKey]
-                    return (
-                      <LauncherItem key={item.value.view} icon={Icon} label={item.label} detail={item.detail} onClick={() => choose(item.value.view)} />
-                    )
-                  })}
-                </LauncherGroup>
-              ) : null}
-              {visibleCommands.length ? (
-                <LauncherGroup label={needle ? "Actions" : "Quick actions"}>
-                  {visibleCommands.map((item) => (
-                    <LauncherItem key={item.label} icon={navIconMap[item.value.iconKey]} label={item.label} detail={item.detail} onClick={() => choose(item.value.view)} />
-                  ))}
-                </LauncherGroup>
-              ) : null}
-            </div>
-          ) : (
-            <div className="rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">
-              No command found
-            </div>
-          )}
+        <div className="absolute left-0 right-0 top-11 z-[80] rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95">
+          {resultsPanel}
         </div>
       ) : null}
     </div>
@@ -382,6 +425,46 @@ function SidebarControls({
 }) {
   const ThemeIcon = resolvedTheme === "dark" ? Moon : Sun
   const [openControl, setOpenControl] = useState<"language" | "notifications" | null>(null)
+  const compact = density === "compact"
+
+  if (compact) {
+    return (
+      <div className="mt-auto pt-3">
+        <div className="grid justify-center gap-2 rounded-xl border border-sidebar-border bg-background p-1.5">
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-xs font-semibold text-primary-foreground" title={user?.name || "Learner"}>
+            {(user?.name || "L").slice(0, 1)}
+          </div>
+          <button
+            onClick={() => setDensity("comfortable")}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground"
+            aria-label="Comfortable spacing"
+            title="Comfortable spacing"
+          >
+            <PanelLeftOpen className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground"
+            aria-label="Toggle theme"
+            title={resolvedTheme === "dark" ? text.lightMode : text.darkMode}
+          >
+            <ThemeIcon className="h-4 w-4" />
+          </button>
+          <LanguageMenu compact rail locale={locale} open={openControl === "language"} setLocale={setLocale} setOpen={(open) => setOpenControl(open ? "language" : null)} />
+          <NotificationsMenu compact rail open={openControl === "notifications"} setOpen={(open) => setOpenControl(open ? "notifications" : null)} />
+          <button
+            onClick={logout}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground"
+            aria-label={text.signOut}
+            title={text.signOut}
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="mt-auto pt-4">
       <div className="rounded-md border border-sidebar-border bg-background p-2">
@@ -396,12 +479,12 @@ function SidebarControls({
         </div>
         <div className="grid grid-cols-4 gap-1">
           <button
-            onClick={() => setDensity(density === "compact" ? "comfortable" : "compact")}
+            onClick={() => setDensity("compact")}
             className="sidebar-icon-button"
             aria-label="Toggle density"
-            title={density === "compact" ? "Comfortable spacing" : "Compact spacing"}
+            title="Compact spacing"
           >
-            {density === "compact" ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            <PanelLeftClose className="h-4 w-4" />
           </button>
           <button
             onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
@@ -430,21 +513,23 @@ function LanguageMenu({
   compact,
   locale,
   open,
+  rail,
   setLocale,
   setOpen,
 }: {
   compact?: boolean
   locale: SupportedLocale
   open: boolean
+  rail?: boolean
   setLocale: (locale: SupportedLocale) => void
   setOpen: (open: boolean) => void
 }) {
   return (
     <div className="relative">
-      <button onClick={() => setOpen(!open)} className={`${compact ? "flex h-9 w-9" : "sidebar-icon-button"} list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground`} aria-label="Language" title={languageNames[locale]}>
+      <button onClick={() => setOpen(!open)} className={`${rail ? "flex h-10 w-10 rounded-xl" : compact ? "flex h-9 w-9 rounded-md" : "sidebar-icon-button"} list-none items-center justify-center border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground`} aria-label="Language" title={languageNames[locale]}>
         <Languages className="h-4 w-4" />
       </button>
-      {open ? <div className={`absolute right-0 z-40 mt-2 w-64 origin-top-right rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95 ${compact ? "" : "bottom-11 right-auto left-0"}`}>
+      {open ? <div className={`absolute z-[80] w-64 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95 ${rail ? "bottom-0 left-full ml-2" : compact ? "right-0 mt-2 origin-top-right" : "bottom-11 left-0 origin-bottom-left"}`}>
         <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Language</p>
         <div className="grid max-h-72 gap-1 overflow-auto">
           {supportedLocales.map((item) => (
@@ -466,7 +551,7 @@ function LanguageMenu({
   )
 }
 
-function NotificationsMenu({ compact, open, setOpen }: { compact?: boolean; open: boolean; setOpen: (open: boolean) => void }) {
+function NotificationsMenu({ compact, open, rail, setOpen }: { compact?: boolean; open: boolean; rail?: boolean; setOpen: (open: boolean) => void }) {
   const [filter, setFilter] = useState<"all" | "unread">("all")
   const [items, setItems] = useState([
     { id: "review", title: "Review ready", detail: "3 active recall items", unread: true },
@@ -497,11 +582,11 @@ function NotificationsMenu({ compact, open, setOpen }: { compact?: boolean; open
 
   return (
     <div className="relative">
-      <button onClick={() => setOpen(!open)} className={`${compact ? "flex h-9 w-9" : "sidebar-icon-button"} relative list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground`} aria-label="Notifications" title="Notifications">
+      <button onClick={() => setOpen(!open)} className={`${rail ? "flex h-10 w-10 rounded-xl" : compact ? "flex h-9 w-9 rounded-md" : "sidebar-icon-button"} relative list-none items-center justify-center border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground`} aria-label="Notifications" title="Notifications">
         <Bell className="h-4 w-4" />
         {unreadCount ? <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-success px-1 text-[0.62rem] font-bold leading-none text-success-foreground">{unreadCount}</span> : null}
       </button>
-      {open ? <div className={`absolute right-0 z-40 mt-2 w-72 origin-top-right rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95 ${compact ? "" : "bottom-11 right-auto left-0"}`}>
+      {open ? <div className={`absolute z-[80] w-72 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95 ${rail ? "bottom-0 left-full ml-2" : compact ? "right-0 mt-2 origin-top-right" : "bottom-11 left-0 origin-bottom-left"}`}>
         <div className="flex items-center justify-between px-2 pb-2">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Notifications</p>
           <button onClick={markAllRead} className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground" title="Mark all read">
@@ -575,7 +660,17 @@ export function MobileMenu({
   )
 }
 
-function Brand({ text }: { text: Text }) {
+function Brand({ compact, text }: { compact?: boolean; text: Text }) {
+  if (compact) {
+    return (
+      <div className="mb-5 flex justify-center">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm" title={`${text.appName} ${text.workspace}`}>
+          <BookOpen className="h-4 w-4" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="mb-5 flex items-center gap-3 px-1">
       <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
@@ -604,20 +699,21 @@ function Navigation({
   studioDraftSummary: StudioDraftSummary
   practiceDraftSummary: PracticeDraftSummary
 }) {
-  const rowHeight = density === "compact" ? "h-9" : "h-11"
+  const compact = density === "compact"
+  const rowHeight = compact ? "h-11" : "h-11"
   const activeGroup = summarizeActiveNavigationGroup(view, navigationGroups)
   return (
-    <nav className="grid gap-3">
+    <nav className={compact ? "grid gap-2" : "grid gap-3"}>
       {navigationGroups.map((group) => (
         <details key={group.label} className="group/navigation" open>
-          <summary className="mb-1 flex cursor-pointer list-none items-center justify-between px-2 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground" title={group.caption}>
-            <span className="flex min-w-0 items-center gap-2">
-              <span>{group.label}</span>
+          <summary className={`${compact ? "mb-1 flex h-5 cursor-pointer list-none items-center justify-center text-[0.6rem]" : "mb-1 flex cursor-pointer list-none items-center justify-between px-2 text-[0.68rem]"} font-semibold uppercase tracking-[0.12em] text-muted-foreground`} title={group.caption}>
+            <span className={`flex min-w-0 items-center ${compact ? "gap-1" : "gap-2"}`}>
+              <span>{compact ? group.label.slice(0, 1) : group.label}</span>
               {activeGroup?.groupLabel === group.label ? <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" /> : null}
             </span>
-            <ChevronDown className="h-3.5 w-3.5 transition group-open/navigation:rotate-180 lg:hidden" />
+            {compact ? null : <ChevronDown className="h-3.5 w-3.5 transition group-open/navigation:rotate-180 lg:hidden" />}
           </summary>
-          <div className="grid gap-1">
+          <div className={`grid gap-1 ${compact ? "justify-center" : ""}`}>
             {group.items.map((item) => {
               const active = viewBelongsToNavigationItem(view, item)
               const Icon = navIconMap[item.iconKey]
@@ -629,17 +725,17 @@ function Navigation({
                 <button
                   key={item.view}
                   onClick={() => setView(item.view)}
-                  title={getNavigationItemDetail(item)}
-                  className={`flex ${rowHeight} w-full items-center gap-3 rounded-md px-3 text-sm font-medium transition ${
+                  title={`${text[item.labelKey]} - ${getNavigationItemDetail(item)}`}
+                  className={`relative flex ${rowHeight} ${compact ? "w-11 justify-center rounded-xl px-0" : "w-full gap-3 rounded-md px-3"} items-center text-sm font-medium transition ${
                     active
                       ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm ring-1 ring-sidebar-ring/20"
                       : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   }`}
                 >
                   <Icon className="h-[18px] w-[18px] shrink-0" />
-                  <span className="truncate">{text[item.labelKey]}</span>
+                  {compact ? <span className="sr-only">{text[item.labelKey]}</span> : <span className="truncate">{text[item.labelKey]}</span>}
                   {badge ? (
-                    <span className={`ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.68rem] font-bold ${active ? "bg-sidebar-primary-foreground text-sidebar-primary" : "bg-warning text-warning-foreground"}`} title={badgeTitle}>
+                    <span className={`${compact ? "absolute -right-1 -top-1 h-4 min-w-4 px-1 text-[0.58rem]" : "ml-auto h-5 min-w-5 px-1.5 text-[0.68rem]"} flex items-center justify-center rounded-full font-bold ${active ? "bg-sidebar-primary-foreground text-sidebar-primary" : "bg-warning text-warning-foreground"}`} title={badgeTitle}>
                       {badge}
                     </span>
                   ) : null}

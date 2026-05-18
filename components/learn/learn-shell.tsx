@@ -169,7 +169,7 @@ export function LearnShell({
           studioDraftSummary={studioDraftSummary}
           practiceDraftSummary={practiceDraftSummary}
         />
-        <section className={`min-w-0 overflow-x-hidden ${preferences.density === "compact" ? "lg:ml-[232px]" : "lg:ml-[272px]"}`}>
+        <section className={`min-w-0 overflow-x-hidden ${preferences.density === "compact" ? "lg:ml-[84px]" : "lg:ml-[272px]"}`}>
           <Topbar
             density={preferences.density}
             locale={preferences.locale}
