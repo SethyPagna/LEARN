@@ -142,18 +142,20 @@ export function DashboardView({
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
       {showOnboarding ? <OnboardingCard setShowOnboarding={setShowOnboarding} setView={setView} /> : null}
       <section className="rounded-lg border border-border bg-card text-card-foreground shadow-sm xl:col-span-2">
-        <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-center lg:p-5">
+        <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center lg:p-5">
           <div className="min-w-0">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <span className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">Today</span>
+            <div className="mb-3 flex flex-wrap items-center gap-2" aria-label="Today signals">
+              <span className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">Today Route</span>
               {dashboardSignals.map((signal) => <StatusPill key={signal.label} label={`${signal.label} ${signal.value}`} tone={signal.tone} />)}
             </div>
-            <h2 className="max-w-4xl text-2xl font-semibold leading-tight text-foreground md:text-4xl">
-              {commandPlan.headline}
-            </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">{commandPlan.detail}</p>
+            <div className="flex items-start gap-3">
+              <h2 className="max-w-4xl text-2xl font-semibold leading-tight text-foreground md:text-3xl">
+                {commandPlan.headline}
+              </h2>
+              <InfoPopover label="About today's route" body={commandPlan.detail} />
+            </div>
           </div>
-          <div className="rounded-md border border-border bg-secondary p-3">
+          <div className="rounded-lg border border-border bg-secondary p-3">
             {routeActions.slice(0, 1).map((action) => {
               const Icon = dashboardCommandIcons[action.target] || CommandIcon
               return (
@@ -164,7 +166,7 @@ export function DashboardView({
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold">{action.label}</p>
-                      <p className="mt-1 truncate text-xs opacity-85">{action.detail}</p>
+                      <p className="mt-1 truncate text-xs opacity-85">Start the next useful move</p>
                     </div>
                     <ArrowRight className="h-4 w-4 opacity-80" />
                   </div>
@@ -175,12 +177,11 @@ export function DashboardView({
               {routeActions.slice(1).map((action) => {
                 const Icon = dashboardCommandIcons[action.target]
                 return (
-                  <button key={action.id} onClick={() => setView(action.target)} className="rounded-md border border-border bg-background p-2 text-left transition hover:bg-accent hover:text-accent-foreground">
+                  <button key={action.id} onClick={() => setView(action.target)} className="rounded-md border border-border bg-background p-2 text-left transition hover:bg-accent hover:text-accent-foreground" title={action.detail}>
                     <div className="flex items-center gap-2">
                       <Icon className="h-4 w-4 text-success" />
                       <span className="truncate text-sm font-semibold">{action.label}</span>
                     </div>
-                    <p className="mt-1 truncate text-xs text-muted-foreground">{action.detail}</p>
                   </button>
                 )
               })}
@@ -200,7 +201,7 @@ export function DashboardView({
       {emptyStates.length ? (
         <Panel className="p-4 xl:col-span-2">
           <SectionHeader icon={Compass} title="Setup gaps" body="Small setup cards appear only while the workspace needs source material, practice, or a route signal." />
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="mt-4 grid gap-2 md:grid-cols-3">
             {emptyStates.map((state) => {
               const Icon = dashboardCommandIcons[state.target]
               return (
@@ -209,6 +210,7 @@ export function DashboardView({
                   type="button"
                   onClick={() => setView(state.target)}
                   className="rounded-md border border-border bg-background p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground"
+                  title={state.detail}
                 >
                   <div className="flex items-center gap-3">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
@@ -219,7 +221,6 @@ export function DashboardView({
                       <span className="mt-1 block text-xs text-muted-foreground">{state.actionLabel}</span>
                     </span>
                   </div>
-                  <p className="mt-3 text-xs leading-5 text-muted-foreground">{state.detail}</p>
                 </button>
               )
             })}
@@ -229,27 +230,20 @@ export function DashboardView({
 
       <Panel className="p-4">
         <SectionHeader icon={Sparkles} title="AI suggestion" body="Use the tutor as a quiet co-pilot, not a replacement for your work." />
-        <div className="mt-4 rounded-lg border border-border bg-muted/35 p-4">
+        <div className="mt-4 rounded-lg border border-border bg-muted/35 p-3">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-foreground">Suggested prompt</p>
-            <details className="relative">
-              <summary className="flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground" aria-label="Show suggested prompt">
-                <Info className="h-4 w-4" />
-              </summary>
-              <p className="absolute right-0 top-10 z-20 w-72 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">
-                {`Use my latest Studio notes to make a short review route for ${focus}, including one example and three recall questions.`}
-              </p>
-            </details>
+            <p className="truncate text-sm font-semibold text-foreground">Review route for {focus}</p>
+            <InfoPopover label="Suggested prompt" body={`Use my latest Studio notes to make a short review route for ${focus}, including one example and three recall questions.`} />
           </div>
-          <button onClick={() => setView("ai")} className="mt-4 rounded-md bg-success px-3 py-2 text-sm font-semibold text-success-foreground">Open AI tutor</button>
+          <button onClick={() => setView("ai")} className="mt-3 rounded-md bg-success px-3 py-2 text-sm font-semibold text-success-foreground">Open AI tutor</button>
         </div>
       </Panel>
 
       <Panel className="p-4">
         <SectionHeader icon={Brain} title="Weak topics" body="Lower accuracy appears first so practice is easier to choose." />
-        <div className="mt-4 space-y-3">
+        <div className="mt-4 space-y-2">
           {(weakTopics.length ? weakTopics : [{ topic: "No attempts yet", accuracy: 100 }]).slice(0, 5).map((topic: any) => (
-            <div key={topic.topic} className="rounded-md border border-border bg-background p-3">
+            <button key={topic.topic} onClick={() => setView("practice")} className="w-full rounded-md border border-border bg-background p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
               <div className="flex justify-between gap-3 text-sm">
                 <span className="font-medium text-foreground">{topic.topic}</span>
                 <span className="text-muted-foreground">{topic.accuracy}%</span>
@@ -259,7 +253,7 @@ export function DashboardView({
                   <div className="h-2 rounded-full bg-success" style={{ width: `${Math.max(8, topic.accuracy)}%` }} />
                 </div>
               ) : null}
-            </div>
+            </button>
           ))}
         </div>
       </Panel>
@@ -328,7 +322,7 @@ export function DashboardView({
                         <Icon className="h-6 w-6 text-success" />
                         <p className="text-sm font-semibold">{action.label}</p>
                       </div>
-                      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{action.detail}</p>
+                      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-[70] hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{action.detail}</p>
                     </button>
                   )
                 })}
@@ -440,7 +434,7 @@ function BigMetric({ body, icon: Icon, label, tone, value }: { body: string; ico
           <p className="text-3xl font-semibold leading-none text-foreground">{value}</p>
         </div>
       </div>
-      <p className="pointer-events-none absolute left-3 right-3 top-[calc(100%-0.2rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{body}</p>
+      <p className="pointer-events-none absolute left-3 right-3 top-[calc(100%-0.2rem)] z-[70] hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{body}</p>
     </div>
   )
 }
@@ -454,15 +448,21 @@ function SectionHeader({ body, icon: Icon, title }: { body: string; icon: React.
       <div className="min-w-0 flex-1">
         <h2 className="font-semibold text-foreground">{title}</h2>
       </div>
-      <details className="relative">
-        <summary className="flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${title}`}>
-          <Info className="h-4 w-4" />
-        </summary>
-        <p className="absolute right-0 top-10 z-20 w-64 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">
-          {body}
-        </p>
-      </details>
+      <InfoPopover label={`About ${title}`} body={body} />
     </div>
+  )
+}
+
+function InfoPopover({ body, label }: { body: string; label: string }) {
+  return (
+    <details className="relative shrink-0">
+      <summary className="flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground" aria-label={label} title={label}>
+        <Info className="h-4 w-4" />
+      </summary>
+      <p className="absolute right-0 top-10 z-[80] w-72 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">
+        {body}
+      </p>
+    </details>
   )
 }
 
