@@ -95,6 +95,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued dashboard declutter by shortening the Today Route hero, moving explanatory copy into info popovers/tooltips, making weak-topic rows actionable, and raising dashboard hover details above dense backgrounds.
 - 2026-05-19: Continued Calendar maturity with real date/time and duration inputs, selected-day quick scheduling slots, day-click draft alignment, cleaner empty agenda states, and a mojibake-free event duration label.
 - 2026-05-19: Continued workspace UI declutter by making Learn/Practice/Social tabs shorter and one-line, tightening route cards, compacting Practice signal chips, and shortening expandable labels without removing any actions.
+- 2026-05-19: Continued Files maturity by compacting the upload/search/filter chrome, moving file workflow explanations into info menus, showing active filter counts in the Browse control, and making delete a two-step confirmation.
 
 ## Implementation Slices
 
