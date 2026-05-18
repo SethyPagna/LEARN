@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { CheckCircle2, ChevronDown, Clock, Flag, ListFilter, MoreHorizontal, Pause, Play, RotateCcw, Sparkles, XCircle } from "lucide-react"
+import { CheckCircle2, ChevronDown, Clock, Flag, Info, ListFilter, MoreHorizontal, Pause, Play, RotateCcw, Sparkles, XCircle } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { PracticeAttemptSummary, PracticeMode, Quiz } from "../types"
 import { api } from "../api"
@@ -252,8 +252,19 @@ export function QuizView({
           <>
             <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
               <div>
-                <h2 className="text-2xl font-semibold text-foreground">{quiz.title}</h2>
-                <p className="mt-2 text-sm text-muted-foreground">{quiz.description}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-2xl font-semibold text-foreground">{quiz.title}</h2>
+                  <details className="group relative">
+                    <summary className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden" title="About this practice set">
+                      <Info className="h-3.5 w-3.5" />
+                    </summary>
+                    <div className={`absolute left-0 top-9 z-40 w-72 text-sm ${menuSurfaceClasses()}`}>
+                      <p className="font-semibold text-popover-foreground">Practice set</p>
+                      <p className="mt-1 text-muted-foreground">{quiz.description || "Answer the questions, submit once, then repair missed items."}</p>
+                    </div>
+                  </details>
+                </div>
+                <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{visibleQuestions.length} questions · {progressPercent}% complete</p>
               </div>
               <div className="flex flex-wrap gap-2 lg:justify-end">
                 <ModeStatusChip label={modeSummary.activeGroup.label} value={modeSummary.activeModeLabel} />
@@ -356,11 +367,18 @@ export function QuizView({
                       <StatusPill label={`${reviewPlan.cardsToCreate} cards`} />
                     </div>
                     {reviewPlan.weakTopics.length ? (
-                      <div className="flex flex-wrap gap-2 md:col-span-2">
-                        {reviewPlan.weakTopics.map((topic) => (
-                          <StatusPill key={topic.topic} label={`${topic.topic}: ${topic.missed}`} tone="watch" />
-                        ))}
-                      </div>
+                      <details className="md:col-span-2">
+                        <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs font-semibold text-muted-foreground [&::-webkit-details-marker]:hidden">
+                          <ChevronDown className="h-3.5 w-3.5" />
+                          Weak topics
+                          <span className="rounded bg-secondary px-1.5 py-0.5 text-secondary-foreground">{reviewPlan.weakTopics.length}</span>
+                        </summary>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {reviewPlan.weakTopics.map((topic) => (
+                            <StatusPill key={topic.topic} label={`${topic.topic}: ${topic.missed}`} tone="watch" />
+                          ))}
+                        </div>
+                      </details>
                     ) : null}
                   </div>
                 ) : null}
@@ -418,24 +436,36 @@ function PracticeProgressBar({
 }) {
   return (
     <div className="mt-4 rounded-md border border-border bg-card p-3">
-      <div className="grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-5">
-        <PracticeStat label="Answered" value={`${answeredCount}/${totalCount}`} />
-        <PracticeStat label="Marked" value={String(markedCount)} />
-        <PracticeStat label="Mode" value={revealAnswers ? "Guided" : "Exam"} />
-        <PracticeStat label="Elapsed" value={elapsedLabel} />
-        <PracticeStat label="Left" value={remainingLabel} tone={remainingSeconds === 0 ? "danger" : "neutral"} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-foreground">{answeredCount}/{totalCount} answered</p>
+          <p className="text-xs text-muted-foreground">{remainingLabel} left · {markedCount} marked</p>
+        </div>
+        <StatusPill label={revealAnswers ? "Guided" : "Exam"} tone={remainingSeconds === 0 ? "critical" : "neutral"} />
       </div>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
         <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} />
       </div>
-      {draftStatus ? (
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-2">
-          <span className="truncate text-xs font-semibold text-muted-foreground">{draftStatus}</span>
-          <ControlButton onClick={onClearDraft} size="compact">
-            Clear
-          </ControlButton>
+      <details className="mt-3">
+        <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-muted-foreground [&::-webkit-details-marker]:hidden">
+          <ChevronDown className="h-3.5 w-3.5" />
+          Session details
+        </summary>
+        <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-4">
+          <PracticeStat label="Elapsed" value={elapsedLabel} />
+          <PracticeStat label="Left" value={remainingLabel} tone={remainingSeconds === 0 ? "danger" : "neutral"} />
+          <PracticeStat label="Marked" value={String(markedCount)} />
+          <PracticeStat label="Answers" value={`${answeredCount}/${totalCount}`} />
         </div>
-      ) : null}
+        {draftStatus ? (
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-2">
+            <span className="truncate text-xs font-semibold text-muted-foreground">{draftStatus}</span>
+            <ControlButton onClick={onClearDraft} size="compact">
+              Clear
+            </ControlButton>
+          </div>
+        ) : null}
+      </details>
     </div>
   )
 }
