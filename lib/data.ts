@@ -3,13 +3,13 @@ import { buildProviderAdminSummary, decryptProviderSecret, encryptProviderSecret
 import type { AiProviderKey } from "./ai/providers"
 import { createSessionToken, hashPassword, hashSessionToken, verifyPassword } from "./auth"
 import { query } from "./db"
+import { buildFeedRankCacheEntries, feedTopicKey, selectCachedFeedLessons, type FeedRankCacheEntry } from "./feed-cache"
 import { buildLearningSnapshot, type TopicAnswer } from "./learning"
 import {
   buildReviewSchedule,
   calculateLevelFromXp,
   detectOrphanKnowledgeNodes,
   filterPublicProfileArtifacts,
-  selectFeedLessons,
   updateLearningStreak,
   type FeedLessonCandidate,
   type KnowledgeEdge,
@@ -1790,7 +1790,29 @@ export async function listFeed(user: User, topics: string[] = []) {
     readinessScore: 0.5 + Math.min(0.4, Number(row.interaction_count || 0) / 100),
   }))
   const preferredTopics = topics.length ? topics : parseJsonArray<string>(user.preferences?.feedTopics).concat(["study", "notes"])
-  const selected = selectFeedLessons({ lessons: candidates, preferredTopics, count: 12, serendipityRatio: 0.15 })
+  const topicKey = feedTopicKey(preferredTopics)
+  const now = new Date()
+  const lessonsById = new Map(candidates.map((candidate) => [candidate.id, candidate]))
+  const cacheRows = (await query(
+    `SELECT lesson_id, topic_key, reason, rank_score, topic_tags, expires_at
+     FROM feed_rank_cache
+     WHERE user_id = $1 AND topic_key = $2 AND expires_at > datetime('now')
+     ORDER BY rank_score DESC
+     LIMIT 12`,
+    [user.id, topicKey],
+  )).rows
+  const cacheEntries: FeedRankCacheEntry[] = cacheRows.map((row) => ({
+    lessonId: String(row.lesson_id),
+    topicKey: String(row.topic_key || ""),
+    reason: row.reason === "serendipity" ? "serendipity" : "preferred",
+    rankScore: Number(row.rank_score || 0),
+    topicTags: parseJsonArray<string>(row.topic_tags),
+    expiresAt: String(row.expires_at),
+  }))
+  const selected = selectCachedFeedLessons({ cacheEntries, lessonsById, now, count: 12, fallbackTopics: preferredTopics })
+  if (cacheEntries.length < selected.length) {
+    await refreshFeedRankCache(user.id, topicKey, selected, now)
+  }
   return selected.map((item) => {
     const source = rows.find((row) => row.id === item.id) || {}
     return {
@@ -1800,6 +1822,33 @@ export async function listFeed(user: User, topics: string[] = []) {
       choices: parseJsonArray(source.choices),
     }
   })
+}
+
+async function refreshFeedRankCache(userId: string, topicKey: string, selected: ReturnType<typeof selectCachedFeedLessons>, now: Date) {
+  await query("DELETE FROM feed_rank_cache WHERE user_id = $1 AND topic_key = $2", [userId, topicKey])
+  const entries = buildFeedRankCacheEntries({ userId, selected, topicKey, now })
+  for (const entry of entries) {
+    await query(
+      `INSERT INTO feed_rank_cache (id, user_id, lesson_id, topic_key, reason, rank_score, topic_tags, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)
+       ON CONFLICT (user_id, lesson_id, topic_key) DO UPDATE
+       SET reason = EXCLUDED.reason,
+           rank_score = EXCLUDED.rank_score,
+           topic_tags = EXCLUDED.topic_tags,
+           expires_at = EXCLUDED.expires_at,
+           created_at = datetime('now')`,
+      [
+        entry.id,
+        entry.userId,
+        entry.lessonId,
+        entry.topicKey,
+        entry.reason,
+        entry.rankScore,
+        JSON.stringify(entry.topicTags),
+        entry.expiresAt,
+      ],
+    )
+  }
 }
 
 export async function listMicroLessons(user: User) {
