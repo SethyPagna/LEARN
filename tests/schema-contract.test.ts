@@ -78,6 +78,8 @@ test("D1 migrations include the current LEARN product tables", () => {
     "content_versions",
     "content_attachments",
     "user_connections",
+    "practice_sessions",
+    "practice_session_items",
   ]
 
   assert.deepEqual(
@@ -110,6 +112,12 @@ test("D1 migrations keep indexes for the current hot product queries", () => {
     idx_user_connections_target: { table: "user_connections", includes: ["target_user_id", "connection_type", "status", "updated_at DESC"] },
     idx_shared_access_grantee_active: { table: "shared_access", includes: ["grantee_type", "grantee_id", "expires_at"] },
     idx_shared_access_created_by: { table: "shared_access", includes: ["created_by_user_id", "created_at DESC"] },
+    idx_practice_sessions_user_recent: { table: "practice_sessions", includes: ["user_id", "started_at DESC"] },
+    idx_practice_sessions_type_recent: { table: "practice_sessions", includes: ["session_type", "started_at DESC"] },
+    idx_practice_sessions_source: { table: "practice_sessions", includes: ["source_content_item_id", "started_at DESC"] },
+    idx_practice_session_items_session: { table: "practice_session_items", includes: ["session_id", "created_at"] },
+    idx_practice_session_items_review: { table: "practice_session_items", includes: ["review_item_id", "created_at DESC"] },
+    idx_practice_session_items_content: { table: "practice_session_items", includes: ["content_item_id", "created_at DESC"] },
   }
 
   for (const [name, expected] of Object.entries(requiredIndexes)) {
