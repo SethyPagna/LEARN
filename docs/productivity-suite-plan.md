@@ -88,6 +88,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-18: Continued Phase 6 UI declutter by keeping Social's primary action visible and folding safety cues, status, and mode counts into one compact expandable signal panel.
 - 2026-05-18: Continued Phase 6 UI declutter by simplifying the Learn route overview: route cards now expose details on hover, the route rationale is collapsible, and the learning loop is tucked behind an expandable section.
 - 2026-05-18: Added the folder architecture track to the Phase 6 plan, confirmed the app should stay TypeScript-first on Cloudflare unless profiling proves otherwise, and started grouping workspace views under `components/learn/views/workspaces`.
+- 2026-05-18: Smoothed the public intro and workflow gallery transitions by lengthening the pinned scroll sequence, centering slide jump targets, and slowing the gallery wheel/preview animation so each transition feels more natural.
 
 ## Implementation Slices
 
