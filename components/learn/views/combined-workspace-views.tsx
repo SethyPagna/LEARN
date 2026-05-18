@@ -266,10 +266,14 @@ function LearnRoute({ dashboard, quizzes, setView }: { dashboard: any; quizzes: 
           {routePlan.actions.map((action) => {
             const Icon = actionIcons[action.id]
             return (
-              <button key={action.title} onClick={() => setView(action.view)} className="rounded-md border border-border bg-background p-4 text-left hover:bg-accent hover:text-accent-foreground">
-                <Icon className="h-6 w-6 text-success" />
-                <h3 className="mt-4 font-semibold text-foreground">{action.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{action.body}</p>
+              <button key={action.title} onClick={() => setView(action.view)} className="group relative rounded-md border border-border bg-background p-4 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
+                <div className="flex items-start justify-between gap-3">
+                  <Icon className="h-6 w-6 text-success" />
+                  <MoreHorizontal className="h-4 w-4 text-muted-foreground group-hover:text-accent-foreground" />
+                </div>
+                <h3 className="mt-4 font-semibold text-foreground group-hover:text-accent-foreground">{action.title}</h3>
+                <span className="mt-2 inline-flex rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold uppercase text-secondary-foreground group-hover:bg-background/80">Open</span>
+                <p className="pointer-events-none absolute left-3 right-3 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{action.body}</p>
               </button>
             )
           })}
@@ -280,15 +284,26 @@ function LearnRoute({ dashboard, quizzes, setView }: { dashboard: any; quizzes: 
         <div className="mt-3 grid grid-cols-2 gap-2">
           {routePlan.signals.map((signal) => <MiniMetric key={signal.label} label={signal.label} value={signal.value} />)}
         </div>
-        <InfoStrip body={routePlan.primaryAction.body} />
+        <details className="group/why mt-3 rounded-md border border-border bg-background">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+            <span>Why this route</span>
+            <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/why:rotate-180" />
+          </summary>
+          <div className="border-t border-border px-3 py-2 text-sm leading-6 text-muted-foreground">{routePlan.primaryAction.body}</div>
+        </details>
       </Panel>
       <Panel className="p-4 xl:col-span-2">
-        <h3 className="font-semibold text-foreground">Learning loop</h3>
-        <div className="mt-3 grid gap-3 md:grid-cols-3">
-          <PatternCard icon={Sparkles} title="Capture" body="Studio keeps notes, docs, sheets, slides, and imports together." />
-          <PatternCard icon={Repeat2} title="Practice" body="Review, quiz, retry misses, and save hard items as cards." />
-          <PatternCard icon={MessageSquare} title="Reflect" body="Use Social only when you want collaboration or accountability." />
-        </div>
+        <details className="group/loop">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
+            <span>Learning loop</span>
+            <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/loop:rotate-180" />
+          </summary>
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
+            <PatternCard icon={Sparkles} title="Capture" body="Studio keeps notes, docs, sheets, slides, and imports together." />
+            <PatternCard icon={Repeat2} title="Practice" body="Review, quiz, retry misses, and save hard items as cards." />
+            <PatternCard icon={MessageSquare} title="Reflect" body="Use Social only when you want collaboration or accountability." />
+          </div>
+        </details>
       </Panel>
     </div>
   )
@@ -304,15 +319,6 @@ function InfoMenu({ body, title }: { body: string; title: string }) {
         {body}
       </div>
     </details>
-  )
-}
-
-function InfoStrip({ body }: { body: string }) {
-  return (
-    <div className="mt-3 flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
-      <Info className="h-4 w-4 text-success" />
-      {body}
-    </div>
   )
 }
 
