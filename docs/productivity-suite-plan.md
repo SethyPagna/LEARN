@@ -82,6 +82,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-18: Added Phase 6 collaboration event projection with D1-backed collaboration sessions/events, compact realtime event validation, Durable Object live-event retention, and useful non-presence projection for rooms, battles, editor changes, and snapshots.
 - 2026-05-18: Added Phase 6 search/read-performance foundations with a D1-safe `content_search` projection, visibility-aware content search helpers, expiring `feed_rank_cache`, and `/api/feed` cache-first discovery selection that preserves serendipity.
 - 2026-05-18: Started Phase 6 UI workflow declutter by compacting AI Tutor readiness/requirements drawers, grouping AI result insert/create actions into menus, and moving Practice draft feedback into a quiet status row that does not dominate the quiz flow.
+- 2026-05-18: Continued Phase 6 UI declutter by replacing Studio explorer's exposed filter selector and view-mode button row with compact Browse/View menus plus an item-count chip.
 
 ## Implementation Slices
 
