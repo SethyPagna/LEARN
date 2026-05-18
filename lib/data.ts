@@ -18,6 +18,7 @@ import {
   type Weekday,
 } from "./learning-ecosystem"
 import { createId, ensureDatabase, logAudit } from "./schema"
+import { normalizeConnectionInput, normalizeSocialActionInput } from "./sharing"
 
 export const SESSION_COOKIE = "learn_session"
 const DEFAULT_WORKSPACE_ID = "workspace_demo"
@@ -1981,8 +1982,54 @@ export async function deleteStudyBattle(user: User, id: string) {
   await logAudit({ userId: user.id, action: "delete", entity: "study_battle", entityId: id })
 }
 
+export async function upsertUserConnection(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  const normalized = normalizeConnectionInput({
+    requesterUserId: user.id,
+    targetUserId: String(input.targetUserId || input.target_user_id || ""),
+    connectionType: String(input.connectionType || input.connection_type || "follow"),
+    status: String(input.status || "accepted"),
+  })
+  await query(
+    `INSERT INTO user_connections (requester_user_id, target_user_id, connection_type, status, updated_at)
+     VALUES ($1, $2, $3, $4, now())
+     ON CONFLICT (requester_user_id, target_user_id, connection_type) DO UPDATE
+     SET status = EXCLUDED.status,
+         updated_at = now()`,
+    [
+      normalized.requesterUserId,
+      normalized.targetUserId,
+      normalized.connectionType,
+      normalized.status,
+    ],
+  )
+  await logAudit({
+    userId: user.id,
+    action: "upsert",
+    entity: "user_connection",
+    entityId: normalized.targetUserId,
+    details: { connectionType: normalized.connectionType, status: normalized.status },
+  })
+  return normalized
+}
+
+export async function listUserConnections(user: User) {
+  await ensureDatabase()
+  const result = await query(
+    `SELECT uc.*, u.username, u.name, u.avatar_url
+     FROM user_connections uc
+     JOIN users u ON u.id = uc.target_user_id
+     WHERE uc.requester_user_id = $1
+     ORDER BY uc.updated_at DESC
+     LIMIT 100`,
+    [user.id],
+  )
+  return result.rows
+}
+
 export async function recordSocialAction(user: User, input: Record<string, unknown>) {
   await ensureDatabase()
+  const normalized = normalizeSocialActionInput(input)
   const id = createId("social")
   await query(
     `INSERT INTO social_actions (id, actor_user_id, target_type, target_id, action_type, body, metadata)
@@ -1990,11 +2037,11 @@ export async function recordSocialAction(user: User, input: Record<string, unkno
     [
       id,
       user.id,
-      String(input.targetType || input.target_type || "note"),
-      String(input.targetId || input.target_id || ""),
-      String(input.actionType || input.action_type || "comment"),
-      String(input.body || ""),
-      JSON.stringify(input.metadata || {}),
+      normalized.targetType,
+      normalized.targetId,
+      normalized.actionType,
+      normalized.body,
+      JSON.stringify(normalized.metadata),
     ],
   )
   await logAudit({ userId: user.id, action: "create", entity: "social_action", entityId: id })
