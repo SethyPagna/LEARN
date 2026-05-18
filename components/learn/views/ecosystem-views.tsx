@@ -346,13 +346,22 @@ export function ReviewsView({ setView }: { setView: (view: View) => void }) {
   return (
     <div className="grid gap-4 xl:grid-cols-[340px_1fr]">
       <Panel className="p-4">
-        <h2 className="font-semibold text-foreground">Review ritual</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-semibold text-foreground">Reviews</h2>
+          <details className="relative">
+            <summary className="flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label="About reviews">
+              <SlidersHorizontal className="h-4 w-4" />
+            </summary>
+            <p className="absolute right-0 top-10 z-[80] w-72 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">
+              Reveal only when ready, grade honestly, and let LEARN schedule the next review from your answer.
+            </p>
+          </details>
+        </div>
         <button onClick={applyReviewPlan} className="mt-3 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
           <div className="flex items-center justify-between gap-3">
             <span className="font-semibold text-foreground">{reviewPlan.headline}</span>
             <ArrowRight className="h-4 w-4 text-muted-foreground" />
           </div>
-          <p className="mt-2 text-xs leading-5 text-muted-foreground">{reviewPlan.detail}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {reviewPlan.chips.map((chip) => (
               <span key={chip} className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">
@@ -361,7 +370,14 @@ export function ReviewsView({ setView }: { setView: (view: View) => void }) {
             ))}
           </div>
         </button>
-        <div className="mt-4 grid gap-2">
+        <details className="mt-3 rounded-md border border-border bg-background p-2">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
+            <span>Why this move</span>
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          </summary>
+          <p className="mt-2 border-t border-border pt-2 text-xs leading-5 text-muted-foreground">{reviewPlan.detail}</p>
+        </details>
+        <div className="mt-3 grid grid-cols-2 gap-2">
           <Metric label="Status" value={status} />
           <Metric label="Due" value={String(reviewSummary.totalDue)} />
           <Metric label="Revealed" value={String(reviewSummary.revealedCount)} />
@@ -370,13 +386,19 @@ export function ReviewsView({ setView }: { setView: (view: View) => void }) {
           <Metric label="Later" value={String(reviewSummary.remainingAfterCap)} />
         </div>
         {reviewSummary.topTopics.length ? (
-          <div className="mt-3 flex flex-wrap gap-2">
+          <details className="mt-3 rounded-md border border-border bg-background p-2">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
+              <span>Topics</span>
+              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{reviewSummary.topTopics.length}</span>
+            </summary>
+          <div className="mt-2 flex flex-wrap gap-2">
             {reviewSummary.topTopics.map((topic) => (
               <span key={topic.topic} className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
                 {topic.topic} {topic.count}
               </span>
             ))}
           </div>
+          </details>
         ) : null}
       </Panel>
       <div className="grid gap-3">
@@ -392,11 +414,6 @@ export function ReviewsView({ setView }: { setView: (view: View) => void }) {
                   <span className="rounded-md border border-border bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">
                     {reviewSourceLabel(item)}
                   </span>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground">
-                  <span className="rounded-md bg-muted px-2 py-1">Retrievability {Math.round(item.retrievability * 100)}%</span>
-                  <span className="rounded-md bg-muted px-2 py-1">Difficulty {Math.round(item.difficulty * 100)}%</span>
-                  <span className="rounded-md bg-muted px-2 py-1">Stability {Math.round(item.stability * 10) / 10}</span>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -423,6 +440,17 @@ export function ReviewsView({ setView }: { setView: (view: View) => void }) {
               <p className="text-sm font-semibold text-foreground">{reviewPromptText(item)}</p>
               {isRevealed ? <p className="mt-3 text-sm leading-6 text-muted-foreground">{reviewAnswerText(item)}</p> : null}
             </div>
+            <details className="mt-3 rounded-md border border-border bg-background p-2">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                <span>Memory signal</span>
+                <span>{Math.round(item.retrievability * 100)}%</span>
+              </summary>
+              <div className="mt-2 flex flex-wrap gap-2 border-t border-border pt-2 text-xs font-semibold text-muted-foreground">
+                <span className="rounded-md bg-muted px-2 py-1">Retrievability {Math.round(item.retrievability * 100)}%</span>
+                <span className="rounded-md bg-muted px-2 py-1">Difficulty {Math.round(item.difficulty * 100)}%</span>
+                <span className="rounded-md bg-muted px-2 py-1">Stability {Math.round(item.stability * 10) / 10}</span>
+              </div>
+            </details>
           </Panel>
           </div>
           )
