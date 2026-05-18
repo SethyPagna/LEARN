@@ -83,6 +83,8 @@ test("D1 migrations include the current LEARN product tables", () => {
     "collaboration_sessions",
     "collaboration_events",
     "client_mutations",
+    "content_search",
+    "feed_rank_cache",
   ]
 
   assert.deepEqual(
@@ -127,6 +129,12 @@ test("D1 migrations keep indexes for the current hot product queries", () => {
     idx_collaboration_events_type: { table: "collaboration_events", includes: ["event_type", "created_at DESC"] },
     idx_client_mutations_user_status: { table: "client_mutations", includes: ["user_id", "status", "server_received_at DESC"] },
     idx_client_mutations_content: { table: "client_mutations", includes: ["content_item_id", "server_received_at DESC"] },
+    idx_content_search_workspace_recent: { table: "content_search", includes: ["workspace_id", "visibility", "updated_at DESC"] },
+    idx_content_search_owner_type: { table: "content_search", includes: ["owner_user_id", "item_type", "updated_at DESC"] },
+    idx_content_search_visibility: { table: "content_search", includes: ["visibility", "updated_at DESC"] },
+    idx_content_search_title: { table: "content_search", includes: ["title"] },
+    idx_feed_rank_cache_user_expiry: { table: "feed_rank_cache", includes: ["user_id", "topic_key", "expires_at", "rank_score DESC"] },
+    idx_feed_rank_cache_lesson: { table: "feed_rank_cache", includes: ["lesson_id", "created_at DESC"] },
   }
 
   for (const [name, expected] of Object.entries(requiredIndexes)) {
