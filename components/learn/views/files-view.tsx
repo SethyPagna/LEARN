@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react"
-import { ArrowRight, Copy, Download, FileText, ImageIcon, RefreshCw, ShieldCheck, Trash2, Upload, Video } from "lucide-react"
+import { ArrowRight, Copy, Download, FileText, ImageIcon, Info, RefreshCw, Search, ShieldCheck, SlidersHorizontal, Trash2, Upload, Video } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { MediaFile, View } from "../types"
 import { api, formatBytes, formatDate } from "../api"
@@ -19,6 +19,7 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
   const [mediaFilter, setMediaFilter] = useState<FileLibraryFilter>("all")
   const [status, setStatus] = useState("Loading files...")
   const [dragActive, setDragActive] = useState(false)
+  const [pendingDeleteId, setPendingDeleteId] = useState("")
   const storageStats = useMemo(() => summarizeFileLibrary(files), [files])
   const filteredFiles = useMemo(() => filterFileLibrary(files, { query, kind: mediaFilter }), [files, mediaFilter, query])
   const selectedFile = useMemo(() => files.find((file) => file.id === selectedId) || filteredFiles[0], [files, filteredFiles, selectedId])
@@ -65,9 +66,15 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
   }
 
   async function deleteFile(id: string) {
+    if (pendingDeleteId !== id) {
+      setPendingDeleteId(id)
+      setStatus("Press Delete again to remove this file.")
+      return
+    }
     await api(`/api/files?id=${encodeURIComponent(id)}`, { method: "DELETE" })
     setStatus("File removed.")
     setSelectedId("")
+    setPendingDeleteId("")
     await refresh()
   }
 
@@ -119,30 +126,37 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
         onDrop={handleDrop}
       >
         <Panel className={`p-4 transition ${dragActive ? "border-primary bg-primary/5" : ""}`}>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <h2 className="text-2xl font-semibold text-foreground">Files</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Drop in study sources, media, and exports for Studio or AI.</p>
+            <InfoMenu body="Drop in study sources, media, and exports for Studio or AI. Uploads are validated first and stored in LEARN object storage." label="About Files" />
           </div>
           <div className="flex flex-wrap gap-2">
-            <button onClick={resetFilters} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+            <button onClick={resetFilters} className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
               <RefreshCw className="h-4 w-4" />
               Reset
             </button>
-            <button onClick={() => inputRef.current?.click()} className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
+            <button onClick={() => inputRef.current?.click()} className="flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
               <Upload className="h-4 w-4" />
               Upload
             </button>
           </div>
           <input ref={inputRef} type="file" className="hidden" onChange={(event) => upload(event.target.files?.[0])} />
         </div>
-        <label className="mb-4 block">
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search filename, type, or source" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none" />
+        <label className="mb-3 flex h-10 items-center gap-2 rounded-md border border-input bg-background px-3 focus-within:ring-2 focus-within:ring-primary/25">
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search files" className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
         </label>
-        <details className="mb-4 rounded-md border border-border bg-background p-3">
-          <summary className="cursor-pointer text-sm font-semibold text-foreground">
-            Filters and totals
-            <span className="ml-2 rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{fileKindLabel(mediaFilter)}</span>
+        <details className="mb-3 rounded-md border border-border bg-background p-2">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
+            <span className="inline-flex items-center gap-2">
+              <SlidersHorizontal className="h-4 w-4 text-success" />
+              Browse
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{fileKindLabel(mediaFilter)}</span>
+              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{filteredFiles.length}/{files.length}</span>
+            </span>
           </summary>
           <div className="mt-3 grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
             <div className="flex flex-wrap gap-2">
@@ -164,7 +178,7 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
             </div>
           </div>
         </details>
-        {status ? <p className="mb-4 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
+        {status ? <p className="mb-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
         {filteredFiles.length ? options.fileLayout === "grid" ? (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {filteredFiles.map((file) => <FileCard key={file.id} file={file} selected={selectedFile?.id === file.id} preview={options.filePreview} onSelect={() => setSelectedId(file.id)} />)}
@@ -193,13 +207,15 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
       </div>
 
       <Panel className="p-4">
-        <h3 className="font-semibold text-foreground">Next action</h3>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="font-semibold text-foreground">Next action</h3>
+          <InfoMenu body={fileActionPlan.detail} label="About next action" />
+        </div>
         <button onClick={applyFileActionPlan} className="mt-3 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
           <div className="flex items-center justify-between gap-3">
             <span className="font-semibold text-foreground">{fileActionPlan.headline}</span>
             <ArrowRight className="h-4 w-4 text-muted-foreground" />
           </div>
-          <p className="mt-2 text-xs leading-5 text-muted-foreground">{fileActionPlan.detail}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {fileActionPlan.chips.map((chip) => (
               <span key={chip} className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">
@@ -241,7 +257,7 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
               </button>
               <button onClick={() => deleteFile(selectedFile.id)} className="flex h-10 items-center justify-center gap-2 rounded-md border border-destructive text-sm font-semibold text-destructive hover:bg-destructive hover:text-destructive-foreground">
                 <Trash2 className="h-4 w-4" />
-                Delete
+                {pendingDeleteId === selectedFile.id ? "Confirm delete" : "Delete"}
               </button>
             </div>
           </div>
@@ -277,5 +293,18 @@ function FileStat({ label, value }: { label: string; value: string }) {
       <p className="text-[0.66rem] uppercase tracking-[0.08em]">{label}</p>
       <p className="truncate text-foreground">{value}</p>
     </div>
+  )
+}
+
+function InfoMenu({ body, label }: { body: string; label: string }) {
+  return (
+    <details className="relative shrink-0">
+      <summary className="flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label={label} title={label}>
+        <Info className="h-4 w-4" />
+      </summary>
+      <p className="absolute right-0 top-10 z-[80] w-72 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">
+        {body}
+      </p>
+    </details>
   )
 }
