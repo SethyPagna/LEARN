@@ -11,10 +11,11 @@ import {
 test("navigation keeps primary sidebar destinations compact", () => {
   const primaryItems = navigationGroups.flatMap((group) => group.items)
 
-  assert.equal(primaryItems.length <= 8, true)
+  assert.equal(primaryItems.length <= 9, true)
   assert.deepEqual(primaryItems.map((item) => item.view), [
     "dashboard",
     "learn",
+    "reviews",
     "calendar",
     "studio",
     "ai",
@@ -35,7 +36,7 @@ test("stable Studio routes resolve to Studio with the matching tab", () => {
 })
 
 test("secondary product routes resolve to their grouped destinations", () => {
-  assert.equal(resolveNavigationTarget("reviews").primaryView, "learn")
+  assert.equal(resolveNavigationTarget("reviews").primaryView, "reviews")
   assert.equal(resolveNavigationTarget("vault").primaryView, "learn")
   assert.equal(resolveNavigationTarget("graph").primaryView, "learn")
   assert.equal(resolveNavigationTarget("files").primaryView, "studio")

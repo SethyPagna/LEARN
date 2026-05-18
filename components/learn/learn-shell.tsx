@@ -8,9 +8,9 @@ import { StatusMessage } from "./ui"
 import { AiTutorView } from "./views/ai-view"
 import { DashboardView } from "./views/dashboard-view"
 import { FilesView } from "./views/files-view"
-import { AdminView, ProgressView, SettingsView } from "./views/secondary-views"
+import { AdminView, CalendarView, ProgressView, SettingsView } from "./views/secondary-views"
 import { useWorkspacePreferences } from "./preferences"
-import { FeedView, GraphView, ProfileView, VaultView } from "./views/ecosystem-views"
+import { FeedView, GraphView, ProfileView, ReviewsView, VaultView } from "./views/ecosystem-views"
 import { StudioView } from "./views/studio-view"
 import { LearnWorkspaceView, PracticeWorkspaceView, SocialWorkspaceView } from "./views/workspaces/combined-workspace-views"
 import { PRACTICE_DRAFT_EVENT, readPracticeDrafts, summarizePracticeDrafts, type PracticeDraftSummary } from "@/lib/practice-drafts"
@@ -200,11 +200,13 @@ export function LearnShell({
           <div className={preferences.density === "compact" ? "p-3 lg:p-4" : "p-4 lg:p-6"}>
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
             {view === "dashboard" ? <DashboardView dashboard={dashboard} forceOnboarding={forceOnboarding} notes={notes} quizzes={quizzes} options={preferences.options} practiceDraftSummary={practiceDraftSummary} setView={chooseView} studioDraftSummary={studioDraftSummary} user={user} /> : null}
-            {learnWorkspaceViews.includes(view as (typeof learnWorkspaceViews)[number]) ? <LearnWorkspaceView dashboard={dashboard} initialView={view} options={preferences.options} quizzes={quizzes} setView={chooseView} /> : null}
+            {learnWorkspaceViews.includes(view as (typeof learnWorkspaceViews)[number]) ? <LearnWorkspaceView dashboard={dashboard} quizzes={quizzes} setView={chooseView} /> : null}
             {view === "vault" ? <VaultView setView={chooseView} /> : null}
             {view === "feed" || view === "discover" ? <FeedView setView={chooseView} /> : null}
             {view === "graph" ? <GraphView setView={chooseView} /> : null}
             {view === "progress" ? <ProgressView dashboard={dashboard} quizzes={quizzes} setView={chooseView} /> : null}
+            {view === "reviews" ? <ReviewsView setView={chooseView} /> : null}
+            {view === "calendar" ? <CalendarView options={preferences.options} /> : null}
             {studioViews.includes(view as (typeof studioViews)[number]) ? <StudioView initialKind={getStudioKind(view)} notes={filteredNotes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} onDraftSummary={setStudioDraftSummary} /> : null}
             {practiceViews.includes(view as (typeof practiceViews)[number]) ? <PracticeWorkspaceView initialView={view} quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={preferences.options} setView={chooseView} /> : null}
             {view === "ai" ? <AiTutorView notes={notes} options={preferences.options} setNotes={setNotes} setOptions={preferences.setOptions} setView={chooseView} /> : null}

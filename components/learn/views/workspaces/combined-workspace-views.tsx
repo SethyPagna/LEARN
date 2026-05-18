@@ -5,23 +5,15 @@ import { BookOpen, CalendarDays, ChevronDown, Clock, Gamepad2, Info, MessageSqua
 import type { Quiz, View } from "../../types"
 import type { WorkspaceOptions } from "../../preferences"
 import { Panel } from "../../ui"
-import { ReviewsView, SocialLearningView } from "../ecosystem-views"
-import { CalendarView } from "../secondary-views"
+import { SocialLearningView } from "../ecosystem-views"
 import { ChatView, GamesView } from "../productivity-views"
 import { QuizView } from "../quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeWorkspacePlan, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
 
-type LearnTab = "overview" | "reviews" | "calendar"
 type PracticeTab = "quizzes" | "games"
 type SocialTab = "chat" | "spaces" | "rooms" | "battles"
-
-const learnTabs: Array<{ id: LearnTab; label: string; icon: ComponentType<{ className?: string }>; caption: string }> = [
-  { id: "overview", label: "Today", icon: Target, caption: "One recommended next step" },
-  { id: "reviews", label: "Reviews", icon: Repeat2, caption: "Active recall queue" },
-  { id: "calendar", label: "Calendar", icon: CalendarDays, caption: "Study blocks and due dates" },
-]
 
 const practiceTabs: Array<{ id: PracticeTab; label: string; icon: ComponentType<{ className?: string }>; caption: string }> = [
   { id: "quizzes", label: "Quizzes", icon: BookOpen, caption: "Question banks and attempts" },
@@ -37,39 +29,20 @@ const socialTabs: Array<{ id: SocialTab; label: string; icon: ComponentType<{ cl
 
 export function LearnWorkspaceView({
   dashboard,
-  initialView,
-  options,
   quizzes,
   setView,
 }: {
   dashboard: any
-  initialView: View
-  options: WorkspaceOptions
   quizzes: Quiz[]
   setView: (view: View) => void
 }) {
-  const [tab, setTab] = useState<LearnTab>(learnTabFromView(initialView))
-
-  useEffect(() => {
-    setTab(learnTabFromView(initialView))
-  }, [initialView])
-
   return (
     <WorkspaceFrame
       eyebrow="Learn workspace"
       title="Learn"
-      body="A compact daily loop: choose today's next step, review due concepts, or schedule focused study time."
-      tabs={learnTabs}
-      activeTab={tab}
-      setActiveTab={(value) => {
-        const nextTab = value as LearnTab
-        setTab(nextTab)
-        setView(viewFromLearnTab(nextTab))
-      }}
+      body="A compact daily route. Reviews and Calendar now live as separate sidebar pages."
     >
-      {tab === "overview" ? <LearnRoute dashboard={dashboard} quizzes={quizzes} setView={setView} /> : null}
-      {tab === "reviews" ? <ReviewsView setView={setView} /> : null}
-      {tab === "calendar" ? <CalendarView options={options} /> : null}
+      <LearnRoute dashboard={dashboard} quizzes={quizzes} setView={setView} />
     </WorkspaceFrame>
   )
 }
@@ -189,14 +162,15 @@ function WorkspaceFrame<T extends string>({
   tabs,
   title,
 }: {
-  activeTab: T
+  activeTab?: T
   body: string
   children: React.ReactNode
   eyebrow: string
-  setActiveTab: (tab: T) => void
-  tabs: Array<{ id: T; label: string; icon: ComponentType<{ className?: string }>; caption: string }>
+  setActiveTab?: (tab: T) => void
+  tabs?: Array<{ id: T; label: string; icon: ComponentType<{ className?: string }>; caption: string }>
   title: string
 }) {
+  const visibleTabs = tabs ?? []
   return (
     <div className="grid gap-4">
       <Panel className="p-3 lg:p-4">
@@ -207,26 +181,28 @@ function WorkspaceFrame<T extends string>({
               <h2 className="max-w-4xl text-2xl font-semibold leading-tight text-foreground lg:text-3xl">{title}</h2>
             </div>
           </div>
-          <div className="grid gap-2 sm:grid-cols-3 xl:w-[560px]">
-            {tabs.map((tab) => {
+          {visibleTabs.length ? (
+          <div className="flex gap-2 overflow-x-auto pb-1 xl:w-[560px]">
+            {visibleTabs.map((tab) => {
               const Icon = tab.icon
               const active = activeTab === tab.id
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`group relative rounded-md border p-2.5 text-left transition hover:-translate-y-0.5 ${active ? "border-primary bg-primary text-primary-foreground shadow-sm" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+                  onClick={() => setActiveTab?.(tab.id)}
+                  className={`group relative min-w-[8.25rem] flex-1 rounded-md border p-2.5 text-left transition hover:-translate-y-0.5 ${active ? "border-primary bg-primary text-primary-foreground shadow-sm" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
                 >
                   <div className="flex items-center gap-2">
                     <Icon className="h-5 w-5" />
                     <span className="font-semibold">{tab.label}</span>
                     <MoreHorizontal className="ml-auto h-4 w-4 opacity-60" />
                   </div>
-                  <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{tab.caption}</p>
+                  <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-50 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{tab.caption}</p>
                 </button>
               )
             })}
           </div>
+          ) : null}
         </div>
       </Panel>
       {children}
@@ -273,7 +249,7 @@ function LearnRoute({ dashboard, quizzes, setView }: { dashboard: any; quizzes: 
                 </div>
                 <h3 className="mt-4 font-semibold text-foreground group-hover:text-accent-foreground">{action.title}</h3>
                 <span className="mt-2 inline-flex rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold uppercase text-secondary-foreground group-hover:bg-background/80">Open</span>
-                <p className="pointer-events-none absolute left-3 right-3 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{action.body}</p>
+                <p className="pointer-events-none absolute left-3 right-3 top-[calc(100%+0.35rem)] z-50 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{action.body}</p>
               </button>
             )
           })}
@@ -315,7 +291,7 @@ function InfoMenu({ body, title }: { body: string; title: string }) {
       <summary className="flex h-9 w-9 list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground" aria-label={`About ${title}`}>
         <Info className="h-4 w-4" />
       </summary>
-      <div className="absolute left-0 top-11 z-30 w-72 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">
+      <div className="absolute left-0 top-11 z-50 w-72 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">
         {body}
       </div>
     </details>
@@ -454,20 +430,9 @@ function PatternCard({ body, icon: Icon, title }: { body: string; icon: Componen
     <div className="group relative flex items-center gap-3 rounded-md border border-border bg-background p-4">
       <Icon className="h-6 w-6 text-success" />
       <p className="font-semibold text-foreground">{title}</p>
-      <p className="pointer-events-none absolute left-3 right-3 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{body}</p>
+      <p className="pointer-events-none absolute left-3 right-3 top-[calc(100%+0.35rem)] z-50 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{body}</p>
     </div>
   )
-}
-
-function learnTabFromView(view: View): LearnTab {
-  if (view === "reviews") return "reviews"
-  if (view === "calendar") return "calendar"
-  return "overview"
-}
-
-function viewFromLearnTab(tab: LearnTab): View {
-  if (tab === "overview") return "learn"
-  return tab
 }
 
 function viewFromPracticeTab(tab: PracticeTab): View {
