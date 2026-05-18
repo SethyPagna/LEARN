@@ -79,6 +79,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-18: Added the Phase 6 content registry migration and wired notes, docs, sheets, slides, media uploads, and micro-lessons to canonical content item rows with generic content versions for Studio history.
 - 2026-05-18: Added the Phase 6 social graph and sharing foundation with `user_connections`, shared-access indexes, tested permission resolution, and normalized social-action targets for safer comments/reactions.
 - 2026-05-18: Added Phase 6 practice session unification with normalized `practice_sessions` / `practice_session_items`, quiz and game attempt mirroring, and a Reviews API path that can convert missed session items into review cards.
+- 2026-05-18: Added Phase 6 collaboration event projection with D1-backed collaboration sessions/events, compact realtime event validation, Durable Object live-event retention, and useful non-presence projection for rooms, battles, editor changes, and snapshots.
 
 ## Implementation Slices
 

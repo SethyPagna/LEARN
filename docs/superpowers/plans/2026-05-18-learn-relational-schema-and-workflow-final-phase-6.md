@@ -58,7 +58,7 @@
 - `lib/api.ts` blocks cross-origin mutations and requires signed-in users for protected APIs.
 - `lib/rate-limit.ts` uses D1 `rate_limit_buckets` when configured, then falls back to memory.
 - `lib/storage.ts` stores R2 keys under `apps/learn/workspaces/.../users/...`, and `lib/file-security.ts` blocks common executable extensions/signatures while preserving image/video/audio/PDF/Office/CSV/text uploads.
-- `workers/realtime.js` accepts JSON messages with a `type` and persists recent events in Durable Object storage, but message schemas are intentionally loose today.
+- `workers/realtime.js` now validates compact realtime event schemas before broadcast, keeps recent live events in Durable Object storage, and projects useful non-presence collaboration events to D1 when `LEARN_DB` is bound.
 
 ---
 
@@ -91,7 +91,7 @@
 
 1. `study_rooms` and `study_battles` keep D1 metadata and persisted list views.
 2. Durable Objects keep live WebSocket connections, presence count, and a recent event log.
-3. Realtime events are not yet projected into D1 audit/history tables.
+3. Useful realtime events are projected into `collaboration_sessions` and `collaboration_events`; transient presence remains Durable Object-only.
 4. Editor collaboration is not yet CRDT-based; local drafts are localStorage-only.
 
 ### Content And Media Flow
@@ -617,17 +617,17 @@ These targets merge the earlier product maturity, navigation, Studio, AI Tutor, 
 - Modify: `workers/realtime.js`
 - Modify: `app/api/realtime/[kind]/[id]/route.ts`
 
-- [ ] Add `collaboration_sessions`, `collaboration_events`, and `client_mutations`.
-- [ ] Keep Durable Object storage for live events.
-- [ ] Add a compact event schema:
+- [x] Add `collaboration_sessions`, `collaboration_events`, and `client_mutations`.
+- [x] Keep Durable Object storage for live events.
+- [x] Add a compact event schema:
   - `presence`
   - `pomodoro`
   - `battle-answer`
   - `editor-change`
   - `snapshot`
-- [ ] Reject invalid realtime messages before broadcast.
-- [ ] Persist snapshots or validated events to D1 only when useful, not every heartbeat.
-- [ ] Commit migration and realtime validation separately.
+- [x] Reject invalid realtime messages before broadcast.
+- [x] Persist snapshots or validated events to D1 only when useful, not every heartbeat.
+- [x] Commit migration and realtime validation separately.
 
 ### Task 6: Search, Feed, And Read Performance
 
