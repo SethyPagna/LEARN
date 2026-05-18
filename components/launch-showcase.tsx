@@ -101,7 +101,7 @@ export function LaunchShowcase({ signedIn }: { signedIn: boolean }) {
     showSlide(activeIndex + (event.deltaY > 0 ? 1 : -1))
     window.setTimeout(() => {
       wheelLocked.current = false
-    }, 650)
+    }, 820)
   }
 
   useEffect(() => {
@@ -115,7 +115,7 @@ export function LaunchShowcase({ signedIn }: { signedIn: boolean }) {
 
   return (
     <main onWheel={handleWheel} className="relative h-[100svh] overflow-hidden bg-[#040506] text-white">
-      <div className={`absolute inset-0 bg-gradient-to-br ${activeSlide.accent} opacity-20 transition-opacity duration-500`} />
+      <div className={`absolute inset-0 bg-gradient-to-br ${activeSlide.accent} opacity-20 transition-opacity duration-700`} />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(255,255,255,0.12),transparent_24%),linear-gradient(135deg,rgba(4,5,6,0.82),rgba(4,5,6,0.96))]" />
 
       <section className="relative z-10 grid h-full grid-rows-[auto_1fr_auto] px-5 py-4 sm:px-8">
@@ -214,7 +214,7 @@ export function LaunchShowcase({ signedIn }: { signedIn: boolean }) {
           to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
         }
         .showcase-preview-motion {
-          animation: showcase-enter-forward 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          animation: showcase-enter-forward 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
           contain: layout paint;
           transform: translateZ(0);
           will-change: transform, opacity;
