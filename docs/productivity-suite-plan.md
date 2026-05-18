@@ -99,6 +99,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Settings declutter by shortening the header action, converting section cards into a horizontal compact switcher, collapsing workspace signals, and making language selection expandable with the current language visible.
 - 2026-05-19: Continued Reviews declutter by making the review ritual action-first, moving guidance and topic details into expandable sections, and hiding memory-scheduling metrics behind each review card's Memory signal drawer.
 - 2026-05-19: Continued Practice declutter by moving quiz descriptions into an info popover, replacing the loud progress-stat grid with a compact session strip, hiding draft/timer details behind drawers, and folding repair weak-topic chips until needed.
+- 2026-05-19: Continued AI Tutor declutter by turning the right rail into focused Gateway, Import, and Presets tabs so provider health, import-to-Studio, and model preset controls are available without competing on the same screen.
 
 ## Implementation Slices
 
