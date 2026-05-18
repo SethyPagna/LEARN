@@ -93,6 +93,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-18: Expanded Studio samples to 10 templates per type for Notes, Docs, Sheets, and Slides, and expanded slide visual presets to 10 styles with a regression test.
 - 2026-05-18: Converted compact desktop navigation into a true icon rail with grouped initials, icon badges for drafts/attempts, floating search/language/notification panels, and an 84px content margin so pages gain usable space.
 - 2026-05-19: Continued dashboard declutter by shortening the Today Route hero, moving explanatory copy into info popovers/tooltips, making weak-topic rows actionable, and raising dashboard hover details above dense backgrounds.
+- 2026-05-19: Continued Calendar maturity with real date/time and duration inputs, selected-day quick scheduling slots, day-click draft alignment, cleaner empty agenda states, and a mojibake-free event duration label.
 
 ## Implementation Slices
 
