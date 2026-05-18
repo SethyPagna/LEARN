@@ -20,6 +20,7 @@ import {
 import { createId, ensureDatabase, logAudit } from "./schema"
 
 export const SESSION_COOKIE = "learn_session"
+const DEFAULT_WORKSPACE_ID = "workspace_demo"
 
 export interface User {
   id: string
@@ -47,6 +48,40 @@ export interface NoteRecord {
   updated_at: string
   archived_at?: string | null
   tags?: string[]
+}
+
+export type ContentItemType =
+  | "note"
+  | "doc"
+  | "sheet"
+  | "slide_deck"
+  | "media"
+  | "micro_lesson"
+  | "quiz"
+  | "review_item"
+  | "knowledge_node"
+
+export interface ContentItemInput {
+  workspaceId?: string
+  ownerUserId: string
+  itemType: ContentItemType
+  sourceTable: string
+  sourceId: string
+  title: string
+  summary?: string
+  visibility?: string
+  archivedAt?: string | null
+}
+
+export interface ContentVersionInput {
+  contentItemId: string
+  sourceTable: string
+  sourceId: string
+  userId?: string | null
+  title: string
+  payload?: unknown
+  plainText?: string
+  changeSummary?: string
 }
 
 interface WorkspaceInviteRow {
@@ -324,6 +359,30 @@ export async function saveNote(user: User, input: Partial<NoteRecord> & { title:
       JSON.stringify({ source: existing ? "update" : "create", previousTitle: existing?.title || null }),
     ],
   )
+  const contentItem = await upsertContentItemForSource({
+    workspaceId,
+    ownerUserId: user.id,
+    itemType: "note",
+    sourceTable: "notes",
+    sourceId: id,
+    title: input.title.trim() || "Untitled",
+    summary: input.content,
+  })
+  await appendContentVersion({
+    contentItemId: String(contentItem.id),
+    sourceTable: "notes",
+    sourceId: id,
+    userId: user.id,
+    title: input.title.trim() || "Untitled",
+    payload: {
+      content: input.content,
+      favorite: Boolean(input.favorite),
+      icon: input.icon || "FileText",
+      template: input.template || "blank",
+    },
+    plainText: input.content,
+    changeSummary: existing ? "Updated note" : "Created note",
+  })
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "note", entityId: id })
   return getNote(id)
 }
@@ -331,12 +390,14 @@ export async function saveNote(user: User, input: Partial<NoteRecord> & { title:
 export async function deleteNote(user: User, id: string) {
   await ensureDatabase()
   await query("UPDATE notes SET archived_at = now(), updated_at = now() WHERE id = $1", [id])
+  await archiveContentItemForSource("notes", id)
   await logAudit({ userId: user.id, action: "delete", entity: "note", entityId: id })
 }
 
 export async function restoreNote(user: User, id: string) {
   await ensureDatabase()
   await query("UPDATE notes SET archived_at = NULL, updated_at = now() WHERE id = $1", [id])
+  await restoreContentItemForSource("notes", id)
   await logAudit({ userId: user.id, action: "restore", entity: "note", entityId: id })
   return getNote(id)
 }
@@ -441,6 +502,109 @@ function normalizeJsonRow<T extends Record<string, unknown>>(row: T, keys: strin
   }, { ...row })
 }
 
+function truncateSummary(value: string, maxLength = 240) {
+  const compact = value.replace(/\s+/g, " ").trim()
+  return compact.length > maxLength ? `${compact.slice(0, maxLength - 1).trim()}...` : compact
+}
+
+function extractPlainText(value: unknown): string {
+  if (typeof value === "string") return value
+  if (Array.isArray(value)) return value.map(extractPlainText).filter(Boolean).join(" ")
+  if (!value || typeof value !== "object") return ""
+  const record = value as Record<string, unknown>
+  const direct = [record.plainText, record.markdown, record.text, record.content, record.body, record.title]
+    .filter((item): item is string => typeof item === "string")
+    .join(" ")
+  const nested = [record.blocks, record.slides, record.rows, record.cells, record.children]
+    .map(extractPlainText)
+    .filter(Boolean)
+    .join(" ")
+  return [direct, nested].filter(Boolean).join(" ")
+}
+
+export async function upsertContentItemForSource(input: ContentItemInput) {
+  const id = createId("content")
+  await query(
+    `INSERT INTO content_items (
+       id, workspace_id, owner_user_id, item_type, source_table, source_id,
+       title, summary, visibility, archived_at, updated_at
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
+     ON CONFLICT (source_table, source_id) DO UPDATE
+     SET workspace_id = EXCLUDED.workspace_id,
+         owner_user_id = EXCLUDED.owner_user_id,
+         item_type = EXCLUDED.item_type,
+         title = EXCLUDED.title,
+         summary = EXCLUDED.summary,
+         visibility = EXCLUDED.visibility,
+         archived_at = EXCLUDED.archived_at,
+         updated_at = now()`,
+    [
+      id,
+      input.workspaceId || DEFAULT_WORKSPACE_ID,
+      input.ownerUserId,
+      input.itemType,
+      input.sourceTable,
+      input.sourceId,
+      input.title.trim() || "Untitled",
+      truncateSummary(input.summary || ""),
+      input.visibility || "private",
+      input.archivedAt ?? null,
+    ],
+  )
+  const result = await query("SELECT * FROM content_items WHERE source_table = $1 AND source_id = $2 LIMIT 1", [input.sourceTable, input.sourceId])
+  return result.rows[0]
+}
+
+export async function archiveContentItemForSource(sourceTable: string, sourceId: string) {
+  await query("UPDATE content_items SET archived_at = now(), updated_at = now() WHERE source_table = $1 AND source_id = $2", [sourceTable, sourceId])
+}
+
+export async function restoreContentItemForSource(sourceTable: string, sourceId: string) {
+  await query("UPDATE content_items SET archived_at = NULL, updated_at = now() WHERE source_table = $1 AND source_id = $2", [sourceTable, sourceId])
+}
+
+export async function appendContentVersion(input: ContentVersionInput) {
+  const versionResult = await query<{ version_number: number | string }>(
+    "SELECT COALESCE(MAX(version_number), 0) + 1 AS version_number FROM content_versions WHERE content_item_id = $1",
+    [input.contentItemId],
+  )
+  const versionNumber = Number(versionResult.rows[0]?.version_number || 1)
+  await query(
+    `INSERT INTO content_versions (
+       id, content_item_id, source_table, source_id, user_id, version_number,
+       title, payload, plain_text, change_summary
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+    [
+      createId("cversion"),
+      input.contentItemId,
+      input.sourceTable,
+      input.sourceId,
+      input.userId || null,
+      versionNumber,
+      input.title.trim() || "Untitled",
+      JSON.stringify(input.payload || {}),
+      truncateSummary(input.plainText || extractPlainText(input.payload), 20000),
+      input.changeSummary || "",
+    ],
+  )
+  return { versionNumber }
+}
+
+export async function attachMediaToContentSource(sourceTable: string, sourceId: string, mediaAssetId: string, role = "source") {
+  const result = await query("SELECT id FROM content_items WHERE source_table = $1 AND source_id = $2 LIMIT 1", [sourceTable, sourceId])
+  const contentItemId = result.rows[0]?.id
+  if (!contentItemId) return false
+  await query(
+    `INSERT INTO content_attachments (content_item_id, media_asset_id, attachment_role)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (content_item_id, media_asset_id, attachment_role) DO NOTHING`,
+    [contentItemId, mediaAssetId, role],
+  )
+  return true
+}
+
 export async function listEditorDocuments(user: User, documentType = "doc", status: ArchiveListStatus = "active") {
   await ensureDatabase()
   const archiveClause = archivedWhereClause()[status]
@@ -475,6 +639,27 @@ export async function saveEditorDocument(user: User, input: Record<string, unkno
       JSON.stringify(Array.isArray(input.tags) ? input.tags : []),
     ],
   )
+  const title = String(input.title || "Untitled document").trim()
+  const content = input.content || {}
+  const contentItem = await upsertContentItemForSource({
+    workspaceId: DEFAULT_WORKSPACE_ID,
+    ownerUserId: user.id,
+    itemType: "doc",
+    sourceTable: "editor_documents",
+    sourceId: id,
+    title,
+    summary: extractPlainText(content),
+  })
+  await appendContentVersion({
+    contentItemId: String(contentItem.id),
+    sourceTable: "editor_documents",
+    sourceId: id,
+    userId: user.id,
+    title,
+    payload: content,
+    plainText: extractPlainText(content),
+    changeSummary: input.id ? "Updated document" : "Created document",
+  })
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "editor_document", entityId: id })
   return (await query("SELECT * FROM editor_documents WHERE id = $1 LIMIT 1", [id])).rows[0]
 }
@@ -482,12 +667,14 @@ export async function saveEditorDocument(user: User, input: Record<string, unkno
 export async function archiveEditorDocument(user: User, id: string) {
   await ensureDatabase()
   await query("UPDATE editor_documents SET archived_at = now(), updated_at = now() WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin')", [id, user.id, user.role])
+  await archiveContentItemForSource("editor_documents", id)
   await logAudit({ userId: user.id, action: "archive", entity: "editor_document", entityId: id })
 }
 
 export async function restoreEditorDocument(user: User, id: string) {
   await ensureDatabase()
   await query("UPDATE editor_documents SET archived_at = NULL, updated_at = now() WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin')", [id, user.id, user.role])
+  await restoreContentItemForSource("editor_documents", id)
   await logAudit({ userId: user.id, action: "restore", entity: "editor_document", entityId: id })
   const result = await query("SELECT * FROM editor_documents WHERE id = $1 LIMIT 1", [id])
   const row = result.rows[0]
@@ -527,6 +714,27 @@ export async function saveSheet(user: User, input: Record<string, unknown>) {
       JSON.stringify(Array.isArray(input.history) ? input.history : []),
     ],
   )
+  const title = String(input.title || "Untitled sheet").trim()
+  const cells = Array.isArray(input.cells) ? input.cells : []
+  const contentItem = await upsertContentItemForSource({
+    workspaceId: DEFAULT_WORKSPACE_ID,
+    ownerUserId: user.id,
+    itemType: "sheet",
+    sourceTable: "sheet_documents",
+    sourceId: id,
+    title,
+    summary: extractPlainText(cells),
+  })
+  await appendContentVersion({
+    contentItemId: String(contentItem.id),
+    sourceTable: "sheet_documents",
+    sourceId: id,
+    userId: user.id,
+    title,
+    payload: { cells, history: Array.isArray(input.history) ? input.history : [] },
+    plainText: extractPlainText(cells),
+    changeSummary: input.id ? "Updated sheet" : "Created sheet",
+  })
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "sheet", entityId: id })
   return (await query("SELECT * FROM sheet_documents WHERE id = $1 LIMIT 1", [id])).rows[0]
 }
@@ -534,12 +742,14 @@ export async function saveSheet(user: User, input: Record<string, unknown>) {
 export async function archiveSheet(user: User, id: string) {
   await ensureDatabase()
   await query("UPDATE sheet_documents SET archived_at = now(), updated_at = now() WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin')", [id, user.id, user.role])
+  await archiveContentItemForSource("sheet_documents", id)
   await logAudit({ userId: user.id, action: "archive", entity: "sheet", entityId: id })
 }
 
 export async function restoreSheet(user: User, id: string) {
   await ensureDatabase()
   await query("UPDATE sheet_documents SET archived_at = NULL, updated_at = now() WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin')", [id, user.id, user.role])
+  await restoreContentItemForSource("sheet_documents", id)
   await logAudit({ userId: user.id, action: "restore", entity: "sheet", entityId: id })
   const result = await query("SELECT * FROM sheet_documents WHERE id = $1 LIMIT 1", [id])
   return result.rows[0] ? normalizeJsonRow(result.rows[0], ["cells", "history"]) : null
@@ -578,6 +788,28 @@ export async function saveSlideDeck(user: User, input: Record<string, unknown>) 
       JSON.stringify(input.speakerNotes || input.speaker_notes || {}),
     ],
   )
+  const title = String(input.title || "Untitled deck").trim()
+  const slides = Array.isArray(input.slides) ? input.slides : []
+  const speakerNotes = input.speakerNotes || input.speaker_notes || {}
+  const contentItem = await upsertContentItemForSource({
+    workspaceId: DEFAULT_WORKSPACE_ID,
+    ownerUserId: user.id,
+    itemType: "slide_deck",
+    sourceTable: "slide_decks",
+    sourceId: id,
+    title,
+    summary: extractPlainText(slides),
+  })
+  await appendContentVersion({
+    contentItemId: String(contentItem.id),
+    sourceTable: "slide_decks",
+    sourceId: id,
+    userId: user.id,
+    title,
+    payload: { slides, speakerNotes },
+    plainText: extractPlainText(slides),
+    changeSummary: input.id ? "Updated slide deck" : "Created slide deck",
+  })
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "slide_deck", entityId: id })
   return (await query("SELECT * FROM slide_decks WHERE id = $1 LIMIT 1", [id])).rows[0]
 }
@@ -585,12 +817,14 @@ export async function saveSlideDeck(user: User, input: Record<string, unknown>) 
 export async function archiveSlideDeck(user: User, id: string) {
   await ensureDatabase()
   await query("UPDATE slide_decks SET archived_at = now(), updated_at = now() WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin')", [id, user.id, user.role])
+  await archiveContentItemForSource("slide_decks", id)
   await logAudit({ userId: user.id, action: "archive", entity: "slide_deck", entityId: id })
 }
 
 export async function restoreSlideDeck(user: User, id: string) {
   await ensureDatabase()
   await query("UPDATE slide_decks SET archived_at = NULL, updated_at = now() WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin')", [id, user.id, user.role])
+  await restoreContentItemForSource("slide_decks", id)
   await logAudit({ userId: user.id, action: "restore", entity: "slide_deck", entityId: id })
   const result = await query("SELECT * FROM slide_decks WHERE id = $1 LIMIT 1", [id])
   const row = result.rows[0]
@@ -1509,6 +1743,19 @@ export async function saveMicroLesson(user: User, input: Record<string, unknown>
       String(input.status || "published"),
     ],
   )
+  const title = String(input.title || "Untitled micro-lesson").trim()
+  const summary = String(input.summary || "")
+  const visibility = String(input.visibility || "public")
+  await upsertContentItemForSource({
+    workspaceId: DEFAULT_WORKSPACE_ID,
+    ownerUserId: user.id,
+    itemType: "micro_lesson",
+    sourceTable: "micro_lessons",
+    sourceId: id,
+    title,
+    summary,
+    visibility,
+  })
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "micro_lesson", entityId: id })
   return (await query("SELECT * FROM micro_lessons WHERE id = $1 LIMIT 1", [id])).rows[0]
 }

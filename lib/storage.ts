@@ -1,7 +1,7 @@
 import crypto from "node:crypto"
 import { getR2Bucket } from "./cloudflare"
 import { query } from "./db"
-import type { User } from "./data"
+import { archiveContentItemForSource, attachMediaToContentSource, upsertContentItemForSource, type User } from "./data"
 import { createId } from "./schema"
 import { validateUploadFile } from "./file-security"
 
@@ -230,6 +230,18 @@ export async function uploadMediaAsset(input: {
       JSON.stringify({ originalName: input.file.name }),
     ],
   )
+  await upsertContentItemForSource({
+    workspaceId: DEFAULT_WORKSPACE_ID,
+    ownerUserId: input.user.id,
+    itemType: "media",
+    sourceTable: "media_assets",
+    sourceId: id,
+    title: filename,
+    summary: `${contentType} upload`,
+  })
+  if (input.noteId) {
+    await attachMediaToContentSource("notes", input.noteId, id, "attachment")
+  }
 
   return getMediaAsset(id, input.user)
 }
@@ -293,5 +305,6 @@ export async function deleteMediaAsset(id: string, user: User) {
   }
 
   await query("DELETE FROM media_assets WHERE id = $1 AND (owner_user_id = $2 OR $3 = 'admin')", [id, user.id, user.role])
+  await archiveContentItemForSource("media_assets", id)
   return true
 }
