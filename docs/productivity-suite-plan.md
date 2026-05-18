@@ -77,6 +77,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-18: Completed a multi-pass schema/workflow sweep and added the final Phase 6 relational schema plan covering content registry, universal sharing, friends/follows, content versions, practice sessions, collaboration logs, search/feed cache, and cleaner grouped UI workflows.
 - 2026-05-18: Started executing the final Phase 6 schema plan by adding migration-parsing schema contract tests for the current D1 product tables and hot-query indexes.
 - 2026-05-18: Added the Phase 6 content registry migration and wired notes, docs, sheets, slides, media uploads, and micro-lessons to canonical content item rows with generic content versions for Studio history.
+- 2026-05-18: Added the Phase 6 social graph and sharing foundation with `user_connections`, shared-access indexes, tested permission resolution, and normalized social-action targets for safer comments/reactions.
 
 ## Implementation Slices
 

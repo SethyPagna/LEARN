@@ -575,25 +575,26 @@ These targets merge the earlier product maturity, navigation, Studio, AI Tutor, 
 ### Task 3: Social Graph And Sharing Layer
 
 **Files:**
+- Create: `migrations/0007_social_graph_permissions.sql`
 - Create: `lib/sharing.ts`
 - Create: `tests/sharing.test.ts`
 - Modify: `app/api/social/actions/route.ts`
 - Modify: `lib/data.ts`
 
-- [ ] Add `user_connections` and helper tests for follow/friend/block state.
-- [ ] Add permission resolver:
+- [x] Add `user_connections` and helper tests for follow/friend/block state.
+- [x] Add permission resolver:
   - owner always has `owner`.
   - admin has `owner`.
   - `shared_access` grants viewer/commenter/editor.
   - public content grants viewer.
-- [ ] Update social action validation to accept only known target types.
-- [ ] Add indexes for friend search and shared-content listing.
-- [ ] Commit sharing helpers and route validation separately.
+- [x] Update social action validation to accept only known target types.
+- [x] Add indexes for friend search and shared-content listing.
+- [x] Commit sharing helpers and route validation separately.
 
 ### Task 4: Practice Session Unification
 
 **Files:**
-- Create: `migrations/0007_practice_sessions.sql`
+- Create: `migrations/0008_practice_sessions.sql`
 - Create: `lib/practice-sessions.ts`
 - Create: `tests/practice-sessions.test.ts`
 - Modify: `lib/data.ts`
@@ -610,7 +611,7 @@ These targets merge the earlier product maturity, navigation, Studio, AI Tutor, 
 ### Task 5: Collaboration Event Projection
 
 **Files:**
-- Create: `migrations/0008_collaboration_events.sql`
+- Create: `migrations/0009_collaboration_events.sql`
 - Create: `lib/collaboration-events.ts`
 - Create: `tests/collaboration-events.test.ts`
 - Modify: `workers/realtime.js`
@@ -631,7 +632,7 @@ These targets merge the earlier product maturity, navigation, Studio, AI Tutor, 
 ### Task 6: Search, Feed, And Read Performance
 
 **Files:**
-- Create: `migrations/0009_search_feed_cache.sql`
+- Create: `migrations/0010_search_feed_cache.sql`
 - Create: `lib/content-search.ts`
 - Create: `lib/feed-cache.ts`
 - Create: `tests/content-search.test.ts`
