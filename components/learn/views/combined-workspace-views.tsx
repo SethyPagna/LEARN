@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ComponentType } from "react"
-import { BookOpen, CalendarDays, Clock, Gamepad2, Info, MessageSquare, MoreHorizontal, Play, Radio, Repeat2, Sparkles, Swords, Target, Trash2, Users } from "lucide-react"
+import { BookOpen, CalendarDays, ChevronDown, Clock, Gamepad2, Info, MessageSquare, MoreHorizontal, Play, Radio, Repeat2, Sparkles, Swords, Target, Trash2, Users } from "lucide-react"
 import type { Quiz, View } from "../types"
 import type { WorkspaceOptions } from "../preferences"
 import { Panel } from "../ui"
@@ -351,12 +351,12 @@ function PracticeGuide({
       </div>
       <div className="mt-3 rounded-md border border-primary/25 bg-primary/10 p-3">
         <p className="text-sm font-semibold text-foreground">{plan.headline}</p>
-        <div className="mt-3 grid grid-cols-4 gap-1.5">
+        <div className="mt-3 flex flex-wrap gap-1.5">
           {plan.signals.map((signal) => (
-            <div key={signal.label} className="rounded-md bg-background/80 px-2 py-1.5 text-center">
-              <p className="text-base font-semibold text-foreground">{signal.value}</p>
-              <p className="text-[0.66rem] font-semibold uppercase text-muted-foreground">{signal.label}</p>
-            </div>
+            <span key={signal.label} className="inline-flex items-center gap-1 rounded-md bg-background/80 px-2 py-1 text-[0.68rem] font-semibold uppercase text-muted-foreground">
+              <strong className="text-sm text-foreground">{signal.value}</strong>
+              {signal.label}
+            </span>
           ))}
         </div>
         <button onClick={() => runAction(plan.primaryAction)} className="mt-3 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground">
@@ -364,39 +364,51 @@ function PracticeGuide({
           {plan.primaryAction.label}
         </button>
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        {plan.actions.map((action) => (
-          <PracticeActionButton key={action.id} action={action} onClick={() => runAction(action)} />
-        ))}
-      </div>
-      {draftCards.length ? (
-        <div className="mt-3 grid gap-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Saved work</p>
-          {draftCards.slice(0, 3).map((draft) => (
-            <div key={draft.quizId} className="rounded-md border border-warning/50 bg-warning/10 p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">{draft.title}</p>
-                  <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5" />
-                    {formatCompactDuration(draft.elapsedSeconds)} | {draft.answeredCount} answered | {draft.markedCount} marked
-                  </p>
-                </div>
-                <span className="rounded-md bg-background px-2 py-1 text-[0.68rem] font-semibold text-foreground">{draft.practiceMode.replace(/-/g, " ")}</span>
-              </div>
-              <div className="mt-3 flex gap-2">
-                <button onClick={() => onResumeDraft(draft.quizId)} className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground">
-                  <Play className="h-3.5 w-3.5" />
-                  Resume
-                </button>
-                <button onClick={() => onClearDraft(draft.quizId)} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Clear
-                </button>
-              </div>
-            </div>
+      <details className="group/practice mt-3 rounded-md border border-border bg-background">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+          <span>More practice paths</span>
+          <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/practice:rotate-180" />
+        </summary>
+        <div className="grid gap-2 border-t border-border p-2">
+          {plan.actions.map((action) => (
+            <PracticeActionButton key={action.id} action={action} onClick={() => runAction(action)} />
           ))}
         </div>
+      </details>
+      {draftCards.length ? (
+        <details className="group/drafts mt-3 rounded-md border border-warning/50 bg-warning/10">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+            <span>Saved drafts</span>
+            <span className="ml-auto rounded-md bg-background px-2 py-0.5 text-[0.68rem] font-semibold text-foreground">{draftCards.length}</span>
+            <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/drafts:rotate-180" />
+          </summary>
+          <div className="grid gap-2 border-t border-warning/40 p-2">
+            {draftCards.slice(0, 3).map((draft) => (
+              <div key={draft.quizId} className="rounded-md border border-border bg-background p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">{draft.title}</p>
+                    <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="h-3.5 w-3.5" />
+                      {formatCompactDuration(draft.elapsedSeconds)} | {draft.answeredCount} answered | {draft.markedCount} marked
+                    </p>
+                  </div>
+                  <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold text-secondary-foreground">{draft.practiceMode.replace(/-/g, " ")}</span>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button onClick={() => onResumeDraft(draft.quizId)} className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground">
+                    <Play className="h-3.5 w-3.5" />
+                    Resume
+                  </button>
+                  <button onClick={() => onClearDraft(draft.quizId)} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Clear
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
       ) : null}
     </Panel>
   )
