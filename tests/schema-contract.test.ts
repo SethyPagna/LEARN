@@ -77,6 +77,7 @@ test("D1 migrations include the current LEARN product tables", () => {
     "shared_access",
     "content_versions",
     "content_attachments",
+    "user_connections",
   ]
 
   assert.deepEqual(
@@ -105,6 +106,10 @@ test("D1 migrations keep indexes for the current hot product queries", () => {
     idx_shared_access_content: { table: "shared_access", includes: ["content_item_id", "role"] },
     idx_content_versions_item: { table: "content_versions", includes: ["content_item_id", "version_number DESC"] },
     idx_content_attachments_media: { table: "content_attachments", includes: ["media_asset_id", "created_at DESC"] },
+    idx_user_connections_requester: { table: "user_connections", includes: ["requester_user_id", "connection_type", "status", "updated_at DESC"] },
+    idx_user_connections_target: { table: "user_connections", includes: ["target_user_id", "connection_type", "status", "updated_at DESC"] },
+    idx_shared_access_grantee_active: { table: "shared_access", includes: ["grantee_type", "grantee_id", "expires_at"] },
+    idx_shared_access_created_by: { table: "shared_access", includes: ["created_by_user_id", "created_at DESC"] },
   }
 
   for (const [name, expected] of Object.entries(requiredIndexes)) {

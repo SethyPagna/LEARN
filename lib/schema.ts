@@ -246,6 +246,16 @@ CREATE TABLE IF NOT EXISTS content_attachments (
   PRIMARY KEY (content_item_id, media_asset_id, attachment_role)
 );
 
+CREATE TABLE IF NOT EXISTS user_connections (
+  requester_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  target_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  connection_type text NOT NULL,
+  status text NOT NULL,
+  created_at text NOT NULL DEFAULT (datetime('now')),
+  updated_at text NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (requester_user_id, target_user_id, connection_type)
+);
+
 CREATE TABLE IF NOT EXISTS audit_logs (
   id text PRIMARY KEY,
   user_id text REFERENCES users(id) ON DELETE SET NULL,
@@ -267,6 +277,10 @@ CREATE INDEX IF NOT EXISTS idx_shared_access_grantee ON shared_access(grantee_ty
 CREATE INDEX IF NOT EXISTS idx_shared_access_content ON shared_access(content_item_id, role);
 CREATE INDEX IF NOT EXISTS idx_content_versions_item ON content_versions(content_item_id, version_number DESC);
 CREATE INDEX IF NOT EXISTS idx_content_attachments_media ON content_attachments(media_asset_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_user_connections_requester ON user_connections(requester_user_id, connection_type, status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_user_connections_target ON user_connections(target_user_id, connection_type, status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_shared_access_grantee_active ON shared_access(grantee_type, grantee_id, expires_at);
+CREATE INDEX IF NOT EXISTS idx_shared_access_created_by ON shared_access(created_by_user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_automation_runs_job_key ON automation_runs(job_key);
 `
 
