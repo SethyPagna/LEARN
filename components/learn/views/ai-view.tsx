@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { AlertTriangle, Bot, Brain, CheckCircle2, CheckSquare, ChevronDown, FileText, Gauge, Info, Languages, ListFilter, Plus, Route, SlidersHorizontal, Sparkles, UploadCloud, Wand2 } from "lucide-react"
+import { AlertTriangle, Bot, Brain, CheckCircle2, CheckSquare, ChevronDown, FileText, Gauge, Info, Languages, ListFilter, MoreHorizontal, Plus, Route, SlidersHorizontal, Sparkles, UploadCloud, Wand2 } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Note, StudioInsertTarget, View } from "../types"
 import { api } from "../api"
@@ -430,18 +430,24 @@ export function AiTutorView({
           <CompactState label="Gateway" value={`${providerFamily === "auto" ? "Auto" : providerFamily} / ${options.aiMaxTokens}`} />
         </div>
 
-        <details className="mt-3 rounded-md border border-border bg-background p-3 text-sm">
-          <summary className="cursor-pointer font-semibold text-foreground">Readiness details</summary>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <details className="mt-3 rounded-md border border-border bg-background text-sm">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+            <span>Readiness</span>
+            <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{gatewayReadiness.readyProviderCount} ready</span>
+          </summary>
+          <div className="grid gap-3 border-t border-border p-3 sm:grid-cols-2 xl:grid-cols-6">
             {workflowSummary.cards.map((card) => (
               <WorkflowCard key={card.id} label={card.label} value={card.value} detail={card.detail} tone={card.tone} />
             ))}
           </div>
         </details>
 
-        <details className="mt-4 rounded-md border border-border bg-background p-3 text-sm">
-          <summary className="cursor-pointer font-semibold text-foreground">Advanced prompt settings</summary>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <details className="mt-4 rounded-md border border-border bg-background text-sm">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+            <span>Requirements</span>
+            <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{promptBuild.ok ? "ready" : `${promptBuild.missing.length} missing`}</span>
+          </summary>
+          <div className="grid gap-3 border-t border-border p-3 md:grid-cols-2">
             <label className="grid gap-1 text-sm text-foreground">
               <span className="font-semibold">Audience</span>
               <input value={targetAudience} onChange={(event) => setTargetAudience(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
@@ -494,19 +500,19 @@ export function AiTutorView({
         {reply ? (
           <div className="mt-5 rounded-md border border-border bg-muted p-4">
             <SectionLabel icon={CheckCircle2} title="Result" body="Send the output back into Studio, Practice, or Reviews without copying between pages." compact />
-            <div className="mb-3 flex flex-wrap gap-2">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
               <ResultAction label="Save as note" onClick={saveReplyAsNote} />
               <ResultAction label="Copy result" onClick={copyReply} />
-              <ResultAction label="Quiz prompt" onClick={() => useReplyAsPrompt("quiz", "Turn this result into a mixed quiz with answers and explanations.")} />
-              <ResultAction label="Flashcards" onClick={() => useReplyAsPrompt("flashcards", "Turn this result into active-recall flashcards and matching pairs.")} />
-            </div>
-            <div className="mb-3 flex flex-wrap gap-2">
-              {insertActions.map((action) => <ResultAction key={action.target} label={action.label} onClick={() => insertReply(action.target)} />)}
-            </div>
-            <div className="mb-3 flex flex-wrap gap-2">
-              <ResultAction label="Generate practice" onClick={() => useReplyAsPrompt("quiz", "Create targeted practice from this result with explanations and retry guidance.")} />
-              <ResultAction label="Create review cards" onClick={() => useReplyAsPrompt("flashcards", "Create review cards from this result with active-recall prompts.")} />
-              <ResultAction label="Format for Studio" onClick={() => useReplyAsPrompt("cleanup", "Format this result into clean Studio blocks with headings and next actions.")} />
+              <ResultMenu label="Insert">
+                {insertActions.map((action) => <ResultMenuAction key={action.target} label={action.label} onClick={() => insertReply(action.target)} />)}
+              </ResultMenu>
+              <ResultMenu label="Create">
+                <ResultMenuAction label="Quiz prompt" onClick={() => useReplyAsPrompt("quiz", "Turn this result into a mixed quiz with answers and explanations.")} />
+                <ResultMenuAction label="Flashcards" onClick={() => useReplyAsPrompt("flashcards", "Turn this result into active-recall flashcards and matching pairs.")} />
+                <ResultMenuAction label="Practice" onClick={() => useReplyAsPrompt("quiz", "Create targeted practice from this result with explanations and retry guidance.")} />
+                <ResultMenuAction label="Review cards" onClick={() => useReplyAsPrompt("flashcards", "Create review cards from this result with active-recall prompts.")} />
+                <ResultMenuAction label="Studio format" onClick={() => useReplyAsPrompt("cleanup", "Format this result into clean Studio blocks with headings and next actions.")} />
+              </ResultMenu>
             </div>
             {actionStatus ? <p className="mb-3 rounded-md bg-background px-3 py-2 text-xs font-semibold text-muted-foreground">{actionStatus}</p> : null}
             <div className="whitespace-pre-wrap leading-7 text-foreground">{reply}</div>
@@ -816,6 +822,32 @@ function ResultAction({ label, onClick }: { label: string; onClick: () => void }
     <ControlButton onClick={onClick} size="compact">
       {label}
     </ControlButton>
+  )
+}
+
+function ResultMenu({ children, label }: { children: React.ReactNode; label: string }) {
+  return (
+    <details className="group relative inline-block">
+      <summary className="flex h-9 cursor-pointer list-none items-center gap-2 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden">
+        <MoreHorizontal className="h-3.5 w-3.5" />
+        {label}
+      </summary>
+      <div className={`absolute left-0 top-10 z-40 w-56 ${menuSurfaceClasses()}`}>
+        {children}
+      </div>
+    </details>
+  )
+}
+
+function ResultMenuAction({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      className="flex w-full rounded-md px-2 py-2 text-left text-sm font-semibold text-popover-foreground hover:bg-accent hover:text-accent-foreground"
+      onClick={onClick}
+      type="button"
+    >
+      {label}
+    </button>
   )
 }
 
