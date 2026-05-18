@@ -78,6 +78,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-18: Started executing the final Phase 6 schema plan by adding migration-parsing schema contract tests for the current D1 product tables and hot-query indexes.
 - 2026-05-18: Added the Phase 6 content registry migration and wired notes, docs, sheets, slides, media uploads, and micro-lessons to canonical content item rows with generic content versions for Studio history.
 - 2026-05-18: Added the Phase 6 social graph and sharing foundation with `user_connections`, shared-access indexes, tested permission resolution, and normalized social-action targets for safer comments/reactions.
+- 2026-05-18: Added Phase 6 practice session unification with normalized `practice_sessions` / `practice_session_items`, quiz and game attempt mirroring, and a Reviews API path that can convert missed session items into review cards.
 
 ## Implementation Slices
 

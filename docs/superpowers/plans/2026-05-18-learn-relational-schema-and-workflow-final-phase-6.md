@@ -601,12 +601,12 @@ These targets merge the earlier product maturity, navigation, Studio, AI Tutor, 
 - Modify: `app/api/quizzes/attempts/route.ts`
 - Modify: `app/api/games/route.ts`
 
-- [ ] Add `practice_sessions` and `practice_session_items`.
-- [ ] Write a session row when a quiz attempt is recorded.
-- [ ] Keep writing legacy `quiz_attempts` and `quiz_attempt_answers` until UI migration is complete.
-- [ ] Add helper to convert missed `practice_session_items` into `review_items`.
-- [ ] Add indexes for recent sessions and topic performance.
-- [ ] Commit migration, helpers, and API wiring separately.
+- [x] Add `practice_sessions` and `practice_session_items`.
+- [x] Write a session row when a quiz attempt is recorded.
+- [x] Keep writing legacy `quiz_attempts` and `quiz_attempt_answers` until UI migration is complete.
+- [x] Add helper to convert missed `practice_session_items` into `review_items`.
+- [x] Add indexes for recent sessions and topic performance.
+- [x] Commit migration, helpers, and API wiring separately.
 
 ### Task 5: Collaboration Event Projection
 
