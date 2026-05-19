@@ -53,6 +53,11 @@ type TutorMenuId = "task" | "filters" | "gateway"
 type AiTutorDraft = {
   message: string
   reply: string
+  importText?: string
+  importTitle?: string
+  importTarget?: ImportTarget | "auto"
+  lastImport?: { target: ImportTarget; title: string } | null
+  lastImportText?: string
   sourceScope: string
   difficulty: string
   tone: string
@@ -93,6 +98,7 @@ export function AiTutorView({
   const [importStatus, setImportStatus] = useState("")
   const [importLoading, setImportLoading] = useState(false)
   const [lastImport, setLastImport] = useState<{ target: ImportTarget; title: string } | null>(null)
+  const [lastImportText, setLastImportText] = useState("")
   const [sourceScope, setSourceScope] = useState(sourceScopes[0])
   const [difficulty, setDifficulty] = useState(difficulties[0])
   const [tone, setTone] = useState(tones[0])
@@ -116,7 +122,8 @@ export function AiTutorView({
     recentContext,
     sourceScope,
     includeRecentNotes: options.aiIncludeNotes,
-  }), [message, options.aiIncludeNotes, recentContext, sourceScope])
+    uploadedContext: importText || lastImportText,
+  }), [importText, lastImportText, message, options.aiIncludeNotes, recentContext, sourceScope])
   const activeContract = useMemo(() => promptContracts.find((contract) => contract.mode === activeMode.id), [activeMode.id])
   const availableInsertTargets = useMemo(() => activeContract?.insertTargets || insertTargets, [activeContract?.insertTargets])
   const insertActions = useMemo(() => listInsertActions(availableInsertTargets), [availableInsertTargets])
@@ -175,6 +182,11 @@ export function AiTutorView({
     if (draft) {
       setMessage(draft.message || DEFAULT_AI_MESSAGE)
       setReply(draft.reply || "")
+      setImportText(draft.importText || "")
+      setImportTitle(draft.importTitle || "")
+      setImportTarget(importTargets.includes(draft.importTarget as ImportTarget | "auto") ? draft.importTarget as ImportTarget | "auto" : "auto")
+      setLastImport(draft.lastImport || null)
+      setLastImportText(draft.lastImportText || "")
       setSourceScope(normalizeChoice(draft.sourceScope, sourceScopes, sourceScopes[0]))
       setDifficulty(normalizeChoice(draft.difficulty, difficulties, difficulties[0]))
       setTone(normalizeChoice(draft.tone, tones, tones[0]))
@@ -201,6 +213,11 @@ export function AiTutorView({
       writeAiTutorDraft({
         message,
         reply,
+        importText,
+        importTitle,
+        importTarget,
+        lastImport,
+        lastImportText,
         sourceScope,
         difficulty,
         tone,
@@ -218,11 +235,16 @@ export function AiTutorView({
       draftStatusTimer.current = window.setTimeout(() => setDraftStatus(""), 1400)
     }, 500)
     return () => window.clearTimeout(timeout)
-  }, [activeTaskKey, difficulty, insertTarget, language, message, outputLength, providerFamily, reply, sourceScope, targetAudience, requiredOutput, tone])
+  }, [activeTaskKey, difficulty, importTarget, importText, importTitle, insertTarget, language, lastImport, lastImportText, message, outputLength, providerFamily, reply, sourceScope, targetAudience, requiredOutput, tone])
 
   function resetDraft() {
     setMessage(DEFAULT_AI_MESSAGE)
     setReply("")
+    setImportText("")
+    setImportTitle("")
+    setImportTarget("auto")
+    setLastImport(null)
+    setLastImportText("")
     setSourceScope(sourceScopes[0])
     setDifficulty(difficulties[0])
     setTone(tones[0])
@@ -308,7 +330,8 @@ export function AiTutorView({
   }
 
   async function organizeImport() {
-    if (!importText.trim()) {
+    const importedText = importText.trim()
+    if (!importedText) {
       setImportStatus("Paste learning material first.")
       return
     }
@@ -327,6 +350,7 @@ export function AiTutorView({
         setNotes?.((current) => [note, ...current])
       }
       setLastImport({ target: response.target, title: importPreview.title })
+      setLastImportText(importedText)
       setImportText("")
       setImportTitle("")
       setImportStatus(`Created ${labelImportTarget(response.target)} in Studio.`)
