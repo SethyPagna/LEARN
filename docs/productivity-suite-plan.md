@@ -159,6 +159,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Practice reliability by adding tested run-action state and guarded submit, retry, full-set, and save-review-card flows with compact recovery feedback.
 - 2026-05-19: Continued Games reliability by adding tested sprint action state and guarded next, finish, restart, target, and score-save feedback.
 - 2026-05-19: Continued Chat reliability by adding tested composer action state and guarded send, clear-draft, and suggestion flows with compact failure feedback.
+- 2026-05-19: Continued Chat thread reliability by adding tested thread action state and persisting helpful/save selections through the social actions API.
 
 ## Implementation Slices
 
