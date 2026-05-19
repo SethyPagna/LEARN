@@ -51,7 +51,7 @@ test("buildLearnRoutePlan prioritizes weak-topic repair", () => {
   assert.equal(plan.primaryAction.id, "practice")
   assert.equal(plan.primaryAction.view, "practice")
   assert.deepEqual(plan.signals.map((signal) => signal.value), ["1", "1", "2", "building"])
-  assert.equal(plan.actions.some((action) => action.view === "reviews" || action.view === "calendar"), false)
+  assert.deepEqual(plan.actions.map((action) => action.view), ["practice", "ai", "studio"])
 })
 
 test("buildLearnRoutePlan makes Studio primary when the route is empty", () => {
