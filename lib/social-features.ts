@@ -63,6 +63,13 @@ export interface SocialWorkspacePlan {
   emptyHint: string
 }
 
+export interface SocialRecordCard {
+  meta: string[]
+  recommended: boolean
+  status: string
+  title: string
+}
+
 export type SocialActionTarget = "invite" | "chat" | "calendar" | "practice" | "files"
 
 export interface SocialActionItem {
@@ -738,6 +745,16 @@ export function findRecommendedSocialRecord(kind: SocialWorkspaceKind, records: 
   return records.find((record) => record.mode === "team") ?? records.find((record) => record.status === "waiting" || record.status === "active") ?? records[0]
 }
 
+export function buildSocialRecordCard(kind: SocialWorkspaceKind, record: SocialRecordLike, recommendedId?: string): SocialRecordCard {
+  const id = String(record.id || "")
+  return {
+    meta: socialRecordMeta(kind, record),
+    recommended: Boolean(id && recommendedId === id),
+    status: socialRecordStatus(record),
+    title: socialRecordTitle(record),
+  }
+}
+
 export function buildSocialRecordsPage(records: SocialRecordLike[], input: { query?: string; filter?: SocialRecordFilter; limit?: number }) {
   const all = filterSocialRecords(records, input)
   const safeLimit = Math.max(1, input.limit ?? 12)
@@ -780,6 +797,18 @@ function socialRecordSearchText(record: SocialRecordLike) {
     record.topic,
     ...(record.topic_tags ?? record.topicTags ?? []),
   ].join(" ").toLowerCase()
+}
+
+function socialRecordMeta(kind: SocialWorkspaceKind, record: SocialRecordLike) {
+  if (kind === "spaces") {
+    const memberCount = record.member_count ?? record.memberCount ?? 1
+    return [String(record.visibility || "private"), `${memberCount} ${memberCount === 1 ? "member" : "members"}`]
+  }
+  if (kind === "rooms") {
+    const minutes = record.pomodoro_minutes ?? record.pomodoroMinutes ?? 25
+    return [String(record.mode || "focus"), `${minutes} min`]
+  }
+  return [String(record.mode || "solo"), String(record.topic || "review")]
 }
 
 function matchesSocialRecordFilter(record: SocialRecordLike, filter: SocialRecordFilter) {
