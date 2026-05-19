@@ -735,20 +735,24 @@ function Navigation({
     <nav className={compact ? "grid gap-2" : "grid gap-3"}>
       {navigationGroups.map((group) => (
         <details key={group.label} className="group/navigation" open={openGroups.has(group.label)}>
-          <summary
-            onClick={(event) => {
-              event.preventDefault()
-              toggleGroup(group.label)
-            }}
-            className={`${compact ? "mb-1 flex h-5 cursor-pointer list-none items-center justify-center text-[0.6rem]" : "mb-1 flex cursor-pointer list-none items-center justify-between px-2 text-[0.68rem]"} font-semibold uppercase tracking-[0.12em] text-muted-foreground`}
-            title={group.caption}
-          >
-            <span className={`flex min-w-0 items-center ${compact ? "gap-1" : "gap-2"}`}>
-              <span>{compact ? group.label.slice(0, 1) : group.label}</span>
-              {activeGroup?.groupLabel === group.label ? <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" /> : null}
-            </span>
-            {compact ? null : <ChevronDown className="h-3.5 w-3.5 transition group-open/navigation:rotate-180" />}
-          </summary>
+          {compact ? (
+            <summary className="sr-only">{group.label}</summary>
+          ) : (
+            <summary
+              onClick={(event) => {
+                event.preventDefault()
+                toggleGroup(group.label)
+              }}
+              className="mb-1 flex cursor-pointer list-none items-center justify-between px-2 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground"
+              title={group.caption}
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <span>{group.label}</span>
+                {activeGroup?.groupLabel === group.label ? <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" /> : null}
+              </span>
+              <ChevronDown className="h-3.5 w-3.5 transition group-open/navigation:rotate-180" />
+            </summary>
+          )}
           <div className={`grid gap-1 ${compact ? "justify-center" : ""}`}>
             {group.items.map((item) => {
               const active = viewBelongsToNavigationItem(view, item)
