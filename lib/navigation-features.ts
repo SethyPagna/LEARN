@@ -23,11 +23,20 @@ export interface NavigationGroupSummary<TView extends string = string> {
   activeItemIndex: number
 }
 
+export interface NavigationLayoutInput {
+  density: "compact" | "comfortable"
+  mobile?: boolean
+}
+
 const EXACT_MATCH_SCORE = 100
 const PREFIX_MATCH_SCORE = 50
 const LABEL_MATCH_SCORE = 30
 const KEYWORD_MATCH_SCORE = 20
 const DETAIL_MATCH_SCORE = 10
+
+export function shouldUseNavigationIconRail(input: NavigationLayoutInput) {
+  return input.density === "compact" && !input.mobile
+}
 
 export function viewBelongsToNavigationItem<TView extends string>(view: TView, item: NavigationItemLike<TView>) {
   return item.view === view || Boolean(item.aliases?.includes(view))

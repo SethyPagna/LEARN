@@ -3,6 +3,7 @@ import { test } from "node:test"
 import {
   formatNavigationBadge,
   rankNavigationMatches,
+  shouldUseNavigationIconRail,
   summarizeActiveNavigationGroup,
   viewBelongsToNavigationItem,
   type NavigationGroupLike,
@@ -58,4 +59,10 @@ test("formatNavigationBadge hides empty counts and pluralizes labels", () => {
   assert.equal(formatNavigationBadge(0, "draft", "drafts"), "")
   assert.equal(formatNavigationBadge(1, "draft", "drafts"), "1 draft")
   assert.equal(formatNavigationBadge(3, "draft", "drafts"), "3 drafts")
+})
+
+test("shouldUseNavigationIconRail keeps compact desktop icon-only without hiding mobile labels", () => {
+  assert.equal(shouldUseNavigationIconRail({ density: "compact" }), true)
+  assert.equal(shouldUseNavigationIconRail({ density: "compact", mobile: true }), false)
+  assert.equal(shouldUseNavigationIconRail({ density: "comfortable" }), false)
 })
