@@ -19,7 +19,7 @@ import {
 } from "./learning-ecosystem"
 import { buildGamePracticeSessionDraft, buildQuizPracticeSessionDraft, buildReviewCardsFromPracticeItems, type PracticeSessionDraft, type PracticeSessionQuestion } from "./practice-sessions"
 import { createId, ensureDatabase, logAudit } from "./schema"
-import { normalizeConnectionInput, normalizeSocialActionInput } from "./sharing"
+import { normalizeConnectionInput, normalizeSocialActionInput, normalizeSocialTargetType } from "./sharing"
 
 export const SESSION_COOKIE = "learn_session"
 const DEFAULT_WORKSPACE_ID = "workspace_demo"
@@ -2200,6 +2200,39 @@ export async function recordSocialAction(user: User, input: Record<string, unkno
   )
   await logAudit({ userId: user.id, action: "create", entity: "social_action", entityId: id })
   return { id }
+}
+
+export async function listSocialActions(user: User, input: { targetType?: string | null; targetId?: string | null; limit?: number } = {}) {
+  await ensureDatabase()
+  const limit = Math.min(50, Math.max(1, Math.floor(Number(input.limit) || 12)))
+  const params: unknown[] = []
+  const conditions: string[] = []
+
+  if (user.role !== "admin") {
+    params.push(user.id)
+    conditions.push(`sa.actor_user_id = $${params.length}`)
+  }
+
+  const targetType = input.targetType ? normalizeSocialTargetType(input.targetType) : null
+  const targetId = String(input.targetId || "").trim()
+  if (targetType && targetId) {
+    params.push(targetType)
+    conditions.push(`sa.target_type = $${params.length}`)
+    params.push(targetId)
+    conditions.push(`sa.target_id = $${params.length}`)
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : ""
+  const result = await query(
+    `SELECT sa.*, u.name AS actor_name, u.username AS actor_username
+     FROM social_actions sa
+     LEFT JOIN users u ON u.id = sa.actor_user_id
+     ${where}
+     ORDER BY sa.created_at DESC
+     LIMIT ${limit}`,
+    params,
+  )
+  return result.rows.map((row) => ({ ...row, metadata: parseJsonObject(row.metadata) }))
 }
 
 export async function listModerationItems(user: User) {
