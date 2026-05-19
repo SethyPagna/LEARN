@@ -663,8 +663,8 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const recentActionItems = useMemo(() => recentActions.data?.items ?? [], [recentActions.data?.items])
   const selected = useMemo(() => items.find((item) => item.id === selectedId), [items, selectedId])
   const Icon = kind === "spaces" ? Users : kind === "rooms" ? Radio : Swords
-  const title = kind === "spaces" ? "Learning Spaces" : kind === "rooms" ? "Study Rooms" : "Study Battles"
-  const noun = kind === "spaces" ? "space" : kind === "rooms" ? "room" : "battle"
+  const title = kind === "spaces" ? "Groups" : kind === "rooms" ? "Study Rooms" : "Study Battles"
+  const noun = kind === "spaces" ? "group" : kind === "rooms" ? "room" : "battle"
   const socialSummary = useMemo(() => summarizeSocialWorkspace(kind, items), [items, kind])
   const memberSummary = useMemo(() => summarizeWorkspaceMembers(memberItems), [memberItems])
   const actionSummary = useMemo(() => summarizeSocialActions(recentActionItems), [recentActionItems])
@@ -1111,7 +1111,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
             </>
           ) : (
             <>
-              <SocialField label="Space name" value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
+              <SocialField label="Group name" value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
               <SocialField label="Description" value={draft.description} onChange={(value) => setDraft({ ...draft, description: value })} multiline />
               <SocialField label="Topic tags" value={draft.topicTags} onChange={(value) => setDraft({ ...draft, topicTags: value })} />
               <SocialSelect label="Visibility" value={draft.visibility} options={["private", "connections", "public"]} onChange={(value) => setDraft({ ...draft, visibility: value })} />
@@ -1455,7 +1455,7 @@ function socialTitle(item: LearningSpace | StudyRoom | StudyBattle | SocialDraft
 function socialWorkflowSteps(kind: SocialKind, saved: boolean) {
   if (kind === "rooms") return [saved ? "Open room" : "Save room", "Invite", "Focus timer", "Recap"]
   if (kind === "battles") return [saved ? "Queue battle" : "Save battle", "Invite", "Play", "Review misses"]
-  return [saved ? "Open space" : "Save space", "Invite", "Chat", "Share resources"]
+  return [saved ? "Open group" : "Save group", "Invite", "Chat", "Share resources"]
 }
 
 function socialActionIcon(target: SocialActionTarget) {
