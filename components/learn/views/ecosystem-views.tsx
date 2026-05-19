@@ -47,7 +47,7 @@ import type {
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
-import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialInviteReadiness, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, formatSocialAction, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialInviteReadiness, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -650,6 +650,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const memberSummary = useMemo(() => summarizeWorkspaceMembers(memberItems), [memberItems])
   const actionSummary = useMemo(() => summarizeSocialActions(recentActionItems), [recentActionItems])
   const socialPlan = useMemo(() => buildSocialWorkspacePlan(kind, socialSummary), [kind, socialSummary])
+  const recommendedRecord = useMemo(() => findRecommendedSocialRecord(kind, items), [items, kind])
   const recordPage = useMemo(() => buildSocialRecordsPage(items, { query, filter: recordFilter, limit: recordLimit }), [items, query, recordFilter, recordLimit])
   const filteredItems = recordPage.items as Array<LearningSpace | StudyRoom | StudyBattle>
   const memberPage = useMemo(() => buildWorkspaceMembersPage(memberItems, memberQuery, memberLimit), [memberItems, memberLimit, memberQuery])
@@ -771,6 +772,18 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
     setDraft(createSocialDraft(kind))
     setDeleteConfirmId(null)
     setMessage(`Drafting a new ${noun}.`)
+  }
+
+  function runPrimarySocialAction() {
+    const shouldOpenRecommended = kind === "battles" ? socialSummary.secondaryCount > 0 : socialSummary.primaryCount > 0
+    if (shouldOpenRecommended && recommendedRecord?.id) {
+      setSelectedId(recommendedRecord.id)
+      setDraft(draftFromSocialItem(kind, recommendedRecord as LearningSpace | StudyRoom | StudyBattle))
+      setDeleteConfirmId(null)
+      setMessage(`${socialRecordTitle(recommendedRecord)} opened.`)
+      return
+    }
+    startNew()
   }
 
   async function saveDraft() {
@@ -1055,7 +1068,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
           <div className="rounded-md border border-border bg-background p-3">
             {detailTab === "actions" ? (
               <div className="grid gap-3">
-                <button onClick={startNew} className="flex w-full items-center justify-between rounded-md border border-primary/30 bg-primary/10 p-3 text-left text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
+                <button onClick={runPrimarySocialAction} className="flex w-full items-center justify-between rounded-md border border-primary/30 bg-primary/10 p-3 text-left text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground" type="button">
                   <span>{socialPlan.primaryAction}</span>
                   <Icon className="h-4 w-4" />
                 </button>
