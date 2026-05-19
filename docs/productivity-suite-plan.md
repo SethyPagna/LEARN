@@ -116,6 +116,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Chat composer functionality by wiring mention, reaction, translate, and notify tools into the draft body with compact status feedback instead of menu-only no-ops.
 - 2026-05-19: Continued AI import maturity by preserving the last created Studio target after import and exposing stable Open, Practice, and Flashcards next actions instead of relying on a cleared preview.
 - 2026-05-19: Continued AI Tutor workflow maturity by making result Create actions switch the real task mode, insert target, source scope, and legacy mode together instead of only rewriting prompt text.
+- 2026-05-19: Continued AI Tutor shortcut maturity by making Studio block switch to the Studio formatter workflow, set the doc-section insert target, and avoid duplicate prompt instructions.
 
 ## Implementation Slices
 
