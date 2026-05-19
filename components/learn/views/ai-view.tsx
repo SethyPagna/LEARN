@@ -10,7 +10,7 @@ import { menuSurfaceClasses, statusToneClasses, toneTextClasses, type UiTone } f
 import { buildAiGatewayReadiness } from "@/lib/ai/gateway-readiness"
 import { buildGuidedPrompt, listInsertActions, promptContracts } from "@/lib/ai/prompt-builder"
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
-import { buildAiTutorPrimaryActionPlan, buildAiTutorSourceContext, getRecommendedAiTutorTokens, resolveAiTutorEffectiveTokens, splitPromptPreview, summarizeAiTutorUploadedSource, summarizeAiTutorWorkflow } from "@/lib/ai/tutor-workflow"
+import { buildAiTutorPrimaryActionPlan, buildAiTutorSourceContext, getRecommendedAiTutorTokens, resolveAiTutorEffectiveTokens, resolveAiTutorSourceScopeAfterUpload, splitPromptPreview, summarizeAiTutorUploadedSource, summarizeAiTutorWorkflow } from "@/lib/ai/tutor-workflow"
 import type { AiTaskKey } from "@/lib/ai/prompt-library"
 import { buildImportFollowupAction, previewImportedLearningContent, type ImportFollowupKind, type ImportTarget } from "@/lib/import-gateway"
 
@@ -383,9 +383,10 @@ export function AiTutorView({
       }
       setLastImport({ target: response.target, title: importPreview.title })
       setLastImportText(importedText)
+      setSourceScope(resolveAiTutorSourceScopeAfterUpload({ currentScope: sourceScope, uploadedContextLength: importedText.length }))
       setImportText("")
       setImportTitle("")
-      setImportStatus(`Created ${labelImportTarget(response.target)} in Studio.`)
+      setImportStatus(`Created ${labelImportTarget(response.target)} in Studio. Uploaded files selected for AI.`)
     } finally {
       setImportLoading(false)
     }
@@ -396,6 +397,7 @@ export function AiTutorView({
     setImportTitle("")
     setLastImport(null)
     setLastImportText("")
+    setSourceScope(resolveAiTutorSourceScopeAfterUpload({ currentScope: sourceScope, uploadedContextLength: 0 }))
     setImportStatus("Source cleared.")
   }
 
@@ -704,8 +706,10 @@ export function AiTutorView({
             <textarea
               value={importText}
               onChange={(event) => {
-                setImportText(event.target.value)
+                const nextText = event.target.value
+                setImportText(nextText)
                 setLastImport(null)
+                setSourceScope(resolveAiTutorSourceScopeAfterUpload({ currentScope: sourceScope, uploadedContextLength: nextText.trim().length }))
               }}
               placeholder="Paste text, CSV, or slide outline"
               className="min-h-36 rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none focus:border-ring"
