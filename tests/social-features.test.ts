@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildSocialActionKit, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialWorkspacePlan, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildSocialActionKit, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialWorkspacePlan, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -154,6 +154,22 @@ test("connection helpers find connectable people and summarize social setup", ()
   assert.deepEqual(filterConnectableMembers(members, connections, "me").map((member) => member.id), ["u2"])
   assert.deepEqual(summarizeConnections(connections), { total: 2, friends: 1, follows: 1, pending: 1, blocked: 0 })
   assert.equal(buildSocialCommandSummary({ memberCount: 3, connectionCount: 2, threadCount: 0, spaceCount: 1, roomCount: 0, battleCount: 1 }).headline, "Social is ready")
+})
+
+test("connectable people page exposes visible and hidden counts", () => {
+  const members = [
+    { id: "me", name: "Me" },
+    { id: "u1", name: "Alex" },
+    { id: "u2", name: "Mina" },
+    { id: "u3", name: "Sam" },
+  ]
+  const page = buildConnectablePeoplePage({ members, connections: [], currentUserId: "me", limit: 2 })
+
+  assert.deepEqual(page.items.map((member) => member.id), ["u1", "u2"])
+  assert.equal(page.total, 3)
+  assert.equal(page.hiddenCount, 1)
+  assert.equal(page.emptyAction, "search")
+  assert.equal(buildConnectablePeoplePage({ members, connections: [], currentUserId: "me", query: "missing" }).emptyAction, "invite")
 })
 
 test("social flow cards keep the combined Social entry simple", () => {
