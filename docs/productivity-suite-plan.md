@@ -129,6 +129,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Social maturity by adding a protected connections API, friend/follow discovery, remove-connection support, and a compact Social start page that groups people search, quick posts, and Chat/Groups/Live/Battles flows.
 - 2026-05-19: Redid the Social start workflow around plain user actions: find people, post, invite, and create/open Chat, Groups, Live rooms, or Battles from one compact hub with deeper signals collapsed.
 - 2026-05-19: Continued Social detail cleanup by replacing stacked Spaces/Rooms/Battles drawers with compact tabs for Actions, Invite, People, Activity, and Safety.
+- 2026-05-19: Continued Social hub cleanup by moving Find, Post, Invite, and Connections into one task switcher so the start page shows one clear action at a time.
 
 ## Implementation Slices
 
