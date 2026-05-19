@@ -47,7 +47,7 @@ import type {
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
-import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, formatSocialAction, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialInviteReadiness, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, formatSocialAction, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -677,6 +677,13 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
     memberSummary,
     suggestedAction: socialSummary.suggestedAction,
   }), [draft, inviteLink, kind, memberSummary, socialSummary.suggestedAction])
+  const inviteReadiness = useMemo(() => buildSocialInviteReadiness({
+    email: inviteEmail,
+    kind,
+    linkReady: Boolean(inviteLink),
+    loading: inviteLoading,
+    saved: Boolean(draft.id),
+  }), [draft.id, inviteEmail, inviteLink, inviteLoading, kind])
   const detailTabs = useMemo<Array<{ id: SocialDetailTab; label: string; icon: ComponentType<{ className?: string }>; count: string }>>(() => [
     { id: "actions", label: "Actions", icon: Play, count: String(actionKit.actions.length) },
     { id: "invite", label: "Invite", icon: Mail, count: inviteLink ? "1" : "0" },
@@ -843,6 +850,10 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   }
 
   async function createSecureInvite() {
+    if (!inviteReadiness.enabled) {
+      setMessage(inviteReadiness.message)
+      return
+    }
     const validation = normalizeSocialInviteDraft({ email: inviteEmail, role: inviteRole })
     if (!validation.ok) {
       setMessage(validation.error)
@@ -1113,10 +1124,11 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
                       <Copy className="h-4 w-4" />
                       Copy text
                     </button>
-                    <button disabled={inviteLoading} onClick={createSecureInvite} className="inline-flex h-9 items-center gap-2 rounded-md border border-primary bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60" type="button">
+                    <button disabled={!inviteReadiness.enabled} onClick={createSecureInvite} className="inline-flex h-9 items-center gap-2 rounded-md border border-primary bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60" title={inviteReadiness.message} type="button">
                       <Mail className="h-4 w-4" />
-                      {inviteLoading ? "Creating..." : "Create link"}
+                      {inviteReadiness.label}
                     </button>
+                    <span className="inline-flex h-9 items-center rounded-md bg-muted px-2 text-xs font-semibold text-muted-foreground">{inviteReadiness.message}</span>
                   </div>
                   {inviteLink ? <p className="truncate rounded-md bg-muted px-2 py-1.5 text-xs font-medium text-muted-foreground">{inviteLink}</p> : null}
                 </div>
