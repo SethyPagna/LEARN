@@ -142,6 +142,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Social action safety by making Spaces/Rooms/Battles delete a two-step confirm inside the compact More menu instead of an immediate destructive action.
 - 2026-05-19: Continued Social action reliability by adding busy states, guarded Save/Toggle/Delete flows, and clear recovery messages for failed record updates.
 - 2026-05-19: Continued Social action clarity by disabling draft-only quick actions with tested Save-first labels so record actions do not feel broken.
+- 2026-05-19: Continued Social invite maturity by adding tested secure-invite readiness states so link creation waits for a saved record and valid email.
 
 ## Implementation Slices
 
