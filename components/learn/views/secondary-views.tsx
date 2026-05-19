@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, Bot, CalendarDays, CalendarPlus, Check, ChevronRight, Clock, Copy, FileText, Filter, Gauge, Languages, Link as LinkIcon, Lock, Palette, Repeat2, Save, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserPlus, UserRound, Users } from "lucide-react"
 import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
-import { buildCalendarDaySegments, buildCalendarPlanningSummary, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
+import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
 import { buildProgressCommandPlan, summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
 import { buildSettingsControlPlan, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
 import { buildAdminOperationalPlan, filterAdminList, summarizeAdminOperations, type AdminAccessRequest, type AdminPanelTab } from "@/lib/admin-features"
@@ -267,7 +267,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
     [events, options.calendarDefaultMinutes, options.calendarLeadMinutes],
   )
   const filteredEvents = useMemo(() => filterCalendarAgenda(events, agendaFilter), [agendaFilter, events])
-  const monthDays = useMemo(() => buildCalendarMonthDays(visibleMonth, events), [events, visibleMonth])
+  const monthDays = useMemo(() => buildCalendarMonthGrid(visibleMonth, events), [events, visibleMonth])
   const selectedDayEvents = useMemo(
     () => events.filter((event) => localDateKey(new Date(event.starts_at)) === selectedDayKey).sort(compareCalendarEvents),
     [events, selectedDayKey],
@@ -519,9 +519,18 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
                 <button
                   key={day.key}
                   onClick={() => selectCalendarDay(day.key)}
-                  className={`min-h-20 rounded-md border p-2 text-left transition hover:border-primary/60 hover:bg-accent hover:text-accent-foreground ${day.key === selectedDayKey ? "border-primary bg-primary/10 text-primary" : day.inMonth ? "border-border bg-card text-foreground" : "border-border/60 bg-muted/40 text-muted-foreground"}`}
+                  className={`min-h-24 rounded-md border p-2 text-left transition hover:border-primary/60 hover:bg-accent hover:text-accent-foreground ${day.key === selectedDayKey ? "border-primary bg-primary/10 text-primary" : day.inMonth ? "border-border bg-card text-foreground" : "border-border/60 bg-muted/40 text-muted-foreground"} ${day.isToday ? "ring-1 ring-success/70" : ""}`}
                 >
-                  <span className="text-xs font-semibold">{day.label}</span>
+                  <span className="flex items-center justify-between gap-1 text-xs font-semibold">
+                    <span>{day.label}</span>
+                    {day.totalEvents ? <span className="rounded bg-secondary px-1.5 py-0.5 text-[0.62rem] text-secondary-foreground">{day.totalEvents}</span> : null}
+                  </span>
+                  {day.totalEvents ? (
+                    <span className="mt-1 block space-y-1">
+                      <span className="block truncate text-[0.68rem] font-semibold text-foreground">{day.firstEventTime}</span>
+                      <span className="block truncate text-[0.65rem] text-muted-foreground">{formatCalendarDuration(day.totalMinutes)}</span>
+                    </span>
+                  ) : null}
                   <div className="mt-2 flex flex-wrap gap-1">
                     {day.events.slice(0, 3).map((event) => <span key={event.id} className={`h-1.5 w-1.5 rounded-full ${calendarDotClass(event.event_type)}`} title={event.title} />)}
                     {day.events.length > 3 ? <span className="text-[0.65rem] font-semibold text-muted-foreground">+{day.events.length - 3}</span> : null}
@@ -643,30 +652,6 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
       </Panel>
     </div>
   )
-}
-
-function buildCalendarMonthDays(month: Date, events: CalendarEvent[]) {
-  const first = new Date(month.getFullYear(), month.getMonth(), 1)
-  const start = new Date(first)
-  start.setDate(first.getDate() - first.getDay())
-  const eventsByDay = new Map<string, CalendarEvent[]>()
-  for (const event of events) {
-    const key = localDateKey(new Date(event.starts_at))
-    const list = eventsByDay.get(key) || []
-    list.push(event)
-    eventsByDay.set(key, list)
-  }
-  return Array.from({ length: 42 }, (_, index) => {
-    const date = new Date(start)
-    date.setDate(start.getDate() + index)
-    const key = localDateKey(date)
-    return {
-      key,
-      label: String(date.getDate()),
-      inMonth: date.getMonth() === month.getMonth(),
-      events: (eventsByDay.get(key) || []).sort(compareCalendarEvents),
-    }
-  })
 }
 
 function compareCalendarEvents(first: CalendarEvent, second: CalendarEvent) {
