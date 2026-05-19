@@ -14,6 +14,8 @@ test("chat draft payload normalizes channel intent and metadata", () => {
   assert.equal(payload.body, "[question] Can @alex review /studio notes?")
   assert.equal(payload.metadata.hasMention, true)
   assert.equal(payload.metadata.hasStudioLink, true)
+  assert.equal(buildChatDraftPayload({ body: "Reply", channel: "#general", title: "Thread", intent: "update", threadId: " thread_1 " }).threadId, "thread_1")
+  assert.equal(buildChatDraftPayload({ body: "New", channel: "#general", title: "Thread", intent: "update", threadId: " " }).threadId, undefined)
 })
 
 test("chat thread title parsing keeps channel and readable title", () => {

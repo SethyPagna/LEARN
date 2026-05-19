@@ -238,8 +238,9 @@ export function buildChatDraftPayload(input: {
   const body = input.body.trim()
   const channel = input.channel.startsWith("#") ? input.channel : `#${input.channel}`
   const title = input.title.trim() || "Study room"
+  const threadId = input.threadId?.trim() || undefined
   return {
-    threadId: input.threadId,
+    threadId,
     title: `${channel} - ${title}`,
     body: `[${input.intent}] ${body}`,
     metadata: {
