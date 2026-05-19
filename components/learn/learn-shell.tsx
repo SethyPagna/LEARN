@@ -211,7 +211,7 @@ export function LearnShell({
             {practiceViews.includes(view as (typeof practiceViews)[number]) ? <PracticeWorkspaceView initialView={view} quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={preferences.options} setView={chooseView} /> : null}
             {view === "ai" ? <AiTutorView notes={notes} options={preferences.options} setNotes={setNotes} setOptions={preferences.setOptions} setView={chooseView} /> : null}
             {view === "files" ? <FilesView options={preferences.options} setView={chooseView} /> : null}
-            {socialViews.includes(view as (typeof socialViews)[number]) ? <SocialWorkspaceView initialView={view} options={preferences.options} setView={chooseView} /> : null}
+            {socialViews.includes(view as (typeof socialViews)[number]) ? <SocialWorkspaceView initialView={view} options={preferences.options} setView={chooseView} user={user} /> : null}
             {view === "profile" ? <ProfileView user={user} setView={chooseView} /> : null}
             {view === "settings" ? <SettingsView user={user} automationData={automationData} locale={preferences.locale} options={preferences.options} setLocale={preferences.setLocale} setOptions={preferences.setOptions} /> : null}
             {view === "admin" ? <AdminView user={user} adminData={adminData} automationData={automationData} options={preferences.options} /> : null}
