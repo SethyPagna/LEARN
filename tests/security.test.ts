@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildFileLibraryActionPlan, filterFileLibrary, fileKindLabel, summarizeFileLibrary } from "../lib/file-library-features"
+import { buildFileLibraryActionPlan, buildFileLibraryFilterSummary, filterFileLibrary, fileKindLabel, summarizeFileLibrary } from "../lib/file-library-features"
 import { classifyUploadContentType, MAX_UPLOAD_BYTES, validateUploadFile, validateUploadFileShape } from "../lib/file-security"
 import { checkRateLimit } from "../lib/rate-limit"
 
@@ -70,6 +70,16 @@ test("file library action plan guides upload selection and Studio conversion", (
   const studioPlan = buildFileLibraryActionPlan(files, summary, { selectedId: "pdf" })
   assert.equal(studioPlan.nextAction, "open-studio")
   assert.deepEqual(studioPlan.chips, ["PDFs", "AI-ready", "study source"])
+})
+
+test("file library filter summary explains active file views", () => {
+  const idle = buildFileLibraryFilterSummary({ filter: "all", total: 4, visible: 4 })
+  const filtered = buildFileLibraryFilterSummary({ filter: "pdf", query: "lesson", total: 4, visible: 1 })
+
+  assert.equal(idle.active, false)
+  assert.equal(idle.label, "4/4 visible")
+  assert.equal(filtered.active, true)
+  assert.equal(filtered.label, 'Filtered: "lesson" + PDFs (1/4)')
 })
 
 test("checkRateLimit blocks after the configured burst", async () => {
