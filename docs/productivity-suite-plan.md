@@ -109,6 +109,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Studio polish by moving the local draft-saved feedback into a fixed quiet notice so autosave confirmations no longer compete with editing status or shift the workspace experience.
 - 2026-05-19: Continued navigation polish by making sidebar groups truly expandable instead of forced open, while mobile now starts with only Home and the active group expanded for a calmer menu.
 - 2026-05-19: Continued architecture cleanup by deleting the unused legacy Notes view with mojibake emoji constants now that `/notes` is served by the unified Studio workspace.
+- 2026-05-19: Continued auth-entry declutter by folding desktop demo accounts into a compact expandable access drawer while preserving the same one-click sign-in helpers.
 
 ## Implementation Slices
 
