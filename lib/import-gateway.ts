@@ -1,6 +1,9 @@
 import { importCsvToSheet } from "./workspace-features"
+import type { StudioInsertTarget } from "@/components/learn/types"
+import type { AiTaskKey } from "./ai/prompt-library"
 
 export type ImportTarget = "note" | "doc" | "sheet" | "slides"
+export type ImportFollowupKind = "cleanup" | "practice" | "flashcards"
 
 export interface ShapedImport {
   target: ImportTarget
@@ -17,6 +20,16 @@ export interface ImportPreviewSummary {
   itemLabel: string
   destinationView: "notes" | "docs" | "sheets" | "slides"
   warnings: string[]
+}
+
+export interface ImportFollowupAction {
+  kind: ImportFollowupKind
+  taskKey: AiTaskKey
+  legacyMode: "cleanup" | "quiz" | "flashcards"
+  insertTarget: StudioInsertTarget
+  sourceScope: "Uploaded files"
+  message: string
+  status: string
 }
 
 export function shapeImportedLearningContent(input: { raw: string; title?: string; target?: ImportTarget | "auto" }): ShapedImport {
@@ -99,6 +112,49 @@ export function previewImportedLearningContent(input: { raw: string; title?: str
   }
 }
 
+export function buildImportFollowupAction(input: {
+  kind: ImportFollowupKind
+  title: string
+  target: ImportTarget
+}): ImportFollowupAction {
+  const title = cleanTitle(input.title)
+  const targetLabel = labelImportTarget(input.target)
+
+  if (input.kind === "practice") {
+    return {
+      kind: input.kind,
+      taskKey: "practice_generator",
+      legacyMode: "quiz",
+      insertTarget: "quiz",
+      sourceScope: "Uploaded files",
+      message: `Generate timed practice from the imported ${targetLabel.toLowerCase()} "${title}" with mixed question types, explanations, retry missed items, and review-card seeds.`,
+      status: `Practice workflow loaded for ${title}.`,
+    }
+  }
+
+  if (input.kind === "flashcards") {
+    return {
+      kind: input.kind,
+      taskKey: "flashcard_generation",
+      legacyMode: "flashcards",
+      insertTarget: "flashcards",
+      sourceScope: "Uploaded files",
+      message: `Create active-recall flashcards from the imported ${targetLabel.toLowerCase()} "${title}" with front/back cards, matching pairs, and one memory game.`,
+      status: `Flashcard workflow loaded for ${title}.`,
+    }
+  }
+
+  return {
+    kind: input.kind,
+    taskKey: "document_formatter",
+    legacyMode: "cleanup",
+    insertTarget: input.target === "slides" ? "slide-outline" : input.target === "sheet" ? "sheet-rows" : "doc-section",
+    sourceScope: "Uploaded files",
+    message: `Clean up the imported ${targetLabel.toLowerCase()} "${title}" into a polished Studio-ready structure with headings, concise sections, and one useful next action.`,
+    status: `Cleanup workflow loaded for ${title}.`,
+  }
+}
+
 export function detectImportTarget(raw: string): ImportTarget {
   const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
   const commaRows = lines.filter((line) => line.includes(",")).length
@@ -140,6 +196,13 @@ function viewForImportTarget(target: ImportTarget): ImportPreviewSummary["destin
   if (target === "sheet") return "sheets"
   if (target === "slides") return "slides"
   return "notes"
+}
+
+function labelImportTarget(target: ImportTarget) {
+  if (target === "doc") return "Document"
+  if (target === "sheet") return "Sheet"
+  if (target === "slides") return "Slides"
+  return "Note"
 }
 
 function shapeDocumentMarkdown(raw: string) {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { detectImportTarget, previewImportedLearningContent, shapeImportedLearningContent } from "../lib/import-gateway"
+import { buildImportFollowupAction, detectImportTarget, previewImportedLearningContent, shapeImportedLearningContent } from "../lib/import-gateway"
 
 test("import gateway detects sheets slides docs and notes", () => {
   assert.equal(detectImportTarget("Topic,Status\nReact,Review\nSQL,Weak"), "sheet")
@@ -39,4 +39,24 @@ test("import gateway previews detected targets and warnings", () => {
   assert.match(short.warnings.join(" "), /more learning material/)
   assert.equal(forced.confidence, "high")
   assert.equal(forced.title, "Deck")
+})
+
+test("import gateway follow-up actions load complete AI workflows", () => {
+  const practice = buildImportFollowupAction({ kind: "practice", target: "doc", title: "Database Indexing" })
+  const flashcards = buildImportFollowupAction({ kind: "flashcards", target: "sheet", title: "Topic Tracker" })
+  const cleanup = buildImportFollowupAction({ kind: "cleanup", target: "slides", title: "Lesson Deck" })
+
+  assert.equal(practice.taskKey, "practice_generator")
+  assert.equal(practice.legacyMode, "quiz")
+  assert.equal(practice.insertTarget, "quiz")
+  assert.equal(practice.sourceScope, "Uploaded files")
+  assert.match(practice.message, /mixed question types/)
+
+  assert.equal(flashcards.taskKey, "flashcard_generation")
+  assert.equal(flashcards.insertTarget, "flashcards")
+  assert.match(flashcards.message, /matching pairs/)
+
+  assert.equal(cleanup.taskKey, "document_formatter")
+  assert.equal(cleanup.insertTarget, "slide-outline")
+  assert.match(cleanup.status, /Cleanup workflow loaded/)
 })
