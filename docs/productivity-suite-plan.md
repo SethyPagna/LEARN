@@ -183,6 +183,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued AI import readiness by warning when Uploaded files is selected without attached/imported content, keeping follow-up prompts from looking ready with weak context.
 - 2026-05-19: Continued AI Tutor action clarity by making the primary run button open Import or Gateway when that is the useful next step instead of presenting a dead or misleading run action.
 - 2026-05-19: Continued AI Import clarity by showing attached pasted/saved source status in the Import panel, badge, and clear action so hidden context is no longer confusing.
+- 2026-05-19: Continued AI Import workflow accuracy by automatically switching the AI source to Uploaded files when material is pasted/imported and returning to Recent notes when that source is cleared.
 
 ## Implementation Slices
 
