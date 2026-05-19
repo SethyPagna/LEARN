@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildSocialActionKit, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialWorkspacePlan, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildSocialActionKit, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialWorkspacePlan, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -154,6 +154,16 @@ test("connection helpers find connectable people and summarize social setup", ()
   assert.deepEqual(filterConnectableMembers(members, connections, "me").map((member) => member.id), ["u2"])
   assert.deepEqual(summarizeConnections(connections), { total: 2, friends: 1, follows: 1, pending: 1, blocked: 0 })
   assert.equal(buildSocialCommandSummary({ memberCount: 3, connectionCount: 2, threadCount: 0, spaceCount: 1, roomCount: 0, battleCount: 1 }).headline, "Social is ready")
+})
+
+test("social flow cards keep the combined Social entry simple", () => {
+  const cards = buildSocialFlowCards({ threadCount: 0, spaceCount: 2, roomCount: 0, battleCount: 1 })
+
+  assert.deepEqual(cards.map((card) => card.label), ["Chat", "Groups", "Live", "Battles"])
+  assert.equal(cards[0].action, "Post first update")
+  assert.equal(cards[1].ready, true)
+  assert.equal(cards[2].action, "Start room")
+  assert.equal(cards[3].count, 1)
 })
 
 test("buildSocialActivityTimeline turns workspace state into compact next steps", () => {

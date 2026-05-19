@@ -124,6 +124,16 @@ export interface SocialCommandSummary {
   chips: string[]
 }
 
+export type SocialFlowId = "chat" | "spaces" | "rooms" | "battles"
+
+export interface SocialFlowCard {
+  id: SocialFlowId
+  label: string
+  action: string
+  count: number
+  ready: boolean
+}
+
 export interface SocialActivityItem {
   id: string
   label: string
@@ -491,6 +501,20 @@ export function buildSocialCommandSummary(input: {
       `${input.spaceCount + input.roomCount + input.battleCount} study areas`,
     ],
   }
+}
+
+export function buildSocialFlowCards(input: {
+  threadCount: number
+  spaceCount: number
+  roomCount: number
+  battleCount: number
+}): SocialFlowCard[] {
+  return [
+    { id: "chat", label: "Chat", action: input.threadCount ? "Open threads" : "Post first update", count: input.threadCount, ready: input.threadCount > 0 },
+    { id: "spaces", label: "Groups", action: input.spaceCount ? "Open groups" : "Create group", count: input.spaceCount, ready: input.spaceCount > 0 },
+    { id: "rooms", label: "Live", action: input.roomCount ? "Open room" : "Start room", count: input.roomCount, ready: input.roomCount > 0 },
+    { id: "battles", label: "Battles", action: input.battleCount ? "Play battle" : "Create battle", count: input.battleCount, ready: input.battleCount > 0 },
+  ]
 }
 
 export function buildSocialActivityTimeline(input: {
