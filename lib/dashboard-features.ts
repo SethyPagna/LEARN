@@ -76,6 +76,13 @@ export interface DashboardMetricTile {
   tone: "critical" | "steady" | "watch"
 }
 
+export interface DashboardWeakTopicCard {
+  accuracy: number
+  attempts: number
+  label: string
+  tone: "critical" | "steady" | "watch"
+}
+
 export interface DashboardRecentNoteLike {
   id: string
   title: string
@@ -343,6 +350,28 @@ export function buildDashboardMetricTiles(input: DashboardMetricInput): Dashboar
       tone: focusMinutes >= 20 ? "steady" : "watch",
     },
   ]
+}
+
+export function buildDashboardWeakTopicCards(topics: DashboardWeakTopic[], limit = 5): DashboardWeakTopicCard[] {
+  return topics
+    .map((topic) => {
+      const accuracy = clampPercentage(topic.accuracy ?? 0)
+      return {
+        accuracy,
+        attempts: Math.max(0, Math.floor(topic.attempts ?? 0)),
+        label: topic.topic.trim(),
+        tone: dashboardWeakTopicTone(accuracy),
+      }
+    })
+    .filter((topic) => topic.label.length > 0)
+    .sort((left, right) => left.accuracy - right.accuracy || right.attempts - left.attempts || left.label.localeCompare(right.label))
+    .slice(0, Math.max(0, limit))
+}
+
+function dashboardWeakTopicTone(accuracy: number): "critical" | "steady" | "watch" {
+  if (accuracy < 50) return "critical"
+  if (accuracy < 75) return "watch"
+  return "steady"
 }
 
 export function buildDashboardRecentWork(input: DashboardRecentWorkInput): DashboardRecentWorkItem[] {
