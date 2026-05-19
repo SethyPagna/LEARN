@@ -188,11 +188,20 @@ export interface SocialCommandSummary {
 
 export type SocialFlowId = "chat" | "spaces" | "rooms" | "battles"
 export type SocialCommandPrimaryActionId = "find" | "invite" | "post" | SocialFlowId
+export type SocialCommandRunId = "sync" | "post" | "invite" | SocialFlowId
 
 export interface SocialCommandPrimaryAction {
   id: SocialCommandPrimaryActionId
   detail: string
   label: string
+}
+
+export interface SocialCommandRunActionState {
+  id: SocialCommandRunId
+  label: string
+  busyLabel: string
+  disabled: boolean
+  busy: boolean
 }
 
 export interface SocialFlowCard {
@@ -831,6 +840,29 @@ export function buildSocialCommandPrimaryAction(input: {
     return { id: "battles", label: "Create battle", detail: "Add one short challenge for practice and retry loops." }
   }
   return { id: "rooms", label: "Open live work", detail: "Jump into the active collaboration surface." }
+}
+
+export function buildSocialCommandRunActions(input: {
+  busyAction?: SocialCommandRunId | null
+  hasPostDraft?: boolean
+  inviteReady?: boolean
+}): SocialCommandRunActionState[] {
+  const busy = Boolean(input.busyAction)
+  const actions: Array<Omit<SocialCommandRunActionState, "busy" | "disabled"> & { disabled: boolean }> = [
+    { id: "sync", label: "Sync", busyLabel: "Syncing", disabled: false },
+    { id: "post", label: "Post", busyLabel: "Posting", disabled: !input.hasPostDraft },
+    { id: "invite", label: "Send", busyLabel: "Sending", disabled: !input.inviteReady },
+    { id: "chat", label: "Open chat", busyLabel: "Opening", disabled: false },
+    { id: "spaces", label: "Start group", busyLabel: "Creating", disabled: false },
+    { id: "rooms", label: "Start room", busyLabel: "Starting", disabled: false },
+    { id: "battles", label: "Start battle", busyLabel: "Creating", disabled: false },
+  ]
+
+  return actions.map((action) => ({
+    ...action,
+    busy: input.busyAction === action.id,
+    disabled: busy || action.disabled,
+  }))
 }
 
 export function buildSocialFlowCards(input: {
