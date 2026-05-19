@@ -84,6 +84,25 @@ export interface SocialInviteDraft {
   role: "learner" | "admin"
 }
 
+export interface WorkspaceMemberLike {
+  id?: string
+  name?: string
+  email?: string
+  role?: string
+  status?: string
+  created_at?: string
+  createdAt?: string
+}
+
+export interface WorkspaceMemberSummary {
+  total: number
+  admins: number
+  learners: number
+  active: number
+  pending: number
+  newest?: WorkspaceMemberLike
+}
+
 export type SocialInviteValidation =
   | { ok: true; value: SocialInviteDraft }
   | { ok: false; error: string }
@@ -338,6 +357,43 @@ export function normalizeSocialInviteDraft(input: { email?: string; role?: strin
   const role = input.role === "admin" ? "admin" : "learner"
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: "Enter a valid email address." }
   return { ok: true, value: { email, role } }
+}
+
+export function summarizeWorkspaceMembers(members: WorkspaceMemberLike[]): WorkspaceMemberSummary {
+  let admins = 0
+  let learners = 0
+  let active = 0
+  let pending = 0
+  let newest: WorkspaceMemberLike | undefined
+  let newestTime = 0
+
+  for (const member of members) {
+    const role = String(member.role || "learner").toLowerCase()
+    const status = String(member.status || "active").toLowerCase()
+    if (role === "admin") admins += 1
+    else learners += 1
+    if (status === "pending") pending += 1
+    else active += 1
+
+    const created = Date.parse(String(member.created_at || member.createdAt || ""))
+    if (Number.isFinite(created) && created >= newestTime) {
+      newest = member
+      newestTime = created
+    }
+  }
+
+  return { total: members.length, admins, learners, active, pending, newest }
+}
+
+export function filterWorkspaceMembers(members: WorkspaceMemberLike[], query = "") {
+  const normalized = query.trim().toLowerCase()
+  if (!normalized) return members
+  return members.filter((member) => [
+    member.name,
+    member.email,
+    member.role,
+    member.status,
+  ].join(" ").toLowerCase().includes(normalized))
 }
 
 export function filterSocialRecords(records: SocialRecordLike[], input: { query?: string; filter?: SocialRecordFilter }) {

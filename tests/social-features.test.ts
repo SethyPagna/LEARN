@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildSocialActionKit, buildSocialWorkspacePlan, filterChatThreads, filterSocialRecords, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeSocialWorkspace } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildSocialActionKit, buildSocialWorkspacePlan, filterChatThreads, filterSocialRecords, filterWorkspaceMembers, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -121,6 +121,23 @@ test("normalizeSocialInviteDraft validates email and role for secure invites", (
     value: { email: "learner@example.com", role: "learner" },
   })
   assert.equal(normalizeSocialInviteDraft({ email: "bad" }).ok, false)
+})
+
+test("workspace member helpers summarize and filter people context", () => {
+  const members = [
+    { name: "Admin User", email: "admin@example.com", role: "admin", status: "active", created_at: "2026-05-17T00:00:00.000Z" },
+    { name: "Learner One", email: "learner@example.com", role: "learner", status: "active", created_at: "2026-05-18T00:00:00.000Z" },
+    { name: "Pending Friend", email: "pending@example.com", role: "learner", status: "pending", created_at: "2026-05-19T00:00:00.000Z" },
+  ]
+  const summary = summarizeWorkspaceMembers(members)
+
+  assert.equal(summary.total, 3)
+  assert.equal(summary.admins, 1)
+  assert.equal(summary.learners, 2)
+  assert.equal(summary.active, 2)
+  assert.equal(summary.pending, 1)
+  assert.equal(summary.newest?.name, "Pending Friend")
+  assert.deepEqual(filterWorkspaceMembers(members, "admin").map((member) => member.email), ["admin@example.com"])
 })
 
 test("filterSocialRecords combines text search with workspace filters", () => {
