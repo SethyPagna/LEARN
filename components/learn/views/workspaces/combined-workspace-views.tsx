@@ -582,7 +582,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                 action={card.action}
                 count={card.count}
                 createDisabled={createAction?.disabled}
-                createLabel={createAction?.busy ? createAction.busyLabel : card.action}
+                createLabel={createAction?.busy ? createAction.busyLabel : card.createAction}
                 icon={Icon}
                 label={card.label}
                 onCreate={() => void createSocialPlace(card.id)}
@@ -630,7 +630,7 @@ function SocialFlowButton({
         </span>
         <span className={`rounded-md px-2 py-1 text-[0.68rem] font-semibold ${ready ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{ready ? "ready" : "new"}</span>
       </button>
-      <button onClick={onCreate} disabled={createDisabled} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60" title={action}>
+      <button onClick={onCreate} disabled={createDisabled} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60" title={createLabel || action}>
         <Plus className="h-4 w-4" />
         <span className="hidden sm:inline">{createLabel || action}</span>
       </button>
