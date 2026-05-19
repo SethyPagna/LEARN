@@ -108,6 +108,10 @@ export const viewLabelKeys: Record<View, keyof Vocabulary> = {
   vault: "vault",
 }
 
+const pathViewAliases: Record<string, View> = {
+  groups: "spaces",
+}
+
 export const navigationGroups: readonly LearnNavigationGroup[] = [
   {
     label: "Home",
@@ -174,6 +178,7 @@ export function getStudioKind(view: View): StudioKind {
 export function viewFromPath(pathname: string): View | null {
   const segment = pathname.split("/").filter(Boolean)[0] || "dashboard"
   if (segment === "quiz") return "quizzes"
+  if (segment in pathViewAliases) return pathViewAliases[segment]
   if (segment in viewRoutes) return segment as View
   return null
 }
