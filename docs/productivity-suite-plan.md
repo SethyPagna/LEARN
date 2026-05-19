@@ -105,6 +105,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Profile declutter by moving duplicate profile metrics and portrait signals into expandable drawers while keeping identity, privacy, bio, and the next action visible.
 - 2026-05-19: Continued Progress declutter by shortening the primary route action, moving route detail/focus chips into a Route details drawer, and folding large metric cards into a compact Metrics drawer.
 - 2026-05-19: Continued Admin declutter by folding the large operational signal cards into an Admin signals drawer while keeping health, search, next action, and section controls visible.
+- 2026-05-19: Continued Provider Admin declutter by separating providers, editor, routing, and presets into compact modes, folding gateway metrics into a signal drawer, and moving provider test/edit/delete controls into per-card action menus.
 
 ## Implementation Slices
 
