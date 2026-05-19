@@ -130,6 +130,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Redid the Social start workflow around plain user actions: find people, post, invite, and create/open Chat, Groups, Live rooms, or Battles from one compact hub with deeper signals collapsed.
 - 2026-05-19: Continued Social detail cleanup by replacing stacked Spaces/Rooms/Battles drawers with compact tabs for Actions, Invite, People, Activity, and Safety.
 - 2026-05-19: Continued Social hub cleanup by moving Find, Post, Invite, and Connections into one task switcher so the start page shows one clear action at a time.
+- 2026-05-19: Continued Social flow cleanup by changing the Chat/Groups/Live/Battles cards into a compact action rail with smaller create buttons.
 
 ## Implementation Slices
 
