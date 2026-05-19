@@ -1154,12 +1154,19 @@ export function ProfileView({ setView, user }: { setView?: (view: View) => void;
         <h2 className="mt-4 text-2xl font-semibold text-foreground">{profile?.name || user?.name || "Learner"}</h2>
         <p className="text-sm text-muted-foreground">@{profile?.username || username}</p>
         <p className="mt-4 text-sm leading-6 text-muted-foreground">{profile?.bio || "A private learning portrait that grows from Vault activity."}</p>
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <Metric label="Level" value={String(profile?.metrics.level ?? 1)} />
-          <Metric label="Streak" value={String(profile?.metrics.streak ?? 0)} />
-          <Metric label="XP" value={String(profile?.metrics.xp ?? 0)} />
-          <Metric label="Reputation" value={String(profile?.metrics.reputation ?? 0)} />
-        </div>
+        <details className="mt-4 rounded-md border border-border bg-background">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+            <span>Profile stats</span>
+            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">Level {profile?.metrics.level ?? 1}</span>
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          </summary>
+          <div className="grid grid-cols-2 gap-2 border-t border-border p-2">
+            <Metric label="Level" value={String(profile?.metrics.level ?? 1)} />
+            <Metric label="Streak" value={String(profile?.metrics.streak ?? 0)} />
+            <Metric label="XP" value={String(profile?.metrics.xp ?? 0)} />
+            <Metric label="Reputation" value={String(profile?.metrics.reputation ?? 0)} />
+          </div>
+        </details>
         <button
           onClick={() => setView?.(profileTargetView(profilePlan.target))}
           className="mt-4 flex w-full items-center justify-between gap-3 rounded-md border border-border bg-secondary p-3 text-left text-sm font-semibold text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground"
@@ -1177,17 +1184,24 @@ export function ProfileView({ setView, user }: { setView?: (view: View) => void;
             </div>
             <span className="rounded-md bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">{status}</span>
           </div>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            {profilePlan.stats.map((stat) => (
-              <div key={stat.id} className="rounded-md border border-border bg-background p-3">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">{stat.label}</p>
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <p className="text-lg font-semibold text-foreground">{stat.value}</p>
-                  <span className={`h-2 w-2 rounded-full ${profileToneDotClass(stat.tone)}`} />
+          <details className="mt-4 rounded-md border border-border bg-background">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+              <span>Portrait signals</span>
+              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{profilePlan.stats.length}</span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            </summary>
+            <div className="grid gap-2 border-t border-border p-2 sm:grid-cols-2 xl:grid-cols-4">
+              {profilePlan.stats.map((stat) => (
+                <div key={stat.id} className="rounded-md border border-border bg-card p-3">
+                  <p className="text-xs font-semibold uppercase text-muted-foreground">{stat.label}</p>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <p className="text-lg font-semibold text-foreground">{stat.value}</p>
+                    <span className={`h-2 w-2 rounded-full ${profileToneDotClass(stat.tone)}`} />
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </details>
         </Panel>
         <Panel className="p-4">
           <div className="flex items-center justify-between gap-3">
