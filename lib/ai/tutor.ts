@@ -12,7 +12,7 @@ export interface TutorRequest {
 
 export type TutorMode = "coach" | "rewrite" | "quiz" | "flashcards" | "translate" | "route" | "cleanup" | "mistake"
 export const DEFAULT_TUTOR_COMPLETION_TOKENS = 4096
-export const MAX_TUTOR_COMPLETION_TOKENS = 8192
+export const MAX_TUTOR_COMPLETION_TOKENS = 16_384
 
 export async function askTutor(input: TutorRequest) {
   const cloudflareEnv = await getCloudflareBindings()
