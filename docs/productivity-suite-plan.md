@@ -168,6 +168,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Social flow clarity by separating open labels from create labels so compact plus buttons describe the action they actually run.
 - 2026-05-19: Continued Social terminology cleanup by replacing learner-facing “space” wording with clearer “group” copy while keeping existing API routes stable.
 - 2026-05-19: Continued Social label consistency by aligning navigation, dashboard, profile, intro, and showcase copy around Groups while preserving `/spaces` compatibility.
+- 2026-05-19: Continued Social label polish by aligning the Feed ritual button and Social tab caption with Groups terminology.
 
 ## Implementation Slices
 
