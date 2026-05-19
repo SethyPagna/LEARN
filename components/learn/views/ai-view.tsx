@@ -10,7 +10,7 @@ import { menuSurfaceClasses, statusToneClasses, toneTextClasses, type UiTone } f
 import { buildAiGatewayReadiness } from "@/lib/ai/gateway-readiness"
 import { buildGuidedPrompt, listInsertActions, promptContracts } from "@/lib/ai/prompt-builder"
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
-import { buildAiTutorSourceContext, getRecommendedAiTutorTokens, resolveAiTutorEffectiveTokens, splitPromptPreview, summarizeAiTutorWorkflow } from "@/lib/ai/tutor-workflow"
+import { buildAiTutorPrimaryActionPlan, buildAiTutorSourceContext, getRecommendedAiTutorTokens, resolveAiTutorEffectiveTokens, splitPromptPreview, summarizeAiTutorWorkflow } from "@/lib/ai/tutor-workflow"
 import type { AiTaskKey } from "@/lib/ai/prompt-library"
 import { buildImportFollowupAction, previewImportedLearningContent, type ImportFollowupKind, type ImportTarget } from "@/lib/import-gateway"
 
@@ -158,6 +158,13 @@ export function AiTutorView({
     effectiveTokenBudget: effectiveMaxTokens,
     uploadedContextLength: uploadedContext.length,
   }), [activeMode.label, difficulty, draftStatus, effectiveMaxTokens, gatewayReadiness, insertTarget, language, notes.length, options.aiMaxTokens, outputLength, promptBuild, providerFamily, sourceScope, uploadedContext.length])
+  const primaryActionPlan = useMemo(() => buildAiTutorPrimaryActionPlan({
+    prompt: promptBuild,
+    gateway: gatewayReadiness,
+    loading,
+    sourceScope,
+    uploadedContextLength: uploadedContext.length,
+  }), [gatewayReadiness, loading, promptBuild, sourceScope, uploadedContext.length])
   const previewParts = useMemo(() => splitPromptPreview(promptBuild.preview), [promptBuild.preview])
   const importPreview = useMemo(() => previewImportedLearningContent({ raw: importText, title: importTitle, target: importTarget }), [importTarget, importText, importTitle])
   const providerSummary = useMemo(() => {
@@ -295,6 +302,24 @@ export function AiTutorView({
     } finally {
       setLoading(false)
     }
+  }
+
+  async function runPrimaryAction() {
+    if (primaryActionPlan.action === "import") {
+      setSidePanel("import")
+      setImportStatus(primaryActionPlan.statusMessage)
+      return
+    }
+    if (primaryActionPlan.action === "gateway") {
+      setSidePanel("gateway")
+      setActionStatus(primaryActionPlan.statusMessage)
+      return
+    }
+    if (primaryActionPlan.action === "prompt") {
+      setActionStatus(primaryActionPlan.statusMessage)
+      return
+    }
+    await ask()
   }
 
   async function loadProviders() {
@@ -553,9 +578,9 @@ export function AiTutorView({
 
         <textarea value={message} onChange={(event) => setMessage(event.target.value)} className="mt-5 min-h-40 w-full rounded-md border border-input bg-background p-4 text-foreground outline-none focus:border-ring" />
         <div className="mt-3 flex flex-wrap gap-2">
-          <button disabled={gatewayReadiness.status === "blocked" || loading} onClick={ask} className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+          <button disabled={primaryActionPlan.disabled} onClick={runPrimaryAction} className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
             <Bot className="h-4 w-4" />
-            {loading ? "Thinking" : "Run tutor"}
+            {primaryActionPlan.label}
           </button>
           <button onClick={prepareStudioBlockPrompt} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
             <Plus className="h-4 w-4" />
