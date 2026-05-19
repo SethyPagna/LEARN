@@ -64,6 +64,7 @@ export interface SocialWorkspacePlan {
 }
 
 export interface SocialRecordCard {
+  action: string
   meta: string[]
   recommended: boolean
   status: string
@@ -748,6 +749,7 @@ export function findRecommendedSocialRecord(kind: SocialWorkspaceKind, records: 
 export function buildSocialRecordCard(kind: SocialWorkspaceKind, record: SocialRecordLike, recommendedId?: string): SocialRecordCard {
   const id = String(record.id || "")
   return {
+    action: socialRecordAction(kind, record),
     meta: socialRecordMeta(kind, record),
     recommended: Boolean(id && recommendedId === id),
     status: socialRecordStatus(record),
@@ -797,6 +799,13 @@ function socialRecordSearchText(record: SocialRecordLike) {
     record.topic,
     ...(record.topic_tags ?? record.topicTags ?? []),
   ].join(" ").toLowerCase()
+}
+
+function socialRecordAction(kind: SocialWorkspaceKind, record: SocialRecordLike) {
+  if (kind === "spaces") return record.visibility === "public" ? "Review" : "Open"
+  if (kind === "rooms") return record.status === "active" || record.status === "open" ? "Join" : "Plan"
+  if (record.status === "waiting" || record.status === "active") return "Play"
+  return "Review"
 }
 
 function socialRecordMeta(kind: SocialWorkspaceKind, record: SocialRecordLike) {
