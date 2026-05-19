@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandPrimaryAction, buildSocialCommandSummary, buildSocialFlowCards, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -197,6 +197,18 @@ test("connection helpers find connectable people and summarize social setup", ()
   assert.deepEqual(filterConnectableMembers(members, connections, "me").map((member) => member.id), ["u2"])
   assert.deepEqual(summarizeConnections(connections), { total: 2, friends: 1, follows: 1, pending: 1, blocked: 0 })
   assert.equal(buildSocialCommandSummary({ memberCount: 3, connectionCount: 2, threadCount: 0, spaceCount: 1, roomCount: 0, battleCount: 1 }).headline, "Social is ready")
+})
+
+test("buildSocialCommandPrimaryAction guides non-technical next steps", () => {
+  const invite = buildSocialCommandPrimaryAction({ memberCount: 1, connectionCount: 0, threadCount: 0, spaceCount: 0, roomCount: 0, battleCount: 0 })
+  const find = buildSocialCommandPrimaryAction({ memberCount: 3, connectionCount: 0, threadCount: 0, spaceCount: 0, roomCount: 0, battleCount: 0 })
+  const group = buildSocialCommandPrimaryAction({ memberCount: 3, connectionCount: 1, threadCount: 1, spaceCount: 0, roomCount: 0, battleCount: 0 })
+  const live = buildSocialCommandPrimaryAction({ memberCount: 3, connectionCount: 1, threadCount: 1, spaceCount: 1, roomCount: 1, battleCount: 1 })
+
+  assert.equal(invite.id, "invite")
+  assert.equal(find.id, "find")
+  assert.equal(group.id, "spaces")
+  assert.equal(live.id, "rooms")
 })
 
 test("connectable people page exposes visible and hidden counts", () => {
