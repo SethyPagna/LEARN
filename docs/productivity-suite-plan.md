@@ -146,6 +146,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Social workflow accuracy by making the primary next-action button open recommended public/open/team records instead of always starting a new draft.
 - 2026-05-19: Continued Social record-list polish by replacing plain metadata text with tested compact status/meta/recommended chips on Spaces/Rooms/Battles cards.
 - 2026-05-19: Continued Social record clarity by adding tested per-card action labels such as Review, Join, Plan, and Play.
+- 2026-05-19: Continued Social selection feedback by adding tested next-step messages and clearing stale delete state when opening records.
 
 ## Implementation Slices
 
