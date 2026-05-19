@@ -47,7 +47,7 @@ import type {
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
-import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialInviteReadiness, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -653,6 +653,10 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const recommendedRecord = useMemo(() => findRecommendedSocialRecord(kind, items), [items, kind])
   const recordPage = useMemo(() => buildSocialRecordsPage(items, { query, filter: recordFilter, limit: recordLimit }), [items, query, recordFilter, recordLimit])
   const filteredItems = recordPage.items as Array<LearningSpace | StudyRoom | StudyBattle>
+  const recordCards = useMemo(() => filteredItems.map((item) => ({
+    card: buildSocialRecordCard(kind, item, recommendedRecord?.id),
+    item,
+  })), [filteredItems, kind, recommendedRecord?.id])
   const memberPage = useMemo(() => buildWorkspaceMembersPage(memberItems, memberQuery, memberLimit), [memberItems, memberLimit, memberQuery])
   const filteredMembers = memberPage.items
   const activityPage = useMemo(() => buildSocialActionsPage(recentActionItems, activityLimit), [activityLimit, recentActionItems])
@@ -977,7 +981,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
           </div>
         </details>
         <div className="mt-4 grid gap-2">
-          {filteredItems.map((item) => (
+          {recordCards.map(({ card, item }) => (
             <button
               key={item.id}
               onClick={() => {
@@ -986,8 +990,16 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
               }}
               className={`rounded-md border p-3 text-left ${selectedId === item.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
             >
-              <span className="block truncate text-sm font-semibold">{socialRecordTitle(item)}</span>
-              <span className="mt-1 block truncate text-xs opacity-80">{socialMeta(kind, item)}</span>
+              <span className="flex min-w-0 items-center justify-between gap-2">
+                <span className="truncate text-sm font-semibold">{card.title}</span>
+                <span className={`rounded px-1.5 py-0.5 text-[0.65rem] font-semibold ${selectedId === item.id ? "bg-primary-foreground/20 text-primary-foreground" : "bg-background text-foreground"}`}>{card.status}</span>
+              </span>
+              <span className="mt-2 flex flex-wrap gap-1">
+                {card.recommended ? <span className={`rounded px-1.5 py-0.5 text-[0.65rem] font-semibold ${selectedId === item.id ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary/15 text-primary"}`}>Recommended</span> : null}
+                {card.meta.map((meta) => (
+                  <span key={meta} className={`rounded px-1.5 py-0.5 text-[0.65rem] font-semibold ${selectedId === item.id ? "bg-primary-foreground/15 text-primary-foreground/85" : "bg-muted text-muted-foreground"}`}>{meta}</span>
+                ))}
+              </span>
             </button>
           ))}
           {!filteredItems.length ? <EmptyState title={`No ${title.toLowerCase()} yet`} body={socialPlan.emptyHint} /> : null}
@@ -1377,13 +1389,6 @@ function socialTitle(item: LearningSpace | StudyRoom | StudyBattle | SocialDraft
   if ("title" in item && item.title) return item.title
   if ("name" in item && item.name) return item.name
   return "Untitled"
-}
-
-function socialMeta(kind: "spaces" | "rooms" | "battles", item: LearningSpace | StudyRoom | StudyBattle) {
-  if (kind === "spaces" && "visibility" in item) return `${item.visibility} - ${item.member_count ?? 1} members`
-  if (kind === "rooms" && "pomodoro_minutes" in item) return `${item.status} - ${item.mode} - ${item.pomodoro_minutes} min`
-  if ("topic" in item) return `${item.status} - ${item.mode} - ${item.topic}`
-  return "Ready"
 }
 
 function socialWorkflowSteps(kind: SocialKind, saved: boolean) {
