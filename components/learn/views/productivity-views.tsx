@@ -8,7 +8,7 @@ import type { Quiz } from "../types"
 import { api } from "../api"
 import { EmptyState, Panel } from "../ui"
 import { buildGameRunActions, evaluateGameChoice, summarizeGameRun, type GameRunActionId } from "@/lib/practice-features"
-import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatIntent, type ChatThreadFilter } from "@/lib/social-features"
+import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatThreadActions, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatIntent, type ChatThreadActionId, type ChatThreadFilter } from "@/lib/social-features"
 
 const quizDetailCache = new Map<string, Quiz>()
 const CHAT_DRAFT_KEY = "learn_chat_draft_v1"
@@ -276,6 +276,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const [filter, setFilter] = useState<ChatThreadFilter>("all")
   const [draftStatus, setDraftStatus] = useState("")
   const [chatAction, setChatAction] = useState<ChatComposerActionId | null>(null)
+  const [threadAction, setThreadAction] = useState<{ action: ChatThreadActionId; threadId: string } | null>(null)
   const [openChatMenu, setOpenChatMenu] = useState<ChatMenuId | null>(null)
   const quickIntents = [
     { id: "update" as const, label: "Update", body: "Share progress, a note, or what changed." },
@@ -362,6 +363,47 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     setIntent("question")
     setBody((current) => current.trim() ? current : `Replying to "${parsed.title}": `)
     setDraftStatus("Reply draft ready")
+  }
+
+  function chatThreadKey(thread: any) {
+    return String(thread.id || thread.threadId || thread.thread_id || thread.title || "").trim()
+  }
+
+  async function runThreadAction(thread: any, action: ChatThreadActionId) {
+    const targetId = chatThreadKey(thread)
+    if (!targetId) {
+      setDraftStatus("Thread action needs a saved thread.")
+      return
+    }
+    if (threadAction) return
+    if (action === "reply") {
+      setThreadAction({ action, threadId: targetId })
+      replyToThread(thread)
+      setThreadAction(null)
+      setOpenChatMenu(null)
+      return
+    }
+    const parsed = parseThreadTitle(thread.title)
+    setThreadAction({ action, threadId: targetId })
+    try {
+      await api("/api/social/actions", {
+        method: "POST",
+        body: JSON.stringify({
+          targetType: "chat_message",
+          targetId,
+          actionType: action === "save" ? "bookmark" : "helpful",
+          body: parsed.title,
+          metadata: { channel: parsed.channel, threadTitle: parsed.title },
+        }),
+      })
+      setReaction(action)
+      setDraftStatus(action === "save" ? "Thread saved" : "Marked helpful")
+    } catch (error) {
+      setDraftStatus(error instanceof Error ? error.message : "Unable to save this thread action.")
+    } finally {
+      setThreadAction(null)
+      setOpenChatMenu(null)
+    }
   }
 
   function useComposerTool(tool: "mention" | "reaction" | "translate" | "notify") {
@@ -527,6 +569,11 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
         <div className="mt-3 space-y-2">
           {visibleThreads.map((thread) => {
             const parsed = parseThreadTitle(thread.title)
+            const targetId = chatThreadKey(thread)
+            const threadActions = buildChatThreadActions({
+              busyAction: threadAction?.threadId === targetId ? threadAction.action : null,
+              hasThread: Boolean(targetId),
+            })
             return (
             <div key={thread.id} className="rounded-md border border-border bg-background p-3 text-sm">
               <div className="flex items-start justify-between gap-2">
@@ -540,25 +587,19 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               <div className="mt-3 flex flex-wrap gap-2">
                 <ChatMenu compact icon={Smile} label={reaction} menuId={`threadActions:${thread.id}`} openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
                   <ChatMenuSection title="Thread actions">
-                    {["helpful", "save", "reply"].map((item) => (
+                    {threadActions.map((item) => (
                       <ChatMenuAction
-                        active={reaction === item}
-                        key={item}
-                        label={item}
-                        onClick={() => {
-                          if (item === "reply") {
-                            replyToThread(thread)
-                          } else {
-                            setReaction(item)
-                            setDraftStatus(item === "save" ? "Save marker selected" : "Helpful reaction selected")
-                          }
-                          setOpenChatMenu(null)
-                        }}
+                        active={reaction === item.id}
+                        disabled={item.disabled}
+                        key={item.id}
+                        label={item.busy ? item.busyLabel : item.label}
+                        meta={item.helper}
+                        onClick={() => runThreadAction(thread, item.id)}
                       />
                     ))}
                   </ChatMenuSection>
                 </ChatMenu>
-                <button onClick={() => replyToThread(thread)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                <button onClick={() => runThreadAction(thread, "reply")} disabled={Boolean(threadAction)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60">
                   <Reply className="h-3.5 w-3.5" />
                   reply
                 </button>
