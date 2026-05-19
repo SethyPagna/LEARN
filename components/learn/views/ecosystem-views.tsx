@@ -47,7 +47,7 @@ import type {
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
-import { buildSocialActionKit, buildSocialWorkspacePlan, filterSocialRecords, filterWorkspaceMembers, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildSocialActionKit, buildSocialActivityTimeline, buildSocialWorkspacePlan, filterSocialRecords, filterWorkspaceMembers, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -653,6 +653,14 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
     mode: draft.mode,
     topic: kind === "spaces" ? draft.topicTags.split(",")[0]?.trim() : draft.topic,
   }), [draft, kind])
+  const activityTimeline = useMemo(() => buildSocialActivityTimeline({
+    kind,
+    title: socialTitle(draft),
+    saved: Boolean(draft.id),
+    inviteLinkReady: Boolean(inviteLink),
+    memberSummary,
+    suggestedAction: socialSummary.suggestedAction,
+  }), [draft, inviteLink, kind, memberSummary, socialSummary.suggestedAction])
 
   useEffect(() => {
     const stored = readSocialDraftStore(kind)
@@ -1047,6 +1055,24 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
           </details>
           <details className="group/social rounded-md border border-border bg-background">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+              <span>Activity</span>
+              <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{activityTimeline.length} steps</span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/social:rotate-180" />
+            </summary>
+            <div className="grid gap-2 border-t border-border p-3">
+              {activityTimeline.map((item, index) => (
+                <div key={item.id} className="grid grid-cols-[auto_1fr] gap-3 rounded-md border border-border bg-card p-3 text-sm">
+                  <span className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold ${socialActivityToneClass(item.tone)}`}>{index + 1}</span>
+                  <span className="min-w-0">
+                    <span className="block font-semibold text-foreground">{item.label}</span>
+                    <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.detail}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </details>
+          <details className="group/social rounded-md border border-border bg-background">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
               <span>Safety and signals</span>
               <div className="ml-auto flex items-center gap-1.5">
                 <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{items.length} records</span>
@@ -1219,6 +1245,12 @@ function socialActionIcon(target: SocialActionTarget) {
   if (target === "calendar") return CalendarDays
   if (target === "practice") return BookOpen
   return FolderOpen
+}
+
+function socialActivityToneClass(tone: "ready" | "draft" | "next") {
+  if (tone === "ready") return "bg-success/15 text-success"
+  if (tone === "draft") return "bg-warning/15 text-warning"
+  return "bg-primary/15 text-primary"
 }
 
 function SocialField({ label, value, onChange, multiline }: { label: string; value: string; onChange: (value: string) => void; multiline?: boolean }) {
