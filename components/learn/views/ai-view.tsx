@@ -117,13 +117,14 @@ export function AiTutorView({
 
   const activeMode = useMemo(() => tutorModes.find((mode) => mode.id === activeTaskKey) || tutorModes[0], [activeTaskKey])
   const recentContext = useMemo(() => notes.slice(0, 5).map((note) => `${note.title}: ${note.content}`).join("\n\n"), [notes])
+  const uploadedContext = useMemo(() => (importText || lastImportText).trim(), [importText, lastImportText])
   const sourceContext = useMemo(() => buildAiTutorSourceContext({
     message,
     recentContext,
     sourceScope,
     includeRecentNotes: options.aiIncludeNotes,
-    uploadedContext: importText || lastImportText,
-  }), [importText, lastImportText, message, options.aiIncludeNotes, recentContext, sourceScope])
+    uploadedContext,
+  }), [message, options.aiIncludeNotes, recentContext, sourceScope, uploadedContext])
   const activeContract = useMemo(() => promptContracts.find((contract) => contract.mode === activeMode.id), [activeMode.id])
   const availableInsertTargets = useMemo(() => activeContract?.insertTargets || insertTargets, [activeContract?.insertTargets])
   const insertActions = useMemo(() => listInsertActions(availableInsertTargets), [availableInsertTargets])
@@ -155,7 +156,8 @@ export function AiTutorView({
     providerFamily,
     tokenBudget: options.aiMaxTokens,
     effectiveTokenBudget: effectiveMaxTokens,
-  }), [activeMode.label, difficulty, draftStatus, effectiveMaxTokens, gatewayReadiness, insertTarget, language, notes.length, options.aiMaxTokens, outputLength, promptBuild, providerFamily, sourceScope])
+    uploadedContextLength: uploadedContext.length,
+  }), [activeMode.label, difficulty, draftStatus, effectiveMaxTokens, gatewayReadiness, insertTarget, language, notes.length, options.aiMaxTokens, outputLength, promptBuild, providerFamily, sourceScope, uploadedContext.length])
   const previewParts = useMemo(() => splitPromptPreview(promptBuild.preview), [promptBuild.preview])
   const importPreview = useMemo(() => previewImportedLearningContent({ raw: importText, title: importTitle, target: importTarget }), [importTarget, importText, importTitle])
   const providerSummary = useMemo(() => {
