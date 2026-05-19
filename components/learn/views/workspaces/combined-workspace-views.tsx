@@ -33,9 +33,9 @@ const socialTabs: Array<{ id: SocialTab; label: string; icon: ComponentType<{ cl
 
 const socialCommandTabs: Array<{ id: SocialCommandTab; label: string; icon: ComponentType<{ className?: string }> }> = [
   { id: "people", label: "Find", icon: Search },
-  { id: "post", label: "Post", icon: Send },
+  { id: "post", label: "Message", icon: Send },
   { id: "invite", label: "Invite", icon: Mail },
-  { id: "connections", label: "Connections", icon: Users },
+  { id: "connections", label: "Friends", icon: Users },
 ]
 
 export function LearnWorkspaceView({
@@ -398,29 +398,67 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const syncAction = commandActionById.get("sync")
   const postAction = commandActionById.get("post")
   const inviteAction = commandActionById.get("invite")
+  const activeCommand = socialCommandTabs.find((item) => item.id === commandTab) ?? socialCommandTabs[0]
+  const ActiveCommandIcon = activeCommand.icon
 
   return (
     <div className="grid gap-4">
       <Panel className="overflow-hidden p-0">
         <div className="border-b border-border bg-card px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <h3 className="text-xl font-semibold text-foreground">{commandSummary.headline}</h3>
+          <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary/12 text-primary">
+                <Users className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <h3 className="text-xl font-semibold text-foreground">Social hub</h3>
+                <p className="mt-1 truncate text-xs font-semibold text-muted-foreground">{primaryCommand.detail}</p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
               <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">{status}</span>
               <button onClick={() => runPrimaryCommand(primaryCommand.id)} disabled={Boolean(commandAction)} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60" title={primaryCommand.detail} type="button">
                 <Sparkles className="h-4 w-4" />
                 {primaryCommand.label}
               </button>
-              <button onClick={() => void refresh()} disabled={syncAction?.disabled} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60">
-                <Repeat2 className="h-4 w-4" />
-                {syncAction?.busy ? syncAction.busyLabel : syncAction?.label || "Sync"}
-              </button>
+              <details className="relative">
+                <summary className="flex h-9 w-9 list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label="Social options">
+                  <MoreHorizontal className="h-4 w-4" />
+                </summary>
+                <div className="absolute right-0 top-11 z-50 w-64 rounded-md border border-border bg-popover p-2 text-sm text-popover-foreground shadow-xl">
+                  <button onClick={() => void refresh()} disabled={syncAction?.disabled} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left font-semibold hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60">
+                    <Repeat2 className="h-4 w-4" />
+                    {syncAction?.busy ? syncAction.busyLabel : syncAction?.label || "Sync"}
+                  </button>
+                  <div className="mt-2 grid grid-cols-2 gap-1 border-t border-border pt-2">
+                    {commandSummary.chips.map((chip) => (
+                      <span key={chip} className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{chip}</span>
+                    ))}
+                  </div>
+                </div>
+              </details>
             </div>
           </div>
         </div>
-        <div className="grid gap-3 p-4">
+        <div className="grid gap-3 p-3 lg:p-4">
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {flowCards.map((card) => {
+              const Icon = card.id === "chat" ? MessageSquare : card.id === "spaces" ? Users : card.id === "rooms" ? Radio : Swords
+              return (
+                <button key={card.id} onClick={() => open(card.id)} className="group flex min-w-0 items-center gap-3 rounded-md border border-border bg-background p-2.5 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/12 text-primary group-hover:text-accent-foreground">
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-foreground group-hover:text-accent-foreground">{card.label}</span>
+                    <span className="block text-xs text-muted-foreground">{card.count} saved</span>
+                  </span>
+                  <span className={`rounded-md px-2 py-1 text-[0.68rem] font-semibold ${card.ready ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{card.ready ? "Open" : "New"}</span>
+                </button>
+              )
+            })}
+          </div>
+
           <div className="flex gap-1 overflow-x-auto rounded-md border border-border bg-background p-1">
             {socialCommandTabs.map((item) => {
               const Icon = item.icon
@@ -440,7 +478,15 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
             })}
           </div>
 
-          <section className="rounded-lg border border-border bg-background p-3">
+          <section className="rounded-lg border border-border bg-background">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <ActiveCommandIcon className="h-4 w-4 text-primary" />
+                <span className="truncate text-sm font-semibold text-foreground">{activeCommand.label}</span>
+              </div>
+              <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold text-secondary-foreground">{commandCounts[commandTab]}</span>
+            </div>
+            <div className="p-3">
             {commandTab === "people" ? (
               <div className="grid gap-3">
                 <div className="flex items-center gap-2 rounded-md border border-input bg-card px-3">
@@ -567,12 +613,20 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                 </div>
               </div>
             ) : null}
+            </div>
           </section>
         </div>
       </Panel>
 
-      <Panel className="p-2">
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+      <details className="group/advanced rounded-lg border border-border bg-card text-card-foreground shadow-sm">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+          <span className="flex items-center gap-2">
+            <Plus className="h-4 w-4 text-primary" />
+            Create social space
+          </span>
+          <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/advanced:rotate-180" />
+        </summary>
+        <div className="grid gap-2 border-t border-border p-2 md:grid-cols-2 xl:grid-cols-4">
           {flowCards.map((card) => {
             const Icon = card.id === "chat" ? MessageSquare : card.id === "spaces" ? Users : card.id === "rooms" ? Radio : Swords
             const createAction = commandActionById.get(card.id)
@@ -592,7 +646,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
             )
           })}
         </div>
-      </Panel>
+      </details>
     </div>
   )
 }
