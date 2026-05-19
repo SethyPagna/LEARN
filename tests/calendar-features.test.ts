@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, calendarEventDurationMinutes, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda } from "../lib/calendar-features"
+import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, buildCalendarSummaryChips, calendarEventDurationMinutes, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda } from "../lib/calendar-features"
 
 const events = [
   event("study_today", "study", "2026-05-16T02:00:00.000Z", "2026-05-16T02:45:00.000Z"),
@@ -18,6 +18,21 @@ test("calendar agenda summary counts actionable blocks", () => {
   assert.equal(summary.completed, 1)
   assert.equal(summary.review, 1)
   assert.equal(summary.scheduledMinutes, 195)
+})
+
+test("calendar summary chips separate visible planning signals from details", () => {
+  const summary = summarizeCalendarAgenda(events, new Date("2026-05-16T01:00:00.000Z"))
+  const chips = buildCalendarSummaryChips(summary)
+
+  assert.deepEqual(chips.filter((chip) => chip.priority === "primary").map((chip) => chip.id), ["today", "upcoming", "planned"])
+  assert.deepEqual(chips.map((chip) => [chip.label, chip.value]), [
+    ["Today", "2"],
+    ["Upcoming", "3"],
+    ["Planned", "3h 15m"],
+    ["Review", "1"],
+    ["Done", "1"],
+    ["Total", "4"],
+  ])
 })
 
 test("calendar agenda filters by today upcoming review and completed", () => {

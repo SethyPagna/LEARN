@@ -16,6 +16,13 @@ export interface CalendarAgendaSummary {
   scheduledMinutes: number
 }
 
+export interface CalendarSummaryChip {
+  id: "today" | "upcoming" | "planned" | "review" | "completed" | "total"
+  label: string
+  value: string
+  priority: "primary" | "secondary"
+}
+
 export interface CalendarPlanningInput {
   defaultMinutes: number
   leadMinutes: number
@@ -79,6 +86,17 @@ export function summarizeCalendarAgenda(events: CalendarEventLike[], now = new D
   }
 
   return { total: events.length, today, upcoming, completed, review, scheduledMinutes }
+}
+
+export function buildCalendarSummaryChips(summary: CalendarAgendaSummary): CalendarSummaryChip[] {
+  return [
+    { id: "today", label: "Today", value: String(summary.today), priority: "primary" },
+    { id: "upcoming", label: "Upcoming", value: String(summary.upcoming), priority: "primary" },
+    { id: "planned", label: "Planned", value: formatCalendarDuration(summary.scheduledMinutes), priority: "primary" },
+    { id: "review", label: "Review", value: String(summary.review), priority: summary.review ? "secondary" : "primary" },
+    { id: "completed", label: "Done", value: String(summary.completed), priority: "secondary" },
+    { id: "total", label: "Total", value: String(summary.total), priority: "secondary" },
+  ]
 }
 
 export function filterCalendarAgenda<T extends CalendarEventLike>(events: T[], filter: CalendarAgendaFilter, now = new Date()) {
