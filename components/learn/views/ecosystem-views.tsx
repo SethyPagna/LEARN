@@ -992,9 +992,10 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
             >
               <span className="flex min-w-0 items-center justify-between gap-2">
                 <span className="truncate text-sm font-semibold">{card.title}</span>
-                <span className={`rounded px-1.5 py-0.5 text-[0.65rem] font-semibold ${selectedId === item.id ? "bg-primary-foreground/20 text-primary-foreground" : "bg-background text-foreground"}`}>{card.status}</span>
+                <span className={`rounded px-1.5 py-0.5 text-[0.65rem] font-semibold ${selectedId === item.id ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary/15 text-primary"}`}>{card.action}</span>
               </span>
               <span className="mt-2 flex flex-wrap gap-1">
+                <span className={`rounded px-1.5 py-0.5 text-[0.65rem] font-semibold ${selectedId === item.id ? "bg-primary-foreground/15 text-primary-foreground/85" : "bg-background text-foreground"}`}>{card.status}</span>
                 {card.recommended ? <span className={`rounded px-1.5 py-0.5 text-[0.65rem] font-semibold ${selectedId === item.id ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary/15 text-primary"}`}>Recommended</span> : null}
                 {card.meta.map((meta) => (
                   <span key={meta} className={`rounded px-1.5 py-0.5 text-[0.65rem] font-semibold ${selectedId === item.id ? "bg-primary-foreground/15 text-primary-foreground/85" : "bg-muted text-muted-foreground"}`}>{meta}</span>
