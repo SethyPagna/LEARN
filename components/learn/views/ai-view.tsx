@@ -331,10 +331,15 @@ export function AiTutorView({
     setActionStatus("Copied result.")
   }
 
-  function useReplyAsPrompt(mode: WorkspaceOptions["aiMode"], instruction: string) {
-    setOptions({ aiMode: mode })
+  function useReplyAsPrompt(taskKey: AiTaskKey, instruction: string, target: StudioInsertTarget) {
+    const nextMode = tutorModes.find((mode) => mode.id === taskKey)
+    setActiveTaskKey(taskKey)
+    setModeGroup(modeGroupForTask(taskKey))
+    setInsertTarget(target)
+    setSourceScope("Manual only")
+    if (nextMode) setOptions({ aiMode: nextMode.mode as WorkspaceOptions["aiMode"] })
     setMessage(`${instruction}\n\n${reply}`)
-    setActionStatus("Loaded result into the prompt.")
+    setActionStatus(`Loaded result into ${nextMode?.label || "AI"} with ${target} output.`)
   }
 
   return (
@@ -509,11 +514,11 @@ export function AiTutorView({
                 {insertActions.map((action) => <ResultMenuAction key={action.target} label={action.label} onClick={() => insertReply(action.target)} />)}
               </ResultMenu>
               <ResultMenu label="Create">
-                <ResultMenuAction label="Quiz prompt" onClick={() => useReplyAsPrompt("quiz", "Turn this result into a mixed quiz with answers and explanations.")} />
-                <ResultMenuAction label="Flashcards" onClick={() => useReplyAsPrompt("flashcards", "Turn this result into active-recall flashcards and matching pairs.")} />
-                <ResultMenuAction label="Practice" onClick={() => useReplyAsPrompt("quiz", "Create targeted practice from this result with explanations and retry guidance.")} />
-                <ResultMenuAction label="Review cards" onClick={() => useReplyAsPrompt("flashcards", "Create review cards from this result with active-recall prompts.")} />
-                <ResultMenuAction label="Studio format" onClick={() => useReplyAsPrompt("cleanup", "Format this result into clean Studio blocks with headings and next actions.")} />
+                <ResultMenuAction label="Quiz prompt" onClick={() => useReplyAsPrompt("quiz_generation", "Turn this result into a mixed quiz with answers and explanations.", "quiz")} />
+                <ResultMenuAction label="Flashcards" onClick={() => useReplyAsPrompt("flashcard_generation", "Turn this result into active-recall flashcards and matching pairs.", "flashcards")} />
+                <ResultMenuAction label="Practice" onClick={() => useReplyAsPrompt("practice_generator", "Create targeted practice from this result with explanations and retry guidance.", "quiz")} />
+                <ResultMenuAction label="Review cards" onClick={() => useReplyAsPrompt("flashcard_generation", "Create review cards from this result with active-recall prompts.", "review-cards")} />
+                <ResultMenuAction label="Studio format" onClick={() => useReplyAsPrompt("document_formatter", "Format this result into clean Studio blocks with headings and next actions.", "doc-section")} />
               </ResultMenu>
             </div>
             {actionStatus ? <p className="mb-3 rounded-md bg-background px-3 py-2 text-xs font-semibold text-muted-foreground">{actionStatus}</p> : null}
