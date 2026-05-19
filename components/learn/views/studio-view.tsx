@@ -518,6 +518,7 @@ export function StudioView({
   const [section, setSection] = useState("All")
   const [viewMode, setViewMode] = useState<StudioViewMode>("list")
   const [status, setStatus] = useState("Loading Studio...")
+  const [draftNotice, setDraftNotice] = useState("")
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState("")
   const [importOpen, setImportOpen] = useState(false)
@@ -574,9 +575,9 @@ export function StudioView({
   function markDraftSaved(summary: StudioDraftSummary) {
     onDraftSummary?.(summary)
     if (draftStatusTimeout.current) window.clearTimeout(draftStatusTimeout.current)
-    setStatus("Draft saved locally.")
+    setDraftNotice("Draft saved locally")
     draftStatusTimeout.current = window.setTimeout(() => {
-      setStatus((current) => current === "Draft saved locally." ? "" : current)
+      setDraftNotice("")
     }, 1600)
   }
 
@@ -1610,6 +1611,7 @@ export function StudioView({
           </PanelGroup>
         </Panel>
       </div>
+      {draftNotice ? <StudioDraftNotice message={draftNotice} /> : null}
     </div>
   )
 }
@@ -2058,6 +2060,14 @@ function StudioPanePreviewCard({ onOpen, preview }: { onOpen: () => void; previe
 function StudioStatusToast({ message }: { message: string }) {
   return (
     <div aria-live="polite" className="pointer-events-none absolute bottom-3 right-3 z-30 max-w-[min(24rem,calc(100%-1.5rem))] rounded-md border border-border bg-popover/95 px-3 py-2 text-xs font-semibold text-popover-foreground shadow-xl backdrop-blur">
+      {message}
+    </div>
+  )
+}
+
+function StudioDraftNotice({ message }: { message: string }) {
+  return (
+    <div aria-live="polite" className="pointer-events-none fixed bottom-4 right-4 z-50 rounded-full border border-border bg-popover/95 px-3 py-1.5 text-xs font-semibold text-popover-foreground shadow-xl backdrop-blur">
       {message}
     </div>
   )
