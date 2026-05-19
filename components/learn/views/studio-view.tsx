@@ -265,7 +265,17 @@ const docTemplates = {
   presentation: "<h1>Presentation script</h1><h2>Opening</h2><p></p><h2>Three points</h2><ol><li></li><li></li><li></li></ol><h2>Close</h2><p></p>",
 }
 
-const studioTemplates: Record<StudioKind, Array<{ label: string; title: string; body: string }>> = {
+type StudioTemplate = {
+  label: string
+  title: string
+  body: string
+  accent?: string
+  description?: string
+  sections?: string[]
+  style?: string
+}
+
+const studioTemplates: Record<StudioKind, StudioTemplate[]> = {
   notes: [
     { label: "Daily note", title: "Daily learning note", body: "<h2>What I learned today</h2><p></p><h2>Questions</h2><p></p><h2>Review later</h2><p></p>" },
     { label: "Concept card", title: "Concept note", body: "<h2>Concept</h2><p></p><h2>Plain-English explanation</h2><p></p><h2>Example</h2><p></p><h2>Recall prompt</h2><p></p>" },
@@ -913,7 +923,7 @@ export function StudioView({
     updateActivePaneKind(nextKind)
   }
 
-  function applyTemplate(template: { title: string; body: string }) {
+  function applyTemplate(template: StudioTemplate) {
     if (kind === "notes") {
       setNoteDraft((current) => current ? { ...current, title: template.title } : current)
       setNoteHistory(pushHistory(noteHistory, template.body))
@@ -1638,7 +1648,7 @@ function StudioLibrary({
 }: {
   activeKind: StudioKind
   items: StudioListItem[]
-  onApplyTemplate: (template: { title: string; body: string }) => void
+  onApplyTemplate: (template: StudioTemplate) => void
   onArchive: (item: StudioRecordItem) => void
   onAskAi: (item: StudioRecordItem) => void
   onCopy: (item: StudioRecordItem) => void
@@ -1712,16 +1722,83 @@ function StudioLibrary({
           <span className="flex items-center gap-2"><FilePlus2 className="h-3.5 w-3.5" /> Templates</span>
           <ChevronDown className="h-3.5 w-3.5" />
         </summary>
-        <div className="mt-2 grid grid-cols-2 gap-1">
-          {studioTemplates[activeKind].map((template) => (
-            <button key={template.label} onClick={() => onApplyTemplate(template)} className="rounded-md bg-secondary px-2 py-2 text-left text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-              {template.label}
+        <div className="mt-2 grid gap-2">
+          {studioTemplates[activeKind].map((template) => {
+            const meta = getStudioTemplateMeta(activeKind, template)
+            return (
+            <button key={template.label} onClick={() => onApplyTemplate(template)} className="group/template overflow-hidden rounded-md border border-border bg-card text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:bg-accent hover:text-accent-foreground">
+              <span className="block h-1" style={{ background: meta.accent }} />
+              <span className="grid gap-2 p-2.5">
+                <span className="flex items-start justify-between gap-2">
+                  <span>
+                    <span className="block text-xs font-bold text-foreground">{template.label}</span>
+                    <span className="mt-0.5 block text-[0.68rem] font-medium leading-4 text-muted-foreground">{meta.description}</span>
+                  </span>
+                  <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[0.62rem] font-bold uppercase tracking-[0.08em] text-secondary-foreground">{meta.style}</span>
+                </span>
+                <span className="grid grid-cols-3 gap-1" aria-hidden="true">
+                  {meta.sections.slice(0, 3).map((section, index) => (
+                    <span key={`${template.label}_${section}`} className="rounded bg-background p-1">
+                      <span className="block h-1.5 rounded-full" style={{ background: index === 0 ? meta.accent : "hsl(var(--muted-foreground) / 0.28)" }} />
+                      <span className="mt-1 block h-1 rounded-full bg-muted" />
+                    </span>
+                  ))}
+                </span>
+                <span className="flex flex-wrap gap-1">
+                  {meta.sections.slice(0, 4).map((section) => (
+                    <span key={`${template.label}_${section}_chip`} className="rounded-md bg-secondary px-1.5 py-0.5 text-[0.62rem] font-semibold text-secondary-foreground">{section}</span>
+                  ))}
+                </span>
+              </span>
             </button>
-          ))}
+          )})}
         </div>
       </details>
     </div>
   )
+}
+
+function getStudioTemplateMeta(kind: StudioKind, template: StudioTemplate) {
+  const palette: Record<StudioKind, string> = {
+    notes: "hsl(42 92% 55%)",
+    docs: "hsl(204 78% 58%)",
+    sheets: "hsl(151 58% 46%)",
+    slides: "hsl(18 88% 58%)",
+  }
+  const sections = template.sections || extractTemplateSections(kind, template.body)
+  return {
+    accent: template.accent || palette[kind],
+    description: template.description || describeTemplate(kind, template.label),
+    sections,
+    style: template.style || styleForTemplate(kind, template.label),
+  }
+}
+
+function extractTemplateSections(kind: StudioKind, body: string) {
+  if (kind === "sheets") return body.split("\n")[0]?.split(",").slice(0, 4).filter(Boolean) || ["Rows", "Status", "Next"]
+  if (kind === "slides") return body.split("\n").slice(0, 4).map((line) => line.split("|")[0]).filter(Boolean)
+  const headings = Array.from(body.matchAll(/<h[12][^>]*>(.*?)<\/h[12]>/g)).map((match) => stripTags(match[1]).trim()).filter(Boolean)
+  return headings.length ? headings.slice(0, 4) : ["Capture", "Organize", "Review"]
+}
+
+function describeTemplate(kind: StudioKind, label: string) {
+  if (kind === "sheets") return "Structured rows with sortable fields, tracking columns, and export-ready CSV."
+  if (kind === "slides") return "A designed deck skeleton with slide roles, accent labels, and speaker-ready flow."
+  if (kind === "docs") return "A polished long-form document with hierarchy, evidence blocks, and review prompts."
+  if (label.toLowerCase().includes("mistake")) return "A compact repair loop for error, cause, fix, and next review."
+  return "A focused learning canvas with prompts, recall hooks, and clean organization."
+}
+
+function styleForTemplate(kind: StudioKind, label: string) {
+  if (kind === "sheets") return "Grid"
+  if (kind === "slides") return "Deck"
+  if (label.toLowerCase().includes("cornell")) return "Cornell"
+  if (label.toLowerCase().includes("brief")) return "Brief"
+  return kind === "docs" ? "Doc" : "Note"
+}
+
+function stripTags(value: string) {
+  return value.replace(/<[^>]*>/g, "")
 }
 
 function StudioItemButton({
