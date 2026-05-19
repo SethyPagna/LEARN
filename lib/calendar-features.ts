@@ -44,6 +44,19 @@ export interface CalendarDaySegment<T extends CalendarEventLike = CalendarEventL
   totalMinutes: number
 }
 
+export interface CalendarMonthDay<T extends CalendarEventLike = CalendarEventLike> {
+  completedCount: number
+  events: T[]
+  firstEventTime?: string
+  inMonth: boolean
+  isToday: boolean
+  key: string
+  label: string
+  reviewCount: number
+  totalEvents: number
+  totalMinutes: number
+}
+
 const MINUTES_PER_HOUR = 60
 const MS_PER_MINUTE = 60_000
 const HIGH_SCHEDULED_MINUTES = 240
@@ -108,6 +121,46 @@ export function buildCalendarDaySegments<T extends CalendarEventLike>(events: re
   }
 
   return segments
+}
+
+export function buildCalendarMonthGrid<T extends CalendarEventLike>(
+  month: Date,
+  events: readonly T[],
+  now = new Date(),
+): Array<CalendarMonthDay<T>> {
+  const first = new Date(month.getFullYear(), month.getMonth(), 1)
+  const start = new Date(first)
+  start.setDate(first.getDate() - first.getDay())
+  const todayKey = localDateKey(now)
+  const eventsByDay = new Map<string, T[]>()
+
+  for (const event of events) {
+    const key = localDateKey(new Date(event.starts_at))
+    const dayEvents = eventsByDay.get(key) || []
+    dayEvents.push(event)
+    eventsByDay.set(key, dayEvents)
+  }
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(start)
+    date.setDate(start.getDate() + index)
+    const key = localDateKey(date)
+    const dayEvents = [...(eventsByDay.get(key) || [])].sort(compareCalendarEventTimes)
+    const firstEvent = dayEvents[0]
+
+    return {
+      completedCount: dayEvents.filter((event) => event.event_type === "completed").length,
+      events: dayEvents,
+      firstEventTime: firstEvent ? formatCalendarClockTime(new Date(firstEvent.starts_at)) : undefined,
+      inMonth: date.getMonth() === month.getMonth(),
+      isToday: key === todayKey,
+      key,
+      label: String(date.getDate()),
+      reviewCount: dayEvents.filter((event) => event.event_type === "review").length,
+      totalEvents: dayEvents.length,
+      totalMinutes: dayEvents.reduce((sum, event) => sum + calendarEventDurationMinutes(event), 0),
+    }
+  })
 }
 
 export function buildCalendarPlanningSummary(
@@ -179,4 +232,19 @@ export function buildCalendarPlanningSummary(
 
 function dateKey(date: Date) {
   return date.toISOString().slice(0, 10)
+}
+
+function localDateKey(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function compareCalendarEventTimes(first: CalendarEventLike, second: CalendarEventLike) {
+  return Date.parse(first.starts_at) - Date.parse(second.starts_at)
+}
+
+function formatCalendarClockTime(date: Date) {
+  return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
 }
