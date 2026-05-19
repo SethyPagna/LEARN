@@ -15,6 +15,7 @@ import {
   FolderOpen,
   GitFork,
   Lock,
+  Mail,
   MessageSquare,
   MoreHorizontal,
   Network,
@@ -46,7 +47,7 @@ import type {
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
-import { buildSocialActionKit, buildSocialWorkspacePlan, filterSocialRecords, socialRecordTitle, summarizeSocialWorkspace, type SocialActionTarget, type SocialRecordFilter } from "@/lib/social-features"
+import { buildSocialActionKit, buildSocialWorkspacePlan, filterSocialRecords, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialWorkspace, type SocialActionTarget, type SocialRecordFilter } from "@/lib/social-features"
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -622,6 +623,10 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const [query, setQuery] = useState("")
   const [recordFilter, setRecordFilter] = useState<SocialRecordFilter>("all")
   const [message, setMessage] = useState("")
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [inviteRole, setInviteRole] = useState<"learner" | "admin">("learner")
+  const [inviteLink, setInviteLink] = useState("")
+  const [inviteLoading, setInviteLoading] = useState(false)
   const [openSocialMenu, setOpenSocialMenu] = useState<"filters" | "actions" | null>(null)
   const draftHydrated = useRef(false)
   const restoredDraftId = useRef<string | null>(null)
@@ -739,6 +744,29 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   async function copyInvite() {
     await navigator.clipboard?.writeText(actionKit.inviteText).catch(() => undefined)
     setMessage(draft.id ? "Invite text copied." : `Save this ${noun} first, then share the copied invite text.`)
+  }
+
+  async function createSecureInvite() {
+    const validation = normalizeSocialInviteDraft({ email: inviteEmail, role: inviteRole })
+    if (!validation.ok) {
+      setMessage(validation.error)
+      return
+    }
+    setInviteLoading(true)
+    try {
+      const response = await api<{ item: { token: string } }>("/api/invites", {
+        method: "POST",
+        body: JSON.stringify(validation.value),
+      })
+      const link = `${window.location.origin}/invite/${response.item.token}`
+      setInviteLink(link)
+      await navigator.clipboard?.writeText(link).catch(() => undefined)
+      setMessage("Secure invite link created and copied.")
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to create secure invite.")
+    } finally {
+      setInviteLoading(false)
+    }
   }
 
   function openSocialChat() {
@@ -944,16 +972,35 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
           <details className="group/social rounded-md border border-border bg-background">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
               <span>Invite brief</span>
-              <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">copy-ready</span>
+              <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{inviteLink ? "secure link" : "copy-ready"}</span>
               <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/social:rotate-180" />
             </summary>
             <div className="grid gap-2 border-t border-border p-3">
               <p className="rounded-md border border-border bg-card p-3 text-sm leading-6 text-muted-foreground">{actionKit.brief}</p>
               <div className="rounded-md border border-border bg-card p-3 text-sm text-foreground">{actionKit.inviteText}</div>
-              <button onClick={copyInvite} className="inline-flex h-9 w-max items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-                <Copy className="h-4 w-4" />
-                Copy invite text
-              </button>
+              <div className="grid gap-2 rounded-md border border-border bg-card p-2">
+                <div className="grid gap-2 sm:grid-cols-[1fr_120px]">
+                  <label className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <input value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="email@example.com" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none" />
+                  </label>
+                  <select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as "learner" | "admin")} className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none">
+                    <option value="learner">Learner</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button onClick={copyInvite} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+                    <Copy className="h-4 w-4" />
+                    Copy text
+                  </button>
+                  <button disabled={inviteLoading} onClick={createSecureInvite} className="inline-flex h-9 items-center gap-2 rounded-md border border-primary bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60" type="button">
+                    <Mail className="h-4 w-4" />
+                    {inviteLoading ? "Creating..." : "Create invite link"}
+                  </button>
+                </div>
+                {inviteLink ? <p className="truncate rounded-md bg-muted px-2 py-1.5 text-xs font-medium text-muted-foreground">{inviteLink}</p> : null}
+              </div>
             </div>
           </details>
           <details className="group/social rounded-md border border-border bg-background">
