@@ -638,6 +638,17 @@ export function summarizeSocialActions(actions: SocialActionLike[]) {
   }
 }
 
+export function buildSocialActionsPage(actions: SocialActionLike[], limit = 4) {
+  const safeLimit = Math.max(1, limit)
+  const items = actions.slice(0, safeLimit)
+
+  return {
+    hiddenCount: Math.max(0, actions.length - items.length),
+    items,
+    total: actions.length,
+  }
+}
+
 export function formatSocialAction(action: SocialActionLike) {
   const actor = String(action.actor_name || action.actorName || "Someone")
   const type = String(action.action_type || action.actionType || "activity").replace(/_/g, " ")
