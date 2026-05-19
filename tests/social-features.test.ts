@@ -311,8 +311,13 @@ test("social flow cards keep the combined Social entry simple", () => {
 
   assert.deepEqual(cards.map((card) => card.label), ["Chat", "Groups", "Live", "Battles"])
   assert.equal(cards[0].action, "Post first update")
+  assert.equal(cards[0].createAction, "Post update")
+  assert.equal(cards[1].action, "Open groups")
+  assert.equal(cards[1].createAction, "New group")
   assert.equal(cards[1].ready, true)
   assert.equal(cards[2].action, "Start room")
+  assert.equal(cards[2].createAction, "Start room")
+  assert.equal(cards[3].createAction, "New battle")
   assert.equal(cards[3].count, 1)
 })
 

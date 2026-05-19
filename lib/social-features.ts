@@ -208,6 +208,7 @@ export interface SocialFlowCard {
   id: SocialFlowId
   label: string
   action: string
+  createAction: string
   count: number
   ready: boolean
 }
@@ -872,10 +873,10 @@ export function buildSocialFlowCards(input: {
   battleCount: number
 }): SocialFlowCard[] {
   return [
-    { id: "chat", label: "Chat", action: input.threadCount ? "Open threads" : "Post first update", count: input.threadCount, ready: input.threadCount > 0 },
-    { id: "spaces", label: "Groups", action: input.spaceCount ? "Open groups" : "Create group", count: input.spaceCount, ready: input.spaceCount > 0 },
-    { id: "rooms", label: "Live", action: input.roomCount ? "Open room" : "Start room", count: input.roomCount, ready: input.roomCount > 0 },
-    { id: "battles", label: "Battles", action: input.battleCount ? "Play battle" : "Create battle", count: input.battleCount, ready: input.battleCount > 0 },
+    { id: "chat", label: "Chat", action: input.threadCount ? "Open threads" : "Post first update", createAction: "Post update", count: input.threadCount, ready: input.threadCount > 0 },
+    { id: "spaces", label: "Groups", action: input.spaceCount ? "Open groups" : "Create group", createAction: input.spaceCount ? "New group" : "Create group", count: input.spaceCount, ready: input.spaceCount > 0 },
+    { id: "rooms", label: "Live", action: input.roomCount ? "Open room" : "Start room", createAction: input.roomCount ? "New room" : "Start room", count: input.roomCount, ready: input.roomCount > 0 },
+    { id: "battles", label: "Battles", action: input.battleCount ? "Play battle" : "Create battle", createAction: input.battleCount ? "New battle" : "Create battle", count: input.battleCount, ready: input.battleCount > 0 },
   ]
 }
 
