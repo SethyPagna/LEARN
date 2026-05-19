@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildCalendarDaySegments, buildCalendarPlanningSummary, calendarEventDurationMinutes, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda } from "../lib/calendar-features"
+import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, calendarEventDurationMinutes, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda } from "../lib/calendar-features"
 
 const events = [
   event("study_today", "study", "2026-05-16T02:00:00.000Z", "2026-05-16T02:45:00.000Z"),
@@ -46,6 +46,24 @@ test("calendar day segments group blocks into readable day parts", () => {
   assert.deepEqual(segments.map((segment) => segment.id), ["morning", "afternoon", "evening"])
   assert.deepEqual(segments.map((segment) => segment.events[0]?.id), ["morning", "afternoon", "evening"])
   assert.deepEqual(segments.map((segment) => segment.totalMinutes), [45, 60, 30])
+})
+
+test("calendar month grid summarizes visible day workload", () => {
+  const grid = buildCalendarMonthGrid(new Date(2026, 4, 1), [
+    localEvent("review", "review", 9, 30),
+    localEvent("study", "study", 13, 45),
+    localEvent("done", "completed", 18, 15),
+  ], new Date(2026, 4, 16, 8, 0))
+  const day = grid.find((item) => item.key === "2026-05-16")
+
+  assert.equal(grid.length, 42)
+  assert.equal(day?.isToday, true)
+  assert.equal(day?.totalEvents, 3)
+  assert.equal(day?.totalMinutes, 90)
+  assert.equal(day?.reviewCount, 1)
+  assert.equal(day?.completedCount, 1)
+  assert.deepEqual(day?.events.map((item) => item.id), ["review", "study", "done"])
+  assert.ok(day?.firstEventTime)
 })
 
 test("calendar planning summary suggests useful next blocks", () => {
