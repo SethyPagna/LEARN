@@ -30,9 +30,19 @@ export interface ChatComposerPlan {
 }
 
 export type ChatComposerActionId = "send" | "clear-draft" | "use-suggestion"
+export type ChatThreadActionId = "helpful" | "save" | "reply"
 
 export interface ChatComposerActionState {
   id: ChatComposerActionId
+  label: string
+  busyLabel: string
+  helper: string
+  disabled: boolean
+  busy: boolean
+}
+
+export interface ChatThreadActionState {
+  id: ChatThreadActionId
   label: string
   busyLabel: string
   helper: string
@@ -349,6 +359,43 @@ export function buildChatComposerActions(input: {
       busyLabel: "Applying",
       helper: "Apply the recommended intent, filter, or channel.",
       disabled: !input.hasSuggestion,
+    },
+  ]
+
+  return actions.map((action) => ({
+    ...action,
+    busy: input.busyAction === action.id,
+    disabled: busy || action.disabled,
+  }))
+}
+
+export function buildChatThreadActions(input: {
+  busyAction?: ChatThreadActionId | null
+  hasThread?: boolean
+}): ChatThreadActionState[] {
+  const busy = Boolean(input.busyAction)
+  const hasThread = Boolean(input.hasThread)
+  const actions: Array<Omit<ChatThreadActionState, "busy" | "disabled"> & { disabled: boolean }> = [
+    {
+      id: "helpful",
+      label: "Helpful",
+      busyLabel: "Saving",
+      helper: "Mark this thread as useful.",
+      disabled: !hasThread,
+    },
+    {
+      id: "save",
+      label: "Save",
+      busyLabel: "Saving",
+      helper: "Bookmark this thread for later.",
+      disabled: !hasThread,
+    },
+    {
+      id: "reply",
+      label: "Reply",
+      busyLabel: "Opening",
+      helper: "Prepare a reply draft.",
+      disabled: !hasThread,
     },
   ]
 

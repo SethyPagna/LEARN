@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandPrimaryAction, buildSocialCommandSummary, buildSocialFlowCards, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatThreadActions, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandPrimaryAction, buildSocialCommandSummary, buildSocialFlowCards, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -71,6 +71,18 @@ test("buildChatComposerActions gates send clear and suggestions", () => {
   assert.equal(emptyActions.find((action) => action.id === "use-suggestion")?.disabled, false)
   assert.equal(readyActions.find((action) => action.id === "clear-draft")?.disabled, false)
   assert.equal(busyActions.find((action) => action.id === "send")?.busy, true)
+  assert.equal(busyActions.every((action) => action.disabled), true)
+})
+
+test("buildChatThreadActions gates helpful save and reply actions", () => {
+  const missingActions = buildChatThreadActions({ hasThread: false })
+  const readyActions = buildChatThreadActions({ hasThread: true })
+  const busyActions = buildChatThreadActions({ hasThread: true, busyAction: "save" })
+
+  assert.equal(missingActions.every((action) => action.disabled), true)
+  assert.equal(readyActions.find((action) => action.id === "helpful")?.disabled, false)
+  assert.equal(readyActions.find((action) => action.id === "reply")?.helper, "Prepare a reply draft.")
+  assert.equal(busyActions.find((action) => action.id === "save")?.busy, true)
   assert.equal(busyActions.every((action) => action.disabled), true)
 })
 
