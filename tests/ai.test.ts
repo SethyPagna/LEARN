@@ -64,14 +64,15 @@ test("normalizeProviderConfigInput applies safe provider defaults", () => {
   assert.equal(input.providerType, "chat")
   assert.equal(input.requestsPerMinute, 18)
   assert.equal(input.maxInputChars, 16000)
-  assert.equal(input.maxCompletionTokens, 8192)
+  assert.equal(input.maxCompletionTokens, 16384)
   assert.equal(input.endpointOverride, "https://api.groq.com/openai/v1/chat/completions")
 })
 
 test("AI tutor token budget keeps the UI and runtime limits aligned", () => {
   assert.equal(resolveTutorTokenBudget(undefined, 1800), 4096)
   assert.equal(resolveTutorTokenBudget(8192, 1800), 8192)
-  assert.equal(resolveTutorTokenBudget(12000, 8192), 8192)
+  assert.equal(resolveTutorTokenBudget(12000, 8192), 12000)
+  assert.equal(resolveTutorTokenBudget(20000, 16384), 16384)
   assert.equal(resolveTutorTokenBudget(64, 8192), 128)
 })
 
