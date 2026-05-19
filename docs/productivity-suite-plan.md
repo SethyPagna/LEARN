@@ -173,6 +173,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Groups compatibility by adding `/groups` as a friendly route alias for the existing `/spaces` Social surface.
 - 2026-05-19: Continued Groups route polish by making navigation prefer `/groups` while preserving `/spaces` as a compatibility path.
 - 2026-05-19: Continued Studio draft UX refinement by keeping local draft persistence frequent while rate-limiting the visible saved notice so editing no longer feels pushed around.
+- 2026-05-19: Continued Calendar maturity by moving month-grid workload logic into a tested helper and showing event count, first time, and planned minutes directly in each day cell.
 
 ## Implementation Slices
 
