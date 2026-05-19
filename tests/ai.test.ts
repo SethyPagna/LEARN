@@ -18,6 +18,7 @@ import {
   buildAiTutorSourceContext,
   getRecommendedAiTutorTokens,
   resolveAiTutorEffectiveTokens,
+  resolveAiTutorSourceScopeAfterUpload,
   splitPromptPreview,
   summarizeAiTutorUploadedSource,
   summarizeAiTutorWorkflow,
@@ -508,6 +509,28 @@ test("AI tutor uploaded source summary prefers pasted material then saved import
   assert.equal(empty.attached, false)
   assert.equal(empty.badgeCount, 0)
   assert.equal(empty.source, "empty")
+})
+
+test("AI tutor upload source scope follows attached and cleared source", () => {
+  assert.equal(resolveAiTutorSourceScopeAfterUpload({
+    currentScope: "Recent notes",
+    uploadedContextLength: 80,
+  }), "Uploaded files")
+
+  assert.equal(resolveAiTutorSourceScopeAfterUpload({
+    currentScope: "Manual only",
+    uploadedContextLength: 20,
+  }), "Uploaded files")
+
+  assert.equal(resolveAiTutorSourceScopeAfterUpload({
+    currentScope: "Uploaded files",
+    uploadedContextLength: 0,
+  }), "Recent notes")
+
+  assert.equal(resolveAiTutorSourceScopeAfterUpload({
+    currentScope: "Weak topics",
+    uploadedContextLength: 0,
+  }), "Weak topics")
 })
 
 test("AI tutor workflow blocks missing prompts and splits previews", () => {

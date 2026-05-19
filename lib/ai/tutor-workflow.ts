@@ -309,6 +309,15 @@ export function summarizeAiTutorUploadedSource(input: {
   }
 }
 
+export function resolveAiTutorSourceScopeAfterUpload(input: {
+  currentScope: string
+  uploadedContextLength: number
+}) {
+  if (input.uploadedContextLength > 0) return "Uploaded files"
+  if (input.currentScope === "Uploaded files") return "Recent notes"
+  return input.currentScope
+}
+
 export function splitPromptPreview(preview: string) {
   const lines = preview.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
   const requirements: string[] = []
