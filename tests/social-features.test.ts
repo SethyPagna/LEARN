@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatThreadActions, buildChatThreadStatus, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandPrimaryAction, buildSocialCommandSummary, buildSocialFlowCards, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatThreadActions, buildChatThreadStatus, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandPrimaryAction, buildSocialCommandSummary, buildSocialFlowCards, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -278,6 +278,19 @@ test("connections page preserves summary while paging visible records", () => {
   assert.deepEqual(page.items.map((connection) => connection.target_user_id), ["u1", "u2"])
   assert.equal(page.hiddenCount, 1)
   assert.deepEqual(page.summary, { total: 3, friends: 2, follows: 1, pending: 1, blocked: 0 })
+})
+
+test("connection actions gate add follow and remove states", () => {
+  const connectActions = buildConnectionActions({ targetId: "u1" })
+  const removeActions = buildConnectionActions({ connected: true, targetId: "u1" })
+  const busyActions = buildConnectionActions({ busyAction: "follow", busyTargetId: "u1", targetId: "u1" })
+
+  assert.equal(connectActions.find((action) => action.id === "friend")?.disabled, false)
+  assert.equal(connectActions.find((action) => action.id === "remove")?.disabled, true)
+  assert.equal(removeActions.find((action) => action.id === "friend")?.disabled, true)
+  assert.equal(removeActions.find((action) => action.id === "remove")?.disabled, false)
+  assert.equal(busyActions.find((action) => action.id === "follow")?.busy, true)
+  assert.equal(busyActions.every((action) => action.disabled), true)
 })
 
 test("social flow cards keep the combined Social entry simple", () => {

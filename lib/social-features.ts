@@ -167,6 +167,16 @@ export interface UserConnectionLike {
   avatarUrl?: string
 }
 
+export type ConnectionActionId = "friend" | "follow" | "remove"
+
+export interface ConnectionActionState {
+  id: ConnectionActionId
+  label: string
+  busyLabel: string
+  disabled: boolean
+  busy: boolean
+}
+
 export interface SocialCommandSummary {
   headline: string
   peopleReady: boolean
@@ -726,6 +736,43 @@ export function buildConnectionsPage(connections: UserConnectionLike[], limit = 
     summary,
     total: connections.length,
   }
+}
+
+export function buildConnectionActions(input: {
+  busyAction?: ConnectionActionId | null
+  busyTargetId?: string | null
+  connected?: boolean
+  targetId?: string
+}): ConnectionActionState[] {
+  const hasTarget = Boolean(input.targetId?.trim())
+  const busy = Boolean(input.busyAction && input.busyTargetId === input.targetId)
+  const connected = Boolean(input.connected)
+  const actions: Array<Omit<ConnectionActionState, "busy" | "disabled"> & { disabled: boolean }> = [
+    {
+      id: "friend",
+      label: "Add",
+      busyLabel: "Adding",
+      disabled: !hasTarget || connected,
+    },
+    {
+      id: "follow",
+      label: "Follow",
+      busyLabel: "Following",
+      disabled: !hasTarget || connected,
+    },
+    {
+      id: "remove",
+      label: "Remove",
+      busyLabel: "Removing",
+      disabled: !hasTarget || !connected,
+    },
+  ]
+
+  return actions.map((action) => ({
+    ...action,
+    busy: busy && input.busyAction === action.id,
+    disabled: busy || action.disabled,
+  }))
 }
 
 export function buildSocialCommandSummary(input: {
