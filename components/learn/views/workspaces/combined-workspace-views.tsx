@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ComponentType } from "react"
-import { BookOpen, CalendarDays, ChevronDown, Clock, Gamepad2, Info, MessageSquare, MoreHorizontal, Play, Radio, Repeat2, Sparkles, Swords, Target, Trash2, Users } from "lucide-react"
-import type { Quiz, View } from "../../types"
+import { BookOpen, CalendarDays, ChevronDown, Clock, Gamepad2, Info, MessageSquare, MoreHorizontal, Play, Radio, Repeat2, Search, Send, Sparkles, Swords, Target, Trash2, Users } from "lucide-react"
+import type { Quiz, User, View } from "../../types"
 import type { WorkspaceOptions } from "../../preferences"
+import { api } from "../../api"
 import { Panel } from "../../ui"
 import { SocialLearningView } from "../ecosystem-views"
 import { ChatView, GamesView } from "../productivity-views"
@@ -11,9 +12,10 @@ import { QuizView } from "../quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeWorkspacePlan, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
+import { buildChatDraftPayload, buildSocialCommandSummary, filterConnectableMembers, summarizeConnections, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type PracticeTab = "quizzes" | "games"
-type SocialTab = "chat" | "spaces" | "rooms" | "battles"
+type SocialTab = "home" | "chat" | "spaces" | "rooms" | "battles"
 
 const practiceTabs: Array<{ id: PracticeTab; label: string; icon: ComponentType<{ className?: string }>; caption: string }> = [
   { id: "quizzes", label: "Quizzes", icon: BookOpen, caption: "Question banks and attempts" },
@@ -21,10 +23,11 @@ const practiceTabs: Array<{ id: PracticeTab; label: string; icon: ComponentType<
 ]
 
 const socialTabs: Array<{ id: SocialTab; label: string; icon: ComponentType<{ className?: string }>; caption: string }> = [
-  { id: "chat", label: "Chat", icon: MessageSquare, caption: "Async group discussion" },
-  { id: "spaces", label: "Spaces", icon: Users, caption: "Learning circles and permissions" },
-  { id: "rooms", label: "Rooms", icon: Radio, caption: "Focus rooms and presence" },
-  { id: "battles", label: "Battles", icon: Swords, caption: "Live quiz challenges" },
+  { id: "home", label: "Start", icon: Sparkles, caption: "Find people, post, and choose the right social flow" },
+  { id: "chat", label: "Chat", icon: MessageSquare, caption: "Messages and threads" },
+  { id: "spaces", label: "Groups", icon: Users, caption: "Learning circles" },
+  { id: "rooms", label: "Live", icon: Radio, caption: "Focus rooms" },
+  { id: "battles", label: "Battles", icon: Swords, caption: "Quiz challenges" },
 ]
 
 export function LearnWorkspaceView({
@@ -125,7 +128,7 @@ export function PracticeWorkspaceView({
   )
 }
 
-export function SocialWorkspaceView({ initialView, options, setView }: { initialView: View; options: WorkspaceOptions; setView: (view: View) => void }) {
+export function SocialWorkspaceView({ initialView, options, setView, user }: { initialView: View; options: WorkspaceOptions; setView: (view: View) => void; user: User | null }) {
   const [tab, setTab] = useState<SocialTab>(socialTabFromView(initialView))
 
   useEffect(() => {
@@ -135,8 +138,8 @@ export function SocialWorkspaceView({ initialView, options, setView }: { initial
   return (
     <WorkspaceFrame
       eyebrow="Social workspace"
-      title="Social hub"
-      body="Chat, spaces, rooms, and battles stay grouped around opt-in collaboration."
+      title="Social"
+      body="Find people first, then choose chat, groups, live rooms, or battles."
       tabs={socialTabs}
       activeTab={tab}
       setActiveTab={(value) => {
@@ -145,11 +148,206 @@ export function SocialWorkspaceView({ initialView, options, setView }: { initial
         setView(viewFromSocialTab(nextTab))
       }}
     >
+      {tab === "home" ? <SocialCommandCenter currentUserId={user?.id} setActiveTab={setTab} setView={setView} /> : null}
       {tab === "chat" ? <ChatView options={options} /> : null}
       {tab === "spaces" ? <SocialLearningView kind="spaces" setView={setView} /> : null}
       {tab === "rooms" ? <SocialLearningView kind="rooms" setView={setView} /> : null}
       {tab === "battles" ? <SocialLearningView kind="battles" setView={setView} /> : null}
     </WorkspaceFrame>
+  )
+}
+
+function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { currentUserId?: string; setActiveTab: (tab: SocialTab) => void; setView: (view: View) => void }) {
+  const [members, setMembers] = useState<WorkspaceMemberLike[]>([])
+  const [connections, setConnections] = useState<UserConnectionLike[]>([])
+  const [threads, setThreads] = useState<any[]>([])
+  const [counts, setCounts] = useState({ spaces: 0, rooms: 0, battles: 0 })
+  const [query, setQuery] = useState("")
+  const [quickPost, setQuickPost] = useState("")
+  const [status, setStatus] = useState("Loading")
+  const connectionSummary = useMemo(() => summarizeConnections(connections), [connections])
+  const connectableMembers = useMemo(() => filterConnectableMembers(members, connections, currentUserId, query).slice(0, 5), [connections, currentUserId, members, query])
+  const commandSummary = useMemo(() => buildSocialCommandSummary({
+    memberCount: members.length,
+    connectionCount: connectionSummary.total,
+    threadCount: threads.length,
+    spaceCount: counts.spaces,
+    roomCount: counts.rooms,
+    battleCount: counts.battles,
+  }), [connectionSummary.total, counts.battles, counts.rooms, counts.spaces, members.length, threads.length])
+
+  async function refresh() {
+    setStatus("Loading")
+    try {
+      const [memberData, connectionData, chatData, spaceData, roomData, battleData] = await Promise.all([
+        api<{ items: WorkspaceMemberLike[] }>("/api/workspace/members"),
+        api<{ items: UserConnectionLike[] }>("/api/connections"),
+        api<{ items: any[] }>("/api/chat"),
+        api<{ items: any[] }>("/api/learning-spaces"),
+        api<{ items: any[] }>("/api/study-rooms"),
+        api<{ items: any[] }>("/api/study-battles"),
+      ])
+      setMembers(memberData.items)
+      setConnections(connectionData.items)
+      setThreads(chatData.items)
+      setCounts({ spaces: spaceData.items.length, rooms: roomData.items.length, battles: battleData.items.length })
+      setStatus("Ready")
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to load social workspace")
+    }
+  }
+
+  useEffect(() => {
+    refresh().catch(() => undefined)
+  }, [])
+
+  async function connect(member: WorkspaceMemberLike, type: "friend" | "follow") {
+    if (!member.id) return
+    setStatus(type === "friend" ? "Adding friend..." : "Following...")
+    try {
+      await api("/api/connections", {
+        method: "POST",
+        body: JSON.stringify({ targetUserId: member.id, connectionType: type, status: type === "friend" ? "pending" : "accepted" }),
+      })
+      await refresh()
+      setStatus(type === "friend" ? "Friend request ready" : "Following")
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to connect")
+    }
+  }
+
+  async function removeConnection(connection: UserConnectionLike) {
+    const targetUserId = String(connection.target_user_id || connection.targetUserId || "")
+    if (!targetUserId) return
+    const connectionType = String(connection.connection_type || connection.connectionType || "follow")
+    setStatus("Removing...")
+    try {
+      await api("/api/connections", {
+        method: "DELETE",
+        body: JSON.stringify({ targetUserId, connectionType }),
+      })
+      await refresh()
+      setStatus("Removed")
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to remove")
+    }
+  }
+
+  async function sendQuickPost() {
+    if (!quickPost.trim()) return
+    setStatus("Posting...")
+    try {
+      await api("/api/chat", {
+        method: "POST",
+        body: JSON.stringify(buildChatDraftPayload({ body: quickPost, channel: "#general", title: "Social update", intent: quickPost.includes("?") ? "question" : "update" })),
+      })
+      setQuickPost("")
+      setActiveTab("chat")
+      setView("chat")
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to post")
+    }
+  }
+
+  function open(tab: SocialTab) {
+    setActiveTab(tab)
+    setView(viewFromSocialTab(tab))
+  }
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <Panel className="p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-xl font-semibold text-foreground">{commandSummary.headline}</h3>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {commandSummary.chips.map((chip) => <span key={chip} className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{chip}</span>)}
+            </div>
+          </div>
+          <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">{status}</span>
+        </div>
+        <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr]">
+          <div className="rounded-lg border border-border bg-background p-3">
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-primary" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find people" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none" />
+            </div>
+            <div className="mt-3 grid gap-2">
+              {connectableMembers.map((member) => (
+                <div key={member.id || member.email} className="flex items-center justify-between gap-3 rounded-md border border-border bg-card p-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">{member.name || member.email || "Learner"}</p>
+                    <p className="truncate text-xs text-muted-foreground">{member.email || member.role || "Workspace member"}</p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <button onClick={() => void connect(member, "friend")} className="rounded-md bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground">Friend</button>
+                    <button onClick={() => void connect(member, "follow")} className="rounded-md border border-border bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">Follow</button>
+                  </div>
+                </div>
+              ))}
+              {!connectableMembers.length ? <p className="rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">No new people match. Try a name or email.</p> : null}
+            </div>
+            <details className="group/connections mt-3 rounded-md border border-border bg-card">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+                <span>Connections</span>
+                <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                  {connectionSummary.friends} friends
+                  <ChevronDown className="h-4 w-4 transition group-open/connections:rotate-180" />
+                </span>
+              </summary>
+              <div className="grid gap-2 border-t border-border p-2">
+                {connections.slice(0, 6).map((connection) => {
+                  const targetUserId = String(connection.target_user_id || connection.targetUserId || "")
+                  const label = connection.name || connection.username || targetUserId || "Connection"
+                  const type = String(connection.connection_type || connection.connectionType || "follow")
+                  return (
+                    <div key={`${targetUserId}-${type}`} className="flex items-center justify-between gap-2 rounded-md bg-background p-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">{label}</p>
+                        <p className="truncate text-xs text-muted-foreground">{type} - {connection.status || "accepted"}</p>
+                      </div>
+                      <button onClick={() => void removeConnection(connection)} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label={`Remove ${label}`}>
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )
+                })}
+                {!connections.length ? <p className="rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">Connect with someone to keep them here.</p> : null}
+              </div>
+            </details>
+          </div>
+          <div className="rounded-lg border border-border bg-background p-3">
+            <textarea value={quickPost} onChange={(event) => setQuickPost(event.target.value)} placeholder="Post an update or question..." className="min-h-28 w-full resize-none rounded-md border border-input bg-card p-3 text-sm text-foreground outline-none" />
+            <button onClick={sendQuickPost} disabled={!quickPost.trim()} className="mt-2 inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+              <Send className="h-4 w-4" />
+              Post to chat
+            </button>
+          </div>
+        </div>
+      </Panel>
+      <Panel className="p-4">
+        <h3 className="font-semibold text-foreground">Choose a flow</h3>
+        <div className="mt-3 grid gap-2">
+          <SocialFlowButton icon={MessageSquare} label="Chat" meta={`${threads.length} threads`} ready={commandSummary.chatReady} onClick={() => open("chat")} />
+          <SocialFlowButton icon={Users} label="Groups" meta={`${counts.spaces} spaces`} ready={commandSummary.groupsReady} onClick={() => open("spaces")} />
+          <SocialFlowButton icon={Radio} label="Live study" meta={`${counts.rooms} rooms`} ready={commandSummary.liveReady} onClick={() => open("rooms")} />
+          <SocialFlowButton icon={Swords} label="Battles" meta={`${counts.battles} games`} ready={counts.battles > 0} onClick={() => open("battles")} />
+        </div>
+      </Panel>
+    </div>
+  )
+}
+
+function SocialFlowButton({ icon: Icon, label, meta, onClick, ready }: { icon: ComponentType<{ className?: string }>; label: string; meta: string; onClick: () => void; ready: boolean }) {
+  return (
+    <button onClick={onClick} className="flex items-center gap-3 rounded-md border border-border bg-background p-3 text-left hover:bg-accent hover:text-accent-foreground">
+      <Icon className="h-5 w-5 text-primary" />
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold text-foreground">{label}</span>
+        <span className="block text-xs text-muted-foreground">{meta}</span>
+      </span>
+      <span className={`rounded-md px-2 py-1 text-[0.68rem] font-semibold ${ready ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{ready ? "ready" : "start"}</span>
+    </button>
   )
 }
 
@@ -438,13 +636,16 @@ function viewFromPracticeTab(tab: PracticeTab): View {
 }
 
 function socialTabFromView(view: View): SocialTab {
+  if (view === "social") return "home"
+  if (view === "chat") return "chat"
   if (view === "spaces") return "spaces"
   if (view === "rooms") return "rooms"
   if (view === "battles") return "battles"
-  return "chat"
+  return "home"
 }
 
 function viewFromSocialTab(tab: SocialTab): View {
+  if (tab === "home") return "social"
   return tab
 }
 
