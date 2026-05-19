@@ -995,16 +995,23 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search admin data" className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
           </label>
         </div>
-        <div className="mt-5 grid gap-3 md:grid-cols-4">
-          {adminSummary.cards.map((card) => (
-            <button key={card.id} onClick={() => setTab(tabFromCard(card.id))} className="group relative rounded-md border border-border bg-background p-4 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{card.label}</p>
-              <p className="mt-2 text-2xl font-semibold text-foreground">{card.value}</p>
-              <span className="mt-3 inline-flex"><SharedStatusPill label={card.tone} tone={settingsTone(card.tone)} /></span>
-              <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{card.detail}</p>
-            </button>
-          ))}
-        </div>
+        <details className="mt-5 rounded-md border border-border bg-background">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+            <span>Admin signals</span>
+            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{adminSummary.cards.length}</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </summary>
+          <div className="grid gap-3 border-t border-border p-3 md:grid-cols-4">
+            {adminSummary.cards.map((card) => (
+              <button key={card.id} onClick={() => setTab(tabFromCard(card.id))} className="group relative rounded-md border border-border bg-card p-4 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{card.label}</p>
+                <p className="mt-2 text-2xl font-semibold text-foreground">{card.value}</p>
+                <span className="mt-3 inline-flex"><SharedStatusPill label={card.tone} tone={settingsTone(card.tone)} /></span>
+                <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{card.detail}</p>
+              </button>
+            ))}
+          </div>
+        </details>
         <button onClick={() => setTab(adminPlan.targetTab)} className="mt-4 flex w-full items-center justify-between gap-3 rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold text-foreground">{adminPlan.headline}</span>
