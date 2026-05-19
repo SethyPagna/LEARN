@@ -47,7 +47,7 @@ import type {
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
-import { buildSocialActionKit, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, formatSocialAction, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, formatSocialAction, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -665,6 +665,10 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
     mode: draft.mode,
     topic: kind === "spaces" ? draft.topicTags.split(",")[0]?.trim() : draft.topic,
   }), [draft, kind])
+  const readyActions = useMemo(
+    () => actionKit.actions.map((action) => buildSocialActionReadiness(kind, action, Boolean(draft.id))),
+    [actionKit.actions, draft.id, kind],
+  )
   const activityTimeline = useMemo(() => buildSocialActivityTimeline({
     kind,
     title: socialTitle(draft),
@@ -867,6 +871,11 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   }
 
   async function runSocialAction(target: SocialActionTarget) {
+    if (!draft.id) {
+      setDetailTab("actions")
+      setMessage(`Save this ${noun} before using record actions.`)
+      return
+    }
     if (target === "invite") {
       await copyInvite()
       return
@@ -1054,18 +1063,19 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-4">
-                  {actionKit.actions.map((action) => {
+                  {readyActions.map((action) => {
                     const ActionIcon = socialActionIcon(action.id)
                     return (
                       <button
                         key={action.id}
+                        disabled={!action.enabled}
                         onClick={() => void runSocialAction(action.id)}
-                        className="group min-h-14 rounded-md border border-border bg-card p-2 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground"
+                        className="group min-h-14 rounded-md border border-border bg-card p-2 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:bg-card disabled:hover:text-foreground"
                         title={action.detail}
                         type="button"
                       >
-                        <ActionIcon className="h-4 w-4 text-primary group-hover:text-accent-foreground" />
-                        <span className="mt-1 block truncate text-xs font-semibold text-foreground group-hover:text-accent-foreground">{action.label}</span>
+                        <ActionIcon className="h-4 w-4 text-primary group-hover:text-accent-foreground group-disabled:group-hover:text-primary" />
+                        <span className="mt-1 block truncate text-xs font-semibold text-foreground group-hover:text-accent-foreground group-disabled:group-hover:text-foreground">{action.label}</span>
                       </button>
                     )
                   })}
