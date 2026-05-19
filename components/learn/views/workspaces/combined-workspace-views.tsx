@@ -12,7 +12,7 @@ import { QuizView } from "../quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeWorkspacePlan, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialCommandSummary, buildSocialFlowCards, summarizeConnections, type SocialFlowId, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialCommandPrimaryAction, buildSocialCommandSummary, buildSocialFlowCards, summarizeConnections, type SocialCommandPrimaryActionId, type SocialFlowId, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type PracticeTab = "quizzes" | "games"
 type SocialTab = "home" | "chat" | "spaces" | "rooms" | "battles"
@@ -190,6 +190,14 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     roomCount: counts.rooms,
     battleCount: counts.battles,
   }), [connectionSummary.total, counts.battles, counts.rooms, counts.spaces, members.length, threads.length])
+  const primaryCommand = useMemo(() => buildSocialCommandPrimaryAction({
+    memberCount: members.length,
+    connectionCount: connectionSummary.total,
+    threadCount: threads.length,
+    spaceCount: counts.spaces,
+    roomCount: counts.rooms,
+    battleCount: counts.battles,
+  }), [connectionSummary.total, counts.battles, counts.rooms, counts.spaces, members.length, threads.length])
   const flowCards = useMemo(() => buildSocialFlowCards({
     threadCount: threads.length,
     spaceCount: counts.spaces,
@@ -328,6 +336,27 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     setView(viewFromSocialTab(tab))
   }
 
+  function runPrimaryCommand(id: SocialCommandPrimaryActionId) {
+    if (id === "find") {
+      setCommandTab("people")
+      return
+    }
+    if (id === "invite") {
+      setCommandTab("invite")
+      return
+    }
+    if (id === "post") {
+      setCommandTab("post")
+      return
+    }
+    const count = id === "spaces" ? counts.spaces : id === "rooms" ? counts.rooms : id === "battles" ? counts.battles : threads.length
+    if (count > 0) {
+      open(id)
+      return
+    }
+    void createSocialPlace(id)
+  }
+
   return (
     <div className="grid gap-4">
       <Panel className="overflow-hidden p-0">
@@ -338,6 +367,10 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
             </div>
             <div className="flex items-center gap-2">
               <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">{status}</span>
+              <button onClick={() => runPrimaryCommand(primaryCommand.id)} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground" title={primaryCommand.detail} type="button">
+                <Sparkles className="h-4 w-4" />
+                {primaryCommand.label}
+              </button>
               <button onClick={() => void refresh()} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
                 <Repeat2 className="h-4 w-4" />
                 Sync
