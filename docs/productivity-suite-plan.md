@@ -190,6 +190,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-20: Continued Practice UX by merging progress, timer, draft status, target presets, reset, and clear actions into a tested compact session bar.
 - 2026-05-20: Continued Dashboard UX by collapsing secondary route moves, setup gaps, signals, and quick actions into compact menus while keeping every action available.
 - 2026-05-20: Continued public-entry reliability by stabilizing theme hydration on login/intro controls and removing corrupted public language labels.
+- 2026-05-20: Continued sidebar refinement by making compact desktop navigation a true icon-only rail while preserving labeled groups on mobile.
 
 ## Implementation Slices
 
