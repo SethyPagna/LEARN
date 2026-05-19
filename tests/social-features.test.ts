@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialWorkspacePlan, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -138,6 +138,21 @@ test("workspace member helpers summarize and filter people context", () => {
   assert.equal(summary.pending, 1)
   assert.equal(summary.newest?.name, "Pending Friend")
   assert.deepEqual(filterWorkspaceMembers(members, "admin").map((member) => member.email), ["admin@example.com"])
+})
+
+test("workspace members page keeps people drawers expandable", () => {
+  const members = [
+    { id: "u1", name: "Alex", role: "admin" },
+    { id: "u2", name: "Mina", role: "learner" },
+    { id: "u3", name: "Sam", role: "learner" },
+  ]
+  const page = buildWorkspaceMembersPage(members, "", 2)
+
+  assert.deepEqual(page.items.map((member) => member.id), ["u1", "u2"])
+  assert.equal(page.total, 3)
+  assert.equal(page.hiddenCount, 1)
+  assert.equal(page.emptyAction, "invite")
+  assert.equal(buildWorkspaceMembersPage(members, "missing").emptyAction, "clear-search")
 })
 
 test("connection helpers find connectable people and summarize social setup", () => {
