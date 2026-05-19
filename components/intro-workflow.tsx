@@ -73,7 +73,7 @@ const workflowSlides = [
     step: "06",
     label: "Social",
     title: "Share when it helps, stay private by default.",
-    body: "Spaces, rooms, chats, battles, and invites are grouped around learning, with private vault work still protected.",
+    body: "Groups, rooms, chats, battles, and invites are grouped around learning, with private vault work still protected.",
     icon: MessageSquare,
     color: "rose",
     signals: ["Focus room live", "2 group notes", "Battle starts soon"],
@@ -123,7 +123,7 @@ const workflowTranslations: Partial<Record<SupportedLocale, {
       ai: { label: "Tuteur IA", title: "Utilisez l'IA avec du contexte.", body: "La tâche, les filtres, la passerelle, les sources et la destination restent visibles avant l'envoi.", signals: ["12 fournisseurs prêts", "Cible quiz choisie", "Aperçu vérifié"] },
       practice: { label: "Pratique", title: "Transformez le savoir en répétitions.", body: "Quiz, cartes, sprints chronométrés, reprises d'erreurs et explications reviennent vers Studio et Reviews.", signals: ["8 questions", "Objectif 4 min", "Erreurs en revue"] },
       calendar: { label: "Calendrier", title: "Protégez le temps d'étude.", body: "Mois, jour, agenda, révisions dues et blocs focus rendent l'apprentissage visible dans le temps.", signals: ["3 révisions dues", "45 min focus", "Fuseau horaire prêt"] },
-      social: { label: "Social", title: "Partagez quand c'est utile, privé par défaut.", body: "Espaces, salles, chats, défis et invitations sont centrés sur l'apprentissage, avec votre coffre privé protégé.", signals: ["Salle focus active", "2 notes de groupe", "Défi bientôt"] },
+      social: { label: "Social", title: "Partagez quand c'est utile, privé par défaut.", body: "Groupes, salles, chats, défis et invitations sont centrés sur l'apprentissage, avec votre coffre privé protégé.", signals: ["Salle focus active", "2 notes de groupe", "Défi bientôt"] },
     },
   },
   km: {
@@ -137,7 +137,7 @@ const workflowTranslations: Partial<Record<SupportedLocale, {
       ai: { label: "គ្រូ AI", title: "ប្រើ AI ជាមួយបរិបទច្បាស់។", body: "ភារកិច្ច តម្រង ស្ថានភាព gateway ឯកសារយោង និងគោលដៅបញ្ចូល ត្រូវបានបង្ហាញមុនដំណើរការ។", signals: ["អ្នកផ្តល់ 12 រួចរាល់", "ជ្រើសគោលដៅ quiz", "ពិនិត្យ prompt"] },
       practice: { label: "អនុវត្ត", title: "បម្លែងចំណេះដឹងទៅជាការហាត់។", body: "Quiz, flashcards, sprint, ការហាត់កំហុស និងការពន្យល់ភ្ជាប់ត្រឡប់ទៅ Studio និង Reviews។", signals: ["សំណួរ 8", "គោលដៅ 4 នាទី", "រក្សាកំហុសទៅ review"] },
       calendar: { label: "ប្រតិទិន", title: "ការពារពេលសិក្សា។", body: "ខែ ថ្ងៃ កាលវិភាគ ការរំលឹកដល់កំណត់ និង focus blocks ធ្វើឱ្យការសិក្សាមើលឃើញតាមពេលវេលា។", signals: ["review ដល់កំណត់ 3", "focus 45 នាទី", "តំបន់ពេលវេលា"] },
-      social: { label: "សង្គម", title: "ចែករំលែកនៅពេលមានប្រយោជន៍ ឯកជនជាលំនាំដើម។", body: "Spaces, rooms, chats, battles និង invites ត្រូវបានរៀបចំជុំវិញការសិក្សា ខណៈ vault ឯកជននៅតែការពារ។", signals: ["បន្ទប់ focus កំពុងដំណើរការ", "កំណត់ចំណាំក្រុម 2", "battle ជិតចាប់ផ្តើម"] },
+      social: { label: "សង្គម", title: "ចែករំលែកនៅពេលមានប្រយោជន៍ ឯកជនជាលំនាំដើម។", body: "Groups, rooms, chats, battles និង invites ត្រូវបានរៀបចំជុំវិញការសិក្សា ខណៈ vault ឯកជននៅតែការពារ។", signals: ["បន្ទប់ focus កំពុងដំណើរការ", "កំណត់ចំណាំក្រុម 2", "battle ជិតចាប់ផ្តើម"] },
     },
   },
 }

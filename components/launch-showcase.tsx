@@ -67,10 +67,10 @@ const showcaseSlides = [
     key: "social",
     label: "Social",
     title: "Learn with others",
-    body: "Spaces, rooms, chat, battles, invites, and shared progress are available without crowding the personal vault.",
+    body: "Groups, rooms, chat, battles, invites, and shared progress are available without crowding the personal vault.",
     accent: "from-rose-200 to-orange-300",
     icon: MessageSquare,
-    bullets: ["Spaces", "Chat", "Study battles"],
+    bullets: ["Groups", "Chat", "Study battles"],
   },
 ] as const
 
@@ -375,7 +375,7 @@ function SocialPreview() {
     <PreviewFrame title="Social">
       <div className="grid gap-3 md:grid-cols-[230px_1fr]">
         <aside className="rounded-2xl bg-slate-950 p-4 text-white">
-          {["Learning spaces", "Study rooms", "Battles"].map((item) => <div key={item} className="mb-2 rounded-lg bg-white/10 p-3 text-sm">{item}</div>)}
+          {["Learning groups", "Study rooms", "Battles"].map((item) => <div key={item} className="mb-2 rounded-lg bg-white/10 p-3 text-sm">{item}</div>)}
         </aside>
         <section className="rounded-2xl bg-white p-4">
           <div className="flex items-center gap-3">
