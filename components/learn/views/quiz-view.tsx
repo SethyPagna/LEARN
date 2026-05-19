@@ -8,7 +8,7 @@ import { api } from "../api"
 import { ControlButton, EmptyState, Panel, StatusPill } from "../ui"
 import { menuSurfaceClasses, toneTextClasses } from "@/lib/design-system"
 import { clearPracticeDraft, hasPracticeDraftContent, readPracticeDraft, writePracticeDraft } from "@/lib/practice-drafts"
-import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, filterPracticeQuestions, practiceModeGroups, practiceModeLabel, summarizePracticeAttempt, summarizePracticeMode, type PracticeQuestionFilter } from "@/lib/practice-features"
+import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, filterPracticeQuestions, practiceModeGroups, practiceModeLabel, summarizePracticeAttempt, summarizePracticeMode, type PracticeQuestionFilter, type PracticeRunActionId } from "@/lib/practice-features"
 
 const questionFilters: Array<{ id: PracticeQuestionFilter; label: string }> = [
   { id: "all", label: "All" },
@@ -42,6 +42,8 @@ export function QuizView({
   const [questionFilter, setQuestionFilter] = useState<PracticeQuestionFilter>("all")
   const [reviewCardStatus, setReviewCardStatus] = useState("")
   const [draftStatus, setDraftStatus] = useState("")
+  const [practiceAction, setPracticeAction] = useState<PracticeRunActionId | null>(null)
+  const [practiceStatus, setPracticeStatus] = useState("")
   const selected = selectedQuizId || quizzes[0]?.id
   const defaultPracticeMode: PracticeMode = options.quizMode === "exam" ? "exam" : "quiz"
   const visibleQuestions = useMemo(() => {
@@ -65,6 +67,8 @@ export function QuizView({
       setResult(null)
       setAttemptSummary(null)
       setReviewCardStatus("")
+      setPracticeAction(null)
+      setPracticeStatus("")
       setRetryQuestionIds(draft?.retryQuestionIds || [])
       setMarkedQuestionIds(draft?.markedQuestionIds || [])
       setQuestionFilter(draft?.questionFilter || "all")
@@ -113,7 +117,7 @@ export function QuizView({
   }, [answers, defaultPracticeMode, draftElapsedBucket, markedQuestionIds, paused, practiceMode, questionFilter, quiz, result, retryQuestionIds, startedAt, targetMinutes])
 
   async function submit() {
-    if (!quiz) return
+    if (!quiz || practiceAction) return
     const durationSeconds = paused ? elapsedSeconds : currentElapsedSeconds(startedAt)
     const submittedAnswers = Object.entries(answers).map(([questionId, selectedAnswerId]) => ({ questionId, selectedAnswerId }))
     const summary = summarizePracticeAttempt({
@@ -122,24 +126,33 @@ export function QuizView({
       answers: submittedAnswers,
       durationSeconds,
     })
-    const response = await api<any>("/api/quizzes/attempts", {
-      method: "POST",
-      body: JSON.stringify({
-        quizId: quiz.id,
-        answers: submittedAnswers,
-        durationSeconds,
-      }),
-    })
-    setElapsedSeconds(durationSeconds)
-    setResult(response)
-    setAttemptSummary(summary)
-    setReviewCardStatus("")
-    clearPracticeDraft(quiz.id)
-    setDraftStatus("Attempt submitted. Draft cleared.")
+    setPracticeAction("submit")
+    setPracticeStatus("")
+    try {
+      const response = await api<any>("/api/quizzes/attempts", {
+        method: "POST",
+        body: JSON.stringify({
+          quizId: quiz.id,
+          answers: submittedAnswers,
+          durationSeconds,
+        }),
+      })
+      setElapsedSeconds(durationSeconds)
+      setResult(response)
+      setAttemptSummary(summary)
+      setReviewCardStatus("")
+      setPracticeStatus(`Submitted: ${summary.score}/${summary.total}.`)
+      clearPracticeDraft(quiz.id)
+      setDraftStatus("Attempt submitted. Draft cleared.")
+    } catch (error) {
+      setPracticeStatus(error instanceof Error ? error.message : "Unable to submit this attempt.")
+    } finally {
+      setPracticeAction(null)
+    }
   }
 
   function discardDraft() {
-    if (!quiz) return
+    if (!quiz || practiceAction) return
     clearPracticeDraft(quiz.id)
     setAnswers({})
     setRetryQuestionIds([])
@@ -148,6 +161,7 @@ export function QuizView({
     setPracticeMode(defaultPracticeMode)
     resetTimer()
     setDraftStatus("Draft cleared.")
+    setPracticeStatus("")
   }
 
   function resetTimer() {
@@ -167,7 +181,7 @@ export function QuizView({
   }
 
   function retryMissed() {
-    if (!attemptSummary?.missedQuestionIds.length) return
+    if (practiceAction || !attemptSummary?.missedQuestionIds.length) return
     setRetryQuestionIds(attemptSummary.missedQuestionIds)
     setMarkedQuestionIds(attemptSummary.missedQuestionIds)
     setQuestionFilter("all")
@@ -175,24 +189,36 @@ export function QuizView({
     setResult(null)
     setAttemptSummary(null)
     setPracticeMode("mistake-retry")
+    setReviewCardStatus("")
+    setPracticeStatus(`Retrying ${attemptSummary.missedQuestionIds.length} missed questions.`)
     resetTimer()
   }
 
   async function saveMissesToReviews() {
-    if (!quiz || !attemptSummary?.missedQuestionIds.length) return
+    if (!quiz || practiceAction || !attemptSummary?.missedQuestionIds.length) return
     const items = buildPracticeReviewCards({
       quizId: quiz.id,
       quizTitle: quiz.title,
       questions: visibleQuestions,
       missedQuestionIds: attemptSummary.missedQuestionIds,
     })
-    if (!items.length) return
+    if (!items.length) {
+      setReviewCardStatus("No missed questions are ready for review cards.")
+      return
+    }
+    setPracticeAction("save-review-cards")
     setReviewCardStatus("Saving review cards...")
-    const response = await api<{ item: { count: number } }>("/api/reviews", {
-      method: "POST",
-      body: JSON.stringify({ items }),
-    })
-    setReviewCardStatus(`Saved ${response.item.count} review cards.`)
+    try {
+      const response = await api<{ item: { count: number } }>("/api/reviews", {
+        method: "POST",
+        body: JSON.stringify({ items }),
+      })
+      setReviewCardStatus(`Saved ${response.item.count} review cards.`)
+    } catch (error) {
+      setReviewCardStatus(error instanceof Error ? error.message : "Unable to save review cards.")
+    } finally {
+      setPracticeAction(null)
+    }
   }
 
   const remainingSeconds = Math.max(0, targetMinutes * 60 - elapsedSeconds)
@@ -210,6 +236,14 @@ export function QuizView({
   const reviewPlan = useMemo(() => (
     attemptSummary ? buildPracticeReviewPlan({ summary: attemptSummary, questions: visibleQuestions }) : null
   ), [attemptSummary, visibleQuestions])
+  const runActions = useMemo(() => buildPracticeRunActions({
+    busyAction: practiceAction,
+    hasAttempt: Boolean(attemptSummary),
+    hasQuiz: Boolean(quiz && visibleQuestions.length),
+    missedCount,
+    retryActive: retryQuestionIds.length > 0,
+  }), [attemptSummary, missedCount, practiceAction, quiz, retryQuestionIds.length, visibleQuestions.length])
+  const runActionById = useMemo(() => new Map(runActions.map((action) => [action.id, action])), [runActions])
 
   function toggleMarked(questionId: string) {
     setMarkedQuestionIds((current) => (
@@ -294,9 +328,9 @@ export function QuizView({
                     )
                   })}
                 </PracticeMenu>
-                <ControlButton onClick={submit} active size="compact">
+                <ControlButton onClick={submit} active size="compact" disabled={runActionById.get("submit")?.disabled}>
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  Submit
+                  {runActionById.get("submit")?.busy ? runActionById.get("submit")?.busyLabel : "Submit"}
                 </ControlButton>
               </div>
             </div>
@@ -313,6 +347,7 @@ export function QuizView({
               totalCount={visibleQuestions.length}
             />
             <QuizTimerControls paused={paused} setPaused={setPracticePaused} targetMinutes={targetMinutes} elapsedSeconds={elapsedSeconds} remainingSeconds={remainingSeconds} resetTimer={resetTimer} setTargetMinutes={setTargetMinutes} />
+            {practiceStatus ? <p className="mt-3 rounded-md bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground">{practiceStatus}</p> : null}
             {missedCount ? <div className="mt-3"><StatusPill label={`${missedCount} to repair`} tone="watch" /></div> : null}
             <div className="mt-5 space-y-3">
               {filteredQuestions.map((question, index) => {
@@ -383,9 +418,13 @@ export function QuizView({
                   </div>
                 ) : null}
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <ControlButton onClick={retryMissed} disabled={!attemptSummary.missedQuestionIds.length} size="compact">Retry missed</ControlButton>
-                  <ControlButton onClick={saveMissesToReviews} disabled={!attemptSummary.missedQuestionIds.length} size="compact">Save review cards</ControlButton>
-                  <ControlButton onClick={() => setRetryQuestionIds([])} size="compact">Full set</ControlButton>
+                  <ControlButton onClick={retryMissed} disabled={runActionById.get("retry-missed")?.disabled} size="compact" title={runActionById.get("retry-missed")?.helper}>
+                    {runActionById.get("retry-missed")?.busy ? runActionById.get("retry-missed")?.busyLabel : "Retry missed"}
+                  </ControlButton>
+                  <ControlButton onClick={saveMissesToReviews} disabled={runActionById.get("save-review-cards")?.disabled} size="compact" title={runActionById.get("save-review-cards")?.helper}>
+                    {runActionById.get("save-review-cards")?.busy ? runActionById.get("save-review-cards")?.busyLabel : "Save review cards"}
+                  </ControlButton>
+                  <ControlButton onClick={() => { setRetryQuestionIds([]); setPracticeStatus("Full question set restored.") }} disabled={runActionById.get("full-set")?.disabled} size="compact" title={runActionById.get("full-set")?.helper}>Full set</ControlButton>
                 </div>
                 {reviewCardStatus ? <p className="mt-2 rounded-md bg-background px-3 py-2 text-xs font-semibold text-foreground">{reviewCardStatus}</p> : null}
               </div>
