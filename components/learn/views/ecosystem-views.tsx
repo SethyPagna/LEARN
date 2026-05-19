@@ -47,7 +47,7 @@ import type {
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
-import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -665,6 +665,12 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
     total: items.length,
     visible: recordPage.total,
   }), [items.length, query, recordFilter, recordPage.total, socialPlan.emptyHint, title])
+  const recordFilterSummary = useMemo(() => buildSocialRecordFilterSummary({
+    filter: recordFilter,
+    query,
+    total: items.length,
+    visible: recordPage.total,
+  }), [items.length, query, recordFilter, recordPage.total])
   const memberPage = useMemo(() => buildWorkspaceMembersPage(memberItems, memberQuery, memberLimit), [memberItems, memberLimit, memberQuery])
   const filteredMembers = memberPage.items
   const activityPage = useMemo(() => buildSocialActionsPage(recentActionItems, activityLimit), [activityLimit, recentActionItems])
@@ -965,27 +971,35 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
           <div className="flex min-w-0 flex-wrap gap-1">
             <SocialSummaryChip label="Showing" value={recordFilter} />
             <SocialSummaryChip label="Visible" value={`${filteredItems.length}/${recordPage.total}`} />
+            {recordFilterSummary.active ? <span className="rounded-md bg-warning/15 px-2 py-1 text-xs font-semibold text-warning">{recordFilterSummary.label}</span> : null}
           </div>
-          <SocialMenu icon={SlidersHorizontal} label="Filters" menuId="filters" openMenu={openSocialMenu} setOpenMenu={setOpenSocialMenu}>
-            <SocialMenuSection title="Show records">
-              {filterOptions.map((option) => {
-                const count = filterSocialRecords(items, { query, filter: option }).length
-                return (
-                  <SocialMenuAction
-                    key={option}
-                    active={recordFilter === option}
-                    icon={SlidersHorizontal}
-                    label={socialFilterLabel(option)}
-                    meta={`${count} ${noun}${count === 1 ? "" : "s"}`}
-                    onClick={() => {
-                      setRecordFilter(option)
-                      setOpenSocialMenu(null)
-                    }}
-                  />
-                )
-              })}
-            </SocialMenuSection>
-          </SocialMenu>
+          <div className="flex items-center gap-2">
+            {recordFilterSummary.active ? (
+              <button onClick={clearRecordFilters} className="h-9 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+                Clear
+              </button>
+            ) : null}
+            <SocialMenu icon={SlidersHorizontal} label="Filters" menuId="filters" openMenu={openSocialMenu} setOpenMenu={setOpenSocialMenu}>
+              <SocialMenuSection title="Show records">
+                {filterOptions.map((option) => {
+                  const count = filterSocialRecords(items, { query, filter: option }).length
+                  return (
+                    <SocialMenuAction
+                      key={option}
+                      active={recordFilter === option}
+                      icon={SlidersHorizontal}
+                      label={socialFilterLabel(option)}
+                      meta={`${count} ${noun}${count === 1 ? "" : "s"}`}
+                      onClick={() => {
+                        setRecordFilter(option)
+                        setOpenSocialMenu(null)
+                      }}
+                    />
+                  )
+                })}
+              </SocialMenuSection>
+            </SocialMenu>
+          </div>
         </div>
         <details className="mt-3 rounded-md border border-border bg-background">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
