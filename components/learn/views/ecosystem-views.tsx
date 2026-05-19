@@ -47,7 +47,7 @@ import type {
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
-import { buildSocialActionKit, buildSocialActivityTimeline, buildSocialWorkspacePlan, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildSocialActionKit, buildSocialActivityTimeline, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, formatSocialAction, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -632,6 +632,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const [inviteLoading, setInviteLoading] = useState(false)
   const [openSocialMenu, setOpenSocialMenu] = useState<"filters" | "actions" | null>(null)
   const [detailTab, setDetailTab] = useState<SocialDetailTab>("actions")
+  const [memberLimit, setMemberLimit] = useState(10)
   const draftHydrated = useRef(false)
   const restoredDraftId = useRef<string | null>(null)
   const items = useMemo(() => data?.items ?? [], [data?.items])
@@ -646,7 +647,8 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const actionSummary = useMemo(() => summarizeSocialActions(recentActionItems), [recentActionItems])
   const socialPlan = useMemo(() => buildSocialWorkspacePlan(kind, socialSummary), [kind, socialSummary])
   const filteredItems = useMemo(() => filterSocialRecords(items, { query, filter: recordFilter }) as Array<LearningSpace | StudyRoom | StudyBattle>, [items, query, recordFilter])
-  const filteredMembers = useMemo(() => filterWorkspaceMembers(memberItems, memberQuery), [memberItems, memberQuery])
+  const memberPage = useMemo(() => buildWorkspaceMembersPage(memberItems, memberQuery, memberLimit), [memberItems, memberLimit, memberQuery])
+  const filteredMembers = memberPage.items
   const filterOptions = useMemo(() => socialFilterOptions(kind), [kind])
   const workflowSteps = useMemo(() => socialWorkflowSteps(kind, Boolean(draft.id)), [draft.id, kind])
   const actionKit = useMemo(() => buildSocialActionKit(kind, {
@@ -702,6 +704,10 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
     }, 500)
     return () => window.clearTimeout(timeout)
   }, [draft, kind, query, selectedId])
+
+  useEffect(() => {
+    setMemberLimit(10)
+  }, [memberQuery])
 
   useEffect(() => {
     if (!draftHydrated.current || !data) return
@@ -1051,8 +1057,16 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
                 <label className="flex h-9 items-center rounded-md border border-input bg-card px-3">
                   <input value={memberQuery} onChange={(event) => setMemberQuery(event.target.value)} placeholder="Search people" className="w-full bg-transparent text-sm text-foreground outline-none" />
                 </label>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{memberPage.total} visible</span>
+                  {memberPage.hiddenCount ? (
+                    <button onClick={() => setMemberLimit((limit) => limit + 10)} className="rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+                      Show {Math.min(10, memberPage.hiddenCount)} more
+                    </button>
+                  ) : null}
+                </div>
                 <div className="grid max-h-64 gap-1.5 overflow-auto pr-1">
-                  {filteredMembers.slice(0, 10).map((member) => (
+                  {filteredMembers.map((member) => (
                     <div key={member.id || member.email || member.name} className="flex items-center justify-between gap-3 rounded-md border border-border bg-card p-2 text-sm">
                       <div className="min-w-0">
                         <p className="truncate font-semibold text-foreground">{member.name || member.email || "Learner"}</p>
@@ -1064,7 +1078,11 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
                       </div>
                     </div>
                   ))}
-                  {!filteredMembers.length ? <p className="rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">No matching people yet. Create an invite or clear search.</p> : null}
+                  {!filteredMembers.length ? (
+                    <p className="rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">
+                      {memberPage.emptyAction === "clear-search" ? "No matching people. Clear search or invite someone new." : "No people yet. Create an invite to start."}
+                    </p>
+                  ) : null}
                 </div>
                 {memberSummary.newest ? <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">Newest: {memberSummary.newest.name || memberSummary.newest.email || "Learner"}</p> : null}
               </div>
