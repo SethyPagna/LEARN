@@ -47,7 +47,7 @@ import type {
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
-import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -657,6 +657,14 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
     card: buildSocialRecordCard(kind, item, recommendedRecord?.id),
     item,
   })), [filteredItems, kind, recommendedRecord?.id])
+  const recordEmptyState = useMemo(() => buildSocialRecordEmptyState({
+    emptyHint: socialPlan.emptyHint,
+    filter: recordFilter,
+    query,
+    title,
+    total: items.length,
+    visible: recordPage.total,
+  }), [items.length, query, recordFilter, recordPage.total, socialPlan.emptyHint, title])
   const memberPage = useMemo(() => buildWorkspaceMembersPage(memberItems, memberQuery, memberLimit), [memberItems, memberLimit, memberQuery])
   const filteredMembers = memberPage.items
   const activityPage = useMemo(() => buildSocialActionsPage(recentActionItems, activityLimit), [activityLimit, recentActionItems])
@@ -776,6 +784,12 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
     setDraft(createSocialDraft(kind))
     setDeleteConfirmId(null)
     setMessage(`Drafting a new ${noun}.`)
+  }
+
+  function clearRecordFilters() {
+    setQuery("")
+    setRecordFilter("all")
+    setMessage("Search and filters cleared.")
   }
 
   function selectSocialRecord(item: LearningSpace | StudyRoom | StudyBattle) {
@@ -1005,7 +1019,18 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
               </span>
             </button>
           ))}
-          {!filteredItems.length ? <EmptyState title={`No ${title.toLowerCase()} yet`} body={socialPlan.emptyHint} /> : null}
+          {!filteredItems.length ? (
+            <div className="grid gap-2 rounded-md border border-dashed border-border bg-background p-3">
+              <EmptyState title={recordEmptyState.title} body={recordEmptyState.body} />
+              <button
+                onClick={recordEmptyState.action === "clear" ? clearRecordFilters : startNew}
+                className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
+                type="button"
+              >
+                {recordEmptyState.action === "clear" ? "Clear filters" : `New ${noun}`}
+              </button>
+            </div>
+          ) : null}
           {recordPage.hiddenCount ? (
             <button onClick={() => setRecordLimit((limit) => limit + 12)} className="rounded-md border border-border bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
               Show {Math.min(12, recordPage.hiddenCount)} more
