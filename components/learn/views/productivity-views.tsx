@@ -396,6 +396,14 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
           metadata: { channel: parsed.channel, threadTitle: parsed.title },
         }),
       })
+      setThreads((currentThreads) => currentThreads.map((currentThread) => {
+        if (chatThreadKey(currentThread) !== targetId) return currentThread
+        return {
+          ...currentThread,
+          helpful: action === "helpful" || Boolean(currentThread.helpful),
+          saved: action === "save" || Boolean(currentThread.saved),
+        }
+      }))
       setReaction(action)
       setDraftStatus(action === "save" ? "Thread saved" : "Marked helpful")
     } catch (error) {
@@ -570,12 +578,17 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
           {visibleThreads.map((thread) => {
             const parsed = parseThreadTitle(thread.title)
             const targetId = chatThreadKey(thread)
+            const helpful = Boolean(thread.helpful)
+            const saved = Boolean(thread.saved)
             const threadActions = buildChatThreadActions({
               busyAction: threadAction?.threadId === targetId ? threadAction.action : null,
+              helpful,
               hasThread: Boolean(targetId),
+              saved,
             })
+            const menuLabel = saved ? "saved" : helpful ? "helpful" : "react"
             return (
-            <div key={thread.id} className="rounded-md border border-border bg-background p-3 text-sm">
+            <div key={targetId || parsed.title} className="rounded-md border border-border bg-background p-3 text-sm">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="font-medium text-foreground">{parsed.title}</p>
@@ -585,11 +598,11 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               </div>
               <p className="mt-1 line-clamp-2 text-muted-foreground">{thread.last_message || "No messages yet"}</p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <ChatMenu compact icon={Smile} label={reaction} menuId={`threadActions:${thread.id}`} openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
+                <ChatMenu compact icon={Smile} label={menuLabel} menuId={`threadActions:${targetId || parsed.title}`} openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
                   <ChatMenuSection title="Thread actions">
                     {threadActions.map((item) => (
                       <ChatMenuAction
-                        active={reaction === item.id}
+                        active={item.active}
                         disabled={item.disabled}
                         key={item.id}
                         label={item.busy ? item.busyLabel : item.label}
