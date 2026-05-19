@@ -76,12 +76,12 @@ export interface ProviderAdminSummary {
 const safeProviderDefaults: Record<AiProviderKey, Pick<NormalizedProviderConfigInput,
   "priority" | "requestsPerMinute" | "maxInputChars" | "maxCompletionTokens" | "timeoutMs" | "cooldownSeconds"
 >> = {
-  groq: fromMetadata("groq", 16_000, 8192),
-  google: fromMetadata("google", 16_000, 8192),
-  mistral: fromMetadata("mistral", 16_000, 8192),
-  cerebras: fromMetadata("cerebras", 16_000, 8192),
-  cloudflare: fromMetadata("cloudflare", 16_000, 8192),
-  vercel: fromMetadata("vercel", 16_000, 8192),
+  groq: fromMetadata("groq", 16_000, 16_384),
+  google: fromMetadata("google", 16_000, 16_384),
+  mistral: fromMetadata("mistral", 16_000, 16_384),
+  cerebras: fromMetadata("cerebras", 16_000, 16_384),
+  cloudflare: fromMetadata("cloudflare", 16_000, 16_384),
+  vercel: fromMetadata("vercel", 16_000, 16_384),
   cohere: fromMetadata("cohere", 1000, 128),
 }
 
@@ -164,7 +164,7 @@ export function normalizeProviderConfigInput(input: ProviderConfigInput): Normal
     priority: clamp(input.priority, defaults.priority, 1, 999),
     requestsPerMinute: clamp(input.requestsPerMinute, defaults.requestsPerMinute, 1, 120),
     maxInputChars: clamp(input.maxInputChars, defaults.maxInputChars, 200, 16_000),
-    maxCompletionTokens: clamp(input.maxCompletionTokens, defaults.maxCompletionTokens, 128, 8192),
+    maxCompletionTokens: clamp(input.maxCompletionTokens, defaults.maxCompletionTokens, 128, 16_384),
     timeoutMs: clamp(input.timeoutMs, defaults.timeoutMs, 3000, 60_000),
     cooldownSeconds: clamp(input.cooldownSeconds, defaults.cooldownSeconds, 5, 300),
   }
