@@ -64,12 +64,9 @@ export function ProgressView({ dashboard, quizzes, setView }: { dashboard: any; 
               <ProgressPlanIcon className="h-5 w-5 text-success" />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-foreground">{progressPlan.headline}</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{progressPlan.detail}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{progressPlan.chips.slice(0, 2).join(" · ")}</p>
               </div>
               <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {progressPlan.chips.map((chip) => <SharedStatusPill key={chip} label={chip} />)}
             </div>
           </button>
           <div className="xl:col-span-2">
@@ -80,20 +77,38 @@ export function ProgressView({ dashboard, quizzes, setView }: { dashboard: any; 
             <div className="mt-2 h-3 overflow-hidden rounded-full bg-muted">
               <div className="h-full rounded-full bg-success transition-all" style={{ width: `${Math.max(4, progress.goalCompletion)}%` }} />
             </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {progress.focusTopics.length ? progress.focusTopics.map((topic) => <SharedStatusPill key={topic} label={topic} />) : <SharedStatusPill label="No focus set" />}
-            </div>
+            <details className="mt-3 rounded-md border border-border bg-background">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+                <span>Route details</span>
+                <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{progress.focusTopics.length || 0} focus</span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </summary>
+              <div className="grid gap-3 border-t border-border p-3 md:grid-cols-[1fr_auto]">
+                <p className="text-sm leading-6 text-muted-foreground">{progressPlan.detail}</p>
+                <div className="flex flex-wrap gap-2 md:justify-end">
+                  {progressPlan.chips.map((chip) => <SharedStatusPill key={chip} label={chip} />)}
+                  {progress.focusTopics.length ? progress.focusTopics.map((topic) => <SharedStatusPill key={topic} label={topic} />) : <SharedStatusPill label="No focus set" />}
+                </div>
+              </div>
+            </details>
           </div>
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {progress.metrics.map((metric) => (
-            <div key={metric.id} className="group relative rounded-md border border-border bg-background p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{metric.label}</p>
-              <p className="mt-2 text-3xl font-semibold leading-none text-foreground">{metric.value}</p>
-              <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{metric.detail}</p>
-            </div>
-          ))}
-        </div>
+        <details className="mt-4 rounded-md border border-border bg-background">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+            <span>Metrics</span>
+            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{progress.metrics.length}</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </summary>
+          <div className="grid gap-3 border-t border-border p-3 sm:grid-cols-2 xl:grid-cols-4">
+            {progress.metrics.map((metric) => (
+              <div key={metric.id} className="group relative rounded-md border border-border bg-card p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{metric.label}</p>
+                <p className="mt-2 text-3xl font-semibold leading-none text-foreground">{metric.value}</p>
+                <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{metric.detail}</p>
+              </div>
+            ))}
+          </div>
+        </details>
       </Panel>
 
       <Panel className="p-4">
