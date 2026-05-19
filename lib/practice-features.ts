@@ -60,6 +60,17 @@ export interface PracticeRunActionState {
   busy: boolean
 }
 
+export interface PracticeSessionSummary {
+  answeredLabel: string
+  draftLabel: string
+  progressPercent: number
+  statusLabel: string
+  statusTone: "critical" | "neutral" | "steady" | "watch"
+  timerLabel: string
+  timerTone: "critical" | "neutral"
+  visibleDetails: Array<{ label: string; value: string }>
+}
+
 export type GameRunActionId = "next-prompt" | "finish-run" | "restart"
 
 export interface GameRunActionState {
@@ -229,6 +240,41 @@ export function buildPracticeRunActions(input: {
     busy: input.busyAction === action.id,
     disabled: busy || action.disabled,
   }))
+}
+
+export function buildPracticeSessionSummary(input: {
+  answeredCount: number
+  draftStatus?: string
+  elapsedLabel: string
+  markedCount: number
+  progressPercent: number
+  remainingLabel: string
+  remainingSeconds: number
+  revealAnswers: boolean
+  totalCount: number
+}): PracticeSessionSummary {
+  const safeTotal = Math.max(0, input.totalCount)
+  const safeAnswered = Math.min(Math.max(0, input.answeredCount), safeTotal)
+  const progressPercent = safeTotal ? Math.min(100, Math.max(0, input.progressPercent)) : 0
+  const complete = safeTotal > 0 && safeAnswered >= safeTotal
+  const outOfTime = input.remainingSeconds === 0
+  const statusTone = outOfTime ? "critical" : complete ? "steady" : input.markedCount ? "watch" : "neutral"
+
+  return {
+    answeredLabel: `${safeAnswered}/${safeTotal}`,
+    draftLabel: input.draftStatus?.trim() || "No local draft",
+    progressPercent,
+    statusLabel: complete ? "Ready to submit" : input.markedCount ? `${input.markedCount} marked` : input.revealAnswers ? "Guided" : "Exam",
+    statusTone,
+    timerLabel: `${input.elapsedLabel} elapsed / ${input.remainingLabel} left`,
+    timerTone: outOfTime ? "critical" : "neutral",
+    visibleDetails: [
+      { label: "Elapsed", value: input.elapsedLabel },
+      { label: "Left", value: input.remainingLabel },
+      { label: "Marked", value: String(input.markedCount) },
+      { label: "Answers", value: `${safeAnswered}/${safeTotal}` },
+    ],
+  }
 }
 
 export function buildGameRunActions(input: {
