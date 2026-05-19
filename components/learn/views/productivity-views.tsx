@@ -108,12 +108,21 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
   }
 
   return (
-    <Panel className="p-5">
-      <div className="mb-4 flex items-center gap-3">
-        <Gamepad2 className="h-5 w-5 text-success" />
-        <div>
-          <h2 className="text-2xl font-semibold">Flashcard sprint</h2>
-          <p className="text-sm text-muted-foreground">{options.gameMode} mode - Score {score} / {questions.length} - {formatDuration(elapsedSeconds)}</p>
+    <Panel className="p-4">
+      <div className="mb-3 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-success/15 text-success">
+            <Gamepad2 className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="truncate text-2xl font-semibold text-foreground">Flashcard sprint</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{options.gameMode} mode</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5 lg:justify-end">
+          <GameStatusChip label="Score" value={`${score}/${questions.length}`} />
+          <GameStatusChip label="Prompt" value={`${index + 1}/${questions.length}`} />
+          <GameStatusChip label="Time" value={formatDuration(elapsedSeconds)} />
         </div>
       </div>
       <GameTimerControls elapsedSeconds={elapsedSeconds} resetRun={resetRun} setTargetSeconds={setTargetSeconds} targetSeconds={targetSeconds} />
@@ -128,9 +137,9 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
           <button onClick={resetRun} className="mt-3 rounded-md bg-background px-3 py-1.5 text-xs font-semibold text-foreground">Start another run</button>
         </div>
       ) : null}
-      <div className="rounded-lg bg-primary p-5 text-primary-foreground">
-        <p className="text-sm opacity-70">Prompt {index + 1}</p>
-        <h3 className="mt-2 text-2xl font-semibold">{current.question}</h3>
+      <div className="rounded-lg border border-primary/30 bg-primary p-5 text-primary-foreground">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] opacity-75">Prompt {index + 1}</p>
+        <h3 className="mt-2 text-2xl font-semibold leading-tight">{current.question}</h3>
       </div>
       <div className="mt-4 grid gap-2 md:grid-cols-2">
         {current.choices.map((choice) => (
@@ -164,6 +173,15 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
   )
 }
 
+function GameStatusChip({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-2 text-xs font-semibold text-muted-foreground">
+      {label}
+      <span className="rounded bg-secondary px-1.5 py-0.5 text-secondary-foreground">{value}</span>
+    </span>
+  )
+}
+
 function GameTimerControls({
   elapsedSeconds,
   resetRun,
@@ -176,21 +194,21 @@ function GameTimerControls({
   targetSeconds: number
 }) {
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2">
-      <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
+    <div className="mb-3 flex flex-wrap items-center gap-1.5 rounded-md border border-border bg-card p-2">
+      <span className="inline-flex h-8 items-center gap-1.5 rounded-md bg-muted px-2 text-xs font-semibold text-muted-foreground">
         <Clock className="h-3.5 w-3.5" />
-        {formatDuration(elapsedSeconds)} elapsed
+        {formatDuration(elapsedSeconds)}
       </span>
       {[60, 90, 180].map((seconds) => (
         <button
           key={seconds}
           onClick={() => setTargetSeconds(seconds)}
-          className={`rounded-md px-3 py-1.5 text-xs font-semibold ${targetSeconds === seconds ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+          className={`h-8 rounded-md px-2.5 text-xs font-semibold ${targetSeconds === seconds ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
         >
           {Math.round(seconds / 60)}m
         </button>
       ))}
-      <span className={`rounded-md px-2 py-1 text-xs font-semibold ${elapsedSeconds > targetSeconds ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>
+      <span className={`inline-flex h-8 items-center rounded-md px-2 text-xs font-semibold ${elapsedSeconds > targetSeconds ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>
         target {formatDuration(targetSeconds)}
       </span>
       <button onClick={resetRun} className="ml-auto flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
