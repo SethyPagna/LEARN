@@ -45,7 +45,7 @@ import type {
   View,
 } from "../types"
 import { EmptyState, Panel, StatusMessage } from "../ui"
-import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession } from "@/lib/learning-ecosystem"
+import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, buildReviewRatingActions, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession, type ReviewRating } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
 import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
@@ -305,6 +305,8 @@ function graphFilterLabel(filter: GraphFilter) {
 export function ReviewsView({ setView }: { setView: (view: View) => void }) {
   const { data, status, refresh } = useResource<ReviewPayload>("/api/reviews")
   const [busyId, setBusyId] = useState("")
+  const [busyRating, setBusyRating] = useState<ReviewRating | null>(null)
+  const [reviewMessage, setReviewMessage] = useState("")
   const [revealedIds, setRevealedIds] = useState<string[]>([])
   const revealed = useMemo(() => new Set(revealedIds), [revealedIds])
   const reviewSummary = useMemo(
@@ -316,14 +318,23 @@ export function ReviewsView({ setView }: { setView: (view: View) => void }) {
     [data?.isRestDay, data?.items, data?.remainingDueCount, revealedIds, reviewSummary],
   )
 
-  async function record(item: ReviewItem, rating: string) {
+  async function record(item: ReviewItem, rating: ReviewRating) {
+    if (!revealed.has(item.id)) {
+      setReviewMessage("Reveal the answer before grading.")
+      return
+    }
     setBusyId(item.id)
+    setBusyRating(rating)
     try {
       await api("/api/reviews", { method: "POST", body: JSON.stringify({ id: item.id, rating }) })
       setRevealedIds((current) => current.filter((id) => id !== item.id))
-      refresh()
+      setReviewMessage(`${item.title} graded ${rating}.`)
+      await refresh()
+    } catch (error) {
+      setReviewMessage(error instanceof Error ? error.message : "Unable to record this review.")
     } finally {
       setBusyId("")
+      setBusyRating(null)
     }
   }
 
@@ -390,6 +401,7 @@ export function ReviewsView({ setView }: { setView: (view: View) => void }) {
           <Metric label="Recall" value={`${Math.round(reviewSummary.averageRetrievability * 100)}%`} />
           <Metric label="Later" value={String(reviewSummary.remainingAfterCap)} />
         </div>
+        {reviewMessage ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{reviewMessage}</p> : null}
         {reviewSummary.topTopics.length ? (
           <details className="mt-3 rounded-md border border-border bg-background p-2">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
@@ -409,6 +421,7 @@ export function ReviewsView({ setView }: { setView: (view: View) => void }) {
       <div className="grid gap-3">
         {(data?.items ?? []).map((item) => {
           const isRevealed = revealed.has(item.id)
+          const ratingActions = buildReviewRatingActions({ busyRating, isBusy: busyId === item.id, isRevealed })
           return (
           <div key={item.id} id={`review-${item.id}`}>
           <Panel className="p-4">
@@ -421,24 +434,30 @@ export function ReviewsView({ setView }: { setView: (view: View) => void }) {
                   </span>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
-                  onClick={() => toggleReveal(item.id)}
+                  onClick={() => { toggleReveal(item.id); setReviewMessage(isRevealed ? "Answer hidden." : "Answer revealed. Grade when ready.") }}
+                  disabled={Boolean(busyId)}
                   className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground"
                 >
                   <Eye className="h-4 w-4" />
                   {isRevealed ? "Hide answer" : "Reveal"}
                 </button>
-                {(["again", "hard", "good", "easy"] as const).map((rating) => (
-                  <button
-                    key={rating}
-                    disabled={busyId === item.id}
-                    onClick={() => record(item, rating)}
-                    className={`h-9 rounded-md border px-3 text-sm font-medium disabled:opacity-60 ${reviewRatingClassName(rating)}`}
-                  >
-                    {rating[0].toUpperCase() + rating.slice(1)}
-                  </button>
-                ))}
+                {isRevealed ? ratingActions.map((action) => (
+                    <button
+                      key={action.rating}
+                      disabled={action.disabled}
+                      onClick={() => record(item, action.rating)}
+                      title={action.helper}
+                      className={`h-9 rounded-md border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60 ${reviewRatingClassName(action.rating)}`}
+                    >
+                      {action.busy ? "Saving" : action.label}
+                    </button>
+                  )) : (
+                    <span className="inline-flex h-9 items-center rounded-md border border-border bg-muted px-3 text-sm font-semibold text-muted-foreground">
+                      Reveal first
+                    </span>
+                  )}
               </div>
             </div>
             <div className="mt-4 rounded-md border border-border bg-background p-3">
