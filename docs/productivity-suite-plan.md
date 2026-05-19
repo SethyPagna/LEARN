@@ -178,6 +178,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued AI Tutor clarity by deriving compact workflow chips from tested readiness logic and raising stale low token settings to the selected output-length budget at runtime.
 - 2026-05-19: Continued AI import-loop maturity by adding tested follow-up actions so imported material can load cleanup, practice, or flashcard workflows with the right task, source scope, insert target, and legacy mode.
 - 2026-05-19: Continued AI import accuracy by making cleanup follow-ups target-aware: sheets open the sheet organizer, slides open the slide builder, and docs/notes keep the document formatter.
+- 2026-05-19: Continued AI import accuracy by splitting note cleanup from document cleanup so imported notes use the note-design workflow and insert as note blocks.
 
 ## Implementation Slices
 
