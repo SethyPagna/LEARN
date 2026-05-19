@@ -8,7 +8,7 @@ import { api } from "../api"
 import { ControlButton, EmptyState, Panel, StatusPill } from "../ui"
 import { menuSurfaceClasses, toneTextClasses } from "@/lib/design-system"
 import { clearPracticeDraft, hasPracticeDraftContent, readPracticeDraft, writePracticeDraft } from "@/lib/practice-drafts"
-import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, filterPracticeQuestions, practiceModeGroups, practiceModeLabel, summarizePracticeAttempt, summarizePracticeMode, type PracticeQuestionFilter, type PracticeRunActionId } from "@/lib/practice-features"
+import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, buildPracticeSessionSummary, filterPracticeQuestions, practiceModeGroups, practiceModeLabel, summarizePracticeAttempt, summarizePracticeMode, type PracticeQuestionFilter, type PracticeRunActionId, type PracticeSessionSummary } from "@/lib/practice-features"
 
 const questionFilters: Array<{ id: PracticeQuestionFilter; label: string }> = [
   { id: "all", label: "All" },
@@ -226,6 +226,17 @@ export function QuizView({
   const remainingLabel = formatDuration(remainingSeconds)
   const answeredCount = answeredQuestionIds.filter((id) => visibleQuestions.some((question) => question.id === id)).length
   const progressPercent = visibleQuestions.length ? Math.round((answeredCount / visibleQuestions.length) * 100) : 0
+  const sessionSummary = useMemo(() => buildPracticeSessionSummary({
+    answeredCount,
+    draftStatus,
+    elapsedLabel,
+    markedCount: markedQuestionIds.length,
+    progressPercent,
+    remainingLabel,
+    remainingSeconds,
+    revealAnswers: options.revealAnswers,
+    totalCount: visibleQuestions.length,
+  }), [answeredCount, draftStatus, elapsedLabel, markedQuestionIds.length, options.revealAnswers, progressPercent, remainingLabel, remainingSeconds, visibleQuestions.length])
   const missedCount = attemptSummary?.missedQuestionIds.length || 0
   const modeSummary = summarizePracticeMode({
     mode: practiceMode,
@@ -335,18 +346,15 @@ export function QuizView({
               </div>
             </div>
             <PracticeProgressBar
-              answeredCount={answeredCount}
-              draftStatus={draftStatus}
-              elapsedLabel={elapsedLabel}
-              markedCount={markedQuestionIds.length}
+              elapsedSeconds={elapsedSeconds}
               onClearDraft={discardDraft}
-              progressPercent={progressPercent}
-              revealAnswers={options.revealAnswers}
-              remainingLabel={remainingLabel}
-              remainingSeconds={remainingSeconds}
-              totalCount={visibleQuestions.length}
+              paused={paused}
+              resetTimer={resetTimer}
+              session={sessionSummary}
+              setPaused={setPracticePaused}
+              setTargetMinutes={setTargetMinutes}
+              targetMinutes={targetMinutes}
             />
-            <QuizTimerControls paused={paused} setPaused={setPracticePaused} targetMinutes={targetMinutes} elapsedSeconds={elapsedSeconds} remainingSeconds={remainingSeconds} resetTimer={resetTimer} setTargetMinutes={setTargetMinutes} />
             {practiceStatus ? <p className="mt-3 rounded-md bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground">{practiceStatus}</p> : null}
             {missedCount ? <div className="mt-3"><StatusPill label={`${missedCount} to repair`} tone="watch" /></div> : null}
             <div className="mt-5 space-y-3">
@@ -451,59 +459,77 @@ function ModeStatusChip({ label, value }: { label: string; value: string }) {
 }
 
 function PracticeProgressBar({
-  answeredCount,
-  draftStatus,
-  elapsedLabel,
-  markedCount,
+  elapsedSeconds,
   onClearDraft,
-  progressPercent,
-  revealAnswers,
-  remainingLabel,
-  remainingSeconds,
-  totalCount,
+  paused,
+  resetTimer,
+  session,
+  setPaused,
+  setTargetMinutes,
+  targetMinutes,
 }: {
-  answeredCount: number
-  draftStatus: string
-  elapsedLabel: string
-  markedCount: number
+  elapsedSeconds: number
   onClearDraft: () => void
-  progressPercent: number
-  revealAnswers: boolean
-  remainingLabel: string
-  remainingSeconds: number
-  totalCount: number
+  paused: boolean
+  resetTimer: () => void
+  session: PracticeSessionSummary
+  setPaused: (paused: boolean) => void
+  setTargetMinutes: (minutes: number) => void
+  targetMinutes: number
 }) {
   return (
     <div className="mt-4 rounded-md border border-border bg-card p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-sm font-semibold text-foreground">{answeredCount}/{totalCount} answered</p>
-          <p className="text-xs text-muted-foreground">{remainingLabel} left - {markedCount} marked</p>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground">{session.answeredLabel} answered</p>
+          <p className="truncate text-xs text-muted-foreground">{session.timerLabel}</p>
         </div>
-        <StatusPill label={revealAnswers ? "Guided" : "Exam"} tone={remainingSeconds === 0 ? "critical" : "neutral"} />
+        <div className="flex flex-wrap items-center gap-1.5">
+          <StatusPill label={session.statusLabel} tone={session.statusTone} />
+          <ControlButton onClick={() => setPaused(!paused)} size="compact">
+            {paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+            {paused ? "Resume" : "Pause"}
+          </ControlButton>
+        </div>
       </div>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} />
+        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${session.progressPercent}%` }} />
       </div>
-      <details className="mt-3">
+      <details className="mt-3 rounded-md border border-border bg-background">
         <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-muted-foreground [&::-webkit-details-marker]:hidden">
           <ChevronDown className="h-3.5 w-3.5" />
-          Session details
+          Timer, draft, and target
+          <span className={`ml-auto rounded-md px-2 py-0.5 ${session.timerTone === "critical" ? "bg-destructive text-destructive-foreground" : "bg-secondary text-secondary-foreground"}`}>{formatDuration(elapsedSeconds)}</span>
         </summary>
-        <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-4">
-          <PracticeStat label="Elapsed" value={elapsedLabel} />
-          <PracticeStat label="Left" value={remainingLabel} tone={remainingSeconds === 0 ? "danger" : "neutral"} />
-          <PracticeStat label="Marked" value={String(markedCount)} />
-          <PracticeStat label="Answers" value={`${answeredCount}/${totalCount}`} />
+        <div className="grid gap-2 border-t border-border p-2 text-xs sm:grid-cols-2 xl:grid-cols-4">
+          {session.visibleDetails.map((detail) => (
+            <PracticeStat key={detail.label} label={detail.label} value={detail.value} tone={detail.label === "Left" && session.timerTone === "critical" ? "danger" : "neutral"} />
+          ))}
         </div>
-        {draftStatus ? (
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-2">
-            <span className="truncate text-xs font-semibold text-muted-foreground">{draftStatus}</span>
+        <div className="grid gap-2 border-t border-border p-2 lg:grid-cols-[1fr_auto_auto] lg:items-center">
+          <span className="truncate rounded-md bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground">{session.draftLabel}</span>
+          <div className="flex flex-wrap gap-1.5">
+            {[5, 10, 20, 45].map((minutes) => (
+              <ControlButton
+                key={minutes}
+                onClick={() => setTargetMinutes(minutes)}
+                active={targetMinutes === minutes}
+                size="compact"
+              >
+                {minutes}m
+              </ControlButton>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5 lg:justify-end">
+            <ControlButton onClick={resetTimer} size="compact">
+              <RotateCcw className="h-3.5 w-3.5" />
+              Reset
+            </ControlButton>
             <ControlButton onClick={onClearDraft} size="compact">
               Clear
             </ControlButton>
           </div>
-        ) : null}
+        </div>
       </details>
     </div>
   )
