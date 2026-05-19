@@ -163,6 +163,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Chat feedback maturity by making helpful/save status per-thread so menu labels, active states, and saved filtering update immediately.
 - 2026-05-19: Continued Chat reply reliability by normalizing reply thread IDs and sending restored reply drafts back into the existing thread.
 - 2026-05-19: Continued Chat list clarity by replacing the static read label with tested compact statuses for saved, helpful, questions, wins, and recent threads.
+- 2026-05-19: Continued Social people reliability by adding tested Add/Follow/Remove action states and wiring per-person busy/disabled feedback in the Social hub.
 
 ## Implementation Slices
 
