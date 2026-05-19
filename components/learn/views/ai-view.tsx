@@ -10,7 +10,7 @@ import { menuSurfaceClasses, statusToneClasses, toneTextClasses, type UiTone } f
 import { buildAiGatewayReadiness } from "@/lib/ai/gateway-readiness"
 import { buildGuidedPrompt, listInsertActions, promptContracts } from "@/lib/ai/prompt-builder"
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
-import { buildAiTutorPrimaryActionPlan, buildAiTutorSourceContext, getRecommendedAiTutorTokens, resolveAiTutorEffectiveTokens, splitPromptPreview, summarizeAiTutorWorkflow } from "@/lib/ai/tutor-workflow"
+import { buildAiTutorPrimaryActionPlan, buildAiTutorSourceContext, getRecommendedAiTutorTokens, resolveAiTutorEffectiveTokens, splitPromptPreview, summarizeAiTutorUploadedSource, summarizeAiTutorWorkflow } from "@/lib/ai/tutor-workflow"
 import type { AiTaskKey } from "@/lib/ai/prompt-library"
 import { buildImportFollowupAction, previewImportedLearningContent, type ImportFollowupKind, type ImportTarget } from "@/lib/import-gateway"
 
@@ -167,6 +167,11 @@ export function AiTutorView({
   }), [gatewayReadiness, loading, promptBuild, sourceScope, uploadedContext.length])
   const previewParts = useMemo(() => splitPromptPreview(promptBuild.preview), [promptBuild.preview])
   const importPreview = useMemo(() => previewImportedLearningContent({ raw: importText, title: importTitle, target: importTarget }), [importTarget, importText, importTitle])
+  const uploadedSourceSummary = useMemo(() => summarizeAiTutorUploadedSource({
+    draftText: importText,
+    savedText: lastImportText,
+    savedTitle: lastImport?.title,
+  }), [importText, lastImport?.title, lastImportText])
   const providerSummary = useMemo(() => {
     const readyCount = providers.filter(providerIsReady).length
     const configuredCount = providers.filter((provider) => provider.has_key).length
@@ -384,6 +389,14 @@ export function AiTutorView({
     } finally {
       setImportLoading(false)
     }
+  }
+
+  function clearUploadedSource() {
+    setImportText("")
+    setImportTitle("")
+    setLastImport(null)
+    setLastImportText("")
+    setImportStatus("Source cleared.")
   }
 
   async function copyReply() {
@@ -622,7 +635,7 @@ export function AiTutorView({
         </div>
         <div className="mt-3 grid grid-cols-3 gap-1 rounded-md border border-border bg-background p-1">
           <SidePanelButton active={sidePanel === "gateway"} count={providerSummary.readyCount} icon={Brain} label="Gateway" onClick={() => setSidePanel("gateway")} />
-          <SidePanelButton active={sidePanel === "import"} count={importPreview.ok ? 1 : 0} icon={UploadCloud} label="Import" onClick={() => setSidePanel("import")} />
+          <SidePanelButton active={sidePanel === "import"} count={uploadedSourceSummary.badgeCount} icon={UploadCloud} label="Import" onClick={() => setSidePanel("import")} />
           <SidePanelButton active={sidePanel === "presets"} count={providerSummary.presetCount} icon={Gauge} label="Presets" onClick={() => setSidePanel("presets")} />
         </div>
 
@@ -659,6 +672,20 @@ export function AiTutorView({
 
         {sidePanel === "import" ? (
           <div className="mt-3 grid gap-2">
+            <div className={`rounded-md border p-3 text-xs ${uploadedSourceSummary.attached ? "border-success/40 bg-success/10 text-foreground" : "border-border bg-background text-muted-foreground"}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-foreground">{uploadedSourceSummary.label}</span>
+                <span className="rounded-md bg-background px-2 py-1 font-semibold text-muted-foreground">{uploadedSourceSummary.detail}</span>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span>{uploadedSourceSummary.attached ? "AI will include this when Uploaded files is selected." : "Use this for cleanup, practice, flashcards, and summaries."}</span>
+                {uploadedSourceSummary.attached ? (
+                  <button onClick={clearUploadedSource} className="rounded-md border border-border bg-secondary px-2 py-1 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+                    Clear
+                  </button>
+                ) : null}
+              </div>
+            </div>
             <input
               value={importTitle}
               onChange={(event) => {
