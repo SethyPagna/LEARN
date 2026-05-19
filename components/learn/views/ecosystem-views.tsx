@@ -45,7 +45,7 @@ import type {
   View,
 } from "../types"
 import { EmptyState, Panel, StatusMessage } from "../ui"
-import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, buildReviewRatingActions, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession, type ReviewRating } from "@/lib/learning-ecosystem"
+import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, buildReviewRatingActions, buildReviewSummaryChips, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession, type ReviewRating } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
 import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
@@ -313,6 +313,9 @@ export function ReviewsView({ setView }: { setView: (view: View) => void }) {
     () => summarizeReviewSession({ items: data?.items ?? [], remainingDueCount: data?.remainingDueCount ?? 0 }, revealedIds),
     [data?.items, data?.remainingDueCount, revealedIds],
   )
+  const reviewSummaryChips = useMemo(() => buildReviewSummaryChips(reviewSummary), [reviewSummary])
+  const primaryReviewChips = reviewSummaryChips.filter((chip) => chip.priority === "primary")
+  const secondaryReviewChips = reviewSummaryChips.filter((chip) => chip.priority === "secondary")
   const reviewPlan = useMemo(
     () => buildReviewActionPlan({ items: data?.items ?? [], isRestDay: Boolean(data?.isRestDay), remainingDueCount: data?.remainingDueCount ?? 0 }, reviewSummary, revealedIds),
     [data?.isRestDay, data?.items, data?.remainingDueCount, revealedIds, reviewSummary],
@@ -393,14 +396,26 @@ export function ReviewsView({ setView }: { setView: (view: View) => void }) {
           </summary>
           <p className="mt-2 border-t border-border pt-2 text-xs leading-5 text-muted-foreground">{reviewPlan.detail}</p>
         </details>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <Metric label="Status" value={status} />
-          <Metric label="Due" value={String(reviewSummary.totalDue)} />
-          <Metric label="Revealed" value={String(reviewSummary.revealedCount)} />
-          <Metric label="Practice misses" value={String(reviewSummary.practiceMissCount)} />
-          <Metric label="Recall" value={`${Math.round(reviewSummary.averageRetrievability * 100)}%`} />
-          <Metric label="Later" value={String(reviewSummary.remainingAfterCap)} />
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {primaryReviewChips.map((chip) => (
+            <CompactMetric key={chip.id} label={chip.label} value={chip.value} />
+          ))}
         </div>
+        <details className="mt-3 rounded-md border border-border bg-background p-2">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
+            <span>Queue details</span>
+            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{status}</span>
+          </summary>
+          <div className="mt-2 grid grid-cols-2 gap-2 border-t border-border pt-2">
+            {secondaryReviewChips.map((chip) => (
+              <Metric key={chip.id} label={chip.label} value={chip.value} />
+            ))}
+            <Metric label="Notes" value={String(reviewSummary.sourceCounts.note)} />
+            <Metric label="Blocks" value={String(reviewSummary.sourceCounts.block)} />
+            <Metric label="Cards" value={String(reviewSummary.sourceCounts.flashcard)} />
+            <Metric label="Lessons" value={String(reviewSummary.sourceCounts.lesson)} />
+          </div>
+        </details>
         {reviewMessage ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{reviewMessage}</p> : null}
         {reviewSummary.topTopics.length ? (
           <details className="mt-3 rounded-md border border-border bg-background p-2">
@@ -1778,6 +1793,15 @@ function Metric({ label, value }: { label: string; value: string }) {
     <div className="rounded-md border border-border bg-background p-3">
       <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
       <p className="mt-1 text-lg font-semibold text-foreground">{value}</p>
+    </div>
+  )
+}
+
+function CompactMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-background px-3 py-2">
+      <p className="text-[0.65rem] font-semibold uppercase text-muted-foreground">{label}</p>
+      <p className="text-base font-semibold text-foreground">{value}</p>
     </div>
   )
 }
