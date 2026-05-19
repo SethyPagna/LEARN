@@ -474,6 +474,31 @@ export function filterConnectableMembers(members: WorkspaceMemberLike[], connect
   })
 }
 
+export function buildConnectablePeoplePage({
+  connections,
+  currentUserId,
+  limit = 5,
+  members,
+  query = "",
+}: {
+  connections: UserConnectionLike[]
+  currentUserId?: string
+  limit?: number
+  members: WorkspaceMemberLike[]
+  query?: string
+}) {
+  const all = filterConnectableMembers(members, connections, currentUserId, query)
+  const safeLimit = Math.max(1, limit)
+  const items = all.slice(0, safeLimit)
+
+  return {
+    emptyAction: query.trim() ? "invite" : "search",
+    hiddenCount: Math.max(0, all.length - items.length),
+    items,
+    total: all.length,
+  }
+}
+
 export function buildSocialCommandSummary(input: {
   memberCount: number
   connectionCount: number
