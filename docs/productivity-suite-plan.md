@@ -161,6 +161,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Chat reliability by adding tested composer action state and guarded send, clear-draft, and suggestion flows with compact failure feedback.
 - 2026-05-19: Continued Chat thread reliability by adding tested thread action state and persisting helpful/save selections through the social actions API.
 - 2026-05-19: Continued Chat feedback maturity by making helpful/save status per-thread so menu labels, active states, and saved filtering update immediately.
+- 2026-05-19: Continued Chat reply reliability by normalizing reply thread IDs and sending restored reply drafts back into the existing thread.
 
 ## Implementation Slices
 
