@@ -7,7 +7,7 @@ import type { WorkspaceOptions } from "../preferences"
 import type { Quiz } from "../types"
 import { api } from "../api"
 import { EmptyState, Panel } from "../ui"
-import { evaluateGameChoice, summarizeGameRun } from "@/lib/practice-features"
+import { buildGameRunActions, evaluateGameChoice, summarizeGameRun, type GameRunActionId } from "@/lib/practice-features"
 import { buildChatComposerPlan, buildChatDraftPayload, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatIntent, type ChatThreadFilter } from "@/lib/social-features"
 
 const quizDetailCache = new Map<string, Quiz>()
@@ -25,7 +25,17 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
   const [targetSeconds, setTargetSeconds] = useState(90)
   const [feedback, setFeedback] = useState<ReturnType<typeof evaluateGameChoice> | null>(null)
   const [completedRun, setCompletedRun] = useState<ReturnType<typeof summarizeGameRun> | null>(null)
+  const [gameAction, setGameAction] = useState<GameRunActionId | null>(null)
+  const [gameStatus, setGameStatus] = useState("")
   const current = questions[index]
+  const isLastPrompt = index + 1 >= questions.length
+  const gameActions = useMemo(() => buildGameRunActions({
+    busyAction: gameAction,
+    hasFeedback: Boolean(feedback),
+    isComplete: Boolean(completedRun),
+    isLastPrompt,
+  }), [completedRun, feedback, gameAction, isLastPrompt])
+  const gameActionById = useMemo(() => new Map(gameActions.map((action) => [action.id, action])), [gameActions])
 
   useEffect(() => {
     let active = true
@@ -70,38 +80,53 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
   }, [completedRun, startedAt])
 
   function resetRun() {
+    if (gameAction) return
     setIndex(0)
     setScore(0)
     setFeedback(null)
     setCompletedRun(null)
+    setGameStatus("")
     setStartedAt(Date.now())
     setElapsedSeconds(0)
   }
 
   function choose(choiceId: string) {
-    if (!current || feedback || completedRun) return
+    if (!current || feedback || completedRun || gameAction) return
     const result = evaluateGameChoice(current, choiceId)
     setFeedback(result)
     if (result.correct) setScore((value) => value + 1)
+    setGameStatus(result.correct ? "Correct. Keep the pace." : "Missed. Review the fix, then continue.")
   }
 
   async function nextPrompt() {
-    if (!current) return
+    if (!current || gameAction) return
     const durationSeconds = currentElapsedSeconds(startedAt)
-    if (index + 1 >= questions.length) {
+    if (isLastPrompt) {
+      setGameAction("finish-run")
       setElapsedSeconds(durationSeconds)
-      setCompletedRun(summarizeGameRun({ score, total: questions.length, durationSeconds, targetSeconds }))
-      await api("/api/games", { method: "POST", body: JSON.stringify({ gameKey: "flashcard-sprint", score, total: questions.length, durationSeconds }) }).catch(() => undefined)
+      const run = summarizeGameRun({ score, total: questions.length, durationSeconds, targetSeconds })
+      setCompletedRun(run)
+      try {
+        await api("/api/games", { method: "POST", body: JSON.stringify({ gameKey: "flashcard-sprint", score, total: questions.length, durationSeconds }) })
+        setGameStatus("Run saved.")
+      } catch (error) {
+        setGameStatus(error instanceof Error ? error.message : "Run finished, but saving the score failed.")
+      } finally {
+        setGameAction(null)
+      }
       return
     }
+    setGameAction("next-prompt")
     setFeedback(null)
     setIndex((value) => value + 1)
+    setGameStatus("")
+    setGameAction(null)
   }
 
   if (!current) {
     return (
       <Panel className="p-4">
-        <GameTimerControls elapsedSeconds={elapsedSeconds} resetRun={resetRun} setTargetSeconds={setTargetSeconds} targetSeconds={targetSeconds} />
+        <GameTimerControls disabled={Boolean(gameAction)} elapsedSeconds={elapsedSeconds} resetRun={resetRun} setTargetSeconds={setTargetSeconds} targetSeconds={targetSeconds} />
         <EmptyState title="No game questions yet" body="Add or open quizzes so question data can power flashcard sprint and matching games." />
       </Panel>
     )
@@ -125,7 +150,8 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
           <GameStatusChip label="Time" value={formatDuration(elapsedSeconds)} />
         </div>
       </div>
-      <GameTimerControls elapsedSeconds={elapsedSeconds} resetRun={resetRun} setTargetSeconds={setTargetSeconds} targetSeconds={targetSeconds} />
+      <GameTimerControls disabled={Boolean(gameAction)} elapsedSeconds={elapsedSeconds} resetRun={resetRun} setTargetSeconds={setTargetSeconds} targetSeconds={targetSeconds} />
+      {gameStatus ? <p className="mb-3 rounded-md bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground">{gameStatus}</p> : null}
       {completedRun ? (
         <div className="mb-4 rounded-lg border border-border bg-accent p-4 text-accent-foreground">
           <div className="flex flex-wrap items-center gap-3">
@@ -134,7 +160,7 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
             <span className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-foreground">{completedRun.nextAction.replace(/-/g, " ")}</span>
           </div>
           <p className="mt-2 text-sm opacity-80">Duration {formatDuration(completedRun.durationSeconds)} / target {formatDuration(completedRun.targetSeconds)}.</p>
-          <button onClick={resetRun} className="mt-3 rounded-md bg-background px-3 py-1.5 text-xs font-semibold text-foreground">Start another run</button>
+          <button onClick={resetRun} disabled={gameActionById.get("restart")?.disabled} className="mt-3 rounded-md bg-background px-3 py-1.5 text-xs font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-60">Start another run</button>
         </div>
       ) : null}
       <div className="rounded-lg border border-primary/30 bg-primary p-5 text-primary-foreground">
@@ -146,7 +172,7 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
           <button
             key={choice.id}
             onClick={() => choose(choice.id)}
-            disabled={Boolean(feedback || completedRun)}
+            disabled={Boolean(feedback || completedRun || gameAction)}
             className={`rounded-md border p-4 text-left text-sm hover:bg-accent hover:text-accent-foreground disabled:opacity-80 ${
               feedback && choice.id === current.correct_answer_id
                 ? "border-success bg-success text-success-foreground"
@@ -164,8 +190,15 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
             <p className="font-semibold">{feedback.correct ? "Correct" : `Correct answer: ${feedback.correctChoiceText}`}</p>
           </div>
           <p className="mt-2 text-sm opacity-90">{feedback.explanation}</p>
-          <button onClick={nextPrompt} className="mt-3 rounded-md bg-background px-3 py-1.5 text-xs font-semibold text-foreground">
-            {index + 1 >= questions.length ? "Finish run" : "Next prompt"}
+          <button
+            onClick={nextPrompt}
+            disabled={gameActionById.get(isLastPrompt ? "finish-run" : "next-prompt")?.disabled}
+            title={gameActionById.get(isLastPrompt ? "finish-run" : "next-prompt")?.helper}
+            className="mt-3 rounded-md bg-background px-3 py-1.5 text-xs font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {gameActionById.get(isLastPrompt ? "finish-run" : "next-prompt")?.busy
+              ? gameActionById.get(isLastPrompt ? "finish-run" : "next-prompt")?.busyLabel
+              : gameActionById.get(isLastPrompt ? "finish-run" : "next-prompt")?.label}
           </button>
         </div>
       ) : null}
@@ -183,11 +216,13 @@ function GameStatusChip({ label, value }: { label: string; value: string }) {
 }
 
 function GameTimerControls({
+  disabled,
   elapsedSeconds,
   resetRun,
   setTargetSeconds,
   targetSeconds,
 }: {
+  disabled?: boolean
   elapsedSeconds: number
   resetRun: () => void
   setTargetSeconds: (seconds: number) => void
@@ -203,6 +238,7 @@ function GameTimerControls({
         <button
           key={seconds}
           onClick={() => setTargetSeconds(seconds)}
+          disabled={disabled}
           className={`h-8 rounded-md px-2.5 text-xs font-semibold ${targetSeconds === seconds ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
         >
           {Math.round(seconds / 60)}m
@@ -211,7 +247,7 @@ function GameTimerControls({
       <span className={`inline-flex h-8 items-center rounded-md px-2 text-xs font-semibold ${elapsedSeconds > targetSeconds ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>
         target {formatDuration(targetSeconds)}
       </span>
-      <button onClick={resetRun} className="ml-auto flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+      <button onClick={resetRun} disabled={disabled} className="ml-auto flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60">
         <RotateCcw className="h-3.5 w-3.5" />
         Restart
       </button>
