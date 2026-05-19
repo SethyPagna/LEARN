@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandPrimaryAction, buildSocialCommandSummary, buildSocialFlowCards, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandPrimaryAction, buildSocialCommandSummary, buildSocialFlowCards, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -60,6 +60,18 @@ test("buildChatComposerPlan recommends draft and thread next actions", () => {
   assert.equal(buildChatComposerPlan(empty).nextAction, "Create the first group update")
   assert.equal(buildChatComposerPlan(questions).recommendedIntent, "question")
   assert.equal(buildChatComposerPlan(questions, "Did anyone review this?").headline, "Finish the current draft")
+})
+
+test("buildChatComposerActions gates send clear and suggestions", () => {
+  const emptyActions = buildChatComposerActions({ hasDraft: false, hasSuggestion: true })
+  const readyActions = buildChatComposerActions({ hasDraft: true, hasSuggestion: true })
+  const busyActions = buildChatComposerActions({ busyAction: "send", hasDraft: true, hasSuggestion: true })
+
+  assert.equal(emptyActions.find((action) => action.id === "send")?.disabled, true)
+  assert.equal(emptyActions.find((action) => action.id === "use-suggestion")?.disabled, false)
+  assert.equal(readyActions.find((action) => action.id === "clear-draft")?.disabled, false)
+  assert.equal(busyActions.find((action) => action.id === "send")?.busy, true)
+  assert.equal(busyActions.every((action) => action.disabled), true)
 })
 
 test("summarizeSocialWorkspace creates kind-specific operational signals", () => {

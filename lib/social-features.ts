@@ -29,6 +29,17 @@ export interface ChatComposerPlan {
   chips: string[]
 }
 
+export type ChatComposerActionId = "send" | "clear-draft" | "use-suggestion"
+
+export interface ChatComposerActionState {
+  id: ChatComposerActionId
+  label: string
+  busyLabel: string
+  helper: string
+  disabled: boolean
+  busy: boolean
+}
+
 export interface SocialRecordLike {
   id?: string
   name?: string
@@ -308,6 +319,44 @@ export function buildChatComposerPlan(summary: ChatWorkspaceSummary, draftBody =
     nextAction: summary.total ? "Share one focused update" : "Create the first group update",
     chips: [`${summary.saved} saved`, `${summary.studioLinks} Studio links`],
   }
+}
+
+export function buildChatComposerActions(input: {
+  busyAction?: ChatComposerActionId | null
+  hasDraft?: boolean
+  hasSuggestion?: boolean
+}): ChatComposerActionState[] {
+  const busy = Boolean(input.busyAction)
+  const hasDraft = Boolean(input.hasDraft)
+  const actions: Array<Omit<ChatComposerActionState, "busy" | "disabled"> & { disabled: boolean }> = [
+    {
+      id: "send",
+      label: "Send",
+      busyLabel: "Sending",
+      helper: "Post this draft to the selected channel.",
+      disabled: !hasDraft,
+    },
+    {
+      id: "clear-draft",
+      label: "Clear draft",
+      busyLabel: "Clearing",
+      helper: "Remove the local draft without changing saved threads.",
+      disabled: !hasDraft,
+    },
+    {
+      id: "use-suggestion",
+      label: "Use suggestion",
+      busyLabel: "Applying",
+      helper: "Apply the recommended intent, filter, or channel.",
+      disabled: !input.hasSuggestion,
+    },
+  ]
+
+  return actions.map((action) => ({
+    ...action,
+    busy: input.busyAction === action.id,
+    disabled: busy || action.disabled,
+  }))
 }
 
 export function summarizeSocialWorkspace(kind: SocialWorkspaceKind, records: SocialRecordLike[]): SocialWorkspaceSummary {
