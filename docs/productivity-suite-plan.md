@@ -103,6 +103,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Studio explorer declutter by removing the duplicated visible Open button from every record card, keeping card-click as the primary open action, and moving Open plus secondary actions into the More/right-click menus.
 - 2026-05-19: Continued Social workspace declutter by folding the visible social metric row into a compact Signals drawer so spaces, rooms, and battles keep counts available without making the left panel feel like an analytics page.
 - 2026-05-19: Continued Profile declutter by moving duplicate profile metrics and portrait signals into expandable drawers while keeping identity, privacy, bio, and the next action visible.
+- 2026-05-19: Continued Progress declutter by shortening the primary route action, moving route detail/focus chips into a Route details drawer, and folding large metric cards into a compact Metrics drawer.
 
 ## Implementation Slices
 
