@@ -120,6 +120,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued AI Tutor gateway alignment by raising the UI/runtime completion budget to 16k tokens, adding a 16k preset, and making the Max length filter select the larger budget automatically.
 - 2026-05-19: Continued AI Tutor filter accuracy by mapping every output length choice to a concrete token budget so Short, Balanced, Deep, and Max all change runtime behavior.
 - 2026-05-19: Continued navigation, Studio, and Social maturity by removing compact sidebar group initials, turning Studio templates into structured preview cards, and adding invite/chat workflow actions to social records.
+- 2026-05-19: Continued Studio template maturity by enriching applied templates with workflow guidance, review/export checklists, sheet planning columns, and slide theme/motion/speaker-note defaults.
 
 ## Implementation Slices
 
