@@ -12,7 +12,7 @@ import { buildGuidedPrompt, listInsertActions, promptContracts } from "@/lib/ai/
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
 import { buildAiTutorSourceContext, getRecommendedAiTutorTokens, resolveAiTutorEffectiveTokens, splitPromptPreview, summarizeAiTutorWorkflow } from "@/lib/ai/tutor-workflow"
 import type { AiTaskKey } from "@/lib/ai/prompt-library"
-import { previewImportedLearningContent, type ImportTarget } from "@/lib/import-gateway"
+import { buildImportFollowupAction, previewImportedLearningContent, type ImportFollowupKind, type ImportTarget } from "@/lib/import-gateway"
 
 const tutorModes = [
   { id: "answer_explanation", mode: "mistake", label: "Mistake", icon: Sparkles, prompt: "Explain the mistake, repair the misconception, and create a short retry drill." },
@@ -367,6 +367,19 @@ export function AiTutorView({
     setActionStatus(`Loaded result into ${nextMode?.label || "AI"} with ${target} output.`)
   }
 
+  function loadImportFollowup(kind: ImportFollowupKind) {
+    if (!lastImport) return
+    const action = buildImportFollowupAction({ kind, title: lastImport.title, target: lastImport.target })
+    setActiveTaskKey(action.taskKey)
+    setModeGroup(modeGroupForTask(action.taskKey))
+    setOptions({ aiMode: action.legacyMode as WorkspaceOptions["aiMode"] })
+    setSourceScope(action.sourceScope)
+    setInsertTarget(action.insertTarget)
+    setMessage(action.message)
+    setSidePanel("gateway")
+    setActionStatus(action.status)
+  }
+
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
       <Panel className="p-4">
@@ -632,10 +645,11 @@ export function AiTutorView({
             </button>
             {importStatus ? <p className="rounded-md bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground">{importStatus}</p> : null}
             {lastImport ? (
-              <div className="grid gap-2 sm:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-4">
                 <button onClick={() => setView?.(viewForImportTarget(lastImport.target))} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Open {viewForImportTarget(lastImport.target)}</button>
-                <button onClick={() => { setActiveTaskKey("practice_generator"); setModeGroup("practice"); setMessage(`Generate timed practice from "${lastImport.title}" with explanations, retry missed items, and review cards.`) }} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Practice</button>
-                <button onClick={() => { setActiveTaskKey("flashcard_generation"); setModeGroup("practice"); setMessage(`Create active-recall flashcards from "${lastImport.title}" with front/back cards and one memory game.`) }} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Flashcards</button>
+                <button onClick={() => loadImportFollowup("cleanup")} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Clean up</button>
+                <button onClick={() => loadImportFollowup("practice")} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Practice</button>
+                <button onClick={() => loadImportFollowup("flashcards")} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Flashcards</button>
               </div>
             ) : null}
           </div>
