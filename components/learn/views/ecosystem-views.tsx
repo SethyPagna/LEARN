@@ -47,7 +47,7 @@ import type {
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
-import { buildSocialActionKit, buildSocialActivityTimeline, buildSocialWorkspacePlan, filterSocialRecords, filterWorkspaceMembers, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildSocialActionKit, buildSocialActivityTimeline, buildSocialWorkspacePlan, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -619,6 +619,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const endpoint = kind === "spaces" ? "/api/learning-spaces" : kind === "rooms" ? "/api/study-rooms" : "/api/study-battles"
   const { data, status, refresh } = useResource<{ items: Array<LearningSpace | StudyRoom | StudyBattle> }>(endpoint)
   const members = useResource<{ items: WorkspaceMemberLike[] }>("/api/workspace/members")
+  const recentActions = useResource<{ items: SocialActionLike[] }>("/api/social/actions?limit=8")
   const [selectedId, setSelectedId] = useState("")
   const [draft, setDraft] = useState(() => createSocialDraft(kind))
   const [query, setQuery] = useState("")
@@ -634,12 +635,14 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const restoredDraftId = useRef<string | null>(null)
   const items = useMemo(() => data?.items ?? [], [data?.items])
   const memberItems = useMemo(() => members.data?.items ?? [], [members.data?.items])
+  const recentActionItems = useMemo(() => recentActions.data?.items ?? [], [recentActions.data?.items])
   const selected = useMemo(() => items.find((item) => item.id === selectedId), [items, selectedId])
   const Icon = kind === "spaces" ? Users : kind === "rooms" ? Radio : Swords
   const title = kind === "spaces" ? "Learning Spaces" : kind === "rooms" ? "Study Rooms" : "Study Battles"
   const noun = kind === "spaces" ? "space" : kind === "rooms" ? "room" : "battle"
   const socialSummary = useMemo(() => summarizeSocialWorkspace(kind, items), [items, kind])
   const memberSummary = useMemo(() => summarizeWorkspaceMembers(memberItems), [memberItems])
+  const actionSummary = useMemo(() => summarizeSocialActions(recentActionItems), [recentActionItems])
   const socialPlan = useMemo(() => buildSocialWorkspacePlan(kind, socialSummary), [kind, socialSummary])
   const filteredItems = useMemo(() => filterSocialRecords(items, { query, filter: recordFilter }) as Array<LearningSpace | StudyRoom | StudyBattle>, [items, query, recordFilter])
   const filteredMembers = useMemo(() => filterWorkspaceMembers(memberItems, memberQuery), [memberItems, memberQuery])
@@ -1056,10 +1059,33 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
           <details className="group/social rounded-md border border-border bg-background">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
               <span>Activity</span>
-              <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{activityTimeline.length} steps</span>
+              <div className="ml-auto flex items-center gap-1.5">
+                <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{activityTimeline.length} steps</span>
+                <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{actionSummary.total} recent</span>
+              </div>
               <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/social:rotate-180" />
             </summary>
             <div className="grid gap-2 border-t border-border p-3">
+              {recentActionItems.length ? (
+                <div className="grid gap-2 rounded-md border border-border bg-card p-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold text-secondary-foreground">{actionSummary.comments} comments</span>
+                    <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold text-secondary-foreground">{actionSummary.saves} saved</span>
+                    <span className="rounded-md bg-muted px-2 py-1 text-[0.68rem] font-semibold text-muted-foreground">{recentActions.status}</span>
+                  </div>
+                  <div className="grid gap-1.5">
+                    {recentActionItems.slice(0, 4).map((action) => {
+                      const formatted = formatSocialAction(action)
+                      return (
+                        <div key={action.id || `${formatted.label}-${formatted.detail}`} className="rounded-md bg-background px-3 py-2 text-sm">
+                          <p className="font-semibold text-foreground">{formatted.label}</p>
+                          <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{formatted.detail}</p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : null}
               {activityTimeline.map((item, index) => (
                 <div key={item.id} className="grid grid-cols-[auto_1fr] gap-3 rounded-md border border-border bg-card p-3 text-sm">
                   <span className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold ${socialActivityToneClass(item.tone)}`}>{index + 1}</span>
