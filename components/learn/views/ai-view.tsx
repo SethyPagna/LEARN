@@ -331,6 +331,16 @@ export function AiTutorView({
     setActionStatus("Copied result.")
   }
 
+  function prepareStudioBlockPrompt() {
+    const instruction = "Return a Studio-ready block with title, summary, action steps, and review questions."
+    setActiveTaskKey("document_formatter")
+    setModeGroup("studio")
+    setInsertTarget("doc-section")
+    setOptions({ aiMode: "cleanup" })
+    setMessage((current) => current.includes(instruction) ? current : `${current.trimEnd()}\n\n${instruction}`)
+    setActionStatus("Studio block output selected.")
+  }
+
   function useReplyAsPrompt(taskKey: AiTaskKey, instruction: string, target: StudioInsertTarget) {
     const nextMode = tutorModes.find((mode) => mode.id === taskKey)
     setActiveTaskKey(taskKey)
@@ -496,7 +506,7 @@ export function AiTutorView({
             <Bot className="h-4 w-4" />
             {loading ? "Thinking" : "Run tutor"}
           </button>
-          <button onClick={() => setMessage(`${message}\n\nReturn a Studio-ready block with title, summary, action steps, and review questions.`)} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+          <button onClick={prepareStudioBlockPrompt} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
             <Plus className="h-4 w-4" />
             Studio block
           </button>
