@@ -8,7 +8,7 @@ import type { Quiz } from "../types"
 import { api } from "../api"
 import { EmptyState, Panel } from "../ui"
 import { buildGameRunActions, evaluateGameChoice, summarizeGameRun, type GameRunActionId } from "@/lib/practice-features"
-import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatThreadActions, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatIntent, type ChatThreadActionId, type ChatThreadFilter } from "@/lib/social-features"
+import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatThreadActions, buildChatThreadStatus, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatIntent, type ChatThreadActionId, type ChatThreadFilter } from "@/lib/social-features"
 
 const quizDetailCache = new Map<string, Quiz>()
 const CHAT_DRAFT_KEY = "learn_chat_draft_v1"
@@ -587,6 +587,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             const targetId = chatThreadKey(thread)
             const helpful = Boolean(thread.helpful)
             const saved = Boolean(thread.saved)
+            const status = buildChatThreadStatus(thread)
             const threadActions = buildChatThreadActions({
               busyAction: threadAction?.threadId === targetId ? threadAction.action : null,
               helpful,
@@ -601,7 +602,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                   <p className="font-medium text-foreground">{parsed.title}</p>
                   <p className="text-xs font-semibold text-muted-foreground">{parsed.channel}</p>
                 </div>
-                <span className="rounded-md bg-secondary px-2 py-1 text-[11px] font-semibold text-secondary-foreground">read</span>
+                <span className={`rounded-md px-2 py-1 text-[11px] font-semibold ${chatStatusClasses(status.tone)}`}>{status.label}</span>
               </div>
               <p className="mt-1 line-clamp-2 text-muted-foreground">{thread.last_message || "No messages yet"}</p>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -664,6 +665,13 @@ function ChatSignal({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-lg font-semibold leading-none text-foreground">{value}</p>
     </div>
   )
+}
+
+function chatStatusClasses(tone: "accent" | "muted" | "success" | "warning") {
+  if (tone === "success") return "bg-success/15 text-success"
+  if (tone === "warning") return "bg-warning/15 text-warning"
+  if (tone === "accent") return "bg-primary/10 text-primary"
+  return "bg-secondary text-secondary-foreground"
 }
 
 function ChatMenu({
