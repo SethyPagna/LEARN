@@ -26,7 +26,7 @@ const practiceTabs: Array<{ id: PracticeTab; label: string; icon: ComponentType<
 const socialTabs: Array<{ id: SocialTab; label: string; icon: ComponentType<{ className?: string }>; caption: string }> = [
   { id: "home", label: "Start", icon: Sparkles, caption: "Find people, post, and choose the right social flow" },
   { id: "chat", label: "Chat", icon: MessageSquare, caption: "Messages and threads" },
-  { id: "spaces", label: "Groups", icon: Users, caption: "Learning circles" },
+  { id: "spaces", label: "Groups", icon: Users, caption: "Shared goals and resources" },
   { id: "rooms", label: "Live", icon: Radio, caption: "Focus rooms" },
   { id: "battles", label: "Battles", icon: Swords, caption: "Quiz challenges" },
 ]

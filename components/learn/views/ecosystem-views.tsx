@@ -615,7 +615,7 @@ export function FeedView({ setView }: { setView: (view: View) => void }) {
         ) : null}
         <div className="mt-3 grid gap-2">
           <RitualButton icon={Brain} label="Save ideas to Studio" onClick={() => setView("studio")} />
-          <RitualButton icon={Users} label="Open circles" onClick={() => setView("spaces")} />
+          <RitualButton icon={Users} label="Open groups" onClick={() => setView("spaces")} />
           <RitualButton icon={ShieldCheck} label="Refresh lesson mix" onClick={refresh} />
         </div>
       </Panel>
