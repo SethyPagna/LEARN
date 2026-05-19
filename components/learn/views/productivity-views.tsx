@@ -8,7 +8,7 @@ import type { Quiz } from "../types"
 import { api } from "../api"
 import { EmptyState, Panel } from "../ui"
 import { buildGameRunActions, evaluateGameChoice, summarizeGameRun, type GameRunActionId } from "@/lib/practice-features"
-import { buildChatComposerPlan, buildChatDraftPayload, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatIntent, type ChatThreadFilter } from "@/lib/social-features"
+import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatIntent, type ChatThreadFilter } from "@/lib/social-features"
 
 const quizDetailCache = new Map<string, Quiz>()
 const CHAT_DRAFT_KEY = "learn_chat_draft_v1"
@@ -275,6 +275,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<ChatThreadFilter>("all")
   const [draftStatus, setDraftStatus] = useState("")
+  const [chatAction, setChatAction] = useState<ChatComposerActionId | null>(null)
   const [openChatMenu, setOpenChatMenu] = useState<ChatMenuId | null>(null)
   const quickIntents = [
     { id: "update" as const, label: "Update", body: "Share progress, a note, or what changed." },
@@ -291,9 +292,17 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const activeFilter = threadFilters.find((item) => item.id === filter) || threadFilters[0]
   const chatSummary = useMemo(() => summarizeChatWorkspace(threads), [threads])
   const composerPlan = useMemo(() => buildChatComposerPlan(chatSummary, body), [body, chatSummary])
+  const chatActions = useMemo(() => buildChatComposerActions({
+    busyAction: chatAction,
+    hasDraft: Boolean(body.trim()),
+    hasSuggestion: Boolean(composerPlan.nextAction),
+  }), [body, chatAction, composerPlan.nextAction])
+  const chatActionById = useMemo(() => new Map(chatActions.map((action) => [action.id, action])), [chatActions])
   const visibleThreads = useMemo(() => filterChatThreads(threads, { query, filter }), [filter, query, threads])
 
   function applyComposerPlan() {
+    if (chatActionById.get("use-suggestion")?.disabled) return
+    setChatAction("use-suggestion")
     setIntent(composerPlan.recommendedIntent)
     if (composerPlan.recommendedIntent === "question") setFilter("questions")
     if (composerPlan.recommendedIntent === "win") {
@@ -301,6 +310,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
       setChannel("#wins")
     }
     if (!body.trim()) setDraftStatus(composerPlan.nextAction)
+    setChatAction(null)
   }
 
   async function refresh() {
@@ -330,12 +340,19 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   }, [body, channel, intent, title])
 
   async function send() {
-    if (!body.trim()) return
-    await api("/api/chat", { method: "POST", body: JSON.stringify(buildChatDraftPayload({ body, channel, title, intent })) })
-    setBody("")
-    clearChatDraft()
-    setDraftStatus("Sent")
-    await refresh()
+    if (chatActionById.get("send")?.disabled) return
+    setChatAction("send")
+    try {
+      await api("/api/chat", { method: "POST", body: JSON.stringify(buildChatDraftPayload({ body, channel, title, intent })) })
+      setBody("")
+      clearChatDraft()
+      setDraftStatus("Sent")
+      await refresh()
+    } catch (error) {
+      setDraftStatus(error instanceof Error ? error.message : "Unable to send this message.")
+    } finally {
+      setChatAction(null)
+    }
   }
 
   function replyToThread(thread: any) {
@@ -404,8 +421,9 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               </ChatMenuSection>
               <ChatMenuSection title="Smart helper">
                 <ChatMenuAction
+                  disabled={chatActionById.get("use-suggestion")?.disabled}
                   icon={Sparkles}
-                  label="Use suggestion"
+                  label={chatActionById.get("use-suggestion")?.busy ? "Applying" : "Use suggestion"}
                   meta={composerPlan.nextAction}
                   onClick={() => {
                     applyComposerPlan()
@@ -426,7 +444,13 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                 </div>
               </ChatMenuSection>
             </ChatMenu>
-            <ToolbarButton label="Send" onClick={send} icon={Send} primary />
+            <ToolbarButton
+              disabled={chatActionById.get("send")?.disabled}
+              label={chatActionById.get("send")?.busy ? chatActionById.get("send")?.busyLabel || "Sending" : "Send"}
+              onClick={send}
+              icon={Send}
+              primary
+            />
           </div>
         </div>
         <div className="rounded-md border border-input bg-background p-3">
@@ -441,13 +465,17 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               </ChatMenuSection>
               <ChatMenuSection title="Draft">
                 <ChatMenuAction
+                  disabled={chatActionById.get("clear-draft")?.disabled}
                   icon={RotateCcw}
-                  label="Clear draft"
-                  meta="Remove only the local unsent draft."
+                  label={chatActionById.get("clear-draft")?.busy ? "Clearing" : "Clear draft"}
+                  meta={chatActionById.get("clear-draft")?.helper || "Remove only the local unsent draft."}
                   onClick={() => {
+                    if (chatActionById.get("clear-draft")?.disabled) return
+                    setChatAction("clear-draft")
                     setBody("")
                     clearChatDraft()
                     setDraftStatus("Draft cleared")
+                    setChatAction(null)
                     setOpenChatMenu(null)
                   }}
                 />
@@ -629,6 +657,7 @@ function ChatMenuSection({ children, title }: { children: React.ReactNode; title
 function ChatMenuAction({
   active,
   danger,
+  disabled,
   icon: Icon,
   label,
   meta,
@@ -636,6 +665,7 @@ function ChatMenuAction({
 }: {
   active?: boolean
   danger?: boolean
+  disabled?: boolean
   icon?: React.ComponentType<{ className?: string }>
   label: string
   meta?: string
@@ -644,7 +674,8 @@ function ChatMenuAction({
   return (
     <button
       onClick={onClick}
-      className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground ${active ? "bg-primary/10 text-primary" : danger ? "text-destructive" : "text-popover-foreground"}`}
+      disabled={disabled}
+      className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50 ${active ? "bg-primary/10 text-primary" : danger ? "text-destructive" : "text-popover-foreground"}`}
       type="button"
     >
       {Icon ? <Icon className="mt-0.5 h-4 w-4 shrink-0" /> : <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-current opacity-50" />}
@@ -657,18 +688,20 @@ function ChatMenuAction({
 }
 
 function ToolbarButton({
+  disabled,
   icon: Icon,
   label,
   onClick,
   primary,
 }: {
+  disabled?: boolean
   icon: React.ComponentType<{ className?: string }>
   label: string
   onClick: () => void
   primary?: boolean
 }) {
   return (
-    <button onClick={onClick} className={`flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium ${primary ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+    <button disabled={disabled} onClick={onClick} className={`flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60 ${primary ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
       <Icon className="h-4 w-4" />
       <span>{label}</span>
     </button>
