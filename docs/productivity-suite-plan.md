@@ -165,6 +165,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Chat list clarity by replacing the static read label with tested compact statuses for saved, helpful, questions, wins, and recent threads.
 - 2026-05-19: Continued Social people reliability by adding tested Add/Follow/Remove action states and wiring per-person busy/disabled feedback in the Social hub.
 - 2026-05-19: Continued Social command reliability by adding tested hub-level action states for Sync, Post, Invite, and flow creation buttons to prevent duplicate requests.
+- 2026-05-19: Continued Social flow clarity by separating open labels from create labels so compact plus buttons describe the action they actually run.
 
 ## Implementation Slices
 
