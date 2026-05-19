@@ -39,6 +39,12 @@ const languages = ["English", "Khmer", "French", "Spanish", "Korean", "Japanese"
 const insertTargets: StudioInsertTarget[] = ["note-block", "doc-section", "sheet-rows", "slide-outline", "quiz", "flashcards", "review-cards", "ai-note"]
 const importTargets: Array<ImportTarget | "auto"> = ["auto", "note", "doc", "sheet", "slides"]
 const tokenPresets = [2048, 4096, 8192, 16384]
+const outputLengthTokens: Record<string, number> = {
+  Short: 2048,
+  Balanced: 4096,
+  Deep: 8192,
+  Max: 16384,
+}
 const AI_TUTOR_DRAFT_KEY = "learn_ai_tutor_draft_v1"
 const DEFAULT_AI_MESSAGE = "Create a study plan from my recent notes."
 const tutorModeGroups = [
@@ -343,7 +349,7 @@ export function AiTutorView({
 
   function chooseOutputLength(value: string) {
     setOutputLength(value)
-    if (value === "Max") setOptions({ aiMaxTokens: tokenPresets[tokenPresets.length - 1] })
+    setOptions({ aiMaxTokens: outputLengthTokens[value] || 4096 })
   }
 
   function useReplyAsPrompt(taskKey: AiTaskKey, instruction: string, target: StudioInsertTarget) {
