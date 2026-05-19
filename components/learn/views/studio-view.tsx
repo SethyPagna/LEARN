@@ -924,25 +924,36 @@ export function StudioView({
   }
 
   function applyTemplate(template: StudioTemplate) {
+    const applied = buildAppliedTemplate(kind, template)
     if (kind === "notes") {
-      setNoteDraft((current) => current ? { ...current, title: template.title } : current)
-      setNoteHistory(pushHistory(noteHistory, template.body))
+      setNoteDraft((current) => current ? { ...current, title: applied.title } : current)
+      setNoteHistory(pushHistory(noteHistory, applied.body))
       return
     }
     if (kind === "docs") {
-      setDocTitle(template.title)
-      setDocHistory(pushHistory(docHistory, template.body))
+      setDocTitle(applied.title)
+      setDocHistory(pushHistory(docHistory, applied.body))
       return
     }
     if (kind === "sheets") {
-      setSheetTitle(template.title)
-      setCells(importCsvToSheet(template.body).cells)
+      setSheetTitle(applied.title)
+      setCells(importCsvToSheet(applied.body).cells)
       return
     }
-    setDeckTitle(template.title)
-    setSlides(template.body.split("\n").map((line) => {
+    setDeckTitle(applied.title)
+    const meta = getStudioTemplateMeta("slides", template)
+    setSlides(applied.body.split("\n").map((line, index) => {
       const [title, body, accent] = line.split("|")
-      return { title: title || "Slide", body: body || "Add the point.", accent: accent || "Slide", layout: "title", theme: "midnight", speakerNotes: "" }
+      return {
+        title: title || "Slide",
+        body: body || "Add the point.",
+        accent: accent || "Slide",
+        layout: index === 0 ? "title" : index % 2 ? "two-column" : "image",
+        theme: template.style?.toLowerCase().includes("brief") ? "paper" : "midnight",
+        transition: index === 0 ? "fade" : "push",
+        animation: index % 2 ? "reveal" : "rise",
+        speakerNotes: `${meta.style} template: ${meta.sections[index] || "Explain the idea"} in one clear learner-centered step.`,
+      }
     }))
   }
 
@@ -1772,6 +1783,50 @@ function getStudioTemplateMeta(kind: StudioKind, template: StudioTemplate) {
     sections,
     style: template.style || styleForTemplate(kind, template.label),
   }
+}
+
+function buildAppliedTemplate(kind: StudioKind, template: StudioTemplate) {
+  if (kind === "sheets") return { ...template, body: enrichSheetTemplate(template.body) }
+  if (kind === "slides") return { ...template, body: enrichSlideTemplate(template.body) }
+  return { ...template, body: enrichRichTemplate(kind, template) }
+}
+
+function enrichRichTemplate(kind: StudioKind, template: StudioTemplate) {
+  const meta = getStudioTemplateMeta(kind, template)
+  const sections = meta.sections.slice(0, 4)
+  return [
+    template.body,
+    `<blockquote><strong>Template intent:</strong> ${escapeHtml(meta.description)}</blockquote>`,
+    "<h2>Workflow</h2>",
+    "<ol>",
+    `<li>Capture the raw idea in the ${escapeHtml(sections[0] || "first section")} area.</li>`,
+    `<li>Add evidence, examples, or media under ${escapeHtml(sections[1] || "supporting notes")}.</li>`,
+    "<li>Mark one weak point and one next action before saving.</li>",
+    "</ol>",
+    "<h2>Review checklist</h2>",
+    "<ul><li>Turn one idea into a quiz question.</li><li>Create one active-recall card.</li><li>Link this item to a topic, file, or calendar block.</li></ul>",
+    "<h2>Export notes</h2>",
+    "<p>Keep headings short, add source links, and use the Studio export menu when this is ready to share.</p>",
+  ].join("")
+}
+
+function enrichSheetTemplate(body: string) {
+  const rows = body.split("\n").map((row) => row.split(","))
+  const header = rows[0] || []
+  const extras = ["Priority", "Owner", "Due", "Notes"].filter((column) => !header.includes(column))
+  if (!extras.length) return body
+  return rows.map((row, index) => {
+    if (index === 0) return [...row, ...extras].join(",")
+    const defaults = extras.map((column) => column === "Priority" ? "Medium" : column === "Owner" ? "Me" : "")
+    return [...row, ...defaults].join(",")
+  }).join("\n")
+}
+
+function enrichSlideTemplate(body: string) {
+  const lines = body.split("\n").filter(Boolean)
+  const hasClose = lines.some((line) => line.toLowerCase().startsWith("close|") || line.toLowerCase().startsWith("next|"))
+  const enriched = hasClose ? lines : [...lines, "Next step|What the learner should do after this deck|Close"]
+  return enriched.join("\n")
 }
 
 function extractTemplateSections(kind: StudioKind, body: string) {
