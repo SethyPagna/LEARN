@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -348,6 +348,16 @@ test("buildSocialRecordEmptyState separates empty records from filtered records"
   assert.equal(filtered.action, "clear")
   assert.equal(filtered.title, "No matching records")
   assert.match(filtered.body, /biology/)
+})
+
+test("buildSocialRecordFilterSummary reports active search and filters", () => {
+  const idle = buildSocialRecordFilterSummary({ filter: "all", total: 8, visible: 8 })
+  const filtered = buildSocialRecordFilterSummary({ filter: "focus", query: "biology", total: 8, visible: 2 })
+
+  assert.equal(idle.active, false)
+  assert.equal(idle.label, "8/8 visible")
+  assert.equal(filtered.active, true)
+  assert.equal(filtered.label, 'Filtered: "biology" + focus (2/8)')
 })
 
 test("social records page keeps filtered lists compact", () => {
