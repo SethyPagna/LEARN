@@ -13,6 +13,7 @@ import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload,
 const quizDetailCache = new Map<string, Quiz>()
 const CHAT_DRAFT_KEY = "learn_chat_draft_v1"
 type ChatMenuId = "compose" | "tools" | "signals" | "filters" | `threadActions:${string}`
+type ChatDraft = { body: string; title: string; intent: ChatIntent; channel: string; replyThreadId?: string }
 
 export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: WorkspaceOptions }) {
   const [quizBank, setQuizBank] = useState<Quiz[]>(quizzes)
@@ -275,6 +276,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<ChatThreadFilter>("all")
   const [draftStatus, setDraftStatus] = useState("")
+  const [replyThreadId, setReplyThreadId] = useState<string | undefined>(undefined)
   const [chatAction, setChatAction] = useState<ChatComposerActionId | null>(null)
   const [threadAction, setThreadAction] = useState<{ action: ChatThreadActionId; threadId: string } | null>(null)
   const [openChatMenu, setOpenChatMenu] = useState<ChatMenuId | null>(null)
@@ -330,22 +332,24 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     setTitle(draft.title || "Study room")
     setIntent(draft.intent || "update")
     setChannel(draft.channel || "#general")
+    setReplyThreadId(draft.replyThreadId)
   }, [])
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
-      writeChatDraft({ body, title, intent, channel })
+      writeChatDraft({ body, title, intent, channel, replyThreadId })
       setDraftStatus(body.trim() ? "Draft saved" : "")
     }, 500)
     return () => window.clearTimeout(timeout)
-  }, [body, channel, intent, title])
+  }, [body, channel, intent, replyThreadId, title])
 
   async function send() {
     if (chatActionById.get("send")?.disabled) return
     setChatAction("send")
     try {
-      await api("/api/chat", { method: "POST", body: JSON.stringify(buildChatDraftPayload({ body, channel, title, intent })) })
+      await api("/api/chat", { method: "POST", body: JSON.stringify(buildChatDraftPayload({ body, channel, title, intent, threadId: replyThreadId })) })
       setBody("")
+      setReplyThreadId(undefined)
       clearChatDraft()
       setDraftStatus("Sent")
       await refresh()
@@ -358,9 +362,11 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
 
   function replyToThread(thread: any) {
     const parsed = parseThreadTitle(thread.title)
+    const targetId = chatThreadKey(thread)
     setChannel(parsed.channel || "#general")
     setTitle(`Re: ${parsed.title}`)
     setIntent("question")
+    setReplyThreadId(targetId || undefined)
     setBody((current) => current.trim() ? current : `Replying to "${parsed.title}": `)
     setDraftStatus("Reply draft ready")
   }
@@ -523,6 +529,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                     if (chatActionById.get("clear-draft")?.disabled) return
                     setChatAction("clear-draft")
                     setBody("")
+                    setReplyThreadId(undefined)
                     clearChatDraft()
                     setDraftStatus("Draft cleared")
                     setChatAction(null)
@@ -532,7 +539,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               </ChatMenuSection>
             </ChatMenu>
             <p className={`rounded-md px-2 py-1 text-xs font-semibold ${draftStatus ? "bg-success/15 text-success" : "text-muted-foreground"}`}>
-              {draftStatus || "Private-first sharing"}
+              {replyThreadId ? "Reply target saved" : draftStatus || "Private-first sharing"}
             </p>
           </div>
         </div>
@@ -626,7 +633,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   )
 }
 
-function readChatDraft(): { body: string; title: string; intent: "update" | "question" | "win"; channel: string } | null {
+function readChatDraft(): ChatDraft | null {
   if (typeof window === "undefined") return null
   try {
     const stored = window.localStorage.getItem(CHAT_DRAFT_KEY)
@@ -636,7 +643,7 @@ function readChatDraft(): { body: string; title: string; intent: "update" | "que
   }
 }
 
-function writeChatDraft(draft: { body: string; title: string; intent: "update" | "question" | "win"; channel: string }) {
+function writeChatDraft(draft: ChatDraft) {
   if (typeof window === "undefined") return
   window.localStorage.setItem(CHAT_DRAFT_KEY, JSON.stringify(draft))
 }
