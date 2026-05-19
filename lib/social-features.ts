@@ -77,6 +77,11 @@ export interface SocialRecordEmptyState {
   title: string
 }
 
+export interface SocialRecordFilterSummary {
+  active: boolean
+  label: string
+}
+
 export type SocialActionTarget = "invite" | "chat" | "calendar" | "practice" | "files"
 
 export interface SocialActionItem {
@@ -794,6 +799,29 @@ export function buildSocialRecordEmptyState(input: {
     action: "create",
     body: input.emptyHint,
     title: `No ${input.title.toLowerCase()} yet`,
+  }
+}
+
+export function buildSocialRecordFilterSummary(input: {
+  filter: SocialRecordFilter
+  query?: string
+  total: number
+  visible: number
+}): SocialRecordFilterSummary {
+  const query = input.query?.trim() || ""
+  const active = Boolean(query) || input.filter !== "all"
+  if (!active) {
+    return { active: false, label: `${input.visible}/${input.total} visible` }
+  }
+
+  const parts = [
+    query ? `"${query}"` : "",
+    input.filter !== "all" ? input.filter : "",
+  ].filter(Boolean)
+
+  return {
+    active: true,
+    label: `Filtered: ${parts.join(" + ")} (${input.visible}/${input.total})`,
   }
 }
 
