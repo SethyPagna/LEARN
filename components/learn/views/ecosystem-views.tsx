@@ -47,7 +47,7 @@ import type {
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
-import { buildSocialActionKit, buildSocialWorkspacePlan, filterSocialRecords, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialWorkspace, type SocialActionTarget, type SocialRecordFilter } from "@/lib/social-features"
+import { buildSocialActionKit, buildSocialWorkspacePlan, filterSocialRecords, filterWorkspaceMembers, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -618,9 +618,11 @@ function toFeedLessonForSummary(lesson: MicroLesson) {
 export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms" | "battles"; setView?: (view: View) => void }) {
   const endpoint = kind === "spaces" ? "/api/learning-spaces" : kind === "rooms" ? "/api/study-rooms" : "/api/study-battles"
   const { data, status, refresh } = useResource<{ items: Array<LearningSpace | StudyRoom | StudyBattle> }>(endpoint)
+  const members = useResource<{ items: WorkspaceMemberLike[] }>("/api/workspace/members")
   const [selectedId, setSelectedId] = useState("")
   const [draft, setDraft] = useState(() => createSocialDraft(kind))
   const [query, setQuery] = useState("")
+  const [memberQuery, setMemberQuery] = useState("")
   const [recordFilter, setRecordFilter] = useState<SocialRecordFilter>("all")
   const [message, setMessage] = useState("")
   const [inviteEmail, setInviteEmail] = useState("")
@@ -631,13 +633,16 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const draftHydrated = useRef(false)
   const restoredDraftId = useRef<string | null>(null)
   const items = useMemo(() => data?.items ?? [], [data?.items])
+  const memberItems = useMemo(() => members.data?.items ?? [], [members.data?.items])
   const selected = useMemo(() => items.find((item) => item.id === selectedId), [items, selectedId])
   const Icon = kind === "spaces" ? Users : kind === "rooms" ? Radio : Swords
   const title = kind === "spaces" ? "Learning Spaces" : kind === "rooms" ? "Study Rooms" : "Study Battles"
   const noun = kind === "spaces" ? "space" : kind === "rooms" ? "room" : "battle"
   const socialSummary = useMemo(() => summarizeSocialWorkspace(kind, items), [items, kind])
+  const memberSummary = useMemo(() => summarizeWorkspaceMembers(memberItems), [memberItems])
   const socialPlan = useMemo(() => buildSocialWorkspacePlan(kind, socialSummary), [kind, socialSummary])
   const filteredItems = useMemo(() => filterSocialRecords(items, { query, filter: recordFilter }) as Array<LearningSpace | StudyRoom | StudyBattle>, [items, query, recordFilter])
+  const filteredMembers = useMemo(() => filterWorkspaceMembers(memberItems, memberQuery), [memberItems, memberQuery])
   const filterOptions = useMemo(() => socialFilterOptions(kind), [kind])
   const workflowSteps = useMemo(() => socialWorkflowSteps(kind, Boolean(draft.id)), [draft.id, kind])
   const actionKit = useMemo(() => buildSocialActionKit(kind, {
@@ -1001,6 +1006,43 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
                 </div>
                 {inviteLink ? <p className="truncate rounded-md bg-muted px-2 py-1.5 text-xs font-medium text-muted-foreground">{inviteLink}</p> : null}
               </div>
+            </div>
+          </details>
+          <details className="group/social rounded-md border border-border bg-background">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+              <span>People</span>
+              <div className="ml-auto flex items-center gap-1.5">
+                <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{memberSummary.total} total</span>
+                <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{memberSummary.active} active</span>
+              </div>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/social:rotate-180" />
+            </summary>
+            <div className="grid gap-2 border-t border-border p-3">
+              <div className="grid gap-2 sm:grid-cols-4">
+                <Metric label="Admins" value={String(memberSummary.admins)} />
+                <Metric label="Learners" value={String(memberSummary.learners)} />
+                <Metric label="Pending" value={String(memberSummary.pending)} />
+                <Metric label="Status" value={members.status} />
+              </div>
+              <label className="flex h-9 items-center rounded-md border border-input bg-background px-3">
+                <input value={memberQuery} onChange={(event) => setMemberQuery(event.target.value)} placeholder="Search people" className="w-full bg-transparent text-sm text-foreground outline-none" />
+              </label>
+              <div className="grid max-h-56 gap-1.5 overflow-auto pr-1">
+                {filteredMembers.slice(0, 8).map((member) => (
+                  <div key={member.id || member.email || member.name} className="flex items-center justify-between gap-3 rounded-md border border-border bg-card p-2 text-sm">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-foreground">{member.name || member.email || "Learner"}</p>
+                      <p className="truncate text-xs text-muted-foreground">{member.email || "No email"}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold capitalize text-secondary-foreground">{member.role || "learner"}</span>
+                      <span className="rounded-md bg-muted px-2 py-1 text-[0.68rem] font-semibold capitalize text-muted-foreground">{member.status || "active"}</span>
+                    </div>
+                  </div>
+                ))}
+                {!filteredMembers.length ? <p className="rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">No matching people yet. Create an invite link or clear the search.</p> : null}
+              </div>
+              {memberSummary.newest ? <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">Newest: {memberSummary.newest.name || memberSummary.newest.email || "Learner"}</p> : null}
             </div>
           </details>
           <details className="group/social rounded-md border border-border bg-background">
