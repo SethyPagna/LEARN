@@ -5,6 +5,7 @@ import {
   buildFeedActionPlan,
   buildKnowledgeGraphActionPlan,
   buildReviewActionPlan,
+  buildReviewRatingActions,
   buildReviewSchedule,
   canPostInCommunity,
   calculateLevelFromXp,
@@ -111,6 +112,16 @@ test("review action plan handles rest days empty queues and practice misses", ()
   assert.equal(missSummary.practiceMissCount, 2)
   assert.equal(missPlan.nextAction, "practice")
   assert.equal(missPlan.targetItemId, "miss_1")
+})
+
+test("review rating actions stay gated until the answer is revealed", () => {
+  const hiddenActions = buildReviewRatingActions({ isRevealed: false })
+  const busyActions = buildReviewRatingActions({ isRevealed: true, isBusy: true, busyRating: "hard" })
+
+  assert.equal(hiddenActions.length, 4)
+  assert.equal(hiddenActions.every((action) => action.disabled), true)
+  assert.equal(busyActions.find((action) => action.rating === "hard")?.busy, true)
+  assert.equal(busyActions.every((action) => action.disabled), true)
 })
 
 test("streak updates support rest days and earned freezes", () => {

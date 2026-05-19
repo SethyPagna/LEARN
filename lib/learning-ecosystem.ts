@@ -52,6 +52,16 @@ export interface ReviewActionPlan {
   chips: string[]
 }
 
+export type ReviewRating = "again" | "hard" | "good" | "easy"
+
+export interface ReviewRatingAction {
+  rating: ReviewRating
+  label: string
+  helper: string
+  disabled: boolean
+  busy: boolean
+}
+
 export interface LearningStreak {
   current: number
   longest: number
@@ -287,6 +297,29 @@ export function buildReviewActionPlan(
     nextAction: "studio",
     chips: ["minimum dose", "capture", "review later"],
   }
+}
+
+export function buildReviewRatingActions({
+  busyRating,
+  isBusy = false,
+  isRevealed,
+}: {
+  busyRating?: ReviewRating | null
+  isBusy?: boolean
+  isRevealed: boolean
+}): ReviewRatingAction[] {
+  const actions: Array<Omit<ReviewRatingAction, "busy" | "disabled">> = [
+    { rating: "again", label: "Again", helper: "Missed it" },
+    { rating: "hard", label: "Hard", helper: "Barely recalled" },
+    { rating: "good", label: "Good", helper: "Remembered" },
+    { rating: "easy", label: "Easy", helper: "Instant recall" },
+  ]
+
+  return actions.map((action) => ({
+    ...action,
+    busy: isBusy && busyRating === action.rating,
+    disabled: !isRevealed || isBusy,
+  }))
 }
 
 export function updateLearningStreak(input: LearningStreak & {
