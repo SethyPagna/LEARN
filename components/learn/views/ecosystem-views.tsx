@@ -636,6 +636,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const [recordLimit, setRecordLimit] = useState(12)
   const [activityLimit, setActivityLimit] = useState(4)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [recordAction, setRecordAction] = useState<"save" | "toggle" | "delete" | null>(null)
   const draftHydrated = useRef(false)
   const restoredDraftId = useRef<string | null>(null)
   const items = useMemo(() => data?.items ?? [], [data?.items])
@@ -679,6 +680,14 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
     { id: "activity", label: "Activity", icon: Repeat2, count: String(actionSummary.total || activityTimeline.length) },
     { id: "safety", label: "Safety", icon: ShieldCheck, count: status },
   ], [actionKit.actions.length, actionSummary.total, activityTimeline.length, inviteLink, memberSummary.total, status])
+  const recordStatus = recordAction === "save"
+    ? "Saving"
+    : recordAction === "toggle"
+      ? "Updating"
+      : recordAction === "delete"
+        ? "Deleting"
+        : socialDraftStatus(kind, draft)
+  const recordBusy = recordAction !== null
 
   useEffect(() => {
     const stored = readSocialDraftStore(kind)
@@ -754,28 +763,51 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   }
 
   async function saveDraft() {
-    const body = payloadFromSocialDraft(kind, draft)
-    const response = await api<{ item: LearningSpace | StudyRoom | StudyBattle }>(endpoint, {
-      method: draft.id ? "PUT" : "POST",
-      body: JSON.stringify(body),
-    })
-    setSelectedId(response.item.id)
-    setDeleteConfirmId(null)
-    setMessage(`${socialTitle(response.item)} saved.`)
-    await refresh()
+    if (recordBusy) return
+    setRecordAction("save")
+    setMessage(draft.id ? "Saving changes..." : `Creating ${noun}...`)
+    try {
+      const body = payloadFromSocialDraft(kind, draft)
+      const response = await api<{ item: LearningSpace | StudyRoom | StudyBattle }>(endpoint, {
+        method: draft.id ? "PUT" : "POST",
+        body: JSON.stringify(body),
+      })
+      setSelectedId(response.item.id)
+      setDeleteConfirmId(null)
+      setMessage(`${socialTitle(response.item)} saved.`)
+      await refresh()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : `Unable to save this ${noun}.`)
+    } finally {
+      setRecordAction(null)
+    }
   }
 
   async function toggleDraft() {
+    if (recordBusy) return
     const nextDraft = nextSocialToggle(kind, draft)
     setDraft(nextDraft)
     setDeleteConfirmId(null)
-    if (!nextDraft.id) return
-    await api(endpoint, { method: "PUT", body: JSON.stringify(payloadFromSocialDraft(kind, nextDraft)) })
-    setMessage(`${socialTitle(nextDraft)} toggled.`)
-    await refresh()
+    if (!nextDraft.id) {
+      setMessage("Draft state updated. Save when ready.")
+      return
+    }
+    setRecordAction("toggle")
+    setMessage("Updating state...")
+    try {
+      await api(endpoint, { method: "PUT", body: JSON.stringify(payloadFromSocialDraft(kind, nextDraft)) })
+      setMessage(`${socialTitle(nextDraft)} toggled.`)
+      await refresh()
+    } catch (error) {
+      setDraft(draft)
+      setMessage(error instanceof Error ? error.message : `Unable to update this ${noun}.`)
+    } finally {
+      setRecordAction(null)
+    }
   }
 
   async function deleteDraft() {
+    if (recordBusy) return
     if (!draft.id) {
       startNew()
       return
@@ -785,12 +817,20 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
       setMessage(`Select Delete again to remove ${socialTitle(draft)}.`)
       return
     }
-    await api(`${endpoint}?id=${encodeURIComponent(draft.id)}`, { method: "DELETE" })
-    setMessage(`${socialTitle(draft)} deleted.`)
-    setDeleteConfirmId(null)
-    setSelectedId("")
-    setDraft(createSocialDraft(kind))
-    await refresh()
+    setRecordAction("delete")
+    setMessage(`Deleting ${socialTitle(draft)}...`)
+    try {
+      await api(`${endpoint}?id=${encodeURIComponent(draft.id)}`, { method: "DELETE" })
+      setMessage(`${socialTitle(draft)} deleted.`)
+      setDeleteConfirmId(null)
+      setSelectedId("")
+      setDraft(createSocialDraft(kind))
+      await refresh()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : `Unable to delete this ${noun}.`)
+    } finally {
+      setRecordAction(null)
+    }
   }
 
   async function copyInvite() {
@@ -934,13 +974,13 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
             <h3 className="mt-1 text-xl font-semibold text-foreground">{draft.name || draft.title || `Untitled ${noun}`}</h3>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">{socialDraftStatus(kind, draft)}</span>
-            <SocialActionButton label="Save" icon={Save} onClick={saveDraft} primary />
+            <span className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">{recordStatus}</span>
+            <SocialActionButton label={recordAction === "save" ? "Saving" : "Save"} icon={Save} onClick={saveDraft} primary disabled={recordBusy} />
             <SocialMenu align="right" compact icon={MoreHorizontal} label="More actions" menuId="actions" openMenu={openSocialMenu} setOpenMenu={setOpenSocialMenu}>
               <SocialMenuSection title="Record actions">
-                <SocialMenuAction icon={Play} label="Toggle state" meta="Cycle visibility or activity status." onClick={() => { setOpenSocialMenu(null); void toggleDraft() }} />
-                <SocialMenuAction icon={Edit3} label="Reset draft" meta="Restore selected record values or clear the new draft." onClick={() => { setOpenSocialMenu(null); setDraft(selected ? draftFromSocialItem(kind, selected) : createSocialDraft(kind)) }} />
-                <SocialMenuAction danger icon={Trash2} label={draft.id && deleteConfirmId === draft.id ? "Confirm delete" : "Delete"} meta={draft.id && deleteConfirmId === draft.id ? `Delete ${socialTitle(draft)} now.` : `Ask before removing the selected ${noun}.`} onClick={() => { setOpenSocialMenu(null); void deleteDraft() }} />
+                <SocialMenuAction disabled={recordBusy} icon={Play} label={recordAction === "toggle" ? "Updating" : "Toggle state"} meta="Cycle visibility or activity status." onClick={() => { setOpenSocialMenu(null); void toggleDraft() }} />
+                <SocialMenuAction disabled={recordBusy} icon={Edit3} label="Reset draft" meta="Restore selected record values or clear the new draft." onClick={() => { setOpenSocialMenu(null); setDeleteConfirmId(null); setDraft(selected ? draftFromSocialItem(kind, selected) : createSocialDraft(kind)); setMessage("Draft reset.") }} />
+                <SocialMenuAction disabled={recordBusy} danger icon={Trash2} label={recordAction === "delete" ? "Deleting" : draft.id && deleteConfirmId === draft.id ? "Confirm delete" : "Delete"} meta={draft.id && deleteConfirmId === draft.id ? `Delete ${socialTitle(draft)} now.` : `Ask before removing the selected ${noun}.`} onClick={() => { setOpenSocialMenu(null); void deleteDraft() }} />
               </SocialMenuSection>
             </SocialMenu>
           </div>
@@ -1355,9 +1395,23 @@ function SocialSelect({ label, value, options, onChange }: { label: string; valu
   )
 }
 
-function SocialActionButton({ icon: Icon, label, onClick, primary, danger }: { icon: ComponentType<{ className?: string }>; label: string; onClick: () => void; primary?: boolean; danger?: boolean }) {
+function SocialActionButton({
+  danger,
+  disabled,
+  icon: Icon,
+  label,
+  onClick,
+  primary,
+}: {
+  danger?: boolean
+  disabled?: boolean
+  icon: ComponentType<{ className?: string }>
+  label: string
+  onClick: () => void
+  primary?: boolean
+}) {
   return (
-    <button onClick={onClick} className={`inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm font-semibold ${primary ? "border-primary bg-primary text-primary-foreground" : danger ? "border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+    <button disabled={disabled} onClick={onClick} className={`inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${primary ? "border-primary bg-primary text-primary-foreground" : danger ? "border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} type="button">
       <Icon className="h-4 w-4" />
       {label}
     </button>
@@ -1427,6 +1481,7 @@ function SocialMenuSection({ children, title }: { children: React.ReactNode; tit
 function SocialMenuAction({
   active,
   danger,
+  disabled,
   icon: Icon,
   label,
   meta,
@@ -1434,6 +1489,7 @@ function SocialMenuAction({
 }: {
   active?: boolean
   danger?: boolean
+  disabled?: boolean
   icon: ComponentType<{ className?: string }>
   label: string
   meta?: string
@@ -1445,7 +1501,7 @@ function SocialMenuAction({
       ? "bg-primary text-primary-foreground"
       : "text-popover-foreground hover:bg-accent hover:text-accent-foreground"
   return (
-    <button onClick={onClick} className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm font-semibold ${tone}`} type="button">
+    <button disabled={disabled} onClick={onClick} className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${tone}`} type="button">
       <Icon className="mt-0.5 h-4 w-4 shrink-0" />
       <span className="min-w-0">
         <span className="block truncate">{label}</span>
