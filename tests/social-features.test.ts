@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialInviteReadiness, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialInviteReadiness, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -294,6 +294,26 @@ test("filterSocialRecords combines text search with workspace filters", () => {
   assert.equal(filterSocialRecords(records, { filter: "private" }).length, 1)
   assert.equal(filterSocialRecords(records, { filter: "team" }).length, 1)
   assert.equal(filterSocialRecords(records, { query: "math", filter: "active" }).length, 1)
+})
+
+test("findRecommendedSocialRecord matches the Social primary action intent", () => {
+  const spaces = [
+    { id: "s1", name: "Private", visibility: "private" },
+    { id: "s2", name: "Public", visibility: "public" },
+  ]
+  const rooms = [
+    { id: "r1", name: "Closed", status: "closed" },
+    { id: "r2", name: "Open", status: "open" },
+  ]
+  const battles = [
+    { id: "b1", title: "Solo", mode: "solo", status: "waiting" },
+    { id: "b2", title: "Team", mode: "team", status: "completed" },
+  ]
+
+  assert.equal(findRecommendedSocialRecord("spaces", spaces)?.id, "s2")
+  assert.equal(findRecommendedSocialRecord("rooms", rooms)?.id, "r2")
+  assert.equal(findRecommendedSocialRecord("battles", battles)?.id, "b2")
+  assert.equal(findRecommendedSocialRecord("spaces", [])?.id, undefined)
 })
 
 test("social records page keeps filtered lists compact", () => {
