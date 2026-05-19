@@ -12,7 +12,7 @@ import { QuizView } from "../quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeWorkspacePlan, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildSocialCommandSummary, buildSocialFlowCards, filterConnectableMembers, summarizeConnections, type SocialFlowId, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildConnectablePeoplePage, buildSocialCommandSummary, buildSocialFlowCards, summarizeConnections, type SocialFlowId, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type PracticeTab = "quizzes" | "games"
 type SocialTab = "home" | "chat" | "spaces" | "rooms" | "battles"
@@ -176,8 +176,10 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const [inviteRole, setInviteRole] = useState<"learner" | "admin">("learner")
   const [status, setStatus] = useState("Loading")
   const [commandTab, setCommandTab] = useState<SocialCommandTab>("people")
+  const [peopleLimit, setPeopleLimit] = useState(5)
   const connectionSummary = useMemo(() => summarizeConnections(connections), [connections])
-  const connectableMembers = useMemo(() => filterConnectableMembers(members, connections, currentUserId, query).slice(0, 5), [connections, currentUserId, members, query])
+  const peoplePage = useMemo(() => buildConnectablePeoplePage({ members, connections, currentUserId, query, limit: peopleLimit }), [connections, currentUserId, members, peopleLimit, query])
+  const connectableMembers = peoplePage.items
   const commandSummary = useMemo(() => buildSocialCommandSummary({
     memberCount: members.length,
     connectionCount: connectionSummary.total,
@@ -193,11 +195,15 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     battleCount: counts.battles,
   }), [counts.battles, counts.rooms, counts.spaces, threads.length])
   const commandCounts = useMemo<Record<SocialCommandTab, string>>(() => ({
-    people: String(connectableMembers.length),
+    people: String(peoplePage.total),
     post: String(threads.length),
     invite: inviteEmail.trim() ? "ready" : "0",
     connections: String(connectionSummary.total),
-  }), [connectableMembers.length, connectionSummary.total, inviteEmail, threads.length])
+  }), [connectionSummary.total, inviteEmail, peoplePage.total, threads.length])
+
+  useEffect(() => {
+    setPeopleLimit(5)
+  }, [query])
 
   async function refresh() {
     setStatus("Loading")
@@ -364,6 +370,14 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                   <Search className="h-4 w-4 text-primary" />
                   <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find people by name or email" className="h-10 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none" />
                 </div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{peoplePage.total} available</span>
+                  {peoplePage.hiddenCount ? (
+                    <button onClick={() => setPeopleLimit((limit) => limit + 5)} className="rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+                      Show {Math.min(5, peoplePage.hiddenCount)} more
+                    </button>
+                  ) : null}
+                </div>
                 <div className="grid gap-2">
                   {connectableMembers.map((member) => (
                     <div key={member.id || member.email} className="grid gap-2 rounded-md border border-border bg-card p-2 sm:grid-cols-[1fr_auto] sm:items-center">
@@ -377,7 +391,15 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                       </div>
                     </div>
                   ))}
-                  {!connectableMembers.length ? <div className="rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">Search members or invite a new learner.</div> : null}
+                  {!connectableMembers.length ? (
+                    <div className="grid gap-2 rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground sm:grid-cols-[1fr_auto] sm:items-center">
+                      <span>{peoplePage.emptyAction === "invite" ? "No matching learner yet." : "Search members or invite a new learner."}</span>
+                      <button onClick={() => setCommandTab("invite")} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground" type="button">
+                        <Mail className="h-3.5 w-3.5" />
+                        Invite
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ) : null}
