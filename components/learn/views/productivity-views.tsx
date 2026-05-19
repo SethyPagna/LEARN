@@ -448,7 +448,12 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                         key={item}
                         label={item}
                         onClick={() => {
-                          setReaction(item)
+                          if (item === "reply") {
+                            replyToThread(thread)
+                          } else {
+                            setReaction(item)
+                            setDraftStatus(item === "save" ? "Save marker selected" : "Helpful reaction selected")
+                          }
                           setOpenChatMenu(null)
                         }}
                       />
