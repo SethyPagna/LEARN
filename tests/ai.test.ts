@@ -14,6 +14,7 @@ import { buildGuidedPrompt, listInsertActions, promptContracts } from "../lib/ai
 import { buildAiGatewayReadiness } from "../lib/ai/gateway-readiness"
 import { buildInsertBackPayload, parseAiJson } from "../lib/ai/insert-back"
 import {
+  buildAiTutorPrimaryActionPlan,
   buildAiTutorSourceContext,
   getRecommendedAiTutorTokens,
   resolveAiTutorEffectiveTokens,
@@ -415,6 +416,65 @@ test("AI tutor workflow warns when uploaded source is empty", () => {
 
   assert.equal(readySummary.status, "ready")
   assert.equal(readySummary.contextLabel, "Uploaded files (220 chars)")
+})
+
+test("AI tutor primary action routes users to the useful next step", () => {
+  const prompt = buildGuidedPrompt({
+    taskKey: "practice_generator",
+    fields: { context: "Generate practice from the uploaded material", mode: "mixed", count: 6 },
+    filters: {
+      sourceScope: "Uploaded files",
+      difficulty: "Adaptive",
+      tone: "Kind",
+      language: "English",
+      outputLength: "Balanced",
+      providerFamily: "auto",
+      insertTarget: "quiz",
+    },
+  })
+  const gateway = buildAiGatewayReadiness({
+    prompt,
+    providerFamily: "auto",
+    providers: [{ provider: "groq", enabled: true, has_key: true, last_status: "ok" }],
+  })
+
+  const importPlan = buildAiTutorPrimaryActionPlan({
+    prompt,
+    gateway,
+    loading: false,
+    sourceScope: "Uploaded files",
+    uploadedContextLength: 0,
+  })
+
+  assert.equal(importPlan.action, "import")
+  assert.equal(importPlan.label, "Add source")
+  assert.equal(importPlan.disabled, false)
+
+  const runPlan = buildAiTutorPrimaryActionPlan({
+    prompt,
+    gateway,
+    loading: false,
+    sourceScope: "Uploaded files",
+    uploadedContextLength: 250,
+  })
+
+  assert.equal(runPlan.action, "run")
+  assert.equal(runPlan.label, "Run tutor")
+
+  const gatewayPlan = buildAiTutorPrimaryActionPlan({
+    prompt,
+    gateway: buildAiGatewayReadiness({
+      prompt,
+      providerFamily: "groq",
+      providers: [{ provider: "groq", enabled: true, has_key: false, last_status: "error" }],
+    }),
+    loading: false,
+    sourceScope: "Manual only",
+    uploadedContextLength: 0,
+  })
+
+  assert.equal(gatewayPlan.action, "gateway")
+  assert.equal(gatewayPlan.label, "Fix gateway")
 })
 
 test("AI tutor workflow blocks missing prompts and splits previews", () => {

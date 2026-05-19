@@ -34,6 +34,15 @@ export interface AiTutorWorkflowSummary {
   }>
 }
 
+export type AiTutorPrimaryActionKind = "run" | "prompt" | "import" | "gateway"
+
+export interface AiTutorPrimaryActionPlan {
+  action: AiTutorPrimaryActionKind
+  label: string
+  disabled: boolean
+  statusMessage: string
+}
+
 export function buildAiTutorSourceContext(input: {
   message: string
   recentContext: string
@@ -207,6 +216,53 @@ export function resolveAiTutorEffectiveTokens(input: {
   tokenBudget: number
 }) {
   return Math.max(input.tokenBudget, getRecommendedAiTutorTokens(input.outputLength))
+}
+
+export function buildAiTutorPrimaryActionPlan(input: {
+  prompt: GuidedPromptResult
+  gateway: AiGatewayReadiness
+  loading: boolean
+  sourceScope: string
+  uploadedContextLength: number
+}) {
+  if (input.loading) {
+    return {
+      action: "run" as const,
+      label: "Thinking",
+      disabled: true,
+      statusMessage: "AI is working on the current prompt.",
+    }
+  }
+  if (!input.prompt.ok) {
+    return {
+      action: "prompt" as const,
+      label: "Complete prompt",
+      disabled: false,
+      statusMessage: `Missing: ${input.prompt.missing.join(", ")}`,
+    }
+  }
+  if (input.sourceScope === "Uploaded files" && input.uploadedContextLength === 0) {
+    return {
+      action: "import" as const,
+      label: "Add source",
+      disabled: false,
+      statusMessage: "Paste or import source material before running this workflow.",
+    }
+  }
+  if (input.gateway.status === "blocked") {
+    return {
+      action: "gateway" as const,
+      label: "Fix gateway",
+      disabled: false,
+      statusMessage: "Review provider keys or routing before running.",
+    }
+  }
+  return {
+    action: "run" as const,
+    label: "Run tutor",
+    disabled: false,
+    statusMessage: "",
+  }
 }
 
 export function splitPromptPreview(preview: string) {
