@@ -182,6 +182,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued AI import reliability by preserving pasted/imported material as Uploaded files context, so cleanup, practice, and flashcard follow-ups send the actual learner content instead of only the title.
 - 2026-05-19: Continued AI import readiness by warning when Uploaded files is selected without attached/imported content, keeping follow-up prompts from looking ready with weak context.
 - 2026-05-19: Continued AI Tutor action clarity by making the primary run button open Import or Gateway when that is the useful next step instead of presenting a dead or misleading run action.
+- 2026-05-19: Continued AI Import clarity by showing attached pasted/saved source status in the Import panel, badge, and clear action so hidden context is no longer confusing.
 
 ## Implementation Slices
 
