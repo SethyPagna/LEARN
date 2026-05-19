@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -337,6 +337,17 @@ test("buildSocialRecordSelectionMessage gives clear next steps", () => {
   assert.match(buildSocialRecordSelectionMessage("spaces", { name: "Algebra" }), /Invite, chat/)
   assert.match(buildSocialRecordSelectionMessage("rooms", { name: "Focus" }), /Join, schedule/)
   assert.match(buildSocialRecordSelectionMessage("battles", { title: "Index sprint" }), /Play, recap/)
+})
+
+test("buildSocialRecordEmptyState separates empty records from filtered records", () => {
+  const empty = buildSocialRecordEmptyState({ emptyHint: "Create one.", filter: "all", title: "Study Rooms", total: 0, visible: 0 })
+  const filtered = buildSocialRecordEmptyState({ emptyHint: "Create one.", filter: "focus", query: "biology", title: "Study Rooms", total: 3, visible: 0 })
+
+  assert.equal(empty.action, "create")
+  assert.equal(empty.title, "No study rooms yet")
+  assert.equal(filtered.action, "clear")
+  assert.equal(filtered.title, "No matching records")
+  assert.match(filtered.body, /biology/)
 })
 
 test("social records page keeps filtered lists compact", () => {
