@@ -34,7 +34,7 @@ import {
   sortSheetByColumn,
   splitStudioPane,
 } from "../lib/studio-features"
-import { summarizeStudioDrafts } from "../lib/studio-drafts"
+import { shouldAnnounceStudioDraftSave, summarizeStudioDrafts } from "../lib/studio-drafts"
 import { getVocabulary, isSupportedLocale, loadVocabulary, supportedLocales } from "../lib/i18n/vocabulary"
 
 test("editor history supports undo and redo without losing future states", () => {
@@ -173,6 +173,13 @@ test("studio draft summary counts typed workspace drafts", () => {
   assert.equal(summary.count, 2)
   assert.deepEqual(summary.labels.sort(), ["docs", "sheets"])
   assert.equal(summary.latestAt, "2026-01-02T00:00:00.000Z")
+})
+
+test("studio draft notice helper avoids noisy repeated announcements", () => {
+  assert.equal(shouldAnnounceStudioDraftSave({ kind: "notes", now: 1000 }), true)
+  assert.equal(shouldAnnounceStudioDraftSave({ kind: "notes", lastKind: "notes", lastShownAt: 1000, now: 2000, cooldownMs: 12000 }), false)
+  assert.equal(shouldAnnounceStudioDraftSave({ kind: "docs", lastKind: "notes", lastShownAt: 1000, now: 2000, cooldownMs: 12000 }), true)
+  assert.equal(shouldAnnounceStudioDraftSave({ kind: "notes", lastKind: "notes", lastShownAt: 1000, now: 14000, cooldownMs: 12000 }), true)
 })
 
 test("all supported vocabularies return usable text without mojibake", async () => {
