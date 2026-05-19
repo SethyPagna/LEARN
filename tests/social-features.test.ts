@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildSocialActionKit, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialWorkspacePlan, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialWorkspacePlan, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -170,6 +170,19 @@ test("connectable people page exposes visible and hidden counts", () => {
   assert.equal(page.hiddenCount, 1)
   assert.equal(page.emptyAction, "search")
   assert.equal(buildConnectablePeoplePage({ members, connections: [], currentUserId: "me", query: "missing" }).emptyAction, "invite")
+})
+
+test("connections page preserves summary while paging visible records", () => {
+  const connections = [
+    { target_user_id: "u1", connection_type: "friend", status: "accepted" },
+    { target_user_id: "u2", connection_type: "follow", status: "accepted" },
+    { target_user_id: "u3", connection_type: "friend", status: "pending" },
+  ]
+  const page = buildConnectionsPage(connections, 2)
+
+  assert.deepEqual(page.items.map((connection) => connection.target_user_id), ["u1", "u2"])
+  assert.equal(page.hiddenCount, 1)
+  assert.deepEqual(page.summary, { total: 3, friends: 2, follows: 1, pending: 1, blocked: 0 })
 })
 
 test("social flow cards keep the combined Social entry simple", () => {
