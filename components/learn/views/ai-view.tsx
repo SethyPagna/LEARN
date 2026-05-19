@@ -401,6 +401,15 @@ export function AiTutorView({
     setImportStatus("Source cleared.")
   }
 
+  function replaceImportText(nextText: string) {
+    const uploadedContextLength = nextText.trim().length
+    setImportText(nextText)
+    setLastImport(null)
+    setLastImportText("")
+    setSourceScope(resolveAiTutorSourceScopeAfterUpload({ currentScope: sourceScope, uploadedContextLength }))
+    if (uploadedContextLength) setImportStatus("")
+  }
+
   async function copyReply() {
     if (!reply.trim()) return
     await navigator.clipboard?.writeText(reply)
@@ -705,12 +714,7 @@ export function AiTutorView({
             </select>
             <textarea
               value={importText}
-              onChange={(event) => {
-                const nextText = event.target.value
-                setImportText(nextText)
-                setLastImport(null)
-                setSourceScope(resolveAiTutorSourceScopeAfterUpload({ currentScope: sourceScope, uploadedContextLength: nextText.trim().length }))
-              }}
+              onChange={(event) => replaceImportText(event.target.value)}
               placeholder="Paste text, CSV, or slide outline"
               className="min-h-36 rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none focus:border-ring"
             />
