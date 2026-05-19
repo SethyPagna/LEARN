@@ -155,6 +155,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Files usability by separating empty uploads from filtered misses and keeping previews scoped to visible files.
 - 2026-05-19: Continued Calendar refinement by adding tested day-part segments and a compact timeline for each selected date.
 - 2026-05-19: Continued Calendar action reliability by adding guarded busy states, compact action labels, and recovery messages for save, duplicate, complete, and delete flows.
+- 2026-05-19: Continued Reviews maturity by gating grading until reveal, adding tested rating action state, and showing compact recovery feedback for review submissions.
 
 ## Implementation Slices
 
