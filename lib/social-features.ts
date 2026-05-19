@@ -53,6 +53,11 @@ export interface ChatThreadActionState {
   busy: boolean
 }
 
+export interface ChatThreadStatus {
+  label: string
+  tone: "accent" | "muted" | "success" | "warning"
+}
+
 export interface SocialRecordLike {
   id?: string
   name?: string
@@ -413,6 +418,20 @@ export function buildChatThreadActions(input: {
     busy: input.busyAction === action.id,
     disabled: busy || action.disabled,
   }))
+}
+
+export function buildChatThreadStatus(thread: ChatThreadLike, nowMs = Date.now()): ChatThreadStatus {
+  if (thread.saved) return { label: "saved", tone: "success" }
+  if (thread.helpful) return { label: "helpful", tone: "accent" }
+
+  const body = String(thread.last_message || thread.lastMessage || "").toLowerCase()
+  if (body.includes("[question]") || body.includes("?")) return { label: "needs reply", tone: "warning" }
+  if (body.includes("[win]")) return { label: "win", tone: "success" }
+
+  const updatedAt = thread.updated_at || thread.updatedAt
+  const updatedMs = updatedAt ? new Date(updatedAt).getTime() : Number.NaN
+  const isRecent = Number.isFinite(updatedMs) && nowMs - updatedMs < 1000 * 60 * 60 * 24
+  return isRecent ? { label: "new", tone: "accent" } : { label: "read", tone: "muted" }
 }
 
 export function summarizeSocialWorkspace(kind: SocialWorkspaceKind, records: SocialRecordLike[]): SocialWorkspaceSummary {

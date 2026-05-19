@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatThreadActions, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandPrimaryAction, buildSocialCommandSummary, buildSocialFlowCards, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatThreadActions, buildChatThreadStatus, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandPrimaryAction, buildSocialCommandSummary, buildSocialFlowCards, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -89,6 +89,17 @@ test("buildChatThreadActions gates helpful save and reply actions", () => {
   assert.equal(readyActions.find((action) => action.id === "reply")?.helper, "Prepare a reply draft.")
   assert.equal(busyActions.find((action) => action.id === "save")?.busy, true)
   assert.equal(busyActions.every((action) => action.disabled), true)
+})
+
+test("buildChatThreadStatus prioritizes saved helpful questions and recency", () => {
+  const now = Date.parse("2026-05-19T12:00:00.000Z")
+
+  assert.deepEqual(buildChatThreadStatus({ saved: true, last_message: "[question] Help?" }, now), { label: "saved", tone: "success" })
+  assert.deepEqual(buildChatThreadStatus({ helpful: true, last_message: "Plain" }, now), { label: "helpful", tone: "accent" })
+  assert.deepEqual(buildChatThreadStatus({ last_message: "[question] Help?" }, now), { label: "needs reply", tone: "warning" })
+  assert.deepEqual(buildChatThreadStatus({ last_message: "[win] Done" }, now), { label: "win", tone: "success" })
+  assert.deepEqual(buildChatThreadStatus({ last_message: "Fresh", updated_at: "2026-05-19T01:00:00.000Z" }, now), { label: "new", tone: "accent" })
+  assert.deepEqual(buildChatThreadStatus({ last_message: "Old", updated_at: "2026-05-17T01:00:00.000Z" }, now), { label: "read", tone: "muted" })
 })
 
 test("summarizeSocialWorkspace creates kind-specific operational signals", () => {
