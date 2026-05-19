@@ -13,7 +13,13 @@ import { getPromptTemplate } from "../lib/ai/prompt-library"
 import { buildGuidedPrompt, listInsertActions, promptContracts } from "../lib/ai/prompt-builder"
 import { buildAiGatewayReadiness } from "../lib/ai/gateway-readiness"
 import { buildInsertBackPayload, parseAiJson } from "../lib/ai/insert-back"
-import { buildAiTutorSourceContext, splitPromptPreview, summarizeAiTutorWorkflow } from "../lib/ai/tutor-workflow"
+import {
+  buildAiTutorSourceContext,
+  getRecommendedAiTutorTokens,
+  resolveAiTutorEffectiveTokens,
+  splitPromptPreview,
+  summarizeAiTutorWorkflow,
+} from "../lib/ai/tutor-workflow"
 import { listProviderPresets, getProviderMetadata, resolveConfiguredProvider } from "../lib/ai/providers"
 
 test("resolveConfiguredProvider selects the requested provider when a key exists", () => {
@@ -286,12 +292,65 @@ test("AI tutor workflow summary combines prompt gateway insert and draft state",
     gateway,
     recentNoteCount: 3,
     draftSaved: true,
+    difficulty: "Adaptive",
+    language: "English",
+    outputLength: "Balanced",
+    providerFamily: "auto",
+    tokenBudget: 4096,
+    effectiveTokenBudget: 4096,
   })
 
   assert.equal(summary.status, "ready")
   assert.equal(summary.providerLabel, "1 ready")
   assert.equal(summary.insertLabel, "doc section")
+  assert.equal(summary.tokenLabel, "4096")
+  assert.equal(summary.overview.find((item) => item.id === "output")?.tone, "good")
   assert.match(summary.nextAction, /Run and insert/)
+})
+
+test("AI tutor workflow raises stale low token settings for longer outputs", () => {
+  const prompt = buildGuidedPrompt({
+    taskKey: "practice_generator",
+    fields: { context: "Database indexes", mode: "mixed", count: 8 },
+    filters: {
+      sourceScope: "Uploaded files",
+      difficulty: "Adaptive",
+      tone: "Kind",
+      language: "English",
+      outputLength: "Deep",
+      providerFamily: "auto",
+      insertTarget: "quiz",
+    },
+  })
+  const gateway = buildAiGatewayReadiness({
+    prompt,
+    providerFamily: "auto",
+    providers: [{ provider: "groq", enabled: true, has_key: true, last_status: "ok" }],
+  })
+  const effectiveTokenBudget = resolveAiTutorEffectiveTokens({ outputLength: "Deep", tokenBudget: 1200 })
+
+  const summary = summarizeAiTutorWorkflow({
+    taskLabel: "Practice",
+    sourceScope: "Uploaded files",
+    insertTarget: "quiz",
+    prompt,
+    gateway,
+    recentNoteCount: 2,
+    draftSaved: false,
+    difficulty: "Adaptive",
+    language: "English",
+    outputLength: "Deep",
+    providerFamily: "auto",
+    tokenBudget: 1200,
+    effectiveTokenBudget,
+  })
+
+  assert.equal(getRecommendedAiTutorTokens("Deep"), 8192)
+  assert.equal(effectiveTokenBudget, 8192)
+  assert.equal(summary.status, "warning")
+  assert.equal(summary.tokenLabel, "8192 effective")
+  assert.match(summary.nextAction, /8192 tokens/)
+  assert.match(summary.overview.find((item) => item.id === "output")?.detail || "", /Saved setting is 1200/)
 })
 
 test("AI tutor workflow blocks missing prompts and splits previews", () => {
@@ -317,6 +376,12 @@ test("AI tutor workflow blocks missing prompts and splits previews", () => {
     gateway,
     recentNoteCount: 0,
     draftSaved: false,
+    difficulty: "Beginner",
+    language: "English",
+    outputLength: "Short",
+    providerFamily: "auto",
+    tokenBudget: 2048,
+    effectiveTokenBudget: 2048,
   })
   const preview = splitPromptPreview(prompt.preview)
 

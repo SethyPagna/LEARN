@@ -3,6 +3,10 @@ import type { AiGatewayReadiness } from "./gateway-readiness"
 import type { GuidedPromptResult } from "./prompt-builder"
 
 export type AiPromptReadinessStatus = "ready" | "warning" | "blocked"
+const SHORT_OUTPUT_TOKENS = 2048
+const BALANCED_OUTPUT_TOKENS = 4096
+const DEEP_OUTPUT_TOKENS = 8192
+const MAX_OUTPUT_TOKENS = 16_384
 
 export interface AiTutorWorkflowSummary {
   status: AiPromptReadinessStatus
@@ -12,7 +16,15 @@ export interface AiTutorWorkflowSummary {
   providerLabel: string
   insertLabel: string
   contextLabel: string
+  tokenLabel: string
   nextAction: string
+  overview: Array<{
+    id: "task" | "context" | "output" | "gateway"
+    label: string
+    value: string
+    detail: string
+    tone: "good" | "watch" | "blocked" | "neutral"
+  }>
   cards: Array<{
     id: "task" | "prompt" | "provider" | "insert" | "context" | "draft"
     label: string
@@ -44,13 +56,24 @@ export function summarizeAiTutorWorkflow(input: {
   gateway: AiGatewayReadiness
   recentNoteCount: number
   draftSaved: boolean
+  difficulty: string
+  language: string
+  outputLength: string
+  providerFamily: string
+  tokenBudget: number
+  effectiveTokenBudget: number
 }) {
-  const status = workflowStatus(input.prompt, input.gateway)
+  const recommendedTokenBudget = getRecommendedAiTutorTokens(input.outputLength)
+  const tokenBudgetIsLow = input.tokenBudget < recommendedTokenBudget
+  const status = workflowStatus(input.prompt, input.gateway, tokenBudgetIsLow)
   const promptLabel = input.prompt.ok ? "Complete" : `${input.prompt.missing.length} missing`
   const providerLabel = input.gateway.readyProviderCount
     ? `${input.gateway.readyProviderCount} ready`
     : "Not ready"
   const insertLabel = labelInsertTarget(input.insertTarget)
+  const tokenLabel = tokenBudgetIsLow
+    ? `${input.effectiveTokenBudget} effective`
+    : `${input.effectiveTokenBudget}`
   const contextLabel = input.sourceScope === "Manual only"
     ? "Manual"
     : input.sourceScope === "Recent notes"
@@ -65,7 +88,46 @@ export function summarizeAiTutorWorkflow(input: {
     providerLabel,
     insertLabel,
     contextLabel,
-    nextAction: nextAiAction({ prompt: input.prompt, gateway: input.gateway, insertTarget: input.insertTarget }),
+    tokenLabel,
+    nextAction: nextAiAction({
+      prompt: input.prompt,
+      gateway: input.gateway,
+      insertTarget: input.insertTarget,
+      tokenBudgetIsLow,
+      recommendedTokenBudget,
+    }),
+    overview: [
+      {
+        id: "task" as const,
+        label: "Task",
+        value: input.taskLabel,
+        detail: "Selected AI workflow",
+        tone: "neutral" as const,
+      },
+      {
+        id: "context" as const,
+        label: "Context",
+        value: `${input.sourceScope} / ${input.difficulty}`,
+        detail: contextLabel,
+        tone: input.recentNoteCount || input.sourceScope === "Manual only" ? "good" as const : "watch" as const,
+      },
+      {
+        id: "output" as const,
+        label: "Output",
+        value: `${input.outputLength} / ${input.language} / ${tokenLabel}`,
+        detail: tokenBudgetIsLow
+          ? `Saved setting is ${input.tokenBudget}; LEARN will use ${input.effectiveTokenBudget} for this run.`
+          : "Length and token budget are aligned.",
+        tone: tokenBudgetIsLow ? "watch" as const : "good" as const,
+      },
+      {
+        id: "gateway" as const,
+        label: "Gateway",
+        value: `${input.providerFamily === "auto" ? "Auto" : input.providerFamily} / ${providerLabel}`,
+        detail: input.gateway.checks.join(" "),
+        tone: input.gateway.status === "ready" ? "good" as const : input.gateway.status === "blocked" ? "blocked" as const : "watch" as const,
+      },
+    ],
     cards: [
       {
         id: "task" as const,
@@ -84,9 +146,12 @@ export function summarizeAiTutorWorkflow(input: {
       {
         id: "provider" as const,
         label: "Gateway",
-        value: providerLabel,
-        detail: input.gateway.checks.join(" "),
-        tone: input.gateway.status === "ready" ? "good" as const : input.gateway.status === "blocked" ? "blocked" as const : "watch" as const,
+        value: `${providerLabel} / ${tokenLabel}`,
+        detail: [
+          ...input.gateway.checks,
+          tokenBudgetIsLow ? `Token budget raised from ${input.tokenBudget} to ${input.effectiveTokenBudget} for ${input.outputLength}.` : "",
+        ].filter(Boolean).join(" "),
+        tone: input.gateway.status === "ready" && !tokenBudgetIsLow ? "good" as const : input.gateway.status === "blocked" ? "blocked" as const : "watch" as const,
       },
       {
         id: "insert" as const,
@@ -113,6 +178,20 @@ export function summarizeAiTutorWorkflow(input: {
   }
 }
 
+export function getRecommendedAiTutorTokens(outputLength: string) {
+  if (outputLength === "Short") return SHORT_OUTPUT_TOKENS
+  if (outputLength === "Deep") return DEEP_OUTPUT_TOKENS
+  if (outputLength === "Max") return MAX_OUTPUT_TOKENS
+  return BALANCED_OUTPUT_TOKENS
+}
+
+export function resolveAiTutorEffectiveTokens(input: {
+  outputLength: string
+  tokenBudget: number
+}) {
+  return Math.max(input.tokenBudget, getRecommendedAiTutorTokens(input.outputLength))
+}
+
 export function splitPromptPreview(preview: string) {
   const lines = preview.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
   const requirements: string[] = []
@@ -130,9 +209,9 @@ export function splitPromptPreview(preview: string) {
   return { task, requirements, warnings, output }
 }
 
-function workflowStatus(prompt: GuidedPromptResult, gateway: AiGatewayReadiness): AiPromptReadinessStatus {
+function workflowStatus(prompt: GuidedPromptResult, gateway: AiGatewayReadiness, tokenBudgetIsLow: boolean): AiPromptReadinessStatus {
   if (!prompt.ok || gateway.status === "blocked") return "blocked"
-  if (prompt.warnings.length || gateway.status === "warning") return "warning"
+  if (prompt.warnings.length || gateway.status === "warning" || tokenBudgetIsLow) return "warning"
   return "ready"
 }
 
@@ -140,10 +219,13 @@ function nextAiAction(input: {
   prompt: GuidedPromptResult
   gateway: AiGatewayReadiness
   insertTarget: StudioInsertTarget
+  tokenBudgetIsLow: boolean
+  recommendedTokenBudget: number
 }) {
   if (!input.prompt.ok) return `Fill: ${input.prompt.missing.join(", ")}`
   if (input.gateway.status === "blocked") return "Fix provider route"
   if (input.gateway.status === "warning") return "Review gateway"
+  if (input.tokenBudgetIsLow) return `Use ${input.recommendedTokenBudget} tokens`
   return `Run and insert as ${labelInsertTarget(input.insertTarget)}`
 }
 
