@@ -54,6 +54,7 @@ export function LoginSurface() {
   const [success, setSuccess] = useState("")
   const [loading, setLoading] = useState(false)
   const [locale, setLocaleState] = useState<SupportedLocale>("en")
+  const [mounted, setMounted] = useState(false)
   const [languageOpen, setLanguageOpen] = useState(false)
   const [forgotOpen, setForgotOpen] = useState(false)
   const [redirectPath, setRedirectPath] = useState("/dashboard")
@@ -62,10 +63,12 @@ export function LoginSurface() {
     [error, identifier, mode, password, success],
   )
   const forgotPlan = useMemo(() => buildForgotPasswordPlan(identifier), [identifier])
-  const nextTheme = resolvedTheme === "dark" ? "light" : "dark"
-  const ThemeIcon = resolvedTheme === "dark" ? Sun : Moon
+  const currentTheme = mounted ? resolvedTheme : "dark"
+  const nextTheme = currentTheme === "dark" ? "light" : "dark"
+  const ThemeIcon = currentTheme === "dark" ? Sun : Moon
 
   useEffect(() => {
+    setMounted(true)
     setLocaleState(getStoredLocale())
     const params = new URLSearchParams(window.location.search)
     setRedirectPath(safeRedirectPath(params.get("redirect")))
