@@ -133,7 +133,7 @@ test("buildSocialWorkspacePlan recommends kind-specific next moves", () => {
     { title: "Team round", status: "waiting", mode: "team" },
   ]))
 
-  assert.equal(emptySpaces.primaryAction, "Create private space")
+  assert.equal(emptySpaces.primaryAction, "Create private group")
   assert.equal(activeRooms.primaryAction, "Join active room")
   assert.equal(teamBattles.primaryAction, "Run team round")
   assert.match(emptySpaces.safetyCue, /opt-in/)
@@ -158,7 +158,7 @@ test("buildSocialActionReadiness keeps draft actions clear and disabled", () => 
 
   assert.equal(draftAction.enabled, false)
   assert.equal(draftAction.label, "Save first")
-  assert.match(draftAction.detail, /Save this space/)
+  assert.match(draftAction.detail, /Save this group/)
   assert.equal(savedAction.enabled, true)
   assert.equal(savedAction.label, "Invite")
 })

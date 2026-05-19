@@ -506,8 +506,8 @@ export function buildSocialWorkspacePlan(kind: SocialWorkspaceKind, summary: Soc
   if (kind === "spaces") {
     return {
       headline: summary.total ? "Curate circles deliberately" : "Start with a private circle",
-      primaryAction: summary.primaryCount ? "Review public spaces" : "Create private space",
-      safetyCue: "Sharing is opt-in. Keep new spaces private until the purpose is clear.",
+      primaryAction: summary.primaryCount ? "Review public groups" : "Create private group",
+      safetyCue: "Sharing is opt-in. Keep new groups private until the purpose is clear.",
       emptyHint: "Create a small topic circle before inviting others.",
     }
   }
@@ -573,10 +573,10 @@ export function buildSocialActionKit(kind: SocialWorkspaceKind, input: {
   return {
     headline: input.saved ? "Grow the circle" : "Shape the circle",
     brief: "Keep the circle private until it has a topic, invite a small group, then share useful Studio items.",
-    inviteText: `Join my LEARN learning space: ${title}. It is for ${topic} study, shared notes, questions, and focused practice.`,
+    inviteText: `Join my LEARN learning group: ${title}. It is for ${topic} study, shared notes, questions, and focused practice.`,
     chips: [savedCue, status, input.visibility || "private"],
     actions: [
-      { id: "invite", label: "Invite", detail: "Copy a space invite." },
+      { id: "invite", label: "Invite", detail: "Copy a group invite." },
       { id: "chat", label: "Chat", detail: "Start a thread." },
       { id: "files", label: "Resources", detail: "Add files." },
       { id: "practice", label: "Practice", detail: "Create a drill." },
@@ -587,7 +587,7 @@ export function buildSocialActionKit(kind: SocialWorkspaceKind, input: {
 export function buildSocialActionReadiness(kind: SocialWorkspaceKind, action: SocialActionItem, saved: boolean): SocialActionReadiness {
   if (saved) return { ...action, enabled: true }
 
-  const noun = kind === "rooms" ? "room" : kind === "battles" ? "battle" : "space"
+  const noun = socialKindNoun(kind)
   return {
     ...action,
     detail: `Save this ${noun} before using ${action.label.toLowerCase()}.`,
@@ -603,7 +603,7 @@ export function buildSocialInviteReadiness(input: {
   loading?: boolean
   saved: boolean
 }): SocialInviteReadiness {
-  const noun = input.kind === "rooms" ? "room" : input.kind === "battles" ? "battle" : "space"
+  const noun = socialKindNoun(input.kind)
   if (input.loading) {
     return { enabled: false, label: "Creating...", message: "Creating secure invite link.", tone: "ready" }
   }
@@ -889,7 +889,7 @@ export function buildSocialActivityTimeline(input: {
   suggestedAction: string
 }) {
   const title = (input.title || "").trim() || fallbackSocialTitle(input.kind)
-  const noun = input.kind === "rooms" ? "room" : input.kind === "battles" ? "battle" : "space"
+  const noun = socialKindNoun(input.kind)
   const items: SocialActivityItem[] = [
     {
       id: "record",
@@ -1092,7 +1092,13 @@ function capitalize(value: string) {
 function fallbackSocialTitle(kind: SocialWorkspaceKind) {
   if (kind === "rooms") return "Focus room"
   if (kind === "battles") return "Study battle"
-  return "Learning space"
+  return "Learning group"
+}
+
+function socialKindNoun(kind: SocialWorkspaceKind) {
+  if (kind === "rooms") return "room"
+  if (kind === "battles") return "battle"
+  return "group"
 }
 
 function socialRecordSearchText(record: SocialRecordLike) {
