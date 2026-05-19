@@ -250,11 +250,12 @@ function urgencyTone(urgency: ProgressNextAction["urgency"]) {
 export function CalendarView({ options }: { options: WorkspaceOptions }) {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [selectedId, setSelectedId] = useState("")
-  const [visibleMonth, setVisibleMonth] = useState(() => new Date())
-  const [selectedDayKey, setSelectedDayKey] = useState(() => localDateKey(new Date()))
+  const [calendarMounted, setCalendarMounted] = useState(false)
+  const [visibleMonth, setVisibleMonth] = useState(() => new Date(2000, 0, 1))
+  const [selectedDayKey, setSelectedDayKey] = useState("2000-01-01")
   const [title, setTitle] = useState("45 min focus block")
   const [eventType, setEventType] = useState("study")
-  const [startsAt, setStartsAt] = useState(toLocalInputValue(new Date(Date.now() + options.calendarLeadMinutes * 60 * 1000)))
+  const [startsAt, setStartsAt] = useState("")
   const [durationMinutes, setDurationMinutes] = useState(options.calendarDefaultMinutes)
   const [notes, setNotes] = useState("")
   const [status, setStatus] = useState("")
@@ -288,6 +289,16 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
   useEffect(() => {
     refresh().catch((error) => setStatus(error.message))
   }, [])
+
+  useEffect(() => {
+    if (calendarMounted) return
+    const now = new Date()
+    setVisibleMonth(now)
+    setSelectedDayKey(localDateKey(now))
+    setStartsAt(toLocalInputValue(new Date(now.getTime() + options.calendarLeadMinutes * 60 * 1000)))
+    setDurationMinutes(options.calendarDefaultMinutes)
+    setCalendarMounted(true)
+  }, [calendarMounted, options.calendarDefaultMinutes, options.calendarLeadMinutes])
 
   useEffect(() => {
     if (!selected) return
@@ -434,6 +445,15 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
 
   function shiftVisibleMonth(delta: number) {
     setVisibleMonth((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1))
+  }
+
+  if (!calendarMounted) {
+    return (
+      <Panel className="p-4">
+        <h2 className="text-2xl font-semibold text-foreground">Study calendar</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Loading planner...</p>
+      </Panel>
+    )
   }
 
   return (
