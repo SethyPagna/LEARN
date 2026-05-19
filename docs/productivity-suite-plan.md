@@ -192,6 +192,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-20: Continued public-entry reliability by stabilizing theme hydration on login/intro controls and removing corrupted public language labels.
 - 2026-05-20: Continued sidebar refinement by making compact desktop navigation a true icon-only rail while preserving labeled groups on mobile.
 - 2026-05-20: Continued Learn workspace cleanup by removing Dashboard/Reviews/Calendar-style route actions from Learn and focusing it on Studio, Practice, and AI path-building.
+- 2026-05-20: Continued Reviews UX by moving detailed queue statistics into a compact drawer and keeping the main review panel focused on due count, recall, and active grading state.
 
 ## Implementation Slices
 
