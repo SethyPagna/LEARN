@@ -499,6 +499,19 @@ export function buildConnectablePeoplePage({
   }
 }
 
+export function buildConnectionsPage(connections: UserConnectionLike[], limit = 6) {
+  const safeLimit = Math.max(1, limit)
+  const items = connections.slice(0, safeLimit)
+  const summary = summarizeConnections(connections)
+
+  return {
+    hiddenCount: Math.max(0, connections.length - items.length),
+    items,
+    summary,
+    total: connections.length,
+  }
+}
+
 export function buildSocialCommandSummary(input: {
   memberCount: number
   connectionCount: number
