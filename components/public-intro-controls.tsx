@@ -7,18 +7,12 @@ import { ArrowRight, Check, Languages, Moon, Sun } from "lucide-react"
 import { isSupportedLocale, languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
 
 const LANGUAGE_KEY = "learn_locale"
-
-const publicLabels: Partial<Record<SupportedLocale, { open: string; signIn: string; language: string; light: string; dark: string }>> = {
-  ar: { open: "فتح مساحة العمل", signIn: "تسجيل الدخول", language: "اللغة", light: "الوضع الفاتح", dark: "الوضع الداكن" },
-  de: { open: "Arbeitsbereich öffnen", signIn: "Anmelden", language: "Sprache", light: "Heller Modus", dark: "Dunkler Modus" },
-  en: { open: "Open workspace", signIn: "Sign in", language: "Language", light: "Light mode", dark: "Dark mode" },
-  es: { open: "Abrir espacio", signIn: "Iniciar sesión", language: "Idioma", light: "Modo claro", dark: "Modo oscuro" },
-  fr: { open: "Ouvrir l'espace", signIn: "Se connecter", language: "Langue", light: "Mode clair", dark: "Mode sombre" },
-  ja: { open: "ワークスペース", signIn: "ログイン", language: "言語", light: "ライトモード", dark: "ダークモード" },
-  km: { open: "បើកកន្លែងធ្វើការ", signIn: "ចូលគណនី", language: "ភាសា", light: "របៀបភ្លឺ", dark: "របៀបងងឹត" },
-  ko: { open: "워크스페이스 열기", signIn: "로그인", language: "언어", light: "라이트 모드", dark: "다크 모드" },
-  "zh-CN": { open: "打开工作区", signIn: "登录", language: "语言", light: "浅色模式", dark: "深色模式" },
-  "zh-TW": { open: "打開工作區", signIn: "登入", language: "語言", light: "淺色模式", dark: "深色模式" },
+const publicLabels = {
+  dark: "Dark mode",
+  language: "Language",
+  light: "Light mode",
+  open: "Open workspace",
+  signIn: "Sign in",
 }
 
 function getStoredLocale(): SupportedLocale {
@@ -32,9 +26,9 @@ export function PublicIntroControls({ signedIn }: { signedIn: boolean }) {
   const [locale, setLocaleState] = useState<SupportedLocale>("en")
   const [mounted, setMounted] = useState(false)
   const [languageOpen, setLanguageOpen] = useState(false)
-  const labels = publicLabels[locale] || publicLabels.en!
-  const nextTheme = resolvedTheme === "dark" ? "light" : "dark"
-  const ThemeIcon = resolvedTheme === "dark" ? Sun : Moon
+  const currentTheme = mounted ? resolvedTheme : "dark"
+  const nextTheme = currentTheme === "dark" ? "light" : "dark"
+  const ThemeIcon = currentTheme === "dark" ? Sun : Moon
 
   useEffect(() => {
     setMounted(true)
@@ -59,8 +53,8 @@ export function PublicIntroControls({ signedIn }: { signedIn: boolean }) {
         type="button"
         onClick={() => setTheme(nextTheme)}
         className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-300/70 bg-white/70 text-slate-800 shadow-sm transition hover:border-emerald-500/50 hover:bg-emerald-50 dark:border-white/12 dark:bg-white/8 dark:text-white/82 dark:hover:border-emerald-300/45 dark:hover:bg-white/14"
-        aria-label={nextTheme === "light" ? labels.light : labels.dark}
-        title={nextTheme === "light" ? labels.light : labels.dark}
+        aria-label={nextTheme === "light" ? publicLabels.light : publicLabels.dark}
+        title={nextTheme === "light" ? publicLabels.light : publicLabels.dark}
       >
         <ThemeIcon className="h-4 w-4" />
       </button>
@@ -71,14 +65,14 @@ export function PublicIntroControls({ signedIn }: { signedIn: boolean }) {
           onClick={() => setLanguageOpen((open) => !open)}
           className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-300/70 bg-white/70 text-slate-800 shadow-sm transition hover:border-emerald-500/50 hover:bg-emerald-50 dark:border-white/12 dark:bg-white/8 dark:text-white/82 dark:hover:border-emerald-300/45 dark:hover:bg-white/14"
           aria-expanded={languageOpen}
-          aria-label={labels.language}
-          title={mounted ? languageNames[locale] : labels.language}
+          aria-label={publicLabels.language}
+          title={mounted ? languageNames[locale] : publicLabels.language}
         >
           <Languages className="h-4 w-4" />
         </button>
         {languageOpen ? (
           <div className="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-2 text-slate-950 shadow-2xl dark:border-white/12 dark:bg-[#101722] dark:text-white">
-            <p className="px-3 pb-2 pt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-white/48">{labels.language}</p>
+            <p className="px-3 pb-2 pt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-white/48">{publicLabels.language}</p>
             <div className="grid max-h-80 gap-1 overflow-auto pr-1">
               {supportedLocales.map((item) => (
                 <button
@@ -99,7 +93,7 @@ export function PublicIntroControls({ signedIn }: { signedIn: boolean }) {
       </div>
 
       <Link href={signedIn ? "/dashboard" : "/login"} className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-300/70 bg-white/70 px-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-emerald-500/50 hover:bg-emerald-50 dark:border-white/12 dark:bg-white/8 dark:text-white/82 dark:hover:border-emerald-300/45 dark:hover:bg-white/14">
-        {signedIn ? labels.open : labels.signIn}
+        {signedIn ? publicLabels.open : publicLabels.signIn}
         <ArrowRight className="h-4 w-4" />
       </Link>
     </div>
