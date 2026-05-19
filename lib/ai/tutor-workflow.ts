@@ -39,11 +39,20 @@ export function buildAiTutorSourceContext(input: {
   recentContext: string
   sourceScope: string
   includeRecentNotes: boolean
+  uploadedContext?: string
 }) {
   const message = input.message.trim()
   const recentContext = input.recentContext.trim()
+  const uploadedContext = input.uploadedContext?.trim() || ""
   if (input.sourceScope === "Manual only") return message
   if (input.sourceScope === "Recent notes") return [message, recentContext].filter(Boolean).join("\n\n")
+  if (input.sourceScope === "Uploaded files") {
+    return [
+      message,
+      uploadedContext ? `Uploaded files:\n${uploadedContext}` : "",
+      input.includeRecentNotes && recentContext ? `Recent notes:\n${recentContext}` : "",
+    ].filter(Boolean).join("\n\n")
+  }
   if (input.includeRecentNotes && recentContext) return [message, `Recent notes:\n${recentContext}`].filter(Boolean).join("\n\n")
   return message
 }

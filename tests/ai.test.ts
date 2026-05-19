@@ -419,7 +419,16 @@ test("AI tutor source context respects source filters", () => {
     message: "Clean upload",
     recentContext,
     sourceScope: "Uploaded files",
+    includeRecentNotes: false,
+    uploadedContext: "Topic,Status\nIndexes,Weak",
+  }), /Uploaded files:\nTopic,Status/)
+
+  assert.match(buildAiTutorSourceContext({
+    message: "Clean upload",
+    recentContext,
+    sourceScope: "Uploaded files",
     includeRecentNotes: true,
+    uploadedContext: "Deck outline",
   }), /Recent notes:/)
 })
 
