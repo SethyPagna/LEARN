@@ -148,6 +148,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Social record clarity by adding tested per-card action labels such as Review, Join, Plan, and Play.
 - 2026-05-19: Continued Social selection feedback by adding tested next-step messages and clearing stale delete state when opening records.
 - 2026-05-19: Continued Social empty-state clarity by separating true empty lists from search/filter misses and adding a clear-filters action.
+- 2026-05-19: Continued Social filter clarity by adding tested active-filter summaries and a compact clear action before lists become empty.
 
 ## Implementation Slices
 
