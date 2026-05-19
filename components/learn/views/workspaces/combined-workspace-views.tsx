@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ComponentType } from "react"
-import { BookOpen, CalendarDays, ChevronDown, Clock, Gamepad2, Info, Mail, MessageSquare, MoreHorizontal, Play, Plus, Radio, Repeat2, Search, Send, Sparkles, Swords, Target, Trash2, Users } from "lucide-react"
+import { BookOpen, Bot, ChevronDown, Clock, Gamepad2, Info, Mail, MessageSquare, MoreHorizontal, Play, Plus, Radio, Repeat2, Search, Send, Sparkles, Swords, Target, Trash2, Users } from "lucide-react"
 import type { Quiz, User, View } from "../../types"
 import type { WorkspaceOptions } from "../../preferences"
 import { api } from "../../api"
@@ -51,7 +51,7 @@ export function LearnWorkspaceView({
     <WorkspaceFrame
       eyebrow="Learn workspace"
       title="Learn"
-      body="A compact daily route. Reviews and Calendar now live as separate sidebar pages."
+      body="Shape the next learning path without duplicating Dashboard, Reviews, or Calendar."
     >
       <LearnRoute dashboard={dashboard} quizzes={quizzes} setView={setView} />
     </WorkspaceFrame>
@@ -758,9 +758,8 @@ function LearnRoute({ dashboard, quizzes, setView }: { dashboard: any; quizzes: 
   }), [dashboard?.snapshot?.goalCompletion, focus, quizzes.length, weakTopics])
   const actionIcons = useMemo(() => ({
     create: Sparkles,
+    tutor: Bot,
     practice: BookOpen,
-    review: Repeat2,
-    schedule: CalendarDays,
   }), [])
 
   return (
@@ -793,7 +792,7 @@ function LearnRoute({ dashboard, quizzes, setView }: { dashboard: any; quizzes: 
         </div>
       </Panel>
       <Panel className="p-4">
-        <h3 className="font-semibold text-foreground">Today's learning signal</h3>
+        <h3 className="font-semibold text-foreground">Route signal</h3>
         <div className="mt-3 grid grid-cols-2 gap-2">
           {routePlan.signals.map((signal) => <MiniMetric key={signal.label} label={signal.label} value={signal.value} />)}
         </div>
@@ -813,7 +812,7 @@ function LearnRoute({ dashboard, quizzes, setView }: { dashboard: any; quizzes: 
           </summary>
           <div className="mt-3 grid gap-3 md:grid-cols-3">
             <PatternCard icon={Sparkles} title="Capture" body="Studio keeps notes, docs, sheets, slides, and imports together." />
-            <PatternCard icon={Repeat2} title="Practice" body="Review, quiz, retry misses, and save hard items as cards." />
+            <PatternCard icon={Repeat2} title="Practice" body="Quiz, retry misses, and save hard items as review cards." />
             <PatternCard icon={MessageSquare} title="Reflect" body="Use Social only when you want collaboration or accountability." />
           </div>
         </details>
