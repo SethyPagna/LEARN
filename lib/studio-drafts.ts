@@ -2,6 +2,7 @@ import type { StudioKind, WorkspaceDeck } from "@/components/learn/types"
 
 export const STUDIO_DRAFTS_KEY = "learn_studio_drafts_v1"
 export const STUDIO_DRAFT_EVENT = "learn:studio-drafts"
+export const STUDIO_DRAFT_NOTICE_COOLDOWN_MS = 12000
 
 export type StudioDraftRecord =
   | { kind: "notes"; id?: string; title: string; content: string; updatedAt: string }
@@ -15,6 +16,14 @@ export type StudioDraftSummary = {
   count: number
   labels: string[]
   latestAt?: string
+}
+
+export type StudioDraftNoticeInput = {
+  cooldownMs?: number
+  kind: StudioKind
+  lastKind?: StudioKind
+  lastShownAt?: number
+  now: number
 }
 
 export function readStudioDrafts(): StudioDraftStore {
@@ -42,6 +51,18 @@ export function summarizeStudioDrafts(store: StudioDraftStore): StudioDraftSumma
   }
 
   return { count, labels, latestAt }
+}
+
+export function shouldAnnounceStudioDraftSave({
+  cooldownMs = STUDIO_DRAFT_NOTICE_COOLDOWN_MS,
+  kind,
+  lastKind,
+  lastShownAt,
+  now,
+}: StudioDraftNoticeInput) {
+  if (!lastShownAt) return true
+  if (lastKind && lastKind !== kind) return true
+  return now - lastShownAt >= cooldownMs
 }
 
 export function publishStudioDraftSummary(store: StudioDraftStore) {
