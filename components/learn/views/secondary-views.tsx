@@ -259,6 +259,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
   const [notes, setNotes] = useState("")
   const [status, setStatus] = useState("")
   const [agendaFilter, setAgendaFilter] = useState<CalendarAgendaFilter>("upcoming")
+  const [calendarActionBusy, setCalendarActionBusy] = useState<"save" | "complete" | "duplicate" | "delete" | null>(null)
   const selected = events.find((event) => event.id === selectedId)
   const agendaSummary = useMemo(() => summarizeCalendarAgenda(events), [events])
   const calendarPlan = useMemo(
@@ -274,6 +275,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
   const selectedDaySegments = useMemo(() => buildCalendarDaySegments(selectedDayEvents), [selectedDayEvents])
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const canSave = title.trim().length > 0 && Number.isFinite(Date.parse(startsAt)) && durationMinutes >= 5
+  const calendarBusy = calendarActionBusy !== null
 
   async function refresh() {
     const response = await api<{ items: CalendarEvent[] }>("/api/calendar")
@@ -296,6 +298,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
   }, [selected?.id])
 
   async function createEvent() {
+    if (calendarBusy) return
     setSelectedId("")
     setTitle("45 min focus block")
     setEventType("study")
@@ -306,6 +309,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
   }
 
   function createEventForDay(hour = 9) {
+    if (calendarBusy) return
     const selectedDate = dateFromLocalKey(selectedDayKey)
     const now = new Date()
     const isToday = localDateKey(now) === selectedDayKey
@@ -326,63 +330,92 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
     if (!selectedId) setStartsAt(moveLocalInputDate(startsAt, key))
   }
 
-  async function saveEvent(id = selectedId) {
+  async function saveEvent(id = selectedId, action: "save" | "duplicate" = "save") {
+    if (calendarBusy) return null
     if (!canSave) {
       setStatus("Add a title, valid start time, and duration of at least 5 minutes.")
-      return
+      return null
     }
     const startDate = new Date(startsAt)
     const endDate = new Date(startDate.getTime() + durationMinutes * 60 * 1000)
-    const response = await api<{ item: CalendarEvent }>("/api/calendar", {
-      method: id ? "PUT" : "POST",
-      body: JSON.stringify({
-        id: id || undefined,
-        title,
-        eventType,
-        startsAt: startDate.toISOString(),
-        endsAt: endDate.toISOString(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        notes,
-      }),
-    })
-    setSelectedId(response.item.id)
-    setStatus(`${response.item.title} saved.`)
-    await refresh()
+    setCalendarActionBusy(action)
+    try {
+      const response = await api<{ item: CalendarEvent }>("/api/calendar", {
+        method: id ? "PUT" : "POST",
+        body: JSON.stringify({
+          id: id || undefined,
+          title,
+          eventType,
+          startsAt: startDate.toISOString(),
+          endsAt: endDate.toISOString(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          notes,
+        }),
+      })
+      setSelectedId(response.item.id)
+      setStatus(action === "duplicate" ? `${response.item.title} duplicated.` : `${response.item.title} saved.`)
+      await refresh()
+      return response.item
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to save this time block.")
+      return null
+    } finally {
+      setCalendarActionBusy(null)
+    }
   }
 
   async function duplicateEvent() {
-    await saveEvent("")
-    setStatus(`${title} duplicated.`)
+    await saveEvent("", "duplicate")
   }
 
   async function toggleComplete() {
+    if (calendarBusy) return
     const nextType = eventType === "completed" ? "study" : "completed"
-    setEventType(nextType)
     const startDate = new Date(startsAt)
-    await api("/api/calendar", {
-      method: selectedId ? "PUT" : "POST",
-      body: JSON.stringify({
-        id: selectedId || undefined,
-        title,
-        eventType: nextType,
-        startsAt: startDate.toISOString(),
-        endsAt: new Date(startDate.getTime() + durationMinutes * 60 * 1000).toISOString(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        notes,
-      }),
-    })
-    setStatus(nextType === "completed" ? "Marked complete." : "Moved back to study.")
-    await refresh()
+    setCalendarActionBusy("complete")
+    try {
+      await api("/api/calendar", {
+        method: selectedId ? "PUT" : "POST",
+        body: JSON.stringify({
+          id: selectedId || undefined,
+          title,
+          eventType: nextType,
+          startsAt: startDate.toISOString(),
+          endsAt: new Date(startDate.getTime() + durationMinutes * 60 * 1000).toISOString(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          notes,
+        }),
+      })
+      setEventType(nextType)
+      setStatus(nextType === "completed" ? "Marked complete." : "Moved back to study.")
+      await refresh()
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to update this time block.")
+    } finally {
+      setCalendarActionBusy(null)
+    }
   }
 
   async function deleteEvent(id: string) {
-    await api(`/api/calendar?id=${encodeURIComponent(id)}`, { method: "DELETE" })
-    if (selectedId === id) {
-      setSelectedId("")
-      createEvent()
+    if (calendarBusy) return
+    setCalendarActionBusy("delete")
+    try {
+      await api(`/api/calendar?id=${encodeURIComponent(id)}`, { method: "DELETE" })
+      if (selectedId === id) {
+        setSelectedId("")
+        setTitle("45 min focus block")
+        setEventType("study")
+        setStartsAt(toLocalInputValue(new Date(Date.now() + options.calendarLeadMinutes * 60 * 1000)))
+        setDurationMinutes(options.calendarDefaultMinutes)
+        setNotes("")
+      }
+      setStatus("Time block deleted.")
+      await refresh()
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to delete this time block.")
+    } finally {
+      setCalendarActionBusy(null)
     }
-    setStatus("Time block deleted.")
-    await refresh()
   }
 
   function applyPlanSuggestion() {
@@ -448,10 +481,10 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
           </label>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <CalendarAction label="New" icon={CalendarPlus} onClick={createEvent} />
-          <CalendarAction label="Save" icon={Save} onClick={() => saveEvent()} primary />
-          <CalendarAction label={eventType === "completed" ? "Reopen" : "Complete"} icon={Check} onClick={toggleComplete} />
-          <CalendarAction label="Duplicate" icon={Copy} onClick={duplicateEvent} />
+          <CalendarAction label="New" icon={CalendarPlus} onClick={createEvent} disabled={calendarBusy} />
+          <CalendarAction label={calendarActionBusy === "save" ? "Saving" : "Save"} icon={Save} onClick={() => saveEvent()} primary disabled={calendarBusy} />
+          <CalendarAction label={calendarActionBusy === "complete" ? "Updating" : eventType === "completed" ? "Reopen" : "Complete"} icon={Check} onClick={toggleComplete} disabled={calendarBusy} />
+          <CalendarAction label={calendarActionBusy === "duplicate" ? "Duplicating" : "Duplicate"} icon={Copy} onClick={duplicateEvent} disabled={calendarBusy} />
         </div>
         {status ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
       </Panel>
@@ -589,7 +622,13 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
                   <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground"><Clock className="h-3.5 w-3.5" /> {duration}</p>
                   {event.notes ? <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{event.notes}</p> : null}
                 </button>
-                <button onClick={() => deleteEvent(event.id)} className="rounded-md p-2 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground" aria-label="Delete event">
+                <button
+                  onClick={() => deleteEvent(event.id)}
+                  className="rounded-md p-2 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+                  aria-label="Delete event"
+                  disabled={calendarBusy}
+                  title={calendarActionBusy === "delete" ? "Deleting" : "Delete event"}
+                >
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
@@ -687,9 +726,21 @@ function labelCalendarEventType(type: string) {
   return calendarEventTypes.find(([value]) => value === type)?.[1] ?? type
 }
 
-function CalendarAction({ icon: Icon, label, onClick, primary }: { icon: typeof Save; label: string; onClick: () => void; primary?: boolean }) {
+function CalendarAction({
+  disabled,
+  icon: Icon,
+  label,
+  onClick,
+  primary,
+}: {
+  disabled?: boolean
+  icon: typeof Save
+  label: string
+  onClick: () => void
+  primary?: boolean
+}) {
   return (
-    <ControlButton onClick={onClick} active={primary}>
+    <ControlButton onClick={onClick} active={primary} disabled={disabled}>
       <Icon className="h-4 w-4" />
       {label}
     </ControlButton>
