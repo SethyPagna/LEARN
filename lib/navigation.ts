@@ -73,7 +73,7 @@ export const viewRoutes: Record<View, string> = {
   sheets: "/sheets",
   slides: "/slides",
   social: "/social",
-  spaces: "/spaces",
+  spaces: "/groups",
   studio: "/studio",
   vault: "/vault",
 }
