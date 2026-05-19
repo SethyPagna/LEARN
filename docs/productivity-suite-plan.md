@@ -141,6 +141,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Social activity maturity by replacing the fixed four-action Activity drawer cap with a tested expandable recent-activity page and visible shown/total counts.
 - 2026-05-19: Continued Social action safety by making Spaces/Rooms/Battles delete a two-step confirm inside the compact More menu instead of an immediate destructive action.
 - 2026-05-19: Continued Social action reliability by adding busy states, guarded Save/Toggle/Delete flows, and clear recovery messages for failed record updates.
+- 2026-05-19: Continued Social action clarity by disabling draft-only quick actions with tested Save-first labels so record actions do not feel broken.
 
 ## Implementation Slices
 
