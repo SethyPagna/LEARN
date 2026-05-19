@@ -1,11 +1,13 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { useEffect, useMemo, useState } from "react"
-import { CheckCircle2, FlaskConical, KeyRound, Plus, Save, Trash2, Wand2 } from "lucide-react"
+import { CheckCircle2, FlaskConical, KeyRound, MoreHorizontal, Plus, Save, Trash2, Wand2 } from "lucide-react"
 import { api } from "../api"
 import { Panel } from "../ui"
 
 type ProviderType = "chat" | "embed" | "gateway"
+type ProviderSection = "providers" | "editor" | "routing" | "presets"
 
 interface ProviderPreset {
   id: string
@@ -98,6 +100,7 @@ export function ProviderAdminPanel() {
   const [presets, setPresets] = useState<ProviderPreset[]>([])
   const [summary, setSummary] = useState<ProviderSummary | null>(null)
   const [form, setForm] = useState<ProviderForm>(blankForm)
+  const [activeSection, setActiveSection] = useState<ProviderSection>("providers")
   const [status, setStatus] = useState("Loading provider console...")
 
   async function refresh() {
@@ -133,6 +136,7 @@ export function ProviderAdminPanel() {
       timeoutMs: preset.timeoutMs,
       cooldownSeconds: preset.cooldownSeconds,
     })
+    setActiveSection("editor")
   }
 
   function editProvider(provider: ProviderConfig) {
@@ -153,6 +157,7 @@ export function ProviderAdminPanel() {
       timeoutMs: provider.timeout_ms,
       cooldownSeconds: provider.cooldown_seconds,
     })
+    setActiveSection("editor")
   }
 
   async function saveProvider() {
@@ -160,6 +165,7 @@ export function ProviderAdminPanel() {
     const method = form.id ? "PUT" : "POST"
     await api("/api/ai/providers", { method, body: JSON.stringify(form) })
     setForm(blankForm)
+    setActiveSection("providers")
     await refresh()
   }
 
@@ -180,113 +186,185 @@ export function ProviderAdminPanel() {
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_420px]">
-      <Panel className="p-4 xl:col-span-2">
+    <div className="grid gap-4">
+      <Panel className="p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="text-lg font-semibold text-foreground">AI provider control center</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Admin-only encrypted routing, failover, limits, testing, and automation prompts.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Encrypted routing, failover, limits, and provider tests.</p>
           </div>
-          <button onClick={() => setForm(blankForm)} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground">
-            <Plus className="h-4 w-4" />
-            New provider
-          </button>
-        </div>
-        <div className="mt-4 grid gap-2 md:grid-cols-4">
-          <Metric label="Total" value={summary?.totalCount ?? 0} />
-          <Metric label="Enabled" value={summary?.enabledCount ?? 0} />
-          <Metric label="Ready" value={summary?.readyCount ?? 0} />
-          <Metric label="Routing" value={summary?.hasDegradedProviders ? "Needs review" : "Healthy"} />
-        </div>
-      </Panel>
-
-      <Panel className="p-4">
-        <h4 className="font-semibold text-foreground">Stored providers</h4>
-        <div className="mt-3 space-y-2">
-          {providers.map((provider) => (
-            <article key={provider.id} className="rounded-md border border-border bg-background p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold text-foreground">{provider.name}</p>
-                  <p className="text-xs text-muted-foreground">{provider.provider} · {provider.default_model} · priority {provider.priority}</p>
-                </div>
-                <span className={`rounded px-2 py-1 text-xs font-medium ${provider.last_status === "ok" ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>
-                  {provider.last_status || "untested"}
-                </span>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button onClick={() => editProvider(provider)} className="h-8 rounded-md border border-border bg-secondary px-3 text-xs font-medium text-secondary-foreground">Edit</button>
-                <button onClick={() => testProvider(provider.id)} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-secondary px-3 text-xs font-medium text-secondary-foreground">
-                  <FlaskConical className="h-3.5 w-3.5" />
-                  Test
-                </button>
-                <button onClick={() => deleteProvider(provider.id)} className="inline-flex h-8 items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-3 text-xs font-medium text-foreground">
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Delete
-                </button>
-                <span className="inline-flex h-8 items-center gap-1 rounded-md bg-muted px-3 text-xs text-muted-foreground">
-                  <KeyRound className="h-3.5 w-3.5" />
-                  {provider.has_key ? "Key stored" : "Key missing"}
-                </span>
-              </div>
-              {provider.last_error ? <p className="mt-2 text-xs text-destructive">{provider.last_error}</p> : null}
-            </article>
-          ))}
-          {!providers.length ? <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">No provider configs stored yet. Use a preset or add one manually.</p> : null}
-        </div>
-      </Panel>
-
-      <Panel className="p-4">
-        <h4 className="font-semibold text-foreground">Edit encrypted provider</h4>
-        <div className="mt-3 grid gap-3">
-          <Field label="Name" value={form.name} onChange={(value) => setForm({ ...form, name: value })} />
-          <SelectField label="Provider" value={form.provider} options={providerOptions} onChange={(value) => setForm({ ...form, provider: value })} />
-          <SelectField label="Type" value={form.providerType} options={["chat", "embed", "gateway"]} onChange={(value) => setForm({ ...form, providerType: value as ProviderType })} />
-          <Field label="API key" value={form.apiKey} type="password" placeholder={form.id ? "Leave blank to keep encrypted key" : "Paste key to encrypt"} onChange={(value) => setForm({ ...form, apiKey: value })} />
-          <Field label="Model" value={form.defaultModel} onChange={(value) => setForm({ ...form, defaultModel: value })} />
-          <Field label="Endpoint" value={form.endpointOverride} onChange={(value) => setForm({ ...form, endpointOverride: value })} />
-          <textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} className="min-h-20 rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none" placeholder="Routing notes, use cases, cooldown notes" />
-          <div className="grid grid-cols-2 gap-2">
-            <NumberField label="Priority" value={form.priority} onChange={(value) => setForm({ ...form, priority: value })} />
-            <NumberField label="RPM" value={form.requestsPerMinute} onChange={(value) => setForm({ ...form, requestsPerMinute: value })} />
-            <NumberField label="Input chars" value={form.maxInputChars} onChange={(value) => setForm({ ...form, maxInputChars: value })} />
-            <NumberField label="Max tokens" value={form.maxCompletionTokens} onChange={(value) => setForm({ ...form, maxCompletionTokens: value })} />
-            <NumberField label="Timeout ms" value={form.timeoutMs} onChange={(value) => setForm({ ...form, timeoutMs: value })} />
-            <NumberField label="Cooldown sec" value={form.cooldownSeconds} onChange={(value) => setForm({ ...form, cooldownSeconds: value })} />
-          </div>
-          <label className="flex items-center justify-between gap-3 rounded-md bg-muted p-3 text-sm text-foreground">
-            Enabled for failover
-            <input type="checkbox" checked={form.enabled} onChange={(event) => setForm({ ...form, enabled: event.target.checked })} />
-          </label>
-          <button onClick={saveProvider} className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
-            <Save className="h-4 w-4" />
-            Save encrypted config
-          </button>
-          {selectedPreset ? (
-            <button onClick={() => applyPreset(selectedPreset)} className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground">
-              <Wand2 className="h-4 w-4" />
-              Apply {selectedPreset.label}
+          <div className="flex flex-wrap gap-2">
+            <SectionButton active={activeSection === "providers"} onClick={() => setActiveSection("providers")}>Providers</SectionButton>
+            <SectionButton active={activeSection === "editor"} onClick={() => setActiveSection("editor")}>Editor</SectionButton>
+            <SectionButton active={activeSection === "routing"} onClick={() => setActiveSection("routing")}>Routing</SectionButton>
+            <SectionButton active={activeSection === "presets"} onClick={() => setActiveSection("presets")}>Presets</SectionButton>
+            <button
+              onClick={() => {
+                setForm(blankForm)
+                setActiveSection("editor")
+              }}
+              className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground"
+            >
+              <Plus className="h-4 w-4" />
+              New
             </button>
-          ) : null}
+          </div>
         </div>
-      </Panel>
 
-      <Panel className="p-4 xl:col-span-2">
-        <div className="flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4 text-success" />
-          <p className="font-semibold text-foreground">Routing order</p>
-        </div>
-        <div className="mt-3 grid gap-2 md:grid-cols-3">
-          {(summary?.routingOrder ?? []).map((item) => (
-            <div key={item.id} className="rounded-md border border-border p-3">
-              <p className="font-medium text-foreground">{item.priority}. {item.name}</p>
-              <p className="text-xs text-muted-foreground">{item.provider} · {item.providerType} · {item.status} · {item.secretLabel}</p>
-            </div>
-          ))}
-        </div>
+        <details className="mt-4 rounded-md border border-border bg-background/70 p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-foreground">
+            Gateway signals
+            <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              {summary?.readyCount ?? 0}/{summary?.totalCount ?? 0} ready
+            </span>
+          </summary>
+          <div className="mt-3 grid gap-2 md:grid-cols-4">
+            <Metric label="Total" value={summary?.totalCount ?? 0} />
+            <Metric label="Enabled" value={summary?.enabledCount ?? 0} />
+            <Metric label="Ready" value={summary?.readyCount ?? 0} />
+            <Metric label="Routing" value={summary?.hasDegradedProviders ? "Needs review" : "Healthy"} />
+          </div>
+        </details>
         <p className="mt-3 text-sm text-muted-foreground">{status}</p>
       </Panel>
+
+      {activeSection === "providers" ? (
+        <Panel className="p-4">
+          <h4 className="font-semibold text-foreground">Stored providers</h4>
+          <div className="mt-3 grid gap-2 lg:grid-cols-2">
+            {providers.map((provider) => (
+              <article key={provider.id} className="rounded-md border border-border bg-background p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-foreground">{provider.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {provider.provider} - {provider.default_model} - priority {provider.priority}
+                    </p>
+                  </div>
+                  <span className={`rounded px-2 py-1 text-xs font-medium ${provider.last_status === "ok" ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>
+                    {provider.last_status || "untested"}
+                  </span>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  <span className="inline-flex h-8 items-center gap-1 rounded-md bg-muted px-3 text-xs text-muted-foreground">
+                    <KeyRound className="h-3.5 w-3.5" />
+                    {provider.has_key ? "Key stored" : "Key missing"}
+                  </span>
+                  <details className="relative">
+                    <summary className="inline-flex h-8 cursor-pointer list-none items-center gap-1 rounded-md border border-border bg-secondary px-3 text-xs font-medium text-secondary-foreground">
+                      <MoreHorizontal className="h-3.5 w-3.5" />
+                      Actions
+                    </summary>
+                    <div className="absolute right-0 z-30 mt-2 grid min-w-36 gap-1 rounded-md border border-border bg-popover p-1 shadow-lg">
+                      <button onClick={() => editProvider(provider)} className="rounded px-3 py-2 text-left text-xs font-medium text-popover-foreground hover:bg-accent">Edit</button>
+                      <button onClick={() => testProvider(provider.id)} className="inline-flex items-center gap-2 rounded px-3 py-2 text-left text-xs font-medium text-popover-foreground hover:bg-accent">
+                        <FlaskConical className="h-3.5 w-3.5" />
+                        Test
+                      </button>
+                      <button onClick={() => deleteProvider(provider.id)} className="inline-flex items-center gap-2 rounded px-3 py-2 text-left text-xs font-medium text-destructive hover:bg-destructive/10">
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                      </button>
+                    </div>
+                  </details>
+                </div>
+                {provider.last_error ? <p className="mt-2 text-xs text-destructive">{provider.last_error}</p> : null}
+              </article>
+            ))}
+            {!providers.length ? <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">No provider configs stored yet. Use a preset or add one manually.</p> : null}
+          </div>
+        </Panel>
+      ) : null}
+
+      {activeSection === "editor" ? (
+        <Panel className="p-4">
+          <h4 className="font-semibold text-foreground">Edit encrypted provider</h4>
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            <Field label="Name" value={form.name} onChange={(value) => setForm({ ...form, name: value })} />
+            <SelectField label="Provider" value={form.provider} options={providerOptions} onChange={(value) => setForm({ ...form, provider: value })} />
+            <SelectField label="Type" value={form.providerType} options={["chat", "embed", "gateway"]} onChange={(value) => setForm({ ...form, providerType: value as ProviderType })} />
+            <Field label="API key" value={form.apiKey} type="password" placeholder={form.id ? "Leave blank to keep encrypted key" : "Paste key to encrypt"} onChange={(value) => setForm({ ...form, apiKey: value })} />
+            <Field label="Model" value={form.defaultModel} onChange={(value) => setForm({ ...form, defaultModel: value })} />
+            <Field label="Endpoint" value={form.endpointOverride} onChange={(value) => setForm({ ...form, endpointOverride: value })} />
+            <textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} className="min-h-20 rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none lg:col-span-2" placeholder="Routing notes, use cases, cooldown notes" />
+            <div className="grid grid-cols-2 gap-2 lg:col-span-2 xl:grid-cols-6">
+              <NumberField label="Priority" value={form.priority} onChange={(value) => setForm({ ...form, priority: value })} />
+              <NumberField label="RPM" value={form.requestsPerMinute} onChange={(value) => setForm({ ...form, requestsPerMinute: value })} />
+              <NumberField label="Input chars" value={form.maxInputChars} onChange={(value) => setForm({ ...form, maxInputChars: value })} />
+              <NumberField label="Max tokens" value={form.maxCompletionTokens} onChange={(value) => setForm({ ...form, maxCompletionTokens: value })} />
+              <NumberField label="Timeout ms" value={form.timeoutMs} onChange={(value) => setForm({ ...form, timeoutMs: value })} />
+              <NumberField label="Cooldown sec" value={form.cooldownSeconds} onChange={(value) => setForm({ ...form, cooldownSeconds: value })} />
+            </div>
+            <label className="flex items-center justify-between gap-3 rounded-md bg-muted p-3 text-sm text-foreground lg:col-span-2">
+              Enabled for failover
+              <input type="checkbox" checked={form.enabled} onChange={(event) => setForm({ ...form, enabled: event.target.checked })} />
+            </label>
+            <div className="flex flex-wrap gap-2 lg:col-span-2">
+              <button onClick={saveProvider} className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
+                <Save className="h-4 w-4" />
+                Save encrypted config
+              </button>
+              {selectedPreset ? (
+                <button onClick={() => applyPreset(selectedPreset)} className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground">
+                  <Wand2 className="h-4 w-4" />
+                  Apply {selectedPreset.label}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </Panel>
+      ) : null}
+
+      {activeSection === "presets" ? (
+        <Panel className="p-4">
+          <div className="flex items-center gap-2">
+            <Wand2 className="h-4 w-4 text-primary" />
+            <p className="font-semibold text-foreground">Provider presets</p>
+          </div>
+          <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {presets.map((preset) => (
+              <button key={preset.id} onClick={() => applyPreset(preset)} className="rounded-md border border-border bg-background p-3 text-left hover:border-primary/60">
+                <p className="font-medium text-foreground">{preset.label}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{preset.provider} - {preset.model}</p>
+                <p className="mt-2 text-xs text-muted-foreground">Priority {preset.priority} - {preset.requestsPerMinute} rpm</p>
+              </button>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
+
+      {activeSection === "routing" ? (
+        <Panel className="p-4">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-success" />
+            <p className="font-semibold text-foreground">Routing order</p>
+          </div>
+          <div className="mt-3 grid gap-2 md:grid-cols-3">
+            {(summary?.routingOrder ?? []).map((item) => (
+              <div key={item.id} className="rounded-md border border-border p-3">
+                <p className="font-medium text-foreground">{item.priority}. {item.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {item.provider} - {item.providerType} - {item.status} - {item.secretLabel}
+                </p>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
     </div>
+  )
+}
+
+function SectionButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`h-9 rounded-md border px-3 text-sm font-semibold ${
+        active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground"
+      }`}
+    >
+      {children}
+    </button>
   )
 }
 
