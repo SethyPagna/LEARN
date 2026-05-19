@@ -123,6 +123,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Studio template maturity by enriching applied templates with workflow guidance, review/export checklists, sheet planning columns, and slide theme/motion/speaker-note defaults.
 - 2026-05-19: Continued Social workspace maturity by adding a tested action kit for spaces, rooms, and battles with copy-ready invites plus compact routes into chat, calendar, files, and practice.
 - 2026-05-19: Continued Social invite maturity by validating invite drafts and wiring the Social invite drawer to the secure workspace invite API while keeping lightweight copy-text invites available.
+- 2026-05-19: Continued Social people maturity by adding tested workspace-member summaries and a compact People drawer with searchable roles/statuses inside spaces, rooms, and battles.
 
 ## Implementation Slices
 
