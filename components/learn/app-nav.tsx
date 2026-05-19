@@ -31,6 +31,7 @@ import { languageNames, supportedLocales, type baseVocabulary, type SupportedLoc
 import {
   formatNavigationBadge,
   rankNavigationMatches,
+  shouldUseNavigationIconRail,
   summarizeActiveNavigationGroup,
   viewBelongsToNavigationItem,
   type NavigationSearchCandidate,
@@ -701,8 +702,9 @@ function Navigation({
   studioDraftSummary: StudioDraftSummary
   practiceDraftSummary: PracticeDraftSummary
 }) {
+  const iconRail = shouldUseNavigationIconRail({ density, mobile })
   const compact = density === "compact"
-  const rowHeight = compact ? "h-11" : "h-11"
+  const rowHeight = "h-11"
   const activeGroup = summarizeActiveNavigationGroup(view, navigationGroups)
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
     const defaults = new Set<string>()
@@ -731,57 +733,64 @@ function Navigation({
     })
   }
 
+  function renderItem(item: LearnNavigationItem) {
+    const active = viewBelongsToNavigationItem(view, item)
+    const Icon = navIconMap[item.iconKey]
+    const badge = item.view === "studio" ? studioDraftSummary.count : item.view === "practice" ? practiceDraftSummary.count : 0
+    const badgeTitle = item.view === "practice"
+      ? formatNavigationBadge(badge, "saved Practice attempt", "saved Practice attempts")
+      : formatNavigationBadge(badge, "local Studio draft", "local Studio drafts")
+
+    return (
+      <button
+        key={item.view}
+        onClick={() => setView(item.view)}
+        title={`${text[item.labelKey]} - ${getNavigationItemDetail(item)}`}
+        className={`relative flex ${rowHeight} ${iconRail ? "w-11 justify-center rounded-xl px-0" : "w-full gap-3 rounded-md px-3"} items-center text-sm font-medium transition ${
+          active
+            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm ring-1 ring-sidebar-ring/20"
+            : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        }`}
+      >
+        <Icon className="h-[18px] w-[18px] shrink-0" />
+        {iconRail ? <span className="sr-only">{text[item.labelKey]}</span> : <span className="truncate">{text[item.labelKey]}</span>}
+        {badge ? (
+          <span className={`${iconRail ? "absolute -right-1 -top-1 h-4 min-w-4 px-1 text-[0.58rem]" : "ml-auto h-5 min-w-5 px-1.5 text-[0.68rem]"} flex items-center justify-center rounded-full font-bold ${active ? "bg-sidebar-primary-foreground text-sidebar-primary" : "bg-warning text-warning-foreground"}`} title={badgeTitle}>
+            {badge}
+          </span>
+        ) : null}
+      </button>
+    )
+  }
+
+  if (iconRail) {
+    return (
+      <nav className="grid justify-center gap-1">
+        {navigationItems.map(renderItem)}
+      </nav>
+    )
+  }
+
   return (
     <nav className={compact ? "grid gap-2" : "grid gap-3"}>
       {navigationGroups.map((group) => (
         <details key={group.label} className="group/navigation" open={openGroups.has(group.label)}>
-          {compact ? (
-            <summary className="sr-only">{group.label}</summary>
-          ) : (
-            <summary
-              onClick={(event) => {
-                event.preventDefault()
-                toggleGroup(group.label)
-              }}
-              className="mb-1 flex cursor-pointer list-none items-center justify-between px-2 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground"
-              title={group.caption}
-            >
-              <span className="flex min-w-0 items-center gap-2">
-                <span>{group.label}</span>
-                {activeGroup?.groupLabel === group.label ? <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" /> : null}
-              </span>
-              <ChevronDown className="h-3.5 w-3.5 transition group-open/navigation:rotate-180" />
-            </summary>
-          )}
-          <div className={`grid gap-1 ${compact ? "justify-center" : ""}`}>
-            {group.items.map((item) => {
-              const active = viewBelongsToNavigationItem(view, item)
-              const Icon = navIconMap[item.iconKey]
-              const badge = item.view === "studio" ? studioDraftSummary.count : item.view === "practice" ? practiceDraftSummary.count : 0
-              const badgeTitle = item.view === "practice"
-                ? formatNavigationBadge(badge, "saved Practice attempt", "saved Practice attempts")
-                : formatNavigationBadge(badge, "local Studio draft", "local Studio drafts")
-              return (
-                <button
-                  key={item.view}
-                  onClick={() => setView(item.view)}
-                  title={`${text[item.labelKey]} - ${getNavigationItemDetail(item)}`}
-                  className={`relative flex ${rowHeight} ${compact ? "w-11 justify-center rounded-xl px-0" : "w-full gap-3 rounded-md px-3"} items-center text-sm font-medium transition ${
-                    active
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm ring-1 ring-sidebar-ring/20"
-                      : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                  }`}
-                >
-                  <Icon className="h-[18px] w-[18px] shrink-0" />
-                  {compact ? <span className="sr-only">{text[item.labelKey]}</span> : <span className="truncate">{text[item.labelKey]}</span>}
-                  {badge ? (
-                    <span className={`${compact ? "absolute -right-1 -top-1 h-4 min-w-4 px-1 text-[0.58rem]" : "ml-auto h-5 min-w-5 px-1.5 text-[0.68rem]"} flex items-center justify-center rounded-full font-bold ${active ? "bg-sidebar-primary-foreground text-sidebar-primary" : "bg-warning text-warning-foreground"}`} title={badgeTitle}>
-                      {badge}
-                    </span>
-                  ) : null}
-                </button>
-              )
-            })}
+          <summary
+            onClick={(event) => {
+              event.preventDefault()
+              toggleGroup(group.label)
+            }}
+            className="mb-1 flex cursor-pointer list-none items-center justify-between px-2 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground"
+            title={group.caption}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <span>{group.label}</span>
+              {activeGroup?.groupLabel === group.label ? <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" /> : null}
+            </span>
+            <ChevronDown className="h-3.5 w-3.5 transition group-open/navigation:rotate-180" />
+          </summary>
+          <div className="grid gap-1">
+            {group.items.map(renderItem)}
           </div>
         </details>
       ))}
