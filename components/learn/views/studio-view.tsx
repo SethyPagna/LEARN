@@ -1784,9 +1784,12 @@ function StudioItemButton({
               </span>
             </span>
           </button>
-          <div className="mt-3 flex items-center gap-2">
-            <RecordAction disabled={Boolean(pendingAction)} icon={FileText} label="Open" onClick={() => runRecordAction("Opening", () => onSelect(item))} />
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <span className="min-w-0 truncate text-[0.68rem] font-semibold text-muted-foreground">
+              {pendingAction ? `${pendingAction}...` : archived ? "Archived item" : "Click card to open"}
+            </span>
             <ActionMenu align="right" compact label={pendingAction || "More"} icon={MoreHorizontal}>
+              <MenuAction disabled={Boolean(pendingAction)} icon={FileText} label="Open" onClick={() => runRecordAction("Opening", () => onSelect(item))} />
               <MenuAction disabled={Boolean(pendingAction)} icon={Clipboard} label={pendingAction === "Copying" ? "Copying" : "Copy"} onClick={() => runRecordAction("Copying", () => onCopy(item))} />
               <MenuAction disabled={Boolean(pendingAction)} icon={Copy} label={pendingAction === "Duplicating" ? "Duplicating" : "Duplicate"} onClick={() => runRecordAction("Duplicating", () => onDuplicate(item))} />
               <MenuAction disabled={Boolean(pendingAction)} icon={Download} label={pendingAction === "Exporting" ? "Exporting" : "Export"} onClick={() => runRecordAction("Exporting", () => onExport(item))} />
@@ -1809,6 +1812,7 @@ function StudioItemButton({
         onAskAi={() => runRecordAction("Opening AI", () => onAskAi(item))}
         showArchive={!archived}
       >
+        <ContextMenu.Item onClick={() => runRecordAction("Opening", () => onSelect(item))} className="context-item"><FileText className="h-4 w-4" /> Open</ContextMenu.Item>
         <ContextMenu.Item onClick={() => runRecordAction("Downloading", () => onDownload(item))} className="context-item"><Download className="h-4 w-4" /> Download</ContextMenu.Item>
         <ContextMenu.Item onClick={() => runRecordAction("Exporting", () => onExport(item))} className="context-item"><PanelRight className="h-4 w-4" /> Export</ContextMenu.Item>
         {!archived ? <ContextMenu.Item onClick={() => runRecordAction("Opening split", () => onOpenInSplit(item))} className="context-item"><SplitSquareHorizontal className="h-4 w-4" /> Open in split</ContextMenu.Item> : null}
@@ -2766,25 +2770,6 @@ function ViewModeButton({ active, compact, icon: Icon, label, onClick }: { activ
     <button onClick={onClick} className={`flex h-8 items-center justify-center gap-1.5 rounded-md text-xs font-semibold ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}>
       <Icon className="h-3.5 w-3.5" />
       <span className={compact ? "sr-only" : ""}>{label}</span>
-    </button>
-  )
-}
-
-function RecordAction({ danger, disabled, icon: Icon, label, onClick }: { danger?: boolean; disabled?: boolean; icon: React.ComponentType<{ className?: string }>; label: string; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[0.68rem] font-semibold ${
-        danger
-          ? "border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-          : "border-border bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"
-      } disabled:cursor-not-allowed disabled:opacity-55`}
-      title={label}
-      type="button"
-    >
-      <Icon className="h-3.5 w-3.5" />
-      {label}
     </button>
   )
 }
