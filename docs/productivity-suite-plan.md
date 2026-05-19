@@ -184,6 +184,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued AI Tutor action clarity by making the primary run button open Import or Gateway when that is the useful next step instead of presenting a dead or misleading run action.
 - 2026-05-19: Continued AI Import clarity by showing attached pasted/saved source status in the Import panel, badge, and clear action so hidden context is no longer confusing.
 - 2026-05-19: Continued AI Import workflow accuracy by automatically switching the AI source to Uploaded files when material is pasted/imported and returning to Recent notes when that source is cleared.
+- 2026-05-19: Continued AI Import state reliability by making pasted-source edits replace the previous saved import text, preventing stale hidden context from reappearing after the text box is cleared.
 
 ## Implementation Slices
 
