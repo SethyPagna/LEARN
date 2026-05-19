@@ -175,6 +175,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Studio draft UX refinement by keeping local draft persistence frequent while rate-limiting the visible saved notice so editing no longer feels pushed around.
 - 2026-05-19: Continued Calendar maturity by moving month-grid workload logic into a tested helper and showing event count, first time, and planned minutes directly in each day cell.
 - 2026-05-19: Continued Dashboard clarity by replacing the fake no-attempts weak-topic card with tested real-topic cards and a compact empty action.
+- 2026-05-19: Continued AI Tutor clarity by deriving compact workflow chips from tested readiness logic and raising stale low token settings to the selected output-length budget at runtime.
 
 ## Implementation Slices
 
