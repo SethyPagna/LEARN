@@ -293,6 +293,22 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     setDraftStatus("Reply draft ready")
   }
 
+  function useComposerTool(tool: "mention" | "reaction" | "translate" | "notify") {
+    const additions = {
+      mention: { text: "@", status: "Mention ready" },
+      reaction: { text: `\n\nReaction: ${reaction}`, status: "Reaction added" },
+      translate: { text: "\n\nTranslate this for my study group.", status: "Translation intent added" },
+      notify: { text: "\n\nNotify the group when this is posted.", status: "Notification intent added" },
+    }
+    const addition = additions[tool]
+    setBody((current) => {
+      if (tool === "mention") return current.endsWith(" ") || !current ? `${current}@` : `${current} @`
+      return current.includes(addition.text.trim()) ? current : `${current.trimEnd()}${addition.text}`
+    })
+    setDraftStatus(addition.status)
+    setOpenChatMenu(null)
+  }
+
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
       <Panel className={options.chatCompact ? "p-3" : "p-4"}>
@@ -364,10 +380,10 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
             <ChatMenu compact icon={MoreHorizontal} label="Tools" menuId="tools" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
               <ChatMenuSection title="Composer tools">
-                <ChatMenuAction icon={AtSign} label="@mention" meta="Mention a teammate in the draft." onClick={() => setOpenChatMenu(null)} />
-                <ChatMenuAction icon={Smile} label="Reaction" meta={`Default thread reaction: ${reaction}.`} onClick={() => setOpenChatMenu(null)} />
-                <ChatMenuAction icon={Languages} label="Translate" meta="Mark this message for translation after sending." onClick={() => setOpenChatMenu(null)} />
-                <ChatMenuAction icon={Bell} label="Notify" meta="Prepare this draft as a notification-worthy update." onClick={() => setOpenChatMenu(null)} />
+                <ChatMenuAction icon={AtSign} label="@mention" meta="Mention a teammate in the draft." onClick={() => useComposerTool("mention")} />
+                <ChatMenuAction icon={Smile} label="Reaction" meta={`Default thread reaction: ${reaction}.`} onClick={() => useComposerTool("reaction")} />
+                <ChatMenuAction icon={Languages} label="Translate" meta="Mark this message for translation after sending." onClick={() => useComposerTool("translate")} />
+                <ChatMenuAction icon={Bell} label="Notify" meta="Prepare this draft as a notification-worthy update." onClick={() => useComposerTool("notify")} />
               </ChatMenuSection>
               <ChatMenuSection title="Draft">
                 <ChatMenuAction
