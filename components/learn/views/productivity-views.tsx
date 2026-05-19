@@ -306,7 +306,6 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               <ChatChip label={composerPlan.headline} />
               {composerPlan.chips.slice(0, 2).map((chip) => <ChatChip key={chip} label={chip} />)}
             </div>
-            {draftStatus ? <p className="mt-2 text-xs font-semibold text-success">{draftStatus}</p> : null}
           </div>
           <div className="flex flex-wrap gap-2">
             <ChatMenu icon={Sparkles} label="Compose" menuId="compose" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
@@ -375,7 +374,9 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                 />
               </ChatMenuSection>
             </ChatMenu>
-            <p className="text-xs text-muted-foreground">Private-first sharing.</p>
+            <p className={`rounded-md px-2 py-1 text-xs font-semibold ${draftStatus ? "bg-success/15 text-success" : "text-muted-foreground"}`}>
+              {draftStatus || "Private-first sharing"}
+            </p>
           </div>
         </div>
       </Panel>
