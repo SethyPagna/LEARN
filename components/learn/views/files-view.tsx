@@ -6,7 +6,7 @@ import type { WorkspaceOptions } from "../preferences"
 import type { MediaFile, View } from "../types"
 import { api, formatBytes, formatDate } from "../api"
 import { EmptyState, Panel } from "../ui"
-import { buildFileLibraryActionPlan, buildFileLibraryFilterSummary, filterFileLibrary, fileKindLabel, summarizeFileLibrary, type FileLibraryFilter } from "@/lib/file-library-features"
+import { buildFileLibraryActionPlan, buildFileLibraryEmptyState, buildFileLibraryFilterSummary, filterFileLibrary, fileKindLabel, resolveVisibleFileSelection, summarizeFileLibrary, type FileLibraryFilter } from "@/lib/file-library-features"
 import { classifyUploadContentType, validateUploadFileShape } from "@/lib/file-security"
 
 const mediaFilters: FileLibraryFilter[] = ["all", "image", "video", "audio", "pdf", "doc", "sheet", "slides"]
@@ -23,13 +23,18 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
   const [fileActionBusy, setFileActionBusy] = useState<"delete" | "copy" | null>(null)
   const storageStats = useMemo(() => summarizeFileLibrary(files), [files])
   const filteredFiles = useMemo(() => filterFileLibrary(files, { query, kind: mediaFilter }), [files, mediaFilter, query])
-  const selectedFile = useMemo(() => files.find((file) => file.id === selectedId) || filteredFiles[0], [files, filteredFiles, selectedId])
+  const selectedFile = useMemo(() => resolveVisibleFileSelection(filteredFiles, selectedId), [filteredFiles, selectedId])
   const filterSummary = useMemo(() => buildFileLibraryFilterSummary({
     filter: mediaFilter,
     query,
     total: files.length,
     visible: filteredFiles.length,
   }), [files.length, filteredFiles.length, mediaFilter, query])
+  const emptyState = useMemo(() => buildFileLibraryEmptyState({
+    filter: mediaFilter,
+    query,
+    total: files.length,
+  }), [files.length, mediaFilter, query])
   const fileActionPlan = useMemo(
     () => buildFileLibraryActionPlan(files, storageStats, { selectedId: selectedFile?.id, query, filter: mediaFilter, visibleFileCount: filteredFiles.length }),
     [files, filteredFiles.length, mediaFilter, query, selectedFile?.id, storageStats],
@@ -229,7 +234,17 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
             ))}
           </div>
         ) : (
-          <EmptyState title="No files yet" body="Upload PDFs, images, videos, and study materials to attach durable context to the workspace." />
+          <div className="grid gap-3 rounded-md border border-dashed border-border bg-background p-4">
+            <EmptyState title={emptyState.title} body={emptyState.body} />
+            <button
+              onClick={emptyState.action === "clear-filter" ? resetFilters : () => inputRef.current?.click()}
+              className="inline-flex h-9 w-fit items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
+              type="button"
+            >
+              {emptyState.action === "clear-filter" ? <RefreshCw className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
+              {emptyState.action === "clear-filter" ? "Clear filters" : "Upload file"}
+            </button>
+          </div>
         )}
         </Panel>
       </div>
