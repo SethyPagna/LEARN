@@ -174,22 +174,34 @@ export function DashboardView({
                 </button>
               )
             })}
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {routeActions.slice(1).map((action) => {
-                const Icon = dashboardCommandIcons[action.target]
-                return (
-                  <button key={action.id} onClick={() => setView(action.target)} className="rounded-md border border-border bg-background p-2 text-left transition hover:bg-accent hover:text-accent-foreground" title={action.detail}>
-                    <div className="flex items-center gap-2">
-                      <Icon className="h-4 w-4 text-success" />
-                      <span className="truncate text-sm font-semibold">{action.label}</span>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {commandPlan.chips.map((chip) => <StatusPill key={chip} label={chip} />)}
-            </div>
+            <details className="group mt-3 rounded-md border border-border bg-background">
+              <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
+                <span>More moves</span>
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{routeActions.length - 1}</span>
+              </summary>
+              <div className="grid gap-2 border-t border-border p-2">
+                {routeActions.slice(1).map((action) => {
+                  const Icon = dashboardCommandIcons[action.target]
+                  return (
+                    <button key={action.id} onClick={() => setView(action.target)} className="rounded-md border border-border bg-background p-2 text-left transition hover:bg-accent hover:text-accent-foreground" title={action.detail}>
+                      <div className="flex items-center gap-2">
+                        <Icon className="h-4 w-4 text-success" />
+                        <span className="truncate text-sm font-semibold">{action.label}</span>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </details>
+            <details className="mt-2 rounded-md border border-border bg-background">
+              <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
+                <span>Signals</span>
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{commandPlan.chips.length}</span>
+              </summary>
+              <div className="flex flex-wrap gap-2 border-t border-border p-2">
+                {commandPlan.chips.map((chip) => <StatusPill key={chip} label={chip} />)}
+              </div>
+            </details>
           </div>
         </div>
         <div className="grid border-t border-border bg-background/45 sm:grid-cols-2 xl:grid-cols-5">
@@ -200,32 +212,42 @@ export function DashboardView({
       </section>
 
       {emptyStates.length ? (
-        <Panel className="p-4 xl:col-span-2">
-          <SectionHeader icon={Compass} title="Setup gaps" body="Small setup cards appear only while the workspace needs source material, practice, or a route signal." />
-          <div className="mt-4 grid gap-2 md:grid-cols-3">
-            {emptyStates.map((state) => {
-              const Icon = dashboardCommandIcons[state.target]
-              return (
-                <button
-                  key={state.id}
-                  type="button"
-                  onClick={() => setView(state.target)}
-                  className="rounded-md border border-border bg-background p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground"
-                  title={state.detail}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-semibold text-foreground">{state.title}</span>
-                      <span className="mt-1 block text-xs text-muted-foreground">{state.actionLabel}</span>
-                    </span>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
+        <Panel className="p-0 xl:col-span-2">
+          <details>
+            <summary className="flex min-h-16 cursor-pointer list-none items-center gap-3 px-4" title="Small setup cards appear only while the workspace needs source material, practice, or a route signal.">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
+                <Compass className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="font-semibold text-foreground">Setup gaps</h2>
+                <p className="text-xs text-muted-foreground">{emptyStates.length} hidden setup step{emptyStates.length === 1 ? "" : "s"}</p>
+              </div>
+            </summary>
+            <div className="grid gap-2 border-t border-border p-4 md:grid-cols-3">
+              {emptyStates.map((state) => {
+                const Icon = dashboardCommandIcons[state.target]
+                return (
+                  <button
+                    key={state.id}
+                    type="button"
+                    onClick={() => setView(state.target)}
+                    className="rounded-md border border-border bg-background p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground"
+                    title={state.detail}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-foreground">{state.title}</span>
+                        <span className="mt-1 block text-xs text-muted-foreground">{state.actionLabel}</span>
+                      </span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </details>
         </Panel>
       ) : null}
 
@@ -317,11 +339,14 @@ export function DashboardView({
 
       <Panel className="p-4 xl:col-span-2">
         <SectionHeader icon={Table2} title="Quick actions" body="Grouped by purpose so the dashboard stays compact." />
-        <div className="mt-4 grid gap-4 lg:grid-cols-5">
+        <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-5">
           {actionGroups.map((group) => (
-            <div key={group.label}>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{group.label}</p>
-              <div className="grid gap-2">
+            <details key={group.label} className="rounded-md border border-border bg-background">
+              <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
+                <span>{group.label}</span>
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{group.actions.length}</span>
+              </summary>
+              <div className="grid gap-2 border-t border-border p-2">
                 {group.actions.map((action) => {
                   const Icon = quickActionIcons[action.icon]
                   return (
@@ -335,7 +360,7 @@ export function DashboardView({
                   )
                 })}
               </div>
-            </div>
+            </details>
           ))}
         </div>
       </Panel>
