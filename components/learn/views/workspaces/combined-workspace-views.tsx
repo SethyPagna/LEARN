@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ComponentType } from "react"
-import { BookOpen, CalendarDays, ChevronDown, Clock, Gamepad2, Info, MessageSquare, MoreHorizontal, Play, Radio, Repeat2, Search, Send, Sparkles, Swords, Target, Trash2, Users } from "lucide-react"
+import { BookOpen, CalendarDays, ChevronDown, Clock, Gamepad2, Info, Mail, MessageSquare, MoreHorizontal, Play, Plus, Radio, Repeat2, Search, Send, Sparkles, Swords, Target, Trash2, Users } from "lucide-react"
 import type { Quiz, User, View } from "../../types"
 import type { WorkspaceOptions } from "../../preferences"
 import { api } from "../../api"
@@ -12,7 +12,7 @@ import { QuizView } from "../quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeWorkspacePlan, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildSocialCommandSummary, filterConnectableMembers, summarizeConnections, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildSocialCommandSummary, buildSocialFlowCards, filterConnectableMembers, summarizeConnections, type SocialFlowId, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type PracticeTab = "quizzes" | "games"
 type SocialTab = "home" | "chat" | "spaces" | "rooms" | "battles"
@@ -164,6 +164,8 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const [counts, setCounts] = useState({ spaces: 0, rooms: 0, battles: 0 })
   const [query, setQuery] = useState("")
   const [quickPost, setQuickPost] = useState("")
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [inviteRole, setInviteRole] = useState<"learner" | "admin">("learner")
   const [status, setStatus] = useState("Loading")
   const connectionSummary = useMemo(() => summarizeConnections(connections), [connections])
   const connectableMembers = useMemo(() => filterConnectableMembers(members, connections, currentUserId, query).slice(0, 5), [connections, currentUserId, members, query])
@@ -175,6 +177,12 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     roomCount: counts.rooms,
     battleCount: counts.battles,
   }), [connectionSummary.total, counts.battles, counts.rooms, counts.spaces, members.length, threads.length])
+  const flowCards = useMemo(() => buildSocialFlowCards({
+    threadCount: threads.length,
+    spaceCount: counts.spaces,
+    roomCount: counts.rooms,
+    battleCount: counts.battles,
+  }), [counts.battles, counts.rooms, counts.spaces, threads.length])
 
   async function refresh() {
     setStatus("Loading")
@@ -249,105 +257,223 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     }
   }
 
+  async function createInvite() {
+    const email = inviteEmail.trim().toLowerCase()
+    if (!email) return
+    setStatus("Inviting...")
+    try {
+      await api("/api/invites", {
+        method: "POST",
+        body: JSON.stringify({ email, role: inviteRole }),
+      })
+      setInviteEmail("")
+      setStatus("Invite sent")
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to invite")
+    }
+  }
+
+  async function createSocialPlace(id: SocialFlowId) {
+    if (id === "chat") {
+      if (quickPost.trim()) {
+        await sendQuickPost()
+      } else {
+        open("chat")
+      }
+      return
+    }
+    setStatus(id === "spaces" ? "Creating group..." : id === "rooms" ? "Starting room..." : "Creating battle...")
+    const createdAt = new Date().toLocaleDateString("en", { month: "short", day: "numeric" })
+    const endpoint = id === "spaces" ? "/api/learning-spaces" : id === "rooms" ? "/api/study-rooms" : "/api/study-battles"
+    const body =
+      id === "spaces"
+        ? { name: `Study group ${createdAt}`, description: "Shared notes, questions, and review plans.", visibility: "private", topicTags: ["study"] }
+        : id === "rooms"
+          ? { name: `Focus room ${createdAt}`, mode: "focus", status: "open", pomodoroMinutes: 25, breakMinutes: 5 }
+          : { title: `Quick battle ${createdAt}`, topic: "Review", mode: "solo", status: "waiting" }
+    try {
+      await api(endpoint, { method: "POST", body: JSON.stringify(body) })
+      await refresh()
+      open(id)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to create")
+    }
+  }
+
   function open(tab: SocialTab) {
     setActiveTab(tab)
     setView(viewFromSocialTab(tab))
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <Panel className="p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-xl font-semibold text-foreground">{commandSummary.headline}</h3>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {commandSummary.chips.map((chip) => <span key={chip} className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{chip}</span>)}
+    <div className="grid gap-4">
+      <Panel className="overflow-hidden p-0">
+        <div className="border-b border-border bg-card px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="text-xl font-semibold text-foreground">{commandSummary.headline}</h3>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">People, posts, groups, live study, and battles stay together here.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">{status}</span>
+              <button onClick={() => void refresh()} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                <Repeat2 className="h-4 w-4" />
+                Sync
+              </button>
             </div>
           </div>
-          <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">{status}</span>
         </div>
-        <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr]">
-          <div className="rounded-lg border border-border bg-background p-3">
-            <div className="flex items-center gap-2">
+        <div className="grid gap-3 p-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+          <section className="rounded-lg border border-border bg-background p-3">
+            <div className="flex items-center gap-2 rounded-md border border-input bg-card px-3">
               <Search className="h-4 w-4 text-primary" />
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find people" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find people by name or email" className="h-10 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none" />
             </div>
             <div className="mt-3 grid gap-2">
               {connectableMembers.map((member) => (
-                <div key={member.id || member.email} className="flex items-center justify-between gap-3 rounded-md border border-border bg-card p-2">
+                <div key={member.id || member.email} className="grid gap-2 rounded-md border border-border bg-card p-2 sm:grid-cols-[1fr_auto] sm:items-center">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-foreground">{member.name || member.email || "Learner"}</p>
                     <p className="truncate text-xs text-muted-foreground">{member.email || member.role || "Workspace member"}</p>
                   </div>
-                  <div className="flex shrink-0 gap-1">
-                    <button onClick={() => void connect(member, "friend")} className="rounded-md bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground">Friend</button>
-                    <button onClick={() => void connect(member, "follow")} className="rounded-md border border-border bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">Follow</button>
+                  <div className="flex gap-1">
+                    <button onClick={() => void connect(member, "friend")} className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground">Add</button>
+                    <button onClick={() => void connect(member, "follow")} className="rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs font-semibold text-secondary-foreground">Follow</button>
                   </div>
                 </div>
               ))}
-              {!connectableMembers.length ? <p className="rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">No new people match. Try a name or email.</p> : null}
+              {!connectableMembers.length ? (
+                <div className="rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">
+                  Search people here. Admins can invite new learners below.
+                </div>
+              ) : null}
             </div>
-            <details className="group/connections mt-3 rounded-md border border-border bg-card">
+          </section>
+
+          <section className="grid gap-3">
+            <div className="rounded-lg border border-border bg-background p-3">
+              <textarea value={quickPost} onChange={(event) => setQuickPost(event.target.value)} placeholder="Ask a question or share a quick update..." className="min-h-24 w-full resize-none rounded-md border border-input bg-card p-3 text-sm text-foreground outline-none" />
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button onClick={sendQuickPost} disabled={!quickPost.trim()} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+                  <Send className="h-4 w-4" />
+                  Post
+                </button>
+                <button onClick={() => open("chat")} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                  <MessageSquare className="h-4 w-4" />
+                  Open chat
+                </button>
+              </div>
+            </div>
+            <details className="group/invite rounded-lg border border-border bg-background">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-                <span>Connections</span>
-                <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {connectionSummary.friends} friends
-                  <ChevronDown className="h-4 w-4 transition group-open/connections:rotate-180" />
-                </span>
+                <span className="inline-flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /> Invite</span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/invite:rotate-180" />
               </summary>
-              <div className="grid gap-2 border-t border-border p-2">
-                {connections.slice(0, 6).map((connection) => {
-                  const targetUserId = String(connection.target_user_id || connection.targetUserId || "")
-                  const label = connection.name || connection.username || targetUserId || "Connection"
-                  const type = String(connection.connection_type || connection.connectionType || "follow")
-                  return (
-                    <div key={`${targetUserId}-${type}`} className="flex items-center justify-between gap-2 rounded-md bg-background p-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-foreground">{label}</p>
-                        <p className="truncate text-xs text-muted-foreground">{type} - {connection.status || "accepted"}</p>
-                      </div>
-                      <button onClick={() => void removeConnection(connection)} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label={`Remove ${label}`}>
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )
-                })}
-                {!connections.length ? <p className="rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">Connect with someone to keep them here.</p> : null}
+              <div className="grid gap-2 border-t border-border p-3 sm:grid-cols-[1fr_120px_auto]">
+                <input value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="email@example.com" className="h-9 min-w-0 rounded-md border border-input bg-card px-3 text-sm text-foreground outline-none" />
+                <select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as "learner" | "admin")} className="h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground outline-none">
+                  <option value="learner">Learner</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <button onClick={() => void createInvite()} disabled={!inviteEmail.trim()} className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+                  <Plus className="h-4 w-4" />
+                  Send
+                </button>
               </div>
             </details>
-          </div>
-          <div className="rounded-lg border border-border bg-background p-3">
-            <textarea value={quickPost} onChange={(event) => setQuickPost(event.target.value)} placeholder="Post an update or question..." className="min-h-28 w-full resize-none rounded-md border border-input bg-card p-3 text-sm text-foreground outline-none" />
-            <button onClick={sendQuickPost} disabled={!quickPost.trim()} className="mt-2 inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-50">
-              <Send className="h-4 w-4" />
-              Post to chat
-            </button>
-          </div>
+          </section>
         </div>
       </Panel>
-      <Panel className="p-4">
-        <h3 className="font-semibold text-foreground">Choose a flow</h3>
-        <div className="mt-3 grid gap-2">
-          <SocialFlowButton icon={MessageSquare} label="Chat" meta={`${threads.length} threads`} ready={commandSummary.chatReady} onClick={() => open("chat")} />
-          <SocialFlowButton icon={Users} label="Groups" meta={`${counts.spaces} spaces`} ready={commandSummary.groupsReady} onClick={() => open("spaces")} />
-          <SocialFlowButton icon={Radio} label="Live study" meta={`${counts.rooms} rooms`} ready={commandSummary.liveReady} onClick={() => open("rooms")} />
-          <SocialFlowButton icon={Swords} label="Battles" meta={`${counts.battles} games`} ready={counts.battles > 0} onClick={() => open("battles")} />
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {flowCards.map((card) => {
+          const Icon = card.id === "chat" ? MessageSquare : card.id === "spaces" ? Users : card.id === "rooms" ? Radio : Swords
+          return (
+            <SocialFlowButton
+              key={card.id}
+              action={card.action}
+              count={card.count}
+              icon={Icon}
+              label={card.label}
+              onCreate={() => void createSocialPlace(card.id)}
+              onOpen={() => open(card.id)}
+              ready={card.ready}
+            />
+          )
+        })}
+      </div>
+
+      <details className="group/social-overview rounded-lg border border-border bg-card">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-foreground">
+          <span>Connections and signals</span>
+          <span className="flex items-center gap-2 text-xs text-muted-foreground">
+            {connectionSummary.friends} friends
+            <ChevronDown className="h-4 w-4 transition group-open/social-overview:rotate-180" />
+          </span>
+        </summary>
+        <div className="grid gap-3 border-t border-border p-3 lg:grid-cols-[1fr_1fr]">
+          <div className="grid gap-2">
+            {connections.slice(0, 6).map((connection) => {
+              const targetUserId = String(connection.target_user_id || connection.targetUserId || "")
+              const label = connection.name || connection.username || targetUserId || "Connection"
+              const type = String(connection.connection_type || connection.connectionType || "follow")
+              return (
+                <div key={`${targetUserId}-${type}`} className="flex items-center justify-between gap-2 rounded-md border border-border bg-background p-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">{label}</p>
+                    <p className="truncate text-xs text-muted-foreground">{type} - {connection.status || "accepted"}</p>
+                  </div>
+                  <button onClick={() => void removeConnection(connection)} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label={`Remove ${label}`}>
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              )
+            })}
+            {!connections.length ? <p className="rounded-md border border-dashed border-border bg-background p-3 text-sm text-muted-foreground">No connections yet.</p> : null}
+          </div>
+          <div className="grid content-start gap-2 sm:grid-cols-2">
+            {commandSummary.chips.map((chip) => <span key={chip} className="rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground">{chip}</span>)}
+          </div>
         </div>
-      </Panel>
+      </details>
     </div>
   )
 }
 
-function SocialFlowButton({ icon: Icon, label, meta, onClick, ready }: { icon: ComponentType<{ className?: string }>; label: string; meta: string; onClick: () => void; ready: boolean }) {
+function SocialFlowButton({
+  action,
+  count,
+  icon: Icon,
+  label,
+  onCreate,
+  onOpen,
+  ready,
+}: {
+  action: string
+  count: number
+  icon: ComponentType<{ className?: string }>
+  label: string
+  onCreate: () => void
+  onOpen: () => void
+  ready: boolean
+}) {
   return (
-    <button onClick={onClick} className="flex items-center gap-3 rounded-md border border-border bg-background p-3 text-left hover:bg-accent hover:text-accent-foreground">
-      <Icon className="h-5 w-5 text-primary" />
-      <span className="min-w-0 flex-1">
-        <span className="block font-semibold text-foreground">{label}</span>
-        <span className="block text-xs text-muted-foreground">{meta}</span>
-      </span>
-      <span className={`rounded-md px-2 py-1 text-[0.68rem] font-semibold ${ready ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{ready ? "ready" : "start"}</span>
-    </button>
+    <div className="rounded-lg border border-border bg-card p-3">
+      <button onClick={onOpen} className="flex w-full items-center gap-3 text-left">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/12 text-primary">
+          <Icon className="h-5 w-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold text-foreground">{label}</span>
+          <span className="block text-xs text-muted-foreground">{count} saved</span>
+        </span>
+        <span className={`rounded-md px-2 py-1 text-[0.68rem] font-semibold ${ready ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{ready ? "ready" : "new"}</span>
+      </button>
+      <button onClick={onCreate} className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+        <Plus className="h-4 w-4" />
+        {action}
+      </button>
+    </div>
   )
 }
 
@@ -380,7 +506,7 @@ function WorkspaceFrame<T extends string>({
             </div>
           </div>
           {visibleTabs.length ? (
-          <div className="flex gap-1.5 overflow-x-auto pb-1 xl:w-[520px]">
+          <div className="flex max-w-full gap-1.5 overflow-x-auto pb-1 xl:w-auto xl:max-w-[720px]">
             {visibleTabs.map((tab) => {
               const Icon = tab.icon
               const active = activeTab === tab.id
@@ -388,7 +514,7 @@ function WorkspaceFrame<T extends string>({
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab?.(tab.id)}
-                  className={`group relative inline-flex h-10 min-w-[7rem] flex-1 items-center gap-2 rounded-md border px-2.5 text-left text-sm transition hover:-translate-y-0.5 ${active ? "border-primary bg-primary text-primary-foreground shadow-sm" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+                  className={`group relative inline-flex h-10 min-w-[6.25rem] flex-none items-center gap-2 rounded-md border px-2.5 text-left text-sm transition hover:-translate-y-0.5 ${active ? "border-primary bg-primary text-primary-foreground shadow-sm" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
                   <span className="truncate font-semibold">{tab.label}</span>
