@@ -137,6 +137,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Social people maturity by replacing the fixed five-person cap with a tested paged people finder, visible available counts, show-more behavior, and a direct invite action when no match exists.
 - 2026-05-19: Continued Social connections maturity by replacing the fixed six-connection cap with a tested paged connections summary, show-more control, and friend/follow/pending/blocked chips.
 - 2026-05-19: Continued Social detail maturity by replacing the Spaces/Rooms/Battles People drawer's fixed ten-person cap with a tested expandable member page and clearer empty states.
+- 2026-05-19: Continued Social record-list maturity by paging long Spaces/Rooms/Battles record lists with visible/total counts and a show-more control.
 
 ## Implementation Slices
 
