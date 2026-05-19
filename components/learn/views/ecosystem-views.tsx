@@ -635,6 +635,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const [memberLimit, setMemberLimit] = useState(10)
   const [recordLimit, setRecordLimit] = useState(12)
   const [activityLimit, setActivityLimit] = useState(4)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const draftHydrated = useRef(false)
   const restoredDraftId = useRef<string | null>(null)
   const items = useMemo(() => data?.items ?? [], [data?.items])
@@ -718,6 +719,10 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   }, [kind, query, recordFilter])
 
   useEffect(() => {
+    setDeleteConfirmId(null)
+  }, [draft.id, kind])
+
+  useEffect(() => {
     if (!draftHydrated.current || !data) return
     if (!items.length) {
       if (!hasMeaningfulSocialDraft(kind, draft)) {
@@ -744,6 +749,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   function startNew() {
     setSelectedId("")
     setDraft(createSocialDraft(kind))
+    setDeleteConfirmId(null)
     setMessage(`Drafting a new ${noun}.`)
   }
 
@@ -754,6 +760,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
       body: JSON.stringify(body),
     })
     setSelectedId(response.item.id)
+    setDeleteConfirmId(null)
     setMessage(`${socialTitle(response.item)} saved.`)
     await refresh()
   }
@@ -761,6 +768,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   async function toggleDraft() {
     const nextDraft = nextSocialToggle(kind, draft)
     setDraft(nextDraft)
+    setDeleteConfirmId(null)
     if (!nextDraft.id) return
     await api(endpoint, { method: "PUT", body: JSON.stringify(payloadFromSocialDraft(kind, nextDraft)) })
     setMessage(`${socialTitle(nextDraft)} toggled.`)
@@ -772,8 +780,14 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
       startNew()
       return
     }
+    if (deleteConfirmId !== draft.id) {
+      setDeleteConfirmId(draft.id)
+      setMessage(`Select Delete again to remove ${socialTitle(draft)}.`)
+      return
+    }
     await api(`${endpoint}?id=${encodeURIComponent(draft.id)}`, { method: "DELETE" })
     setMessage(`${socialTitle(draft)} deleted.`)
+    setDeleteConfirmId(null)
     setSelectedId("")
     setDraft(createSocialDraft(kind))
     await refresh()
@@ -926,7 +940,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
               <SocialMenuSection title="Record actions">
                 <SocialMenuAction icon={Play} label="Toggle state" meta="Cycle visibility or activity status." onClick={() => { setOpenSocialMenu(null); void toggleDraft() }} />
                 <SocialMenuAction icon={Edit3} label="Reset draft" meta="Restore selected record values or clear the new draft." onClick={() => { setOpenSocialMenu(null); setDraft(selected ? draftFromSocialItem(kind, selected) : createSocialDraft(kind)) }} />
-                <SocialMenuAction danger icon={Trash2} label="Delete" meta={`Remove the selected ${noun} record.`} onClick={() => { setOpenSocialMenu(null); void deleteDraft() }} />
+                <SocialMenuAction danger icon={Trash2} label={draft.id && deleteConfirmId === draft.id ? "Confirm delete" : "Delete"} meta={draft.id && deleteConfirmId === draft.id ? `Delete ${socialTitle(draft)} now.` : `Ask before removing the selected ${noun}.`} onClick={() => { setOpenSocialMenu(null); void deleteDraft() }} />
               </SocialMenuSection>
             </SocialMenu>
           </div>
