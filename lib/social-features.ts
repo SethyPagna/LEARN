@@ -148,6 +148,13 @@ export interface SocialCommandSummary {
 }
 
 export type SocialFlowId = "chat" | "spaces" | "rooms" | "battles"
+export type SocialCommandPrimaryActionId = "find" | "invite" | "post" | SocialFlowId
+
+export interface SocialCommandPrimaryAction {
+  id: SocialCommandPrimaryActionId
+  detail: string
+  label: string
+}
 
 export interface SocialFlowCard {
   id: SocialFlowId
@@ -624,6 +631,35 @@ export function buildSocialCommandSummary(input: {
       `${input.spaceCount + input.roomCount + input.battleCount} study areas`,
     ],
   }
+}
+
+export function buildSocialCommandPrimaryAction(input: {
+  memberCount: number
+  connectionCount: number
+  threadCount: number
+  spaceCount: number
+  roomCount: number
+  battleCount: number
+}): SocialCommandPrimaryAction {
+  if (input.memberCount <= 1 && input.connectionCount === 0) {
+    return { id: "invite", label: "Invite learner", detail: "Bring one trusted learner into the workspace first." }
+  }
+  if (input.connectionCount === 0) {
+    return { id: "find", label: "Find people", detail: "Add a friend or follow someone before starting live work." }
+  }
+  if (input.threadCount === 0) {
+    return { id: "post", label: "Post update", detail: "Start a lightweight thread so collaborators know what to do." }
+  }
+  if (input.spaceCount === 0) {
+    return { id: "spaces", label: "Create group", detail: "Make a small learning circle for shared goals and resources." }
+  }
+  if (input.roomCount === 0) {
+    return { id: "rooms", label: "Start room", detail: "Open a focus room for Pomodoro, presence, and recap." }
+  }
+  if (input.battleCount === 0) {
+    return { id: "battles", label: "Create battle", detail: "Add one short challenge for practice and retry loops." }
+  }
+  return { id: "rooms", label: "Open live work", detail: "Jump into the active collaboration surface." }
 }
 
 export function buildSocialFlowCards(input: {
