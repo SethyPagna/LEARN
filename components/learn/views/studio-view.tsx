@@ -108,7 +108,7 @@ import {
   splitStudioPane,
 } from "@/lib/studio-features"
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, replaceTextInHtml, summarizeDocumentHtml, undoHistory, type HistoryState } from "@/lib/workspace-features"
-import { clearStudioDraft, readStudioDrafts, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
+import { clearStudioDraft, readStudioDrafts, shouldAnnounceStudioDraftSave, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
 import type { ImportTarget } from "@/lib/import-gateway"
 import { applySlideDesignPreset, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 
@@ -575,6 +575,8 @@ export function StudioView({
   const pendingDrafts = useRef<Partial<Record<StudioKind, { draft: StudioDraftRecord; fingerprint: string }>>>({})
   const draftSaveTimeouts = useRef<Partial<Record<StudioKind, number>>>({})
   const draftStatusTimeout = useRef<number | null>(null)
+  const lastDraftNoticeAt = useRef(0)
+  const lastDraftNoticeKind = useRef<StudioKind | undefined>(undefined)
   const layoutSaveTimeout = useRef<number | null>(null)
   const pendingLayoutSnapshot = useRef("")
 
@@ -582,13 +584,17 @@ export function StudioView({
     onDraftSummary?.(summarizeStudioDrafts(readStudioDrafts()))
   }
 
-  function markDraftSaved(summary: StudioDraftSummary) {
+  function markDraftSaved(kind: StudioKind, summary: StudioDraftSummary) {
     onDraftSummary?.(summary)
+    const now = Date.now()
+    if (!shouldAnnounceStudioDraftSave({ kind, lastKind: lastDraftNoticeKind.current, lastShownAt: lastDraftNoticeAt.current, now })) return
+    lastDraftNoticeAt.current = now
+    lastDraftNoticeKind.current = kind
     if (draftStatusTimeout.current) window.clearTimeout(draftStatusTimeout.current)
-    setDraftNotice("Draft saved locally")
+    setDraftNotice("Local draft saved")
     draftStatusTimeout.current = window.setTimeout(() => {
       setDraftNotice("")
-    }, 1600)
+    }, 1200)
   }
 
   function flushStudioDraft(kind: StudioKind) {
@@ -596,7 +602,7 @@ export function StudioView({
     if (!pending || lastDraftFingerprint.current[kind] === pending.fingerprint) return
     lastDraftFingerprint.current[kind] = pending.fingerprint
     delete pendingDrafts.current[kind]
-    markDraftSaved(writeStudioDraft(kind, pending.draft))
+    markDraftSaved(kind, writeStudioDraft(kind, pending.draft))
   }
 
   function flushPendingStudioDrafts() {
