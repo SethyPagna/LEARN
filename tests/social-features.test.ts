@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildSocialActionKit, buildSocialActivityTimeline, buildSocialWorkspacePlan, filterChatThreads, filterSocialRecords, filterWorkspaceMembers, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildSocialActionKit, buildSocialActivityTimeline, buildSocialWorkspacePlan, filterChatThreads, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -155,6 +155,21 @@ test("buildSocialActivityTimeline turns workspace state into compact next steps"
   assert.equal(timeline[1].label, "Secure invite ready")
   assert.equal(timeline[2].detail, "2 active, 1 pending, 1 admin.")
   assert.equal(timeline.at(-1)?.detail, "Run the next focus block")
+})
+
+test("social action helpers summarize and format recent activity", () => {
+  const actions = [
+    { actor_name: "Mina", action_type: "comment", target_type: "learning_space", body: "Great resource", created_at: "2026-05-18T00:00:00.000Z" },
+    { actor_name: "Alex", action_type: "save", target_type: "study_battle", created_at: "2026-05-19T00:00:00.000Z" },
+  ]
+  const summary = summarizeSocialActions(actions)
+
+  assert.equal(summary.total, 2)
+  assert.equal(summary.comments, 1)
+  assert.equal(summary.saves, 1)
+  assert.equal(summary.newest?.actor_name, "Alex")
+  assert.deepEqual(formatSocialAction(actions[0]), { label: "Mina comment", detail: "Great resource" })
+  assert.deepEqual(formatSocialAction(actions[1]), { label: "Alex save", detail: "Updated study battle." })
 })
 
 test("filterSocialRecords combines text search with workspace filters", () => {

@@ -110,6 +110,19 @@ export interface SocialActivityItem {
   tone: "ready" | "draft" | "next"
 }
 
+export interface SocialActionLike {
+  id?: string
+  actor_name?: string
+  actorName?: string
+  target_type?: string
+  targetType?: string
+  action_type?: string
+  actionType?: string
+  body?: string
+  created_at?: string
+  createdAt?: string
+}
+
 export type SocialInviteValidation =
   | { ok: true; value: SocialInviteDraft }
   | { ok: false; error: string }
@@ -441,6 +454,47 @@ export function buildSocialActivityTimeline(input: {
   ]
 
   return items
+}
+
+export function summarizeSocialActions(actions: SocialActionLike[]) {
+  const actionCounts = new Map<string, number>()
+  let comments = 0
+  let saves = 0
+  let newest: SocialActionLike | undefined
+  let newestTime = 0
+
+  for (const action of actions) {
+    const type = String(action.action_type || action.actionType || "activity")
+    actionCounts.set(type, (actionCounts.get(type) ?? 0) + 1)
+    if (type === "comment" || Boolean(action.body)) comments += 1
+    if (type === "save" || type === "bookmark") saves += 1
+    const created = Date.parse(String(action.created_at || action.createdAt || ""))
+    if (Number.isFinite(created) && created >= newestTime) {
+      newest = action
+      newestTime = created
+    }
+  }
+
+  return {
+    total: actions.length,
+    comments,
+    saves,
+    newest,
+    topActions: [...actionCounts.entries()]
+      .map(([label, count]) => ({ label, count }))
+      .sort((first, second) => second.count - first.count || first.label.localeCompare(second.label)),
+  }
+}
+
+export function formatSocialAction(action: SocialActionLike) {
+  const actor = String(action.actor_name || action.actorName || "Someone")
+  const type = String(action.action_type || action.actionType || "activity").replace(/_/g, " ")
+  const target = String(action.target_type || action.targetType || "item").replace(/_/g, " ")
+  const body = String(action.body || "").trim()
+  return {
+    label: `${actor} ${type}`,
+    detail: body || `Updated ${target}.`,
+  }
 }
 
 export function filterSocialRecords(records: SocialRecordLike[], input: { query?: string; filter?: SocialRecordFilter }) {
