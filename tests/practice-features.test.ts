@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import type { QuizQuestion } from "../components/learn/types"
 import { hasPracticeDraftContent, listPracticeDraftCards, normalizePracticeDraft, summarizePracticeDrafts } from "../lib/practice-drafts"
-import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeWorkspacePlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../lib/practice-features"
+import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, buildPracticeWorkspacePlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../lib/practice-features"
 
 const questions: QuizQuestion[] = [
   { id: "q1", question: "One?", choices: [{ id: "a", text: "1" }, { id: "b", text: "2" }], correct_answer_id: "a", topic: "Math", explanation: "One" },
@@ -92,6 +92,19 @@ test("practice review cards preserve missed question prompts and explanations", 
   assert.equal(cards[0].prompt, "Two?")
   assert.match(cards[0].answer, /Two/)
   assert.equal(cards[0].topic, "Math")
+})
+
+test("practice run actions explain disabled and busy states", () => {
+  const initialActions = buildPracticeRunActions({ hasQuiz: true })
+  const completedActions = buildPracticeRunActions({ hasAttempt: true, hasQuiz: true, missedCount: 2, retryActive: true })
+  const busyActions = buildPracticeRunActions({ busyAction: "save-review-cards", hasAttempt: true, hasQuiz: true, missedCount: 2 })
+
+  assert.equal(initialActions.find((action) => action.id === "submit")?.disabled, false)
+  assert.equal(initialActions.find((action) => action.id === "retry-missed")?.disabled, true)
+  assert.equal(completedActions.find((action) => action.id === "save-review-cards")?.disabled, false)
+  assert.equal(completedActions.find((action) => action.id === "full-set")?.disabled, false)
+  assert.equal(busyActions.find((action) => action.id === "save-review-cards")?.busy, true)
+  assert.equal(busyActions.every((action) => action.disabled), true)
 })
 
 test("practice summary treats unanswered questions as missed", () => {

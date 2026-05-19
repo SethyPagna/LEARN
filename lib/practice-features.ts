@@ -49,6 +49,17 @@ export interface PracticeWorkspacePlan {
   signals: Array<{ label: string; value: string }>
 }
 
+export type PracticeRunActionId = "submit" | "retry-missed" | "save-review-cards" | "full-set"
+
+export interface PracticeRunActionState {
+  id: PracticeRunActionId
+  label: string
+  busyLabel: string
+  helper: string
+  disabled: boolean
+  busy: boolean
+}
+
 export const practiceModeGroups: PracticeModeGroup[] = [
   {
     id: "core",
@@ -159,6 +170,54 @@ export function buildPracticeReviewCards(input: {
         topic: question.topic || "General",
       }
     })
+}
+
+export function buildPracticeRunActions(input: {
+  busyAction?: PracticeRunActionId | null
+  hasAttempt?: boolean
+  hasQuiz?: boolean
+  missedCount?: number
+  retryActive?: boolean
+}): PracticeRunActionState[] {
+  const busy = Boolean(input.busyAction)
+  const hasMisses = (input.missedCount ?? 0) > 0
+  const hasAttempt = Boolean(input.hasAttempt)
+  const actions: Array<Omit<PracticeRunActionState, "busy" | "disabled"> & { disabled: boolean }> = [
+    {
+      id: "submit",
+      label: "Submit",
+      busyLabel: "Submitting",
+      helper: "Score this run and clear the saved draft.",
+      disabled: !input.hasQuiz,
+    },
+    {
+      id: "retry-missed",
+      label: "Retry missed",
+      busyLabel: "Preparing",
+      helper: "Start a focused run using only missed questions.",
+      disabled: !hasAttempt || !hasMisses,
+    },
+    {
+      id: "save-review-cards",
+      label: "Save review cards",
+      busyLabel: "Saving",
+      helper: "Turn missed questions into scheduled Reviews.",
+      disabled: !hasAttempt || !hasMisses,
+    },
+    {
+      id: "full-set",
+      label: "Full set",
+      busyLabel: "Resetting",
+      helper: "Return to every question in the quiz bank.",
+      disabled: !input.retryActive,
+    },
+  ]
+
+  return actions.map((action) => ({
+    ...action,
+    busy: input.busyAction === action.id,
+    disabled: busy || action.disabled,
+  }))
 }
 
 export function buildMistakeRetrySet(questions: QuizQuestion[], missedQuestionIds: string[]) {
