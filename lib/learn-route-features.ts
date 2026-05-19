@@ -1,5 +1,5 @@
-export type LearnRouteActionId = "review" | "practice" | "create" | "schedule"
-export type LearnRouteView = "reviews" | "practice" | "studio" | "calendar"
+export type LearnRouteActionId = "practice" | "create" | "tutor"
+export type LearnRouteView = "practice" | "studio" | "ai"
 
 export interface LearnRouteAction {
   id: LearnRouteActionId
@@ -40,32 +40,25 @@ export function buildLearnRoutePlan(input: {
 
   const actions = rankLearnRouteActions([
     {
-      id: "review",
-      title: weakTopics.length ? "Repair weak topics" : "Review queue",
-      body: weakTopics.length ? "Start with the lowest accuracy concept." : "Open due cards and keep recall fresh.",
-      view: "reviews",
-      priority: weakTopics.length ? 100 : 70,
-    },
-    {
       id: "practice",
-      title: "Practice set",
-      body: quizCount ? "Run a quiz, sprint, or retry loop." : "Create a quiz from Studio first.",
+      title: weakTopics.length ? "Practice weak topic" : "Practice set",
+      body: quizCount ? "Run a focused quiz, sprint, or retry loop." : "Create a quiz from Studio first.",
       view: "practice",
-      priority: quizCount ? 90 : 40,
+      priority: weakTopics.length && quizCount ? 100 : quizCount ? 90 : 40,
     },
     {
       id: "create",
-      title: "Create in Studio",
-      body: "Capture notes, docs, sheets, slides, and import cleanup.",
+      title: "Shape in Studio",
+      body: "Capture or refine notes, docs, sheets, slides, and imports.",
       view: "studio",
       priority: recommendedFocus.length ? 80 : 95,
     },
     {
-      id: "schedule",
-      title: "Plan time",
-      body: "Put the next review or deep work block on the calendar.",
-      view: "calendar",
-      priority: goalCompletion < 50 ? 85 : 60,
+      id: "tutor",
+      title: "Ask AI tutor",
+      body: weakTopics.length ? `Get a short explanation for ${focusTopic}.` : "Generate a route, quiz, or flashcards from current material.",
+      view: "ai",
+      priority: weakTopics.length || recommendedFocus.length ? 85 : 70,
     },
   ])
 
@@ -74,10 +67,10 @@ export function buildLearnRoutePlan(input: {
     primaryAction: actions[0],
     actions,
     signals: [
-      { label: "Goal", value: `${goalCompletion}%` },
-      { label: "Quiz banks", value: String(quizCount) },
-      { label: "Focus", value: String(recommendedFocus.length) },
       { label: "Weak", value: String(weakTopics.length) },
+      { label: "Focus", value: String(recommendedFocus.length) },
+      { label: "Practice", value: String(quizCount) },
+      { label: "Route", value: goalCompletion >= 70 ? "steady" : "building" },
     ],
   }
 }

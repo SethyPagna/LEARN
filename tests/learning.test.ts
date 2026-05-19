@@ -48,8 +48,10 @@ test("buildLearnRoutePlan prioritizes weak-topic repair", () => {
   })
 
   assert.equal(plan.headline, "Repair Indexes")
-  assert.equal(plan.primaryAction.id, "review")
-  assert.deepEqual(plan.signals.map((signal) => signal.value), ["38%", "2", "1", "1"])
+  assert.equal(plan.primaryAction.id, "practice")
+  assert.equal(plan.primaryAction.view, "practice")
+  assert.deepEqual(plan.signals.map((signal) => signal.value), ["1", "1", "2", "building"])
+  assert.equal(plan.actions.some((action) => action.view === "reviews" || action.view === "calendar"), false)
 })
 
 test("buildLearnRoutePlan makes Studio primary when the route is empty", () => {
@@ -57,5 +59,5 @@ test("buildLearnRoutePlan makes Studio primary when the route is empty", () => {
 
   assert.equal(plan.headline, "Build today's learning route")
   assert.equal(plan.primaryAction.id, "create")
-  assert.equal(plan.signals[0].value, "100%")
+  assert.equal(plan.signals.at(-1)?.value, "steady")
 })
