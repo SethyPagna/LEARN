@@ -765,11 +765,18 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
             </SocialMenuSection>
           </SocialMenu>
         </div>
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          <Metric label="Total" value={String(socialSummary.total)} />
-          <Metric label={socialSummary.primaryLabel} value={String(socialSummary.primaryCount)} />
-          <Metric label={socialSummary.secondaryLabel} value={String(socialSummary.secondaryCount)} />
-        </div>
+        <details className="mt-3 rounded-md border border-border bg-background">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+            <span>Signals</span>
+            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{socialSummary.total} total</span>
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          </summary>
+          <div className="grid gap-2 border-t border-border p-2 sm:grid-cols-3">
+            <Metric label="Total" value={String(socialSummary.total)} />
+            <Metric label={socialSummary.primaryLabel} value={String(socialSummary.primaryCount)} />
+            <Metric label={socialSummary.secondaryLabel} value={String(socialSummary.secondaryCount)} />
+          </div>
+        </details>
         <div className="mt-4 grid gap-2">
           {filteredItems.map((item) => (
             <button
