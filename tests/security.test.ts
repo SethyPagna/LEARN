@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildFileLibraryActionPlan, buildFileLibraryFilterSummary, filterFileLibrary, fileKindLabel, summarizeFileLibrary } from "../lib/file-library-features"
+import { buildFileLibraryActionPlan, buildFileLibraryEmptyState, buildFileLibraryFilterSummary, filterFileLibrary, fileKindLabel, resolveVisibleFileSelection, summarizeFileLibrary } from "../lib/file-library-features"
 import { classifyUploadContentType, MAX_UPLOAD_BYTES, validateUploadFile, validateUploadFileShape } from "../lib/file-security"
 import { checkRateLimit } from "../lib/rate-limit"
 
@@ -80,6 +80,27 @@ test("file library filter summary explains active file views", () => {
   assert.equal(idle.label, "4/4 visible")
   assert.equal(filtered.active, true)
   assert.equal(filtered.label, 'Filtered: "lesson" + PDFs (1/4)')
+})
+
+test("file library empty state separates empty uploads from filtered misses", () => {
+  const empty = buildFileLibraryEmptyState({ total: 0 })
+  const filtered = buildFileLibraryEmptyState({ filter: "image", query: "diagram", total: 3 })
+
+  assert.equal(empty.action, "upload")
+  assert.equal(empty.title, "No files yet")
+  assert.equal(filtered.action, "clear-filter")
+  assert.match(filtered.body, /diagram/)
+})
+
+test("visible file selection ignores files hidden by filters", () => {
+  const files = [
+    { id: "image", filename: "diagram.png", content_type: "image/png", size_bytes: 10, created_at: "", source: "r2" },
+    { id: "pdf", filename: "reading.pdf", content_type: "application/pdf", size_bytes: 20, created_at: "", source: "r2" },
+  ]
+
+  assert.equal(resolveVisibleFileSelection(files, "pdf")?.id, "pdf")
+  assert.equal(resolveVisibleFileSelection([files[0]], "pdf")?.id, "image")
+  assert.equal(resolveVisibleFileSelection([], "pdf"), undefined)
 })
 
 test("checkRateLimit blocks after the configured burst", async () => {
