@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildCalendarPlanningSummary, calendarEventDurationMinutes, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda } from "../lib/calendar-features"
+import { buildCalendarDaySegments, buildCalendarPlanningSummary, calendarEventDurationMinutes, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda } from "../lib/calendar-features"
 
 const events = [
   event("study_today", "study", "2026-05-16T02:00:00.000Z", "2026-05-16T02:45:00.000Z"),
@@ -36,6 +36,18 @@ test("calendar duration helpers handle readable time labels", () => {
   assert.equal(formatCalendarDuration(135), "2h 15m")
 })
 
+test("calendar day segments group blocks into readable day parts", () => {
+  const segments = buildCalendarDaySegments([
+    localEvent("evening", "review", 19, 30),
+    localEvent("morning", "study", 9, 45),
+    localEvent("afternoon", "focus", 13, 60),
+  ])
+
+  assert.deepEqual(segments.map((segment) => segment.id), ["morning", "afternoon", "evening"])
+  assert.deepEqual(segments.map((segment) => segment.events[0]?.id), ["morning", "afternoon", "evening"])
+  assert.deepEqual(segments.map((segment) => segment.totalMinutes), [45, 60, 30])
+})
+
 test("calendar planning summary suggests useful next blocks", () => {
   const now = new Date("2026-05-16T01:00:00.000Z")
   const emptyPlan = buildCalendarPlanningSummary([], { defaultMinutes: 45, leadMinutes: 15, now })
@@ -50,4 +62,10 @@ test("calendar planning summary suggests useful next blocks", () => {
 
 function event(id: string, event_type: string, starts_at: string, ends_at: string) {
   return { id, event_type, starts_at, ends_at }
+}
+
+function localEvent(id: string, event_type: string, hour: number, minutes: number) {
+  const start = new Date(2026, 4, 16, hour, 0)
+  const end = new Date(start.getTime() + minutes * 60_000)
+  return event(id, event_type, start.toISOString(), end.toISOString())
 }
