@@ -284,6 +284,15 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     await refresh()
   }
 
+  function replyToThread(thread: any) {
+    const parsed = parseThreadTitle(thread.title)
+    setChannel(parsed.channel || "#general")
+    setTitle(`Re: ${parsed.title}`)
+    setIntent("question")
+    setBody((current) => current.trim() ? current : `Replying to "${parsed.title}": `)
+    setDraftStatus("Reply draft ready")
+  }
+
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
       <Panel className={options.chatCompact ? "p-3" : "p-4"}>
@@ -446,7 +455,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                     ))}
                   </ChatMenuSection>
                 </ChatMenu>
-                <button className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                <button onClick={() => replyToThread(thread)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
                   <Reply className="h-3.5 w-3.5" />
                   reply
                 </button>
