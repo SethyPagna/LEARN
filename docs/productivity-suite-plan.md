@@ -124,6 +124,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Social workspace maturity by adding a tested action kit for spaces, rooms, and battles with copy-ready invites plus compact routes into chat, calendar, files, and practice.
 - 2026-05-19: Continued Social invite maturity by validating invite drafts and wiring the Social invite drawer to the secure workspace invite API while keeping lightweight copy-text invites available.
 - 2026-05-19: Continued Social people maturity by adding tested workspace-member summaries and a compact People drawer with searchable roles/statuses inside spaces, rooms, and battles.
+- 2026-05-19: Continued Social activity maturity by adding a tested state-derived Activity drawer that explains saved/draft state, invite readiness, people status, and the next collaborative move without requiring a new feed endpoint.
 
 ## Implementation Slices
 
