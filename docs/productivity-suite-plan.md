@@ -131,6 +131,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Social detail cleanup by replacing stacked Spaces/Rooms/Battles drawers with compact tabs for Actions, Invite, People, Activity, and Safety.
 - 2026-05-19: Continued Social hub cleanup by moving Find, Post, Invite, and Connections into one task switcher so the start page shows one clear action at a time.
 - 2026-05-19: Continued Social flow cleanup by changing the Chat/Groups/Live/Battles cards into a compact action rail with smaller create buttons.
+- 2026-05-19: Continued Practice cleanup by turning the quiz timer into a compact command strip and removing corrupted separator text from quiz progress labels.
 
 ## Implementation Slices
 
