@@ -143,6 +143,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Social action reliability by adding busy states, guarded Save/Toggle/Delete flows, and clear recovery messages for failed record updates.
 - 2026-05-19: Continued Social action clarity by disabling draft-only quick actions with tested Save-first labels so record actions do not feel broken.
 - 2026-05-19: Continued Social invite maturity by adding tested secure-invite readiness states so link creation waits for a saved record and valid email.
+- 2026-05-19: Continued Social workflow accuracy by making the primary next-action button open recommended public/open/team records instead of always starting a new draft.
 
 ## Implementation Slices
 
