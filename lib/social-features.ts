@@ -447,6 +447,19 @@ export function filterWorkspaceMembers(members: WorkspaceMemberLike[], query = "
   ].join(" ").toLowerCase().includes(normalized))
 }
 
+export function buildWorkspaceMembersPage(members: WorkspaceMemberLike[], query = "", limit = 10) {
+  const all = filterWorkspaceMembers(members, query)
+  const safeLimit = Math.max(1, limit)
+  const items = all.slice(0, safeLimit)
+
+  return {
+    emptyAction: query.trim() ? "clear-search" : "invite",
+    hiddenCount: Math.max(0, all.length - items.length),
+    items,
+    total: all.length,
+  }
+}
+
 export function summarizeConnections(connections: UserConnectionLike[]) {
   let friends = 0
   let follows = 0
