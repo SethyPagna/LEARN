@@ -45,6 +45,8 @@ test("import gateway follow-up actions load complete AI workflows", () => {
   const practice = buildImportFollowupAction({ kind: "practice", target: "doc", title: "Database Indexing" })
   const flashcards = buildImportFollowupAction({ kind: "flashcards", target: "sheet", title: "Topic Tracker" })
   const cleanup = buildImportFollowupAction({ kind: "cleanup", target: "slides", title: "Lesson Deck" })
+  const sheetCleanup = buildImportFollowupAction({ kind: "cleanup", target: "sheet", title: "Tracker" })
+  const docCleanup = buildImportFollowupAction({ kind: "cleanup", target: "doc", title: "Study Guide" })
 
   assert.equal(practice.taskKey, "practice_generator")
   assert.equal(practice.legacyMode, "quiz")
@@ -56,7 +58,15 @@ test("import gateway follow-up actions load complete AI workflows", () => {
   assert.equal(flashcards.insertTarget, "flashcards")
   assert.match(flashcards.message, /matching pairs/)
 
-  assert.equal(cleanup.taskKey, "document_formatter")
+  assert.equal(cleanup.taskKey, "slide_builder")
   assert.equal(cleanup.insertTarget, "slide-outline")
+  assert.match(cleanup.message, /Build slides from/)
   assert.match(cleanup.status, /Cleanup workflow loaded/)
+
+  assert.equal(sheetCleanup.taskKey, "sheet_organizer")
+  assert.equal(sheetCleanup.insertTarget, "sheet-rows")
+  assert.match(sheetCleanup.message, /Organize/)
+
+  assert.equal(docCleanup.taskKey, "document_formatter")
+  assert.equal(docCleanup.insertTarget, "doc-section")
 })

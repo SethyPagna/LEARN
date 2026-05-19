@@ -32,6 +32,12 @@ export interface ImportFollowupAction {
   status: string
 }
 
+interface ImportCleanupWorkflow {
+  taskKey: AiTaskKey
+  insertTarget: StudioInsertTarget
+  messageVerb: string
+}
+
 export function shapeImportedLearningContent(input: { raw: string; title?: string; target?: ImportTarget | "auto" }): ShapedImport {
   const raw = input.raw.trim()
   const target = input.target && input.target !== "auto" ? input.target : detectImportTarget(raw)
@@ -144,13 +150,14 @@ export function buildImportFollowupAction(input: {
     }
   }
 
+  const cleanupWorkflow = resolveImportCleanupWorkflow(input.target)
   return {
     kind: input.kind,
-    taskKey: "document_formatter",
+    taskKey: cleanupWorkflow.taskKey,
     legacyMode: "cleanup",
-    insertTarget: input.target === "slides" ? "slide-outline" : input.target === "sheet" ? "sheet-rows" : "doc-section",
+    insertTarget: cleanupWorkflow.insertTarget,
     sourceScope: "Uploaded files",
-    message: `Clean up the imported ${targetLabel.toLowerCase()} "${title}" into a polished Studio-ready structure with headings, concise sections, and one useful next action.`,
+    message: `${cleanupWorkflow.messageVerb} the imported ${targetLabel.toLowerCase()} "${title}" into a polished Studio-ready structure with headings, concise sections, and one useful next action.`,
     status: `Cleanup workflow loaded for ${title}.`,
   }
 }
@@ -203,6 +210,28 @@ function labelImportTarget(target: ImportTarget) {
   if (target === "sheet") return "Sheet"
   if (target === "slides") return "Slides"
   return "Note"
+}
+
+function resolveImportCleanupWorkflow(target: ImportTarget): ImportCleanupWorkflow {
+  if (target === "sheet") {
+    return {
+      taskKey: "sheet_organizer",
+      insertTarget: "sheet-rows",
+      messageVerb: "Organize",
+    }
+  }
+  if (target === "slides") {
+    return {
+      taskKey: "slide_builder",
+      insertTarget: "slide-outline",
+      messageVerb: "Build slides from",
+    }
+  }
+  return {
+    taskKey: "document_formatter",
+    insertTarget: "doc-section",
+    messageVerb: "Clean up",
+  }
 }
 
 function shapeDocumentMarkdown(raw: string) {
