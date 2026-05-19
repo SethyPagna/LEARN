@@ -146,9 +146,9 @@ export function SocialWorkspaceView({ initialView, options, setView }: { initial
       }}
     >
       {tab === "chat" ? <ChatView options={options} /> : null}
-      {tab === "spaces" ? <SocialLearningView kind="spaces" /> : null}
-      {tab === "rooms" ? <SocialLearningView kind="rooms" /> : null}
-      {tab === "battles" ? <SocialLearningView kind="battles" /> : null}
+      {tab === "spaces" ? <SocialLearningView kind="spaces" setView={setView} /> : null}
+      {tab === "rooms" ? <SocialLearningView kind="rooms" setView={setView} /> : null}
+      {tab === "battles" ? <SocialLearningView kind="battles" setView={setView} /> : null}
     </WorkspaceFrame>
   )
 }

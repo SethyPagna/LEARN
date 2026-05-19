@@ -610,7 +610,7 @@ function toFeedLessonForSummary(lesson: MicroLesson) {
   }
 }
 
-export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battles" }) {
+export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms" | "battles"; setView?: (view: View) => void }) {
   const endpoint = kind === "spaces" ? "/api/learning-spaces" : kind === "rooms" ? "/api/study-rooms" : "/api/study-battles"
   const { data, status, refresh } = useResource<{ items: Array<LearningSpace | StudyRoom | StudyBattle> }>(endpoint)
   const [selectedId, setSelectedId] = useState("")
@@ -630,6 +630,7 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
   const socialPlan = useMemo(() => buildSocialWorkspacePlan(kind, socialSummary), [kind, socialSummary])
   const filteredItems = useMemo(() => filterSocialRecords(items, { query, filter: recordFilter }) as Array<LearningSpace | StudyRoom | StudyBattle>, [items, query, recordFilter])
   const filterOptions = useMemo(() => socialFilterOptions(kind), [kind])
+  const workflowSteps = useMemo(() => socialWorkflowSteps(kind, Boolean(draft.id)), [draft.id, kind])
 
   useEffect(() => {
     const stored = readSocialDraftStore(kind)
@@ -721,6 +722,18 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
     setSelectedId("")
     setDraft(createSocialDraft(kind))
     await refresh()
+  }
+
+  async function copyInvite() {
+    const target = socialTitle(draft)
+    const text = `Join my LEARN ${noun}: ${target}. We can use chat for questions, shared focus, and next practice.`
+    await navigator.clipboard?.writeText(text).catch(() => undefined)
+    setMessage(draft.id ? "Invite text copied." : `Save this ${noun} first, then share the copied invite text.`)
+  }
+
+  function openSocialChat() {
+    setView?.("chat")
+    setMessage("Open Chat to coordinate invites, questions, and updates.")
   }
 
   return (
@@ -846,6 +859,25 @@ export function SocialLearningView({ kind }: { kind: "spaces" | "rooms" | "battl
             <span>{socialPlan.primaryAction}</span>
             <Icon className="h-4 w-4" />
           </button>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <SocialActionButton label="Copy invite" icon={Users} onClick={copyInvite} />
+            <SocialActionButton label="Open chat" icon={MessageSquare} onClick={openSocialChat} />
+          </div>
+          <details className="group/social rounded-md border border-border bg-background">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+              <span>Workflow</span>
+              <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{draft.id ? "ready" : "draft"}</span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/social:rotate-180" />
+            </summary>
+            <div className="grid gap-2 border-t border-border p-3 sm:grid-cols-4">
+              {workflowSteps.map((step, index) => (
+                <div key={step} className="rounded-md border border-border bg-card p-2 text-xs">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/15 text-[0.65rem] font-bold text-primary">{index + 1}</span>
+                  <p className="mt-2 font-semibold text-foreground">{step}</p>
+                </div>
+              ))}
+            </div>
+          </details>
           <details className="group/social rounded-md border border-border bg-background">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
               <span>Safety and signals</span>
@@ -1006,6 +1038,12 @@ function socialMeta(kind: "spaces" | "rooms" | "battles", item: LearningSpace | 
   if (kind === "rooms" && "pomodoro_minutes" in item) return `${item.status} - ${item.mode} - ${item.pomodoro_minutes} min`
   if ("topic" in item) return `${item.status} - ${item.mode} - ${item.topic}`
   return "Ready"
+}
+
+function socialWorkflowSteps(kind: SocialKind, saved: boolean) {
+  if (kind === "rooms") return [saved ? "Open room" : "Save room", "Invite", "Focus timer", "Recap"]
+  if (kind === "battles") return [saved ? "Queue battle" : "Save battle", "Invite", "Play", "Review misses"]
+  return [saved ? "Open space" : "Save space", "Invite", "Chat", "Share resources"]
 }
 
 function SocialField({ label, value, onChange, multiline }: { label: string; value: string; onChange: (value: string) => void; multiline?: boolean }) {
