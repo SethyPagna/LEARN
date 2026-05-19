@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialInviteReadiness, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -314,6 +314,18 @@ test("findRecommendedSocialRecord matches the Social primary action intent", () 
   assert.equal(findRecommendedSocialRecord("rooms", rooms)?.id, "r2")
   assert.equal(findRecommendedSocialRecord("battles", battles)?.id, "b2")
   assert.equal(findRecommendedSocialRecord("spaces", [])?.id, undefined)
+})
+
+test("buildSocialRecordCard creates compact card chips", () => {
+  const spaceCard = buildSocialRecordCard("spaces", { id: "s1", name: "Algebra", visibility: "public", member_count: 3 }, "s1")
+  const roomCard = buildSocialRecordCard("rooms", { id: "r1", name: "Focus", status: "open", mode: "focus", pomodoro_minutes: 30 })
+  const battleCard = buildSocialRecordCard("battles", { id: "b1", title: "Index sprint", status: "waiting", mode: "team", topic: "databases" })
+
+  assert.equal(spaceCard.recommended, true)
+  assert.deepEqual(spaceCard.meta, ["public", "3 members"])
+  assert.deepEqual(roomCard.meta, ["focus", "30 min"])
+  assert.deepEqual(battleCard.meta, ["team", "databases"])
+  assert.equal(battleCard.status, "waiting")
 })
 
 test("social records page keeps filtered lists compact", () => {
