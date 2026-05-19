@@ -460,52 +460,50 @@ export function AiTutorView({
 
         <details className="mt-3 rounded-md border border-border bg-background text-sm">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 font-semibold text-foreground [&::-webkit-details-marker]:hidden">
-            <span>Readiness</span>
-            <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{gatewayReadiness.readyProviderCount} ready</span>
+            <span>Review setup</span>
+            <span className="flex flex-wrap items-center justify-end gap-1.5">
+              <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{gatewayReadiness.readyProviderCount} ready</span>
+              <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{promptBuild.ok ? "prompt ready" : `${promptBuild.missing.length} missing`}</span>
+            </span>
           </summary>
-          <div className="grid gap-3 border-t border-border p-3 sm:grid-cols-2 xl:grid-cols-6">
-            {workflowSummary.cards.map((card) => (
-              <WorkflowCard key={card.id} label={card.label} value={card.value} detail={card.detail} tone={card.tone} />
-            ))}
-          </div>
-        </details>
-
-        <details className="mt-4 rounded-md border border-border bg-background text-sm">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 font-semibold text-foreground [&::-webkit-details-marker]:hidden">
-            <span>Requirements</span>
-            <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{promptBuild.ok ? "ready" : `${promptBuild.missing.length} missing`}</span>
-          </summary>
-          <div className="grid gap-3 border-t border-border p-3 md:grid-cols-2">
-            <label className="grid gap-1 text-sm text-foreground">
-              <span className="font-semibold">Audience</span>
-              <input value={targetAudience} onChange={(event) => setTargetAudience(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
-            </label>
-            <label className="grid gap-1 text-sm text-foreground">
-              <span className="font-semibold">Requirements</span>
-              <input value={requiredOutput} onChange={(event) => setRequiredOutput(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
-            </label>
-            <details className="rounded-md border border-border bg-muted/40 p-3 text-sm md:col-span-2">
-              <summary className="cursor-pointer font-semibold text-foreground">Prompt preview {promptBuild.ok ? "" : `- missing ${promptBuild.missing.length}`}</summary>
-              <div className="mt-3 grid gap-2 md:grid-cols-2">
-                <PreviewBlock title="Task" body={previewParts.task || activeMode.label} />
-                <PreviewBlock title="Output" body={previewParts.output || promptBuild.outputContract || "Structured learning response"} />
-                <PreviewBlock title="Requirements" body={previewParts.requirements.join("\n")} />
-                <PreviewBlock title="Warnings" body={previewParts.warnings.length ? previewParts.warnings.join("\n") : "None"} />
-              </div>
-              {promptBuild.warnings.length ? <p className="mt-2 rounded-md bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">{promptBuild.warnings.join(" ")}</p> : null}
-            </details>
-            <div className={`rounded-md border p-3 md:col-span-2 ${gatewayReadiness.status === "ready" ? "border-success/50 bg-success/10" : gatewayReadiness.status === "warning" ? "border-warning/50 bg-warning/10" : "border-destructive/50 bg-destructive/10"}`}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-foreground">{gatewayReadiness.label}</p>
-                <div className="flex flex-wrap gap-2 text-xs font-semibold">
-                  <span className="rounded-md bg-background px-2 py-1 text-foreground">{gatewayReadiness.readyProviderCount} ready</span>
-                  <span className="rounded-md bg-background px-2 py-1 text-foreground">{gatewayReadiness.selectedProviderCount} selected</span>
+          <div className="grid gap-3 border-t border-border p-3">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+              {workflowSummary.cards.map((card) => (
+                <WorkflowCard key={card.id} label={card.label} value={card.value} detail={card.detail} tone={card.tone} />
+              ))}
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="grid gap-1 text-sm text-foreground">
+                <span className="font-semibold">Audience</span>
+                <input value={targetAudience} onChange={(event) => setTargetAudience(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
+              </label>
+              <label className="grid gap-1 text-sm text-foreground">
+                <span className="font-semibold">Requirements</span>
+                <input value={requiredOutput} onChange={(event) => setRequiredOutput(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
+              </label>
+              <details className="rounded-md border border-border bg-muted/40 p-3 text-sm md:col-span-2">
+                <summary className="cursor-pointer font-semibold text-foreground">Prompt preview {promptBuild.ok ? "" : `- missing ${promptBuild.missing.length}`}</summary>
+                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                  <PreviewBlock title="Task" body={previewParts.task || activeMode.label} />
+                  <PreviewBlock title="Output" body={previewParts.output || promptBuild.outputContract || "Structured learning response"} />
+                  <PreviewBlock title="Requirements" body={previewParts.requirements.join("\n")} />
+                  <PreviewBlock title="Warnings" body={previewParts.warnings.length ? previewParts.warnings.join("\n") : "None"} />
                 </div>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {gatewayReadiness.checks.map((check) => (
-                  <span key={check} className="rounded-md bg-background px-2 py-1 text-xs font-medium text-muted-foreground">{check}</span>
-                ))}
+                {promptBuild.warnings.length ? <p className="mt-2 rounded-md bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">{promptBuild.warnings.join(" ")}</p> : null}
+              </details>
+              <div className={`rounded-md border p-3 md:col-span-2 ${gatewayReadiness.status === "ready" ? "border-success/50 bg-success/10" : gatewayReadiness.status === "warning" ? "border-warning/50 bg-warning/10" : "border-destructive/50 bg-destructive/10"}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">{gatewayReadiness.label}</p>
+                  <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                    <span className="rounded-md bg-background px-2 py-1 text-foreground">{gatewayReadiness.readyProviderCount} ready</span>
+                    <span className="rounded-md bg-background px-2 py-1 text-foreground">{gatewayReadiness.selectedProviderCount} selected</span>
+                  </div>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {gatewayReadiness.checks.map((check) => (
+                    <span key={check} className="rounded-md bg-background px-2 py-1 text-xs font-medium text-muted-foreground">{check}</span>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
