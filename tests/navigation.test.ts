@@ -23,6 +23,7 @@ test("navigation keeps primary sidebar destinations compact", () => {
     "social",
     "settings",
   ])
+  assert.equal(navigationGroups.find((group) => group.label === "Social")?.caption, "Chat, groups, rooms, and battles")
 })
 
 test("stable Studio routes resolve to Studio with the matching tab", () => {

@@ -49,3 +49,17 @@ test("buildProfileActionPlan summarizes sharing and achievement progress", () =>
   assert.equal(plan.masteryLabel, "60% average mastery")
   assert.equal(plan.stats.find((stat) => stat.id === "achievements")?.value, "1/2")
 })
+
+test("buildProfileActionPlan sends complete shared portraits to social groups", () => {
+  const plan = buildProfileActionPlan({
+    profile: {
+      bio: "Sharing useful study systems.",
+      metrics: { reputation: 20, streak: 14, xp: 1100 },
+      artifacts: [{ visibility: "connections", mastery: 0.7 }],
+    },
+    achievements: [{ unlocked: true }],
+  })
+
+  assert.equal(plan.target, "social")
+  assert.equal(plan.nextAction, "Open social groups")
+})

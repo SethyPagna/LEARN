@@ -116,7 +116,7 @@ function profileActionLabel(target: ProfilePlanTarget) {
   if (target === "settings") return "Open profile settings"
   if (target === "studio") return "Create in Studio"
   if (target === "reviews") return "Review due cards"
-  return "Open social spaces"
+  return "Open social groups"
 }
 
 function labelProfilePrivacy(input: { privateCount: number; publicCount: number; sharedCount: number }) {

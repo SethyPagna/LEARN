@@ -140,5 +140,6 @@ test("buildDashboardQuickActionGroups keeps dashboard buttons routeable and comp
   assert.ok(actions.every((action) => action.label.length <= 18))
   assert.ok(actions.every((action) => action.detail.length <= 52))
   assert.ok(actions.every((action) => action.target))
+  assert.equal(actions.find((action) => action.id === "social-hub")?.detail, "Chat, groups, rooms")
   assert.equal(new Set(actions.map((action) => `${action.label}:${action.target}`)).size, actions.length)
 })

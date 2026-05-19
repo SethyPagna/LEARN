@@ -430,7 +430,7 @@ export function buildDashboardQuickActionGroups(): DashboardQuickActionGroup[] {
       id: "share",
       label: "Share",
       actions: [
-        { id: "social-hub", label: "Social hub", detail: "Chat, spaces, rooms", target: "social", icon: "message" },
+        { id: "social-hub", label: "Social hub", detail: "Chat, groups, rooms", target: "social", icon: "message" },
         { id: "focus-room", label: "Focus room", detail: "Pomodoro presence", target: "rooms", icon: "compass" },
       ],
     },

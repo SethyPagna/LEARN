@@ -52,7 +52,7 @@ export const baseVocabulary = {
   reviews: "Reviews",
   studio: "Studio",
   discover: "Discover",
-  spaces: "Spaces",
+  spaces: "Groups",
   rooms: "Rooms",
   battles: "Battles",
   notes: "Notes",

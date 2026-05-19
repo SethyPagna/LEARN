@@ -138,7 +138,7 @@ export const navigationGroups: readonly LearnNavigationGroup[] = [
   },
   {
     label: "Social",
-    caption: "Chat, spaces, rooms, and battles",
+    caption: "Chat, groups, rooms, and battles",
     items: [{ view: "social", labelKey: "social", iconKey: "social", aliases: socialViews.filter((view) => view !== "social") }],
   },
   {
