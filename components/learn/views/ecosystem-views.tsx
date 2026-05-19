@@ -47,7 +47,7 @@ import type {
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
-import { buildSocialActionKit, buildSocialActivityTimeline, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, formatSocialAction, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildSocialActionKit, buildSocialActivityTimeline, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, formatSocialAction, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -633,6 +633,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const [openSocialMenu, setOpenSocialMenu] = useState<"filters" | "actions" | null>(null)
   const [detailTab, setDetailTab] = useState<SocialDetailTab>("actions")
   const [memberLimit, setMemberLimit] = useState(10)
+  const [recordLimit, setRecordLimit] = useState(12)
   const draftHydrated = useRef(false)
   const restoredDraftId = useRef<string | null>(null)
   const items = useMemo(() => data?.items ?? [], [data?.items])
@@ -646,7 +647,8 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const memberSummary = useMemo(() => summarizeWorkspaceMembers(memberItems), [memberItems])
   const actionSummary = useMemo(() => summarizeSocialActions(recentActionItems), [recentActionItems])
   const socialPlan = useMemo(() => buildSocialWorkspacePlan(kind, socialSummary), [kind, socialSummary])
-  const filteredItems = useMemo(() => filterSocialRecords(items, { query, filter: recordFilter }) as Array<LearningSpace | StudyRoom | StudyBattle>, [items, query, recordFilter])
+  const recordPage = useMemo(() => buildSocialRecordsPage(items, { query, filter: recordFilter, limit: recordLimit }), [items, query, recordFilter, recordLimit])
+  const filteredItems = recordPage.items as Array<LearningSpace | StudyRoom | StudyBattle>
   const memberPage = useMemo(() => buildWorkspaceMembersPage(memberItems, memberQuery, memberLimit), [memberItems, memberLimit, memberQuery])
   const filteredMembers = memberPage.items
   const filterOptions = useMemo(() => socialFilterOptions(kind), [kind])
@@ -708,6 +710,10 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   useEffect(() => {
     setMemberLimit(10)
   }, [memberQuery])
+
+  useEffect(() => {
+    setRecordLimit(12)
+  }, [kind, query, recordFilter])
 
   useEffect(() => {
     if (!draftHydrated.current || !data) return
@@ -846,7 +852,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-background p-2">
           <div className="flex min-w-0 flex-wrap gap-1">
             <SocialSummaryChip label="Showing" value={recordFilter} />
-            <SocialSummaryChip label="Visible" value={String(filteredItems.length)} />
+            <SocialSummaryChip label="Visible" value={`${filteredItems.length}/${recordPage.total}`} />
           </div>
           <SocialMenu icon={SlidersHorizontal} label="Filters" menuId="filters" openMenu={openSocialMenu} setOpenMenu={setOpenSocialMenu}>
             <SocialMenuSection title="Show records">
@@ -896,6 +902,11 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
             </button>
           ))}
           {!filteredItems.length ? <EmptyState title={`No ${title.toLowerCase()} yet`} body={socialPlan.emptyHint} /> : null}
+          {recordPage.hiddenCount ? (
+            <button onClick={() => setRecordLimit((limit) => limit + 12)} className="rounded-md border border-border bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+              Show {Math.min(12, recordPage.hiddenCount)} more
+            </button>
+          ) : null}
         </div>
         {message ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{message}</p> : null}
       </section>
