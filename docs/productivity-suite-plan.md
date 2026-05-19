@@ -152,6 +152,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Social command clarity by adding a tested primary action that recommends Invite, Find, Post, Groups, Rooms, or Battles based on workspace readiness.
 - 2026-05-19: Continued Social invite reliability by reusing validated invite drafts in the command center and showing compact readiness before API calls.
 - 2026-05-19: Continued Files refinement by adding tested filter summaries plus safer copy/delete busy and error states.
+- 2026-05-19: Continued Files usability by separating empty uploads from filtered misses and keeping previews scoped to visible files.
 
 ## Implementation Slices
 
