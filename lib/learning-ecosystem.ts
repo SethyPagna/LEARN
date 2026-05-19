@@ -44,6 +44,13 @@ export interface ReviewSessionSummary {
   topTopics: Array<{ topic: string; count: number }>
 }
 
+export interface ReviewSummaryChip {
+  id: "due" | "revealed" | "recall" | "misses" | "later"
+  label: string
+  value: string
+  priority: "primary" | "secondary"
+}
+
 export interface ReviewActionPlan {
   headline: string
   detail: string
@@ -232,6 +239,17 @@ export function summarizeReviewSession(
       .sort((left, right) => right.count - left.count || left.topic.localeCompare(right.topic))
       .slice(0, 4),
   }
+}
+
+export function buildReviewSummaryChips(summary: ReviewSessionSummary): ReviewSummaryChip[] {
+  const recallPercent = `${Math.round(summary.averageRetrievability * 100)}%`
+  return [
+    { id: "due", label: "Due", value: String(summary.totalDue), priority: "primary" },
+    { id: "revealed", label: "Revealed", value: String(summary.revealedCount), priority: summary.revealedCount ? "primary" : "secondary" },
+    { id: "recall", label: "Recall", value: recallPercent, priority: "primary" },
+    { id: "misses", label: "Misses", value: String(summary.practiceMissCount), priority: summary.practiceMissCount ? "primary" : "secondary" },
+    { id: "later", label: "Later", value: String(summary.remainingAfterCap), priority: summary.remainingAfterCap ? "primary" : "secondary" },
+  ]
 }
 
 export function buildReviewActionPlan(

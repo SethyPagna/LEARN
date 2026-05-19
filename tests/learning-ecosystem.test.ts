@@ -7,6 +7,7 @@ import {
   buildReviewActionPlan,
   buildReviewRatingActions,
   buildReviewSchedule,
+  buildReviewSummaryChips,
   canPostInCommunity,
   calculateLevelFromXp,
   detectOrphanKnowledgeNodes,
@@ -90,6 +91,27 @@ test("review session summary and action plan guide reveal and grade loops", () =
   assert.equal(hiddenPlan.targetItemId, "review_code")
   assert.equal(revealedPlan.nextAction, "grade")
   assert.equal(revealedPlan.targetItemId, "review_code")
+})
+
+test("review summary chips keep primary queue signals compact", () => {
+  const summary = summarizeReviewSession({
+    items: [
+      { ...item("miss_1", "2026-05-13T01:00:00.000Z", 0.33), sourceType: "practice_mistake" as const },
+      { ...item("note_1", "2026-05-13T01:00:00.000Z", 0.74), sourceType: "note" as const },
+    ],
+    remainingDueCount: 5,
+  }, ["note_1"])
+
+  const chips = buildReviewSummaryChips(summary)
+
+  assert.deepEqual(chips.filter((chip) => chip.priority === "primary").map((chip) => chip.id), ["due", "revealed", "recall", "misses", "later"])
+  assert.deepEqual(chips.map((chip) => [chip.label, chip.value]), [
+    ["Due", "2"],
+    ["Revealed", "1"],
+    ["Recall", "54%"],
+    ["Misses", "1"],
+    ["Later", "5"],
+  ])
 })
 
 test("review action plan handles rest days empty queues and practice misses", () => {
