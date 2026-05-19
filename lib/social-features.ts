@@ -757,6 +757,13 @@ export function buildSocialRecordCard(kind: SocialWorkspaceKind, record: SocialR
   }
 }
 
+export function buildSocialRecordSelectionMessage(kind: SocialWorkspaceKind, record: SocialRecordLike) {
+  const title = socialRecordTitle(record)
+  if (kind === "spaces") return `${title} opened. Invite, chat, or share resources next.`
+  if (kind === "rooms") return `${title} opened. Join, schedule, or attach resources next.`
+  return `${title} opened. Play, recap misses, or schedule a rematch next.`
+}
+
 export function buildSocialRecordsPage(records: SocialRecordLike[], input: { query?: string; filter?: SocialRecordFilter; limit?: number }) {
   const all = filterSocialRecords(records, input)
   const safeLimit = Math.max(1, input.limit ?? 12)
