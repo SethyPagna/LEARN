@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   Bell,
   BookOpen,
@@ -655,7 +655,7 @@ export function MobileMenu({
   return (
     <div className="border-b border-border bg-sidebar p-3 text-sidebar-foreground lg:hidden">
       <LauncherSearch query={query} setQuery={setQuery} setView={setView} text={text} />
-      <Navigation density={density} text={text} view={view} setView={setView} studioDraftSummary={studioDraftSummary} practiceDraftSummary={practiceDraftSummary} />
+      <Navigation mobile density={density} text={text} view={view} setView={setView} studioDraftSummary={studioDraftSummary} practiceDraftSummary={practiceDraftSummary} />
     </div>
   )
 }
@@ -686,6 +686,7 @@ function Brand({ compact, text }: { compact?: boolean; text: Text }) {
 
 function Navigation({
   density,
+  mobile,
   setView,
   text,
   view,
@@ -693,6 +694,7 @@ function Navigation({
   practiceDraftSummary,
 }: {
   density: Density
+  mobile?: boolean
   setView: (view: View) => void
   text: Text
   view: View
@@ -702,16 +704,50 @@ function Navigation({
   const compact = density === "compact"
   const rowHeight = compact ? "h-11" : "h-11"
   const activeGroup = summarizeActiveNavigationGroup(view, navigationGroups)
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
+    const defaults = new Set<string>()
+    for (const group of navigationGroups) {
+      if (!mobile || group.label === "Home" || activeGroup?.groupLabel === group.label) defaults.add(group.label)
+    }
+    return defaults
+  })
+
+  useEffect(() => {
+    if (!activeGroup?.groupLabel) return
+    setOpenGroups((current) => {
+      if (current.has(activeGroup.groupLabel)) return current
+      const next = new Set(current)
+      next.add(activeGroup.groupLabel)
+      return next
+    })
+  }, [activeGroup?.groupLabel])
+
+  function toggleGroup(label: string) {
+    setOpenGroups((current) => {
+      const next = new Set(current)
+      if (next.has(label)) next.delete(label)
+      else next.add(label)
+      return next
+    })
+  }
+
   return (
     <nav className={compact ? "grid gap-2" : "grid gap-3"}>
       {navigationGroups.map((group) => (
-        <details key={group.label} className="group/navigation" open>
-          <summary className={`${compact ? "mb-1 flex h-5 cursor-pointer list-none items-center justify-center text-[0.6rem]" : "mb-1 flex cursor-pointer list-none items-center justify-between px-2 text-[0.68rem]"} font-semibold uppercase tracking-[0.12em] text-muted-foreground`} title={group.caption}>
+        <details key={group.label} className="group/navigation" open={openGroups.has(group.label)}>
+          <summary
+            onClick={(event) => {
+              event.preventDefault()
+              toggleGroup(group.label)
+            }}
+            className={`${compact ? "mb-1 flex h-5 cursor-pointer list-none items-center justify-center text-[0.6rem]" : "mb-1 flex cursor-pointer list-none items-center justify-between px-2 text-[0.68rem]"} font-semibold uppercase tracking-[0.12em] text-muted-foreground`}
+            title={group.caption}
+          >
             <span className={`flex min-w-0 items-center ${compact ? "gap-1" : "gap-2"}`}>
               <span>{compact ? group.label.slice(0, 1) : group.label}</span>
               {activeGroup?.groupLabel === group.label ? <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" /> : null}
             </span>
-            {compact ? null : <ChevronDown className="h-3.5 w-3.5 transition group-open/navigation:rotate-180 lg:hidden" />}
+            {compact ? null : <ChevronDown className="h-3.5 w-3.5 transition group-open/navigation:rotate-180" />}
           </summary>
           <div className={`grid gap-1 ${compact ? "justify-center" : ""}`}>
             {group.items.map((item) => {
