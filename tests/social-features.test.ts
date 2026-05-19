@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialInviteReadiness, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -133,6 +133,22 @@ test("normalizeSocialInviteDraft validates email and role for secure invites", (
     value: { email: "learner@example.com", role: "learner" },
   })
   assert.equal(normalizeSocialInviteDraft({ email: "bad" }).ok, false)
+})
+
+test("buildSocialInviteReadiness blocks unsaved and invalid secure invites", () => {
+  const unsaved = buildSocialInviteReadiness({ kind: "rooms", saved: false, email: "learner@example.com" })
+  const invalid = buildSocialInviteReadiness({ kind: "rooms", saved: true, email: "bad" })
+  const ready = buildSocialInviteReadiness({ kind: "rooms", saved: true, email: "learner@example.com" })
+  const created = buildSocialInviteReadiness({ kind: "rooms", saved: true, email: "learner@example.com", linkReady: true })
+
+  assert.equal(unsaved.enabled, false)
+  assert.equal(unsaved.label, "Save first")
+  assert.match(unsaved.message, /Save this room/)
+  assert.equal(invalid.enabled, false)
+  assert.equal(invalid.label, "Enter email")
+  assert.equal(ready.enabled, true)
+  assert.equal(ready.label, "Create link")
+  assert.equal(created.label, "Refresh link")
 })
 
 test("workspace member helpers summarize and filter people context", () => {
