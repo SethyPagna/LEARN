@@ -37,6 +37,13 @@ export interface CalendarPlanningSummary {
   suggestion: CalendarPlanningSuggestion
 }
 
+export interface CalendarDaySegment<T extends CalendarEventLike = CalendarEventLike> {
+  events: T[]
+  id: "morning" | "afternoon" | "evening"
+  label: string
+  totalMinutes: number
+}
+
 const MINUTES_PER_HOUR = 60
 const MS_PER_MINUTE = 60_000
 const HIGH_SCHEDULED_MINUTES = 240
@@ -84,6 +91,23 @@ export function formatCalendarDuration(minutes: number) {
   const hours = Math.floor(minutes / MINUTES_PER_HOUR)
   const remainder = minutes % MINUTES_PER_HOUR
   return remainder ? `${hours}h ${remainder}m` : `${hours}h`
+}
+
+export function buildCalendarDaySegments<T extends CalendarEventLike>(events: readonly T[]): Array<CalendarDaySegment<T>> {
+  const segments: Array<CalendarDaySegment<T>> = [
+    { events: [], id: "morning", label: "Morning", totalMinutes: 0 },
+    { events: [], id: "afternoon", label: "Afternoon", totalMinutes: 0 },
+    { events: [], id: "evening", label: "Evening", totalMinutes: 0 },
+  ]
+
+  for (const event of [...events].sort((first, second) => Date.parse(first.starts_at) - Date.parse(second.starts_at))) {
+    const hour = new Date(event.starts_at).getHours()
+    const segment = hour < 12 ? segments[0] : hour < 17 ? segments[1] : segments[2]
+    segment.events.push(event)
+    segment.totalMinutes += calendarEventDurationMinutes(event)
+  }
+
+  return segments
 }
 
 export function buildCalendarPlanningSummary(
