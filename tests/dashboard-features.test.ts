@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardQuickActionGroups, buildDashboardRecentWork, buildDashboardRouteActions, buildDashboardSignals } from "../lib/dashboard-features"
+import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardQuickActionGroups, buildDashboardRecentWork, buildDashboardRouteActions, buildDashboardSignals, buildDashboardWeakTopicCards } from "../lib/dashboard-features"
 
 test("buildDashboardCommandPlan prioritizes weak topic repair", () => {
   const plan = buildDashboardCommandPlan({
@@ -115,6 +115,20 @@ test("buildDashboardMetricTiles combines learner progress drafts and focus time"
   assert.equal(metrics.find((metric) => metric.id === "xp")?.value, "260")
   assert.equal(metrics.find((metric) => metric.id === "reviews")?.value, "2")
   assert.equal(metrics.find((metric) => metric.id === "drafts")?.detail, "2 Studio and 1 practice draft")
+})
+
+test("buildDashboardWeakTopicCards sorts real topics and avoids fake empty progress", () => {
+  const cards = buildDashboardWeakTopicCards([
+    { topic: "  ", accuracy: 10, attempts: 99 },
+    { topic: "Memory", accuracy: 72, attempts: 5 },
+    { topic: "Indexes", accuracy: 42, attempts: 2 },
+    { topic: "Graphs", accuracy: 42, attempts: 8 },
+    { topic: "Review", accuracy: 90, attempts: 1 },
+  ], 3)
+
+  assert.deepEqual(cards.map((card) => card.label), ["Graphs", "Indexes", "Memory"])
+  assert.deepEqual(cards.map((card) => card.tone), ["critical", "critical", "watch"])
+  assert.deepEqual(buildDashboardWeakTopicCards([], 5), [])
 })
 
 test("buildDashboardRecentWork sorts mixed work and maps routes", () => {
