@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildSocialActionKit, buildSocialWorkspacePlan, filterChatThreads, filterSocialRecords, filterWorkspaceMembers, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildSocialActionKit, buildSocialActivityTimeline, buildSocialWorkspacePlan, filterChatThreads, filterSocialRecords, filterWorkspaceMembers, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -138,6 +138,23 @@ test("workspace member helpers summarize and filter people context", () => {
   assert.equal(summary.pending, 1)
   assert.equal(summary.newest?.name, "Pending Friend")
   assert.deepEqual(filterWorkspaceMembers(members, "admin").map((member) => member.email), ["admin@example.com"])
+})
+
+test("buildSocialActivityTimeline turns workspace state into compact next steps", () => {
+  const timeline = buildSocialActivityTimeline({
+    kind: "rooms",
+    title: "Focus room",
+    saved: false,
+    inviteLinkReady: true,
+    memberSummary: { total: 3, admins: 1, learners: 2, active: 2, pending: 1 },
+    suggestedAction: "Run the next focus block",
+  })
+
+  assert.equal(timeline[0].label, "Room draft")
+  assert.equal(timeline[0].tone, "draft")
+  assert.equal(timeline[1].label, "Secure invite ready")
+  assert.equal(timeline[2].detail, "2 active, 1 pending, 1 admin.")
+  assert.equal(timeline.at(-1)?.detail, "Run the next focus block")
 })
 
 test("filterSocialRecords combines text search with workspace filters", () => {

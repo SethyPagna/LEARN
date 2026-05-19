@@ -103,6 +103,13 @@ export interface WorkspaceMemberSummary {
   newest?: WorkspaceMemberLike
 }
 
+export interface SocialActivityItem {
+  id: string
+  label: string
+  detail: string
+  tone: "ready" | "draft" | "next"
+}
+
 export type SocialInviteValidation =
   | { ok: true; value: SocialInviteDraft }
   | { ok: false; error: string }
@@ -396,6 +403,46 @@ export function filterWorkspaceMembers(members: WorkspaceMemberLike[], query = "
   ].join(" ").toLowerCase().includes(normalized))
 }
 
+export function buildSocialActivityTimeline(input: {
+  kind: SocialWorkspaceKind
+  title?: string
+  saved?: boolean
+  inviteLinkReady?: boolean
+  memberSummary: WorkspaceMemberSummary
+  suggestedAction: string
+}) {
+  const title = (input.title || "").trim() || fallbackSocialTitle(input.kind)
+  const noun = input.kind === "rooms" ? "room" : input.kind === "battles" ? "battle" : "space"
+  const items: SocialActivityItem[] = [
+    {
+      id: "record",
+      label: input.saved ? `${capitalize(noun)} saved` : `${capitalize(noun)} draft`,
+      detail: input.saved ? `${title} is ready for invites and coordination.` : `Save ${title} before sharing live links.`,
+      tone: input.saved ? "ready" : "draft",
+    },
+    {
+      id: "invite",
+      label: input.inviteLinkReady ? "Secure invite ready" : "Invite can be created",
+      detail: input.inviteLinkReady ? "A secure invite link is available for onboarding." : "Use the invite drawer to copy text or create a secure link.",
+      tone: input.inviteLinkReady ? "ready" : "next",
+    },
+    {
+      id: "people",
+      label: `${input.memberSummary.total} people visible`,
+      detail: `${input.memberSummary.active} active, ${input.memberSummary.pending} pending, ${input.memberSummary.admins} admin.`,
+      tone: input.memberSummary.pending ? "next" : "ready",
+    },
+    {
+      id: "next",
+      label: "Next move",
+      detail: input.suggestedAction,
+      tone: "next",
+    },
+  ]
+
+  return items
+}
+
 export function filterSocialRecords(records: SocialRecordLike[], input: { query?: string; filter?: SocialRecordFilter }) {
   const query = input.query?.trim().toLowerCase() || ""
   const filter = input.filter || "all"
@@ -417,6 +464,10 @@ export function socialRecordTitle(record: SocialRecordLike) {
 
 export function socialRecordStatus(record: SocialRecordLike) {
   return String(record.status || record.visibility || record.mode || "ready").trim()
+}
+
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
 function fallbackSocialTitle(kind: SocialWorkspaceKind) {
