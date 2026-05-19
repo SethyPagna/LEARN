@@ -113,6 +113,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Chat workspace polish by moving draft-saved feedback from the header into the composer footer so autosave status no longer shifts the main chat controls while typing.
 - 2026-05-19: Continued Chat functionality by wiring each thread Reply button to prefill the composer with the thread channel, reply title, question intent, and a ready draft cue.
 - 2026-05-19: Continued Chat functionality by wiring thread menu actions so Reply opens the same composer draft while Helpful and Save selections produce clear local feedback instead of silent no-ops.
+- 2026-05-19: Continued Chat composer functionality by wiring mention, reaction, translate, and notify tools into the draft body with compact status feedback instead of menu-only no-ops.
 
 ## Implementation Slices
 
