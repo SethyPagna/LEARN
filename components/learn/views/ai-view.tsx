@@ -404,10 +404,16 @@ export function AiTutorView({
   function replaceImportText(nextText: string) {
     const uploadedContextLength = nextText.trim().length
     setImportText(nextText)
+    clearSavedImportContext(nextText)
+    if (uploadedContextLength) setImportStatus("")
+  }
+
+  function clearSavedImportContext(nextText = importText) {
+    const uploadedContextLength = nextText.trim().length
     setLastImport(null)
     setLastImportText("")
     setSourceScope(resolveAiTutorSourceScopeAfterUpload({ currentScope: sourceScope, uploadedContextLength }))
-    if (uploadedContextLength) setImportStatus("")
+    if (!uploadedContextLength) setImportStatus("")
   }
 
   async function copyReply() {
@@ -701,14 +707,14 @@ export function AiTutorView({
               value={importTitle}
               onChange={(event) => {
                 setImportTitle(event.target.value)
-                setLastImport(null)
+                clearSavedImportContext()
               }}
               placeholder="Optional title"
               className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground outline-none focus:border-ring"
             />
             <select value={importTarget} onChange={(event) => {
               setImportTarget(event.target.value as ImportTarget | "auto")
-              setLastImport(null)
+              clearSavedImportContext()
             }} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground">
               {importTargets.map((target) => <option key={target} value={target}>{labelImportTarget(target)}</option>)}
             </select>
