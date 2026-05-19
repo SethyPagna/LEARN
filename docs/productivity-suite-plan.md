@@ -157,6 +157,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Calendar action reliability by adding guarded busy states, compact action labels, and recovery messages for save, duplicate, complete, and delete flows.
 - 2026-05-19: Continued Reviews maturity by gating grading until reveal, adding tested rating action state, and showing compact recovery feedback for review submissions.
 - 2026-05-19: Continued Practice reliability by adding tested run-action state and guarded submit, retry, full-set, and save-review-card flows with compact recovery feedback.
+- 2026-05-19: Continued Games reliability by adding tested sprint action state and guarded next, finish, restart, target, and score-save feedback.
 
 ## Implementation Slices
 
