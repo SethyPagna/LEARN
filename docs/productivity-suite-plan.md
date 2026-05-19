@@ -189,6 +189,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-20: Continued Social hub UX by reducing always-visible controls, moving sync/signals into a compact menu, surfacing one best next action, and collapsing social-space creation tools.
 - 2026-05-20: Continued Practice UX by merging progress, timer, draft status, target presets, reset, and clear actions into a tested compact session bar.
 - 2026-05-20: Continued Dashboard UX by collapsing secondary route moves, setup gaps, signals, and quick actions into compact menus while keeping every action available.
+- 2026-05-20: Continued public-entry reliability by stabilizing theme hydration on login/intro controls and removing corrupted public language labels.
 
 ## Implementation Slices
 
