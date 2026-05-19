@@ -174,8 +174,11 @@ export function LoginSurface() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-black/24">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-white/42">Sample accounts</p>
+          <details className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-black/24">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-white/42">
+              Demo access
+              <span className="rounded-full bg-white px-2 py-1 text-[0.66rem] tracking-normal text-slate-700 dark:bg-white/8 dark:text-white/70">{demoAccounts.length} accounts</span>
+            </summary>
             <div className="mt-3 grid gap-2">
               {demoAccounts.map((account) => (
                 <button
@@ -192,7 +195,7 @@ export function LoginSurface() {
                 </button>
               ))}
             </div>
-          </div>
+          </details>
         </section>
 
         <section className="flex min-w-0 items-center justify-center py-4 lg:py-0 lg:pl-6">
