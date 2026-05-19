@@ -71,6 +71,12 @@ export interface SocialRecordCard {
   title: string
 }
 
+export interface SocialRecordEmptyState {
+  action: "clear" | "create"
+  body: string
+  title: string
+}
+
 export type SocialActionTarget = "invite" | "chat" | "calendar" | "practice" | "files"
 
 export interface SocialActionItem {
@@ -762,6 +768,33 @@ export function buildSocialRecordSelectionMessage(kind: SocialWorkspaceKind, rec
   if (kind === "spaces") return `${title} opened. Invite, chat, or share resources next.`
   if (kind === "rooms") return `${title} opened. Join, schedule, or attach resources next.`
   return `${title} opened. Play, recap misses, or schedule a rematch next.`
+}
+
+export function buildSocialRecordEmptyState(input: {
+  emptyHint: string
+  filter: SocialRecordFilter
+  query?: string
+  title: string
+  total: number
+  visible: number
+}): SocialRecordEmptyState {
+  const query = input.query?.trim() || ""
+  if (input.total > 0 && input.visible === 0) {
+    const filterLabel = input.filter === "all" ? "current filters" : `${input.filter} filter`
+    return {
+      action: "clear",
+      body: query
+        ? `No results for "${query}". Clear search or filters to see all records.`
+        : `No records match the ${filterLabel}. Clear filters to see everything.`,
+      title: "No matching records",
+    }
+  }
+
+  return {
+    action: "create",
+    body: input.emptyHint,
+    title: `No ${input.title.toLowerCase()} yet`,
+  }
 }
 
 export function buildSocialRecordsPage(records: SocialRecordLike[], input: { query?: string; filter?: SocialRecordFilter; limit?: number }) {
