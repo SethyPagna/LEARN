@@ -86,6 +86,7 @@ test("social action input accepts canonical targets and maps old content targets
 
   assert.equal(normalizeSocialActionInput({ targetType: "note", targetId: "note_1" }).targetType, "content_item")
   assert.equal(normalizeSocialActionInput({ target_type: "study_battle", target_id: "battle_1", action_type: "high-five" }).targetType, "study_battle")
+  assert.equal(normalizeSocialActionInput({ target_type: "study_room", target_id: "room_1", action_type: "join" }).targetType, "study_room")
   assert.throws(() => normalizeSocialActionInput({ targetType: "unsafe", targetId: "x" }), /Unsupported social target/)
   assert.throws(() => normalizeSocialActionInput({ targetType: "profile" }), /target id/)
 })

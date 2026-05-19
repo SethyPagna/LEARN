@@ -5,6 +5,7 @@ export const SOCIAL_TARGET_TYPES = [
   "micro_lesson",
   "profile",
   "study_battle",
+  "study_room",
 ] as const
 
 export type SocialTargetType = typeof SOCIAL_TARGET_TYPES[number]
