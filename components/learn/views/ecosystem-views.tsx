@@ -631,6 +631,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const [inviteLink, setInviteLink] = useState("")
   const [inviteLoading, setInviteLoading] = useState(false)
   const [openSocialMenu, setOpenSocialMenu] = useState<"filters" | "actions" | null>(null)
+  const [detailTab, setDetailTab] = useState<SocialDetailTab>("actions")
   const draftHydrated = useRef(false)
   const restoredDraftId = useRef<string | null>(null)
   const items = useMemo(() => data?.items ?? [], [data?.items])
@@ -664,6 +665,13 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
     memberSummary,
     suggestedAction: socialSummary.suggestedAction,
   }), [draft, inviteLink, kind, memberSummary, socialSummary.suggestedAction])
+  const detailTabs = useMemo<Array<{ id: SocialDetailTab; label: string; icon: ComponentType<{ className?: string }>; count: string }>>(() => [
+    { id: "actions", label: "Actions", icon: Play, count: String(actionKit.actions.length) },
+    { id: "invite", label: "Invite", icon: Mail, count: inviteLink ? "1" : "0" },
+    { id: "people", label: "People", icon: Users, count: String(memberSummary.total) },
+    { id: "activity", label: "Activity", icon: Repeat2, count: String(actionSummary.total || activityTimeline.length) },
+    { id: "safety", label: "Safety", icon: ShieldCheck, count: status },
+  ], [actionKit.actions.length, actionSummary.total, activityTimeline.length, inviteLink, memberSummary.total, status])
 
   useEffect(() => {
     const stored = readSocialDraftStore(kind)
@@ -931,200 +939,192 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
             </>
           )}
         </div>
-        <div className="mt-4 grid gap-2">
-          <button onClick={startNew} className="flex w-full items-center justify-between rounded-md border border-primary/30 bg-primary/10 p-3 text-left text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
-            <span>{socialPlan.primaryAction}</span>
-            <Icon className="h-4 w-4" />
-          </button>
-          <div className="rounded-md border border-border bg-background p-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-foreground">{actionKit.headline}</p>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {actionKit.chips.map((chip) => (
-                    <span key={chip} className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{chip}</span>
+        <div className="mt-4 grid gap-3">
+          <div className="flex gap-1 overflow-x-auto rounded-md border border-border bg-background p-1">
+            {detailTabs.map((tab) => {
+              const TabIcon = tab.icon
+              const active = detailTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setDetailTab(tab.id)}
+                  className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-md px-3 text-xs font-semibold transition ${active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}
+                  type="button"
+                >
+                  <TabIcon className="h-4 w-4" />
+                  <span>{tab.label}</span>
+                  <span className={`rounded px-1.5 py-0.5 text-[0.65rem] ${active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{tab.count}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="rounded-md border border-border bg-background p-3">
+            {detailTab === "actions" ? (
+              <div className="grid gap-3">
+                <button onClick={startNew} className="flex w-full items-center justify-between rounded-md border border-primary/30 bg-primary/10 p-3 text-left text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
+                  <span>{socialPlan.primaryAction}</span>
+                  <Icon className="h-4 w-4" />
+                </button>
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-card p-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">{actionKit.headline}</p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {actionKit.chips.map((chip) => (
+                        <span key={chip} className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{chip}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <button onClick={() => void runSocialAction("invite")} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+                    <Copy className="h-3.5 w-3.5" />
+                    Invite
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-4">
+                  {actionKit.actions.map((action) => {
+                    const ActionIcon = socialActionIcon(action.id)
+                    return (
+                      <button
+                        key={action.id}
+                        onClick={() => void runSocialAction(action.id)}
+                        className="group min-h-14 rounded-md border border-border bg-card p-2 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground"
+                        title={action.detail}
+                        type="button"
+                      >
+                        <ActionIcon className="h-4 w-4 text-primary group-hover:text-accent-foreground" />
+                        <span className="mt-1 block truncate text-xs font-semibold text-foreground group-hover:text-accent-foreground">{action.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="grid gap-1.5 sm:grid-cols-4">
+                  {workflowSteps.map((step, index) => (
+                    <div key={step} className="flex items-center gap-2 rounded-md border border-border bg-card px-2 py-2 text-xs">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/15 text-[0.65rem] font-bold text-primary">{index + 1}</span>
+                      <span className="truncate font-semibold text-foreground">{step}</span>
+                    </div>
                   ))}
                 </div>
               </div>
-              <button onClick={copyInvite} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-                <Copy className="h-3.5 w-3.5" />
-                Invite
-              </button>
-            </div>
-            <div className="mt-2 grid grid-cols-2 gap-1.5 lg:grid-cols-4">
-              {actionKit.actions.map((action) => {
-                const ActionIcon = socialActionIcon(action.id)
-                return (
-                  <button
-                    key={action.id}
-                    onClick={() => void runSocialAction(action.id)}
-                    className="group min-h-16 rounded-md border border-border bg-card p-2 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground"
-                    title={action.detail}
-                    type="button"
-                  >
-                    <ActionIcon className="h-4 w-4 text-primary group-hover:text-accent-foreground" />
-                    <span className="mt-1 block text-xs font-semibold text-foreground group-hover:text-accent-foreground">{action.label}</span>
-                    <span className="mt-0.5 block line-clamp-2 text-[0.68rem] leading-4 text-muted-foreground group-hover:text-accent-foreground/80">{action.detail}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-          <details className="group/social rounded-md border border-border bg-background">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-              <span>Workflow</span>
-              <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{draft.id ? "ready" : "draft"}</span>
-              <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/social:rotate-180" />
-            </summary>
-            <div className="grid gap-2 border-t border-border p-3 sm:grid-cols-4">
-              {workflowSteps.map((step, index) => (
-                <div key={step} className="rounded-md border border-border bg-card p-2 text-xs">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/15 text-[0.65rem] font-bold text-primary">{index + 1}</span>
-                  <p className="mt-2 font-semibold text-foreground">{step}</p>
+            ) : null}
+
+            {detailTab === "invite" ? (
+              <div className="grid gap-3">
+                <div className="grid gap-2 lg:grid-cols-[1fr_1.2fr]">
+                  <p className="rounded-md border border-border bg-card p-3 text-sm leading-6 text-muted-foreground">{actionKit.brief}</p>
+                  <div className="rounded-md border border-border bg-card p-3 text-sm text-foreground">{actionKit.inviteText}</div>
                 </div>
-              ))}
-            </div>
-          </details>
-          <details className="group/social rounded-md border border-border bg-background">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-              <span>Invite brief</span>
-              <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{inviteLink ? "secure link" : "copy-ready"}</span>
-              <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/social:rotate-180" />
-            </summary>
-            <div className="grid gap-2 border-t border-border p-3">
-              <p className="rounded-md border border-border bg-card p-3 text-sm leading-6 text-muted-foreground">{actionKit.brief}</p>
-              <div className="rounded-md border border-border bg-card p-3 text-sm text-foreground">{actionKit.inviteText}</div>
-              <div className="grid gap-2 rounded-md border border-border bg-card p-2">
-                <div className="grid gap-2 sm:grid-cols-[1fr_120px]">
-                  <label className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <input value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="email@example.com" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none" />
-                  </label>
-                  <select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as "learner" | "admin")} className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none">
-                    <option value="learner">Learner</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button onClick={copyInvite} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-                    <Copy className="h-4 w-4" />
-                    Copy text
-                  </button>
-                  <button disabled={inviteLoading} onClick={createSecureInvite} className="inline-flex h-9 items-center gap-2 rounded-md border border-primary bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60" type="button">
-                    <Mail className="h-4 w-4" />
-                    {inviteLoading ? "Creating..." : "Create invite link"}
-                  </button>
-                </div>
-                {inviteLink ? <p className="truncate rounded-md bg-muted px-2 py-1.5 text-xs font-medium text-muted-foreground">{inviteLink}</p> : null}
-              </div>
-            </div>
-          </details>
-          <details className="group/social rounded-md border border-border bg-background">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-              <span>People</span>
-              <div className="ml-auto flex items-center gap-1.5">
-                <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{memberSummary.total} total</span>
-                <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{memberSummary.active} active</span>
-              </div>
-              <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/social:rotate-180" />
-            </summary>
-            <div className="grid gap-2 border-t border-border p-3">
-              <div className="grid gap-2 sm:grid-cols-4">
-                <Metric label="Admins" value={String(memberSummary.admins)} />
-                <Metric label="Learners" value={String(memberSummary.learners)} />
-                <Metric label="Pending" value={String(memberSummary.pending)} />
-                <Metric label="Status" value={members.status} />
-              </div>
-              <label className="flex h-9 items-center rounded-md border border-input bg-background px-3">
-                <input value={memberQuery} onChange={(event) => setMemberQuery(event.target.value)} placeholder="Search people" className="w-full bg-transparent text-sm text-foreground outline-none" />
-              </label>
-              <div className="grid max-h-56 gap-1.5 overflow-auto pr-1">
-                {filteredMembers.slice(0, 8).map((member) => (
-                  <div key={member.id || member.email || member.name} className="flex items-center justify-between gap-3 rounded-md border border-border bg-card p-2 text-sm">
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold text-foreground">{member.name || member.email || "Learner"}</p>
-                      <p className="truncate text-xs text-muted-foreground">{member.email || "No email"}</p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold capitalize text-secondary-foreground">{member.role || "learner"}</span>
-                      <span className="rounded-md bg-muted px-2 py-1 text-[0.68rem] font-semibold capitalize text-muted-foreground">{member.status || "active"}</span>
-                    </div>
-                  </div>
-                ))}
-                {!filteredMembers.length ? <p className="rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">No matching people yet. Create an invite link or clear the search.</p> : null}
-              </div>
-              {memberSummary.newest ? <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">Newest: {memberSummary.newest.name || memberSummary.newest.email || "Learner"}</p> : null}
-            </div>
-          </details>
-          <details className="group/social rounded-md border border-border bg-background">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-              <span>Activity</span>
-              <div className="ml-auto flex items-center gap-1.5">
-                <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{activityTimeline.length} steps</span>
-                <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{actionSummary.total} recent</span>
-              </div>
-              <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/social:rotate-180" />
-            </summary>
-            <div className="grid gap-2 border-t border-border p-3">
-              {recentActionItems.length ? (
                 <div className="grid gap-2 rounded-md border border-border bg-card p-2">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold text-secondary-foreground">{actionSummary.comments} comments</span>
-                    <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold text-secondary-foreground">{actionSummary.saves} saved</span>
-                    <span className="rounded-md bg-muted px-2 py-1 text-[0.68rem] font-semibold text-muted-foreground">{recentActions.status}</span>
+                  <div className="grid gap-2 sm:grid-cols-[1fr_120px]">
+                    <label className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <input value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="email@example.com" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none" />
+                    </label>
+                    <select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as "learner" | "admin")} className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none">
+                      <option value="learner">Learner</option>
+                      <option value="admin">Admin</option>
+                    </select>
                   </div>
-                  <div className="grid gap-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button onClick={copyInvite} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+                      <Copy className="h-4 w-4" />
+                      Copy text
+                    </button>
+                    <button disabled={inviteLoading} onClick={createSecureInvite} className="inline-flex h-9 items-center gap-2 rounded-md border border-primary bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60" type="button">
+                      <Mail className="h-4 w-4" />
+                      {inviteLoading ? "Creating..." : "Create link"}
+                    </button>
+                  </div>
+                  {inviteLink ? <p className="truncate rounded-md bg-muted px-2 py-1.5 text-xs font-medium text-muted-foreground">{inviteLink}</p> : null}
+                </div>
+              </div>
+            ) : null}
+
+            {detailTab === "people" ? (
+              <div className="grid gap-3">
+                <div className="grid gap-2 sm:grid-cols-4">
+                  <Metric label="Admins" value={String(memberSummary.admins)} />
+                  <Metric label="Learners" value={String(memberSummary.learners)} />
+                  <Metric label="Pending" value={String(memberSummary.pending)} />
+                  <Metric label="Status" value={members.status} />
+                </div>
+                <label className="flex h-9 items-center rounded-md border border-input bg-card px-3">
+                  <input value={memberQuery} onChange={(event) => setMemberQuery(event.target.value)} placeholder="Search people" className="w-full bg-transparent text-sm text-foreground outline-none" />
+                </label>
+                <div className="grid max-h-64 gap-1.5 overflow-auto pr-1">
+                  {filteredMembers.slice(0, 10).map((member) => (
+                    <div key={member.id || member.email || member.name} className="flex items-center justify-between gap-3 rounded-md border border-border bg-card p-2 text-sm">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-foreground">{member.name || member.email || "Learner"}</p>
+                        <p className="truncate text-xs text-muted-foreground">{member.email || "No email"}</p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold capitalize text-secondary-foreground">{member.role || "learner"}</span>
+                        <span className="rounded-md bg-muted px-2 py-1 text-[0.68rem] font-semibold capitalize text-muted-foreground">{member.status || "active"}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {!filteredMembers.length ? <p className="rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">No matching people yet. Create an invite or clear search.</p> : null}
+                </div>
+                {memberSummary.newest ? <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">Newest: {memberSummary.newest.name || memberSummary.newest.email || "Learner"}</p> : null}
+              </div>
+            ) : null}
+
+            {detailTab === "activity" ? (
+              <div className="grid gap-3">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold text-secondary-foreground">{actionSummary.comments} comments</span>
+                  <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold text-secondary-foreground">{actionSummary.saves} saved</span>
+                  <span className="rounded-md bg-muted px-2 py-1 text-[0.68rem] font-semibold text-muted-foreground">{recentActions.status}</span>
+                </div>
+                {recentActionItems.length ? (
+                  <div className="grid gap-1.5 md:grid-cols-2">
                     {recentActionItems.slice(0, 4).map((action) => {
                       const formatted = formatSocialAction(action)
                       return (
-                        <div key={action.id || `${formatted.label}-${formatted.detail}`} className="rounded-md bg-background px-3 py-2 text-sm">
+                        <div key={action.id || `${formatted.label}-${formatted.detail}`} className="rounded-md border border-border bg-card px-3 py-2 text-sm">
                           <p className="font-semibold text-foreground">{formatted.label}</p>
                           <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{formatted.detail}</p>
                         </div>
                       )
                     })}
                   </div>
+                ) : null}
+                <div className="grid gap-1.5">
+                  {activityTimeline.map((item, index) => (
+                    <div key={item.id} className="grid grid-cols-[auto_1fr] gap-3 rounded-md border border-border bg-card p-3 text-sm">
+                      <span className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold ${socialActivityToneClass(item.tone)}`}>{index + 1}</span>
+                      <span className="min-w-0">
+                        <span className="block font-semibold text-foreground">{item.label}</span>
+                        <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.detail}</span>
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ) : null}
-              {activityTimeline.map((item, index) => (
-                <div key={item.id} className="grid grid-cols-[auto_1fr] gap-3 rounded-md border border-border bg-card p-3 text-sm">
-                  <span className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold ${socialActivityToneClass(item.tone)}`}>{index + 1}</span>
-                  <span className="min-w-0">
-                    <span className="block font-semibold text-foreground">{item.label}</span>
-                    <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.detail}</span>
-                  </span>
+              </div>
+            ) : null}
+
+            {detailTab === "safety" ? (
+              <div className="grid gap-3">
+                <div className="flex items-start gap-2 rounded-md border border-border bg-card p-3 text-sm text-muted-foreground">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                  <span>{socialPlan.safetyCue}</span>
                 </div>
-              ))}
-            </div>
-          </details>
-          <details className="group/social rounded-md border border-border bg-background">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-              <span>Safety and signals</span>
-              <div className="ml-auto flex items-center gap-1.5">
-                <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{items.length} records</span>
-                <span className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{status}</span>
+                <div className="rounded-md border border-border bg-card p-3 text-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Next</p>
+                  <p className="mt-1 font-medium text-foreground">{socialSummary.suggestedAction}</p>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {socialSummary.modeCounts.slice(0, 3).map((mode) => (
+                    <div key={mode.label} className="flex items-center justify-between rounded-md border border-border bg-card p-2 text-sm">
+                      <span className="min-w-0 truncate font-medium text-foreground capitalize">{mode.label}</span>
+                      <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{mode.count}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/social:rotate-180" />
-            </summary>
-            <div className="grid gap-2 border-t border-border p-3">
-              <div className="flex items-start gap-2 rounded-md border border-border bg-card p-3 text-sm text-muted-foreground">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                <span>{socialPlan.safetyCue}</span>
-              </div>
-              <div className="rounded-md border border-border bg-card p-3 text-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Next</p>
-                <p className="mt-1 font-medium text-foreground">{socialSummary.suggestedAction}</p>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-3">
-                {socialSummary.modeCounts.slice(0, 3).map((mode) => (
-                  <div key={mode.label} className="flex items-center justify-between rounded-md border border-border bg-card p-2 text-sm">
-                    <span className="min-w-0 truncate font-medium text-foreground capitalize">{mode.label}</span>
-                    <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{mode.count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </details>
+            ) : null}
+          </div>
         </div>
       </Panel>
     </div>
@@ -1153,6 +1153,7 @@ type SocialDraftStore = {
 }
 
 type SocialKind = "spaces" | "rooms" | "battles"
+type SocialDetailTab = "actions" | "invite" | "people" | "activity" | "safety"
 
 function createSocialDraft(kind: "spaces" | "rooms" | "battles"): SocialDraft {
   if (kind === "battles") {
