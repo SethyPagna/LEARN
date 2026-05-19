@@ -35,6 +35,12 @@ export interface FileLibraryFilterSummary {
   label: string
 }
 
+export interface FileLibraryEmptyState {
+  action: "clear-filter" | "upload"
+  body: string
+  title: string
+}
+
 export interface FileLibraryActionInput {
   selectedId?: string
   query?: string
@@ -191,6 +197,40 @@ export function buildFileLibraryFilterSummary(input: {
     active: true,
     label: `Filtered: ${parts.join(" + ")} (${input.visible}/${input.total})`,
   }
+}
+
+export function buildFileLibraryEmptyState(input: {
+  filter?: FileLibraryFilter
+  query?: string
+  total: number
+}): FileLibraryEmptyState {
+  const query = input.query?.trim() || ""
+  const filter = input.filter || "all"
+
+  if (input.total > 0) {
+    const filterLabel = filter === "all" ? "current filters" : `${fileKindLabel(filter)} filter`
+    return {
+      action: "clear-filter",
+      body: query
+        ? `No files match "${query}". Clear search or filters to see all uploads.`
+        : `No files match the ${filterLabel}. Clear filters to see everything.`,
+      title: "No matching files",
+    }
+  }
+
+  return {
+    action: "upload",
+    body: "Upload PDFs, images, videos, and study materials to attach durable context to the workspace.",
+    title: "No files yet",
+  }
+}
+
+export function resolveVisibleFileSelection<T extends FileLibraryRecord>(
+  visibleFiles: readonly T[],
+  selectedId?: string,
+) {
+  if (!visibleFiles.length) return undefined
+  return visibleFiles.find((file) => file.id === selectedId) ?? visibleFiles[0]
 }
 
 function createEmptyKindCounts(): Record<FileLibraryKind, number> {
