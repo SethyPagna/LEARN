@@ -227,6 +227,13 @@ function resolveImportCleanupWorkflow(target: ImportTarget): ImportCleanupWorkfl
       messageVerb: "Build slides from",
     }
   }
+  if (target === "note") {
+    return {
+      taskKey: "note_design",
+      insertTarget: "note-block",
+      messageVerb: "Rewrite",
+    }
+  }
   return {
     taskKey: "document_formatter",
     insertTarget: "doc-section",

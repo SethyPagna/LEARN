@@ -47,6 +47,7 @@ test("import gateway follow-up actions load complete AI workflows", () => {
   const cleanup = buildImportFollowupAction({ kind: "cleanup", target: "slides", title: "Lesson Deck" })
   const sheetCleanup = buildImportFollowupAction({ kind: "cleanup", target: "sheet", title: "Tracker" })
   const docCleanup = buildImportFollowupAction({ kind: "cleanup", target: "doc", title: "Study Guide" })
+  const noteCleanup = buildImportFollowupAction({ kind: "cleanup", target: "note", title: "Daily Capture" })
 
   assert.equal(practice.taskKey, "practice_generator")
   assert.equal(practice.legacyMode, "quiz")
@@ -69,4 +70,8 @@ test("import gateway follow-up actions load complete AI workflows", () => {
 
   assert.equal(docCleanup.taskKey, "document_formatter")
   assert.equal(docCleanup.insertTarget, "doc-section")
+
+  assert.equal(noteCleanup.taskKey, "note_design")
+  assert.equal(noteCleanup.insertTarget, "note-block")
+  assert.match(noteCleanup.message, /Rewrite/)
 })
