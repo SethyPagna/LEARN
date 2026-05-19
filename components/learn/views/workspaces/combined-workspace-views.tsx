@@ -12,7 +12,7 @@ import { QuizView } from "../quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeWorkspacePlan, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialCommandPrimaryAction, buildSocialCommandSummary, buildSocialFlowCards, summarizeConnections, type SocialCommandPrimaryActionId, type SocialFlowId, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialCommandPrimaryAction, buildSocialCommandSummary, buildSocialFlowCards, normalizeSocialInviteDraft, summarizeConnections, type SocialCommandPrimaryActionId, type SocialFlowId, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type PracticeTab = "quizzes" | "games"
 type SocialTab = "home" | "chat" | "spaces" | "rooms" | "battles"
@@ -182,6 +182,9 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const peoplePage = useMemo(() => buildConnectablePeoplePage({ members, connections, currentUserId, query, limit: peopleLimit }), [connections, currentUserId, members, peopleLimit, query])
   const connectionPage = useMemo(() => buildConnectionsPage(connections, connectionLimit), [connectionLimit, connections])
   const connectableMembers = peoplePage.items
+  const inviteValidation = useMemo(() => normalizeSocialInviteDraft({ email: inviteEmail, role: inviteRole }), [inviteEmail, inviteRole])
+  const inviteReady = Boolean(inviteEmail.trim()) && inviteValidation.ok
+  const inviteStatus = inviteEmail.trim() ? inviteValidation.ok ? "Ready" : inviteValidation.error : "Enter email"
   const commandSummary = useMemo(() => buildSocialCommandSummary({
     memberCount: members.length,
     connectionCount: connectionSummary.total,
@@ -207,9 +210,9 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const commandCounts = useMemo<Record<SocialCommandTab, string>>(() => ({
     people: String(peoplePage.total),
     post: String(threads.length),
-    invite: inviteEmail.trim() ? "ready" : "0",
+    invite: inviteReady ? "ready" : "0",
     connections: String(connectionSummary.total),
-  }), [connectionSummary.total, inviteEmail, peoplePage.total, threads.length])
+  }), [connectionSummary.total, inviteReady, peoplePage.total, threads.length])
 
   useEffect(() => {
     setPeopleLimit(5)
@@ -289,13 +292,15 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   }
 
   async function createInvite() {
-    const email = inviteEmail.trim().toLowerCase()
-    if (!email) return
+    if (!inviteValidation.ok) {
+      setStatus(inviteStatus)
+      return
+    }
     setStatus("Inviting...")
     try {
       await api("/api/invites", {
         method: "POST",
-        body: JSON.stringify({ email, role: inviteRole }),
+        body: JSON.stringify(inviteValidation.value),
       })
       setInviteEmail("")
       setStatus("Invite sent")
@@ -463,10 +468,11 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                   <option value="learner">Learner</option>
                   <option value="admin">Admin</option>
                 </select>
-                <button onClick={() => void createInvite()} disabled={!inviteEmail.trim()} className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+                <button onClick={() => void createInvite()} disabled={!inviteReady} className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-50" title={inviteStatus}>
                   <Plus className="h-4 w-4" />
                   Send
                 </button>
+                <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground sm:col-span-3">{inviteStatus}</span>
               </div>
             ) : null}
 
