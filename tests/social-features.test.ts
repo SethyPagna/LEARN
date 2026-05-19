@@ -320,12 +320,17 @@ test("buildSocialRecordCard creates compact card chips", () => {
   const spaceCard = buildSocialRecordCard("spaces", { id: "s1", name: "Algebra", visibility: "public", member_count: 3 }, "s1")
   const roomCard = buildSocialRecordCard("rooms", { id: "r1", name: "Focus", status: "open", mode: "focus", pomodoro_minutes: 30 })
   const battleCard = buildSocialRecordCard("battles", { id: "b1", title: "Index sprint", status: "waiting", mode: "team", topic: "databases" })
+  const completedBattleCard = buildSocialRecordCard("battles", { id: "b2", title: "Index replay", status: "completed", mode: "team", topic: "databases" })
 
   assert.equal(spaceCard.recommended, true)
+  assert.equal(spaceCard.action, "Review")
   assert.deepEqual(spaceCard.meta, ["public", "3 members"])
+  assert.equal(roomCard.action, "Join")
   assert.deepEqual(roomCard.meta, ["focus", "30 min"])
+  assert.equal(battleCard.action, "Play")
   assert.deepEqual(battleCard.meta, ["team", "databases"])
   assert.equal(battleCard.status, "waiting")
+  assert.equal(completedBattleCard.action, "Review")
 })
 
 test("social records page keeps filtered lists compact", () => {
