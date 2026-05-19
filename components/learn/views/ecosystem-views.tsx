@@ -47,7 +47,7 @@ import type {
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
-import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -778,13 +778,18 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
     setMessage(`Drafting a new ${noun}.`)
   }
 
+  function selectSocialRecord(item: LearningSpace | StudyRoom | StudyBattle) {
+    setSelectedId(item.id)
+    setDraft(draftFromSocialItem(kind, item))
+    setDeleteConfirmId(null)
+    setDetailTab("actions")
+    setMessage(buildSocialRecordSelectionMessage(kind, item))
+  }
+
   function runPrimarySocialAction() {
     const shouldOpenRecommended = kind === "battles" ? socialSummary.secondaryCount > 0 : socialSummary.primaryCount > 0
     if (shouldOpenRecommended && recommendedRecord?.id) {
-      setSelectedId(recommendedRecord.id)
-      setDraft(draftFromSocialItem(kind, recommendedRecord as LearningSpace | StudyRoom | StudyBattle))
-      setDeleteConfirmId(null)
-      setMessage(`${socialRecordTitle(recommendedRecord)} opened.`)
+      selectSocialRecord(recommendedRecord as LearningSpace | StudyRoom | StudyBattle)
       return
     }
     startNew()
@@ -984,10 +989,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
           {recordCards.map(({ card, item }) => (
             <button
               key={item.id}
-              onClick={() => {
-                setSelectedId(item.id)
-                setDraft(draftFromSocialItem(kind, item))
-              }}
+              onClick={() => selectSocialRecord(item)}
               className={`rounded-md border p-3 text-left ${selectedId === item.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
             >
               <span className="flex min-w-0 items-center justify-between gap-2">
