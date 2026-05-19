@@ -16,6 +16,7 @@ import { buildChatDraftPayload, buildSocialCommandSummary, buildSocialFlowCards,
 
 type PracticeTab = "quizzes" | "games"
 type SocialTab = "home" | "chat" | "spaces" | "rooms" | "battles"
+type SocialCommandTab = "people" | "post" | "invite" | "connections"
 
 const practiceTabs: Array<{ id: PracticeTab; label: string; icon: ComponentType<{ className?: string }>; caption: string }> = [
   { id: "quizzes", label: "Quizzes", icon: BookOpen, caption: "Question banks and attempts" },
@@ -28,6 +29,13 @@ const socialTabs: Array<{ id: SocialTab; label: string; icon: ComponentType<{ cl
   { id: "spaces", label: "Groups", icon: Users, caption: "Learning circles" },
   { id: "rooms", label: "Live", icon: Radio, caption: "Focus rooms" },
   { id: "battles", label: "Battles", icon: Swords, caption: "Quiz challenges" },
+]
+
+const socialCommandTabs: Array<{ id: SocialCommandTab; label: string; icon: ComponentType<{ className?: string }> }> = [
+  { id: "people", label: "Find", icon: Search },
+  { id: "post", label: "Post", icon: Send },
+  { id: "invite", label: "Invite", icon: Mail },
+  { id: "connections", label: "Connections", icon: Users },
 ]
 
 export function LearnWorkspaceView({
@@ -167,6 +175,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const [inviteEmail, setInviteEmail] = useState("")
   const [inviteRole, setInviteRole] = useState<"learner" | "admin">("learner")
   const [status, setStatus] = useState("Loading")
+  const [commandTab, setCommandTab] = useState<SocialCommandTab>("people")
   const connectionSummary = useMemo(() => summarizeConnections(connections), [connections])
   const connectableMembers = useMemo(() => filterConnectableMembers(members, connections, currentUserId, query).slice(0, 5), [connections, currentUserId, members, query])
   const commandSummary = useMemo(() => buildSocialCommandSummary({
@@ -183,6 +192,12 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     roomCount: counts.rooms,
     battleCount: counts.battles,
   }), [counts.battles, counts.rooms, counts.spaces, threads.length])
+  const commandCounts = useMemo<Record<SocialCommandTab, string>>(() => ({
+    people: String(connectableMembers.length),
+    post: String(threads.length),
+    invite: inviteEmail.trim() ? "ready" : "0",
+    connections: String(connectionSummary.total),
+  }), [connectableMembers.length, connectionSummary.total, inviteEmail, threads.length])
 
   async function refresh() {
     setStatus("Loading")
@@ -312,7 +327,6 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <h3 className="text-xl font-semibold text-foreground">{commandSummary.headline}</h3>
-              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">People, posts, groups, live study, and battles stay together here.</p>
             </div>
             <div className="flex items-center gap-2">
               <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">{status}</span>
@@ -323,53 +337,70 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
             </div>
           </div>
         </div>
-        <div className="grid gap-3 p-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
-          <section className="rounded-lg border border-border bg-background p-3">
-            <div className="flex items-center gap-2 rounded-md border border-input bg-card px-3">
-              <Search className="h-4 w-4 text-primary" />
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find people by name or email" className="h-10 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none" />
-            </div>
-            <div className="mt-3 grid gap-2">
-              {connectableMembers.map((member) => (
-                <div key={member.id || member.email} className="grid gap-2 rounded-md border border-border bg-card p-2 sm:grid-cols-[1fr_auto] sm:items-center">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-foreground">{member.name || member.email || "Learner"}</p>
-                    <p className="truncate text-xs text-muted-foreground">{member.email || member.role || "Workspace member"}</p>
-                  </div>
-                  <div className="flex gap-1">
-                    <button onClick={() => void connect(member, "friend")} className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground">Add</button>
-                    <button onClick={() => void connect(member, "follow")} className="rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs font-semibold text-secondary-foreground">Follow</button>
-                  </div>
-                </div>
-              ))}
-              {!connectableMembers.length ? (
-                <div className="rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">
-                  Search people here. Admins can invite new learners below.
-                </div>
-              ) : null}
-            </div>
-          </section>
+        <div className="grid gap-3 p-4">
+          <div className="flex gap-1 overflow-x-auto rounded-md border border-border bg-background p-1">
+            {socialCommandTabs.map((item) => {
+              const Icon = item.icon
+              const active = commandTab === item.id
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setCommandTab(item.id)}
+                  className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-md px-3 text-xs font-semibold transition ${active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}
+                  type="button"
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                  <span className={`rounded px-1.5 py-0.5 text-[0.65rem] ${active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{commandCounts[item.id]}</span>
+                </button>
+              )
+            })}
+          </div>
 
-          <section className="grid gap-3">
-            <div className="rounded-lg border border-border bg-background p-3">
-              <textarea value={quickPost} onChange={(event) => setQuickPost(event.target.value)} placeholder="Ask a question or share a quick update..." className="min-h-24 w-full resize-none rounded-md border border-input bg-card p-3 text-sm text-foreground outline-none" />
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <button onClick={sendQuickPost} disabled={!quickPost.trim()} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-50">
-                  <Send className="h-4 w-4" />
-                  Post
-                </button>
-                <button onClick={() => open("chat")} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-                  <MessageSquare className="h-4 w-4" />
-                  Open chat
-                </button>
+          <section className="rounded-lg border border-border bg-background p-3">
+            {commandTab === "people" ? (
+              <div className="grid gap-3">
+                <div className="flex items-center gap-2 rounded-md border border-input bg-card px-3">
+                  <Search className="h-4 w-4 text-primary" />
+                  <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find people by name or email" className="h-10 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none" />
+                </div>
+                <div className="grid gap-2">
+                  {connectableMembers.map((member) => (
+                    <div key={member.id || member.email} className="grid gap-2 rounded-md border border-border bg-card p-2 sm:grid-cols-[1fr_auto] sm:items-center">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">{member.name || member.email || "Learner"}</p>
+                        <p className="truncate text-xs text-muted-foreground">{member.email || member.role || "Workspace member"}</p>
+                      </div>
+                      <div className="flex gap-1">
+                        <button onClick={() => void connect(member, "friend")} className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground">Add</button>
+                        <button onClick={() => void connect(member, "follow")} className="rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs font-semibold text-secondary-foreground">Follow</button>
+                      </div>
+                    </div>
+                  ))}
+                  {!connectableMembers.length ? <div className="rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">Search members or invite a new learner.</div> : null}
+                </div>
               </div>
-            </div>
-            <details className="group/invite rounded-lg border border-border bg-background">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-                <span className="inline-flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /> Invite</span>
-                <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/invite:rotate-180" />
-              </summary>
-              <div className="grid gap-2 border-t border-border p-3 sm:grid-cols-[1fr_120px_auto]">
+            ) : null}
+
+            {commandTab === "post" ? (
+              <div className="grid gap-3">
+                <textarea value={quickPost} onChange={(event) => setQuickPost(event.target.value)} placeholder="Ask a question or share a quick update..." className="min-h-28 w-full resize-none rounded-md border border-input bg-card p-3 text-sm text-foreground outline-none" />
+                <div className="flex flex-wrap items-center gap-2">
+                  <button onClick={sendQuickPost} disabled={!quickPost.trim()} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+                    <Send className="h-4 w-4" />
+                    Post
+                  </button>
+                  <button onClick={() => open("chat")} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                    <MessageSquare className="h-4 w-4" />
+                    Open chat
+                  </button>
+                  <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">{threads.length} threads</span>
+                </div>
+              </div>
+            ) : null}
+
+            {commandTab === "invite" ? (
+              <div className="grid gap-2 sm:grid-cols-[1fr_120px_auto]">
                 <input value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="email@example.com" className="h-9 min-w-0 rounded-md border border-input bg-card px-3 text-sm text-foreground outline-none" />
                 <select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as "learner" | "admin")} className="h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground outline-none">
                   <option value="learner">Learner</option>
@@ -380,7 +411,34 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                   Send
                 </button>
               </div>
-            </details>
+            ) : null}
+
+            {commandTab === "connections" ? (
+              <div className="grid gap-3 lg:grid-cols-[1fr_1fr]">
+                <div className="grid gap-2">
+                  {connections.slice(0, 6).map((connection) => {
+                    const targetUserId = String(connection.target_user_id || connection.targetUserId || "")
+                    const label = connection.name || connection.username || targetUserId || "Connection"
+                    const type = String(connection.connection_type || connection.connectionType || "follow")
+                    return (
+                      <div key={`${targetUserId}-${type}`} className="flex items-center justify-between gap-2 rounded-md border border-border bg-card p-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">{label}</p>
+                          <p className="truncate text-xs text-muted-foreground">{type} - {connection.status || "accepted"}</p>
+                        </div>
+                        <button onClick={() => void removeConnection(connection)} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label={`Remove ${label}`}>
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )
+                  })}
+                  {!connections.length ? <p className="rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">No connections yet.</p> : null}
+                </div>
+                <div className="grid content-start gap-2 sm:grid-cols-2">
+                  {commandSummary.chips.map((chip) => <span key={chip} className="rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground">{chip}</span>)}
+                </div>
+              </div>
+            ) : null}
           </section>
         </div>
       </Panel>
@@ -403,39 +461,6 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
         })}
       </div>
 
-      <details className="group/social-overview rounded-lg border border-border bg-card">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-foreground">
-          <span>Connections and signals</span>
-          <span className="flex items-center gap-2 text-xs text-muted-foreground">
-            {connectionSummary.friends} friends
-            <ChevronDown className="h-4 w-4 transition group-open/social-overview:rotate-180" />
-          </span>
-        </summary>
-        <div className="grid gap-3 border-t border-border p-3 lg:grid-cols-[1fr_1fr]">
-          <div className="grid gap-2">
-            {connections.slice(0, 6).map((connection) => {
-              const targetUserId = String(connection.target_user_id || connection.targetUserId || "")
-              const label = connection.name || connection.username || targetUserId || "Connection"
-              const type = String(connection.connection_type || connection.connectionType || "follow")
-              return (
-                <div key={`${targetUserId}-${type}`} className="flex items-center justify-between gap-2 rounded-md border border-border bg-background p-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-foreground">{label}</p>
-                    <p className="truncate text-xs text-muted-foreground">{type} - {connection.status || "accepted"}</p>
-                  </div>
-                  <button onClick={() => void removeConnection(connection)} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label={`Remove ${label}`}>
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              )
-            })}
-            {!connections.length ? <p className="rounded-md border border-dashed border-border bg-background p-3 text-sm text-muted-foreground">No connections yet.</p> : null}
-          </div>
-          <div className="grid content-start gap-2 sm:grid-cols-2">
-            {commandSummary.chips.map((chip) => <span key={chip} className="rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground">{chip}</span>)}
-          </div>
-        </div>
-      </details>
     </div>
   )
 }
