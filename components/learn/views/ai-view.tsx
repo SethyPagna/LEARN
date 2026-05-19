@@ -10,7 +10,7 @@ import { menuSurfaceClasses, statusToneClasses, toneTextClasses, type UiTone } f
 import { buildAiGatewayReadiness } from "@/lib/ai/gateway-readiness"
 import { buildGuidedPrompt, listInsertActions, promptContracts } from "@/lib/ai/prompt-builder"
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
-import { buildAiTutorSourceContext, splitPromptPreview, summarizeAiTutorWorkflow } from "@/lib/ai/tutor-workflow"
+import { buildAiTutorSourceContext, getRecommendedAiTutorTokens, resolveAiTutorEffectiveTokens, splitPromptPreview, summarizeAiTutorWorkflow } from "@/lib/ai/tutor-workflow"
 import type { AiTaskKey } from "@/lib/ai/prompt-library"
 import { previewImportedLearningContent, type ImportTarget } from "@/lib/import-gateway"
 
@@ -39,12 +39,6 @@ const languages = ["English", "Khmer", "French", "Spanish", "Korean", "Japanese"
 const insertTargets: StudioInsertTarget[] = ["note-block", "doc-section", "sheet-rows", "slide-outline", "quiz", "flashcards", "review-cards", "ai-note"]
 const importTargets: Array<ImportTarget | "auto"> = ["auto", "note", "doc", "sheet", "slides"]
 const tokenPresets = [2048, 4096, 8192, 16384]
-const outputLengthTokens: Record<string, number> = {
-  Short: 2048,
-  Balanced: 4096,
-  Deep: 8192,
-  Max: 16384,
-}
 const AI_TUTOR_DRAFT_KEY = "learn_ai_tutor_draft_v1"
 const DEFAULT_AI_MESSAGE = "Create a study plan from my recent notes."
 const tutorModeGroups = [
@@ -136,6 +130,10 @@ export function AiTutorView({
     providers,
     providerFamily,
   }), [promptBuild, providerFamily, providers])
+  const effectiveMaxTokens = useMemo(() => resolveAiTutorEffectiveTokens({
+    outputLength,
+    tokenBudget: options.aiMaxTokens,
+  }), [options.aiMaxTokens, outputLength])
   const workflowSummary = useMemo(() => summarizeAiTutorWorkflow({
     taskLabel: activeMode.label,
     sourceScope,
@@ -144,7 +142,13 @@ export function AiTutorView({
     gateway: gatewayReadiness,
     recentNoteCount: notes.length,
     draftSaved: draftStatus === "Draft saved",
-  }), [activeMode.label, draftStatus, gatewayReadiness, insertTarget, notes.length, promptBuild, sourceScope])
+    difficulty,
+    language,
+    outputLength,
+    providerFamily,
+    tokenBudget: options.aiMaxTokens,
+    effectiveTokenBudget: effectiveMaxTokens,
+  }), [activeMode.label, difficulty, draftStatus, effectiveMaxTokens, gatewayReadiness, insertTarget, language, notes.length, options.aiMaxTokens, outputLength, promptBuild, providerFamily, sourceScope])
   const previewParts = useMemo(() => splitPromptPreview(promptBuild.preview), [promptBuild.preview])
   const importPreview = useMemo(() => previewImportedLearningContent({ raw: importText, title: importTitle, target: importTarget }), [importTarget, importText, importTitle])
   const providerSummary = useMemo(() => {
@@ -249,7 +253,7 @@ export function AiTutorView({
         `Tone: ${tone}`,
         `Output length: ${outputLength}`,
         `Language: ${language}`,
-        `Max output tokens: ${options.aiMaxTokens}`,
+        `Max output tokens: ${effectiveMaxTokens}`,
         providerFamily !== "auto" ? `Preferred provider family: ${providerFamily}` : "",
       ].filter(Boolean)
       const response = await api<any>("/api/ai/chat", {
@@ -259,7 +263,7 @@ export function AiTutorView({
           context: [promptBuild.system, contextParts.join("\n\n")].join("\n\n"),
           mode: activeMode.mode,
           temperature: options.aiTemperature,
-          maxTokens: options.aiMaxTokens,
+          maxTokens: effectiveMaxTokens,
         }),
       })
       setReply(response.text)
@@ -349,7 +353,7 @@ export function AiTutorView({
 
   function chooseOutputLength(value: string) {
     setOutputLength(value)
-    setOptions({ aiMaxTokens: outputLengthTokens[value] || 4096 })
+    setOptions({ aiMaxTokens: getRecommendedAiTutorTokens(value) })
   }
 
   function useReplyAsPrompt(taskKey: AiTaskKey, instruction: string, target: StudioInsertTarget) {
@@ -452,10 +456,9 @@ export function AiTutorView({
         <div className="mt-3 h-px bg-border" />
 
         <div className="mt-4 grid gap-2 rounded-md border border-border bg-muted/40 p-2 text-xs font-semibold text-muted-foreground sm:grid-cols-2 xl:grid-cols-4">
-          <CompactState label="Task" value={activeMode.label} />
-          <CompactState label="Context" value={`${sourceScope} / ${difficulty}`} />
-          <CompactState label="Output" value={`${outputLength} / ${language}`} />
-          <CompactState label="Gateway" value={`${providerFamily === "auto" ? "Auto" : providerFamily} / ${options.aiMaxTokens}`} />
+          {workflowSummary.overview.map((item) => (
+            <CompactState key={item.id} detail={item.detail} label={item.label} tone={item.tone} value={item.value} />
+          ))}
         </div>
 
         <details className="mt-3 rounded-md border border-border bg-background text-sm">
@@ -691,11 +694,23 @@ function SidePanelButton({
   )
 }
 
-function CompactState({ label, value }: { label: string; value: string }) {
+function CompactState({
+  detail,
+  label,
+  tone,
+  value,
+}: {
+  detail: string
+  label: string
+  tone: "good" | "watch" | "blocked" | "neutral"
+  value: string
+}) {
+  const uiTone = workflowTone(tone)
   return (
-    <div className="min-w-0 rounded-md bg-background px-3 py-2">
+    <div className={`group relative min-w-0 rounded-md border px-3 py-2 ${statusToneClasses(uiTone)}`}>
       <p className="text-[0.66rem] uppercase tracking-[0.12em]">{label}</p>
       <p className="mt-0.5 truncate text-sm text-foreground">{value}</p>
+      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-30 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{detail}</p>
     </div>
   )
 }
