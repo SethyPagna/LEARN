@@ -92,6 +92,7 @@ export function AiTutorView({
   const [importTarget, setImportTarget] = useState<ImportTarget | "auto">("auto")
   const [importStatus, setImportStatus] = useState("")
   const [importLoading, setImportLoading] = useState(false)
+  const [lastImport, setLastImport] = useState<{ target: ImportTarget; title: string } | null>(null)
   const [sourceScope, setSourceScope] = useState(sourceScopes[0])
   const [difficulty, setDifficulty] = useState(difficulties[0])
   const [tone, setTone] = useState(tones[0])
@@ -315,10 +316,10 @@ export function AiTutorView({
         const note = (response.item || response.note) as Note
         setNotes?.((current) => [note, ...current])
       }
+      setLastImport({ target: response.target, title: importPreview.title })
       setImportText("")
       setImportTitle("")
       setImportStatus(`Created ${labelImportTarget(response.target)} in Studio.`)
-      setView?.(viewForImportTarget(response.target))
     } finally {
       setImportLoading(false)
     }
@@ -569,16 +570,25 @@ export function AiTutorView({
           <div className="mt-3 grid gap-2">
             <input
               value={importTitle}
-              onChange={(event) => setImportTitle(event.target.value)}
+              onChange={(event) => {
+                setImportTitle(event.target.value)
+                setLastImport(null)
+              }}
               placeholder="Optional title"
               className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground outline-none focus:border-ring"
             />
-            <select value={importTarget} onChange={(event) => setImportTarget(event.target.value as ImportTarget | "auto")} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground">
+            <select value={importTarget} onChange={(event) => {
+              setImportTarget(event.target.value as ImportTarget | "auto")
+              setLastImport(null)
+            }} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground">
               {importTargets.map((target) => <option key={target} value={target}>{labelImportTarget(target)}</option>)}
             </select>
             <textarea
               value={importText}
-              onChange={(event) => setImportText(event.target.value)}
+              onChange={(event) => {
+                setImportText(event.target.value)
+                setLastImport(null)
+              }}
               placeholder="Paste text, CSV, or slide outline"
               className="min-h-36 rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none focus:border-ring"
             />
@@ -594,10 +604,11 @@ export function AiTutorView({
               {importLoading ? "Organizing" : "Organize into Studio"}
             </button>
             {importStatus ? <p className="rounded-md bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground">{importStatus}</p> : null}
-            {importStatus ? (
-              <div className="grid gap-2 sm:grid-cols-2">
-                <button onClick={() => setView?.(importPreview.destinationView)} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Open {importPreview.destinationView}</button>
-                <button onClick={() => { setActiveTaskKey("practice_generator"); setModeGroup("practice"); setMessage(`Generate practice from this imported ${labelImportTarget(importPreview.target)}.`); setView?.("ai") }} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Generate practice</button>
+            {lastImport ? (
+              <div className="grid gap-2 sm:grid-cols-3">
+                <button onClick={() => setView?.(viewForImportTarget(lastImport.target))} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Open {viewForImportTarget(lastImport.target)}</button>
+                <button onClick={() => { setActiveTaskKey("practice_generator"); setModeGroup("practice"); setMessage(`Generate timed practice from "${lastImport.title}" with explanations, retry missed items, and review cards.`) }} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Practice</button>
+                <button onClick={() => { setActiveTaskKey("flashcard_generation"); setModeGroup("practice"); setMessage(`Create active-recall flashcards from "${lastImport.title}" with front/back cards and one memory game.`) }} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Flashcards</button>
               </div>
             ) : null}
           </div>
