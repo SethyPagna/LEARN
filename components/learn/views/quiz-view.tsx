@@ -264,7 +264,7 @@ export function QuizView({
                     </div>
                   </details>
                 </div>
-                <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{visibleQuestions.length} questions · {progressPercent}% complete</p>
+                <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{visibleQuestions.length} questions - {progressPercent}% complete</p>
               </div>
               <div className="flex flex-wrap gap-2 lg:justify-end">
                 <ModeStatusChip label={modeSummary.activeGroup.label} value={modeSummary.activeModeLabel} />
@@ -439,7 +439,7 @@ function PracticeProgressBar({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-sm font-semibold text-foreground">{answeredCount}/{totalCount} answered</p>
-          <p className="text-xs text-muted-foreground">{remainingLabel} left · {markedCount} marked</p>
+          <p className="text-xs text-muted-foreground">{remainingLabel} left - {markedCount} marked</p>
         </div>
         <StatusPill label={revealAnswers ? "Guided" : "Exam"} tone={remainingSeconds === 0 ? "critical" : "neutral"} />
       </div>
@@ -558,17 +558,15 @@ function QuizTimerControls({
   targetMinutes: number
 }) {
   return (
-    <details className="mt-4 rounded-md border border-border bg-card p-2">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-        <span className="flex items-center gap-2">
-          <Clock className="h-3.5 w-3.5" />
-          Timer
-          <span className="normal-case tracking-normal text-foreground">{formatDuration(elapsedSeconds)} elapsed</span>
-          <span className={remainingSeconds === 0 ? "normal-case tracking-normal text-destructive" : "normal-case tracking-normal"}>{formatDuration(remainingSeconds)} left</span>
-        </span>
-        <ChevronDown className="h-3.5 w-3.5" />
-      </summary>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+    <div className="mt-3 flex flex-wrap items-center gap-1.5 rounded-md border border-border bg-card p-2">
+      <span className="inline-flex h-8 items-center gap-1.5 rounded-md bg-muted px-2 text-xs font-semibold text-muted-foreground">
+        <Clock className="h-3.5 w-3.5" />
+        {formatDuration(elapsedSeconds)}
+      </span>
+      <span className={`inline-flex h-8 items-center rounded-md px-2 text-xs font-semibold ${remainingSeconds === 0 ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>
+        {formatDuration(remainingSeconds)} left
+      </span>
+      <div className="flex flex-wrap items-center gap-1.5">
         {[5, 10, 20, 45].map((minutes) => (
           <ControlButton
             key={minutes}
@@ -579,16 +577,16 @@ function QuizTimerControls({
             {minutes}m
           </ControlButton>
         ))}
-        <ControlButton onClick={resetTimer} className="ml-auto" size="compact">
-          <RotateCcw className="h-3.5 w-3.5" />
-          Reset
-        </ControlButton>
-        <ControlButton onClick={() => setPaused(!paused)} size="compact">
-          {paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
-          {paused ? "Resume" : "Pause"}
-        </ControlButton>
       </div>
-    </details>
+      <ControlButton onClick={resetTimer} className="ml-auto" size="compact">
+        <RotateCcw className="h-3.5 w-3.5" />
+        Reset
+      </ControlButton>
+      <ControlButton onClick={() => setPaused(!paused)} size="compact">
+        {paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+        {paused ? "Resume" : "Pause"}
+      </ControlButton>
+    </div>
   )
 }
 
