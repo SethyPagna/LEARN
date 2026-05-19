@@ -26,12 +26,13 @@ test("chat thread filtering supports query questions wins and saved", () => {
     { title: "#study-help - React", last_message: "[question] Why hooks?" },
     { title: "#wins - Streak", last_message: "[win] Finished reviews" },
     { title: "#general - Links", last_message: "[saved] bookmark this resource" },
+    { title: "#general - Saved later", last_message: "Plain update", saved: true },
   ]
 
   assert.equal(filterChatThreads(threads, { query: "react" }).length, 1)
   assert.equal(filterChatThreads(threads, { filter: "questions" }).length, 1)
   assert.equal(filterChatThreads(threads, { filter: "wins" }).length, 1)
-  assert.equal(filterChatThreads(threads, { filter: "saved" }).length, 1)
+  assert.equal(filterChatThreads(threads, { filter: "saved" }).length, 2)
 })
 
 test("summarizeChatWorkspace counts intent signals and channels", () => {
@@ -39,15 +40,16 @@ test("summarizeChatWorkspace counts intent signals and channels", () => {
     { title: "#study-help - React", last_message: "[question] Can @alex check /studio notes?" },
     { title: "#wins - Streak", last_message: "[win] Finished reviews" },
     { title: "#general - Links", last_message: "[saved] bookmark this resource" },
+    { title: "#general - Later", last_message: "Plain update", saved: true },
   ])
 
-  assert.equal(summary.total, 3)
+  assert.equal(summary.total, 4)
   assert.equal(summary.questions, 1)
   assert.equal(summary.wins, 1)
-  assert.equal(summary.saved, 1)
+  assert.equal(summary.saved, 2)
   assert.equal(summary.mentions, 1)
   assert.equal(summary.studioLinks, 1)
-  assert.equal(summary.channels[0].count, 1)
+  assert.equal(summary.channels[0].count, 2)
 })
 
 test("buildChatComposerPlan recommends draft and thread next actions", () => {
@@ -76,11 +78,12 @@ test("buildChatComposerActions gates send clear and suggestions", () => {
 
 test("buildChatThreadActions gates helpful save and reply actions", () => {
   const missingActions = buildChatThreadActions({ hasThread: false })
-  const readyActions = buildChatThreadActions({ hasThread: true })
+  const readyActions = buildChatThreadActions({ hasThread: true, helpful: true, saved: true })
   const busyActions = buildChatThreadActions({ hasThread: true, busyAction: "save" })
 
   assert.equal(missingActions.every((action) => action.disabled), true)
-  assert.equal(readyActions.find((action) => action.id === "helpful")?.disabled, false)
+  assert.equal(readyActions.find((action) => action.id === "helpful")?.active, true)
+  assert.equal(readyActions.find((action) => action.id === "save")?.label, "Saved")
   assert.equal(readyActions.find((action) => action.id === "reply")?.helper, "Prepare a reply draft.")
   assert.equal(busyActions.find((action) => action.id === "save")?.busy, true)
   assert.equal(busyActions.every((action) => action.disabled), true)

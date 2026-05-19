@@ -8,6 +8,8 @@ export interface ChatThreadLike {
   title?: string
   last_message?: string | null
   lastMessage?: string | null
+  helpful?: boolean
+  saved?: boolean
   updated_at?: string
   updatedAt?: string
 }
@@ -46,6 +48,7 @@ export interface ChatThreadActionState {
   label: string
   busyLabel: string
   helper: string
+  active: boolean
   disabled: boolean
   busy: boolean
 }
@@ -260,7 +263,7 @@ export function filterChatThreads(threads: ChatThreadLike[], input: { query?: st
     if (filter === "all") return true
     if (filter === "questions") return haystack.includes("[question]") || haystack.includes("?")
     if (filter === "wins") return haystack.includes("[win]") || haystack.includes("#wins")
-    return haystack.includes("[saved]") || haystack.includes(" saved ") || haystack.includes("bookmark")
+    return Boolean(thread.saved) || haystack.includes("[saved]") || haystack.includes(" saved ") || haystack.includes("bookmark")
   })
 }
 
@@ -279,7 +282,7 @@ export function summarizeChatWorkspace(threads: ChatThreadLike[]): ChatWorkspace
     channelCounts.set(parsed.channel, (channelCounts.get(parsed.channel) ?? 0) + 1)
     if (searchable.includes("[question]") || searchable.includes("?")) questions += 1
     if (searchable.includes("[win]") || searchable.includes("#wins")) wins += 1
-    if (searchable.includes("[saved]") || searchable.includes(" saved ") || searchable.includes("bookmark")) saved += 1
+    if (thread.saved || searchable.includes("[saved]") || searchable.includes(" saved ") || searchable.includes("bookmark")) saved += 1
     if (/(^|\s)@\w+/.test(body)) mentions += 1
     if (/\/(studio|notes|docs|sheets|slides)\b/.test(body)) studioLinks += 1
   }
@@ -371,23 +374,27 @@ export function buildChatComposerActions(input: {
 
 export function buildChatThreadActions(input: {
   busyAction?: ChatThreadActionId | null
+  helpful?: boolean
   hasThread?: boolean
+  saved?: boolean
 }): ChatThreadActionState[] {
   const busy = Boolean(input.busyAction)
   const hasThread = Boolean(input.hasThread)
-  const actions: Array<Omit<ChatThreadActionState, "busy" | "disabled"> & { disabled: boolean }> = [
+  const actions: Array<Omit<ChatThreadActionState, "active" | "busy" | "disabled"> & { active: boolean; disabled: boolean }> = [
     {
       id: "helpful",
-      label: "Helpful",
+      label: input.helpful ? "Helpful" : "Mark helpful",
       busyLabel: "Saving",
       helper: "Mark this thread as useful.",
+      active: Boolean(input.helpful),
       disabled: !hasThread,
     },
     {
       id: "save",
-      label: "Save",
+      label: input.saved ? "Saved" : "Save",
       busyLabel: "Saving",
       helper: "Bookmark this thread for later.",
+      active: Boolean(input.saved),
       disabled: !hasThread,
     },
     {
@@ -395,6 +402,7 @@ export function buildChatThreadActions(input: {
       label: "Reply",
       busyLabel: "Opening",
       helper: "Prepare a reply draft.",
+      active: false,
       disabled: !hasThread,
     },
   ]
