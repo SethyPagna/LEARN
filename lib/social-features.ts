@@ -728,6 +728,16 @@ export function filterSocialRecords(records: SocialRecordLike[], input: { query?
   return results
 }
 
+export function findRecommendedSocialRecord(kind: SocialWorkspaceKind, records: SocialRecordLike[]) {
+  if (kind === "spaces") {
+    return records.find((record) => record.visibility === "public") ?? records[0]
+  }
+  if (kind === "rooms") {
+    return records.find((record) => record.status === "active" || record.status === "open") ?? records[0]
+  }
+  return records.find((record) => record.mode === "team") ?? records.find((record) => record.status === "waiting" || record.status === "active") ?? records[0]
+}
+
 export function buildSocialRecordsPage(records: SocialRecordLike[], input: { query?: string; filter?: SocialRecordFilter; limit?: number }) {
   const all = filterSocialRecords(records, input)
   const safeLimit = Math.max(1, input.limit ?? 12)
