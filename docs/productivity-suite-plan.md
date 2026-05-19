@@ -127,6 +127,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Social activity maturity by adding a tested state-derived Activity drawer that explains saved/draft state, invite readiness, people status, and the next collaborative move without requiring a new feed endpoint.
 - 2026-05-19: Continued Social activity integration by adding a protected recent social-actions read API, allowing study-room targets, and showing real recent actions inside the compact Activity drawer when available.
 - 2026-05-19: Continued Social maturity by adding a protected connections API, friend/follow discovery, remove-connection support, and a compact Social start page that groups people search, quick posts, and Chat/Groups/Live/Battles flows.
+- 2026-05-19: Redid the Social start workflow around plain user actions: find people, post, invite, and create/open Chat, Groups, Live rooms, or Battles from one compact hub with deeper signals collapsed.
 
 ## Implementation Slices
 
