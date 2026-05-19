@@ -47,7 +47,7 @@ import type {
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
-import { buildSocialActionKit, buildSocialActivityTimeline, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, formatSocialAction, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildSocialActionKit, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, formatSocialAction, normalizeSocialInviteDraft, socialRecordTitle, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -634,6 +634,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const [detailTab, setDetailTab] = useState<SocialDetailTab>("actions")
   const [memberLimit, setMemberLimit] = useState(10)
   const [recordLimit, setRecordLimit] = useState(12)
+  const [activityLimit, setActivityLimit] = useState(4)
   const draftHydrated = useRef(false)
   const restoredDraftId = useRef<string | null>(null)
   const items = useMemo(() => data?.items ?? [], [data?.items])
@@ -651,6 +652,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const filteredItems = recordPage.items as Array<LearningSpace | StudyRoom | StudyBattle>
   const memberPage = useMemo(() => buildWorkspaceMembersPage(memberItems, memberQuery, memberLimit), [memberItems, memberLimit, memberQuery])
   const filteredMembers = memberPage.items
+  const activityPage = useMemo(() => buildSocialActionsPage(recentActionItems, activityLimit), [activityLimit, recentActionItems])
   const filterOptions = useMemo(() => socialFilterOptions(kind), [kind])
   const workflowSteps = useMemo(() => socialWorkflowSteps(kind, Boolean(draft.id)), [draft.id, kind])
   const actionKit = useMemo(() => buildSocialActionKit(kind, {
@@ -1102,13 +1104,14 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
             {detailTab === "activity" ? (
               <div className="grid gap-3">
                 <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold text-secondary-foreground">{activityPage.items.length}/{activityPage.total} shown</span>
                   <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold text-secondary-foreground">{actionSummary.comments} comments</span>
                   <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold text-secondary-foreground">{actionSummary.saves} saved</span>
                   <span className="rounded-md bg-muted px-2 py-1 text-[0.68rem] font-semibold text-muted-foreground">{recentActions.status}</span>
                 </div>
-                {recentActionItems.length ? (
+                {activityPage.items.length ? (
                   <div className="grid gap-1.5 md:grid-cols-2">
-                    {recentActionItems.slice(0, 4).map((action) => {
+                    {activityPage.items.map((action) => {
                       const formatted = formatSocialAction(action)
                       return (
                         <div key={action.id || `${formatted.label}-${formatted.detail}`} className="rounded-md border border-border bg-card px-3 py-2 text-sm">
@@ -1118,6 +1121,11 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
                       )
                     })}
                   </div>
+                ) : null}
+                {activityPage.hiddenCount ? (
+                  <button onClick={() => setActivityLimit((limit) => limit + 4)} className="rounded-md border border-border bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+                    Show {Math.min(4, activityPage.hiddenCount)} more
+                  </button>
                 ) : null}
                 <div className="grid gap-1.5">
                   {activityTimeline.map((item, index) => (
