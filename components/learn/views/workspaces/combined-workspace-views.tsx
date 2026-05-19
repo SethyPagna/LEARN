@@ -12,7 +12,7 @@ import { QuizView } from "../quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeWorkspacePlan, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialCommandPrimaryAction, buildSocialCommandSummary, buildSocialFlowCards, normalizeSocialInviteDraft, summarizeConnections, type ConnectionActionId, type SocialCommandPrimaryActionId, type SocialFlowId, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialFlowCards, normalizeSocialInviteDraft, summarizeConnections, type ConnectionActionId, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialFlowId, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type PracticeTab = "quizzes" | "games"
 type SocialTab = "home" | "chat" | "spaces" | "rooms" | "battles"
@@ -179,6 +179,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const [peopleLimit, setPeopleLimit] = useState(5)
   const [connectionLimit, setConnectionLimit] = useState(6)
   const [connectionAction, setConnectionAction] = useState<{ action: ConnectionActionId; targetId: string } | null>(null)
+  const [commandAction, setCommandAction] = useState<SocialCommandRunId | null>(null)
   const connectionSummary = useMemo(() => summarizeConnections(connections), [connections])
   const peoplePage = useMemo(() => buildConnectablePeoplePage({ members, connections, currentUserId, query, limit: peopleLimit }), [connections, currentUserId, members, peopleLimit, query])
   const connectionPage = useMemo(() => buildConnectionsPage(connections, connectionLimit), [connectionLimit, connections])
@@ -214,12 +215,20 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     invite: inviteReady ? "ready" : "0",
     connections: String(connectionSummary.total),
   }), [connectionSummary.total, inviteReady, peoplePage.total, threads.length])
+  const commandActions = useMemo(() => buildSocialCommandRunActions({
+    busyAction: commandAction,
+    hasPostDraft: Boolean(quickPost.trim()),
+    inviteReady,
+  }), [commandAction, inviteReady, quickPost])
+  const commandActionById = useMemo(() => new Map(commandActions.map((action) => [action.id, action])), [commandActions])
 
   useEffect(() => {
     setPeopleLimit(5)
   }, [query])
 
   async function refresh() {
+    if (commandAction) return
+    setCommandAction("sync")
     setStatus("Loading")
     try {
       const [memberData, connectionData, chatData, spaceData, roomData, battleData] = await Promise.all([
@@ -237,6 +246,8 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
       setStatus("Ready")
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to load social workspace")
+    } finally {
+      setCommandAction(null)
     }
   }
 
@@ -283,7 +294,8 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   }
 
   async function sendQuickPost() {
-    if (!quickPost.trim()) return
+    if (commandActionById.get("post")?.disabled) return
+    setCommandAction("post")
     setStatus("Posting...")
     try {
       await api("/api/chat", {
@@ -295,14 +307,18 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
       setView("chat")
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to post")
+    } finally {
+      setCommandAction(null)
     }
   }
 
   async function createInvite() {
+    if (commandActionById.get("invite")?.disabled) return
     if (!inviteValidation.ok) {
       setStatus(inviteStatus)
       return
     }
+    setCommandAction("invite")
     setStatus("Inviting...")
     try {
       await api("/api/invites", {
@@ -313,6 +329,8 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
       setStatus("Invite sent")
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to invite")
+    } finally {
+      setCommandAction(null)
     }
   }
 
@@ -321,10 +339,15 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
       if (quickPost.trim()) {
         await sendQuickPost()
       } else {
+        if (commandActionById.get("chat")?.disabled) return
+        setCommandAction("chat")
         open("chat")
+        setCommandAction(null)
       }
       return
     }
+    if (commandActionById.get(id)?.disabled) return
+    setCommandAction(id)
     setStatus(id === "spaces" ? "Creating group..." : id === "rooms" ? "Starting room..." : "Creating battle...")
     const createdAt = new Date().toLocaleDateString("en", { month: "short", day: "numeric" })
     const endpoint = id === "spaces" ? "/api/learning-spaces" : id === "rooms" ? "/api/study-rooms" : "/api/study-battles"
@@ -340,6 +363,8 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
       open(id)
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to create")
+    } finally {
+      setCommandAction(null)
     }
   }
 
@@ -349,6 +374,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   }
 
   function runPrimaryCommand(id: SocialCommandPrimaryActionId) {
+    if (commandAction) return
     if (id === "find") {
       setCommandTab("people")
       return
@@ -369,6 +395,10 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     void createSocialPlace(id)
   }
 
+  const syncAction = commandActionById.get("sync")
+  const postAction = commandActionById.get("post")
+  const inviteAction = commandActionById.get("invite")
+
   return (
     <div className="grid gap-4">
       <Panel className="overflow-hidden p-0">
@@ -379,13 +409,13 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
             </div>
             <div className="flex items-center gap-2">
               <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">{status}</span>
-              <button onClick={() => runPrimaryCommand(primaryCommand.id)} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground" title={primaryCommand.detail} type="button">
+              <button onClick={() => runPrimaryCommand(primaryCommand.id)} disabled={Boolean(commandAction)} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60" title={primaryCommand.detail} type="button">
                 <Sparkles className="h-4 w-4" />
                 {primaryCommand.label}
               </button>
-              <button onClick={() => void refresh()} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+              <button onClick={() => void refresh()} disabled={syncAction?.disabled} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60">
                 <Repeat2 className="h-4 w-4" />
-                Sync
+                {syncAction?.busy ? syncAction.busyLabel : syncAction?.label || "Sync"}
               </button>
             </div>
           </div>
@@ -465,11 +495,11 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
               <div className="grid gap-3">
                 <textarea value={quickPost} onChange={(event) => setQuickPost(event.target.value)} placeholder="Ask a question or share a quick update..." className="min-h-28 w-full resize-none rounded-md border border-input bg-card p-3 text-sm text-foreground outline-none" />
                 <div className="flex flex-wrap items-center gap-2">
-                  <button onClick={sendQuickPost} disabled={!quickPost.trim()} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+                  <button onClick={sendQuickPost} disabled={postAction?.disabled} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">
                     <Send className="h-4 w-4" />
-                    Post
+                    {postAction?.busy ? postAction.busyLabel : postAction?.label || "Post"}
                   </button>
-                  <button onClick={() => open("chat")} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                  <button onClick={() => open("chat")} disabled={Boolean(commandAction)} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60">
                     <MessageSquare className="h-4 w-4" />
                     Open chat
                   </button>
@@ -485,9 +515,9 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                   <option value="learner">Learner</option>
                   <option value="admin">Admin</option>
                 </select>
-                <button onClick={() => void createInvite()} disabled={!inviteReady} className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-50" title={inviteStatus}>
+                <button onClick={() => void createInvite()} disabled={inviteAction?.disabled} className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50" title={inviteStatus}>
                   <Plus className="h-4 w-4" />
-                  Send
+                  {inviteAction?.busy ? inviteAction.busyLabel : inviteAction?.label || "Send"}
                 </button>
                 <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground sm:col-span-3">{inviteStatus}</span>
               </div>
@@ -545,11 +575,14 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
           {flowCards.map((card) => {
             const Icon = card.id === "chat" ? MessageSquare : card.id === "spaces" ? Users : card.id === "rooms" ? Radio : Swords
+            const createAction = commandActionById.get(card.id)
             return (
               <SocialFlowButton
                 key={card.id}
                 action={card.action}
                 count={card.count}
+                createDisabled={createAction?.disabled}
+                createLabel={createAction?.busy ? createAction.busyLabel : card.action}
                 icon={Icon}
                 label={card.label}
                 onCreate={() => void createSocialPlace(card.id)}
@@ -567,6 +600,8 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
 function SocialFlowButton({
   action,
   count,
+  createDisabled,
+  createLabel,
   icon: Icon,
   label,
   onCreate,
@@ -575,6 +610,8 @@ function SocialFlowButton({
 }: {
   action: string
   count: number
+  createDisabled?: boolean
+  createLabel?: string
   icon: ComponentType<{ className?: string }>
   label: string
   onCreate: () => void
@@ -593,9 +630,9 @@ function SocialFlowButton({
         </span>
         <span className={`rounded-md px-2 py-1 text-[0.68rem] font-semibold ${ready ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{ready ? "ready" : "new"}</span>
       </button>
-      <button onClick={onCreate} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" title={action}>
+      <button onClick={onCreate} disabled={createDisabled} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60" title={action}>
         <Plus className="h-4 w-4" />
-        <span className="hidden sm:inline">{action}</span>
+        <span className="hidden sm:inline">{createLabel || action}</span>
       </button>
     </div>
   )
