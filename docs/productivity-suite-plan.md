@@ -147,6 +147,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Social record-list polish by replacing plain metadata text with tested compact status/meta/recommended chips on Spaces/Rooms/Battles cards.
 - 2026-05-19: Continued Social record clarity by adding tested per-card action labels such as Review, Join, Plan, and Play.
 - 2026-05-19: Continued Social selection feedback by adding tested next-step messages and clearing stale delete state when opening records.
+- 2026-05-19: Continued Social empty-state clarity by separating true empty lists from search/filter misses and adding a clear-filters action.
 
 ## Implementation Slices
 
