@@ -186,6 +186,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued AI Import workflow accuracy by automatically switching the AI source to Uploaded files when material is pasted/imported and returning to Recent notes when that source is cleared.
 - 2026-05-19: Continued AI Import state reliability by making pasted-source edits replace the previous saved import text, preventing stale hidden context from reappearing after the text box is cleared.
 - 2026-05-19: Continued AI Import metadata reliability by clearing saved source attachments when the import title or target changes, unless current pasted text is already replacing the source.
+- 2026-05-20: Continued Social hub UX by reducing always-visible controls, moving sync/signals into a compact menu, surfacing one best next action, and collapsing social-space creation tools.
 
 ## Implementation Slices
 
