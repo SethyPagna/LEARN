@@ -71,10 +71,12 @@ export function summarizeAiTutorWorkflow(input: {
   providerFamily: string
   tokenBudget: number
   effectiveTokenBudget: number
+  uploadedContextLength?: number
 }) {
   const recommendedTokenBudget = getRecommendedAiTutorTokens(input.outputLength)
   const tokenBudgetIsLow = input.tokenBudget < recommendedTokenBudget
-  const status = workflowStatus(input.prompt, input.gateway, tokenBudgetIsLow)
+  const contextWarning = getAiTutorContextWarning(input.sourceScope, input.recentNoteCount, input.uploadedContextLength || 0)
+  const status = workflowStatus(input.prompt, input.gateway, tokenBudgetIsLow, Boolean(contextWarning))
   const promptLabel = input.prompt.ok ? "Complete" : `${input.prompt.missing.length} missing`
   const providerLabel = input.gateway.readyProviderCount
     ? `${input.gateway.readyProviderCount} ready`
@@ -87,7 +89,12 @@ export function summarizeAiTutorWorkflow(input: {
     ? "Manual"
     : input.sourceScope === "Recent notes"
       ? `${input.sourceScope} (${input.recentNoteCount} notes)`
+      : input.sourceScope === "Uploaded files"
+        ? input.uploadedContextLength
+          ? `Uploaded files (${formatContextSize(input.uploadedContextLength)})`
+          : "Uploaded files (empty)"
       : input.sourceScope
+  const contextTone = contextWarning ? "watch" as const : "good" as const
 
   return {
     status,
@@ -104,6 +111,7 @@ export function summarizeAiTutorWorkflow(input: {
       insertTarget: input.insertTarget,
       tokenBudgetIsLow,
       recommendedTokenBudget,
+      contextWarning,
     }),
     overview: [
       {
@@ -117,8 +125,8 @@ export function summarizeAiTutorWorkflow(input: {
         id: "context" as const,
         label: "Context",
         value: `${input.sourceScope} / ${input.difficulty}`,
-        detail: contextLabel,
-        tone: input.recentNoteCount || input.sourceScope === "Manual only" ? "good" as const : "watch" as const,
+        detail: contextWarning || contextLabel,
+        tone: contextTone,
       },
       {
         id: "output" as const,
@@ -173,8 +181,8 @@ export function summarizeAiTutorWorkflow(input: {
         id: "context" as const,
         label: "Context",
         value: contextLabel,
-        detail: "Controls what the prompt includes",
-        tone: input.recentNoteCount || input.sourceScope === "Manual only" ? "good" as const : "watch" as const,
+        detail: contextWarning || "Controls what the prompt includes",
+        tone: contextTone,
       },
       {
         id: "draft" as const,
@@ -218,9 +226,14 @@ export function splitPromptPreview(preview: string) {
   return { task, requirements, warnings, output }
 }
 
-function workflowStatus(prompt: GuidedPromptResult, gateway: AiGatewayReadiness, tokenBudgetIsLow: boolean): AiPromptReadinessStatus {
+function workflowStatus(
+  prompt: GuidedPromptResult,
+  gateway: AiGatewayReadiness,
+  tokenBudgetIsLow: boolean,
+  hasContextWarning: boolean,
+): AiPromptReadinessStatus {
   if (!prompt.ok || gateway.status === "blocked") return "blocked"
-  if (prompt.warnings.length || gateway.status === "warning" || tokenBudgetIsLow) return "warning"
+  if (prompt.warnings.length || gateway.status === "warning" || tokenBudgetIsLow || hasContextWarning) return "warning"
   return "ready"
 }
 
@@ -230,9 +243,11 @@ function nextAiAction(input: {
   insertTarget: StudioInsertTarget
   tokenBudgetIsLow: boolean
   recommendedTokenBudget: number
+  contextWarning?: string
 }) {
   if (!input.prompt.ok) return `Fill: ${input.prompt.missing.join(", ")}`
   if (input.gateway.status === "blocked") return "Fix provider route"
+  if (input.contextWarning) return "Attach source material"
   if (input.gateway.status === "warning") return "Review gateway"
   if (input.tokenBudgetIsLow) return `Use ${input.recommendedTokenBudget} tokens`
   return `Run and insert as ${labelInsertTarget(input.insertTarget)}`
@@ -240,4 +255,19 @@ function nextAiAction(input: {
 
 function labelInsertTarget(target: StudioInsertTarget) {
   return target.replace(/-/g, " ")
+}
+
+function getAiTutorContextWarning(sourceScope: string, recentNoteCount: number, uploadedContextLength: number) {
+  if (sourceScope === "Uploaded files" && uploadedContextLength === 0) {
+    return "Paste or import material before using Uploaded files as the source."
+  }
+  if (sourceScope === "Recent notes" && recentNoteCount === 0) {
+    return "Create or import a note before using Recent notes as the source."
+  }
+  return ""
+}
+
+function formatContextSize(characterCount: number) {
+  if (characterCount < 1000) return `${characterCount} chars`
+  return `${Math.round(characterCount / 100) / 10}k chars`
 }

@@ -343,6 +343,7 @@ test("AI tutor workflow raises stale low token settings for longer outputs", () 
     providerFamily: "auto",
     tokenBudget: 1200,
     effectiveTokenBudget,
+    uploadedContextLength: "Database indexes".length,
   })
 
   assert.equal(getRecommendedAiTutorTokens("Deep"), 8192)
@@ -351,6 +352,69 @@ test("AI tutor workflow raises stale low token settings for longer outputs", () 
   assert.equal(summary.tokenLabel, "8192 effective")
   assert.match(summary.nextAction, /8192 tokens/)
   assert.match(summary.overview.find((item) => item.id === "output")?.detail || "", /Saved setting is 1200/)
+})
+
+test("AI tutor workflow warns when uploaded source is empty", () => {
+  const prompt = buildGuidedPrompt({
+    taskKey: "practice_generator",
+    fields: { context: "Generate practice from the uploaded material", mode: "mixed", count: 6 },
+    filters: {
+      sourceScope: "Uploaded files",
+      difficulty: "Adaptive",
+      tone: "Kind",
+      language: "English",
+      outputLength: "Balanced",
+      providerFamily: "auto",
+      insertTarget: "quiz",
+    },
+  })
+  const gateway = buildAiGatewayReadiness({
+    prompt,
+    providerFamily: "auto",
+    providers: [{ provider: "groq", enabled: true, has_key: true, last_status: "ok" }],
+  })
+
+  const emptySummary = summarizeAiTutorWorkflow({
+    taskLabel: "Practice",
+    sourceScope: "Uploaded files",
+    insertTarget: "quiz",
+    prompt,
+    gateway,
+    recentNoteCount: 4,
+    draftSaved: false,
+    difficulty: "Adaptive",
+    language: "English",
+    outputLength: "Balanced",
+    providerFamily: "auto",
+    tokenBudget: 4096,
+    effectiveTokenBudget: 4096,
+    uploadedContextLength: 0,
+  })
+
+  assert.equal(emptySummary.status, "warning")
+  assert.equal(emptySummary.contextLabel, "Uploaded files (empty)")
+  assert.equal(emptySummary.overview.find((item) => item.id === "context")?.tone, "watch")
+  assert.match(emptySummary.nextAction, /Attach source material/)
+
+  const readySummary = summarizeAiTutorWorkflow({
+    taskLabel: "Practice",
+    sourceScope: "Uploaded files",
+    insertTarget: "quiz",
+    prompt,
+    gateway,
+    recentNoteCount: 4,
+    draftSaved: false,
+    difficulty: "Adaptive",
+    language: "English",
+    outputLength: "Balanced",
+    providerFamily: "auto",
+    tokenBudget: 4096,
+    effectiveTokenBudget: 4096,
+    uploadedContextLength: 220,
+  })
+
+  assert.equal(readySummary.status, "ready")
+  assert.equal(readySummary.contextLabel, "Uploaded files (220 chars)")
 })
 
 test("AI tutor workflow blocks missing prompts and splits previews", () => {
