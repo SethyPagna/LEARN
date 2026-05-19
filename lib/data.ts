@@ -2181,6 +2181,27 @@ export async function listUserConnections(user: User) {
   return result.rows
 }
 
+export async function deleteUserConnection(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  const targetUserId = String(input.targetUserId || input.target_user_id || "").trim()
+  const connectionType = String(input.connectionType || input.connection_type || "follow") === "friend" ? "friend" : "follow"
+  if (!targetUserId) throw new Error("A target user is required.")
+  await query(
+    `DELETE FROM user_connections
+     WHERE requester_user_id = $1
+       AND target_user_id = $2
+       AND connection_type = $3`,
+    [user.id, targetUserId, connectionType],
+  )
+  await logAudit({
+    userId: user.id,
+    action: "delete",
+    entity: "user_connection",
+    entityId: targetUserId,
+    details: { connectionType },
+  })
+}
+
 export async function recordSocialAction(user: User, input: Record<string, unknown>) {
   await ensureDatabase()
   const normalized = normalizeSocialActionInput(input)
