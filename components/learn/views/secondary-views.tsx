@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, Bot, CalendarDays, CalendarPlus, Check, ChevronRight, Clock, Copy, FileText, Filter, Gauge, Languages, Link as LinkIcon, Lock, Palette, Repeat2, Save, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserPlus, UserRound, Users } from "lucide-react"
 import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
-import { buildCalendarPlanningSummary, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
+import { buildCalendarDaySegments, buildCalendarPlanningSummary, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
 import { buildProgressCommandPlan, summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
 import { buildSettingsControlPlan, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
 import { buildAdminOperationalPlan, filterAdminList, summarizeAdminOperations, type AdminAccessRequest, type AdminPanelTab } from "@/lib/admin-features"
@@ -271,6 +271,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
     () => events.filter((event) => localDateKey(new Date(event.starts_at)) === selectedDayKey).sort(compareCalendarEvents),
     [events, selectedDayKey],
   )
+  const selectedDaySegments = useMemo(() => buildCalendarDaySegments(selectedDayEvents), [selectedDayEvents])
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const canSave = title.trim().length > 0 && Number.isFinite(Date.parse(startsAt)) && durationMinutes >= 5
 
@@ -514,6 +515,27 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
                   <CalendarPlus className="h-3.5 w-3.5" />
                   {label}
                 </ControlButton>
+              ))}
+            </div>
+            <div className="mb-3 grid gap-2">
+              {selectedDaySegments.map((segment) => (
+                <details key={segment.id} className="rounded-md border border-border bg-card" open={segment.events.length > 0}>
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+                    <span>{segment.label}</span>
+                    <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
+                      {segment.events.length ? `${segment.events.length} | ${formatCalendarDuration(segment.totalMinutes)}` : "open"}
+                    </span>
+                  </summary>
+                  <div className="grid gap-1 border-t border-border p-2">
+                    {segment.events.map((event) => (
+                      <button key={event.id} onClick={() => setSelectedId(event.id)} className="flex items-center justify-between gap-2 rounded-md bg-background px-2 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground" type="button">
+                        <span className="min-w-0 truncate font-semibold text-foreground">{event.title}</span>
+                        <span className="shrink-0 text-muted-foreground">{formatCalendarTimeRange(event)}</span>
+                      </button>
+                    ))}
+                    {!segment.events.length ? <span className="rounded-md bg-background px-2 py-1.5 text-xs text-muted-foreground">No block yet</span> : null}
+                  </div>
+                </details>
               ))}
             </div>
             <div className="space-y-2">
