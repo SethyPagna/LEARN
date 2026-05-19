@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import type { QuizQuestion } from "../components/learn/types"
 import { hasPracticeDraftContent, listPracticeDraftCards, normalizePracticeDraft, summarizePracticeDrafts } from "../lib/practice-drafts"
-import { buildGameRunActions, buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, buildPracticeWorkspacePlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../lib/practice-features"
+import { buildGameRunActions, buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, buildPracticeSessionSummary, buildPracticeWorkspacePlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../lib/practice-features"
 
 const questions: QuizQuestion[] = [
   { id: "q1", question: "One?", choices: [{ id: "a", text: "1" }, { id: "b", text: "2" }], correct_answer_id: "a", topic: "Math", explanation: "One" },
@@ -105,6 +105,38 @@ test("practice run actions explain disabled and busy states", () => {
   assert.equal(completedActions.find((action) => action.id === "full-set")?.disabled, false)
   assert.equal(busyActions.find((action) => action.id === "save-review-cards")?.busy, true)
   assert.equal(busyActions.every((action) => action.disabled), true)
+})
+
+test("practice session summary keeps progress timer and drafts compact", () => {
+  const summary = buildPracticeSessionSummary({
+    answeredCount: 5,
+    draftStatus: "Draft saved at 2:00.",
+    elapsedLabel: "2:00",
+    markedCount: 1,
+    progressPercent: 50,
+    remainingLabel: "8:00",
+    remainingSeconds: 480,
+    revealAnswers: true,
+    totalCount: 10,
+  })
+  const complete = buildPracticeSessionSummary({
+    answeredCount: 12,
+    elapsedLabel: "12:00",
+    markedCount: 0,
+    progressPercent: 150,
+    remainingLabel: "0:00",
+    remainingSeconds: 0,
+    revealAnswers: false,
+    totalCount: 10,
+  })
+
+  assert.equal(summary.answeredLabel, "5/10")
+  assert.equal(summary.statusLabel, "1 marked")
+  assert.equal(summary.statusTone, "watch")
+  assert.equal(summary.draftLabel, "Draft saved at 2:00.")
+  assert.equal(complete.answeredLabel, "10/10")
+  assert.equal(complete.progressPercent, 100)
+  assert.equal(complete.timerTone, "critical")
 })
 
 test("practice summary treats unanswered questions as missed", () => {
