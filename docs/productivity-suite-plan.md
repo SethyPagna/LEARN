@@ -133,6 +133,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Social flow cleanup by changing the Chat/Groups/Live/Battles cards into a compact action rail with smaller create buttons.
 - 2026-05-19: Continued Practice cleanup by turning the quiz timer into a compact command strip and removing corrupted separator text from quiz progress labels.
 - 2026-05-19: Continued Games cleanup by aligning Flashcard Sprint with the compact Practice command style and moving score, prompt, and time into status chips.
+- 2026-05-19: Continued AI Tutor cleanup by merging separate Readiness and Requirements blocks into one compact Review setup drawer.
 
 ## Implementation Slices
 
