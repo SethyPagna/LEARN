@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, Bot, CalendarDays, CalendarPlus, Check, ChevronRight, Clock, Copy, FileText, Filter, Gauge, Languages, Link as LinkIcon, Lock, Palette, Repeat2, Save, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserPlus, UserRound, Users } from "lucide-react"
 import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
-import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
+import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, buildCalendarSummaryChips, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
 import { buildProgressCommandPlan, summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
 import { buildSettingsControlPlan, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
 import { buildAdminOperationalPlan, filterAdminList, summarizeAdminOperations, type AdminAccessRequest, type AdminPanelTab } from "@/lib/admin-features"
@@ -262,6 +262,9 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
   const [calendarActionBusy, setCalendarActionBusy] = useState<"save" | "complete" | "duplicate" | "delete" | null>(null)
   const selected = events.find((event) => event.id === selectedId)
   const agendaSummary = useMemo(() => summarizeCalendarAgenda(events), [events])
+  const calendarSummaryChips = useMemo(() => buildCalendarSummaryChips(agendaSummary), [agendaSummary])
+  const primaryCalendarChips = calendarSummaryChips.filter((chip) => chip.priority === "primary")
+  const secondaryCalendarChips = calendarSummaryChips.filter((chip) => chip.priority === "secondary")
   const calendarPlan = useMemo(
     () => buildCalendarPlanningSummary(events, { defaultMinutes: options.calendarDefaultMinutes, leadMinutes: options.calendarLeadMinutes }),
     [events, options.calendarDefaultMinutes, options.calendarLeadMinutes],
@@ -442,11 +445,10 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
           <SharedStatusPill label={`${options.calendarLeadMinutes}m lead`} />
           <SharedStatusPill label={timezone} />
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <Info label="Today" value={agendaSummary.today} />
-          <Info label="Upcoming" value={agendaSummary.upcoming} />
-          <Info label="Review" value={agendaSummary.review} />
-          <Info label="Planned" value={formatCalendarDuration(agendaSummary.scheduledMinutes)} />
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {primaryCalendarChips.map((chip) => (
+            <CompactInfo key={chip.id} label={chip.label} value={chip.value} />
+          ))}
         </div>
         <button onClick={applyPlanSuggestion} className="mt-4 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
           <div className="flex items-center justify-between gap-3">
@@ -456,8 +458,19 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
           <div className="mt-2 flex flex-wrap gap-2">
             {calendarPlan.chips.map((chip) => <SharedStatusPill key={chip} label={chip} />)}
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">{calendarPlan.suggestion.reason}</p>
         </button>
+        <details className="mt-3 rounded-md border border-border bg-background p-2">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
+            <span>Planning details</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </summary>
+          <div className="mt-2 grid grid-cols-2 gap-2 border-t border-border pt-2">
+            {secondaryCalendarChips.map((chip) => (
+              <Info key={chip.id} label={chip.label} value={chip.value} />
+            ))}
+          </div>
+          <p className="mt-2 rounded-md bg-muted p-2 text-xs leading-5 text-muted-foreground">{calendarPlan.suggestion.reason}</p>
+        </details>
         <div className="mt-4 grid gap-3">
           <Field label="Title" value={title} onChange={setTitle} />
           <label className="block rounded-lg bg-muted p-4">
@@ -1184,7 +1197,16 @@ function Info({ label, value }: { label: string; value?: unknown }) {
   return (
     <div className="rounded-lg bg-muted p-4">
       <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
-      <p className="mt-2 font-medium text-foreground">{String(value || "Not set")}</p>
+      <p className="mt-2 font-medium text-foreground">{String(value ?? "Not set")}</p>
+    </div>
+  )
+}
+
+function CompactInfo({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-background px-3 py-2">
+      <p className="text-[0.65rem] font-semibold uppercase text-muted-foreground">{label}</p>
+      <p className="text-base font-semibold text-foreground">{value}</p>
     </div>
   )
 }
