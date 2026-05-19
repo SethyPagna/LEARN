@@ -38,7 +38,7 @@ const outputLengths = ["Short", "Balanced", "Deep", "Max"]
 const languages = ["English", "Khmer", "French", "Spanish", "Korean", "Japanese", "Chinese"]
 const insertTargets: StudioInsertTarget[] = ["note-block", "doc-section", "sheet-rows", "slide-outline", "quiz", "flashcards", "review-cards", "ai-note"]
 const importTargets: Array<ImportTarget | "auto"> = ["auto", "note", "doc", "sheet", "slides"]
-const tokenPresets = [2048, 4096, 8192]
+const tokenPresets = [2048, 4096, 8192, 16384]
 const AI_TUTOR_DRAFT_KEY = "learn_ai_tutor_draft_v1"
 const DEFAULT_AI_MESSAGE = "Create a study plan from my recent notes."
 const tutorModeGroups = [
@@ -341,6 +341,11 @@ export function AiTutorView({
     setActionStatus("Studio block output selected.")
   }
 
+  function chooseOutputLength(value: string) {
+    setOutputLength(value)
+    if (value === "Max") setOptions({ aiMaxTokens: tokenPresets[tokenPresets.length - 1] })
+  }
+
   function useReplyAsPrompt(taskKey: AiTaskKey, instruction: string, target: StudioInsertTarget) {
     const nextMode = tutorModes.find((mode) => mode.id === taskKey)
     setActiveTaskKey(taskKey)
@@ -404,7 +409,7 @@ export function AiTutorView({
                 <TutorMenuSelect label="Source" value={sourceScope} values={sourceScopes} onChange={setSourceScope} />
                 <TutorMenuSelect label="Difficulty" value={difficulty} values={difficulties} onChange={setDifficulty} />
                 <TutorMenuSelect label="Tone" value={tone} values={tones} onChange={setTone} />
-                <TutorMenuSelect label="Length" value={outputLength} values={outputLengths} onChange={setOutputLength} />
+                <TutorMenuSelect label="Length" value={outputLength} values={outputLengths} onChange={chooseOutputLength} />
                 <TutorMenuSelect label="Language" value={language} values={languages} onChange={setLanguage} />
                 <TutorMenuSelect label="Insert" value={insertTarget} values={availableInsertTargets} onChange={(value) => setInsertTarget(value as StudioInsertTarget)} />
                 <TutorMenuToggle checked={options.aiIncludeNotes} label="Include recent notes" onChange={(checked) => setOptions({ aiIncludeNotes: checked })} />
@@ -421,7 +426,7 @@ export function AiTutorView({
                 />
                 <div className="grid gap-1">
                   <span className="text-xs font-semibold text-muted-foreground">Max tokens</span>
-                  <div className="grid grid-cols-3 gap-1">
+                  <div className="grid grid-cols-4 gap-1">
                     {tokenPresets.map((tokens) => (
                       <button key={tokens} onClick={() => setOptions({ aiMaxTokens: tokens })} className={`h-8 rounded-md border px-2 text-xs font-semibold ${options.aiMaxTokens === tokens ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} type="button">
                         {tokens}
