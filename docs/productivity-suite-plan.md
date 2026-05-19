@@ -106,6 +106,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Progress declutter by shortening the primary route action, moving route detail/focus chips into a Route details drawer, and folding large metric cards into a compact Metrics drawer.
 - 2026-05-19: Continued Admin declutter by folding the large operational signal cards into an Admin signals drawer while keeping health, search, next action, and section controls visible.
 - 2026-05-19: Continued Provider Admin declutter by separating providers, editor, routing, and presets into compact modes, folding gateway metrics into a signal drawer, and moving provider test/edit/delete controls into per-card action menus.
+- 2026-05-19: Continued Studio polish by moving the local draft-saved feedback into a fixed quiet notice so autosave confirmations no longer compete with editing status or shift the workspace experience.
 
 ## Implementation Slices
 
