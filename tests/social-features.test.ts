@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -109,6 +109,18 @@ test("buildSocialActionKit creates compact next-step actions per social surface"
   assert.match(spaceKit.inviteText, /Algebra circle/)
   assert.deepEqual(roomKit.actions.map((action) => action.id), ["invite", "chat", "calendar", "files"])
   assert.deepEqual(battleKit.actions.map((action) => action.id), ["invite", "practice", "chat", "calendar"])
+})
+
+test("buildSocialActionReadiness keeps draft actions clear and disabled", () => {
+  const inviteAction = buildSocialActionKit("spaces", { title: "Algebra circle", saved: false }).actions[0]
+  const draftAction = buildSocialActionReadiness("spaces", inviteAction, false)
+  const savedAction = buildSocialActionReadiness("spaces", inviteAction, true)
+
+  assert.equal(draftAction.enabled, false)
+  assert.equal(draftAction.label, "Save first")
+  assert.match(draftAction.detail, /Save this space/)
+  assert.equal(savedAction.enabled, true)
+  assert.equal(savedAction.label, "Invite")
 })
 
 test("normalizeSocialInviteDraft validates email and role for secure invites", () => {
