@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -240,6 +240,19 @@ test("social action helpers summarize and format recent activity", () => {
   assert.equal(summary.newest?.actor_name, "Alex")
   assert.deepEqual(formatSocialAction(actions[0]), { label: "Mina comment", detail: "Great resource" })
   assert.deepEqual(formatSocialAction(actions[1]), { label: "Alex save", detail: "Updated study battle." })
+})
+
+test("social actions page keeps activity drawers expandable", () => {
+  const actions = [
+    { id: "a1", actor_name: "Mina" },
+    { id: "a2", actor_name: "Alex" },
+    { id: "a3", actor_name: "Sam" },
+  ]
+  const page = buildSocialActionsPage(actions, 2)
+
+  assert.deepEqual(page.items.map((action) => action.id), ["a1", "a2"])
+  assert.equal(page.total, 3)
+  assert.equal(page.hiddenCount, 1)
 })
 
 test("filterSocialRecords combines text search with workspace filters", () => {
