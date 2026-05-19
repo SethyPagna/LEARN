@@ -443,24 +443,25 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
         </div>
       </Panel>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {flowCards.map((card) => {
-          const Icon = card.id === "chat" ? MessageSquare : card.id === "spaces" ? Users : card.id === "rooms" ? Radio : Swords
-          return (
-            <SocialFlowButton
-              key={card.id}
-              action={card.action}
-              count={card.count}
-              icon={Icon}
-              label={card.label}
-              onCreate={() => void createSocialPlace(card.id)}
-              onOpen={() => open(card.id)}
-              ready={card.ready}
-            />
-          )
-        })}
-      </div>
-
+      <Panel className="p-2">
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+          {flowCards.map((card) => {
+            const Icon = card.id === "chat" ? MessageSquare : card.id === "spaces" ? Users : card.id === "rooms" ? Radio : Swords
+            return (
+              <SocialFlowButton
+                key={card.id}
+                action={card.action}
+                count={card.count}
+                icon={Icon}
+                label={card.label}
+                onCreate={() => void createSocialPlace(card.id)}
+                onOpen={() => open(card.id)}
+                ready={card.ready}
+              />
+            )
+          })}
+        </div>
+      </Panel>
     </div>
   )
 }
@@ -483,20 +484,20 @@ function SocialFlowButton({
   ready: boolean
 }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-3">
-      <button onClick={onOpen} className="flex w-full items-center gap-3 text-left">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/12 text-primary">
+    <div className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-md border border-border bg-card p-2">
+      <button onClick={onOpen} className="flex min-w-0 items-center gap-3 rounded-md p-1.5 text-left hover:bg-accent hover:text-accent-foreground">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/12 text-primary">
           <Icon className="h-5 w-5" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block font-semibold text-foreground">{label}</span>
+          <span className="block truncate text-sm font-semibold text-foreground">{label}</span>
           <span className="block text-xs text-muted-foreground">{count} saved</span>
         </span>
         <span className={`rounded-md px-2 py-1 text-[0.68rem] font-semibold ${ready ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{ready ? "ready" : "new"}</span>
       </button>
-      <button onClick={onCreate} className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+      <button onClick={onCreate} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" title={action}>
         <Plus className="h-4 w-4" />
-        {action}
+        <span className="hidden sm:inline">{action}</span>
       </button>
     </div>
   )
