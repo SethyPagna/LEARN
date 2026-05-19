@@ -162,6 +162,13 @@ export type SocialInviteValidation =
   | { ok: true; value: SocialInviteDraft }
   | { ok: false; error: string }
 
+export interface SocialInviteReadiness {
+  enabled: boolean
+  label: string
+  message: string
+  tone: "blocked" | "invalid" | "ready" | "created"
+}
+
 export function parseThreadTitle(title = "") {
   const [maybeChannel, ...rest] = title.split(" - ")
   const channel = maybeChannel.startsWith("#") ? maybeChannel : "#general"
@@ -417,6 +424,36 @@ export function buildSocialActionReadiness(kind: SocialWorkspaceKind, action: So
     enabled: false,
     label: "Save first",
   }
+}
+
+export function buildSocialInviteReadiness(input: {
+  email?: string
+  kind: SocialWorkspaceKind
+  linkReady?: boolean
+  loading?: boolean
+  saved: boolean
+}): SocialInviteReadiness {
+  const noun = input.kind === "rooms" ? "room" : input.kind === "battles" ? "battle" : "space"
+  if (input.loading) {
+    return { enabled: false, label: "Creating...", message: "Creating secure invite link.", tone: "ready" }
+  }
+  if (!input.saved) {
+    return {
+      enabled: false,
+      label: "Save first",
+      message: `Save this ${noun} before creating a secure invite link.`,
+      tone: "blocked",
+    }
+  }
+
+  const validation = normalizeSocialInviteDraft({ email: input.email })
+  if (!validation.ok) {
+    return { enabled: false, label: "Enter email", message: validation.error, tone: "invalid" }
+  }
+  if (input.linkReady) {
+    return { enabled: true, label: "Refresh link", message: "Invite link is ready.", tone: "created" }
+  }
+  return { enabled: true, label: "Create link", message: "Ready to create a secure invite.", tone: "ready" }
 }
 
 export function normalizeSocialInviteDraft(input: { email?: string; role?: string }): SocialInviteValidation {
