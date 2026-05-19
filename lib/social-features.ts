@@ -71,6 +71,10 @@ export interface SocialActionItem {
   detail: string
 }
 
+export interface SocialActionReadiness extends SocialActionItem {
+  enabled: boolean
+}
+
 export interface SocialActionKit {
   headline: string
   brief: string
@@ -401,6 +405,18 @@ export function buildSocialActionKit(kind: SocialWorkspaceKind, input: {
       { id: "practice", label: "Practice", detail: "Create a drill." },
     ],
   } satisfies SocialActionKit
+}
+
+export function buildSocialActionReadiness(kind: SocialWorkspaceKind, action: SocialActionItem, saved: boolean): SocialActionReadiness {
+  if (saved) return { ...action, enabled: true }
+
+  const noun = kind === "rooms" ? "room" : kind === "battles" ? "battle" : "space"
+  return {
+    ...action,
+    detail: `Save this ${noun} before using ${action.label.toLowerCase()}.`,
+    enabled: false,
+    label: "Save first",
+  }
 }
 
 export function normalizeSocialInviteDraft(input: { email?: string; role?: string }): SocialInviteValidation {
