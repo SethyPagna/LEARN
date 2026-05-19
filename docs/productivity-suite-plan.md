@@ -170,6 +170,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-19: Continued Social label consistency by aligning navigation, dashboard, profile, intro, and showcase copy around Groups while preserving `/spaces` compatibility.
 - 2026-05-19: Continued Social label polish by aligning the Feed ritual button and Social tab caption with Groups terminology.
 - 2026-05-19: Continued Social API copy polish by keeping `/api/learning-spaces` stable while changing fallback error text to learner-facing group language.
+- 2026-05-19: Continued Groups compatibility by adding `/groups` as a friendly route alias for the existing `/spaces` Social surface.
 
 ## Implementation Slices
 
