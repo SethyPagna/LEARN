@@ -12,7 +12,7 @@ import { QuizView } from "../quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeWorkspacePlan, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialCommandPrimaryAction, buildSocialCommandSummary, buildSocialFlowCards, normalizeSocialInviteDraft, summarizeConnections, type SocialCommandPrimaryActionId, type SocialFlowId, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialCommandPrimaryAction, buildSocialCommandSummary, buildSocialFlowCards, normalizeSocialInviteDraft, summarizeConnections, type ConnectionActionId, type SocialCommandPrimaryActionId, type SocialFlowId, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type PracticeTab = "quizzes" | "games"
 type SocialTab = "home" | "chat" | "spaces" | "rooms" | "battles"
@@ -178,6 +178,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const [commandTab, setCommandTab] = useState<SocialCommandTab>("people")
   const [peopleLimit, setPeopleLimit] = useState(5)
   const [connectionLimit, setConnectionLimit] = useState(6)
+  const [connectionAction, setConnectionAction] = useState<{ action: ConnectionActionId; targetId: string } | null>(null)
   const connectionSummary = useMemo(() => summarizeConnections(connections), [connections])
   const peoplePage = useMemo(() => buildConnectablePeoplePage({ members, connections, currentUserId, query, limit: peopleLimit }), [connections, currentUserId, members, peopleLimit, query])
   const connectionPage = useMemo(() => buildConnectionsPage(connections, connectionLimit), [connectionLimit, connections])
@@ -244,7 +245,8 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   }, [])
 
   async function connect(member: WorkspaceMemberLike, type: "friend" | "follow") {
-    if (!member.id) return
+    if (!member.id || connectionAction) return
+    setConnectionAction({ action: type, targetId: member.id })
     setStatus(type === "friend" ? "Adding friend..." : "Following...")
     try {
       await api("/api/connections", {
@@ -255,13 +257,16 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
       setStatus(type === "friend" ? "Friend request ready" : "Following")
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to connect")
+    } finally {
+      setConnectionAction(null)
     }
   }
 
   async function removeConnection(connection: UserConnectionLike) {
     const targetUserId = String(connection.target_user_id || connection.targetUserId || "")
-    if (!targetUserId) return
+    if (!targetUserId || connectionAction) return
     const connectionType = String(connection.connection_type || connection.connectionType || "follow")
+    setConnectionAction({ action: "remove", targetId: targetUserId })
     setStatus("Removing...")
     try {
       await api("/api/connections", {
@@ -272,6 +277,8 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
       setStatus("Removed")
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to remove")
+    } finally {
+      setConnectionAction(null)
     }
   }
 
@@ -419,18 +426,28 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                   ) : null}
                 </div>
                 <div className="grid gap-2">
-                  {connectableMembers.map((member) => (
-                    <div key={member.id || member.email} className="grid gap-2 rounded-md border border-border bg-card p-2 sm:grid-cols-[1fr_auto] sm:items-center">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-foreground">{member.name || member.email || "Learner"}</p>
-                        <p className="truncate text-xs text-muted-foreground">{member.email || member.role || "Workspace member"}</p>
+                  {connectableMembers.map((member) => {
+                    const targetId = String(member.id || "")
+                    const actions = buildConnectionActions({
+                      busyAction: connectionAction?.targetId === targetId ? connectionAction.action : null,
+                      busyTargetId: connectionAction?.targetId,
+                      targetId,
+                    })
+                    const friendAction = actions.find((action) => action.id === "friend")
+                    const followAction = actions.find((action) => action.id === "follow")
+                    return (
+                      <div key={member.id || member.email} className="grid gap-2 rounded-md border border-border bg-card p-2 sm:grid-cols-[1fr_auto] sm:items-center">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">{member.name || member.email || "Learner"}</p>
+                          <p className="truncate text-xs text-muted-foreground">{member.email || member.role || "Workspace member"}</p>
+                        </div>
+                        <div className="flex gap-1">
+                          <button onClick={() => void connect(member, "friend")} disabled={friendAction?.disabled} className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60">{friendAction?.busy ? friendAction.busyLabel : friendAction?.label || "Add"}</button>
+                          <button onClick={() => void connect(member, "follow")} disabled={followAction?.disabled} className="rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs font-semibold text-secondary-foreground disabled:cursor-not-allowed disabled:opacity-60">{followAction?.busy ? followAction.busyLabel : followAction?.label || "Follow"}</button>
+                        </div>
                       </div>
-                      <div className="flex gap-1">
-                        <button onClick={() => void connect(member, "friend")} className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground">Add</button>
-                        <button onClick={() => void connect(member, "follow")} className="rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs font-semibold text-secondary-foreground">Follow</button>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                   {!connectableMembers.length ? (
                     <div className="grid gap-2 rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground sm:grid-cols-[1fr_auto] sm:items-center">
                       <span>{peoplePage.emptyAction === "invite" ? "No matching learner yet." : "Search members or invite a new learner."}</span>
@@ -491,14 +508,21 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                     const targetUserId = String(connection.target_user_id || connection.targetUserId || "")
                     const label = connection.name || connection.username || targetUserId || "Connection"
                     const type = String(connection.connection_type || connection.connectionType || "follow")
+                    const removeAction = buildConnectionActions({
+                      busyAction: connectionAction?.targetId === targetUserId ? connectionAction.action : null,
+                      busyTargetId: connectionAction?.targetId,
+                      connected: true,
+                      targetId: targetUserId,
+                    }).find((action) => action.id === "remove")
                     return (
                       <div key={`${targetUserId}-${type}`} className="flex items-center justify-between gap-2 rounded-md border border-border bg-card p-2">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-foreground">{label}</p>
                           <p className="truncate text-xs text-muted-foreground">{type} - {connection.status || "accepted"}</p>
                         </div>
-                        <button onClick={() => void removeConnection(connection)} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label={`Remove ${label}`}>
+                        <button onClick={() => void removeConnection(connection)} disabled={removeAction?.disabled} className="inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-md border border-border px-2 text-xs font-semibold text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60" aria-label={`Remove ${label}`}>
                           <Trash2 className="h-4 w-4" />
+                          {removeAction?.busy ? removeAction.busyLabel : ""}
                         </button>
                       </div>
                     )
