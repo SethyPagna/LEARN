@@ -23,7 +23,7 @@ import {
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import type React from "react"
-import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardQuickActionGroups, buildDashboardRecentWork, buildDashboardRouteActions, buildDashboardSignals, type DashboardCommandTarget, type DashboardQuickActionIcon, type DashboardRecentWorkItem } from "@/lib/dashboard-features"
+import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardQuickActionGroups, buildDashboardRecentWork, buildDashboardRouteActions, buildDashboardSignals, buildDashboardWeakTopicCards, type DashboardCommandTarget, type DashboardQuickActionIcon, type DashboardRecentWorkItem } from "@/lib/dashboard-features"
 import { normalizeOnboardingPreferences, onboardingTargetView, shouldShowOnboarding, type OnboardingStudioKind, type OnboardingWorkflow } from "@/lib/onboarding-features"
 import { api } from "../api"
 import type { WorkspaceOptions } from "../preferences"
@@ -131,6 +131,7 @@ export function DashboardView({
     }),
     [dashboard?.attempts, dashboard?.chats, dashboard?.files, notes],
   )
+  const weakTopicCards = useMemo(() => buildDashboardWeakTopicCards(weakTopics), [weakTopics])
   const CommandIcon = dashboardCommandIcons[commandPlan.target]
   const actionGroups = useMemo(() => buildDashboardQuickActionGroups(), [])
 
@@ -242,12 +243,13 @@ export function DashboardView({
       <Panel className="p-4">
         <SectionHeader icon={Brain} title="Weak topics" body="Lower accuracy appears first so practice is easier to choose." />
         <div className="mt-4 space-y-2">
-          {(weakTopics.length ? weakTopics : [{ topic: "No attempts yet", accuracy: 100 }]).slice(0, 5).map((topic: any) => (
-            <button key={topic.topic} onClick={() => setView("practice")} className="w-full rounded-md border border-border bg-background p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
+          {weakTopicCards.map((topic) => (
+            <button key={topic.label} onClick={() => setView("practice")} className="w-full rounded-md border border-border bg-background p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
               <div className="flex justify-between gap-3 text-sm">
-                <span className="font-medium text-foreground">{topic.topic}</span>
-                <span className="text-muted-foreground">{topic.accuracy}%</span>
+                <span className="font-medium text-foreground">{topic.label}</span>
+                <StatusPill label={`${topic.accuracy}%`} tone={topic.tone} />
               </div>
+              <p className="mt-1 text-xs text-muted-foreground">{topic.attempts} attempt{topic.attempts === 1 ? "" : "s"}</p>
               {options.showWeakTopicBars ? (
                 <div className="mt-2 h-2 rounded-full bg-muted">
                   <div className="h-2 rounded-full bg-success" style={{ width: `${Math.max(8, topic.accuracy)}%` }} />
@@ -255,6 +257,12 @@ export function DashboardView({
               ) : null}
             </button>
           ))}
+          {!weakTopicCards.length ? (
+            <button onClick={() => setView("practice")} className="w-full rounded-md border border-dashed border-border bg-background p-4 text-left transition hover:bg-accent hover:text-accent-foreground">
+              <span className="block text-sm font-semibold text-foreground">No weak topic yet</span>
+              <span className="mt-1 block text-xs text-muted-foreground">Run a quiz or game to create real signals.</span>
+            </button>
+          ) : null}
         </div>
       </Panel>
 
