@@ -30,6 +30,11 @@ export interface FileLibraryActionPlan {
   chips: string[]
 }
 
+export interface FileLibraryFilterSummary {
+  active: boolean
+  label: string
+}
+
 export interface FileLibraryActionInput {
   selectedId?: string
   query?: string
@@ -160,6 +165,31 @@ export function buildFileLibraryActionPlan(
     nextAction: "download",
     targetFileId: selectedFile.id,
     chips: [fileKindLabel(selectedKind), "stored", "download"],
+  }
+}
+
+export function buildFileLibraryFilterSummary(input: {
+  filter?: FileLibraryFilter
+  query?: string
+  total: number
+  visible: number
+}): FileLibraryFilterSummary {
+  const query = input.query?.trim() || ""
+  const filter = input.filter || "all"
+  const active = Boolean(query) || filter !== "all"
+
+  if (!active) {
+    return { active: false, label: `${input.visible}/${input.total} visible` }
+  }
+
+  const parts = [
+    query ? `"${query}"` : "",
+    filter !== "all" ? fileKindLabel(filter) : "",
+  ].filter(Boolean)
+
+  return {
+    active: true,
+    label: `Filtered: ${parts.join(" + ")} (${input.visible}/${input.total})`,
   }
 }
 
