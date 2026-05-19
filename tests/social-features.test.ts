@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildSocialActionKit, buildSocialActivityTimeline, buildSocialWorkspacePlan, filterChatThreads, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildSocialActionKit, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialWorkspacePlan, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -138,6 +138,22 @@ test("workspace member helpers summarize and filter people context", () => {
   assert.equal(summary.pending, 1)
   assert.equal(summary.newest?.name, "Pending Friend")
   assert.deepEqual(filterWorkspaceMembers(members, "admin").map((member) => member.email), ["admin@example.com"])
+})
+
+test("connection helpers find connectable people and summarize social setup", () => {
+  const members = [
+    { id: "me", name: "Me" },
+    { id: "u1", name: "Alex", email: "alex@example.com" },
+    { id: "u2", name: "Mina", email: "mina@example.com" },
+  ]
+  const connections = [
+    { target_user_id: "u1", connection_type: "friend", status: "accepted" },
+    { target_user_id: "u3", connection_type: "follow", status: "pending" },
+  ]
+
+  assert.deepEqual(filterConnectableMembers(members, connections, "me").map((member) => member.id), ["u2"])
+  assert.deepEqual(summarizeConnections(connections), { total: 2, friends: 1, follows: 1, pending: 1, blocked: 0 })
+  assert.equal(buildSocialCommandSummary({ memberCount: 3, connectionCount: 2, threadCount: 0, spaceCount: 1, roomCount: 0, battleCount: 1 }).headline, "Social is ready")
 })
 
 test("buildSocialActivityTimeline turns workspace state into compact next steps", () => {

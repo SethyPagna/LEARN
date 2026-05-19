@@ -103,6 +103,27 @@ export interface WorkspaceMemberSummary {
   newest?: WorkspaceMemberLike
 }
 
+export interface UserConnectionLike {
+  target_user_id?: string
+  targetUserId?: string
+  connection_type?: string
+  connectionType?: string
+  status?: string
+  username?: string
+  name?: string
+  avatar_url?: string
+  avatarUrl?: string
+}
+
+export interface SocialCommandSummary {
+  headline: string
+  peopleReady: boolean
+  chatReady: boolean
+  groupsReady: boolean
+  liveReady: boolean
+  chips: string[]
+}
+
 export interface SocialActivityItem {
   id: string
   label: string
@@ -414,6 +435,62 @@ export function filterWorkspaceMembers(members: WorkspaceMemberLike[], query = "
     member.role,
     member.status,
   ].join(" ").toLowerCase().includes(normalized))
+}
+
+export function summarizeConnections(connections: UserConnectionLike[]) {
+  let friends = 0
+  let follows = 0
+  let pending = 0
+  let blocked = 0
+
+  for (const connection of connections) {
+    const type = String(connection.connection_type || connection.connectionType || "follow")
+    const status = String(connection.status || "accepted")
+    if (type === "friend") friends += 1
+    else follows += 1
+    if (status === "pending") pending += 1
+    if (status === "blocked") blocked += 1
+  }
+
+  return { total: connections.length, friends, follows, pending, blocked }
+}
+
+export function filterConnectableMembers(members: WorkspaceMemberLike[], connections: UserConnectionLike[], currentUserId?: string, query = "") {
+  const connected = new Set(connections.map((connection) => String(connection.target_user_id || connection.targetUserId || "")))
+  return filterWorkspaceMembers(members, query).filter((member) => {
+    const id = String(member.id || "")
+    if (!id || id === currentUserId) return false
+    return !connected.has(id)
+  })
+}
+
+export function buildSocialCommandSummary(input: {
+  memberCount: number
+  connectionCount: number
+  threadCount: number
+  spaceCount: number
+  roomCount: number
+  battleCount: number
+}): SocialCommandSummary {
+  const peopleReady = input.memberCount > 1 || input.connectionCount > 0
+  const chatReady = input.threadCount > 0
+  const groupsReady = input.spaceCount > 0
+  const liveReady = input.roomCount > 0 || input.battleCount > 0
+  const readyCount = [peopleReady, chatReady, groupsReady, liveReady].filter(Boolean).length
+
+  return {
+    headline: readyCount >= 3 ? "Social is ready" : readyCount ? "Finish setup" : "Start with people",
+    peopleReady,
+    chatReady,
+    groupsReady,
+    liveReady,
+    chips: [
+      `${input.memberCount} people`,
+      `${input.connectionCount} connections`,
+      `${input.threadCount} chats`,
+      `${input.spaceCount + input.roomCount + input.battleCount} study areas`,
+    ],
+  }
 }
 
 export function buildSocialActivityTimeline(input: {
