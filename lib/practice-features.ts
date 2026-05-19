@@ -60,6 +60,17 @@ export interface PracticeRunActionState {
   busy: boolean
 }
 
+export type GameRunActionId = "next-prompt" | "finish-run" | "restart"
+
+export interface GameRunActionState {
+  id: GameRunActionId
+  label: string
+  busyLabel: string
+  helper: string
+  disabled: boolean
+  busy: boolean
+}
+
 export const practiceModeGroups: PracticeModeGroup[] = [
   {
     id: "core",
@@ -210,6 +221,38 @@ export function buildPracticeRunActions(input: {
       busyLabel: "Resetting",
       helper: "Return to every question in the quiz bank.",
       disabled: !input.retryActive,
+    },
+  ]
+
+  return actions.map((action) => ({
+    ...action,
+    busy: input.busyAction === action.id,
+    disabled: busy || action.disabled,
+  }))
+}
+
+export function buildGameRunActions(input: {
+  busyAction?: GameRunActionId | null
+  hasFeedback?: boolean
+  isComplete?: boolean
+  isLastPrompt?: boolean
+}): GameRunActionState[] {
+  const busy = Boolean(input.busyAction)
+  const nextId: GameRunActionId = input.isLastPrompt ? "finish-run" : "next-prompt"
+  const actions: Array<Omit<GameRunActionState, "busy" | "disabled"> & { disabled: boolean }> = [
+    {
+      id: nextId,
+      label: input.isLastPrompt ? "Finish run" : "Next prompt",
+      busyLabel: input.isLastPrompt ? "Finishing" : "Loading",
+      helper: input.isLastPrompt ? "Save this sprint result." : "Move to the next prompt.",
+      disabled: !input.hasFeedback || Boolean(input.isComplete),
+    },
+    {
+      id: "restart",
+      label: "Restart",
+      busyLabel: "Restarting",
+      helper: "Start this sprint from the first prompt.",
+      disabled: false,
     },
   ]
 

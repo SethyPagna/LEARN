@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import type { QuizQuestion } from "../components/learn/types"
 import { hasPracticeDraftContent, listPracticeDraftCards, normalizePracticeDraft, summarizePracticeDrafts } from "../lib/practice-drafts"
-import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, buildPracticeWorkspacePlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../lib/practice-features"
+import { buildGameRunActions, buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, buildPracticeWorkspacePlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../lib/practice-features"
 
 const questions: QuizQuestion[] = [
   { id: "q1", question: "One?", choices: [{ id: "a", text: "1" }, { id: "b", text: "2" }], correct_answer_id: "a", topic: "Math", explanation: "One" },
@@ -222,6 +222,17 @@ test("game choice evaluation returns feedback and correct answer text", () => {
   assert.equal(feedback.selectedChoiceText, "1")
   assert.equal(feedback.correctChoiceText, "2")
   assert.equal(feedback.explanation, "Two")
+})
+
+test("game run actions gate next and finish states", () => {
+  const waitingActions = buildGameRunActions({ hasFeedback: false })
+  const nextActions = buildGameRunActions({ hasFeedback: true })
+  const finishActions = buildGameRunActions({ hasFeedback: true, isLastPrompt: true, busyAction: "finish-run" })
+
+  assert.equal(waitingActions.find((action) => action.id === "next-prompt")?.disabled, true)
+  assert.equal(nextActions.find((action) => action.id === "next-prompt")?.disabled, false)
+  assert.equal(finishActions.find((action) => action.id === "finish-run")?.busy, true)
+  assert.equal(finishActions.every((action) => action.disabled), true)
 })
 
 test("game run summary captures accuracy pace and next action", () => {
