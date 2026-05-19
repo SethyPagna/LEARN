@@ -19,6 +19,7 @@ import {
   getRecommendedAiTutorTokens,
   resolveAiTutorEffectiveTokens,
   splitPromptPreview,
+  summarizeAiTutorUploadedSource,
   summarizeAiTutorWorkflow,
 } from "../lib/ai/tutor-workflow"
 import { listProviderPresets, getProviderMetadata, resolveConfiguredProvider } from "../lib/ai/providers"
@@ -475,6 +476,38 @@ test("AI tutor primary action routes users to the useful next step", () => {
 
   assert.equal(gatewayPlan.action, "gateway")
   assert.equal(gatewayPlan.label, "Fix gateway")
+})
+
+test("AI tutor uploaded source summary prefers pasted material then saved imports", () => {
+  const pasted = summarizeAiTutorUploadedSource({
+    draftText: "Fresh pasted notes",
+    savedText: "Older import",
+    savedTitle: "Older Deck",
+  })
+
+  assert.equal(pasted.attached, true)
+  assert.equal(pasted.badgeCount, 1)
+  assert.equal(pasted.source, "pasted")
+  assert.equal(pasted.label, "Pasted source")
+
+  const saved = summarizeAiTutorUploadedSource({
+    draftText: "",
+    savedText: "Imported lecture transcript",
+    savedTitle: "Lecture Capture",
+  })
+
+  assert.equal(saved.attached, true)
+  assert.equal(saved.source, "saved")
+  assert.match(saved.label, /Lecture Capture/)
+
+  const empty = summarizeAiTutorUploadedSource({
+    draftText: "  ",
+    savedText: "",
+  })
+
+  assert.equal(empty.attached, false)
+  assert.equal(empty.badgeCount, 0)
+  assert.equal(empty.source, "empty")
 })
 
 test("AI tutor workflow blocks missing prompts and splits previews", () => {

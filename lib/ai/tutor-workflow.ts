@@ -43,6 +43,14 @@ export interface AiTutorPrimaryActionPlan {
   statusMessage: string
 }
 
+export interface AiTutorUploadedSourceSummary {
+  attached: boolean
+  badgeCount: number
+  label: string
+  detail: string
+  source: "pasted" | "saved" | "empty"
+}
+
 export function buildAiTutorSourceContext(input: {
   message: string
   recentContext: string
@@ -262,6 +270,42 @@ export function buildAiTutorPrimaryActionPlan(input: {
     label: "Run tutor",
     disabled: false,
     statusMessage: "",
+  }
+}
+
+export function summarizeAiTutorUploadedSource(input: {
+  draftText: string
+  savedText: string
+  savedTitle?: string
+}) {
+  const draftLength = input.draftText.trim().length
+  if (draftLength > 0) {
+    return {
+      attached: true,
+      badgeCount: 1,
+      label: "Pasted source",
+      detail: formatContextSize(draftLength),
+      source: "pasted" as const,
+    }
+  }
+
+  const savedLength = input.savedText.trim().length
+  if (savedLength > 0) {
+    return {
+      attached: true,
+      badgeCount: 1,
+      label: input.savedTitle ? `Saved: ${input.savedTitle}` : "Saved source",
+      detail: formatContextSize(savedLength),
+      source: "saved" as const,
+    }
+  }
+
+  return {
+    attached: false,
+    badgeCount: 0,
+    label: "No source",
+    detail: "Paste or import material to attach context.",
+    source: "empty" as const,
   }
 }
 
