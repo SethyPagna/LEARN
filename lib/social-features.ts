@@ -79,6 +79,15 @@ export interface SocialActionKit {
   actions: SocialActionItem[]
 }
 
+export interface SocialInviteDraft {
+  email: string
+  role: "learner" | "admin"
+}
+
+export type SocialInviteValidation =
+  | { ok: true; value: SocialInviteDraft }
+  | { ok: false; error: string }
+
 export function parseThreadTitle(title = "") {
   const [maybeChannel, ...rest] = title.split(" - ")
   const channel = maybeChannel.startsWith("#") ? maybeChannel : "#general"
@@ -322,6 +331,13 @@ export function buildSocialActionKit(kind: SocialWorkspaceKind, input: {
       { id: "practice", label: "Practice", detail: "Create a drill." },
     ],
   } satisfies SocialActionKit
+}
+
+export function normalizeSocialInviteDraft(input: { email?: string; role?: string }): SocialInviteValidation {
+  const email = String(input.email || "").trim().toLowerCase()
+  const role = input.role === "admin" ? "admin" : "learner"
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: "Enter a valid email address." }
+  return { ok: true, value: { email, role } }
 }
 
 export function filterSocialRecords(records: SocialRecordLike[], input: { query?: string; filter?: SocialRecordFilter }) {

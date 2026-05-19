@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildSocialActionKit, buildSocialWorkspacePlan, filterChatThreads, filterSocialRecords, parseThreadTitle, summarizeChatWorkspace, summarizeSocialWorkspace } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildSocialActionKit, buildSocialWorkspacePlan, filterChatThreads, filterSocialRecords, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeSocialWorkspace } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -109,6 +109,18 @@ test("buildSocialActionKit creates compact next-step actions per social surface"
   assert.match(spaceKit.inviteText, /Algebra circle/)
   assert.deepEqual(roomKit.actions.map((action) => action.id), ["invite", "chat", "calendar", "files"])
   assert.deepEqual(battleKit.actions.map((action) => action.id), ["invite", "practice", "chat", "calendar"])
+})
+
+test("normalizeSocialInviteDraft validates email and role for secure invites", () => {
+  assert.deepEqual(normalizeSocialInviteDraft({ email: " New.User@Example.COM ", role: "admin" }), {
+    ok: true,
+    value: { email: "new.user@example.com", role: "admin" },
+  })
+  assert.deepEqual(normalizeSocialInviteDraft({ email: "learner@example.com", role: "owner" }), {
+    ok: true,
+    value: { email: "learner@example.com", role: "learner" },
+  })
+  assert.equal(normalizeSocialInviteDraft({ email: "bad" }).ok, false)
 })
 
 test("filterSocialRecords combines text search with workspace filters", () => {
