@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialActionKit, buildSocialActivityTimeline, buildSocialCommandSummary, buildSocialFlowCards, buildSocialRecordsPage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -253,4 +253,17 @@ test("filterSocialRecords combines text search with workspace filters", () => {
   assert.equal(filterSocialRecords(records, { filter: "private" }).length, 1)
   assert.equal(filterSocialRecords(records, { filter: "team" }).length, 1)
   assert.equal(filterSocialRecords(records, { query: "math", filter: "active" }).length, 1)
+})
+
+test("social records page keeps filtered lists compact", () => {
+  const records = [
+    { name: "Room 1", status: "open", mode: "focus" },
+    { name: "Room 2", status: "open", mode: "focus" },
+    { name: "Team battle", status: "waiting", mode: "team" },
+  ]
+  const page = buildSocialRecordsPage(records, { filter: "active", limit: 2 })
+
+  assert.deepEqual(page.items.map((record) => record.name), ["Room 1", "Room 2"])
+  assert.equal(page.total, 3)
+  assert.equal(page.hiddenCount, 1)
 })
