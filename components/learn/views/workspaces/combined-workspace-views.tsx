@@ -12,7 +12,7 @@ import { QuizView } from "../quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeWorkspacePlan, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildConnectablePeoplePage, buildSocialCommandSummary, buildSocialFlowCards, summarizeConnections, type SocialFlowId, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionsPage, buildSocialCommandSummary, buildSocialFlowCards, summarizeConnections, type SocialFlowId, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type PracticeTab = "quizzes" | "games"
 type SocialTab = "home" | "chat" | "spaces" | "rooms" | "battles"
@@ -177,8 +177,10 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const [status, setStatus] = useState("Loading")
   const [commandTab, setCommandTab] = useState<SocialCommandTab>("people")
   const [peopleLimit, setPeopleLimit] = useState(5)
+  const [connectionLimit, setConnectionLimit] = useState(6)
   const connectionSummary = useMemo(() => summarizeConnections(connections), [connections])
   const peoplePage = useMemo(() => buildConnectablePeoplePage({ members, connections, currentUserId, query, limit: peopleLimit }), [connections, currentUserId, members, peopleLimit, query])
+  const connectionPage = useMemo(() => buildConnectionsPage(connections, connectionLimit), [connectionLimit, connections])
   const connectableMembers = peoplePage.items
   const commandSummary = useMemo(() => buildSocialCommandSummary({
     memberCount: members.length,
@@ -438,7 +440,15 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
             {commandTab === "connections" ? (
               <div className="grid gap-3 lg:grid-cols-[1fr_1fr]">
                 <div className="grid gap-2">
-                  {connections.slice(0, 6).map((connection) => {
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{connectionPage.total} connected</span>
+                    {connectionPage.hiddenCount ? (
+                      <button onClick={() => setConnectionLimit((limit) => limit + 6)} className="rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+                        Show {Math.min(6, connectionPage.hiddenCount)} more
+                      </button>
+                    ) : null}
+                  </div>
+                  {connectionPage.items.map((connection) => {
                     const targetUserId = String(connection.target_user_id || connection.targetUserId || "")
                     const label = connection.name || connection.username || targetUserId || "Connection"
                     const type = String(connection.connection_type || connection.connectionType || "follow")
@@ -457,7 +467,10 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                   {!connections.length ? <p className="rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">No connections yet.</p> : null}
                 </div>
                 <div className="grid content-start gap-2 sm:grid-cols-2">
-                  {commandSummary.chips.map((chip) => <span key={chip} className="rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground">{chip}</span>)}
+                  <span className="rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground">{connectionPage.summary.friends} friends</span>
+                  <span className="rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground">{connectionPage.summary.follows} follows</span>
+                  <span className="rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground">{connectionPage.summary.pending} pending</span>
+                  <span className="rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground">{connectionPage.summary.blocked} blocked</span>
                 </div>
               </div>
             ) : null}
