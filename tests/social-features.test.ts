@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerPlan, buildChatDraftPayload, buildSocialWorkspacePlan, filterChatThreads, filterSocialRecords, parseThreadTitle, summarizeChatWorkspace, summarizeSocialWorkspace } from "../lib/social-features"
+import { buildChatComposerPlan, buildChatDraftPayload, buildSocialActionKit, buildSocialWorkspacePlan, filterChatThreads, filterSocialRecords, parseThreadTitle, summarizeChatWorkspace, summarizeSocialWorkspace } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -97,6 +97,18 @@ test("buildSocialWorkspacePlan recommends kind-specific next moves", () => {
   assert.equal(activeRooms.primaryAction, "Join active room")
   assert.equal(teamBattles.primaryAction, "Run team round")
   assert.match(emptySpaces.safetyCue, /opt-in/)
+})
+
+test("buildSocialActionKit creates compact next-step actions per social surface", () => {
+  const spaceKit = buildSocialActionKit("spaces", { title: "Algebra circle", saved: false, visibility: "private", topic: "algebra" })
+  const roomKit = buildSocialActionKit("rooms", { title: "Focus block", saved: true, status: "open", mode: "focus" })
+  const battleKit = buildSocialActionKit("battles", { title: "Index sprint", saved: true, status: "waiting", mode: "team", topic: "databases" })
+
+  assert.equal(spaceKit.chips[0], "Save first")
+  assert.equal(spaceKit.actions[0].id, "invite")
+  assert.match(spaceKit.inviteText, /Algebra circle/)
+  assert.deepEqual(roomKit.actions.map((action) => action.id), ["invite", "chat", "calendar", "files"])
+  assert.deepEqual(battleKit.actions.map((action) => action.id), ["invite", "practice", "chat", "calendar"])
 })
 
 test("filterSocialRecords combines text search with workspace filters", () => {

@@ -63,6 +63,22 @@ export interface SocialWorkspacePlan {
   emptyHint: string
 }
 
+export type SocialActionTarget = "invite" | "chat" | "calendar" | "practice" | "files"
+
+export interface SocialActionItem {
+  id: SocialActionTarget
+  label: string
+  detail: string
+}
+
+export interface SocialActionKit {
+  headline: string
+  brief: string
+  inviteText: string
+  chips: string[]
+  actions: SocialActionItem[]
+}
+
 export function parseThreadTitle(title = "") {
   const [maybeChannel, ...rest] = title.split(" - ")
   const channel = maybeChannel.startsWith("#") ? maybeChannel : "#general"
@@ -251,6 +267,63 @@ export function buildSocialWorkspacePlan(kind: SocialWorkspaceKind, summary: Soc
   }
 }
 
+export function buildSocialActionKit(kind: SocialWorkspaceKind, input: {
+  title?: string
+  saved?: boolean
+  status?: string
+  visibility?: string
+  mode?: string
+  topic?: string
+}) {
+  const title = (input.title || "").trim() || fallbackSocialTitle(kind)
+  const savedCue = input.saved ? "Ready" : "Save first"
+  const status = input.status || input.visibility || input.mode || "draft"
+  const topic = input.topic?.trim() || (kind === "battles" ? "review" : "study")
+
+  if (kind === "rooms") {
+    return {
+      headline: input.saved ? "Run the room" : "Set up the room",
+      brief: "Invite learners, run a focus timer, then post a short recap.",
+      inviteText: `Join my LEARN study room: ${title}. Mode: ${input.mode || "focus"}. We will focus, recap, and save next steps.`,
+      chips: [savedCue, status, input.mode || "focus"],
+      actions: [
+        { id: "invite", label: "Invite", detail: "Copy a room invite." },
+        { id: "chat", label: "Chat", detail: "Open discussion." },
+        { id: "calendar", label: "Schedule", detail: "Plan the next block." },
+        { id: "files", label: "Resources", detail: "Attach study files." },
+      ],
+    } satisfies SocialActionKit
+  }
+
+  if (kind === "battles") {
+    return {
+      headline: input.saved ? "Play and review" : "Prepare the battle",
+      brief: "Invite players, run a short round, then save missed questions to reviews.",
+      inviteText: `Join my LEARN study battle: ${title}. Topic: ${topic}. We will play a short round and review missed questions together.`,
+      chips: [savedCue, status, input.mode || "solo"],
+      actions: [
+        { id: "invite", label: "Invite", detail: "Copy a battle invite." },
+        { id: "practice", label: "Practice", detail: "Open drills." },
+        { id: "chat", label: "Recap", detail: "Discuss misses." },
+        { id: "calendar", label: "Rematch", detail: "Schedule another round." },
+      ],
+    } satisfies SocialActionKit
+  }
+
+  return {
+    headline: input.saved ? "Grow the circle" : "Shape the circle",
+    brief: "Keep the circle private until it has a topic, invite a small group, then share useful Studio items.",
+    inviteText: `Join my LEARN learning space: ${title}. It is for ${topic} study, shared notes, questions, and focused practice.`,
+    chips: [savedCue, status, input.visibility || "private"],
+    actions: [
+      { id: "invite", label: "Invite", detail: "Copy a space invite." },
+      { id: "chat", label: "Chat", detail: "Start a thread." },
+      { id: "files", label: "Resources", detail: "Add files." },
+      { id: "practice", label: "Practice", detail: "Create a drill." },
+    ],
+  } satisfies SocialActionKit
+}
+
 export function filterSocialRecords(records: SocialRecordLike[], input: { query?: string; filter?: SocialRecordFilter }) {
   const query = input.query?.trim().toLowerCase() || ""
   const filter = input.filter || "all"
@@ -272,6 +345,12 @@ export function socialRecordTitle(record: SocialRecordLike) {
 
 export function socialRecordStatus(record: SocialRecordLike) {
   return String(record.status || record.visibility || record.mode || "ready").trim()
+}
+
+function fallbackSocialTitle(kind: SocialWorkspaceKind) {
+  if (kind === "rooms") return "Focus room"
+  if (kind === "battles") return "Study battle"
+  return "Learning space"
 }
 
 function socialRecordSearchText(record: SocialRecordLike) {
