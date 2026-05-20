@@ -83,6 +83,17 @@ export interface ChatQuickPrompt {
   recommended: boolean
 }
 
+export type ChatInboxShortcutId = "all" | "help" | "wins" | "saved" | "mentions" | "studio"
+
+export interface ChatInboxShortcut {
+  id: ChatInboxShortcutId
+  label: string
+  count: number
+  filter: ChatThreadFilter
+  query: string
+  recommended: boolean
+}
+
 export interface SocialRecordLike {
   id?: string
   name?: string
@@ -506,6 +517,64 @@ export function summarizeChatWorkspace(threads: ChatThreadLike[]): ChatWorkspace
       .map(([label, count]) => ({ label, count }))
       .sort((first, second) => second.count - first.count || first.label.localeCompare(second.label)),
   }
+}
+
+export function buildChatInboxShortcuts(summary: ChatWorkspaceSummary): ChatInboxShortcut[] {
+  const hasQuestions = summary.questions > 0
+  const hasSaved = summary.saved > 0
+  const hasMentions = summary.mentions > 0
+  const hasStudioLinks = summary.studioLinks > 0
+
+  return [
+    {
+      id: "all",
+      label: "All",
+      count: summary.total,
+      filter: "all",
+      query: "",
+      recommended: summary.total === 0,
+    },
+    {
+      id: "help",
+      label: "Help",
+      count: summary.questions,
+      filter: "questions",
+      query: "",
+      recommended: hasQuestions,
+    },
+    {
+      id: "wins",
+      label: "Wins",
+      count: summary.wins,
+      filter: "wins",
+      query: "",
+      recommended: !hasQuestions && summary.wins > 0,
+    },
+    {
+      id: "saved",
+      label: "Saved",
+      count: summary.saved,
+      filter: "saved",
+      query: "",
+      recommended: !hasQuestions && hasSaved,
+    },
+    {
+      id: "mentions",
+      label: "Mentions",
+      count: summary.mentions,
+      filter: "all",
+      query: "@",
+      recommended: !hasQuestions && !hasSaved && hasMentions,
+    },
+    {
+      id: "studio",
+      label: "Studio",
+      count: summary.studioLinks,
+      filter: "all",
+      query: "/studio",
+      recommended: !hasQuestions && !hasSaved && !hasMentions && hasStudioLinks,
+    },
+  ]
 }
 
 export function buildChatComposerPlan(summary: ChatWorkspaceSummary, draftBody = ""): ChatComposerPlan {
