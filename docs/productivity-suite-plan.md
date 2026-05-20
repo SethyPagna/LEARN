@@ -214,6 +214,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Continued Social moments by adding tested Win, Question, Resource, and Milestone moment options and wiring them to compact post chips with channel-aware posting.
 - 2026-05-21: Continued Chat maturity by adding tested quick prompts for questions, wins, resources, and recaps and surfacing them as compact composer chips.
 - 2026-05-21: Continued Chat inbox UX by adding tested shortcuts for All, Help, Wins, Saved, Mentions, and Studio and wiring them to compact thread filtering.
+- 2026-05-21: Continued Social Find UX by adding tested people-search shortcuts for All, Learners, Admins, Active, and Email and surfacing them above the add/follow list.
 
 ## Implementation Slices
 
