@@ -2,6 +2,7 @@ export type ChatIntent = "update" | "question" | "win"
 export type ChatThreadFilter = "all" | "questions" | "wins" | "saved"
 export type SocialWorkspaceKind = "spaces" | "rooms" | "battles"
 export type SocialRecordFilter = "all" | "active" | "private" | "public" | "team" | "focus"
+export type SocialMomentTypeId = "win" | "question" | "resource" | "milestone"
 
 export interface ChatThreadLike {
   id?: string
@@ -56,6 +57,17 @@ export interface ChatThreadActionState {
 export interface ChatThreadStatus {
   label: string
   tone: "accent" | "muted" | "success" | "warning"
+}
+
+export interface SocialMomentOption {
+  id: SocialMomentTypeId
+  label: string
+  detail: string
+  prompt: string
+  channel: string
+  intent: ChatIntent
+  badge: string
+  recommended: boolean
 }
 
 export interface SocialRecordLike {
@@ -325,6 +337,57 @@ export function buildChatDraftPayload(input: {
       hasStudioLink: /\/(studio|notes|docs|sheets|slides)\b/.test(body),
     },
   }
+}
+
+export function buildSocialMomentOptions(input: {
+  connectionCount: number
+  threadCount: number
+}): SocialMomentOption[] {
+  const hasAudience = input.connectionCount > 0
+  const hasPosted = input.threadCount > 0
+
+  return [
+    {
+      id: "win",
+      label: "Win",
+      detail: "Share a small learning victory.",
+      prompt: "Today I finally understood ",
+      channel: "#wins",
+      intent: "win",
+      badge: "spark",
+      recommended: hasAudience && !hasPosted,
+    },
+    {
+      id: "question",
+      label: "Question",
+      detail: "Ask friends for help or examples.",
+      prompt: "Can someone explain ",
+      channel: "#questions",
+      intent: "question",
+      badge: "help",
+      recommended: !hasAudience,
+    },
+    {
+      id: "resource",
+      label: "Resource",
+      detail: "Share a useful note, link, or file.",
+      prompt: "Useful resource: ",
+      channel: "#resources",
+      intent: "update",
+      badge: "save",
+      recommended: hasAudience && hasPosted,
+    },
+    {
+      id: "milestone",
+      label: "Milestone",
+      detail: "Mark a streak, quiz score, or completed topic.",
+      prompt: "Milestone reached: ",
+      channel: "#wins",
+      intent: "win",
+      badge: "level",
+      recommended: false,
+    },
+  ]
 }
 
 export function filterChatThreads(threads: ChatThreadLike[], input: { query?: string; filter?: ChatThreadFilter }) {
