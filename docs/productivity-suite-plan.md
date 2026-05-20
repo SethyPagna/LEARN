@@ -202,6 +202,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-20: Continued Profile UX by adding tested learner summary chips and making next action, privacy, mastery, streak, and artifact state compact, clickable, and less text-heavy.
 - 2026-05-20: Continued Feed UX by adding tested discovery summary chips, keeping open/outside/answered state visible, and folding secondary feed metrics plus topic counts into a compact signals drawer.
 - 2026-05-20: Continued Graph UX by adding tested graph health chips and folding secondary graph density, sharing, seed, and mastery counts into a compact signals drawer.
+- 2026-05-20: Continued Vault UX by reusing graph health chips in the Vault hero and replacing the long flat block palette with tested grouped capture/study/media/advanced tools.
 
 ## Implementation Slices
 
