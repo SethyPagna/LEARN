@@ -12,7 +12,7 @@ import { QuizView } from "../quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeGameModes, buildPracticePlayStyles, buildPracticeWorkspacePlan, type PracticeGameMode, type PracticePlayStyle, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialFlowCards, buildSocialHomeLanes, normalizeSocialInviteDraft, summarizeConnections, type ConnectionActionId, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialFlowId, type SocialHomeLane, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialFlowCards, buildSocialHomeLanes, buildSocialStarterActions, normalizeSocialInviteDraft, summarizeConnections, type ConnectionActionId, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialFlowId, type SocialHomeLane, type SocialStarterAction, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type PracticeTab = "quizzes" | "games"
 type SocialTab = "home" | "chat" | "spaces" | "rooms" | "battles"
@@ -52,6 +52,14 @@ const socialCallModeIcons: Record<SocialCallMode["id"], ComponentType<{ classNam
   group: UsersRound,
   focus: Radio,
   battle: Swords,
+}
+
+const socialStarterActionIcons: Record<SocialStarterAction["id"], ComponentType<{ className?: string }>> = {
+  "add-friend": Users,
+  chat: MessageSquare,
+  moment: ImageIcon,
+  group: UsersRound,
+  call: PhoneCall,
 }
 
 const practicePlayStyleIcons: Record<PracticePlayStyle["id"], ComponentType<{ className?: string }>> = {
@@ -261,6 +269,13 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     spaceCount: counts.spaces,
     threadCount: threads.length,
   }), [connectionSummary.total, counts.battles, counts.rooms, counts.spaces, threads.length])
+  const starterActions = useMemo(() => buildSocialStarterActions({
+    battleCount: counts.battles,
+    connectionCount: connectionSummary.total,
+    roomCount: counts.rooms,
+    spaceCount: counts.spaces,
+    threadCount: threads.length,
+  }), [connectionSummary.total, counts.battles, counts.rooms, counts.spaces, threads.length])
   const callModes = useMemo(() => buildSocialCallModes({
     battleCount: counts.battles,
     connectionCount: connectionSummary.total,
@@ -438,6 +453,14 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     open(lane.target.value)
   }
 
+  function openStarterAction(action: SocialStarterAction) {
+    if (action.target.kind === "command") {
+      setCommandTab(action.target.value)
+      return
+    }
+    open(action.target.value)
+  }
+
   function openCallMode(mode: SocialCallMode) {
     const count = mode.target === "rooms" ? counts.rooms : counts.battles
     if (count > 0) {
@@ -515,6 +538,12 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
           </div>
         </div>
         <div className="grid gap-3 p-3 lg:p-4">
+          <div className="grid grid-cols-5 gap-2 rounded-md border border-border bg-background p-2">
+            {starterActions.map((action) => (
+              <SocialStarterActionButton key={action.id} action={action} onClick={() => openStarterAction(action)} />
+            ))}
+          </div>
+
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
             {homeLanes.map((lane) => {
               const Icon = socialHomeLaneIcons[lane.id]
@@ -748,6 +777,28 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
         </div>
       </details>
     </div>
+  )
+}
+
+function SocialStarterActionButton({ action, onClick }: { action: SocialStarterAction; onClick: () => void }) {
+  const Icon = socialStarterActionIcons[action.id]
+  return (
+    <button
+      onClick={onClick}
+      className={`group flex min-w-0 flex-col items-center justify-center gap-1 rounded-md border px-2 py-2 text-center transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground ${
+        action.primary ? "border-primary/40 bg-primary/10" : "border-border bg-card"
+      }`}
+      title={action.detail}
+      type="button"
+    >
+      <span className={`relative flex h-9 w-9 items-center justify-center rounded-md ${action.primary ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground group-hover:text-accent-foreground"}`}>
+        <Icon className="h-4 w-4" />
+        <span className={`absolute -right-1 -top-1 rounded-full px-1.5 py-0.5 text-[0.58rem] font-semibold ${action.primary ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground"}`}>
+          {action.badge}
+        </span>
+      </span>
+      <span className="max-w-full truncate text-[0.7rem] font-semibold text-foreground group-hover:text-accent-foreground">{action.label}</span>
+    </button>
   )
 }
 
