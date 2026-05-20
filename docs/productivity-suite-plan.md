@@ -208,6 +208,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-20: Continued Social UX by adding tested Friends, Chats, Moments, Groups, and Calls lanes that map familiar social actions to existing LEARN chat, people, groups, and live-room flows.
 - 2026-05-20: Continued Practice UX by adding tested play styles inspired by live quizzes, study tools, assessments, arcade review, and strategy games, then surfacing them as compact guided cards.
 - 2026-05-20: Continued Social calls by adding tested voice, video, group, focus, and battle call modes and surfacing them as compact actions backed by rooms and battles.
+- 2026-05-20: Continued Practice depth by adding tested Classic, Team race, Match, Redemption, Arcade quest, and Economy battle modes and surfacing them in a compact Practice drawer.
 
 ## Implementation Slices
 
