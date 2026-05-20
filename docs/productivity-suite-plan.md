@@ -207,6 +207,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-20: Continued Studio context-menu UX by reusing the same action groups for right-click record actions, keeping fast workflows aligned with the compact item menu.
 - 2026-05-20: Continued Social UX by adding tested Friends, Chats, Moments, Groups, and Calls lanes that map familiar social actions to existing LEARN chat, people, groups, and live-room flows.
 - 2026-05-20: Continued Practice UX by adding tested play styles inspired by live quizzes, study tools, assessments, arcade review, and strategy games, then surfacing them as compact guided cards.
+- 2026-05-20: Continued Social calls by adding tested voice, video, group, focus, and battle call modes and surfacing them as compact actions backed by rooms and battles.
 
 ## Implementation Slices
 
