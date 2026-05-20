@@ -211,6 +211,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-20: Continued Practice depth by adding tested Classic, Team race, Match, Redemption, Arcade quest, and Economy battle modes and surfacing them in a compact Practice drawer.
 - 2026-05-21: Continued Social maturity by adding tested WeChat-style starter actions for Add, Chat, Moment, Group, and Call, then surfacing them as a compact icon rail above detailed panels.
 - 2026-05-21: Continued Social contacts by adding tested per-contact Chat, Group, and Call actions and surfacing them directly inside connection cards while gating pending contacts.
+- 2026-05-21: Continued Social moments by adding tested Win, Question, Resource, and Milestone moment options and wiring them to compact post chips with channel-aware posting.
 
 ## Implementation Slices
 
