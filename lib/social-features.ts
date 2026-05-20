@@ -204,6 +204,21 @@ export interface SocialCommandRunActionState {
   busy: boolean
 }
 
+export type SocialHomeLaneId = "friends" | "chats" | "moments" | "groups" | "calls"
+export type SocialHomeLaneTarget =
+  | { kind: "command"; value: "people" | "post" | "invite" | "connections" }
+  | { kind: "tab"; value: SocialFlowId }
+
+export interface SocialHomeLane {
+  id: SocialHomeLaneId
+  label: string
+  detail: string
+  action: string
+  count: number
+  primary: boolean
+  target: SocialHomeLaneTarget
+}
+
 export interface SocialFlowCard {
   id: SocialFlowId
   label: string
@@ -864,6 +879,67 @@ export function buildSocialCommandRunActions(input: {
     busy: input.busyAction === action.id,
     disabled: busy || action.disabled,
   }))
+}
+
+export function buildSocialHomeLanes(input: {
+  battleCount: number
+  connectionCount: number
+  roomCount: number
+  spaceCount: number
+  threadCount: number
+}): SocialHomeLane[] {
+  const hasFriends = input.connectionCount > 0
+  const hasChats = input.threadCount > 0
+  const hasGroups = input.spaceCount > 0
+  const liveCount = input.roomCount + input.battleCount
+
+  return [
+    {
+      id: "friends",
+      label: "Friends",
+      detail: hasFriends ? "People you can study with" : "Add a friend or follow someone",
+      action: hasFriends ? "Open friends" : "Find people",
+      count: input.connectionCount,
+      primary: !hasFriends,
+      target: { kind: "command", value: hasFriends ? "connections" : "people" },
+    },
+    {
+      id: "chats",
+      label: "Chats",
+      detail: hasChats ? "Messages and study threads" : "Start the first chat",
+      action: hasChats ? "Open chats" : "New chat",
+      count: input.threadCount,
+      primary: hasFriends && !hasChats,
+      target: { kind: "tab", value: "chat" },
+    },
+    {
+      id: "moments",
+      label: "Moments",
+      detail: "Share a short win, question, or update",
+      action: "Post moment",
+      count: input.threadCount,
+      primary: hasChats && !hasGroups,
+      target: { kind: "command", value: "post" },
+    },
+    {
+      id: "groups",
+      label: "Groups",
+      detail: hasGroups ? "Circles, resources, and shared goals" : "Create a small study group",
+      action: hasGroups ? "Open groups" : "Create group",
+      count: input.spaceCount,
+      primary: hasChats && !hasGroups,
+      target: { kind: "tab", value: "spaces" },
+    },
+    {
+      id: "calls",
+      label: "Calls",
+      detail: liveCount ? "Live rooms and challenge calls" : "Start focus, voice, or video study",
+      action: liveCount ? "Open live" : "Start call",
+      count: liveCount,
+      primary: hasGroups && liveCount === 0,
+      target: { kind: "tab", value: "rooms" },
+    },
+  ]
 }
 
 export function buildSocialFlowCards(input: {
