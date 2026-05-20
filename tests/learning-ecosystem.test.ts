@@ -10,6 +10,7 @@ import {
   buildReviewRatingActions,
   buildReviewSchedule,
   buildReviewSummaryChips,
+  buildVaultBlockPalette,
   canPostInCommunity,
   calculateLevelFromXp,
   detectOrphanKnowledgeNodes,
@@ -302,6 +303,15 @@ test("knowledge graph summary chips surface graph repair signals", () => {
   assert.deepEqual(primaryIds, ["nodes", "edges", "mastery", "orphans"])
   assert.equal(chips.find((chip) => chip.id === "orphans")?.tone, "watch")
   assert.equal(chips.find((chip) => chip.id === "shared")?.value, "2")
+})
+
+test("vault block palette keeps active specialist tools discoverable", () => {
+  const codePalette = buildVaultBlockPalette("code")
+  const primaryGroups = codePalette.filter((group) => group.priority === "primary").map((group) => group.id)
+
+  assert.deepEqual(primaryGroups, ["capture", "study", "media"])
+  assert.deepEqual(codePalette.find((group) => group.id === "capture")?.blocks, ["text", "heading", "toggle"])
+  assert.ok(codePalette.find((group) => group.id === "media")?.blocks.includes("code"))
 })
 
 test("reputation gates posting and rewards high-signal actions", () => {

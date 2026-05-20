@@ -104,6 +104,7 @@ export interface FeedLessonCandidate {
 export type FeedSelectionReason = "preferred" | "serendipity"
 export type CommunityRole = "member" | "moderator" | "admin"
 export type ReputationAction = "helpful_answer" | "accepted_answer" | "quality_comment" | "moderation_flag"
+export type VaultBlockType = "text" | "heading" | "toggle" | "image" | "code" | "equation" | "quiz" | "flashcard" | "diagram"
 
 export interface FeedLessonSelection extends FeedLessonCandidate {
   reason: FeedSelectionReason
@@ -162,6 +163,13 @@ export interface KnowledgeGraphActionPlan {
   nextAction: "add-node" | "connect-orphan" | "review-weak" | "open-ai" | "celebrate"
   targetNodeId?: string
   chips: string[]
+}
+
+export interface VaultBlockPaletteGroup {
+  id: "capture" | "structure" | "study" | "media"
+  label: string
+  blocks: VaultBlockType[]
+  priority: "primary" | "secondary"
 }
 
 export function buildReviewSchedule(input: {
@@ -657,6 +665,20 @@ export function buildKnowledgeGraphSummaryChips(summary: KnowledgeGraphSummary):
     { id: "seeds", label: "Seeds", value: String(summary.seedCount), priority: summary.seedCount ? "secondary" : "primary", tone: summary.seedCount ? "watch" : "good" },
     { id: "mastered", label: "Mastered", value: String(summary.masteredCount), priority: summary.masteredCount ? "secondary" : "primary", tone: summary.masteredCount ? "good" : "neutral" },
   ]
+}
+
+export function buildVaultBlockPalette(activeBlock: VaultBlockType): VaultBlockPaletteGroup[] {
+  const groups: VaultBlockPaletteGroup[] = [
+    { id: "capture", label: "Capture", blocks: ["text", "heading", "toggle"], priority: "primary" },
+    { id: "study", label: "Study", blocks: ["quiz", "flashcard", "diagram"], priority: "primary" },
+    { id: "media", label: "Media", blocks: ["image", "code"], priority: "secondary" },
+    { id: "structure", label: "Advanced", blocks: ["equation"], priority: "secondary" },
+  ]
+
+  return groups.map((group) => ({
+    ...group,
+    priority: group.blocks.includes(activeBlock) ? "primary" : group.priority,
+  }))
 }
 
 function formatFeedDuration(totalSeconds: number) {
