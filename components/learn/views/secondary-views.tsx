@@ -6,7 +6,7 @@ import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18
 import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, buildCalendarSummaryChips, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
 import { buildProgressCommandPlan, summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
 import { buildSettingsControlPlan, buildSettingsSummaryChips, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
-import { buildAdminOperationalPlan, filterAdminList, summarizeAdminOperations, type AdminAccessRequest, type AdminPanelTab } from "@/lib/admin-features"
+import { buildAdminOperationalPlan, buildAdminSummaryChips, filterAdminList, summarizeAdminOperations, type AdminAccessRequest, type AdminPanelTab, type AdminSummaryChip } from "@/lib/admin-features"
 import type { WorkspaceOptions } from "../preferences"
 import type { CalendarEvent, Quiz, User, View } from "../types"
 import { api, formatDate } from "../api"
@@ -1059,6 +1059,9 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
   const [inviteStatus, setInviteStatus] = useState<Record<string, string>>({})
   const adminSummary = useMemo(() => summarizeAdminOperations({ adminData, automationData }), [adminData, automationData])
   const adminPlan = useMemo(() => buildAdminOperationalPlan(adminSummary), [adminSummary])
+  const adminSummaryChips = useMemo(() => buildAdminSummaryChips(adminSummary), [adminSummary])
+  const primaryAdminChips = adminSummaryChips.filter((chip) => chip.priority === "primary")
+  const secondaryAdminChips = adminSummaryChips.filter((chip) => chip.priority === "secondary")
   const accessRequests = useMemo(() => filterAdminList(adminSummary.accessRequests, query, ["name", "email", "goal", "role"]), [adminSummary.accessRequests, query])
   const users = useMemo(() => filterAdminList(adminData?.users || [], query, ["name", "username", "email", "role"]), [adminData?.users, query])
   const providers = useMemo(() => filterAdminList(adminData?.providers || [], query, ["name", "provider", "last_status", "last_error"]), [adminData?.providers, query])
@@ -1095,9 +1098,9 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
             <div className="min-w-0">
               <h2 className="text-2xl font-semibold text-foreground">Admin control center</h2>
               <div className="mt-2 flex flex-wrap gap-2">
-                <SharedStatusPill label={adminSummary.systemTone === "watch" ? "review needed" : "healthy"} tone={adminSummary.systemTone === "watch" ? "watch" : "steady"} />
-                <SharedStatusPill label={`${adminSummary.providerIssues.length} provider issue${adminSummary.providerIssues.length === 1 ? "" : "s"}`} tone={adminSummary.providerIssues.length ? "watch" : "neutral"} />
-                <SharedStatusPill label={`${adminSummary.recentAudit.length} audit rows`} />
+                {primaryAdminChips.map((chip) => (
+                  <AdminSummaryChipButton key={chip.id} chip={chip} onClick={() => setTab(chip.targetTab)} />
+                ))}
               </div>
             </div>
           </div>
@@ -1109,17 +1112,12 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
         <details className="mt-5 rounded-md border border-border bg-background">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
             <span>Admin signals</span>
-            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{adminSummary.cards.length}</span>
+            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{secondaryAdminChips.length} more</span>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </summary>
-          <div className="grid gap-3 border-t border-border p-3 md:grid-cols-4">
-            {adminSummary.cards.map((card) => (
-              <button key={card.id} onClick={() => setTab(tabFromCard(card.id))} className="group relative rounded-md border border-border bg-card p-4 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{card.label}</p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">{card.value}</p>
-                <span className="mt-3 inline-flex"><SharedStatusPill label={card.tone} tone={settingsTone(card.tone)} /></span>
-                <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{card.detail}</p>
-              </button>
+          <div className="grid gap-3 border-t border-border p-3 md:grid-cols-3 xl:grid-cols-6">
+            {secondaryAdminChips.map((chip) => (
+              <AdminSummaryChipButton key={chip.id} chip={chip} onClick={() => setTab(chip.targetTab)} relaxed />
             ))}
           </div>
         </details>
@@ -1198,12 +1196,24 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
   )
 }
 
-function tabFromCard(cardId: string): AdminPanelTab {
-  if (cardId === "users") return "users"
-  if (cardId === "providers") return "providers"
-  if (cardId === "audit") return "audit"
-  if (cardId === "automation") return "automation"
-  return "overview"
+function AdminSummaryChipButton({ chip, onClick, relaxed = false }: { chip: AdminSummaryChip; onClick: () => void; relaxed?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group rounded-md border px-3 py-2 text-left transition hover:-translate-y-0.5 ${adminSummaryChipClasses(chip.tone)} ${relaxed ? "min-h-20" : ""}`}
+      title={`${chip.label}: ${chip.value}`}
+    >
+      <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.12em] opacity-75">{chip.label}</span>
+      <span className="mt-1 block text-sm font-semibold">{chip.value}</span>
+    </button>
+  )
+}
+
+function adminSummaryChipClasses(tone: AdminSummaryChip["tone"]) {
+  if (tone === "good") return "border-success/30 bg-success/10 text-success hover:bg-success/15"
+  if (tone === "watch") return "border-warning/35 bg-warning/10 text-warning hover:bg-warning/15"
+  return "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
 }
 
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
