@@ -8,6 +8,7 @@ import {
   maskProviderSecret,
   normalizeProviderConfigInput,
 } from "../lib/ai/provider-admin"
+import { buildProviderAdminSummaryChips } from "../lib/ai/provider-admin-ui"
 import { getTutorModeInstruction, resolveTutorTokenBudget } from "../lib/ai/tutor"
 import { getPromptTemplate } from "../lib/ai/prompt-library"
 import { buildGuidedPrompt, listInsertActions, promptContracts } from "../lib/ai/prompt-builder"
@@ -140,6 +141,23 @@ test("provider admin summary masks secrets and flags degraded routing", () => {
   assert.deepEqual(summary.routingOrder.map((item) => item.name), ["Primary Groq", "Fallback Mistral"])
   assert.equal(summary.routingOrder[0].secretLabel, "Stored")
   assert.equal(summary.routingOrder[1].secretLabel, "Missing")
+})
+
+test("provider admin summary chips highlight degraded and empty states", () => {
+  const degraded = buildProviderAdminSummaryChips({
+    enabledCount: 2,
+    hasDegradedProviders: true,
+    readyCount: 1,
+    routingOrder: [{ id: "groq" }, { id: "mistral" }],
+    totalCount: 2,
+  })
+  const empty = buildProviderAdminSummaryChips(null)
+
+  assert.equal(degraded.find((chip) => chip.id === "health")?.value, "Review")
+  assert.equal(degraded.find((chip) => chip.id === "health")?.targetSection, "providers")
+  assert.deepEqual(degraded.filter((chip) => chip.priority === "primary").map((chip) => chip.id), ["health", "ready", "routing"])
+  assert.equal(empty.find((chip) => chip.id === "total")?.targetSection, "presets")
+  assert.equal(empty.find((chip) => chip.id === "total")?.priority, "primary")
 })
 
 test("AI automation prompt library includes provider and Vault operations", () => {
