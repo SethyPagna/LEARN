@@ -12,6 +12,7 @@ function run(command, args, options = {}) {
   }
 }
 
+run("tsx", ["ops/scripts/cleanup/local-workspace.ts", "--apply"])
 run("opennextjs-cloudflare", ["build"])
 run("wrangler", ["deploy", "--config", "wrangler.app-deploy.jsonc"], {
   env: { OPEN_NEXT_DEPLOY: "true" },
