@@ -46,7 +46,7 @@ import type {
 } from "../types"
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, buildReviewRatingActions, buildReviewSummaryChips, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession, type ReviewRating } from "@/lib/learning-ecosystem"
-import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
+import { buildProfileActionPlan, buildProfileSummaryChips, type ProfilePlanTarget, type ProfileSummaryChip } from "@/lib/profile-features"
 import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type VaultGraphPayload = {
@@ -1634,6 +1634,9 @@ export function ProfileView({ setView, user }: { setView?: (view: View) => void;
   const achievements = useResource<{ items: Achievement[] }>("/api/achievements")
   const achievementItems = achievements.data?.items ?? []
   const profilePlan = useMemo(() => buildProfileActionPlan({ profile, achievements: achievementItems }), [achievementItems, profile])
+  const profileSummaryChips = useMemo(() => buildProfileSummaryChips(profilePlan), [profilePlan])
+  const primaryProfileChips = profileSummaryChips.filter((chip) => chip.priority === "primary")
+  const secondaryProfileChips = profileSummaryChips.filter((chip) => chip.priority === "secondary")
   const unlockedAchievements = achievementItems.filter((achievement) => achievement.unlocked)
   const lockedAchievements = achievementItems.filter((achievement) => !achievement.unlocked)
 
@@ -1649,16 +1652,22 @@ export function ProfileView({ setView, user }: { setView?: (view: View) => void;
         <h2 className="mt-4 text-2xl font-semibold text-foreground">{profile?.name || user?.name || "Learner"}</h2>
         <p className="text-sm text-muted-foreground">@{profile?.username || username}</p>
         <p className="mt-4 text-sm leading-6 text-muted-foreground">{profile?.bio || "A private learning portrait that grows from Vault activity."}</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {primaryProfileChips.map((chip) => (
+            <ProfileSummaryChipButton key={chip.id} chip={chip} onClick={() => setView?.(profileTargetView(chip.target))} />
+          ))}
+        </div>
         <details className="mt-4 rounded-md border border-border bg-background">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
             <span>Profile stats</span>
-            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">Level {profile?.metrics.level ?? 1}</span>
+            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{secondaryProfileChips.length} more</span>
             <ChevronDown className="h-4 w-4 text-muted-foreground" />
           </summary>
           <div className="grid grid-cols-2 gap-2 border-t border-border p-2">
+            {secondaryProfileChips.map((chip) => (
+              <ProfileSummaryChipButton key={chip.id} chip={chip} onClick={() => setView?.(profileTargetView(chip.target))} relaxed />
+            ))}
             <Metric label="Level" value={String(profile?.metrics.level ?? 1)} />
-            <Metric label="Streak" value={String(profile?.metrics.streak ?? 0)} />
-            <Metric label="XP" value={String(profile?.metrics.xp ?? 0)} />
             <Metric label="Reputation" value={String(profile?.metrics.reputation ?? 0)} />
           </div>
         </details>
@@ -1734,6 +1743,26 @@ function AchievementTile({ achievement }: { achievement: Achievement }) {
       <span className="mt-2 inline-flex rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{achievement.xp_reward} XP</span>
     </div>
   )
+}
+
+function ProfileSummaryChipButton({ chip, onClick, relaxed = false }: { chip: ProfileSummaryChip; onClick: () => void; relaxed?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-md border px-3 py-2 text-left transition hover:-translate-y-0.5 ${profileSummaryChipClasses(chip.tone)} ${relaxed ? "min-h-16" : ""}`}
+      title={`${chip.label}: ${chip.value}`}
+    >
+      <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.12em] opacity-75">{chip.label}</span>
+      <span className="mt-1 block text-sm font-semibold">{chip.value}</span>
+    </button>
+  )
+}
+
+function profileSummaryChipClasses(tone: ProfileSummaryChip["tone"]) {
+  if (tone === "good") return "border-success/30 bg-success/10 text-success hover:bg-success/15"
+  if (tone === "watch") return "border-warning/35 bg-warning/10 text-warning hover:bg-warning/15"
+  return "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
 }
 
 function profileTargetView(target: ProfilePlanTarget): View {
