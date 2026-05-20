@@ -212,6 +212,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Continued Social maturity by adding tested WeChat-style starter actions for Add, Chat, Moment, Group, and Call, then surfacing them as a compact icon rail above detailed panels.
 - 2026-05-21: Continued Social contacts by adding tested per-contact Chat, Group, and Call actions and surfacing them directly inside connection cards while gating pending contacts.
 - 2026-05-21: Continued Social moments by adding tested Win, Question, Resource, and Milestone moment options and wiring them to compact post chips with channel-aware posting.
+- 2026-05-21: Continued Chat maturity by adding tested quick prompts for questions, wins, resources, and recaps and surfacing them as compact composer chips.
 
 ## Implementation Slices
 
