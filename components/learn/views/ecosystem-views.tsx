@@ -45,7 +45,7 @@ import type {
   View,
 } from "../types"
 import { EmptyState, Panel, StatusMessage } from "../ui"
-import { buildFeedActionPlan, buildFeedSummaryChips, buildKnowledgeGraphActionPlan, buildKnowledgeGraphSummaryChips, buildReviewActionPlan, buildReviewRatingActions, buildReviewSummaryChips, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession, type FeedSummaryChip, type KnowledgeGraphSummaryChip, type ReviewRating } from "@/lib/learning-ecosystem"
+import { buildFeedActionPlan, buildFeedSummaryChips, buildKnowledgeGraphActionPlan, buildKnowledgeGraphSummaryChips, buildReviewActionPlan, buildReviewRatingActions, buildReviewSummaryChips, buildVaultBlockPalette, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession, type FeedSummaryChip, type KnowledgeGraphSummaryChip, type ReviewRating, type VaultBlockPaletteGroup, type VaultBlockType } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, buildProfileSummaryChips, type ProfilePlanTarget, type ProfileSummaryChip } from "@/lib/profile-features"
 import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
@@ -65,9 +65,14 @@ const SOCIAL_DRAFT_KEY_PREFIX = "learn_social_draft_v1"
 
 export function VaultView({ setView }: { setView: (view: View) => void }) {
   const { data, status } = useResource<VaultGraphPayload>("/api/vault/graph")
-  const [blockType, setBlockType] = useState("text")
+  const [blockType, setBlockType] = useState<VaultBlockType>("text")
 
   const topNodes = data?.nodes.slice(0, 5) ?? []
+  const graphSummary = useMemo(() => summarizeKnowledgeGraph(data?.nodes ?? [], data?.edges ?? []), [data?.edges, data?.nodes])
+  const vaultChips = useMemo(() => buildKnowledgeGraphSummaryChips(graphSummary).filter((chip) => ["nodes", "edges", "orphans", "mastery"].includes(chip.id)), [graphSummary])
+  const paletteGroups = useMemo(() => buildVaultBlockPalette(blockType), [blockType])
+  const primaryPaletteGroups = paletteGroups.filter((group) => group.priority === "primary")
+  const secondaryPaletteGroups = paletteGroups.filter((group) => group.priority === "secondary")
   return (
     <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
       <section className="rounded-lg border border-border bg-[radial-gradient(circle_at_20%_20%,hsl(var(--primary)/0.18),transparent_34%),hsl(var(--card))] p-5 text-card-foreground">
@@ -81,11 +86,10 @@ export function VaultView({ setView }: { setView: (view: View) => void }) {
             New note
           </button>
         </div>
-        <div className="mt-5 grid gap-2 sm:grid-cols-4">
-          <Metric label="Nodes" value={String(data?.nodes.length ?? 0)} />
-          <Metric label="Edges" value={String(data?.edges.length ?? 0)} />
-          <Metric label="Orphans" value={String(data?.orphanNodes.length ?? 0)} />
-          <Metric label="Mode" value="Solo" />
+        <div className="mt-5 flex flex-wrap gap-2">
+          {vaultChips.map((chip) => (
+            <GraphSummaryChipView key={chip.id} chip={chip} />
+          ))}
         </div>
       </section>
 
@@ -103,20 +107,26 @@ export function VaultView({ setView }: { setView: (view: View) => void }) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-semibold text-foreground">Block palette</h3>
-            <p className="text-sm text-muted-foreground">Choose how the next idea should enter the Vault.</p>
+            <p className="text-sm text-muted-foreground">Selected: {blockType}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {["text", "heading", "toggle", "image", "code", "equation", "quiz", "flashcard", "diagram"].map((type) => (
-              <button
-                key={type}
-                onClick={() => setBlockType(type)}
-                className={`h-9 rounded-md border px-3 text-sm font-medium ${blockType === type ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground"}`}
-              >
-                {type}
-              </button>
+            {primaryPaletteGroups.map((group) => (
+              <VaultPaletteGroup key={group.id} activeBlock={blockType} group={group} onSelect={setBlockType} />
             ))}
           </div>
         </div>
+        <details className="mt-3 rounded-md border border-border bg-background">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+            <span>More block tools</span>
+            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{secondaryPaletteGroups.reduce((total, group) => total + group.blocks.length, 0)} tools</span>
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          </summary>
+          <div className="grid gap-2 border-t border-border p-2 md:grid-cols-2">
+            {secondaryPaletteGroups.map((group) => (
+              <VaultPaletteGroup key={group.id} activeBlock={blockType} group={group} onSelect={setBlockType} />
+            ))}
+          </div>
+        </details>
       </Panel>
 
       <Panel className="p-4 xl:col-span-2">
@@ -128,6 +138,26 @@ export function VaultView({ setView }: { setView: (view: View) => void }) {
           {topNodes.length ? topNodes.map((node) => <NodeCard key={node.id} node={node} />) : <EmptyState title="No graph nodes yet" body="Create notes and reviews to grow your Vault graph." />}
         </div>
       </Panel>
+    </div>
+  )
+}
+
+function VaultPaletteGroup({ activeBlock, group, onSelect }: { activeBlock: VaultBlockType; group: VaultBlockPaletteGroup; onSelect: (type: VaultBlockType) => void }) {
+  return (
+    <div className="rounded-md border border-border bg-background p-2">
+      <p className="mb-2 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{group.label}</p>
+      <div className="flex flex-wrap gap-2">
+        {group.blocks.map((type) => (
+          <button
+            key={type}
+            onClick={() => onSelect(type)}
+            className={`h-8 rounded-md border px-3 text-xs font-semibold capitalize ${activeBlock === type ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+            type="button"
+          >
+            {type}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
