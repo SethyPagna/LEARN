@@ -8,7 +8,7 @@ import type { Quiz } from "../types"
 import { api } from "../api"
 import { EmptyState, Panel } from "../ui"
 import { buildGameRunActions, evaluateGameChoice, summarizeGameRun, type GameRunActionId } from "@/lib/practice-features"
-import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatIntent, type ChatQuickPrompt, type ChatThreadActionId, type ChatThreadFilter } from "@/lib/social-features"
+import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatInboxShortcut, type ChatIntent, type ChatQuickPrompt, type ChatThreadActionId, type ChatThreadFilter } from "@/lib/social-features"
 
 const quizDetailCache = new Map<string, Quiz>()
 const CHAT_DRAFT_KEY = "learn_chat_draft_v1"
@@ -302,6 +302,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     threadCount: chatSummary.total,
     winCount: chatSummary.wins,
   }), [body, chatSummary.questions, chatSummary.saved, chatSummary.total, chatSummary.wins])
+  const inboxShortcuts = useMemo(() => buildChatInboxShortcuts(chatSummary), [chatSummary])
   const chatActions = useMemo(() => buildChatComposerActions({
     busyAction: chatAction,
     hasDraft: Boolean(body.trim()),
@@ -329,6 +330,11 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     setFilter(prompt.id === "question" ? "questions" : prompt.id === "win" ? "wins" : prompt.id === "resource" ? "saved" : "all")
     setBody((current) => current.trim() ? current : prompt.prompt)
     setDraftStatus(`${prompt.label} draft ready`)
+  }
+
+  function applyInboxShortcut(shortcut: ChatInboxShortcut) {
+    setFilter(shortcut.filter)
+    setQuery(shortcut.query)
   }
 
   async function refresh() {
@@ -605,11 +611,25 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             </ChatMenuSection>
           </ChatMenu>
         </div>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {inboxShortcuts.map((shortcut) => (
+            <button
+              key={shortcut.id}
+              onClick={() => applyInboxShortcut(shortcut)}
+              className={`flex h-10 items-center justify-between gap-2 rounded-md border px-2 text-xs font-semibold transition hover:border-primary/40 hover:bg-accent hover:text-accent-foreground ${
+                shortcut.recommended ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-secondary text-secondary-foreground"
+              }`}
+            >
+              <span className="truncate">{shortcut.label}</span>
+              <span className="rounded bg-background px-1.5 py-0.5 text-[11px] text-foreground">{shortcut.count}</span>
+            </button>
+          ))}
+        </div>
         {chatSummary.channels.length ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {chatSummary.channels.slice(0, 4).map((channelSummary) => (
-              <button key={channelSummary.label} onClick={() => setQuery(channelSummary.label)} className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-                {channelSummary.label} {channelSummary.count}
+          <div className="mt-2 flex flex-wrap gap-2">
+            {chatSummary.channels.slice(0, 3).map((channelSummary) => (
+              <button key={channelSummary.label} onClick={() => setQuery(channelSummary.label)} className="rounded-md bg-muted px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                {channelSummary.label}
               </button>
             ))}
           </div>
