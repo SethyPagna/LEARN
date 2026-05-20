@@ -6,7 +6,7 @@ import type { WorkspaceOptions } from "../preferences"
 import type { MediaFile, View } from "../types"
 import { api, formatBytes, formatDate } from "../api"
 import { EmptyState, Panel } from "../ui"
-import { buildFileLibraryActionPlan, buildFileLibraryEmptyState, buildFileLibraryFilterSummary, filterFileLibrary, fileKindLabel, resolveVisibleFileSelection, summarizeFileLibrary, type FileLibraryFilter } from "@/lib/file-library-features"
+import { buildFileLibraryActionPlan, buildFileLibraryEmptyState, buildFileLibraryFilterSummary, buildFileLibrarySummaryChips, filterFileLibrary, fileKindLabel, resolveVisibleFileSelection, summarizeFileLibrary, type FileLibraryFilter, type FileLibraryKind } from "@/lib/file-library-features"
 import { classifyUploadContentType, validateUploadFileShape } from "@/lib/file-security"
 
 const mediaFilters: FileLibraryFilter[] = ["all", "image", "video", "audio", "pdf", "doc", "sheet", "slides"]
@@ -22,6 +22,9 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
   const [pendingDeleteId, setPendingDeleteId] = useState("")
   const [fileActionBusy, setFileActionBusy] = useState<"delete" | "copy" | null>(null)
   const storageStats = useMemo(() => summarizeFileLibrary(files), [files])
+  const storageChips = useMemo(() => buildFileLibrarySummaryChips(storageStats), [storageStats])
+  const primaryStorageChips = storageChips.filter((chip) => chip.priority === "primary")
+  const secondaryStorageChips = storageChips.filter((chip) => chip.priority === "secondary")
   const filteredFiles = useMemo(() => filterFileLibrary(files, { query, kind: mediaFilter }), [files, mediaFilter, query])
   const selectedFile = useMemo(() => resolveVisibleFileSelection(filteredFiles, selectedId), [filteredFiles, selectedId])
   const filterSummary = useMemo(() => buildFileLibraryFilterSummary({
@@ -176,6 +179,12 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
           <Search className="h-4 w-4 text-muted-foreground" />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search files" className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
         </label>
+        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {primaryStorageChips.map((chip) => (
+            <FileStat key={chip.id} label={chip.label} value={chip.value} />
+          ))}
+          <FileStat label="Size" value={formatBytes(storageStats.totalBytes)} />
+        </div>
         <details className="mb-3 rounded-md border border-border bg-background p-2">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
             <span className="inline-flex items-center gap-2">
@@ -204,10 +213,10 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
               ))}
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-muted-foreground sm:grid-cols-4 md:w-[360px]">
-              <FileStat label="Files" value={String(storageStats.totalFiles)} />
-              <FileStat label="Size" value={formatBytes(storageStats.totalBytes)} />
-              <FileStat label="Media" value={String(storageStats.mediaCount)} />
-              <FileStat label="Docs" value={String(storageStats.documentCount)} />
+              {secondaryStorageChips.map((chip) => (
+                <FileStat key={chip.id} label={chip.label} value={chip.value} />
+              ))}
+              <FileStat label="Visible" value={`${filteredFiles.length}/${files.length}`} />
             </div>
           </div>
         </details>
@@ -222,8 +231,7 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
               <button key={file.id} onClick={() => setSelectedId(file.id)} className={`grid w-full gap-3 border-b border-border p-3 text-left text-sm last:border-b-0 md:grid-cols-[1fr_130px_110px] md:items-center ${selectedFile?.id === file.id ? "bg-primary/10" : "hover:bg-muted"}`}>
                 <div>
                   <div className="flex items-center gap-2">
-                    {file.content_type.startsWith("image/") ? <ImageIcon className="h-4 w-4 text-success" /> : null}
-                    {file.content_type.startsWith("video/") ? <Video className="h-4 w-4 text-success" /> : null}
+                    <FileKindIcon kind={classifyUploadContentType(file.content_type)} className="h-4 w-4 text-success" />
                     <p className="font-medium text-foreground">{file.filename}</p>
                   </div>
                   <p className="text-xs text-muted-foreground">{file.content_type} | {fileKindLabel(classifyUploadContentType(file.content_type))}</p>
@@ -273,7 +281,7 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
               <img src={`/api/files/${selectedFile.id}/download`} alt="" className="aspect-video w-full rounded-md object-cover" />
             ) : (
               <div className="flex aspect-video w-full items-center justify-center rounded-md bg-muted">
-                {selectedFile.content_type.startsWith("video/") ? <Video className="h-8 w-8 text-success" /> : <ImageIcon className="h-8 w-8 text-success" />}
+                <FileKindIcon kind={classifyUploadContentType(selectedFile.content_type)} className="h-8 w-8 text-success" />
               </div>
             )}
             <p className="mt-3 break-words font-semibold text-foreground">{selectedFile.filename}</p>
@@ -314,20 +322,25 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
 
 function FileCard({ file, selected, preview, onSelect }: { file: MediaFile; selected: boolean; preview: boolean; onSelect: () => void }) {
   const kind = classifyUploadContentType(file.content_type)
-  const Icon = kind === "video" ? Video : kind === "image" ? ImageIcon : FileText
   return (
     <button onClick={onSelect} className={`rounded-lg border p-3 text-left text-sm ${selected ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-muted"}`}>
       {preview && file.content_type.startsWith("image/") ? (
         <img src={`/api/files/${file.id}/download`} alt="" className="mb-3 aspect-video w-full rounded-md object-cover" />
       ) : (
         <div className="mb-3 flex aspect-video items-center justify-center rounded-md bg-muted">
-          <Icon className="h-7 w-7 text-success" />
+          <FileKindIcon kind={kind} className="h-7 w-7 text-success" />
         </div>
       )}
       <p className="truncate font-medium text-foreground">{file.filename}</p>
       <p className="mt-1 text-xs text-muted-foreground">{formatBytes(file.size_bytes)} - {fileKindLabel(kind)}</p>
     </button>
   )
+}
+
+function FileKindIcon({ className, kind }: { className?: string; kind: FileLibraryKind }) {
+  if (kind === "video") return <Video className={className} />
+  if (kind === "image") return <ImageIcon className={className} />
+  return <FileText className={className} />
 }
 
 function FileStat({ label, value }: { label: string; value: string }) {
