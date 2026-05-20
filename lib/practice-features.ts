@@ -32,6 +32,7 @@ export interface PracticeModeSummary {
 
 export type PracticeWorkspaceTarget = "quizzes" | "games"
 export type PracticeWorkspaceActionId = "resume" | "careful" | "speed" | "repair" | "create"
+export type PracticePlayStyleId = "live" | "study" | "assessment" | "arcade" | "strategy"
 
 export interface PracticeWorkspaceAction {
   id: PracticeWorkspaceActionId
@@ -47,6 +48,16 @@ export interface PracticeWorkspacePlan {
   primaryAction: PracticeWorkspaceAction
   actions: PracticeWorkspaceAction[]
   signals: Array<{ label: string; value: string }>
+}
+
+export interface PracticePlayStyle {
+  id: PracticePlayStyleId
+  label: string
+  model: string
+  detail: string
+  badge: string
+  target: PracticeWorkspaceTarget
+  recommended: boolean
 }
 
 export type PracticeRunActionId = "submit" | "retry-missed" | "save-review-cards" | "full-set"
@@ -485,6 +496,65 @@ export function buildPracticeWorkspacePlan(input: {
       { label: "Flagged", value: String(markedDraftCount + retryDraftCount) },
     ],
   }
+}
+
+export function buildPracticePlayStyles(input: {
+  draftCount?: number
+  hasQuizBanks?: boolean
+  markedCount?: number
+  retryCount?: number
+}): PracticePlayStyle[] {
+  const hasDrafts = (input.draftCount ?? 0) > 0
+  const hasRepairWork = (input.markedCount ?? 0) + (input.retryCount ?? 0) > 0
+  const hasQuizBanks = Boolean(input.hasQuizBanks)
+
+  return [
+    {
+      id: "live",
+      label: "Live quiz",
+      model: "Kahoot style",
+      detail: "Fast host-led rounds, clear choices, and visible progress.",
+      badge: hasQuizBanks ? "Ready" : "Needs quiz",
+      target: "quizzes",
+      recommended: hasQuizBanks && !hasDrafts && !hasRepairWork,
+    },
+    {
+      id: "study",
+      label: "Study tools",
+      model: "Quizlet style",
+      detail: "Flashcards, matching, learn mode, and steady recall.",
+      badge: hasDrafts ? "Resume" : "Memory",
+      target: "quizzes",
+      recommended: hasDrafts,
+    },
+    {
+      id: "assessment",
+      label: "Assessment",
+      model: "Quizizz style",
+      detail: "Exam timing, explanations, retry missed, and mastery checks.",
+      badge: hasRepairWork ? "Repair" : "Mastery",
+      target: "quizzes",
+      recommended: hasRepairWork,
+    },
+    {
+      id: "arcade",
+      label: "Arcade",
+      model: "Blooket style",
+      detail: "Playful review with short rounds and immediate feedback.",
+      badge: "Fun",
+      target: "games",
+      recommended: false,
+    },
+    {
+      id: "strategy",
+      label: "Strategy",
+      model: "Gimkit style",
+      detail: "Score economy, streak pressure, team modes, and rematches.",
+      badge: "Team",
+      target: "games",
+      recommended: !hasQuizBanks,
+    },
+  ]
 }
 
 export function practiceModeLabel(mode: PracticeMode) {

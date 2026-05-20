@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import type { QuizQuestion } from "../components/learn/types"
 import { hasPracticeDraftContent, listPracticeDraftCards, normalizePracticeDraft, summarizePracticeDrafts } from "../lib/practice-drafts"
-import { buildGameRunActions, buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, buildPracticeSessionSummary, buildPracticeWorkspacePlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../lib/practice-features"
+import { buildGameRunActions, buildMistakeRetrySet, buildPracticePlayStyles, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, buildPracticeSessionSummary, buildPracticeWorkspacePlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../lib/practice-features"
 
 const questions: QuizQuestion[] = [
   { id: "q1", question: "One?", choices: [{ id: "a", text: "1" }, { id: "b", text: "2" }], correct_answer_id: "a", topic: "Math", explanation: "One" },
@@ -61,6 +61,20 @@ test("practice workspace plan turns quiz state into friendly next actions", () =
   const emptyPlan = buildPracticeWorkspacePlan({ activeTarget: "games", quizCount: 0 })
   assert.equal(emptyPlan.primaryAction.id, "create")
   assert.match(emptyPlan.caption, /Practice works best/)
+})
+
+test("practice play styles map popular product patterns to clean targets", () => {
+  const ready = buildPracticePlayStyles({ hasQuizBanks: true })
+  const drafts = buildPracticePlayStyles({ draftCount: 2, hasQuizBanks: true })
+  const repair = buildPracticePlayStyles({ hasQuizBanks: true, markedCount: 1, retryCount: 2 })
+  const empty = buildPracticePlayStyles({ hasQuizBanks: false })
+
+  assert.deepEqual(ready.map((style) => style.model), ["Kahoot style", "Quizlet style", "Quizizz style", "Blooket style", "Gimkit style"])
+  assert.equal(ready.find((style) => style.id === "live")?.recommended, true)
+  assert.equal(drafts.find((style) => style.id === "study")?.recommended, true)
+  assert.equal(repair.find((style) => style.id === "assessment")?.badge, "Repair")
+  assert.equal(empty.find((style) => style.id === "strategy")?.recommended, true)
+  assert.equal(empty.find((style) => style.id === "arcade")?.target, "games")
 })
 
 test("practice review plan groups misses by topic and recommends next loop", () => {
