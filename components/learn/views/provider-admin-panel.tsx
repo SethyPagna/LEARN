@@ -5,9 +5,9 @@ import { useEffect, useMemo, useState } from "react"
 import { CheckCircle2, FlaskConical, KeyRound, MoreHorizontal, Plus, Save, Trash2, Wand2 } from "lucide-react"
 import { api } from "../api"
 import { Panel } from "../ui"
+import { buildProviderAdminSummaryChips, type ProviderAdminSection, type ProviderAdminSummaryChip } from "@/lib/ai/provider-admin-ui"
 
 type ProviderType = "chat" | "embed" | "gateway"
-type ProviderSection = "providers" | "editor" | "routing" | "presets"
 
 interface ProviderPreset {
   id: string
@@ -100,7 +100,7 @@ export function ProviderAdminPanel() {
   const [presets, setPresets] = useState<ProviderPreset[]>([])
   const [summary, setSummary] = useState<ProviderSummary | null>(null)
   const [form, setForm] = useState<ProviderForm>(blankForm)
-  const [activeSection, setActiveSection] = useState<ProviderSection>("providers")
+  const [activeSection, setActiveSection] = useState<ProviderAdminSection>("providers")
   const [status, setStatus] = useState("Loading provider console...")
 
   async function refresh() {
@@ -116,6 +116,9 @@ export function ProviderAdminPanel() {
   }, [])
 
   const selectedPreset = useMemo(() => presets.find((preset) => preset.provider === form.provider), [form.provider, presets])
+  const summaryChips = useMemo(() => buildProviderAdminSummaryChips(summary), [summary])
+  const primarySummaryChips = summaryChips.filter((chip) => chip.priority === "primary")
+  const secondarySummaryChips = summaryChips.filter((chip) => chip.priority === "secondary")
   const providerOptions = useMemo(() => {
     const options = new Set(["cloudflare", "vercel"])
     for (const preset of presets) options.add(preset.provider)
@@ -191,7 +194,11 @@ export function ProviderAdminPanel() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="text-lg font-semibold text-foreground">AI provider control center</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Encrypted routing, failover, limits, and provider tests.</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {primarySummaryChips.map((chip) => (
+                <ProviderSummaryChipButton key={chip.id} chip={chip} onClick={() => setActiveSection(chip.targetSection)} />
+              ))}
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <SectionButton active={activeSection === "providers"} onClick={() => setActiveSection("providers")}>Providers</SectionButton>
@@ -211,18 +218,17 @@ export function ProviderAdminPanel() {
           </div>
         </div>
 
-        <details className="mt-4 rounded-md border border-border bg-background/70 p-3">
-          <summary className="cursor-pointer text-sm font-semibold text-foreground">
-            Gateway signals
-            <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-              {summary?.readyCount ?? 0}/{summary?.totalCount ?? 0} ready
+        <details className="mt-4 rounded-md border border-border bg-background/70">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+            <span>Gateway signals</span>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              {secondarySummaryChips.length} more
             </span>
           </summary>
-          <div className="mt-3 grid gap-2 md:grid-cols-4">
-            <Metric label="Total" value={summary?.totalCount ?? 0} />
-            <Metric label="Enabled" value={summary?.enabledCount ?? 0} />
-            <Metric label="Ready" value={summary?.readyCount ?? 0} />
-            <Metric label="Routing" value={summary?.hasDegradedProviders ? "Needs review" : "Healthy"} />
+          <div className="grid gap-2 border-t border-border p-3 sm:grid-cols-3">
+            {secondarySummaryChips.map((chip) => (
+              <ProviderSummaryChipButton key={chip.id} chip={chip} onClick={() => setActiveSection(chip.targetSection)} relaxed />
+            ))}
           </div>
         </details>
         <p className="mt-3 text-sm text-muted-foreground">{status}</p>
@@ -397,11 +403,22 @@ function SelectField({ label, value, options, onChange }: { label: string; value
   )
 }
 
-function Metric({ label, value }: { label: string; value: string | number }) {
+function ProviderSummaryChipButton({ chip, onClick, relaxed = false }: { chip: ProviderAdminSummaryChip; onClick: () => void; relaxed?: boolean }) {
   return (
-    <div className="rounded-md border border-border bg-background p-3">
-      <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-foreground">{value}</p>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-md border px-3 py-2 text-left transition hover:-translate-y-0.5 ${providerSummaryChipClasses(chip.tone)} ${relaxed ? "min-h-16" : ""}`}
+      title={`${chip.label}: ${chip.value}`}
+    >
+      <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.12em] opacity-75">{chip.label}</span>
+      <span className="mt-1 block text-sm font-semibold">{chip.value}</span>
+    </button>
   )
+}
+
+function providerSummaryChipClasses(tone: ProviderAdminSummaryChip["tone"]) {
+  if (tone === "good") return "border-success/30 bg-success/10 text-success hover:bg-success/15"
+  if (tone === "watch") return "border-warning/35 bg-warning/10 text-warning hover:bg-warning/15"
+  return "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
 }
