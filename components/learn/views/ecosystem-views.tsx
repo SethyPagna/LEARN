@@ -45,7 +45,7 @@ import type {
   View,
 } from "../types"
 import { EmptyState, Panel, StatusMessage } from "../ui"
-import { buildFeedActionPlan, buildFeedSummaryChips, buildKnowledgeGraphActionPlan, buildReviewActionPlan, buildReviewRatingActions, buildReviewSummaryChips, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession, type FeedSummaryChip, type ReviewRating } from "@/lib/learning-ecosystem"
+import { buildFeedActionPlan, buildFeedSummaryChips, buildKnowledgeGraphActionPlan, buildKnowledgeGraphSummaryChips, buildReviewActionPlan, buildReviewRatingActions, buildReviewSummaryChips, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession, type FeedSummaryChip, type KnowledgeGraphSummaryChip, type ReviewRating } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, buildProfileSummaryChips, type ProfilePlanTarget, type ProfileSummaryChip } from "@/lib/profile-features"
 import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
@@ -143,6 +143,9 @@ export function GraphView({ setView }: { setView: (view: View) => void }) {
   const orphanIds = useMemo(() => new Set((data?.orphanNodes ?? []).map((node) => node.id)), [data?.orphanNodes])
   const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes])
   const graphSummary = useMemo(() => summarizeKnowledgeGraph(nodes, edges), [edges, nodes])
+  const graphSummaryChips = useMemo(() => buildKnowledgeGraphSummaryChips(graphSummary), [graphSummary])
+  const primaryGraphChips = graphSummaryChips.filter((chip) => chip.priority === "primary")
+  const secondaryGraphChips = graphSummaryChips.filter((chip) => chip.priority === "secondary")
   const graphPlan = useMemo(() => buildKnowledgeGraphActionPlan(nodes, edges, graphSummary), [edges, graphSummary, nodes])
   const selectedNode = useMemo(() => nodes.find((node) => node.id === selectedId) ?? nodes[0], [nodes, selectedId])
   const filteredNodes = useMemo(() => filterGraphNodes(nodes, orphanIds, graphFilter), [graphFilter, nodes, orphanIds])
@@ -172,10 +175,10 @@ export function GraphView({ setView }: { setView: (view: View) => void }) {
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-semibold text-foreground">Living graph</h2>
-            <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground">
-              <span className="rounded-md bg-muted px-2 py-1">{graphSummary.seedCount} seeds</span>
-              <span className="rounded-md bg-muted px-2 py-1">{graphSummary.developingCount} developing</span>
-              <span className="rounded-md bg-muted px-2 py-1">{graphSummary.masteredCount} mastered</span>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {primaryGraphChips.map((chip) => (
+                <GraphSummaryChipView key={chip.id} chip={chip} />
+              ))}
             </div>
           </div>
           <span className="text-sm text-muted-foreground">{status}</span>
@@ -240,11 +243,18 @@ export function GraphView({ setView }: { setView: (view: View) => void }) {
             ))}
           </div>
         </button>
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          <Metric label="Nodes" value={String(graphSummary.totalNodes)} />
-          <Metric label="Edges" value={String(graphSummary.totalEdges)} />
-          <Metric label="Avg" value={`${Math.round(graphSummary.averageMastery * 100)}%`} />
-        </div>
+        <details className="mt-3 rounded-md border border-border bg-background">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+            <span>Graph signals</span>
+            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{secondaryGraphChips.length} more</span>
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          </summary>
+          <div className="grid grid-cols-2 gap-2 border-t border-border p-2">
+            {secondaryGraphChips.map((chip) => (
+              <GraphSummaryChipView key={chip.id} chip={chip} relaxed />
+            ))}
+          </div>
+        </details>
         <div className="mt-3 flex flex-wrap gap-2">
           {(["all", "weak", "orphan", "public"] as GraphFilter[]).map((filter) => (
             <button
@@ -286,6 +296,21 @@ export function GraphView({ setView }: { setView: (view: View) => void }) {
       </Panel>
     </div>
   )
+}
+
+function GraphSummaryChipView({ chip, relaxed = false }: { chip: KnowledgeGraphSummaryChip; relaxed?: boolean }) {
+  return (
+    <span className={`rounded-md border px-3 py-2 text-left ${graphSummaryChipClasses(chip.tone)} ${relaxed ? "min-h-16" : ""}`}>
+      <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.12em] opacity-75">{chip.label}</span>
+      <span className="mt-1 block text-sm font-semibold">{chip.value}</span>
+    </span>
+  )
+}
+
+function graphSummaryChipClasses(tone: KnowledgeGraphSummaryChip["tone"]) {
+  if (tone === "good") return "border-success/30 bg-success/10 text-success"
+  if (tone === "watch") return "border-warning/35 bg-warning/10 text-warning"
+  return "border-border bg-secondary text-secondary-foreground"
 }
 
 function filterGraphNodes(nodes: KnowledgeNode[], orphanIds: Set<string>, filter: GraphFilter) {
