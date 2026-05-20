@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ComponentType } from "react"
-import { BookOpen, Bot, ChevronDown, Clock, Gamepad2, ImageIcon, Info, Mail, MessageSquare, MoreHorizontal, PhoneCall, Play, Plus, Radio, Repeat2, Search, Send, Sparkles, Swords, Target, Trash2, Users } from "lucide-react"
+import { BookOpen, Bot, ChevronDown, Clock, Gamepad2, ImageIcon, Info, Mail, MessageSquare, Mic, MoreHorizontal, PhoneCall, Play, Plus, Radio, Repeat2, Search, Send, Sparkles, Swords, Target, Trash2, Users, UsersRound, Video } from "lucide-react"
 import type { Quiz, User, View } from "../../types"
 import type { WorkspaceOptions } from "../../preferences"
 import { api } from "../../api"
@@ -12,7 +12,7 @@ import { QuizView } from "../quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticePlayStyles, buildPracticeWorkspacePlan, type PracticePlayStyle, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialFlowCards, buildSocialHomeLanes, normalizeSocialInviteDraft, summarizeConnections, type ConnectionActionId, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialFlowId, type SocialHomeLane, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialFlowCards, buildSocialHomeLanes, normalizeSocialInviteDraft, summarizeConnections, type ConnectionActionId, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialFlowId, type SocialHomeLane, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type PracticeTab = "quizzes" | "games"
 type SocialTab = "home" | "chat" | "spaces" | "rooms" | "battles"
@@ -44,6 +44,14 @@ const socialHomeLaneIcons: Record<SocialHomeLane["id"], ComponentType<{ classNam
   moments: ImageIcon,
   groups: Users,
   calls: PhoneCall,
+}
+
+const socialCallModeIcons: Record<SocialCallMode["id"], ComponentType<{ className?: string }>> = {
+  voice: Mic,
+  video: Video,
+  group: UsersRound,
+  focus: Radio,
+  battle: Swords,
 }
 
 const practicePlayStyleIcons: Record<PracticePlayStyle["id"], ComponentType<{ className?: string }>> = {
@@ -238,6 +246,11 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     spaceCount: counts.spaces,
     threadCount: threads.length,
   }), [connectionSummary.total, counts.battles, counts.rooms, counts.spaces, threads.length])
+  const callModes = useMemo(() => buildSocialCallModes({
+    battleCount: counts.battles,
+    connectionCount: connectionSummary.total,
+    roomCount: counts.rooms,
+  }), [connectionSummary.total, counts.battles, counts.rooms])
   const commandCounts = useMemo<Record<SocialCommandTab, string>>(() => ({
     people: String(peoplePage.total),
     post: String(threads.length),
@@ -410,6 +423,15 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     open(lane.target.value)
   }
 
+  function openCallMode(mode: SocialCallMode) {
+    const count = mode.target === "rooms" ? counts.rooms : counts.battles
+    if (count > 0) {
+      open(mode.target)
+      return
+    }
+    void createSocialPlace(mode.target)
+  }
+
   function runPrimaryCommand(id: SocialCommandPrimaryActionId) {
     if (commandAction) return
     if (id === "find") {
@@ -503,6 +525,24 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
               )
             })}
           </div>
+
+          <details className="group/calls rounded-md border border-border bg-background">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+              <span className="flex min-w-0 items-center gap-2">
+                <PhoneCall className="h-4 w-4 text-primary" />
+                <span>Calls</span>
+              </span>
+              <span className="ml-auto rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">
+                {counts.rooms + counts.battles}
+              </span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/calls:rotate-180" />
+            </summary>
+            <div className="grid gap-2 border-t border-border p-2 md:grid-cols-2 xl:grid-cols-5">
+              {callModes.map((mode) => (
+                <SocialCallModeButton key={mode.id} mode={mode} onClick={() => openCallMode(mode)} />
+              ))}
+            </div>
+          </details>
 
           <div className="flex gap-1 overflow-x-auto rounded-md border border-border bg-background p-1">
             {socialCommandTabs.map((item) => {
@@ -693,6 +733,31 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
         </div>
       </details>
     </div>
+  )
+}
+
+function SocialCallModeButton({ mode, onClick }: { mode: SocialCallMode; onClick: () => void }) {
+  const Icon = socialCallModeIcons[mode.id]
+  return (
+    <button
+      onClick={onClick}
+      className={`group flex min-w-0 items-center gap-2 rounded-md border p-2.5 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground ${
+        mode.recommended ? "border-primary/40 bg-primary/10" : "border-border bg-card"
+      }`}
+      title={mode.detail}
+      type="button"
+    >
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${mode.recommended ? "bg-primary text-primary-foreground" : "bg-primary/12 text-primary group-hover:text-accent-foreground"}`}>
+        <Icon className="h-5 w-5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-foreground group-hover:text-accent-foreground">{mode.label}</span>
+        <span className="block truncate text-xs text-muted-foreground">{mode.action}</span>
+      </span>
+      <span className={`rounded-md px-2 py-1 text-[0.68rem] font-semibold ${mode.recommended ? "bg-primary/15 text-primary" : "bg-secondary text-secondary-foreground"}`}>
+        {mode.badge}
+      </span>
+    </button>
   )
 }
 
