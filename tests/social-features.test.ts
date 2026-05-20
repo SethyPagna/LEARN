@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatThreadActions, buildChatThreadStatus, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialFlowCards, buildSocialHomeLanes, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialStarterActions, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatThreadActions, buildChatThreadStatus, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialStarterActions, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -291,6 +291,18 @@ test("connection actions gate add follow and remove states", () => {
   assert.equal(removeActions.find((action) => action.id === "remove")?.disabled, false)
   assert.equal(busyActions.find((action) => action.id === "follow")?.busy, true)
   assert.equal(busyActions.every((action) => action.disabled), true)
+})
+
+test("social contact quick actions route accepted contacts and gate pending ones", () => {
+  const accepted = buildSocialContactQuickActions({ target_user_id: "u1", connection_type: "friend", status: "accepted" })
+  const pending = buildSocialContactQuickActions({ target_user_id: "u2", connection_type: "follow", status: "pending" })
+
+  assert.deepEqual(accepted.map((action) => action.label), ["Chat", "Group", "Call"])
+  assert.equal(accepted.find((action) => action.id === "chat")?.primary, true)
+  assert.deepEqual(accepted.find((action) => action.id === "group")?.target, { kind: "tab", value: "spaces" })
+  assert.equal(accepted.find((action) => action.id === "group")?.badge, "friend")
+  assert.equal(pending.every((action) => action.disabled), true)
+  assert.equal(pending.find((action) => action.id === "chat")?.badge, "pending")
 })
 
 test("social command run actions gate posting inviting and busy flows", () => {

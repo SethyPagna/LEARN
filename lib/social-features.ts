@@ -230,6 +230,18 @@ export interface SocialStarterAction {
   target: SocialHomeLaneTarget
 }
 
+export type SocialContactQuickActionId = "chat" | "group" | "call"
+
+export interface SocialContactQuickAction {
+  id: SocialContactQuickActionId
+  label: string
+  detail: string
+  badge: string
+  disabled: boolean
+  primary: boolean
+  target: Extract<SocialHomeLaneTarget, { kind: "tab" }>
+}
+
 export type SocialCallModeId = "voice" | "video" | "group" | "focus" | "battle"
 
 export interface SocialCallMode {
@@ -821,6 +833,43 @@ export function buildConnectionActions(input: {
     busy: busy && input.busyAction === action.id,
     disabled: busy || action.disabled,
   }))
+}
+
+export function buildSocialContactQuickActions(connection: UserConnectionLike): SocialContactQuickAction[] {
+  const status = String(connection.status || "accepted").toLowerCase()
+  const type = String(connection.connection_type || connection.connectionType || "follow").toLowerCase()
+  const active = status !== "pending" && status !== "blocked"
+  const isFriend = type === "friend"
+
+  return [
+    {
+      id: "chat",
+      label: "Chat",
+      detail: active ? "Open direct study chat." : "Chat unlocks after this connection is accepted.",
+      badge: active ? "now" : status,
+      disabled: !active,
+      primary: active,
+      target: { kind: "tab", value: "chat" },
+    },
+    {
+      id: "group",
+      label: "Group",
+      detail: active ? "Add this person to a study group." : "Groups need an accepted connection.",
+      badge: isFriend ? "friend" : "follow",
+      disabled: !active,
+      primary: false,
+      target: { kind: "tab", value: "spaces" },
+    },
+    {
+      id: "call",
+      label: "Call",
+      detail: active ? "Start a focus, voice, or video room." : "Calls need an accepted connection.",
+      badge: "live",
+      disabled: !active,
+      primary: false,
+      target: { kind: "tab", value: "rooms" },
+    },
+  ]
 }
 
 export function buildSocialCommandSummary(input: {
