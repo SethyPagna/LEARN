@@ -12,7 +12,7 @@ import { QuizView } from "../quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeGameModes, buildPracticePlayStyles, buildPracticeWorkspacePlan, type PracticeGameMode, type PracticePlayStyle, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialMomentOptions, buildSocialStarterActions, normalizeSocialInviteDraft, summarizeConnections, type ConnectionActionId, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialHomeLane, type SocialMomentOption, type SocialMomentTypeId, type SocialStarterAction, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialMomentOptions, buildSocialStarterActions, normalizeSocialInviteDraft, summarizeConnections, type ConnectionActionId, type PeopleSearchShortcut, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialHomeLane, type SocialMomentOption, type SocialMomentTypeId, type SocialStarterAction, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type PracticeTab = "quizzes" | "games"
 type SocialTab = "home" | "chat" | "spaces" | "rooms" | "battles"
@@ -249,6 +249,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const [commandAction, setCommandAction] = useState<SocialCommandRunId | null>(null)
   const connectionSummary = useMemo(() => summarizeConnections(connections), [connections])
   const peoplePage = useMemo(() => buildConnectablePeoplePage({ members, connections, currentUserId, query, limit: peopleLimit }), [connections, currentUserId, members, peopleLimit, query])
+  const peopleShortcuts = useMemo(() => buildPeopleSearchShortcuts({ connections, currentUserId, members }), [connections, currentUserId, members])
   const connectionPage = useMemo(() => buildConnectionsPage(connections, connectionLimit), [connectionLimit, connections])
   const connectableMembers = peoplePage.items
   const inviteValidation = useMemo(() => normalizeSocialInviteDraft({ email: inviteEmail, role: inviteRole }), [inviteEmail, inviteRole])
@@ -406,6 +407,11 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   function chooseMoment(option: SocialMomentOption) {
     setMomentType(option.id)
     if (!quickPost.trim()) setQuickPost(option.prompt)
+  }
+
+  function applyPeopleShortcut(shortcut: PeopleSearchShortcut) {
+    setQuery(shortcut.query)
+    setPeopleLimit(5)
   }
 
   async function createInvite() {
@@ -650,6 +656,21 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                 <div className="flex items-center gap-2 rounded-md border border-input bg-card px-3">
                   <Search className="h-4 w-4 text-primary" />
                   <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find people by name or email" className="h-10 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none" />
+                </div>
+                <div className="grid grid-cols-3 gap-2 md:grid-cols-5">
+                  {peopleShortcuts.map((shortcut) => (
+                    <button
+                      key={shortcut.id}
+                      onClick={() => applyPeopleShortcut(shortcut)}
+                      className={`flex h-9 items-center justify-between gap-2 rounded-md border px-2 text-xs font-semibold transition hover:border-primary/40 hover:bg-accent hover:text-accent-foreground ${
+                        shortcut.recommended && !query ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-secondary text-secondary-foreground"
+                      }`}
+                      type="button"
+                    >
+                      <span className="truncate">{shortcut.label}</span>
+                      <span className="rounded bg-background px-1.5 py-0.5 text-[0.65rem] text-foreground">{shortcut.count}</span>
+                    </button>
+                  ))}
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{peoplePage.total} available</span>
