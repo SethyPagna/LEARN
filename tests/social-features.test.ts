@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatThreadActions, buildChatThreadStatus, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialInviteReadiness, buildSocialMomentOptions, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialStarterActions, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialInviteReadiness, buildSocialMomentOptions, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialStarterActions, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -27,6 +27,18 @@ test("social moment options guide posting without long copy", () => {
   assert.equal(active.find((option) => option.id === "resource")?.recommended, true)
   assert.equal(active.find((option) => option.id === "resource")?.channel, "#resources")
   assert.equal(active.find((option) => option.id === "milestone")?.intent, "win")
+})
+
+test("chat quick prompts guide composer channel intent and draft", () => {
+  const empty = buildChatQuickPrompts({ hasDraft: false, questionCount: 0, threadCount: 0, winCount: 0 })
+  const active = buildChatQuickPrompts({ hasDraft: false, questionCount: 3, savedCount: 2, threadCount: 4, winCount: 1 })
+  const drafting = buildChatQuickPrompts({ hasDraft: true, questionCount: 3, threadCount: 4, winCount: 1 })
+
+  assert.deepEqual(empty.map((prompt) => prompt.label), ["Question", "Win", "Resource", "Recap"])
+  assert.equal(empty.find((prompt) => prompt.id === "question")?.recommended, true)
+  assert.equal(active.find((prompt) => prompt.id === "win")?.recommended, true)
+  assert.equal(active.find((prompt) => prompt.id === "resource")?.channel, "#resources")
+  assert.equal(drafting.some((prompt) => prompt.recommended), false)
 })
 
 test("chat thread title parsing keeps channel and readable title", () => {

@@ -70,6 +70,19 @@ export interface SocialMomentOption {
   recommended: boolean
 }
 
+export type ChatQuickPromptId = "question" | "win" | "resource" | "recap"
+
+export interface ChatQuickPrompt {
+  id: ChatQuickPromptId
+  label: string
+  detail: string
+  prompt: string
+  channel: string
+  intent: ChatIntent
+  badge: string
+  recommended: boolean
+}
+
 export interface SocialRecordLike {
   id?: string
   name?: string
@@ -386,6 +399,62 @@ export function buildSocialMomentOptions(input: {
       intent: "win",
       badge: "level",
       recommended: false,
+    },
+  ]
+}
+
+export function buildChatQuickPrompts(input: {
+  hasDraft: boolean
+  questionCount?: number
+  savedCount?: number
+  threadCount: number
+  winCount?: number
+}): ChatQuickPrompt[] {
+  const questionCount = input.questionCount ?? 0
+  const savedCount = input.savedCount ?? 0
+  const winCount = input.winCount ?? 0
+  const canRecommend = !input.hasDraft
+
+  return [
+    {
+      id: "question",
+      label: "Question",
+      detail: "Ask friends for an example or explanation.",
+      prompt: "Can someone help me understand ",
+      channel: "#study-help",
+      intent: "question",
+      badge: "help",
+      recommended: canRecommend && (input.threadCount === 0 || questionCount <= winCount),
+    },
+    {
+      id: "win",
+      label: "Win",
+      detail: "Post one small learning victory.",
+      prompt: "Small win: ",
+      channel: "#wins",
+      intent: "win",
+      badge: "spark",
+      recommended: canRecommend && input.threadCount > 0 && winCount < questionCount,
+    },
+    {
+      id: "resource",
+      label: "Resource",
+      detail: "Share a note, file, link, or saved reference.",
+      prompt: "Resource worth saving: ",
+      channel: "#resources",
+      intent: "update",
+      badge: "save",
+      recommended: canRecommend && savedCount > 0,
+    },
+    {
+      id: "recap",
+      label: "Recap",
+      detail: "Summarize what the group should remember.",
+      prompt: "Quick recap: today we learned ",
+      channel: "#general",
+      intent: "update",
+      badge: "sum",
+      recommended: canRecommend && input.threadCount > 2 && questionCount === 0 && winCount > 0,
     },
   ]
 }
