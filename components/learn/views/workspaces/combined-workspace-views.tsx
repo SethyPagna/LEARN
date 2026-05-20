@@ -12,7 +12,7 @@ import { QuizView } from "../quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeGameModes, buildPracticePlayStyles, buildPracticeWorkspacePlan, type PracticeGameMode, type PracticePlayStyle, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialStarterActions, normalizeSocialInviteDraft, summarizeConnections, type ConnectionActionId, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialHomeLane, type SocialStarterAction, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialMomentOptions, buildSocialStarterActions, normalizeSocialInviteDraft, summarizeConnections, type ConnectionActionId, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialHomeLane, type SocialMomentOption, type SocialMomentTypeId, type SocialStarterAction, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type PracticeTab = "quizzes" | "games"
 type SocialTab = "home" | "chat" | "spaces" | "rooms" | "battles"
@@ -66,6 +66,13 @@ const socialContactQuickActionIcons: Record<SocialContactQuickAction["id"], Comp
   chat: MessageSquare,
   group: UsersRound,
   call: PhoneCall,
+}
+
+const socialMomentOptionIcons: Record<SocialMomentOption["id"], ComponentType<{ className?: string }>> = {
+  win: Sparkles,
+  question: MessageSquare,
+  resource: BookOpen,
+  milestone: Target,
 }
 
 const practicePlayStyleIcons: Record<PracticePlayStyle["id"], ComponentType<{ className?: string }>> = {
@@ -231,6 +238,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const [counts, setCounts] = useState({ spaces: 0, rooms: 0, battles: 0 })
   const [query, setQuery] = useState("")
   const [quickPost, setQuickPost] = useState("")
+  const [momentType, setMomentType] = useState<SocialMomentTypeId>("win")
   const [inviteEmail, setInviteEmail] = useState("")
   const [inviteRole, setInviteRole] = useState<"learner" | "admin">("learner")
   const [status, setStatus] = useState("Loading")
@@ -287,6 +295,11 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     connectionCount: connectionSummary.total,
     roomCount: counts.rooms,
   }), [connectionSummary.total, counts.battles, counts.rooms])
+  const momentOptions = useMemo(() => buildSocialMomentOptions({
+    connectionCount: connectionSummary.total,
+    threadCount: threads.length,
+  }), [connectionSummary.total, threads.length])
+  const activeMomentOption = momentOptions.find((option) => option.id === momentType) ?? momentOptions[0]
   const commandCounts = useMemo<Record<SocialCommandTab, string>>(() => ({
     people: String(peoplePage.total),
     post: String(threads.length),
@@ -378,7 +391,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     try {
       await api("/api/chat", {
         method: "POST",
-        body: JSON.stringify(buildChatDraftPayload({ body: quickPost, channel: "#general", title: "Social update", intent: quickPost.includes("?") ? "question" : "update" })),
+        body: JSON.stringify(buildChatDraftPayload({ body: quickPost, channel: activeMomentOption.channel, title: activeMomentOption.label, intent: activeMomentOption.intent })),
       })
       setQuickPost("")
       setActiveTab("chat")
@@ -388,6 +401,11 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     } finally {
       setCommandAction(null)
     }
+  }
+
+  function chooseMoment(option: SocialMomentOption) {
+    setMomentType(option.id)
+    if (!quickPost.trim()) setQuickPost(option.prompt)
   }
 
   async function createInvite() {
@@ -679,6 +697,11 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
 
             {commandTab === "post" ? (
               <div className="grid gap-3">
+                <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                  {momentOptions.map((option) => (
+                    <SocialMomentOptionButton key={option.id} active={option.id === momentType} option={option} onClick={() => chooseMoment(option)} />
+                  ))}
+                </div>
                 <textarea value={quickPost} onChange={(event) => setQuickPost(event.target.value)} placeholder="Ask a question or share a quick update..." className="min-h-28 w-full resize-none rounded-md border border-input bg-card p-3 text-sm text-foreground outline-none" />
                 <div className="flex flex-wrap items-center gap-2">
                   <button onClick={sendQuickPost} disabled={postAction?.disabled} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">
@@ -690,6 +713,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                     Open chat
                   </button>
                   <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">{threads.length} threads</span>
+                  <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{activeMomentOption.channel}</span>
                 </div>
               </div>
             ) : null}
@@ -796,6 +820,28 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
         </div>
       </details>
     </div>
+  )
+}
+
+function SocialMomentOptionButton({ active, onClick, option }: { active: boolean; onClick: () => void; option: SocialMomentOption }) {
+  const Icon = socialMomentOptionIcons[option.id]
+  return (
+    <button
+      onClick={onClick}
+      className={`group flex min-w-0 items-center gap-2 rounded-md border p-2 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground ${
+        active || option.recommended ? "border-primary/40 bg-primary/10" : "border-border bg-card"
+      }`}
+      title={option.detail}
+      type="button"
+    >
+      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground group-hover:text-accent-foreground"}`}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-semibold text-foreground group-hover:text-accent-foreground">{option.label}</span>
+        <span className="block truncate text-[0.65rem] font-semibold text-muted-foreground">{option.badge}</span>
+      </span>
+    </button>
   )
 }
 
