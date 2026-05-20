@@ -5,6 +5,7 @@ import {
   buildFeedActionPlan,
   buildFeedSummaryChips,
   buildKnowledgeGraphActionPlan,
+  buildKnowledgeGraphSummaryChips,
   buildReviewActionPlan,
   buildReviewRatingActions,
   buildReviewSchedule,
@@ -286,6 +287,21 @@ test("knowledge graph action plan catches weak connected nodes", () => {
 
   assert.equal(plan.nextAction, "review-weak")
   assert.equal(plan.targetNodeId, "n2")
+})
+
+test("knowledge graph summary chips surface graph repair signals", () => {
+  const nodes: KnowledgeNode[] = [
+    { ...node("n1", "Operating systems", "private"), mastery: 0.2 },
+    { ...node("n2", "Round robin", "public"), mastery: 0.8 },
+    { ...node("n3", "Stoicism", "connections"), mastery: 0.5 },
+  ]
+  const edges: KnowledgeEdge[] = [{ id: "e1", sourceId: "n1", targetId: "n2", type: "related", strength: 0.8 }]
+  const chips = buildKnowledgeGraphSummaryChips(summarizeKnowledgeGraph(nodes, edges))
+  const primaryIds = chips.filter((chip) => chip.priority === "primary").map((chip) => chip.id)
+
+  assert.deepEqual(primaryIds, ["nodes", "edges", "mastery", "orphans"])
+  assert.equal(chips.find((chip) => chip.id === "orphans")?.tone, "watch")
+  assert.equal(chips.find((chip) => chip.id === "shared")?.value, "2")
 })
 
 test("reputation gates posting and rewards high-signal actions", () => {

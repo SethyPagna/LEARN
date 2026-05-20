@@ -148,6 +148,14 @@ export interface KnowledgeGraphSummary {
   strongestEdges: KnowledgeEdge[]
 }
 
+export interface KnowledgeGraphSummaryChip {
+  id: "nodes" | "edges" | "mastery" | "orphans" | "shared" | "density" | "seeds" | "mastered"
+  label: string
+  value: string
+  priority: "primary" | "secondary"
+  tone: "good" | "watch" | "neutral"
+}
+
 export interface KnowledgeGraphActionPlan {
   headline: string
   detail: string
@@ -635,6 +643,20 @@ export function buildKnowledgeGraphActionPlan(
     nextAction: "celebrate",
     chips: [`${Math.round(summary.averageMastery * 100)}% avg mastery`, `${summary.masteredCount} mastered`, "keep going"],
   }
+}
+
+export function buildKnowledgeGraphSummaryChips(summary: KnowledgeGraphSummary): KnowledgeGraphSummaryChip[] {
+  const sharedCount = summary.connectionCount + summary.publicCount
+  return [
+    { id: "nodes", label: "Nodes", value: String(summary.totalNodes), priority: "primary", tone: summary.totalNodes ? "good" : "watch" },
+    { id: "edges", label: "Edges", value: String(summary.totalEdges), priority: summary.totalEdges ? "primary" : "secondary", tone: summary.totalEdges ? "good" : "neutral" },
+    { id: "mastery", label: "Mastery", value: `${Math.round(summary.averageMastery * 100)}%`, priority: "primary", tone: summary.averageMastery >= 0.55 ? "good" : "watch" },
+    { id: "orphans", label: "Orphans", value: String(summary.orphanCount), priority: summary.orphanCount ? "primary" : "secondary", tone: summary.orphanCount ? "watch" : "good" },
+    { id: "shared", label: "Shared", value: String(sharedCount), priority: sharedCount ? "secondary" : "primary", tone: sharedCount ? "good" : "neutral" },
+    { id: "density", label: "Density", value: `${Math.round(summary.edgeDensity * 100)}%`, priority: "secondary", tone: summary.edgeDensity >= 0.16 ? "good" : "watch" },
+    { id: "seeds", label: "Seeds", value: String(summary.seedCount), priority: summary.seedCount ? "secondary" : "primary", tone: summary.seedCount ? "watch" : "good" },
+    { id: "mastered", label: "Mastered", value: String(summary.masteredCount), priority: summary.masteredCount ? "secondary" : "primary", tone: summary.masteredCount ? "good" : "neutral" },
+  ]
 }
 
 function formatFeedDuration(totalSeconds: number) {
