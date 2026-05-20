@@ -12,7 +12,7 @@ import { QuizView } from "../quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeGameModes, buildPracticePlayStyles, buildPracticeWorkspacePlan, type PracticeGameMode, type PracticePlayStyle, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialFlowCards, buildSocialHomeLanes, buildSocialStarterActions, normalizeSocialInviteDraft, summarizeConnections, type ConnectionActionId, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialFlowId, type SocialHomeLane, type SocialStarterAction, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialStarterActions, normalizeSocialInviteDraft, summarizeConnections, type ConnectionActionId, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialHomeLane, type SocialStarterAction, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type PracticeTab = "quizzes" | "games"
 type SocialTab = "home" | "chat" | "spaces" | "rooms" | "battles"
@@ -58,6 +58,12 @@ const socialStarterActionIcons: Record<SocialStarterAction["id"], ComponentType<
   "add-friend": Users,
   chat: MessageSquare,
   moment: ImageIcon,
+  group: UsersRound,
+  call: PhoneCall,
+}
+
+const socialContactQuickActionIcons: Record<SocialContactQuickAction["id"], ComponentType<{ className?: string }>> = {
+  chat: MessageSquare,
   group: UsersRound,
   call: PhoneCall,
 }
@@ -461,6 +467,11 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     open(action.target.value)
   }
 
+  function openContactAction(action: SocialContactQuickAction) {
+    if (action.disabled) return
+    open(action.target.value)
+  }
+
   function openCallMode(mode: SocialCallMode) {
     const count = mode.target === "rooms" ? counts.rooms : counts.battles
     if (count > 0) {
@@ -713,6 +724,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                     const targetUserId = String(connection.target_user_id || connection.targetUserId || "")
                     const label = connection.name || connection.username || targetUserId || "Connection"
                     const type = String(connection.connection_type || connection.connectionType || "follow")
+                    const quickActions = buildSocialContactQuickActions(connection)
                     const removeAction = buildConnectionActions({
                       busyAction: connectionAction?.targetId === targetUserId ? connectionAction.action : null,
                       busyTargetId: connectionAction?.targetId,
@@ -720,15 +732,22 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                       targetId: targetUserId,
                     }).find((action) => action.id === "remove")
                     return (
-                      <div key={`${targetUserId}-${type}`} className="flex items-center justify-between gap-2 rounded-md border border-border bg-card p-2">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-foreground">{label}</p>
-                          <p className="truncate text-xs text-muted-foreground">{type} - {connection.status || "accepted"}</p>
+                      <div key={`${targetUserId}-${type}`} className="grid gap-2 rounded-md border border-border bg-card p-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-foreground">{label}</p>
+                            <p className="truncate text-xs text-muted-foreground">{type} - {connection.status || "accepted"}</p>
+                          </div>
+                          <button onClick={() => void removeConnection(connection)} disabled={removeAction?.disabled} className="inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-md border border-border px-2 text-xs font-semibold text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60" aria-label={`Remove ${label}`}>
+                            <Trash2 className="h-4 w-4" />
+                            {removeAction?.busy ? removeAction.busyLabel : ""}
+                          </button>
                         </div>
-                        <button onClick={() => void removeConnection(connection)} disabled={removeAction?.disabled} className="inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-md border border-border px-2 text-xs font-semibold text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60" aria-label={`Remove ${label}`}>
-                          <Trash2 className="h-4 w-4" />
-                          {removeAction?.busy ? removeAction.busyLabel : ""}
-                        </button>
+                        <div className="grid grid-cols-3 gap-1">
+                          {quickActions.map((action) => (
+                            <SocialContactQuickActionButton key={action.id} action={action} onClick={() => openContactAction(action)} />
+                          ))}
+                        </div>
                       </div>
                     )
                   })}
@@ -777,6 +796,24 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
         </div>
       </details>
     </div>
+  )
+}
+
+function SocialContactQuickActionButton({ action, onClick }: { action: SocialContactQuickAction; onClick: () => void }) {
+  const Icon = socialContactQuickActionIcons[action.id]
+  return (
+    <button
+      onClick={onClick}
+      disabled={action.disabled}
+      className={`group inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border px-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+        action.primary ? "border-primary/40 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
+      }`}
+      title={action.detail}
+      type="button"
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0" />
+      <span className="truncate">{action.label}</span>
+    </button>
   )
 }
 
