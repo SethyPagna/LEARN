@@ -205,6 +205,8 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-20: Continued Vault UX by reusing graph health chips in the Vault hero and replacing the long flat block palette with tested grouped capture/study/media/advanced tools.
 - 2026-05-20: Continued Studio UX by adding tested record action groups and using them to organize item menus into Open, Edit, Share, and Manage clusters instead of one flat action list.
 - 2026-05-20: Continued Studio context-menu UX by reusing the same action groups for right-click record actions, keeping fast workflows aligned with the compact item menu.
+- 2026-05-20: Continued Social UX by adding tested Friends, Chats, Moments, Groups, and Calls lanes that map familiar social actions to existing LEARN chat, people, groups, and live-room flows.
+- 2026-05-20: Continued Practice UX by adding tested play styles inspired by live quizzes, study tools, assessments, arcade review, and strategy games, then surfacing them as compact guided cards.
 
 ## Implementation Slices
 
