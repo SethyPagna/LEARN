@@ -213,6 +213,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Continued Social contacts by adding tested per-contact Chat, Group, and Call actions and surfacing them directly inside connection cards while gating pending contacts.
 - 2026-05-21: Continued Social moments by adding tested Win, Question, Resource, and Milestone moment options and wiring them to compact post chips with channel-aware posting.
 - 2026-05-21: Continued Chat maturity by adding tested quick prompts for questions, wins, resources, and recaps and surfacing them as compact composer chips.
+- 2026-05-21: Continued Chat inbox UX by adding tested shortcuts for All, Help, Wins, Saved, Mentions, and Studio and wiring them to compact thread filtering.
 
 ## Implementation Slices
 
