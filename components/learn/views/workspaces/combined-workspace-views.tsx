@@ -11,7 +11,7 @@ import { ChatView, GamesView } from "../productivity-views"
 import { QuizView } from "../quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
-import { buildPracticeWorkspacePlan, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
+import { buildPracticePlayStyles, buildPracticeWorkspacePlan, type PracticePlayStyle, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
 import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialFlowCards, buildSocialHomeLanes, normalizeSocialInviteDraft, summarizeConnections, type ConnectionActionId, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialFlowId, type SocialHomeLane, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type PracticeTab = "quizzes" | "games"
@@ -44,6 +44,14 @@ const socialHomeLaneIcons: Record<SocialHomeLane["id"], ComponentType<{ classNam
   moments: ImageIcon,
   groups: Users,
   calls: PhoneCall,
+}
+
+const practicePlayStyleIcons: Record<PracticePlayStyle["id"], ComponentType<{ className?: string }>> = {
+  live: Target,
+  study: BookOpen,
+  assessment: Clock,
+  arcade: Gamepad2,
+  strategy: Swords,
 }
 
 export function LearnWorkspaceView({
@@ -92,6 +100,12 @@ export function PracticeWorkspaceView({
     markedDraftCount: draftCards.reduce((sum, draft) => sum + draft.markedCount, 0),
     retryDraftCount: draftCards.reduce((sum, draft) => sum + draft.retryCount, 0),
   }), [draftCards, quizzes.length, tab])
+  const playStyles = useMemo(() => buildPracticePlayStyles({
+    draftCount: draftCards.length,
+    hasQuizBanks: quizzes.length > 0,
+    markedCount: draftCards.reduce((sum, draft) => sum + draft.markedCount, 0),
+    retryCount: draftCards.reduce((sum, draft) => sum + draft.retryCount, 0),
+  }), [draftCards, quizzes.length])
 
   useEffect(() => {
     setTab(initialView === "games" ? "games" : "quizzes")
@@ -138,7 +152,7 @@ export function PracticeWorkspaceView({
     >
       <div className="grid gap-4 xl:grid-cols-[1fr_300px]">
         <div>{tab === "quizzes" ? <QuizView quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={options} /> : <GamesView quizzes={quizzes} options={options} />}</div>
-        <PracticeGuide draftCards={draftCards} onClearDraft={discardDraft} onCreatePractice={() => setView("ai")} onOpenTarget={openPracticeTarget} onResumeDraft={resumeDraft} plan={practicePlan} />
+        <PracticeGuide draftCards={draftCards} onClearDraft={discardDraft} onCreatePractice={() => setView("ai")} onOpenTarget={openPracticeTarget} onResumeDraft={resumeDraft} plan={practicePlan} playStyles={playStyles} />
       </div>
     </WorkspaceFrame>
   )
@@ -872,6 +886,7 @@ function PracticeGuide({
   onOpenTarget,
   onResumeDraft,
   plan,
+  playStyles,
 }: {
   draftCards: PracticeDraftCard[]
   onClearDraft: (quizId: string) => void
@@ -879,6 +894,7 @@ function PracticeGuide({
   onOpenTarget: (target: PracticeWorkspaceTarget) => void
   onResumeDraft: (quizId: string) => void
   plan: PracticeWorkspacePlan
+  playStyles: PracticePlayStyle[]
 }) {
   function runAction(action: PracticeWorkspaceAction) {
     if (action.id === "resume" && draftCards[0]) {
@@ -915,8 +931,19 @@ function PracticeGuide({
       </div>
       <details className="group/practice mt-3 rounded-md border border-border bg-background">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-          <span>More paths</span>
+          <span>Play styles</span>
           <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/practice:rotate-180" />
+        </summary>
+        <div className="grid gap-2 border-t border-border p-2">
+          {playStyles.map((style) => (
+            <PracticePlayStyleButton key={style.id} onClick={() => onOpenTarget(style.target)} style={style} />
+          ))}
+        </div>
+      </details>
+      <details className="group/actions mt-3 rounded-md border border-border bg-background">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+          <span>Actions</span>
+          <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/actions:rotate-180" />
         </summary>
         <div className="grid gap-2 border-t border-border p-2">
           {plan.actions.map((action) => (
@@ -973,6 +1000,31 @@ function PracticeActionButton({ action, onClick }: { action: PracticeWorkspaceAc
       </div>
       <span className="mt-2 inline-flex rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{action.badge}</span>
       <p className="pointer-events-none absolute right-0 top-[calc(100%+0.35rem)] z-20 hidden w-60 rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{action.caption}</p>
+    </button>
+  )
+}
+
+function PracticePlayStyleButton({ onClick, style }: { onClick: () => void; style: PracticePlayStyle }) {
+  const Icon = practicePlayStyleIcons[style.id]
+  return (
+    <button
+      onClick={onClick}
+      className={`group rounded-md border p-2.5 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground ${
+        style.recommended ? "border-primary/40 bg-primary/10" : "border-border bg-background"
+      }`}
+      title={style.detail}
+      type="button"
+    >
+      <div className="flex items-center gap-2">
+        <span className={`flex h-8 w-8 items-center justify-center rounded-md ${style.recommended ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
+          <Icon className="h-4 w-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-foreground group-hover:text-accent-foreground">{style.label}</span>
+          <span className="block truncate text-[0.68rem] font-semibold text-muted-foreground">{style.model}</span>
+        </span>
+        <span className={`rounded-md px-2 py-0.5 text-[0.65rem] font-semibold ${style.recommended ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{style.badge}</span>
+      </div>
     </button>
   )
 }
