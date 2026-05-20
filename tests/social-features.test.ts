@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatThreadActions, buildChatThreadStatus, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialFlowCards, buildSocialHomeLanes, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatThreadActions, buildChatThreadStatus, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialFlowCards, buildSocialHomeLanes, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -316,6 +316,17 @@ test("social home lanes map familiar social actions to existing routes", () => {
   assert.deepEqual(ready.find((lane) => lane.id === "friends")?.target, { kind: "command", value: "connections" })
   assert.equal(ready.find((lane) => lane.id === "calls")?.count, 3)
   assert.equal(ready.find((lane) => lane.id === "moments")?.action, "Post moment")
+})
+
+test("social call modes expose voice video group focus and battle options", () => {
+  const empty = buildSocialCallModes({ battleCount: 0, connectionCount: 0, roomCount: 0 })
+  const ready = buildSocialCallModes({ battleCount: 0, connectionCount: 3, roomCount: 1 })
+
+  assert.deepEqual(empty.map((mode) => mode.label), ["Voice call", "Video call", "Group call", "Focus room", "Battle huddle"])
+  assert.equal(empty.find((mode) => mode.id === "focus")?.recommended, true)
+  assert.equal(ready.find((mode) => mode.id === "voice")?.target, "rooms")
+  assert.equal(ready.find((mode) => mode.id === "battle")?.recommended, true)
+  assert.equal(ready.find((mode) => mode.id === "group")?.badge, "3 friends")
 })
 
 test("social flow cards keep the combined Social entry simple", () => {

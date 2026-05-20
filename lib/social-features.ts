@@ -219,6 +219,18 @@ export interface SocialHomeLane {
   target: SocialHomeLaneTarget
 }
 
+export type SocialCallModeId = "voice" | "video" | "group" | "focus" | "battle"
+
+export interface SocialCallMode {
+  id: SocialCallModeId
+  label: string
+  detail: string
+  action: string
+  badge: string
+  target: Extract<SocialFlowId, "rooms" | "battles">
+  recommended: boolean
+}
+
 export interface SocialFlowCard {
   id: SocialFlowId
   label: string
@@ -938,6 +950,64 @@ export function buildSocialHomeLanes(input: {
       count: liveCount,
       primary: hasGroups && liveCount === 0,
       target: { kind: "tab", value: "rooms" },
+    },
+  ]
+}
+
+export function buildSocialCallModes(input: {
+  battleCount: number
+  connectionCount: number
+  roomCount: number
+}): SocialCallMode[] {
+  const hasFriends = input.connectionCount > 0
+  const hasRooms = input.roomCount > 0
+  const hasBattles = input.battleCount > 0
+
+  return [
+    {
+      id: "voice",
+      label: "Voice call",
+      detail: "Open a low-friction study room for quick questions.",
+      action: hasRooms ? "Open room" : "Start voice room",
+      badge: hasFriends ? "Friends" : "Invite first",
+      target: "rooms",
+      recommended: hasFriends && !hasRooms,
+    },
+    {
+      id: "video",
+      label: "Video call",
+      detail: "Use a room for face-to-face explanations and screen-friendly recap.",
+      action: hasRooms ? "Open video room" : "Start video room",
+      badge: "Room",
+      target: "rooms",
+      recommended: false,
+    },
+    {
+      id: "group",
+      label: "Group call",
+      detail: "Gather a small circle around one topic, then save the recap.",
+      action: hasRooms ? "Open group room" : "Start group call",
+      badge: `${input.connectionCount} friends`,
+      target: "rooms",
+      recommended: hasFriends && hasRooms,
+    },
+    {
+      id: "focus",
+      label: "Focus room",
+      detail: "Run Pomodoro presence with quiet accountability.",
+      action: hasRooms ? "Join focus" : "Start focus",
+      badge: `${input.roomCount} rooms`,
+      target: "rooms",
+      recommended: !hasFriends,
+    },
+    {
+      id: "battle",
+      label: "Battle huddle",
+      detail: "Jump into a challenge call, then retry missed questions together.",
+      action: hasBattles ? "Open battle" : "Create battle",
+      badge: `${input.battleCount} battles`,
+      target: "battles",
+      recommended: hasFriends && !hasBattles,
     },
   ]
 }
