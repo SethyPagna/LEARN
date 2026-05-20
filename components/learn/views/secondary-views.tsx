@@ -5,7 +5,7 @@ import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, Bot, CalendarDays, Cale
 import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
 import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, buildCalendarSummaryChips, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
 import { buildProgressCommandPlan, summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
-import { buildSettingsControlPlan, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
+import { buildSettingsControlPlan, buildSettingsSummaryChips, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
 import { buildAdminOperationalPlan, filterAdminList, summarizeAdminOperations, type AdminAccessRequest, type AdminPanelTab } from "@/lib/admin-features"
 import type { WorkspaceOptions } from "../preferences"
 import type { CalendarEvent, Quiz, User, View } from "../types"
@@ -822,7 +822,11 @@ export function SettingsView({
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState(Number(user?.preferences?.dailyGoalMinutes || 45))
   const [section, setSection] = useState<SettingsSectionId>("profile")
   const [status, setStatus] = useState("")
+  const [saveBusy, setSaveBusy] = useState(false)
   const settingsSummary = useMemo(() => summarizeSettingsOptions(options), [options])
+  const settingsSummaryChips = useMemo(() => buildSettingsSummaryChips(settingsSummary), [settingsSummary])
+  const primarySettingsChips = settingsSummaryChips.filter((chip) => chip.priority === "primary")
+  const secondarySettingsChips = settingsSummaryChips.filter((chip) => chip.priority === "secondary")
   const settingsPlan = useMemo(() => buildSettingsControlPlan(settingsSummary), [settingsSummary])
   const profileDirty = name !== (user?.name || "") || email !== (user?.email || "") || dailyGoalMinutes !== Number(user?.preferences?.dailyGoalMinutes || 45)
 
@@ -833,15 +837,24 @@ export function SettingsView({
   }, [user?.id])
 
   async function saveProfile() {
-    await api("/api/profile", {
-      method: "PUT",
-      body: JSON.stringify({ name, email, preferences: { dailyGoalMinutes } }),
-    })
-    await api("/api/preferences", {
-      method: "PUT",
-      body: JSON.stringify({ dailyGoalMinutes, localeReady: supportedLocales.length, workspaceOptions: options }),
-    })
-    setStatus("Saved profile and preferences.")
+    if (saveBusy) return
+    setSaveBusy(true)
+    setStatus("Saving settings...")
+    try {
+      await api("/api/profile", {
+        method: "PUT",
+        body: JSON.stringify({ name, email, preferences: { dailyGoalMinutes } }),
+      })
+      await api("/api/preferences", {
+        method: "PUT",
+        body: JSON.stringify({ dailyGoalMinutes, localeReady: supportedLocales.length, workspaceOptions: options }),
+      })
+      setStatus("Saved profile and preferences.")
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to save settings.")
+    } finally {
+      setSaveBusy(false)
+    }
   }
 
   return (
@@ -855,15 +868,16 @@ export function SettingsView({
             <div className="min-w-0">
               <h2 className="text-2xl font-semibold text-foreground">Settings</h2>
               <div className="mt-2 flex flex-wrap gap-2">
-                <SharedStatusPill label={settingsSummary.privacyLabel} />
-                <SharedStatusPill label={settingsSummary.dailyReviewLabel} />
+                {primarySettingsChips.map((chip) => (
+                  <SharedStatusPill key={chip.id} label={`${chip.label}: ${chip.value}`} />
+                ))}
                 {profileDirty ? <SharedStatusPill label="profile draft" tone="watch" /> : <SharedStatusPill label="profile saved" tone="steady" />}
               </div>
             </div>
           </div>
-          <ControlButton onClick={saveProfile} active>
+          <ControlButton onClick={saveProfile} active disabled={saveBusy}>
             <Save className="h-4 w-4" />
-            Save
+            {saveBusy ? "Saving" : "Save"}
           </ControlButton>
         </div>
         {status ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
@@ -881,6 +895,12 @@ export function SettingsView({
             </span>
           </summary>
           <div className="mt-3 grid gap-2 md:grid-cols-5">
+            {secondarySettingsChips.map((chip) => (
+              <div key={chip.id} className="rounded-md border border-border bg-card p-2 text-sm">
+                <span className="block truncate font-medium text-foreground">{chip.label}</span>
+                <span className="mt-2 inline-flex"><SharedStatusPill label={chip.value} /></span>
+              </div>
+            ))}
             {settingsSummary.statuses.map((item) => (
               <div key={item.id} className="rounded-md border border-border bg-card p-2 text-sm">
                 <span className="block truncate font-medium text-foreground">{item.label}</span>
