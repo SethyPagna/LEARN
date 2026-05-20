@@ -15,6 +15,7 @@ import {
   addColumn,
   addRow,
   buildSheetFormula,
+  buildStudioRecordActionGroups,
   closeStudioPane,
   closeOtherStudioPanes,
   computeStudioDirtyBadges,
@@ -162,6 +163,24 @@ test("studio dirty badges summarize local drafts by kind", () => {
 
   assert.deepEqual(badges.map((badge) => badge.kind), ["notes", "slides"])
   assert.equal(badges[0].count, 1)
+})
+
+test("studio record action groups keep active item menus compact", () => {
+  const groups = buildStudioRecordActionGroups()
+
+  assert.deepEqual(groups.map((group) => group.id), ["open", "edit", "share", "manage"])
+  assert.deepEqual(groups[0].actions, ["open", "split"])
+  assert.equal(groups.find((group) => group.id === "manage")?.actions[0], "archive")
+})
+
+test("studio record action groups swap manage actions for archived items", () => {
+  const groups = buildStudioRecordActionGroups({ archived: true })
+  const openGroup = groups.find((group) => group.id === "open")
+  const manageGroup = groups.find((group) => group.id === "manage")
+
+  assert.deepEqual(openGroup?.actions, ["open"])
+  assert.equal(manageGroup?.priority, "primary")
+  assert.deepEqual(manageGroup?.actions, ["restore"])
 })
 
 test("studio draft summary counts typed workspace drafts", () => {

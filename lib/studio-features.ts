@@ -1,5 +1,26 @@
 import type { SheetMetadata, SlideObject, StudioDirtyBadge, StudioKind, StudioLayoutState, StudioPane, StudioTab, WorkspaceDeck } from "@/components/learn/types"
 
+export type StudioRecordActionId =
+  | "open"
+  | "split"
+  | "copy"
+  | "duplicate"
+  | "download"
+  | "export"
+  | "ai"
+  | "archive"
+  | "restore"
+
+export type StudioRecordActionGroupId = "open" | "edit" | "share" | "manage"
+
+export type StudioRecordActionGroup = {
+  id: StudioRecordActionGroupId
+  label: string
+  summary: string
+  priority: "primary" | "secondary"
+  actions: StudioRecordActionId[]
+}
+
 export function createStudioTab(kind: StudioKind, title: string, itemId?: string): StudioTab {
   return {
     id: `${kind}_${itemId || "draft"}_${Date.now().toString(36)}`,
@@ -102,6 +123,39 @@ export function computeStudioDirtyBadges(input: Partial<Record<StudioKind, { upd
     const draft = input[kind]
     return draft ? [{ kind, count: 1, latestAt: draft.updatedAt }] : []
   })
+}
+
+export function buildStudioRecordActionGroups({ archived = false }: { archived?: boolean } = {}): StudioRecordActionGroup[] {
+  return [
+    {
+      id: "open",
+      label: "Open",
+      summary: archived ? "View or restore before editing" : "Start editing or split the workspace",
+      priority: "primary",
+      actions: archived ? ["open"] : ["open", "split"],
+    },
+    {
+      id: "edit",
+      label: "Edit",
+      summary: "Copy, duplicate, or ask AI",
+      priority: "primary",
+      actions: ["copy", "duplicate", "ai"],
+    },
+    {
+      id: "share",
+      label: "Share",
+      summary: "Download or export",
+      priority: "secondary",
+      actions: ["download", "export"],
+    },
+    {
+      id: "manage",
+      label: "Manage",
+      summary: archived ? "Return this item to Studio" : "Move this item out of the main list",
+      priority: archived ? "primary" : "secondary",
+      actions: archived ? ["restore"] : ["archive"],
+    },
+  ]
 }
 
 export function addRow(cells: string[][], afterIndex = cells.length - 1) {
