@@ -198,6 +198,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-20: Continued Files UX by adding tested library summary chips, surfacing compact storage counts, and fixing non-image file previews to use document-aware icons.
 - 2026-05-20: Continued Settings UX by adding tested header summary chips and guarded save feedback for profile/preferences without expanding visible copy.
 - 2026-05-20: Continued Admin UX by adding tested header summary chips and replacing repeated status pills with compact clickable operation chips plus a quieter signals drawer.
+- 2026-05-20: Continued Provider Admin UX by adding client-safe tested gateway chips and using them to make provider health, readiness, routing, and setup states compact and clickable.
 
 ## Implementation Slices
 
