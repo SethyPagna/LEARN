@@ -20,6 +20,13 @@ export interface FileLibrarySummary {
   kindCounts: Record<FileLibraryKind, number>
 }
 
+export interface FileLibrarySummaryChip {
+  id: "files" | "media" | "docs" | "other"
+  label: string
+  value: string
+  priority: "primary" | "secondary"
+}
+
 export type FileLibraryNextAction = "upload" | "select" | "preview" | "open-studio" | "download" | "clear-filter"
 
 export interface FileLibraryActionPlan {
@@ -85,6 +92,16 @@ export function summarizeFileLibrary(files: readonly FileLibraryRecord[]): FileL
     documentCount,
     kindCounts,
   }
+}
+
+export function buildFileLibrarySummaryChips(summary: FileLibrarySummary): FileLibrarySummaryChip[] {
+  const otherCount = Math.max(0, summary.totalFiles - summary.mediaCount - summary.documentCount)
+  return [
+    { id: "files", label: "Files", value: String(summary.totalFiles), priority: "primary" },
+    { id: "media", label: "Media", value: String(summary.mediaCount), priority: summary.mediaCount ? "primary" : "secondary" },
+    { id: "docs", label: "Docs", value: String(summary.documentCount), priority: summary.documentCount ? "primary" : "secondary" },
+    { id: "other", label: "Other", value: String(otherCount), priority: otherCount ? "primary" : "secondary" },
+  ]
 }
 
 export function filterFileLibrary(

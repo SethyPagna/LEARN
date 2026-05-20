@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildFileLibraryActionPlan, buildFileLibraryEmptyState, buildFileLibraryFilterSummary, filterFileLibrary, fileKindLabel, resolveVisibleFileSelection, summarizeFileLibrary } from "../lib/file-library-features"
+import { buildFileLibraryActionPlan, buildFileLibraryEmptyState, buildFileLibraryFilterSummary, buildFileLibrarySummaryChips, filterFileLibrary, fileKindLabel, resolveVisibleFileSelection, summarizeFileLibrary } from "../lib/file-library-features"
 import { classifyUploadContentType, MAX_UPLOAD_BYTES, validateUploadFile, validateUploadFileShape } from "../lib/file-security"
 import { checkRateLimit } from "../lib/rate-limit"
 
@@ -41,6 +41,23 @@ test("file library summary groups media and document files", () => {
   assert.equal(summary.documentCount, 2)
   assert.equal(summary.kindCounts.sheet, 1)
   assert.equal(fileKindLabel("slides"), "Slides")
+})
+
+test("file library summary chips keep top storage signals compact", () => {
+  const summary = summarizeFileLibrary([
+    { id: "image", filename: "diagram.png", content_type: "image/png", size_bytes: 10, created_at: "", source: "r2" },
+    { id: "pdf", filename: "reading.pdf", content_type: "application/pdf", size_bytes: 20, created_at: "", source: "r2" },
+    { id: "raw", filename: "archive.bin", content_type: "application/octet-stream", size_bytes: 30, created_at: "", source: "r2" },
+  ])
+  const chips = buildFileLibrarySummaryChips(summary)
+
+  assert.deepEqual(chips.filter((chip) => chip.priority === "primary").map((chip) => chip.id), ["files", "media", "docs", "other"])
+  assert.deepEqual(chips.map((chip) => [chip.label, chip.value]), [
+    ["Files", "3"],
+    ["Media", "1"],
+    ["Docs", "1"],
+    ["Other", "1"],
+  ])
 })
 
 test("file library filter matches kind labels and query text", () => {
