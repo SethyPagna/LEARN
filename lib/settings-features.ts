@@ -33,6 +33,13 @@ export interface SettingsOptionSummary {
   statuses: SettingsOptionStatus[]
 }
 
+export interface SettingsSummaryChip {
+  id: "privacy" | "reviews" | "comfort" | "workflow" | "notifications"
+  label: string
+  value: string
+  priority: "primary" | "secondary"
+}
+
 export type SettingsSectionId = "profile" | "experience" | "learning" | "privacy"
 
 export interface SettingsSectionGuide {
@@ -123,6 +130,16 @@ export function normalizeSettingsNumber(input: {
   const parsed = Number(input.value)
   if (!Number.isFinite(parsed)) return input.fallback
   return Math.min(input.max, Math.max(input.min, Math.round(parsed)))
+}
+
+export function buildSettingsSummaryChips(summary: SettingsOptionSummary): SettingsSummaryChip[] {
+  return [
+    { id: "privacy", label: "Privacy", value: summary.privacyLabel, priority: "primary" },
+    { id: "reviews", label: "Reviews", value: summary.dailyReviewLabel, priority: "primary" },
+    { id: "comfort", label: "Comfort", value: `${summary.enabledAccessibilityCount}/3`, priority: summary.enabledAccessibilityCount ? "primary" : "secondary" },
+    { id: "workflow", label: "Workflow", value: `${summary.enabledWorkflowCount}/4`, priority: summary.enabledWorkflowCount < 4 ? "primary" : "secondary" },
+    { id: "notifications", label: "Notifications", value: `${summary.enabledNotificationCount}/4`, priority: summary.enabledNotificationCount ? "secondary" : "primary" },
+  ]
 }
 
 export function buildSettingsControlPlan(summary: SettingsOptionSummary): SettingsControlPlan {

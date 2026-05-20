@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildSettingsControlPlan, normalizeSettingsNumber, summarizeSettingsOptions } from "../lib/settings-features"
+import { buildSettingsControlPlan, buildSettingsSummaryChips, normalizeSettingsNumber, summarizeSettingsOptions } from "../lib/settings-features"
 
 test("summarizeSettingsOptions counts enabled controls and flags risky settings", () => {
   const summary = summarizeSettingsOptions({
@@ -29,6 +29,38 @@ test("summarizeSettingsOptions counts enabled controls and flags risky settings"
   assert.equal(summary.statuses.find((status) => status.id === "privacy")?.tone, "watch")
   assert.equal(summary.statuses.find((status) => status.id === "review-cap")?.tone, "watch")
   assert.equal(summary.statuses.find((status) => status.id === "serendipity")?.value, "15%")
+})
+
+test("settings summary chips keep header controls compact", () => {
+  const summary = summarizeSettingsOptions({
+    aiMaxTokens: 8192,
+    calendarDefaultMinutes: 45,
+    collaborationPresence: true,
+    dailyReviewCap: 30,
+    dyslexiaFriendly: false,
+    feedSerendipity: 15,
+    filePreview: true,
+    highContrast: true,
+    notesAutosave: true,
+    notificationDraftWarnings: true,
+    notificationReviewReminders: true,
+    notificationSocialUpdates: false,
+    notificationSystemHealth: true,
+    privacyDefault: "private",
+    reducedMotion: false,
+    revealAnswers: true,
+  })
+
+  const chips = buildSettingsSummaryChips(summary)
+
+  assert.deepEqual(chips.filter((chip) => chip.priority === "primary").map((chip) => chip.id), ["privacy", "reviews", "comfort"])
+  assert.deepEqual(chips.map((chip) => [chip.label, chip.value]), [
+    ["Privacy", "Private"],
+    ["Reviews", "30 reviews/day"],
+    ["Comfort", "1/3"],
+    ["Workflow", "4/4"],
+    ["Notifications", "3/4"],
+  ])
 })
 
 test("normalizeSettingsNumber clamps invalid preference numbers", () => {
