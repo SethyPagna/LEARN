@@ -8,7 +8,7 @@ import type { Quiz } from "../types"
 import { api } from "../api"
 import { EmptyState, Panel } from "../ui"
 import { buildGameRunActions, evaluateGameChoice, summarizeGameRun, type GameRunActionId } from "@/lib/practice-features"
-import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatThreadActions, buildChatThreadStatus, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatIntent, type ChatThreadActionId, type ChatThreadFilter } from "@/lib/social-features"
+import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatIntent, type ChatQuickPrompt, type ChatThreadActionId, type ChatThreadFilter } from "@/lib/social-features"
 
 const quizDetailCache = new Map<string, Quiz>()
 const CHAT_DRAFT_KEY = "learn_chat_draft_v1"
@@ -295,6 +295,13 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const activeFilter = threadFilters.find((item) => item.id === filter) || threadFilters[0]
   const chatSummary = useMemo(() => summarizeChatWorkspace(threads), [threads])
   const composerPlan = useMemo(() => buildChatComposerPlan(chatSummary, body), [body, chatSummary])
+  const quickPrompts = useMemo(() => buildChatQuickPrompts({
+    hasDraft: Boolean(body.trim()),
+    questionCount: chatSummary.questions,
+    savedCount: chatSummary.saved,
+    threadCount: chatSummary.total,
+    winCount: chatSummary.wins,
+  }), [body, chatSummary.questions, chatSummary.saved, chatSummary.total, chatSummary.wins])
   const chatActions = useMemo(() => buildChatComposerActions({
     busyAction: chatAction,
     hasDraft: Boolean(body.trim()),
@@ -314,6 +321,14 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     }
     if (!body.trim()) setDraftStatus(composerPlan.nextAction)
     setChatAction(null)
+  }
+
+  function applyQuickPrompt(prompt: ChatQuickPrompt) {
+    setIntent(prompt.intent)
+    setChannel(prompt.channel)
+    setFilter(prompt.id === "question" ? "questions" : prompt.id === "win" ? "wins" : prompt.id === "resource" ? "saved" : "all")
+    setBody((current) => current.trim() ? current : prompt.prompt)
+    setDraftStatus(`${prompt.label} draft ready`)
   }
 
   async function refresh() {
@@ -508,6 +523,24 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               primary
             />
           </div>
+        </div>
+        <div className="mb-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {quickPrompts.map((prompt) => (
+            <button
+              key={prompt.id}
+              onClick={() => applyQuickPrompt(prompt)}
+              title={prompt.detail}
+              className={`group flex min-h-14 items-center justify-between gap-2 rounded-md border px-3 py-2 text-left transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-accent hover:text-accent-foreground ${
+                prompt.recommended ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background text-foreground"
+              }`}
+            >
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold">{prompt.label}</span>
+                <span className="block truncate text-[11px] font-semibold text-muted-foreground group-hover:text-accent-foreground/75">{prompt.channel}</span>
+              </span>
+              <span className="rounded-md bg-secondary px-2 py-1 text-[11px] font-semibold text-secondary-foreground">{prompt.badge}</span>
+            </button>
+          ))}
         </div>
         <div className="rounded-md border border-input bg-background p-3">
           <textarea value={body} onChange={(event) => setBody(event.target.value)} className="min-h-32 w-full resize-none bg-transparent text-sm leading-6 text-foreground outline-none" placeholder="Share a study update, @mention a person, link a Studio item, or ask for a quick explanation..." />
