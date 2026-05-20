@@ -219,6 +219,17 @@ export interface SocialHomeLane {
   target: SocialHomeLaneTarget
 }
 
+export type SocialStarterActionId = "add-friend" | "chat" | "moment" | "group" | "call"
+
+export interface SocialStarterAction {
+  id: SocialStarterActionId
+  label: string
+  detail: string
+  badge: string
+  primary: boolean
+  target: SocialHomeLaneTarget
+}
+
 export type SocialCallModeId = "voice" | "video" | "group" | "focus" | "battle"
 
 export interface SocialCallMode {
@@ -948,6 +959,62 @@ export function buildSocialHomeLanes(input: {
       detail: liveCount ? "Live rooms and challenge calls" : "Start focus, voice, or video study",
       action: liveCount ? "Open live" : "Start call",
       count: liveCount,
+      primary: hasGroups && liveCount === 0,
+      target: { kind: "tab", value: "rooms" },
+    },
+  ]
+}
+
+export function buildSocialStarterActions(input: {
+  battleCount: number
+  connectionCount: number
+  roomCount: number
+  spaceCount: number
+  threadCount: number
+}): SocialStarterAction[] {
+  const hasFriends = input.connectionCount > 0
+  const hasChats = input.threadCount > 0
+  const hasGroups = input.spaceCount > 0
+  const liveCount = input.roomCount + input.battleCount
+
+  return [
+    {
+      id: "add-friend",
+      label: "Add",
+      detail: hasFriends ? "Open friends and requests." : "Find or invite your first study friend.",
+      badge: hasFriends ? String(input.connectionCount) : "new",
+      primary: !hasFriends,
+      target: { kind: "command", value: hasFriends ? "connections" : "people" },
+    },
+    {
+      id: "chat",
+      label: "Chat",
+      detail: hasChats ? "Open study conversations." : "Start the first chat thread.",
+      badge: String(input.threadCount),
+      primary: hasFriends && !hasChats,
+      target: { kind: "tab", value: "chat" },
+    },
+    {
+      id: "moment",
+      label: "Moment",
+      detail: "Share a short win, question, or learning update.",
+      badge: "post",
+      primary: hasChats && !hasGroups,
+      target: { kind: "command", value: "post" },
+    },
+    {
+      id: "group",
+      label: "Group",
+      detail: hasGroups ? "Open circles and shared resources." : "Create a small study group.",
+      badge: String(input.spaceCount),
+      primary: hasChats && !hasGroups,
+      target: { kind: "tab", value: "spaces" },
+    },
+    {
+      id: "call",
+      label: "Call",
+      detail: liveCount ? "Open live rooms and battles." : "Start a focus, voice, video, or battle room.",
+      badge: String(liveCount),
       primary: hasGroups && liveCount === 0,
       target: { kind: "tab", value: "rooms" },
     },
