@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ComponentType } from "react"
-import { BookOpen, Bot, ChevronDown, Clock, Gamepad2, Info, Mail, MessageSquare, MoreHorizontal, Play, Plus, Radio, Repeat2, Search, Send, Sparkles, Swords, Target, Trash2, Users } from "lucide-react"
+import { BookOpen, Bot, ChevronDown, Clock, Gamepad2, ImageIcon, Info, Mail, MessageSquare, MoreHorizontal, PhoneCall, Play, Plus, Radio, Repeat2, Search, Send, Sparkles, Swords, Target, Trash2, Users } from "lucide-react"
 import type { Quiz, User, View } from "../../types"
 import type { WorkspaceOptions } from "../../preferences"
 import { api } from "../../api"
@@ -12,7 +12,7 @@ import { QuizView } from "../quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeWorkspacePlan, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialFlowCards, normalizeSocialInviteDraft, summarizeConnections, type ConnectionActionId, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialFlowId, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialFlowCards, buildSocialHomeLanes, normalizeSocialInviteDraft, summarizeConnections, type ConnectionActionId, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialFlowId, type SocialHomeLane, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type PracticeTab = "quizzes" | "games"
 type SocialTab = "home" | "chat" | "spaces" | "rooms" | "battles"
@@ -37,6 +37,14 @@ const socialCommandTabs: Array<{ id: SocialCommandTab; label: string; icon: Comp
   { id: "invite", label: "Invite", icon: Mail },
   { id: "connections", label: "Friends", icon: Users },
 ]
+
+const socialHomeLaneIcons: Record<SocialHomeLane["id"], ComponentType<{ className?: string }>> = {
+  friends: Users,
+  chats: MessageSquare,
+  moments: ImageIcon,
+  groups: Users,
+  calls: PhoneCall,
+}
 
 export function LearnWorkspaceView({
   dashboard,
@@ -209,6 +217,13 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     roomCount: counts.rooms,
     battleCount: counts.battles,
   }), [counts.battles, counts.rooms, counts.spaces, threads.length])
+  const homeLanes = useMemo(() => buildSocialHomeLanes({
+    battleCount: counts.battles,
+    connectionCount: connectionSummary.total,
+    roomCount: counts.rooms,
+    spaceCount: counts.spaces,
+    threadCount: threads.length,
+  }), [connectionSummary.total, counts.battles, counts.rooms, counts.spaces, threads.length])
   const commandCounts = useMemo<Record<SocialCommandTab, string>>(() => ({
     people: String(peoplePage.total),
     post: String(threads.length),
@@ -373,6 +388,14 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     setView(viewFromSocialTab(tab))
   }
 
+  function openHomeLane(lane: SocialHomeLane) {
+    if (lane.target.kind === "command") {
+      setCommandTab(lane.target.value)
+      return
+    }
+    open(lane.target.value)
+  }
+
   function runPrimaryCommand(id: SocialCommandPrimaryActionId) {
     if (commandAction) return
     if (id === "find") {
@@ -441,19 +464,27 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
           </div>
         </div>
         <div className="grid gap-3 p-3 lg:p-4">
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            {flowCards.map((card) => {
-              const Icon = card.id === "chat" ? MessageSquare : card.id === "spaces" ? Users : card.id === "rooms" ? Radio : Swords
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+            {homeLanes.map((lane) => {
+              const Icon = socialHomeLaneIcons[lane.id]
               return (
-                <button key={card.id} onClick={() => open(card.id)} className="group flex min-w-0 items-center gap-3 rounded-md border border-border bg-background p-2.5 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/12 text-primary group-hover:text-accent-foreground">
+                <button
+                  key={lane.id}
+                  onClick={() => openHomeLane(lane)}
+                  className={`group flex min-w-0 items-center gap-3 rounded-md border p-2.5 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground ${
+                    lane.primary ? "border-primary/40 bg-primary/10" : "border-border bg-background"
+                  }`}
+                  title={lane.detail}
+                  type="button"
+                >
+                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${lane.primary ? "bg-primary text-primary-foreground" : "bg-primary/12 text-primary group-hover:text-accent-foreground"}`}>
                     <Icon className="h-5 w-5" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-foreground group-hover:text-accent-foreground">{card.label}</span>
-                    <span className="block text-xs text-muted-foreground">{card.count} saved</span>
+                    <span className="block truncate text-sm font-semibold text-foreground group-hover:text-accent-foreground">{lane.label}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{lane.action}</span>
                   </span>
-                  <span className={`rounded-md px-2 py-1 text-[0.68rem] font-semibold ${card.ready ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{card.ready ? "Open" : "New"}</span>
+                  <span className={`rounded-md px-2 py-1 text-[0.68rem] font-semibold ${lane.count ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{lane.count}</span>
                 </button>
               )
             })}
