@@ -1936,6 +1936,11 @@ function StudioItemButton({
     restore: { icon: Undo2, label: "Restore", pendingLabel: "Restoring", meta: "Return to Studio", onClick: () => onRestore(item) },
   }
 
+  function runCatalogAction(actionId: StudioRecordActionId) {
+    const action = actionCatalog[actionId]
+    return runRecordAction(action.pendingLabel, action.onClick, action.confirmMessage)
+  }
+
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger asChild>
@@ -1976,7 +1981,7 @@ function StudioItemButton({
                         icon={action.icon}
                         label={pendingAction === action.pendingLabel ? `${action.pendingLabel}...` : action.label}
                         meta={action.meta}
-                        onClick={() => runRecordAction(action.pendingLabel, action.onClick, action.confirmMessage)}
+                        onClick={() => runCatalogAction(actionId)}
                       />
                     )
                   })}
@@ -1987,19 +1992,34 @@ function StudioItemButton({
           {actionError ? <p className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">{actionError}</p> : null}
         </article>
       </ContextMenu.Trigger>
-      <StudioContextContent
-        onCopy={() => runRecordAction("Copying", () => onCopy(item))}
-        onDuplicate={() => runRecordAction("Duplicating", () => onDuplicate(item))}
-        onArchive={() => runRecordAction("Archiving", () => onArchive(item), `Archive "${item.title}"? You can restore it from the Archived section.`)}
-        onAskAi={() => runRecordAction("Opening AI", () => onAskAi(item))}
-        showArchive={!archived}
-      >
-        <ContextMenu.Item onClick={() => runRecordAction("Opening", () => onSelect(item))} className="context-item"><FileText className="h-4 w-4" /> Open</ContextMenu.Item>
-        <ContextMenu.Item onClick={() => runRecordAction("Downloading", () => onDownload(item))} className="context-item"><Download className="h-4 w-4" /> Download</ContextMenu.Item>
-        <ContextMenu.Item onClick={() => runRecordAction("Exporting", () => onExport(item))} className="context-item"><PanelRight className="h-4 w-4" /> Export</ContextMenu.Item>
-        {!archived ? <ContextMenu.Item onClick={() => runRecordAction("Opening split", () => onOpenInSplit(item))} className="context-item"><SplitSquareHorizontal className="h-4 w-4" /> Open in split</ContextMenu.Item> : null}
-        {archived ? <ContextMenu.Item onClick={() => runRecordAction("Restoring", () => onRestore(item))} className="context-item"><Undo2 className="h-4 w-4" /> Restore</ContextMenu.Item> : null}
-      </StudioContextContent>
+      <ContextMenu.Portal>
+        <ContextMenu.Content className="z-50 min-w-64 rounded-md border border-border bg-popover p-1 text-sm text-popover-foreground shadow-xl">
+          {actionGroups.map((group, groupIndex) => (
+            <Fragment key={group.id}>
+              {groupIndex > 0 ? <ContextMenu.Separator className="my-1 h-px bg-border" /> : null}
+              <ContextMenu.Label className="flex items-center justify-between gap-3 px-2 py-1 text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                <span>{group.label}</span>
+                <span className="max-w-36 truncate font-medium normal-case tracking-normal">{group.summary}</span>
+              </ContextMenu.Label>
+              {group.actions.map((actionId) => {
+                const action = actionCatalog[actionId]
+                const ActionIcon = action.icon
+                return (
+                  <ContextMenu.Item
+                    key={actionId}
+                    disabled={Boolean(pendingAction)}
+                    onClick={() => runCatalogAction(actionId)}
+                    className={`context-item ${action.danger ? "text-destructive focus:text-destructive" : ""}`}
+                  >
+                    <ActionIcon className="h-4 w-4" />
+                    <span>{pendingAction === action.pendingLabel ? `${action.pendingLabel}...` : action.label}</span>
+                  </ContextMenu.Item>
+                )
+              })}
+            </Fragment>
+          ))}
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
     </ContextMenu.Root>
   )
 }
