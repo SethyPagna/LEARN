@@ -3,6 +3,7 @@ import test from "node:test"
 import {
   applyReputationAction,
   buildFeedActionPlan,
+  buildFeedSummaryChips,
   buildKnowledgeGraphActionPlan,
   buildReviewActionPlan,
   buildReviewRatingActions,
@@ -219,6 +220,24 @@ test("feed workspace summary tracks answered state and next action", () => {
   assert.equal(partialPlan.nextAction, "answer")
   assert.equal(partialPlan.targetLessonId, "history-1")
   assert.equal(donePlan.nextAction, "save")
+})
+
+test("feed summary chips keep discovery controls compact", () => {
+  const feed = selectFeedLessons({
+    lessons: [
+      lesson("math-1", ["math"], 0.92),
+      lesson("history-1", ["history"], 0.2),
+    ],
+    preferredTopics: ["math"],
+    count: 2,
+    serendipityRatio: 0.5,
+  })
+  const openChips = buildFeedSummaryChips(summarizeFeedWorkspace(feed, {}))
+  const doneChips = buildFeedSummaryChips(summarizeFeedWorkspace(feed, { "math-1": "a", "history-1": "b" }))
+
+  assert.deepEqual(openChips.filter((chip) => chip.priority === "primary").map((chip) => chip.id), ["lessons", "open", "outside"])
+  assert.equal(openChips.find((chip) => chip.id === "time")?.value, "3 min")
+  assert.deepEqual(doneChips.filter((chip) => chip.priority === "primary").map((chip) => chip.id), ["lessons", "outside", "answered"])
 })
 
 test("knowledge graph detects orphan nodes and filters private artifacts", () => {

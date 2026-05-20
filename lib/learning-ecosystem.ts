@@ -119,6 +119,13 @@ export interface FeedWorkspaceSummary {
   topTopics: Array<{ topic: string; count: number }>
 }
 
+export interface FeedSummaryChip {
+  id: "lessons" | "open" | "outside" | "answered" | "time" | "topics"
+  label: string
+  value: string
+  priority: "primary" | "secondary"
+}
+
 export interface FeedActionPlan {
   headline: string
   nextAction: "answer" | "refresh" | "save" | "review"
@@ -514,6 +521,17 @@ export function buildFeedActionPlan(
     targetLessonId: lessons[0]?.id,
     chips: [`${summary.answered} answered`, `${formatFeedDuration(summary.totalDurationSeconds)}`],
   }
+}
+
+export function buildFeedSummaryChips(summary: FeedWorkspaceSummary): FeedSummaryChip[] {
+  return [
+    { id: "lessons", label: "Lessons", value: String(summary.total), priority: "primary" },
+    { id: "open", label: "Open", value: String(summary.unanswered), priority: summary.unanswered ? "primary" : "secondary" },
+    { id: "outside", label: "Outside", value: String(summary.serendipity), priority: summary.serendipity ? "primary" : "secondary" },
+    { id: "answered", label: "Answered", value: String(summary.answered), priority: summary.answered ? "primary" : "secondary" },
+    { id: "time", label: "Time", value: formatFeedDuration(summary.totalDurationSeconds), priority: "secondary" },
+    { id: "topics", label: "Topics", value: String(summary.topTopics.length), priority: summary.topTopics.length ? "secondary" : "primary" },
+  ]
 }
 
 export function detectOrphanKnowledgeNodes(nodes: KnowledgeNode[], edges: KnowledgeEdge[]) {
