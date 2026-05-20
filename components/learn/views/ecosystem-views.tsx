@@ -45,7 +45,7 @@ import type {
   View,
 } from "../types"
 import { EmptyState, Panel, StatusMessage } from "../ui"
-import { buildFeedActionPlan, buildKnowledgeGraphActionPlan, buildReviewActionPlan, buildReviewRatingActions, buildReviewSummaryChips, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession, type ReviewRating } from "@/lib/learning-ecosystem"
+import { buildFeedActionPlan, buildFeedSummaryChips, buildKnowledgeGraphActionPlan, buildReviewActionPlan, buildReviewRatingActions, buildReviewSummaryChips, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession, type FeedSummaryChip, type ReviewRating } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, buildProfileSummaryChips, type ProfilePlanTarget, type ProfileSummaryChip } from "@/lib/profile-features"
 import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
@@ -514,6 +514,9 @@ export function FeedView({ setView }: { setView: (view: View) => void }) {
   const feedLessonsForSummary = useMemo(() => lessons.map(toFeedLessonForSummary), [lessons])
   const feedSummary = useMemo(() => summarizeFeedWorkspace(feedLessonsForSummary, answered), [answered, feedLessonsForSummary])
   const feedPlan = useMemo(() => buildFeedActionPlan(feedLessonsForSummary, feedSummary, answered), [answered, feedLessonsForSummary, feedSummary])
+  const feedSummaryChips = useMemo(() => buildFeedSummaryChips(feedSummary), [feedSummary])
+  const primaryFeedChips = feedSummaryChips.filter((chip) => chip.priority === "primary")
+  const secondaryFeedChips = feedSummaryChips.filter((chip) => chip.priority === "secondary")
 
   async function answer(lesson: MicroLesson, choiceId: string) {
     setAnswered((current) => ({ ...current, [lesson.id]: choiceId }))
@@ -600,6 +603,11 @@ export function FeedView({ setView }: { setView: (view: View) => void }) {
       </div>
       <Panel className="h-max p-4">
         <h3 className="font-semibold text-foreground">Discovery controls</h3>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {primaryFeedChips.map((chip) => (
+            <FeedSummaryChipButton key={chip.id} chip={chip} />
+          ))}
+        </div>
         <button onClick={applyFeedPlan} className="mt-3 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
           <div className="flex items-center justify-between gap-3">
             <span className="font-semibold text-foreground">{feedPlan.headline}</span>
@@ -613,21 +621,27 @@ export function FeedView({ setView }: { setView: (view: View) => void }) {
             ))}
           </div>
         </button>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <Metric label="Lessons" value={String(feedSummary.total)} />
-          <Metric label="Open" value={String(feedSummary.unanswered)} />
-          <Metric label="Outside" value={String(feedSummary.serendipity)} />
-          <Metric label="Answered" value={String(feedSummary.answered)} />
-        </div>
-        {feedSummary.topTopics.length ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {feedSummary.topTopics.map((topic) => (
-              <span key={topic.topic} className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">
-                {topic.topic} {topic.count}
-              </span>
+        <details className="mt-3 rounded-md border border-border bg-background">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+            <span>Feed signals</span>
+            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{secondaryFeedChips.length} more</span>
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          </summary>
+          <div className="grid grid-cols-2 gap-2 border-t border-border p-2">
+            {secondaryFeedChips.map((chip) => (
+              <FeedSummaryChipButton key={chip.id} chip={chip} relaxed />
             ))}
           </div>
-        ) : null}
+          {feedSummary.topTopics.length ? (
+            <div className="flex flex-wrap gap-2 border-t border-border p-2">
+              {feedSummary.topTopics.map((topic) => (
+                <span key={topic.topic} className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">
+                  {topic.topic} {topic.count}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </details>
         <div className="mt-3 grid gap-2">
           <RitualButton icon={Brain} label="Save ideas to Studio" onClick={() => setView("studio")} />
           <RitualButton icon={Users} label="Open groups" onClick={() => setView("spaces")} />
@@ -636,6 +650,21 @@ export function FeedView({ setView }: { setView: (view: View) => void }) {
       </Panel>
     </div>
   )
+}
+
+function FeedSummaryChipButton({ chip, relaxed = false }: { chip: FeedSummaryChip; relaxed?: boolean }) {
+  return (
+    <span className={`rounded-md border px-3 py-2 text-left ${feedSummaryChipClasses(chip.id)} ${relaxed ? "min-h-16" : ""}`}>
+      <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.12em] opacity-75">{chip.label}</span>
+      <span className="mt-1 block text-sm font-semibold">{chip.value}</span>
+    </span>
+  )
+}
+
+function feedSummaryChipClasses(id: FeedSummaryChip["id"]) {
+  if (id === "open" || id === "outside") return "border-warning/35 bg-warning/10 text-warning"
+  if (id === "answered") return "border-success/30 bg-success/10 text-success"
+  return "border-border bg-secondary text-secondary-foreground"
 }
 
 function toFeedLessonForSummary(lesson: MicroLesson) {
