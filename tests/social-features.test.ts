@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialInviteReadiness, buildSocialMomentOptions, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialStarterActions, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialInviteReadiness, buildSocialMomentOptions, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialStarterActions, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -302,6 +302,26 @@ test("connectable people page exposes visible and hidden counts", () => {
   assert.equal(page.hiddenCount, 1)
   assert.equal(page.emptyAction, "search")
   assert.equal(buildConnectablePeoplePage({ members, connections: [], currentUserId: "me", query: "missing" }).emptyAction, "invite")
+})
+
+test("people search shortcuts summarize connectable member groups", () => {
+  const members = [
+    { id: "me", name: "Me", role: "admin", status: "active" },
+    { id: "u1", name: "Alex", email: "alex@example.com", role: "admin", status: "active" },
+    { id: "u2", name: "Mina", email: "mina@example.com", role: "learner", status: "active" },
+    { id: "u3", name: "Sam", role: "learner", status: "pending" },
+  ]
+  const shortcuts = buildPeopleSearchShortcuts({
+    connections: [{ target_user_id: "u1", connection_type: "friend", status: "accepted" }],
+    currentUserId: "me",
+    members,
+  })
+
+  assert.deepEqual(shortcuts.map((shortcut) => shortcut.label), ["All", "Learners", "Admins", "Active", "Email"])
+  assert.equal(shortcuts.find((shortcut) => shortcut.id === "all")?.count, 2)
+  assert.equal(shortcuts.find((shortcut) => shortcut.id === "learners")?.count, 2)
+  assert.equal(shortcuts.find((shortcut) => shortcut.id === "active")?.count, 1)
+  assert.equal(shortcuts.find((shortcut) => shortcut.id === "email")?.query, "@")
 })
 
 test("connections page preserves summary while paging visible records", () => {

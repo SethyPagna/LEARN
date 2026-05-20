@@ -278,6 +278,16 @@ export interface SocialContactQuickAction {
   target: Extract<SocialHomeLaneTarget, { kind: "tab" }>
 }
 
+export type PeopleSearchShortcutId = "all" | "learners" | "admins" | "active" | "email"
+
+export interface PeopleSearchShortcut {
+  id: PeopleSearchShortcutId
+  label: string
+  query: string
+  count: number
+  recommended: boolean
+}
+
 export type SocialCallModeId = "voice" | "video" | "group" | "focus" | "battle"
 
 export interface SocialCallMode {
@@ -984,6 +994,24 @@ export function buildConnectablePeoplePage({
     items,
     total: all.length,
   }
+}
+
+export function buildPeopleSearchShortcuts(input: {
+  connections: UserConnectionLike[]
+  currentUserId?: string
+  members: WorkspaceMemberLike[]
+}): PeopleSearchShortcut[] {
+  const connectable = filterConnectableMembers(input.members, input.connections, input.currentUserId)
+  const countMatching = (query: string) => filterWorkspaceMembers(connectable, query).length
+  const total = connectable.length
+
+  return [
+    { id: "all", label: "All", query: "", count: total, recommended: total > 0 },
+    { id: "learners", label: "Learners", query: "learner", count: countMatching("learner"), recommended: false },
+    { id: "admins", label: "Admins", query: "admin", count: countMatching("admin"), recommended: false },
+    { id: "active", label: "Active", query: "active", count: countMatching("active"), recommended: false },
+    { id: "email", label: "Email", query: "@", count: countMatching("@"), recommended: false },
+  ]
 }
 
 export function buildConnectionsPage(connections: UserConnectionLike[], limit = 6) {
