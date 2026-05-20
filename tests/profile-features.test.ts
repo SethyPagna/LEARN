@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildProfileActionPlan } from "../lib/profile-features"
+import { buildProfileActionPlan, buildProfileSummaryChips } from "../lib/profile-features"
 
 test("buildProfileActionPlan sends incomplete portraits to settings", () => {
   const plan = buildProfileActionPlan({
@@ -62,4 +62,24 @@ test("buildProfileActionPlan sends complete shared portraits to social groups", 
 
   assert.equal(plan.target, "social")
   assert.equal(plan.nextAction, "Open social groups")
+})
+
+test("buildProfileSummaryChips keeps next privacy and mastery visible", () => {
+  const incomplete = buildProfileSummaryChips(buildProfileActionPlan({
+    profile: { bio: "", artifacts: [], metrics: { streak: 0, xp: 0 } },
+    achievements: [],
+  }))
+  const active = buildProfileSummaryChips(buildProfileActionPlan({
+    profile: {
+      bio: "Sharing useful study systems.",
+      artifacts: [{ visibility: "public", mastery: 0.75 }],
+      metrics: { streak: 8, xp: 640 },
+    },
+    achievements: [{ unlocked: true }, { unlocked: false }],
+  }))
+
+  assert.deepEqual(incomplete.filter((chip) => chip.priority === "primary").map((chip) => chip.id), ["next", "privacy", "mastery", "artifacts"])
+  assert.equal(incomplete.find((chip) => chip.id === "next")?.target, "settings")
+  assert.deepEqual(active.filter((chip) => chip.priority === "primary").map((chip) => chip.id), ["next", "privacy", "mastery", "streak"])
+  assert.equal(active.find((chip) => chip.id === "mastery")?.value, "75%")
 })
