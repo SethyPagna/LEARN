@@ -89,6 +89,7 @@ import {
   addColumn,
   addRow,
   buildSheetFormula,
+  buildStudioRecordActionGroups,
   closeOtherStudioPanes,
   closeStudioPane,
   computeStudioDirtyBadges,
@@ -106,6 +107,7 @@ import {
   pinStudioPane,
   sortSheetByColumn,
   splitStudioPane,
+  type StudioRecordActionId,
 } from "@/lib/studio-features"
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, replaceTextInHtml, summarizeDocumentHtml, undoHistory, type HistoryState } from "@/lib/workspace-features"
 import { clearStudioDraft, readStudioDrafts, shouldAnnounceStudioDraftSave, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
@@ -1890,6 +1892,7 @@ function StudioItemButton({
   const [actionError, setActionError] = useState("")
   const [pendingAction, setPendingAction] = useState("")
   const styles = studioKindStyles[item.kind]
+  const actionGroups = buildStudioRecordActionGroups({ archived })
 
   async function runRecordAction(label: string, action: () => void | Promise<void>, confirmMessage?: string) {
     if (pendingAction) return
@@ -1903,6 +1906,34 @@ function StudioItemButton({
     } finally {
       setPendingAction("")
     }
+  }
+
+  const actionCatalog: Record<StudioRecordActionId, {
+    danger?: boolean
+    icon: React.ComponentType<{ className?: string }>
+    label: string
+    pendingLabel: string
+    meta?: string
+    onClick: () => void | Promise<void>
+    confirmMessage?: string
+  }> = {
+    open: { icon: FileText, label: "Open", pendingLabel: "Opening", meta: "Edit in this pane", onClick: () => onSelect(item) },
+    split: { icon: SplitSquareHorizontal, label: "Open in split", pendingLabel: "Opening split", meta: "Work side by side", onClick: () => onOpenInSplit(item) },
+    copy: { icon: Clipboard, label: "Copy", pendingLabel: "Copying", meta: "Copy content", onClick: () => onCopy(item) },
+    duplicate: { icon: Copy, label: "Duplicate", pendingLabel: "Duplicating", meta: "Create a second item", onClick: () => onDuplicate(item) },
+    download: { icon: Download, label: "Download", pendingLabel: "Downloading", meta: "Native file format", onClick: () => onDownload(item) },
+    export: { icon: PanelRight, label: "Export", pendingLabel: "Exporting", meta: "Portable format", onClick: () => onExport(item) },
+    ai: { icon: Bot, label: "Ask AI", pendingLabel: "Opening AI", meta: "Use as context", onClick: () => onAskAi(item) },
+    archive: {
+      danger: true,
+      icon: Archive,
+      label: "Archive",
+      pendingLabel: "Archiving",
+      meta: "Move out of the main list",
+      onClick: () => onArchive(item),
+      confirmMessage: `Archive "${item.title}"? You can restore it from the Archived section.`,
+    },
+    restore: { icon: Undo2, label: "Restore", pendingLabel: "Restoring", meta: "Return to Studio", onClick: () => onRestore(item) },
   }
 
   return (
@@ -1929,17 +1960,28 @@ function StudioItemButton({
               {pendingAction ? `${pendingAction}...` : archived ? "Archived item" : "Click card to open"}
             </span>
             <ActionMenu align="right" compact label={pendingAction || "More"} icon={MoreHorizontal}>
-              <MenuAction disabled={Boolean(pendingAction)} icon={FileText} label="Open" onClick={() => runRecordAction("Opening", () => onSelect(item))} />
-              <MenuAction disabled={Boolean(pendingAction)} icon={Clipboard} label={pendingAction === "Copying" ? "Copying" : "Copy"} onClick={() => runRecordAction("Copying", () => onCopy(item))} />
-              <MenuAction disabled={Boolean(pendingAction)} icon={Copy} label={pendingAction === "Duplicating" ? "Duplicating" : "Duplicate"} onClick={() => runRecordAction("Duplicating", () => onDuplicate(item))} />
-              <MenuAction disabled={Boolean(pendingAction)} icon={Download} label={pendingAction === "Exporting" ? "Exporting" : "Export"} onClick={() => runRecordAction("Exporting", () => onExport(item))} />
-              {!archived ? <MenuAction disabled={Boolean(pendingAction)} icon={SplitSquareHorizontal} label="Open in split" onClick={() => runRecordAction("Opening split", () => onOpenInSplit(item))} /> : null}
-              <MenuAction disabled={Boolean(pendingAction)} icon={Bot} label="Ask AI" onClick={() => runRecordAction("Opening AI", () => onAskAi(item))} />
-              {archived ? (
-                <MenuAction disabled={Boolean(pendingAction)} icon={Undo2} label={pendingAction === "Restoring" ? "Restoring" : "Restore"} onClick={() => runRecordAction("Restoring", () => onRestore(item))} />
-              ) : (
-                <MenuAction danger disabled={Boolean(pendingAction)} icon={Archive} label={pendingAction === "Archiving" ? "Archiving" : "Archive"} onClick={() => runRecordAction("Archiving", () => onArchive(item), `Archive "${item.title}"? You can restore it from the Archived section.`)} />
-              )}
+              {actionGroups.map((group) => (
+                <div key={group.id} className="border-t border-border/70 p-1 first:border-t-0">
+                  <div className="mb-1 flex items-center justify-between gap-2 px-2 pt-1">
+                    <span className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground">{group.label}</span>
+                    <span className="truncate text-[0.65rem] font-medium text-muted-foreground">{group.summary}</span>
+                  </div>
+                  {group.actions.map((actionId) => {
+                    const action = actionCatalog[actionId]
+                    return (
+                      <MenuAction
+                        key={actionId}
+                        danger={action.danger}
+                        disabled={Boolean(pendingAction)}
+                        icon={action.icon}
+                        label={pendingAction === action.pendingLabel ? `${action.pendingLabel}...` : action.label}
+                        meta={action.meta}
+                        onClick={() => runRecordAction(action.pendingLabel, action.onClick, action.confirmMessage)}
+                      />
+                    )
+                  })}
+                </div>
+              ))}
             </ActionMenu>
           </div>
           {actionError ? <p className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">{actionError}</p> : null}
