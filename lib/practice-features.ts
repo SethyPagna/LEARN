@@ -33,6 +33,7 @@ export interface PracticeModeSummary {
 export type PracticeWorkspaceTarget = "quizzes" | "games"
 export type PracticeWorkspaceActionId = "resume" | "careful" | "speed" | "repair" | "create"
 export type PracticePlayStyleId = "live" | "study" | "assessment" | "arcade" | "strategy"
+export type PracticeGameModeId = "classic" | "team-race" | "match" | "redemption" | "arcade-quest" | "economy"
 
 export interface PracticeWorkspaceAction {
   id: PracticeWorkspaceActionId
@@ -57,6 +58,17 @@ export interface PracticePlayStyle {
   detail: string
   badge: string
   target: PracticeWorkspaceTarget
+  recommended: boolean
+}
+
+export interface PracticeGameMode {
+  id: PracticeGameModeId
+  label: string
+  source: string
+  detail: string
+  badge: string
+  target: PracticeWorkspaceTarget
+  practiceMode: PracticeMode
   recommended: boolean
 }
 
@@ -552,6 +564,80 @@ export function buildPracticePlayStyles(input: {
       detail: "Score economy, streak pressure, team modes, and rematches.",
       badge: "Team",
       target: "games",
+      recommended: !hasQuizBanks,
+    },
+  ]
+}
+
+export function buildPracticeGameModes(input: {
+  draftCount?: number
+  hasQuizBanks?: boolean
+  markedCount?: number
+  retryCount?: number
+}): PracticeGameMode[] {
+  const hasDrafts = (input.draftCount ?? 0) > 0
+  const hasRepairWork = (input.markedCount ?? 0) + (input.retryCount ?? 0) > 0
+  const hasQuizBanks = Boolean(input.hasQuizBanks)
+
+  return [
+    {
+      id: "classic",
+      label: "Classic",
+      source: "Kahoot",
+      detail: "Clear choices, fast feedback, and a visible score loop.",
+      badge: hasQuizBanks ? "Ready" : "Needs bank",
+      target: "quizzes",
+      practiceMode: "quiz",
+      recommended: hasQuizBanks && !hasDrafts && !hasRepairWork,
+    },
+    {
+      id: "team-race",
+      label: "Team race",
+      source: "Quizlet Live",
+      detail: "Collaborative recall with shared pressure and quick rounds.",
+      badge: "Group",
+      target: "games",
+      practiceMode: "sprint",
+      recommended: false,
+    },
+    {
+      id: "match",
+      label: "Match",
+      source: "Quizlet",
+      detail: "Pair terms and answers for fast memory warmups.",
+      badge: hasDrafts ? "Resume" : "Memory",
+      target: "quizzes",
+      practiceMode: "matching",
+      recommended: hasDrafts,
+    },
+    {
+      id: "redemption",
+      label: "Redemption",
+      source: "Quizizz",
+      detail: "Retry misses with explanations before the final score.",
+      badge: hasRepairWork ? "Misses" : "Repair",
+      target: "quizzes",
+      practiceMode: "mistake-retry",
+      recommended: hasRepairWork,
+    },
+    {
+      id: "arcade-quest",
+      label: "Arcade quest",
+      source: "Blooket",
+      detail: "Short playful runs where correct answers unlock momentum.",
+      badge: "Fun",
+      target: "games",
+      practiceMode: "sprint",
+      recommended: false,
+    },
+    {
+      id: "economy",
+      label: "Economy battle",
+      source: "Gimkit",
+      detail: "Streaks, multipliers, and strategic rematches for high-energy review.",
+      badge: hasQuizBanks ? "Power" : "Create first",
+      target: "games",
+      practiceMode: "sprint",
       recommended: !hasQuizBanks,
     },
   ]

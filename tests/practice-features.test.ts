@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import type { QuizQuestion } from "../components/learn/types"
 import { hasPracticeDraftContent, listPracticeDraftCards, normalizePracticeDraft, summarizePracticeDrafts } from "../lib/practice-drafts"
-import { buildGameRunActions, buildMistakeRetrySet, buildPracticePlayStyles, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, buildPracticeSessionSummary, buildPracticeWorkspacePlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../lib/practice-features"
+import { buildGameRunActions, buildMistakeRetrySet, buildPracticeGameModes, buildPracticePlayStyles, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, buildPracticeSessionSummary, buildPracticeWorkspacePlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../lib/practice-features"
 
 const questions: QuizQuestion[] = [
   { id: "q1", question: "One?", choices: [{ id: "a", text: "1" }, { id: "b", text: "2" }], correct_answer_id: "a", topic: "Math", explanation: "One" },
@@ -75,6 +75,20 @@ test("practice play styles map popular product patterns to clean targets", () =>
   assert.equal(repair.find((style) => style.id === "assessment")?.badge, "Repair")
   assert.equal(empty.find((style) => style.id === "strategy")?.recommended, true)
   assert.equal(empty.find((style) => style.id === "arcade")?.target, "games")
+})
+
+test("practice game modes expose familiar quiz and game loops", () => {
+  const ready = buildPracticeGameModes({ hasQuizBanks: true })
+  const drafts = buildPracticeGameModes({ draftCount: 1, hasQuizBanks: true })
+  const repair = buildPracticeGameModes({ hasQuizBanks: true, markedCount: 1 })
+  const empty = buildPracticeGameModes({ hasQuizBanks: false })
+
+  assert.deepEqual(ready.map((mode) => mode.label), ["Classic", "Team race", "Match", "Redemption", "Arcade quest", "Economy battle"])
+  assert.equal(ready.find((mode) => mode.id === "classic")?.recommended, true)
+  assert.equal(drafts.find((mode) => mode.id === "match")?.recommended, true)
+  assert.equal(repair.find((mode) => mode.id === "redemption")?.practiceMode, "mistake-retry")
+  assert.equal(empty.find((mode) => mode.id === "economy")?.recommended, true)
+  assert.equal(empty.find((mode) => mode.id === "classic")?.badge, "Needs bank")
 })
 
 test("practice review plan groups misses by topic and recommends next loop", () => {
