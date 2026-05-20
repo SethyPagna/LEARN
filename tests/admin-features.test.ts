@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildAdminOperationalPlan, extractAccessRequests, filterAdminList, summarizeAdminOperations } from "../lib/admin-features"
+import { buildAdminOperationalPlan, buildAdminSummaryChips, extractAccessRequests, filterAdminList, summarizeAdminOperations } from "../lib/admin-features"
 
 test("summarizeAdminOperations flags enabled providers missing keys or failing", () => {
   const summary = summarizeAdminOperations({
@@ -112,4 +112,28 @@ test("admin plan prioritizes access requests after provider health", () => {
   assert.equal(summary.accessRequests.length, 1)
   assert.equal(summary.cards.find((card) => card.id === "access")?.tone, "watch")
   assert.equal(buildAdminOperationalPlan(summary).targetTab, "access")
+})
+
+test("buildAdminSummaryChips keeps risky admin states primary", () => {
+  const summary = summarizeAdminOperations({
+    adminData: {
+      audit: [
+        { action: "login" },
+        { action: "request_access", details: { email: "learner@example.com", name: "Learner" } },
+      ],
+      providers: [
+        { name: "Groq", enabled: true, has_key: true, last_status: "ok" },
+        { name: "Mistral", enabled: true, has_key: false },
+      ],
+      users: [{ id: "u1" }],
+    },
+    automationData: { jobs: [] },
+  })
+
+  const chips = buildAdminSummaryChips(summary)
+  const primaryIds = chips.filter((chip) => chip.priority === "primary").map((chip) => chip.id)
+
+  assert.deepEqual(primaryIds, ["health", "providers", "access", "audit", "automation"])
+  assert.equal(chips.find((chip) => chip.id === "health")?.targetTab, "providers")
+  assert.equal(chips.find((chip) => chip.id === "access")?.targetTab, "access")
 })

@@ -42,6 +42,15 @@ export interface AdminSummaryCard {
   tone: "good" | "watch" | "neutral"
 }
 
+export interface AdminSummaryChip {
+  id: string
+  label: string
+  value: string
+  tone: "good" | "watch" | "neutral"
+  priority: "primary" | "secondary"
+  targetTab: AdminPanelTab
+}
+
 export interface AdminAccessRequest {
   id: string
   created_at?: string
@@ -204,6 +213,66 @@ export function buildAdminOperationalPlan(summary: AdminOperationalSummary): Adm
     chips: [providerCard?.value ?? "providers ready", `${summary.recentAudit.length} audit rows`, `${summary.visibleAutomation.length} jobs`],
     riskCount,
   }
+}
+
+export function buildAdminSummaryChips(summary: AdminOperationalSummary): AdminSummaryChip[] {
+  const cardsById = new Map(summary.cards.map((card) => [card.id, card]))
+  const accessCard = cardsById.get("access")
+  const usersCard = cardsById.get("users")
+  const providersCard = cardsById.get("providers")
+  const auditCard = cardsById.get("audit")
+  const automationCard = cardsById.get("automation")
+
+  return [
+    {
+      id: "health",
+      label: "Health",
+      value: summary.systemTone === "watch" ? "Review" : "Ready",
+      tone: summary.systemTone,
+      priority: "primary",
+      targetTab: summary.systemTone === "watch" ? "providers" : "overview",
+    },
+    {
+      id: "providers",
+      label: "Providers",
+      value: providersCard?.value ?? "0/0",
+      tone: providersCard?.tone ?? "neutral",
+      priority: "primary",
+      targetTab: "providers",
+    },
+    {
+      id: "access",
+      label: "Access",
+      value: accessCard?.value ?? "0",
+      tone: accessCard?.tone ?? "neutral",
+      priority: summary.accessRequests.length ? "primary" : "secondary",
+      targetTab: "access",
+    },
+    {
+      id: "audit",
+      label: "Audit",
+      value: auditCard?.value ?? "0",
+      tone: auditCard?.tone ?? "neutral",
+      priority: summary.recentAudit.length ? "primary" : "secondary",
+      targetTab: "audit",
+    },
+    {
+      id: "automation",
+      label: "Automation",
+      value: automationCard?.value ?? "0",
+      tone: automationCard?.tone ?? "neutral",
+      priority: summary.visibleAutomation.length ? "secondary" : "primary",
+      targetTab: "automation",
+    },
+    {
+      id: "users",
+      label: "Users",
+      value: usersCard?.value ?? "0",
+      tone: usersCard?.tone ?? "neutral",
+      priority: "secondary",
+      targetTab: "users",
+    },
+  ]
 }
 
 export function extractAccessRequests(audit: AdminAuditLike[]): AdminAccessRequest[] {
