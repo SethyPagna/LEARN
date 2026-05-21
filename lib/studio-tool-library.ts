@@ -40,6 +40,8 @@ export const studioToolActions: Record<StudioToolPanelId, StudioToolAction[]> = 
   elements: [
     { id: "element-shape", label: "Shape", description: "Add a visual shape or callout frame", richHtml: "<blockquote>Shape callout</blockquote>", slideObjectType: "shape", supportedKinds: ["notes", "docs", "slides"] },
     { id: "element-table", label: "Table", description: "Add a table or grid area", richHtml: "<table><tbody><tr><th>Item</th><th>Detail</th></tr><tr><td></td><td></td></tr></tbody></table>", sheetAction: "table", slideObjectType: "table", supportedKinds: ["notes", "docs", "sheets", "slides"] },
+    { id: "element-row", label: "Row", description: "Insert a spreadsheet row at the active cell", sheetAction: "add-row", supportedKinds: ["sheets"] },
+    { id: "element-column", label: "Column", description: "Insert a spreadsheet column at the active cell", sheetAction: "add-column", supportedKinds: ["sheets"] },
     { id: "element-section", label: "Section page", description: "Add a new page-like section", richHtml: "<hr><h2>New section</h2><p></p>", slideObjectType: "text", supportedKinds: ["notes", "docs", "slides"] },
   ],
   media: [
