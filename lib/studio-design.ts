@@ -279,6 +279,74 @@ export function updateSlideDesignObject(
   }
 }
 
+export function duplicateSlideDesignObject(slide: WorkspaceDeck["slides"][number], objectId: string) {
+  const object = (slide.objects || []).find((item) => item.id === objectId)
+  if (!object) return slide
+  const duplicate = {
+    ...object,
+    id: `${object.id}_copy_${Date.now().toString(36)}`,
+    x: clampSlidePercent(object.x + 4),
+    y: clampSlidePercent(object.y + 4),
+  }
+  return {
+    ...slide,
+    objects: [...(slide.objects || []), duplicate],
+  }
+}
+
+export function nudgeSlideDesignObject(
+  slide: WorkspaceDeck["slides"][number],
+  objectId: string,
+  direction: "up" | "down" | "left" | "right",
+  amount = 2,
+) {
+  const movement = {
+    down: { x: 0, y: amount },
+    left: { x: -amount, y: 0 },
+    right: { x: amount, y: 0 },
+    up: { x: 0, y: -amount },
+  }[direction]
+  return updateSlideDesignObject(slide, objectId, {
+    x: clampSlidePercent((slide.objects || []).find((object) => object.id === objectId)?.x ?? 0, movement.x),
+    y: clampSlidePercent((slide.objects || []).find((object) => object.id === objectId)?.y ?? 0, movement.y),
+  })
+}
+
+export function resizeSlideDesignObject(
+  slide: WorkspaceDeck["slides"][number],
+  objectId: string,
+  preset: "wide" | "tall" | "compact" | "hero",
+) {
+  const sizes = {
+    compact: { w: 24, h: 10 },
+    hero: { w: 68, h: 32 },
+    tall: { w: 30, h: 42 },
+    wide: { w: 58, h: 16 },
+  }
+  return updateSlideDesignObject(slide, objectId, sizes[preset])
+}
+
+export function reorderSlideDesignObject(
+  slide: WorkspaceDeck["slides"][number],
+  objectId: string,
+  direction: "front" | "back" | "forward" | "backward",
+) {
+  const objects = [...(slide.objects || [])]
+  const index = objects.findIndex((object) => object.id === objectId)
+  if (index < 0) return slide
+  const [object] = objects.splice(index, 1)
+  if (!object) return slide
+  const target = direction === "front"
+    ? objects.length
+    : direction === "back"
+      ? 0
+      : direction === "forward"
+        ? Math.min(objects.length, index + 1)
+        : Math.max(0, index - 1)
+  objects.splice(target, 0, object)
+  return { ...slide, objects }
+}
+
 export function removeSlideDesignObject(slide: WorkspaceDeck["slides"][number], objectId: string) {
   return {
     ...slide,
@@ -360,4 +428,8 @@ function escapeHtml(value: string) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;")
+}
+
+function clampSlidePercent(value: number, offset = 0) {
+  return Math.max(0, Math.min(100, value + offset))
 }

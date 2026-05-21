@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, richTemplateDesigns, sheetTemplateDesigns, slideAnimationPresets, slideDesignPresets, slideTemplateDesigns, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject } from "../lib/studio-design"
+import { applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesigns, sheetTemplateDesigns, slideAnimationPresets, slideDesignPresets, slideTemplateDesigns, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject } from "../lib/studio-design"
 
 test("document insert blocks expose reusable editor snippets", () => {
   assert.match(getDocumentInsertBlock("callout"), /Callout/)
@@ -88,6 +88,22 @@ test("slide design objects can be updated and removed", () => {
 
   assert.equal(updated.objects?.[0]?.text, "Updated point")
   assert.equal(removed.objects?.length, 0)
+})
+
+test("slide design objects support arrange duplicate nudge and resize operations", () => {
+  const object = { ...createSlideDesignObject("shape"), id: "shape_one", x: 10, y: 10, w: 20, h: 10 }
+  const second = { ...createSlideDesignObject("text"), id: "text_two" }
+  const slide = { title: "One", body: "Body", objects: [object, second] }
+  const duplicated = duplicateSlideDesignObject(slide, object.id)
+  const nudged = nudgeSlideDesignObject(slide, object.id, "right", 5)
+  const resized = resizeSlideDesignObject(slide, object.id, "hero")
+  const reordered = reorderSlideDesignObject(slide, object.id, "front")
+
+  assert.equal(duplicated.objects?.length, 3)
+  assert.equal(duplicated.objects?.[2]?.x, 14)
+  assert.equal(nudged.objects?.[0]?.x, 15)
+  assert.equal(resized.objects?.[0]?.w, 68)
+  assert.equal(reordered.objects?.at(-1)?.id, object.id)
 })
 
 test("slide motion presets summarize deck duration", () => {
