@@ -218,6 +218,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Continued Social Find UX by adding tested people-search shortcuts for All, Learners, Admins, Active, and Email and surfacing them above the add/follow list.
 - 2026-05-21: Continued repo hygiene by adding a tested generated-workspace cleanup plan, local cleanup ops command, ignored output folder, and pre-Cloudflare-deploy cleanup.
 - 2026-05-21: Continued Cloudflare cleanup safety by adding a tested LEARN-only resource classifier plus a dry-run audit command for Workers, Pages, D1, and R2 resources.
+- 2026-05-21: Continued CI/deploy hygiene by opting GitHub Actions into Node 24 and replacing old branch trigger naming with descriptive feature/fix/refine branch groups.
 
 ## Implementation Slices
 
