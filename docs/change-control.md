@@ -1,7 +1,7 @@
 # LEARN Change Control
 
 Status: Active
-Last updated: 2026-05-16
+Last updated: 2026-05-21
 
 ## Purpose
 
@@ -68,7 +68,6 @@ Each work session should update `progress.md` with:
 
 ## Branching Guidance
 
-- Use `codex/phase-<number>-<short-name>` for larger implementation branches.
+- Use descriptive branch groups such as `feature/<short-name>`, `fix/<short-name>`, or `refine/<short-name>` for larger implementation branches.
 - Documentation-only updates can stay on the current branch if the user asks for that.
 - Merge only after checklists, tests, and progress entries are complete.
-
