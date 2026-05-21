@@ -1,5 +1,14 @@
 export type AdminPanelTab = "overview" | "access" | "users" | "providers" | "audit" | "automation"
 
+export const adminPanelTabOptions: Array<{ id: AdminPanelTab; label: string }> = [
+  { id: "overview", label: "Overview" },
+  { id: "access", label: "Access" },
+  { id: "users", label: "Users" },
+  { id: "providers", label: "Providers" },
+  { id: "audit", label: "Audit" },
+  { id: "automation", label: "Automation" },
+]
+
 export interface AdminProviderLike {
   id?: string
   name?: string

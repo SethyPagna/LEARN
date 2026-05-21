@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildAdminOperationalPlan, buildAdminSummaryChips, extractAccessRequests, filterAdminList, summarizeAdminOperations } from "../lib/admin-features"
+import { adminPanelTabOptions, buildAdminOperationalPlan, buildAdminSummaryChips, extractAccessRequests, filterAdminList, summarizeAdminOperations } from "../lib/admin-features"
 
 test("summarizeAdminOperations flags enabled providers missing keys or failing", () => {
   const summary = summarizeAdminOperations({
@@ -21,6 +21,11 @@ test("summarizeAdminOperations flags enabled providers missing keys or failing",
   assert.equal(summary.cards.find((card) => card.id === "providers")?.value, "1/4")
   assert.deepEqual(summary.providerIssues.map((provider) => provider.name), ["Mistral", "Google"])
   assert.equal(summary.visibleAutomation.length, 1)
+})
+
+test("admin panel tab options match the operational sections", () => {
+  assert.deepEqual(adminPanelTabOptions.map((option) => option.id), ["overview", "access", "users", "providers", "audit", "automation"])
+  assert.deepEqual(adminPanelTabOptions.map((option) => option.label), ["Overview", "Access", "Users", "Providers", "Audit", "Automation"])
 })
 
 test("filterAdminList searches selected fields only", () => {
