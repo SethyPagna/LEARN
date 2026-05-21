@@ -10,33 +10,41 @@ import { SocialLearningView } from "../ecosystem-views"
 import { ChatView, GamesView } from "../productivity-views"
 import { QuizView } from "../quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
+import {
+  getSocialCommandTab,
+  practiceWorkspaceTabs,
+  socialCommandTabs,
+  socialWorkspaceTabFromView,
+  socialWorkspaceTabs,
+  viewFromPracticeWorkspaceTab,
+  viewFromSocialWorkspaceTab,
+  type PracticeWorkspaceTab,
+  type SocialCommandTab,
+  type SocialWorkspaceTab,
+} from "@/lib/learn-workspace-navigation"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeGameModes, buildPracticePlayStyles, buildPracticeWorkspacePlan, type PracticeGameMode, type PracticePlayStyle, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
 import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialMomentOptions, buildSocialStarterActions, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeConnections, type ConnectionActionId, type PeopleSearchShortcut, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialHomeLane, type SocialInviteRole, type SocialMomentOption, type SocialMomentTypeId, type SocialStarterAction, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
-type PracticeTab = "quizzes" | "games"
-type SocialTab = "home" | "chat" | "spaces" | "rooms" | "battles"
-type SocialCommandTab = "people" | "post" | "invite" | "connections"
+const practiceTabIcons: Record<PracticeWorkspaceTab, ComponentType<{ className?: string }>> = {
+  quizzes: BookOpen,
+  games: Gamepad2,
+}
 
-const practiceTabs: Array<{ id: PracticeTab; label: string; icon: ComponentType<{ className?: string }>; caption: string }> = [
-  { id: "quizzes", label: "Quizzes", icon: BookOpen, caption: "Question banks and attempts" },
-  { id: "games", label: "Games", icon: Gamepad2, caption: "Fast recall and playful drills" },
-]
+const socialTabIcons: Record<SocialWorkspaceTab, ComponentType<{ className?: string }>> = {
+  home: Sparkles,
+  chat: MessageSquare,
+  spaces: Users,
+  rooms: Radio,
+  battles: Swords,
+}
 
-const socialTabs: Array<{ id: SocialTab; label: string; icon: ComponentType<{ className?: string }>; caption: string }> = [
-  { id: "home", label: "Start", icon: Sparkles, caption: "Find people, post, and choose the right social flow" },
-  { id: "chat", label: "Chat", icon: MessageSquare, caption: "Messages and threads" },
-  { id: "spaces", label: "Groups", icon: Users, caption: "Shared goals and resources" },
-  { id: "rooms", label: "Live", icon: Radio, caption: "Focus rooms" },
-  { id: "battles", label: "Battles", icon: Swords, caption: "Quiz challenges" },
-]
-
-const socialCommandTabs: Array<{ id: SocialCommandTab; label: string; icon: ComponentType<{ className?: string }> }> = [
-  { id: "people", label: "Find", icon: Search },
-  { id: "post", label: "Message", icon: Send },
-  { id: "invite", label: "Invite", icon: Mail },
-  { id: "connections", label: "Friends", icon: Users },
-]
+const socialCommandTabIcons: Record<SocialCommandTab, ComponentType<{ className?: string }>> = {
+  people: Search,
+  post: Send,
+  invite: Mail,
+  connections: Users,
+}
 
 const socialHomeLaneIcons: Record<SocialHomeLane["id"], ComponentType<{ className?: string }>> = {
   friends: Users,
@@ -127,7 +135,7 @@ export function PracticeWorkspaceView({
   setSelectedQuizId: (id: string) => void
   setView: (view: View) => void
 }) {
-  const [tab, setTab] = useState<PracticeTab>(initialView === "games" ? "games" : "quizzes")
+  const [tab, setTab] = useState<PracticeWorkspaceTab>(initialView === "games" ? "games" : "quizzes")
   const [draftCards, setDraftCards] = useState<PracticeDraftCard[]>([])
   const quizTitles = useMemo(() => Object.fromEntries(quizzes.map((quiz) => [quiz.id, quiz.title])), [quizzes])
   const practicePlan = useMemo(() => buildPracticeWorkspacePlan({
@@ -150,6 +158,11 @@ export function PracticeWorkspaceView({
     markedCount: draftCards.reduce((sum, draft) => sum + draft.markedCount, 0),
     retryCount: draftCards.reduce((sum, draft) => sum + draft.retryCount, 0),
   }), [draftCards, quizzes.length])
+  const practiceTabs = useMemo(() => practiceWorkspaceTabs.map((item) => ({
+    ...item,
+    caption: item.caption || "",
+    icon: practiceTabIcons[item.id],
+  })), [])
 
   useEffect(() => {
     setTab(initialView === "games" ? "games" : "quizzes")
@@ -178,7 +191,7 @@ export function PracticeWorkspaceView({
 
   function openPracticeTarget(target: PracticeWorkspaceTarget) {
     setTab(target)
-    setView(viewFromPracticeTab(target))
+    setView(viewFromPracticeWorkspaceTab(target))
   }
 
   return (
@@ -189,9 +202,9 @@ export function PracticeWorkspaceView({
       tabs={practiceTabs}
       activeTab={tab}
       setActiveTab={(value) => {
-        const nextTab = value as PracticeTab
+        const nextTab = value as PracticeWorkspaceTab
         setTab(nextTab)
-        setView(viewFromPracticeTab(nextTab))
+        setView(viewFromPracticeWorkspaceTab(nextTab))
       }}
     >
       <div className="grid gap-4 xl:grid-cols-[1fr_300px]">
@@ -203,10 +216,15 @@ export function PracticeWorkspaceView({
 }
 
 export function SocialWorkspaceView({ initialView, options, setView, user }: { initialView: View; options: WorkspaceOptions; setView: (view: View) => void; user: User | null }) {
-  const [tab, setTab] = useState<SocialTab>(socialTabFromView(initialView))
+  const [tab, setTab] = useState<SocialWorkspaceTab>(socialWorkspaceTabFromView(initialView))
+  const socialTabs = useMemo(() => socialWorkspaceTabs.map((item) => ({
+    ...item,
+    caption: item.caption || "",
+    icon: socialTabIcons[item.id],
+  })), [])
 
   useEffect(() => {
-    setTab(socialTabFromView(initialView))
+    setTab(socialWorkspaceTabFromView(initialView))
   }, [initialView])
 
   return (
@@ -217,9 +235,9 @@ export function SocialWorkspaceView({ initialView, options, setView, user }: { i
       tabs={socialTabs}
       activeTab={tab}
       setActiveTab={(value) => {
-        const nextTab = value as SocialTab
+        const nextTab = value as SocialWorkspaceTab
         setTab(nextTab)
-        setView(viewFromSocialTab(nextTab))
+        setView(viewFromSocialWorkspaceTab(nextTab))
       }}
     >
       {tab === "home" ? <SocialCommandCenter currentUserId={user?.id} setActiveTab={setTab} setView={setView} /> : null}
@@ -231,7 +249,7 @@ export function SocialWorkspaceView({ initialView, options, setView, user }: { i
   )
 }
 
-function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { currentUserId?: string; setActiveTab: (tab: SocialTab) => void; setView: (view: View) => void }) {
+function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { currentUserId?: string; setActiveTab: (tab: SocialWorkspaceTab) => void; setView: (view: View) => void }) {
   const [members, setMembers] = useState<WorkspaceMemberLike[]>([])
   const [connections, setConnections] = useState<UserConnectionLike[]>([])
   const [threads, setThreads] = useState<any[]>([])
@@ -470,9 +488,9 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     }
   }
 
-  function open(tab: SocialTab) {
+  function open(tab: SocialWorkspaceTab) {
     setActiveTab(tab)
-    setView(viewFromSocialTab(tab))
+    setView(viewFromSocialWorkspaceTab(tab))
   }
 
   function openHomeLane(lane: SocialHomeLane) {
@@ -530,8 +548,8 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const syncAction = commandActionById.get("sync")
   const postAction = commandActionById.get("post")
   const inviteAction = commandActionById.get("invite")
-  const activeCommand = socialCommandTabs.find((item) => item.id === commandTab) ?? socialCommandTabs[0]
-  const ActiveCommandIcon = activeCommand.icon
+  const activeCommand = getSocialCommandTab(commandTab)
+  const ActiveCommandIcon = socialCommandTabIcons[activeCommand.id]
 
   return (
     <div className="grid gap-4">
@@ -625,7 +643,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
 
           <div className="flex gap-1 overflow-x-auto rounded-md border border-border bg-background p-1">
             {socialCommandTabs.map((item) => {
-              const Icon = item.icon
+              const Icon = socialCommandTabIcons[item.id]
               const active = commandTab === item.id
               return (
                 <button
@@ -1327,21 +1345,4 @@ function PatternCard({ body, icon: Icon, title }: { body: string; icon: Componen
   )
 }
 
-function viewFromPracticeTab(tab: PracticeTab): View {
-  return tab
-}
-
-function socialTabFromView(view: View): SocialTab {
-  if (view === "social") return "home"
-  if (view === "chat") return "chat"
-  if (view === "spaces") return "spaces"
-  if (view === "rooms") return "rooms"
-  if (view === "battles") return "battles"
-  return "home"
-}
-
-function viewFromSocialTab(tab: SocialTab): View {
-  if (tab === "home") return "social"
-  return tab
-}
 
