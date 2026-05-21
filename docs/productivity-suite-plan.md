@@ -220,6 +220,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Continued Cloudflare cleanup safety by adding a tested LEARN-only resource classifier plus a dry-run audit command for Workers, Pages, D1, and R2 resources.
 - 2026-05-21: Continued CI/deploy hygiene by opting GitHub Actions into Node 24 and replacing old branch trigger naming with descriptive feature/fix/refine branch groups.
 - 2026-05-21: Continued Social architecture cleanup by replacing the temporary-looking `social-api-copy` module with an intentful Social API messages module and aligned tests.
+- 2026-05-21: Continued AI import-loop cleanup by renaming the old `legacyMode` follow-up field to `aiMode` across the import gateway, tests, and AI Tutor caller.
 
 ## Implementation Slices
 
