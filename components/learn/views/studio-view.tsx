@@ -113,6 +113,7 @@ import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, re
 import { clearStudioDraft, readStudioDrafts, shouldAnnounceStudioDraftSave, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
 import { studioFontOptions, studioFontSizeOptions, studioHighlightColorOptions, studioTextColorOptions } from "@/lib/studio-formatting"
 import { getStudioKindOption, getStudioViewModeOption, studioEmptyTabLabels, studioInspectorTabs, studioKindOptions, studioSectionFilters, studioViewModeOptions, type StudioViewMode } from "@/lib/studio-navigation"
+import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankSheetCells, blankSheetFingerprint, blankSheetTitle, ensureSheetCells, parseDeckSlides, parseSheetCells } from "@/lib/studio-defaults"
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { applySlideDesignPreset, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 
@@ -289,48 +290,17 @@ const studioTemplates: Record<StudioKind, StudioTemplate[]> = {
   ],
 }
 
-const starterCells = [
-  ["Topic", "Status", "Score", "Next step"],
-  ["React", "Review", "72", "Practice hooks"],
-  ["Databases", "Weak", "48", "Index questions"],
-  ["Operating systems", "Ready", "86", "Timed quiz"],
-]
-
-const starterSlides: WorkspaceDeck["slides"] = [
-  { title: "Study brief", body: "Summarize the goal, what changed, and the next practice step.", accent: "Focus", layout: "title", theme: "midnight", background: "#111827", transition: "fade", animation: "rise", speakerNotes: "Open with why this matters." },
-  { title: "Key idea", body: "Add a concise visual explanation, image note, or memory hook.", accent: "Explain", layout: "two-column", theme: "midnight", background: "#111827", transition: "fade", animation: "reveal", speakerNotes: "Keep this slide visual and short." },
-]
-const STARTER_CELLS_FINGERPRINT = JSON.stringify(starterCells)
-const STARTER_SLIDES_FINGERPRINT = JSON.stringify(starterSlides)
-
 function textFromDocument(document?: WorkspaceDocument) {
   const content = document?.content || {}
   return String(content.text || content.markdown || content.plainText || "")
 }
 
-function parseJsonArray<T>(value: unknown, fallback: T): T {
-  if (Array.isArray(value)) return value as T
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value)
-      return Array.isArray(parsed) ? parsed as T : fallback
-    } catch {
-      return fallback
-    }
-  }
-  return fallback
-}
-
-function ensureCells(value: unknown) {
-  return Array.isArray(value) && value.every((row) => Array.isArray(row)) ? value as string[][] : starterCells
-}
-
 function cellsFromSheet(sheet?: WorkspaceSheet) {
-  return ensureCells(parseJsonArray<unknown>(sheet?.cells, starterCells))
+  return parseSheetCells(sheet)
 }
 
 function slidesFromDeck(deck?: WorkspaceDeck) {
-  return parseJsonArray<WorkspaceDeck["slides"]>(deck?.slides, starterSlides).map((slide) => ({
+  return parseDeckSlides(deck).map((slide) => ({
     ...slide,
     accent: slide.accent || "Slide",
     layout: slide.layout || "title",
@@ -510,14 +480,14 @@ export function StudioView({
   const [sheets, setSheets] = useState<WorkspaceSheet[]>([])
   const [sheetId, setSheetId] = useState("")
   const selectedSheet = sheetId ? sheets.find((item) => item.id === sheetId) : undefined
-  const [sheetTitle, setSheetTitle] = useState("Study tracker")
-  const [cells, setCells] = useState<string[][]>(starterCells)
+  const [sheetTitle, setSheetTitle] = useState(blankSheetTitle)
+  const [cells, setCells] = useState<string[][]>(blankSheetCells)
 
   const [decks, setDecks] = useState<WorkspaceDeck[]>([])
   const [deckId, setDeckId] = useState("")
   const selectedDeck = deckId ? decks.find((item) => item.id === deckId) : undefined
-  const [deckTitle, setDeckTitle] = useState("Learning deck")
-  const [slides, setSlides] = useState<WorkspaceDeck["slides"]>(starterSlides)
+  const [deckTitle, setDeckTitle] = useState(blankDeckTitle)
+  const [slides, setSlides] = useState<WorkspaceDeck["slides"]>(blankDeckSlides)
   const deferredQuery = useDeferredValue(query)
   const hydratedDraftKinds = useRef<Set<StudioKind>>(new Set())
   const draftReady = useRef(false)
@@ -751,16 +721,16 @@ export function StudioView({
   }, [docHistory.present, docTitle, selectedDoc?.id, selectedDoc?.title])
 
   const cellsFingerprint = useMemo(() => JSON.stringify(cells), [cells])
-  const selectedSheetFingerprint = useMemo(() => selectedSheet ? JSON.stringify(cellsFromSheet(selectedSheet)) : STARTER_CELLS_FINGERPRINT, [selectedSheet?.cells, selectedSheet?.id])
+  const selectedSheetFingerprint = useMemo(() => selectedSheet ? JSON.stringify(cellsFromSheet(selectedSheet)) : blankSheetFingerprint, [selectedSheet?.cells, selectedSheet?.id])
   const slidesFingerprint = useMemo(() => JSON.stringify(slides), [slides])
-  const selectedDeckFingerprint = useMemo(() => selectedDeck ? JSON.stringify(slidesFromDeck(selectedDeck)) : STARTER_SLIDES_FINGERPRINT, [selectedDeck?.id, selectedDeck?.slides])
+  const selectedDeckFingerprint = useMemo(() => selectedDeck ? JSON.stringify(slidesFromDeck(selectedDeck)) : blankDeckFingerprint, [selectedDeck?.id, selectedDeck?.slides])
 
   useEffect(() => {
     if (!draftReady.current) return
-    const title = sheetTitle || "Study tracker"
+    const title = sheetTitle || blankSheetTitle
     const changed = selectedSheet
       ? title !== selectedSheet.title || cellsFingerprint !== selectedSheetFingerprint
-      : title !== "Study tracker" || cellsFingerprint !== STARTER_CELLS_FINGERPRINT
+      : title !== blankSheetTitle || cellsFingerprint !== blankSheetFingerprint
     if (!changed) return
     const fingerprint = ["sheets", selectedSheet?.id || "", title, cellsFingerprint].join("\u001f")
     return scheduleStudioDraft("sheets", fingerprint, () => ({
@@ -774,10 +744,10 @@ export function StudioView({
 
   useEffect(() => {
     if (!draftReady.current) return
-    const title = deckTitle || "Learning deck"
+    const title = deckTitle || blankDeckTitle
     const changed = selectedDeck
       ? title !== selectedDeck.title || slidesFingerprint !== selectedDeckFingerprint
-      : title !== "Learning deck" || slidesFingerprint !== STARTER_SLIDES_FINGERPRINT
+      : title !== blankDeckTitle || slidesFingerprint !== blankDeckFingerprint
     if (!changed) return
     const fingerprint = ["slides", selectedDeck?.id || "", title, slidesFingerprint].join("\u001f")
     return scheduleStudioDraft("slides", fingerprint, () => ({
@@ -858,7 +828,7 @@ export function StudioView({
   function currentPayload(format: "download" | "export" = "download") {
     if (kind === "notes") return noteHistory.present
     if (kind === "docs") return format === "export" ? plainTextFromHtml(docHistory.present) : docHistory.present
-    if (kind === "sheets") return exportSheetToCsv({ cells: ensureCells(cells) })
+    if (kind === "sheets") return exportSheetToCsv({ cells: ensureSheetCells(cells) })
     return format === "export"
       ? JSON.stringify(buildSlideExportPayload(deckTitle || "Slides", slides), null, 2)
       : buildSlidePresenterOutline(slides)
@@ -868,7 +838,7 @@ export function StudioView({
     if (kind === "notes") return `${plainTextFromHtml(noteHistory.present).length} chars`
     if (kind === "docs") return `${plainTextFromHtml(docHistory.present).split(/\s+/).filter(Boolean).length} words`
     if (kind === "sheets") {
-      const safeCells = ensureCells(cells)
+      const safeCells = ensureSheetCells(cells)
       return `${safeCells.length} rows x ${safeCells[0]?.length || 0} columns`
     }
     return `${slides.length} slides`
@@ -932,13 +902,13 @@ export function StudioView({
     }
     if (kind === "sheets") {
       setSheetId("")
-      setSheetTitle("Study tracker")
-      setCells(starterCells)
+      setSheetTitle(blankSheetTitle)
+      setCells(blankSheetCells)
       return
     }
     setDeckId("")
-    setDeckTitle("Learning deck")
-    setSlides(starterSlides)
+    setDeckTitle(blankDeckTitle)
+    setSlides(blankDeckSlides)
   }
 
   async function saveActive(silent = false) {
@@ -1271,8 +1241,8 @@ export function StudioView({
       setSheets((current) => current.filter((entry) => entry.id !== item.id))
       if (sheetId === item.id) {
         setSheetId("")
-        setSheetTitle("Study tracker")
-        setCells(starterCells)
+        setSheetTitle(blankSheetTitle)
+        setCells(blankSheetCells)
       }
     }
     if (item.kind === "slides") {
@@ -1280,8 +1250,8 @@ export function StudioView({
       setDecks((current) => current.filter((entry) => entry.id !== item.id))
       if (deckId === item.id) {
         setDeckId("")
-        setDeckTitle("Learning deck")
-        setSlides(starterSlides)
+        setDeckTitle(blankDeckTitle)
+        setSlides(blankDeckSlides)
       }
     }
     keepArchivedItem(item, source)
@@ -2270,7 +2240,7 @@ function StudioCanvas({
   }
 
   if (activeKind === "sheets") {
-    const visibleCells = ensureCells(cells)
+    const visibleCells = ensureSheetCells(cells)
     const selectedCellValue = visibleCells[selectedCell.row]?.[selectedCell.column] || ""
     const formulaPreview = selectedCellValue.trim().startsWith("=") ? evaluateSheetFormula(visibleCells, selectedCellValue) : null
     const applyFormula = (functionName: "SUM" | "AVERAGE" | "MIN" | "MAX" | "COUNT") => {
@@ -2280,19 +2250,19 @@ function StudioCanvas({
       <div className="grid gap-3">
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2">
           <ActionMenu label="Rows" icon={Rows3}>
-            <MenuAction icon={Rows3} label="Insert row" onClick={() => onSetCells((current) => addRow(ensureCells(current), selectedCell.row))} />
-            <MenuAction icon={Scissors} label="Move row up" onClick={() => onSetCells((current) => moveRow(ensureCells(current), selectedCell.row, -1))} />
-            <MenuAction danger icon={Trash2} label="Delete row" onClick={() => onSetCells((current) => deleteRow(ensureCells(current), selectedCell.row))} />
+            <MenuAction icon={Rows3} label="Insert row" onClick={() => onSetCells((current) => addRow(ensureSheetCells(current), selectedCell.row))} />
+            <MenuAction icon={Scissors} label="Move row up" onClick={() => onSetCells((current) => moveRow(ensureSheetCells(current), selectedCell.row, -1))} />
+            <MenuAction danger icon={Trash2} label="Delete row" onClick={() => onSetCells((current) => deleteRow(ensureSheetCells(current), selectedCell.row))} />
           </ActionMenu>
           <ActionMenu label="Columns" icon={Columns3}>
-            <MenuAction icon={Columns3} label="Insert column" onClick={() => onSetCells((current) => addColumn(ensureCells(current), selectedCell.column))} />
-            <MenuAction icon={Scissors} label="Move column right" onClick={() => onSetCells((current) => moveColumn(ensureCells(current), selectedCell.column, 1))} />
-            <MenuAction danger icon={Trash2} label="Delete column" onClick={() => onSetCells((current) => deleteColumn(ensureCells(current), selectedCell.column))} />
+            <MenuAction icon={Columns3} label="Insert column" onClick={() => onSetCells((current) => addColumn(ensureSheetCells(current), selectedCell.column))} />
+            <MenuAction icon={Scissors} label="Move column right" onClick={() => onSetCells((current) => moveColumn(ensureSheetCells(current), selectedCell.column, 1))} />
+            <MenuAction danger icon={Trash2} label="Delete column" onClick={() => onSetCells((current) => deleteColumn(ensureSheetCells(current), selectedCell.column))} />
           </ActionMenu>
           <ActionMenu label="Fill" icon={Grid2X2}>
-            <MenuAction icon={Rows3} label="Fill down" onClick={() => onSetCells((current) => fillSheetRange(ensureCells(current), { selectedRange: { startRow: selectedCell.row, startColumn: selectedCell.column, endRow: ensureCells(current).length - 1, endColumn: selectedCell.column } }, "down"))} />
-            <MenuAction icon={Columns3} label="Fill right" onClick={() => onSetCells((current) => fillSheetRange(ensureCells(current), { selectedRange: { startRow: selectedCell.row, startColumn: selectedCell.column, endRow: selectedCell.row, endColumn: (ensureCells(current)[0]?.length || 1) - 1 } }, "right"))} />
-            <MenuAction icon={ListOrdered} label="Sort A-Z" onClick={() => onSetCells((current) => sortSheetByColumn(ensureCells(current), selectedCell.column, "asc"))} />
+            <MenuAction icon={Rows3} label="Fill down" onClick={() => onSetCells((current) => fillSheetRange(ensureSheetCells(current), { selectedRange: { startRow: selectedCell.row, startColumn: selectedCell.column, endRow: ensureSheetCells(current).length - 1, endColumn: selectedCell.column } }, "down"))} />
+            <MenuAction icon={Columns3} label="Fill right" onClick={() => onSetCells((current) => fillSheetRange(ensureSheetCells(current), { selectedRange: { startRow: selectedCell.row, startColumn: selectedCell.column, endRow: selectedCell.row, endColumn: (ensureSheetCells(current)[0]?.length || 1) - 1 } }, "right"))} />
+            <MenuAction icon={ListOrdered} label="Sort A-Z" onClick={() => onSetCells((current) => sortSheetByColumn(ensureSheetCells(current), selectedCell.column, "asc"))} />
           </ActionMenu>
           <span className="ml-auto rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">
             R{selectedCell.row + 1} C{selectedCell.column + 1}
@@ -2353,8 +2323,8 @@ function StudioCanvas({
                       </ContextMenu.Trigger>
                       <StudioContextContent
                         onCopy={() => navigator.clipboard?.writeText(cell)}
-                        onDuplicate={() => onSetCells((current) => addColumn(ensureCells(current), cellIndex))}
-                        onArchive={() => onSetCells((current) => deleteColumn(ensureCells(current), cellIndex))}
+                        onDuplicate={() => onSetCells((current) => addColumn(ensureSheetCells(current), cellIndex))}
+                        onArchive={() => onSetCells((current) => deleteColumn(ensureSheetCells(current), cellIndex))}
                         onAskAi={() => undefined}
                       />
                     </ContextMenu.Root>
