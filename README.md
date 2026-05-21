@@ -125,4 +125,6 @@ corepack pnpm lint
 corepack pnpm build
 ```
 
+On Windows, `run\bin\pnpm.cmd <script>` is the preferred local wrapper for repo scripts. It uses the pinned pnpm toolchain directly and avoids npm reading pnpm-only project config.
+
 The test suite covers auth helpers, learning personalization, AI provider resolution and encrypted provider primitives, Cloudflare D1 API configuration, R2 object key isolation, upload validation, editor history, CSV sheet import/export, and localization fallback.
