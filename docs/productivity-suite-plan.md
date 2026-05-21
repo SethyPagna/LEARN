@@ -232,6 +232,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Continued Calendar cleanup by centralizing event type labels, event type normalization, and duration presets in the calendar feature helper.
 - 2026-05-21: Continued AI Tutor cleanup by centralizing tutor task modes, filter options, token presets, and mode grouping in the workflow helper, then wiring the AI page to that shared catalog.
 - 2026-05-21: Continued Studio cleanup by centralizing rich-text font, size, text color, and highlight options in a shared formatting helper used by the toolbar.
+- 2026-05-21: Continued Studio navigation cleanup by centralizing Studio kind labels, section filters, view modes, inspector tabs, and empty-tab labels in a tested navigation helper.
 
 ## Implementation Slices
 
