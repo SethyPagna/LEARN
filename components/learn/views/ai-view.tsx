@@ -8,7 +8,7 @@ import { api } from "../api"
 import { ControlButton, Panel, StatusPill } from "../ui"
 import { menuSurfaceClasses, statusToneClasses, toneTextClasses, type UiTone } from "@/lib/design-system"
 import { buildAiGatewayReadiness } from "@/lib/ai/gateway-readiness"
-import { buildGuidedPrompt, listInsertActions, promptContracts } from "@/lib/ai/prompt-builder"
+import { buildGuidedPrompt, listInsertActions, normalizeStudioInsertTarget, promptContracts, studioInsertTargets } from "@/lib/ai/prompt-builder"
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
 import { buildAiTutorPrimaryActionPlan, buildAiTutorSourceContext, getRecommendedAiTutorTokens, resolveAiTutorEffectiveTokens, resolveAiTutorSourceScopeAfterUpload, splitPromptPreview, summarizeAiTutorUploadedSource, summarizeAiTutorWorkflow } from "@/lib/ai/tutor-workflow"
 import type { AiTaskKey } from "@/lib/ai/prompt-library"
@@ -36,7 +36,6 @@ const difficulties = ["Adaptive", "Beginner", "Intermediate", "Advanced", "Exam 
 const tones = ["Kind", "Direct", "Socratic", "Concise", "Detailed"]
 const outputLengths = ["Short", "Balanced", "Deep", "Max"]
 const languages = ["English", "Khmer", "French", "Spanish", "Korean", "Japanese", "Chinese"]
-const insertTargets: StudioInsertTarget[] = ["note-block", "doc-section", "sheet-rows", "slide-outline", "quiz", "flashcards", "review-cards", "ai-note"]
 const tokenPresets = [2048, 4096, 8192, 16384]
 const AI_TUTOR_DRAFT_KEY = "learn_ai_tutor_draft_v1"
 const DEFAULT_AI_MESSAGE = "Create a study plan from my recent notes."
@@ -125,7 +124,7 @@ export function AiTutorView({
     uploadedContext,
   }), [message, options.aiIncludeNotes, recentContext, sourceScope, uploadedContext])
   const activeContract = useMemo(() => promptContracts.find((contract) => contract.mode === activeMode.id), [activeMode.id])
-  const availableInsertTargets = useMemo(() => activeContract?.insertTargets || insertTargets, [activeContract?.insertTargets])
+  const availableInsertTargets = useMemo(() => activeContract?.insertTargets || studioInsertTargets, [activeContract?.insertTargets])
   const insertActions = useMemo(() => listInsertActions(availableInsertTargets), [availableInsertTargets])
   const promptBuild = useMemo(() => buildGuidedPrompt({
     taskKey: activeMode.id as AiTaskKey,
@@ -206,7 +205,7 @@ export function AiTutorView({
       setOutputLength(normalizeChoice(draft.outputLength, outputLengths, outputLengths[1]))
       setLanguage(normalizeChoice(draft.language, languages, languages[0]))
       setProviderFamily(draft.providerFamily || "auto")
-      setInsertTarget(insertTargets.includes(draft.insertTarget) ? draft.insertTarget : "ai-note")
+      setInsertTarget(normalizeStudioInsertTarget(draft.insertTarget))
       setTargetAudience(draft.targetAudience || "Self-directed learner")
       setRequiredOutput(draft.requiredOutput || "Clear sections, compact examples, and one next action.")
       if (tutorModes.some((mode) => mode.id === draft.activeTaskKey)) {
