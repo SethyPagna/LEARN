@@ -236,6 +236,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Continued workspace cleanup by centralizing Practice and Social tab labels, command labels, and route mapping in a tested workspace navigation helper.
 - 2026-05-21: Continued Social architecture cleanup by centralizing the hub summary, primary action, lanes, starter actions, call modes, and moment options in one tested command model.
 - 2026-05-21: Continued Studio creation cleanup by moving sheet/deck blank defaults into a tested helper and stopping new sheets/decks from opening with seeded sample content unless a template is chosen.
+- 2026-05-21: Continued Studio default cleanup by extending shared blank defaults to notes and docs so creation, draft detection, and rich-text fallbacks use one source of truth.
 
 ## Implementation Slices
 
