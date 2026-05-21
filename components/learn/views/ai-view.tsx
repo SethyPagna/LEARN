@@ -12,7 +12,7 @@ import { buildGuidedPrompt, listInsertActions, promptContracts } from "@/lib/ai/
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
 import { buildAiTutorPrimaryActionPlan, buildAiTutorSourceContext, getRecommendedAiTutorTokens, resolveAiTutorEffectiveTokens, resolveAiTutorSourceScopeAfterUpload, splitPromptPreview, summarizeAiTutorUploadedSource, summarizeAiTutorWorkflow } from "@/lib/ai/tutor-workflow"
 import type { AiTaskKey } from "@/lib/ai/prompt-library"
-import { buildImportFollowupAction, previewImportedLearningContent, type ImportFollowupKind, type ImportTarget } from "@/lib/import-gateway"
+import { buildImportFollowupAction, getImportDestinationView, labelImportTarget, previewImportedLearningContent, type ImportFollowupKind, type ImportTarget } from "@/lib/import-gateway"
 
 const tutorModes = [
   { id: "answer_explanation", mode: "mistake", label: "Mistake", icon: Sparkles, prompt: "Explain the mistake, repair the misconception, and create a short retry drill." },
@@ -738,7 +738,7 @@ export function AiTutorView({
             {importStatus ? <p className="rounded-md bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground">{importStatus}</p> : null}
             {lastImport ? (
               <div className="grid gap-2 sm:grid-cols-4">
-                <button onClick={() => setView?.(viewForImportTarget(lastImport.target))} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Open {viewForImportTarget(lastImport.target)}</button>
+                <button onClick={() => setView?.(getImportDestinationView(lastImport.target))} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Open {getImportDestinationView(lastImport.target)}</button>
                 <button onClick={() => loadImportFollowup("cleanup")} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Clean up</button>
                 <button onClick={() => loadImportFollowup("practice")} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Practice</button>
                 <button onClick={() => loadImportFollowup("flashcards")} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Flashcards</button>
@@ -958,21 +958,6 @@ function normalizeChoice(value: string, options: string[], fallback: string) {
 
 function modeGroupForTask(taskId: string): TutorModeGroupId {
   return tutorModeGroups.find((group) => group.id !== "all" && (group.modes as readonly string[]).includes(taskId))?.id ?? "all"
-}
-
-function labelImportTarget(target: ImportTarget | "auto") {
-  if (target === "auto") return "Auto detect"
-  if (target === "doc") return "Document"
-  if (target === "sheet") return "Sheet"
-  if (target === "slides") return "Slides"
-  return "Note"
-}
-
-function viewForImportTarget(target: ImportTarget): View {
-  if (target === "doc") return "docs"
-  if (target === "sheet") return "sheets"
-  if (target === "slides") return "slides"
-  return "notes"
 }
 
 function buildPromptFields(message: string, recentContext: string, targetAudience: string, requiredOutput: string, difficulty: string, tone: string, outputLength: string, language: string) {
