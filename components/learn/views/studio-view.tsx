@@ -1743,11 +1743,13 @@ function StudioLibrary({
     return (
       <div className="grid gap-3">
         <StudioToolPanelHeader panel={activeTool} />
-        <div className="grid gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {toolActions.map((action) => (
-            <button key={action.id} onClick={() => onToolAction(action)} className="rounded-md border border-border bg-card p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:bg-accent hover:text-accent-foreground" type="button">
+            <button key={action.id} onClick={() => onToolAction(action)} className="min-h-16 rounded-md border border-border bg-card p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:bg-accent hover:text-accent-foreground" title={action.description} type="button">
               <span className="block text-sm font-bold text-foreground">{action.label}</span>
-              <span className="mt-1 block text-xs leading-5 text-muted-foreground">{action.description}</span>
+              <span className="mt-2 inline-flex rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-secondary-foreground">
+                {action.canvasAction ? "Page" : action.sheetAction ? "Data" : action.slideObjectType ? "Canvas" : "Insert"}
+              </span>
             </button>
           ))}
           {!toolActions.length ? <EmptyState title="No tools here" body="This panel is not available for the current Studio type yet." /> : null}
@@ -1817,9 +1819,14 @@ function createBlankStudioSlide(index: number): WorkspaceDeck["slides"][number] 
 
 function StudioToolPanelHeader({ panel }: { panel: ReturnType<typeof getStudioToolPanel> }) {
   return (
-    <div className="rounded-md border border-border bg-background p-3">
+    <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-background p-3">
       <p className="text-sm font-bold text-foreground">{panel.label}</p>
-      <p className="mt-1 text-xs leading-5 text-muted-foreground">{panel.description}</p>
+      <details className="relative">
+        <summary className="flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${panel.label}`}>
+          <BookOpen className="h-3.5 w-3.5" />
+        </summary>
+        <p className="absolute right-0 top-8 z-40 w-56 rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-xl">{panel.description}</p>
+      </details>
     </div>
   )
 }
