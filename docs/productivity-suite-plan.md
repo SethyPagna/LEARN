@@ -238,6 +238,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Continued Studio creation cleanup by moving sheet/deck blank defaults into a tested helper and stopping new sheets/decks from opening with seeded sample content unless a template is chosen.
 - 2026-05-21: Continued Studio default cleanup by extending shared blank defaults to notes and docs so creation, draft detection, and rich-text fallbacks use one source of truth.
 - 2026-05-21: Continued Studio persistence cleanup by reusing the same shared blank titles in the D1 save paths for docs, sheets, and decks.
+- 2026-05-21: Continued Studio label cleanup by centralizing create labels, preview fallbacks, and draft/no-item summaries in the shared Studio defaults helper.
 
 ## Implementation Slices
 
