@@ -6,7 +6,7 @@ import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18
 import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, buildCalendarSummaryChips, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
 import { buildProgressCommandPlan, summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
 import { buildSettingsControlPlan, buildSettingsSummaryChips, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
-import { buildAdminOperationalPlan, buildAdminSummaryChips, filterAdminList, summarizeAdminOperations, type AdminAccessRequest, type AdminPanelTab, type AdminSummaryChip } from "@/lib/admin-features"
+import { adminPanelTabOptions, buildAdminOperationalPlan, buildAdminSummaryChips, filterAdminList, summarizeAdminOperations, type AdminAccessRequest, type AdminPanelTab, type AdminSummaryChip } from "@/lib/admin-features"
 import type { WorkspaceOptions } from "../preferences"
 import type { CalendarEvent, Quiz, User, View } from "../types"
 import { api, formatDate } from "../api"
@@ -31,6 +31,15 @@ const calendarEventTypes = [
 ] as const
 
 const calendarDurationPresets = [15, 30, 45, 60, 90]
+
+const adminPanelTabIcons: Record<AdminPanelTab, typeof Gauge> = {
+  overview: Gauge,
+  access: UserPlus,
+  users: Users,
+  providers: Bot,
+  audit: ShieldCheck,
+  automation: Sparkles,
+}
 
 export function ProgressView({ dashboard, quizzes, setView }: { dashboard: any; quizzes: Quiz[]; setView?: (view: View) => void }) {
   const progress = useMemo(
@@ -1134,14 +1143,9 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
           </span>
         </button>
         <div className="mt-4 flex flex-wrap gap-2">
-          {([
-            ["overview", "Overview", Gauge],
-            ["access", "Access", UserPlus],
-            ["users", "Users", Users],
-            ["providers", "Providers", Bot],
-            ["audit", "Audit", ShieldCheck],
-            ["automation", "Automation", Sparkles],
-          ] as const).map(([id, label, Icon]) => (
+          {adminPanelTabOptions.map(({ id, label }) => {
+            const Icon = adminPanelTabIcons[id]
+            return (
             <ControlButton
               key={id}
               onClick={() => setTab(id)}
@@ -1151,7 +1155,8 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
               <Icon className="h-4 w-4" />
               {label}
             </ControlButton>
-          ))}
+            )
+          })}
         </div>
       </Panel>
 
