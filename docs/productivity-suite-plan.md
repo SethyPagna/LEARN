@@ -225,6 +225,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Continued Studio import cleanup by reusing the shared Import Gateway target options, labels, and destination mapping in Studio.
 - 2026-05-21: Continued AI Tutor import cleanup by reusing the shared Import Gateway target options in draft restore and import selection.
 - 2026-05-21: Continued Import Gateway safety by adding one shared import target selection normalizer and using it in Studio and AI Tutor selectors.
+- 2026-05-21: Continued AI insert-back cleanup by centralizing Studio insert targets and draft normalization in the prompt builder.
 
 ## Implementation Slices
 
