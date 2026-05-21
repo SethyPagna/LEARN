@@ -24,7 +24,7 @@ import {
 import { useEffect, useMemo, useState } from "react"
 import type React from "react"
 import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardQuickActionGroups, buildDashboardRecentWork, buildDashboardRouteActions, buildDashboardSignals, buildDashboardWeakTopicCards, type DashboardCommandTarget, type DashboardQuickActionIcon, type DashboardRecentWorkItem } from "@/lib/dashboard-features"
-import { normalizeOnboardingPreferences, onboardingTargetView, shouldShowOnboarding, type OnboardingStudioKind, type OnboardingWorkflow } from "@/lib/onboarding-features"
+import { normalizeOnboardingPreferences, normalizeOnboardingStudioKind, normalizeOnboardingWorkflow, onboardingStudioKindOptions, onboardingTargetView, onboardingWorkflowOptions, shouldShowOnboarding, type OnboardingStudioKind, type OnboardingWorkflow } from "@/lib/onboarding-features"
 import { api } from "../api"
 import type { WorkspaceOptions } from "../preferences"
 import type { Note, Quiz, User, View } from "../types"
@@ -433,21 +433,14 @@ function OnboardingCard({
         </label>
         <label className="rounded-md border border-border bg-background p-3">
           <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Start with</span>
-          <select value={workflow} onChange={(event) => setWorkflow(event.target.value as OnboardingWorkflow)} className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/25">
-            <option value="create">Create in Studio</option>
-            <option value="review">Review existing material</option>
-            <option value="practice">Practice questions</option>
-            <option value="schedule">Plan calendar time</option>
-            <option value="ai">Ask AI tutor</option>
+          <select value={workflow} onChange={(event) => setWorkflow(normalizeOnboardingWorkflow(event.target.value))} className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/25">
+            {onboardingWorkflowOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
         <label className="rounded-md border border-border bg-background p-3">
           <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Studio type</span>
-          <select value={studioKind} onChange={(event) => setStudioKind(event.target.value as OnboardingStudioKind)} className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/25">
-            <option value="notes">Notes</option>
-            <option value="docs">Docs</option>
-            <option value="sheets">Sheets</option>
-            <option value="slides">Slides</option>
+          <select value={studioKind} onChange={(event) => setStudioKind(normalizeOnboardingStudioKind(event.target.value))} className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/25">
+            {onboardingStudioKindOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
       </div>
