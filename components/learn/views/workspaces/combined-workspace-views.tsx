@@ -24,7 +24,7 @@ import {
 } from "@/lib/learn-workspace-navigation"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeGameModes, buildPracticePlayStyles, buildPracticeWorkspacePlan, type PracticeGameMode, type PracticePlayStyle, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialMomentOptions, buildSocialStarterActions, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeConnections, type ConnectionActionId, type PeopleSearchShortcut, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialHomeLane, type SocialInviteRole, type SocialMomentOption, type SocialMomentTypeId, type SocialStarterAction, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialCommandModel, buildSocialCommandRunActions, buildSocialContactQuickActions, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeConnections, type ConnectionActionId, type PeopleSearchShortcut, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialHomeLane, type SocialInviteRole, type SocialMomentOption, type SocialMomentTypeId, type SocialStarterAction, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 const practiceTabIcons: Record<PracticeWorkspaceTab, ComponentType<{ className?: string }>> = {
   quizzes: BookOpen,
@@ -273,7 +273,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const inviteValidation = useMemo(() => normalizeSocialInviteDraft({ email: inviteEmail, role: inviteRole }), [inviteEmail, inviteRole])
   const inviteReady = Boolean(inviteEmail.trim()) && inviteValidation.ok
   const inviteStatus = inviteEmail.trim() ? inviteValidation.ok ? "Ready" : inviteValidation.error : "Enter email"
-  const commandSummary = useMemo(() => buildSocialCommandSummary({
+  const socialModel = useMemo(() => buildSocialCommandModel({
     memberCount: members.length,
     connectionCount: connectionSummary.total,
     threadCount: threads.length,
@@ -281,43 +281,15 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     roomCount: counts.rooms,
     battleCount: counts.battles,
   }), [connectionSummary.total, counts.battles, counts.rooms, counts.spaces, members.length, threads.length])
-  const primaryCommand = useMemo(() => buildSocialCommandPrimaryAction({
-    memberCount: members.length,
-    connectionCount: connectionSummary.total,
-    threadCount: threads.length,
-    spaceCount: counts.spaces,
-    roomCount: counts.rooms,
-    battleCount: counts.battles,
-  }), [connectionSummary.total, counts.battles, counts.rooms, counts.spaces, members.length, threads.length])
-  const flowCards = useMemo(() => buildSocialFlowCards({
-    threadCount: threads.length,
-    spaceCount: counts.spaces,
-    roomCount: counts.rooms,
-    battleCount: counts.battles,
-  }), [counts.battles, counts.rooms, counts.spaces, threads.length])
-  const homeLanes = useMemo(() => buildSocialHomeLanes({
-    battleCount: counts.battles,
-    connectionCount: connectionSummary.total,
-    roomCount: counts.rooms,
-    spaceCount: counts.spaces,
-    threadCount: threads.length,
-  }), [connectionSummary.total, counts.battles, counts.rooms, counts.spaces, threads.length])
-  const starterActions = useMemo(() => buildSocialStarterActions({
-    battleCount: counts.battles,
-    connectionCount: connectionSummary.total,
-    roomCount: counts.rooms,
-    spaceCount: counts.spaces,
-    threadCount: threads.length,
-  }), [connectionSummary.total, counts.battles, counts.rooms, counts.spaces, threads.length])
-  const callModes = useMemo(() => buildSocialCallModes({
-    battleCount: counts.battles,
-    connectionCount: connectionSummary.total,
-    roomCount: counts.rooms,
-  }), [connectionSummary.total, counts.battles, counts.rooms])
-  const momentOptions = useMemo(() => buildSocialMomentOptions({
-    connectionCount: connectionSummary.total,
-    threadCount: threads.length,
-  }), [connectionSummary.total, threads.length])
+  const {
+    callModes,
+    flowCards,
+    homeLanes,
+    momentOptions,
+    primaryAction: primaryCommand,
+    starterActions,
+    summary: commandSummary,
+  } = socialModel
   const activeMomentOption = momentOptions.find((option) => option.id === momentType) ?? momentOptions[0]
   const commandCounts = useMemo<Record<SocialCommandTab, string>>(() => ({
     people: String(peoplePage.total),
