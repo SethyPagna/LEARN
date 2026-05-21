@@ -88,7 +88,8 @@ async function fetchCloudflareResourceGroup({
 
   return readCloudflareItems(payload.result).flatMap((item) => {
     const name = readNameField(item, target.nameFields)
-    return name ? [{ kind: target.kind, name, id: readStringField(item, "id") }] : []
+    const id = readStringField(item, "id") ?? undefined
+    return name ? [{ kind: target.kind, name, id }] : []
   })
 }
 
