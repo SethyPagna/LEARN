@@ -121,7 +121,7 @@ import { getStudioKindOption, getStudioViewModeOption, studioEmptyTabLabels, stu
 import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, blankNoteTitle, blankRichText, blankSheetCells, blankSheetFingerprint, blankSheetTitle, ensureSheetCells, parseDeckSlides, parseSheetCells, studioCreateLabels, studioDraftSummary, studioFallbackTitle, studioNoItemSummary } from "@/lib/studio-defaults"
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
-import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, groupStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
+import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
 import { buildStudioProjectBrowserState, selectStudioBrowserTemplate } from "@/lib/studio-project-browser"
 import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
@@ -1507,7 +1507,7 @@ export function StudioView({
             <MenuAction icon={PanelRight} label="Export" onClick={() => downloadActive(true)} meta={kind === "slides" ? "PPTX when available" : "Portable text format"} />
           </ActionMenu>
           <ActionMenu label="Layout" icon={SplitSquareHorizontal}>
-            <MenuSelect label="Canvas" onChange={setCanvasFormatId} options={groupStudioCanvasFormats(kind)[kind === "slides" ? "presentation" : "document"].concat(groupStudioCanvasFormats(kind).social, groupStudioCanvasFormats(kind).poster).map((format) => ({ label: format.label, value: format.id }))} />
+            <MenuSelect label="Canvas" onChange={setCanvasFormatId} options={listStudioCanvasFormats(kind).map((format) => ({ label: format.label, value: format.id }))} />
             <MenuAction icon={SplitSquareHorizontal} label="Split right" onClick={() => setLayout((current) => splitStudioPane(current, current.activePaneId, "horizontal"))} />
             <MenuAction icon={SplitSquareVertical} label="Split down" onClick={() => setLayout((current) => splitStudioPane(current, current.activePaneId, "vertical"))} />
             <MenuAction icon={Settings2} label="Reset layout" onClick={() => setLayout(createDefaultStudioLayout(kind, activeTitle() || "Studio"))} />
@@ -1858,8 +1858,8 @@ function StudioProjectBrowser({
 }) {
   const [selectedTemplateLabel, setSelectedTemplateLabel] = useState("")
   const dirtyBadgeMap = new Map(dirtyBadges.map((badge) => [badge.kind, badge.count]))
-  const formatGroups = groupStudioCanvasFormats(activeKind)
-  const formatChoices = [...formatGroups.presentation, ...formatGroups.document, ...formatGroups.social, ...formatGroups.poster]
+  const formatGroups = listStudioCanvasFormatGroups(activeKind)
+  const formatChoices = formatGroups.flatMap((group) => group.formats)
   const browserState = useMemo(() => buildStudioProjectBrowserState({
     activeKind,
     items,
@@ -1884,21 +1884,35 @@ function StudioProjectBrowser({
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button onClick={onCreate} className="h-10 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm" type="button">New design</button>
               <ActionMenu label={canvasFormat.label} icon={LayoutPanelLeft}>
-                {formatChoices.map((format) => (
-                  <MenuAction key={format.id} active={format.id === canvasFormat.id} icon={LayoutPanelLeft} label={format.label} meta={format.description} onClick={() => onCanvasFormat(format.id)} />
+                {formatGroups.map((group) => (
+                  <div key={group.id} className="border-t border-border/70 p-1 first:border-t-0">
+                    <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{group.label}</p>
+                    {group.formats.map((format) => (
+                      <MenuAction key={format.id} active={format.id === canvasFormat.id} icon={LayoutPanelLeft} label={format.label} meta={format.description} onClick={() => onCanvasFormat(format.id)} />
+                    ))}
+                  </div>
                 ))}
               </ActionMenu>
             </div>
             <div className="mt-5 grid gap-2">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Choose a format first</p>
-              <div className="grid grid-cols-2 gap-2">
-                {formatChoices.slice(0, 6).map((format) => (
-                  <button key={format.id} onClick={() => onCanvasFormat(format.id)} className={`rounded-lg border p-2 text-left transition hover:-translate-y-0.5 hover:border-primary ${format.id === canvasFormat.id ? "border-primary bg-primary/10" : "border-border bg-background"}`} type="button">
-                    <span className="block text-xs font-bold text-foreground">{format.label}</span>
-                    <span className="mt-1 block text-[11px] text-muted-foreground">{format.group}</span>
-                  </button>
-                ))}
-              </div>
+              {formatGroups.map((group) => (
+                <details key={group.id} className="rounded-lg border border-border bg-background p-2" open={group.formats.some((format) => format.id === canvasFormat.id)}>
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-bold text-foreground">
+                    <span>{group.label}</span>
+                    <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground">{group.formats.length}</span>
+                  </summary>
+                  <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{group.description}</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {group.formats.map((format) => (
+                      <button key={format.id} onClick={() => onCanvasFormat(format.id)} className={`rounded-md border p-2 text-left transition hover:-translate-y-0.5 hover:border-primary ${format.id === canvasFormat.id ? "border-primary bg-primary/10" : "border-border bg-card"}`} type="button">
+                        <span className="block text-xs font-bold text-foreground">{format.label}</span>
+                        <span className="mt-1 block truncate text-[11px] text-muted-foreground">{format.description}</span>
+                      </button>
+                    ))}
+                  </div>
+                </details>
+              ))}
             </div>
             <div className="mt-5 grid gap-2">
               <div className="flex items-center justify-between">
