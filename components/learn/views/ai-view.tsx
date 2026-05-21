@@ -12,7 +12,7 @@ import { buildGuidedPrompt, listInsertActions, promptContracts } from "@/lib/ai/
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
 import { buildAiTutorPrimaryActionPlan, buildAiTutorSourceContext, getRecommendedAiTutorTokens, resolveAiTutorEffectiveTokens, resolveAiTutorSourceScopeAfterUpload, splitPromptPreview, summarizeAiTutorUploadedSource, summarizeAiTutorWorkflow } from "@/lib/ai/tutor-workflow"
 import type { AiTaskKey } from "@/lib/ai/prompt-library"
-import { buildImportFollowupAction, getImportDestinationView, importTargetOptions, labelImportTarget, previewImportedLearningContent, type ImportFollowupKind, type ImportTarget } from "@/lib/import-gateway"
+import { buildImportFollowupAction, getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, previewImportedLearningContent, type ImportFollowupKind, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 
 const tutorModes = [
   { id: "answer_explanation", mode: "mistake", label: "Mistake", icon: Sparkles, prompt: "Explain the mistake, repair the misconception, and create a short retry drill." },
@@ -54,7 +54,7 @@ type AiTutorDraft = {
   reply: string
   importText?: string
   importTitle?: string
-  importTarget?: ImportTarget | "auto"
+  importTarget?: ImportTargetSelection
   lastImport?: { target: ImportTarget; title: string } | null
   lastImportText?: string
   sourceScope: string
@@ -93,7 +93,7 @@ export function AiTutorView({
   const [presets, setPresets] = useState<any[]>([])
   const [importText, setImportText] = useState("")
   const [importTitle, setImportTitle] = useState("")
-  const [importTarget, setImportTarget] = useState<ImportTarget | "auto">("auto")
+  const [importTarget, setImportTarget] = useState<ImportTargetSelection>("auto")
   const [importStatus, setImportStatus] = useState("")
   const [importLoading, setImportLoading] = useState(false)
   const [lastImport, setLastImport] = useState<{ target: ImportTarget; title: string } | null>(null)
@@ -197,7 +197,7 @@ export function AiTutorView({
       setReply(draft.reply || "")
       setImportText(draft.importText || "")
       setImportTitle(draft.importTitle || "")
-      setImportTarget(importTargetOptions.includes(draft.importTarget as ImportTarget | "auto") ? draft.importTarget as ImportTarget | "auto" : "auto")
+      setImportTarget(normalizeImportTargetSelection(draft.importTarget))
       setLastImport(draft.lastImport || null)
       setLastImportText(draft.lastImportText || "")
       setSourceScope(normalizeChoice(draft.sourceScope, sourceScopes, sourceScopes[0]))
@@ -712,7 +712,7 @@ export function AiTutorView({
               className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground outline-none focus:border-ring"
             />
             <select value={importTarget} onChange={(event) => {
-              setImportTarget(event.target.value as ImportTarget | "auto")
+              setImportTarget(normalizeImportTargetSelection(event.target.value))
               clearSavedImportContext()
             }} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground">
               {importTargetOptions.map((target) => <option key={target} value={target}>{labelImportTarget(target)}</option>)}
