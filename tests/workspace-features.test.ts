@@ -52,6 +52,15 @@ import {
   studioSectionFilters,
   studioViewModeOptions,
 } from "../lib/studio-navigation"
+import {
+  getSocialCommandTab,
+  practiceWorkspaceTabs,
+  socialCommandTabs,
+  socialWorkspaceTabFromView,
+  socialWorkspaceTabs,
+  viewFromPracticeWorkspaceTab,
+  viewFromSocialWorkspaceTab,
+} from "../lib/learn-workspace-navigation"
 import { getVocabulary, isSupportedLocale, loadVocabulary, supportedLocales } from "../lib/i18n/vocabulary"
 
 test("editor history supports undo and redo without losing future states", () => {
@@ -236,6 +245,19 @@ test("studio navigation options keep unified routes and inspector labels stable"
   assert.equal(getStudioViewModeOption("gallery").label, "Gallery")
   assert.deepEqual(studioInspectorTabs, ["Info", "Outline", "Comments", "History", "AI", "Export"])
   assert.equal(studioEmptyTabLabels.notes, "Notes")
+})
+
+test("combined workspace navigation keeps practice and social route mappings stable", () => {
+  assert.deepEqual(practiceWorkspaceTabs.map((tab) => tab.id), ["quizzes", "games"])
+  assert.equal(viewFromPracticeWorkspaceTab("games"), "games")
+  assert.deepEqual(socialWorkspaceTabs.map((tab) => tab.id), ["home", "chat", "spaces", "rooms", "battles"])
+  assert.equal(socialWorkspaceTabFromView("social"), "home")
+  assert.equal(socialWorkspaceTabFromView("rooms"), "rooms")
+  assert.equal(socialWorkspaceTabFromView("dashboard"), "home")
+  assert.equal(viewFromSocialWorkspaceTab("home"), "social")
+  assert.equal(viewFromSocialWorkspaceTab("battles"), "battles")
+  assert.deepEqual(socialCommandTabs.map((tab) => tab.label), ["Find", "Message", "Invite", "Friends"])
+  assert.equal(getSocialCommandTab("invite").label, "Invite")
 })
 
 test("all supported vocabularies return usable text without mojibake", async () => {
