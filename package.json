@@ -5,6 +5,7 @@
   "packageManager": "pnpm@11.1.1",
   "scripts": {
     "build": "next build --webpack",
+    "cf:audit-cleanup": "tsx ops/scripts/cleanup/cloudflare-learn-resources.ts",
     "clean:workspace": "tsx ops/scripts/cleanup/local-workspace.ts",
     "clean:workspace:apply": "tsx ops/scripts/cleanup/local-workspace.ts --apply",
     "dev": "next dev",
