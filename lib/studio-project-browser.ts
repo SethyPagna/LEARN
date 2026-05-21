@@ -68,3 +68,8 @@ export function matchesStudioBrowserQuery(item: StudioBrowserProject | StudioBro
 export function normalizeStudioBrowserQuery(query: string) {
   return query.trim().replace(/\s+/g, " ").toLowerCase()
 }
+
+export function selectStudioBrowserTemplate<TTemplate extends StudioBrowserTemplate>(templates: TTemplate[], selectedLabel: string) {
+  if (!templates.length) return null
+  return templates.find((template) => template.label === selectedLabel) || templates[0]
+}
