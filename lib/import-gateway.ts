@@ -3,9 +3,10 @@ import type { StudioInsertTarget } from "@/components/learn/types"
 import type { AiTaskKey } from "./ai/prompt-library"
 
 export type ImportTarget = "note" | "doc" | "sheet" | "slides"
+export type ImportTargetSelection = ImportTarget | "auto"
 export type ImportFollowupKind = "cleanup" | "practice" | "flashcards"
 export type ImportDestinationView = "notes" | "docs" | "sheets" | "slides"
-export const importTargetOptions: Array<ImportTarget | "auto"> = ["auto", "note", "doc", "sheet", "slides"]
+export const importTargetOptions: ImportTargetSelection[] = ["auto", "note", "doc", "sheet", "slides"]
 
 export interface ShapedImport {
   target: ImportTarget
@@ -40,7 +41,7 @@ interface ImportCleanupWorkflow {
   messageVerb: string
 }
 
-export function shapeImportedLearningContent(input: { raw: string; title?: string; target?: ImportTarget | "auto" }): ShapedImport {
+export function shapeImportedLearningContent(input: { raw: string; title?: string; target?: ImportTargetSelection }): ShapedImport {
   const raw = input.raw.trim()
   const target = input.target && input.target !== "auto" ? input.target : detectImportTarget(raw)
   const title = cleanTitle(input.title || inferTitle(raw))
@@ -97,7 +98,7 @@ export function shapeImportedLearningContent(input: { raw: string; title?: strin
   }
 }
 
-export function previewImportedLearningContent(input: { raw: string; title?: string; target?: ImportTarget | "auto" }): ImportPreviewSummary {
+export function previewImportedLearningContent(input: { raw: string; title?: string; target?: ImportTargetSelection }): ImportPreviewSummary {
   const raw = input.raw.trim()
   const forcedTarget = input.target && input.target !== "auto"
   const target = forcedTarget ? input.target as ImportTarget : detectImportTarget(raw)
@@ -207,12 +208,18 @@ export function getImportDestinationView(target: ImportTarget): ImportDestinatio
   return "notes"
 }
 
-export function labelImportTarget(target: ImportTarget | "auto") {
+export function labelImportTarget(target: ImportTargetSelection) {
   if (target === "auto") return "Auto detect"
   if (target === "doc") return "Document"
   if (target === "sheet") return "Sheet"
   if (target === "slides") return "Slides"
   return "Note"
+}
+
+export function normalizeImportTargetSelection(value: unknown): ImportTargetSelection {
+  return typeof value === "string" && importTargetOptions.includes(value as ImportTargetSelection)
+    ? value as ImportTargetSelection
+    : "auto"
 }
 
 function resolveImportCleanupWorkflow(target: ImportTarget): ImportCleanupWorkflow {
