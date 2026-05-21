@@ -122,6 +122,7 @@ import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, b
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, groupStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
+import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
 const HEADING_STYLE_KEY = "learn_heading_styles_v1"
@@ -448,6 +449,7 @@ export function StudioView({
   const [viewMode, setViewMode] = useState<StudioViewMode>("list")
   const [studioMode, setStudioMode] = useState<"projects" | "editor">("projects")
   const [canvasFormatId, setCanvasFormatId] = useState("")
+  const [activeToolPanel, setActiveToolPanel] = useState<StudioToolPanelId>("templates")
   const [toolRailCollapsed, setToolRailCollapsed] = useState(false)
   const [status, setStatus] = useState("Loading Studio...")
   const [draftNotice, setDraftNotice] = useState("")
@@ -882,6 +884,35 @@ export function StudioView({
     setDeckTitle(applied.title)
     setSlides(buildDesignedSlideTemplateDeck(applied.body, template.label))
     setSelectedSlideIndex(0)
+  }
+
+  function appendRichToolContent(html: string) {
+    if (kind === "notes") setNoteHistory(pushHistory(noteHistory, `${noteHistory.present}${html}`))
+    if (kind === "docs") setDocHistory(pushHistory(docHistory, `${docHistory.present}${html}`))
+  }
+
+  function runStudioToolAction(action: StudioToolAction) {
+    setStudioMode("editor")
+    if ((kind === "notes" || kind === "docs") && action.richHtml) {
+      appendRichToolContent(action.richHtml)
+      setStatus(`${action.label} added.`)
+      return
+    }
+    if (kind === "sheets") {
+      if (action.sheetAction === "add-row") setCells((current) => addRow(ensureSheetCells(current), selectedCell.row))
+      if (action.sheetAction === "add-column") setCells((current) => addColumn(ensureSheetCells(current), selectedCell.column))
+      if (action.sheetAction === "table") setCells((current) => ensureSheetCells(current).map((row, rowIndex) => row.map((cell, columnIndex) => cell || (rowIndex === 0 ? ["Item", "Detail", "Status"][columnIndex] || "" : ""))))
+      setStatus(`${action.label} added.`)
+      return
+    }
+    if (kind === "slides" && action.slideObjectType) {
+      setSlides((current) => current.map((slide, index) => (
+        index === selectedSlideIndex
+          ? { ...slide, objects: [...(slide.objects || []), createSlideDesignObject(action.slideObjectType || "text")] }
+          : slide
+      )))
+      setStatus(`${action.label} added.`)
+    }
   }
 
   async function createActive() {
@@ -1493,10 +1524,11 @@ export function StudioView({
       </Panel>
 
       <div className={`grid gap-3 ${toolRailCollapsed ? "xl:grid-cols-[1fr]" : "xl:grid-cols-[72px_280px_1fr]"}`}>
-        {!toolRailCollapsed ? <StudioToolRail activeKind={kind} onSelectKind={selectKind} /> : null}
+        {!toolRailCollapsed ? <StudioToolRail activeKind={kind} activeToolPanel={activeToolPanel} onSelectKind={selectKind} onSelectToolPanel={setActiveToolPanel} /> : null}
         {!toolRailCollapsed ? (
           <Panel className="min-h-[74vh] p-3">
             <StudioLibrary
+              activeToolPanel={activeToolPanel}
               items={allItems}
               query={query}
               section={section}
@@ -1516,6 +1548,7 @@ export function StudioView({
               onRestore={restoreStudioItem}
               onSection={setSection}
               onSelect={selectItem}
+              onToolAction={runStudioToolAction}
               onViewMode={setViewMode}
               activeKind={kind}
             />
@@ -1599,6 +1632,7 @@ export function StudioView({
 
 function StudioLibrary({
   activeKind,
+  activeToolPanel,
   items,
   onApplyTemplate,
   onArchive,
@@ -1612,12 +1646,14 @@ function StudioLibrary({
   onRestore,
   onSection,
   onSelect,
+  onToolAction,
   onViewMode,
   query,
   section,
   viewMode,
 }: {
   activeKind: StudioKind
+  activeToolPanel: StudioToolPanelId
   items: StudioListItem[]
   onApplyTemplate: (template: StudioTemplate) => void
   onArchive: (item: StudioRecordItem) => void
@@ -1631,6 +1667,7 @@ function StudioLibrary({
   onRestore: (item: StudioRecordItem) => void
   onSection: (value: string) => void
   onSelect: (item: StudioRecordItem) => void
+  onToolAction: (action: StudioToolAction) => void
   onViewMode: (value: StudioViewMode) => void
   query: string
   section: string
@@ -1647,9 +1684,56 @@ function StudioLibrary({
   const useVirtualList = viewMode !== "gallery" && items.length > 12
   const activeViewMode = getStudioViewModeOption(viewMode)
   const ActiveViewIcon = studioViewModeIcons[activeViewMode.id]
+  const activeTool = getStudioToolPanel(activeToolPanel)
+  const toolActions = getStudioToolActions(activeToolPanel, activeKind)
+
+  if (activeToolPanel === "templates") {
+    return (
+      <div className="grid gap-3">
+        <StudioToolPanelHeader panel={activeTool} />
+        <div className="grid gap-2">
+          {studioTemplates[activeKind].map((template) => {
+            const meta = getStudioTemplateMeta(activeKind, template)
+            return (
+              <button key={template.label} onClick={() => onApplyTemplate(template)} className="group/template overflow-hidden rounded-md border border-border bg-card text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:bg-accent hover:text-accent-foreground" title={`${meta.description} Sections: ${meta.sections.join(", ")}`} type="button">
+                <span className="grid gap-2 p-2.5">
+                  <span className="truncate text-xs font-bold text-foreground">{template.label}</span>
+                  <span className="relative block h-16 overflow-hidden rounded-md border border-border bg-background" aria-hidden="true">
+                    <span className="absolute inset-0 opacity-95" style={{ background: meta.background }} />
+                    <span className="absolute left-2 top-2 h-2 w-12 rounded-full" style={{ background: meta.accent }} />
+                    <span className="absolute left-2 top-6 h-1.5 w-20 rounded-full bg-white/55 dark:bg-white/30" />
+                    <span className="absolute left-2 top-9 h-1.5 w-14 rounded-full bg-white/35 dark:bg-white/20" />
+                    <span className="absolute bottom-2 right-2 h-8 w-12 rounded-md border border-white/30 bg-white/15" />
+                  </span>
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  if (activeToolPanel !== "projects") {
+    return (
+      <div className="grid gap-3">
+        <StudioToolPanelHeader panel={activeTool} />
+        <div className="grid gap-2">
+          {toolActions.map((action) => (
+            <button key={action.id} onClick={() => onToolAction(action)} className="rounded-md border border-border bg-card p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:bg-accent hover:text-accent-foreground" type="button">
+              <span className="block text-sm font-bold text-foreground">{action.label}</span>
+              <span className="mt-1 block text-xs leading-5 text-muted-foreground">{action.description}</span>
+            </button>
+          ))}
+          {!toolActions.length ? <EmptyState title="No tools here" body="This panel is not available for the current Studio type yet." /> : null}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="grid gap-3">
+      <StudioToolPanelHeader panel={activeTool} />
       <div className="flex flex-wrap items-center gap-2">
         <ActionMenu label={section} icon={List} compact>
           {studioSectionFilters.map((item) => (
@@ -1688,30 +1772,15 @@ function StudioLibrary({
         )}
         {!items.length ? <EmptyState title="No Studio items" body="Create a note, doc, sheet, or deck, then open it in a split pane." /> : null}
       </div>
-      <details className="rounded-md border border-border bg-background p-2">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-          <span className="flex items-center gap-2"><FilePlus2 className="h-3.5 w-3.5" /> Templates</span>
-          <ChevronDown className="h-3.5 w-3.5" />
-        </summary>
-        <div className="mt-2 grid gap-2">
-          {studioTemplates[activeKind].map((template) => {
-            const meta = getStudioTemplateMeta(activeKind, template)
-            return (
-            <button key={template.label} onClick={() => onApplyTemplate(template)} className="group/template overflow-hidden rounded-md border border-border bg-card text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:bg-accent hover:text-accent-foreground" title={`${meta.description} Sections: ${meta.sections.join(", ")}`}>
-              <span className="grid gap-2 p-2.5">
-                <span className="truncate text-xs font-bold text-foreground">{template.label}</span>
-                <span className="relative block h-14 overflow-hidden rounded-md border border-border bg-background" aria-hidden="true">
-                  <span className="absolute inset-0 opacity-95" style={{ background: meta.background }} />
-                  <span className="absolute left-2 top-2 h-2 w-12 rounded-full" style={{ background: meta.accent }} />
-                  <span className="absolute left-2 top-6 h-1.5 w-20 rounded-full bg-white/55 dark:bg-white/30" />
-                  <span className="absolute left-2 top-9 h-1.5 w-14 rounded-full bg-white/35 dark:bg-white/20" />
-                  <span className="absolute bottom-2 right-2 h-7 w-10 rounded-md border border-white/30 bg-white/15" />
-                </span>
-              </span>
-            </button>
-          )})}
-        </div>
-      </details>
+    </div>
+  )
+}
+
+function StudioToolPanelHeader({ panel }: { panel: ReturnType<typeof getStudioToolPanel> }) {
+  return (
+    <div className="rounded-md border border-border bg-background p-3">
+      <p className="text-sm font-bold text-foreground">{panel.label}</p>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">{panel.description}</p>
     </div>
   )
 }
@@ -1750,7 +1819,7 @@ function StudioProjectBrowser({
     <div className="grid gap-4">
       <Panel className="overflow-hidden p-0">
         <div className="grid min-h-[76vh] lg:grid-cols-[76px_360px_1fr]">
-          <StudioToolRail activeKind={activeKind} onSelectKind={onSelectKind} />
+          <StudioToolRail activeKind={activeKind} onSelectKind={onSelectKind} showToolPanels={false} />
           <aside className="border-b border-border bg-card p-4 lg:border-b-0 lg:border-r">
             <label className="flex h-11 items-center gap-2 rounded-xl border border-border bg-background px-3 shadow-sm">
               <Plus className="h-4 w-4 text-muted-foreground" />
@@ -1871,31 +1940,46 @@ function StudioProjectBrowser({
   )
 }
 
-function StudioToolRail({ activeKind, onSelectKind }: { activeKind: StudioKind; onSelectKind: (kind: StudioKind) => void }) {
+function StudioToolRail({
+  activeKind,
+  activeToolPanel = "templates",
+  onSelectKind,
+  onSelectToolPanel = () => undefined,
+  showToolPanels = true,
+}: {
+  activeKind: StudioKind
+  activeToolPanel?: StudioToolPanelId
+  onSelectKind: (kind: StudioKind) => void
+  onSelectToolPanel?: (panel: StudioToolPanelId) => void
+  showToolPanels?: boolean
+}) {
+  const toolIcons: Record<StudioToolPanelId, React.ComponentType<{ className?: string }>> = {
+    ai: Bot,
+    brand: Paintbrush,
+    elements: Grid2X2,
+    media: ImageIcon,
+    projects: LayoutPanelLeft,
+    templates: FilePlus2,
+    text: Type,
+  }
   return (
     <nav className="flex gap-1 overflow-x-auto border-b border-border bg-background p-2 lg:flex-col lg:border-b-0 lg:border-r" aria-label="Studio tools">
+      {showToolPanels ? studioToolPanels.map((panel) => {
+        const Icon = toolIcons[panel.id]
+        return (
+          <button key={panel.id} onClick={() => onSelectToolPanel(panel.id)} className={`flex min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-[11px] font-semibold ${activeToolPanel === panel.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`} title={panel.description} type="button">
+            <Icon className="h-5 w-5" />
+            <span>{panel.label}</span>
+          </button>
+        )
+      }) : null}
+      {showToolPanels ? <span className="hidden h-px bg-border lg:block" /> : null}
       {studioKindOptions.map((option) => {
         const Icon = studioKindIcons[option.kind]
         return (
           <button key={option.kind} onClick={() => onSelectKind(option.kind)} className={`flex min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-[11px] font-semibold ${activeKind === option.kind ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`} type="button">
             <Icon className="h-5 w-5" />
             <span>{studioKindStyles[option.kind].label}</span>
-          </button>
-        )
-      })}
-      <span className="hidden h-px bg-border lg:block" />
-      {[
-        { icon: Type, label: "Text" },
-        { icon: Grid2X2, label: "Elements" },
-        { icon: ImageIcon, label: "Media" },
-        { icon: Paintbrush, label: "Brand" },
-        { icon: Bot, label: "AI" },
-      ].map((item) => {
-        const Icon = item.icon
-        return (
-          <button key={item.label} className="flex min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-[11px] font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-            <Icon className="h-5 w-5" />
-            <span>{item.label}</span>
           </button>
         )
       })}
