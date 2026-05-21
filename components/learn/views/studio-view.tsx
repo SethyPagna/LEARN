@@ -122,7 +122,7 @@ import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, b
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, groupStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
-import { buildStudioProjectBrowserState } from "@/lib/studio-project-browser"
+import { buildStudioProjectBrowserState, selectStudioBrowserTemplate } from "@/lib/studio-project-browser"
 import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 
@@ -1856,6 +1856,7 @@ function StudioProjectBrowser({
   onSelectKind: (kind: StudioKind) => void
   query: string
 }) {
+  const [selectedTemplateLabel, setSelectedTemplateLabel] = useState("")
   const dirtyBadgeMap = new Map(dirtyBadges.map((badge) => [badge.kind, badge.count]))
   const formatGroups = groupStudioCanvasFormats(activeKind)
   const formatChoices = [...formatGroups.presentation, ...formatGroups.document, ...formatGroups.social, ...formatGroups.poster]
@@ -1867,6 +1868,8 @@ function StudioProjectBrowser({
   }), [activeKind, items, query])
   const recentItems = browserState.projects.slice(0, 12)
   const templateChoices = browserState.templates
+  const selectedTemplate = selectStudioBrowserTemplate(templateChoices, selectedTemplateLabel)
+  const selectedTemplateMeta = selectedTemplate ? getStudioTemplateMeta(activeKind, selectedTemplate) : null
   const ActiveIcon = studioKindIcons[activeKind]
   return (
     <div className="grid gap-4">
@@ -1905,8 +1908,9 @@ function StudioProjectBrowser({
               <div className="grid max-h-[34vh] gap-2 overflow-auto pr-1">
                 {templateChoices.map((template) => {
                   const meta = getStudioTemplateMeta(activeKind, template)
+                  const selected = selectedTemplate?.label === template.label
                   return (
-                    <button key={template.label} onClick={() => onApplyTemplate(template)} className="group grid grid-cols-[72px_1fr] gap-3 rounded-lg border border-border bg-background p-2 text-left transition hover:-translate-y-0.5 hover:border-primary hover:bg-accent" title={`${meta.description} Sections: ${meta.sections.join(", ")}`} type="button">
+                    <button key={template.label} onClick={() => setSelectedTemplateLabel(template.label)} className={`group grid grid-cols-[72px_1fr] gap-3 rounded-lg border p-2 text-left transition hover:-translate-y-0.5 hover:border-primary hover:bg-accent ${selected ? "border-primary bg-primary/10" : "border-border bg-background"}`} title={`${meta.description} Sections: ${meta.sections.join(", ")}`} type="button">
                       <span className="relative h-12 overflow-hidden rounded-md border border-border" style={{ background: meta.background }}>
                         <span className="absolute left-2 top-2 h-1.5 w-9 rounded-full" style={{ background: meta.accent }} />
                         <span className="absolute left-2 top-5 h-1.5 w-12 rounded-full bg-white/55 dark:bg-white/25" />
@@ -1967,7 +1971,7 @@ function StudioProjectBrowser({
                         </span>
                         <span className="block p-3">
                           <span className="block truncate text-sm font-bold text-foreground">{item.title}</span>
-                          <span className="mt-1 block truncate text-xs text-muted-foreground">{studioKindStyles[item.kind].label} · {item.summary || "Ready"}</span>
+                          <span className="mt-1 block truncate text-xs text-muted-foreground">{studioKindStyles[item.kind].label} - {item.summary || "Ready"}</span>
                         </span>
                       </button>
                     )
@@ -1976,17 +1980,38 @@ function StudioProjectBrowser({
                 {!recentItems.length ? <EmptyState title="No projects here" body="Create a design, pick a template, or clear the search." /> : null}
               </section>
               <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
-                <p className="text-sm font-bold text-foreground">Canvas preview</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-bold text-foreground">Canvas preview</p>
+                  {selectedTemplate ? (
+                    <button onClick={() => onApplyTemplate(selectedTemplate)} className="h-8 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground" type="button">
+                      Use template
+                    </button>
+                  ) : null}
+                </div>
                 <div className="mt-4 flex min-h-64 items-center justify-center rounded-xl bg-muted p-5">
-                  <div className="w-full max-w-56 rounded-lg border border-border bg-background shadow-xl" style={{ aspectRatio: canvasAspectRatio(canvasFormat) }}>
-                    <div className="grid h-full place-items-center p-4 text-center">
+                  <div className="w-full max-w-56 overflow-hidden rounded-lg border border-border bg-background shadow-xl" style={{ aspectRatio: canvasAspectRatio(canvasFormat) }}>
+                    <div className="grid h-full place-items-center p-4 text-center" style={{ background: selectedTemplateMeta?.background }}>
                       <span>
-                        <span className="block text-sm font-bold text-foreground">{canvasFormat.label}</span>
-                        <span className="mt-1 block text-xs text-muted-foreground">{canvasFormat.description}</span>
+                        {selectedTemplateMeta ? <span className="mx-auto mb-3 block h-1.5 w-20 rounded-full" style={{ background: selectedTemplateMeta.accent }} /> : null}
+                        <span className="block text-sm font-bold text-foreground">{selectedTemplate?.label || canvasFormat.label}</span>
+                        <span className="mt-1 block text-xs text-muted-foreground">{selectedTemplateMeta?.style || canvasFormat.description}</span>
+                        {selectedTemplateMeta ? (
+                          <span className="mt-3 flex flex-wrap justify-center gap-1">
+                            {selectedTemplateMeta.sections.slice(0, 3).map((item) => (
+                              <span key={item} className="rounded-md bg-background/70 px-1.5 py-0.5 text-[10px] font-semibold text-foreground">{item}</span>
+                            ))}
+                          </span>
+                        ) : null}
                       </span>
                     </div>
                   </div>
                 </div>
+                {selectedTemplateMeta ? (
+                  <details className="mt-3 rounded-md border border-border bg-background p-2">
+                    <summary className="cursor-pointer list-none text-xs font-semibold text-foreground">Design details</summary>
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">{selectedTemplateMeta.description}</p>
+                  </details>
+                ) : null}
               </section>
             </div>
           </main>
