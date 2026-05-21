@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { learningGroupApiMessages } from "../lib/social-api-copy"
+import { learningGroupApiMessages } from "../lib/social-api-messages"
 
 test("learning group API messages stay user-facing while routes remain stable", () => {
   assert.deepEqual(Object.values(learningGroupApiMessages), [
