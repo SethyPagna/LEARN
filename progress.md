@@ -233,16 +233,17 @@ Current branch: main
 | Date | Change | Evidence |
 | --- | --- | --- |
 | 2026-05-16 | Created comprehensive 20 phase plan and progress tracker. | `plan.md`, `progress.md` |
+| 2026-05-21 | Updated branch and local command guidance for descriptive branches and pinned pnpm wrapper usage. | `docs/change-control.md`, `README.md`, `progress.md` |
 
 ## Risks And Open Decisions
 
 | Item | Risk | Decision Needed | Owner |
 | --- | --- | --- | --- |
-| Office imports | Browser/server parser support may limit DOCX/PPTX/XLSX fidelity. | Choose parser strategy before Phase 14 implementation. | Codex and user |
-| Template reapply | Updating all linked artifacts can overwrite user intent if not carefully designed. | Require non-destructive preview and explicit destructive confirmation. | Codex |
-| AI response schemas | Model outputs can be malformed or incomplete. | Validate, repair, and fallback before insert-back. | Codex |
-| Large editor bundle | More tools can slow initial load. | Lazy-load heavy editors and import/export adapters. | Codex |
-| Existing dirty files | Some files were modified before this planning pass. | Preserve them unless user explicitly asks to include or revise them. | Codex |
+| Office imports | Browser/server parser support may limit DOCX/PPTX/XLSX fidelity. | Choose parser strategy before Phase 14 implementation. | User and maintainer |
+| Template reapply | Updating all linked artifacts can overwrite user intent if not carefully designed. | Require non-destructive preview and explicit destructive confirmation. | Maintainer |
+| AI response schemas | Model outputs can be malformed or incomplete. | Validate, repair, and fallback before insert-back. | Maintainer |
+| Large editor bundle | More tools can slow initial load. | Lazy-load heavy editors and import/export adapters. | Maintainer |
+| Existing dirty files | Some files were modified before this planning pass. | Preserve them unless user explicitly asks to include or revise them. | Maintainer |
 
 ## Verification Log
 
@@ -253,4 +254,3 @@ Current branch: main
 ## Next Recommended Slice
 
 Start with Phase 1. It will expose which buttons and workflows are incomplete, then Phase 2 and Phase 3 can turn those findings into reusable UI and architecture rules before larger implementation begins.
-
