@@ -227,6 +227,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Continued Import Gateway safety by adding one shared import target selection normalizer and using it in Studio and AI Tutor selectors.
 - 2026-05-21: Continued AI insert-back cleanup by centralizing Studio insert targets and draft normalization in the prompt builder.
 - 2026-05-21: Continued onboarding safety by centralizing first-run workflow and Studio-type options, labels, and select normalization.
+- 2026-05-21: Continued Social invite safety by centralizing invite role options and using shared role normalization in Social hubs and detail panels.
 
 ## Implementation Slices
 
