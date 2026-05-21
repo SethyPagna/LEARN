@@ -116,7 +116,7 @@ import { studioFontOptions, studioFontSizeOptions, studioHighlightColorOptions, 
 import { getStudioKindOption, getStudioViewModeOption, studioEmptyTabLabels, studioInspectorTabs, studioKindOptions, studioSectionFilters, studioViewModeOptions, type StudioViewMode } from "@/lib/studio-navigation"
 import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, blankNoteTitle, blankRichText, blankSheetCells, blankSheetFingerprint, blankSheetTitle, ensureSheetCells, parseDeckSlides, parseSheetCells, studioCreateLabels, studioDraftSummary, studioFallbackTitle, studioNoItemSummary } from "@/lib/studio-defaults"
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
-import { applySlideDesignPreset, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
+import { applySlideDesignPreset, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
 const HEADING_STYLE_KEY = "learn_heading_styles_v1"
@@ -1651,10 +1651,7 @@ function StudioLibrary({
             return (
             <button key={template.label} onClick={() => onApplyTemplate(template)} className="group/template overflow-hidden rounded-md border border-border bg-card text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:bg-accent hover:text-accent-foreground" title={`${meta.description} Sections: ${meta.sections.join(", ")}`}>
               <span className="grid gap-2 p-2.5">
-                <span className="flex items-center justify-between gap-2">
-                  <span className="truncate text-xs font-bold text-foreground">{template.label}</span>
-                  <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[0.62rem] font-bold uppercase tracking-[0.08em] text-secondary-foreground">{meta.style}</span>
-                </span>
+                <span className="truncate text-xs font-bold text-foreground">{template.label}</span>
                 <span className="relative block h-14 overflow-hidden rounded-md border border-border bg-background" aria-hidden="true">
                   <span className="absolute inset-0 opacity-95" style={{ background: meta.background }} />
                   <span className="absolute left-2 top-2 h-2 w-12 rounded-full" style={{ background: meta.accent }} />
@@ -1681,50 +1678,36 @@ function getStudioTemplateMeta(kind: StudioKind, template: StudioTemplate) {
   const sections = template.sections || extractTemplateSections(kind, template.body)
   const slideTheme = kind === "slides" ? slideTemplateTheme(template.label) : undefined
   const slidePalette = slideTheme ? slideDesignPresets[slideTheme] : undefined
+  const richPalette = kind === "notes" || kind === "docs" ? richTemplateDesignFor(template.label) : undefined
+  const sheetPalette = kind === "sheets" ? sheetTemplateDesignFor(template.label) : undefined
   return {
-    accent: template.accent || palette[kind],
-    background: slidePalette?.background || "hsl(var(--background))",
+    accent: template.accent || slidePalette?.accent || richPalette?.accent || palette[kind],
+    background: slidePalette?.background || richPalette?.background || "hsl(var(--background))",
     description: template.description || describeTemplate(kind, template.label),
     sections,
-    style: template.style || styleForTemplate(kind, template.label),
+    style: template.style || sheetPalette?.name || richPalette?.name || styleForTemplate(kind, template.label),
   }
 }
 
 function buildAppliedTemplate(kind: StudioKind, template: StudioTemplate) {
-  if (kind === "sheets") return { ...template, body: enrichSheetTemplate(template.body) }
+  if (kind === "sheets") return { ...template, body: enrichSheetTemplate(template.body, template.label) }
   if (kind === "slides") return { ...template, body: enrichSlideTemplate(template.body) }
   return { ...template, body: enrichRichTemplate(kind, template) }
 }
 
 function enrichRichTemplate(kind: StudioKind, template: StudioTemplate) {
   const meta = getStudioTemplateMeta(kind, template)
-  const sections = meta.sections.slice(0, 4)
-  return [
-    template.body,
-    `<blockquote><strong>Template intent:</strong> ${escapeHtml(meta.description)}</blockquote>`,
-    "<h2>Workflow</h2>",
-    "<ol>",
-    `<li>Capture the raw idea in the ${escapeHtml(sections[0] || "first section")} area.</li>`,
-    `<li>Add evidence, examples, or media under ${escapeHtml(sections[1] || "supporting notes")}.</li>`,
-    "<li>Mark one weak point and one next action before saving.</li>",
-    "</ol>",
-    "<h2>Review checklist</h2>",
-    "<ul><li>Turn one idea into a quiz question.</li><li>Create one active-recall card.</li><li>Link this item to a topic, file, or calendar block.</li></ul>",
-    "<h2>Export notes</h2>",
-    "<p>Keep headings short, add source links, and use the Studio export menu when this is ready to share.</p>",
-  ].join("")
+  return buildDesignedRichTemplate({
+    body: template.body,
+    description: meta.description,
+    kind: kind === "docs" ? "docs" : "notes",
+    label: template.label,
+    sections: meta.sections,
+  })
 }
 
-function enrichSheetTemplate(body: string) {
-  const rows = body.split("\n").map((row) => row.split(","))
-  const header = rows[0] || []
-  const extras = ["Priority", "Owner", "Due", "Notes"].filter((column) => !header.includes(column))
-  if (!extras.length) return body
-  return rows.map((row, index) => {
-    if (index === 0) return [...row, ...extras].join(",")
-    const defaults = extras.map((column) => column === "Priority" ? "Medium" : column === "Owner" ? "Me" : "")
-    return [...row, ...defaults].join(",")
-  }).join("\n")
+function enrichSheetTemplate(body: string, label: string) {
+  return buildDesignedSheetTemplateCsv(body, label)
 }
 
 function enrichSlideTemplate(body: string) {
