@@ -36,6 +36,13 @@ import {
   splitStudioPane,
 } from "../lib/studio-features"
 import { shouldAnnounceStudioDraftSave, summarizeStudioDrafts } from "../lib/studio-drafts"
+import {
+  findStudioFormattingOption,
+  studioFontOptions,
+  studioFontSizeOptions,
+  studioHighlightColorOptions,
+  studioTextColorOptions,
+} from "../lib/studio-formatting"
 import { getVocabulary, isSupportedLocale, loadVocabulary, supportedLocales } from "../lib/i18n/vocabulary"
 
 test("editor history supports undo and redo without losing future states", () => {
@@ -199,6 +206,16 @@ test("studio draft notice helper avoids noisy repeated announcements", () => {
   assert.equal(shouldAnnounceStudioDraftSave({ kind: "notes", lastKind: "notes", lastShownAt: 1000, now: 2000, cooldownMs: 12000 }), false)
   assert.equal(shouldAnnounceStudioDraftSave({ kind: "docs", lastKind: "notes", lastShownAt: 1000, now: 2000, cooldownMs: 12000 }), true)
   assert.equal(shouldAnnounceStudioDraftSave({ kind: "notes", lastKind: "notes", lastShownAt: 1000, now: 14000, cooldownMs: 12000 }), true)
+})
+
+test("studio formatting options keep Office-like controls stable", () => {
+  assert.equal(studioFontOptions[0].label, "Aptos")
+  assert.ok(studioFontOptions.some((option) => option.value.includes("serif")))
+  assert.deepEqual(studioFontSizeOptions.map((option) => option.value).slice(0, 4), ["8px", "9px", "10px", "11px"])
+  assert.equal(studioFontSizeOptions.at(-1)?.value, "72px")
+  assert.equal(findStudioFormattingOption(studioTextColorOptions, "inherit")?.label, "Default")
+  assert.equal(findStudioFormattingOption(studioHighlightColorOptions, "#bfdbfe")?.label, "Blue")
+  assert.equal(findStudioFormattingOption(studioTextColorOptions, "missing"), null)
 })
 
 test("all supported vocabularies return usable text without mojibake", async () => {
