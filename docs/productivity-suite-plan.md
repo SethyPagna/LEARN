@@ -1,7 +1,7 @@
 # LEARN Productivity Suite Plan
 
 Status: Active
-Last updated: 2026-05-18
+Last updated: 2026-05-21
 
 ## Goal
 
@@ -30,6 +30,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 | Shell and calendar | In progress | Desktop sidebar is fixed for long pages. Calendar now needs to keep growing toward true date/time planning with month, day, agenda, and editing views. |
 | Schema and sharing | Planned | A final Phase 6 schema/workflow plan now maps current D1 tables, social polymorphism, sharing gaps, review/practice loops, realtime snapshots, and UI declutter targets. |
 | Folder organization | In progress | Group large flat surfaces into domain folders first, starting with workspace views, then split Studio/AI/Ecosystem/lib data slices in small verified commits. |
+| Cloudflare cleanup | In progress | Generated local output cleanup runs before deploy. LEARN-only remote cleanup now has a tested classifier and dry-run audit command before any deletion is considered. |
 
 ## Progress Log
 
@@ -216,6 +217,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Continued Chat inbox UX by adding tested shortcuts for All, Help, Wins, Saved, Mentions, and Studio and wiring them to compact thread filtering.
 - 2026-05-21: Continued Social Find UX by adding tested people-search shortcuts for All, Learners, Admins, Active, and Email and surfacing them above the add/follow list.
 - 2026-05-21: Continued repo hygiene by adding a tested generated-workspace cleanup plan, local cleanup ops command, ignored output folder, and pre-Cloudflare-deploy cleanup.
+- 2026-05-21: Continued Cloudflare cleanup safety by adding a tested LEARN-only resource classifier plus a dry-run audit command for Workers, Pages, D1, and R2 resources.
 
 ## Implementation Slices
 
