@@ -1,3 +1,5 @@
+import { studioFallbackTitle } from "./studio-defaults"
+
 export type DashboardCommandTarget = "ai" | "calendar" | "files" | "practice" | "reviews" | "studio"
 export type DashboardQuickActionTarget =
   | DashboardCommandTarget
@@ -381,7 +383,7 @@ export function buildDashboardRecentWork(input: DashboardRecentWorkInput): Dashb
     items.push({
       id: `studio:${note.id}`,
       kind: "studio",
-      title: cleanTitle(note.title, "Untitled Studio item"),
+      title: cleanTitle(note.title, studioFallbackTitle),
       detail: "Studio item",
       target: "studio",
       timestamp: normalizeTimestamp(note.updated_at ?? note.updatedAt),

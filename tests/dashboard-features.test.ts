@@ -135,14 +135,18 @@ test("buildDashboardRecentWork sorts mixed work and maps routes", () => {
   const recents = buildDashboardRecentWork({
     aiChats: [{ id: "chat_1", title: "Explain indexes", updated_at: "2026-05-17T03:00:00.000Z" }],
     files: [{ id: "asset_1", filename: "syllabus.pdf", created_at: "2026-05-17T04:00:00.000Z", content_type: "application/pdf" }],
-    notes: [{ id: "note_1", title: "Database notes", updated_at: "2026-05-17T02:00:00.000Z" }],
+    notes: [
+      { id: "note_1", title: "Database notes", updated_at: "2026-05-17T02:00:00.000Z" },
+      { id: "note_2", title: " ", updated_at: "2026-05-17T01:00:00.000Z" },
+    ],
     quizAttempts: [{ id: "attempt_1", quiz_title: "SQL quiz", score: 4, total: 5, created_at: "2026-05-17T05:00:00.000Z" }],
   })
 
-  assert.deepEqual(recents.map((recent) => recent.kind), ["practice", "file", "ai", "studio"])
+  assert.deepEqual(recents.map((recent) => recent.kind), ["practice", "file", "ai", "studio", "studio"])
   assert.equal(recents[0].detail, "4/5 score")
   assert.equal(recents[1].target, "files")
   assert.equal(recents[2].target, "ai")
+  assert.equal(recents[4].title, "Studio item")
 })
 
 test("buildDashboardQuickActionGroups keeps dashboard buttons routeable and compact", () => {
