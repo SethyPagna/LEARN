@@ -2,6 +2,12 @@ import type { StudioKind } from "@/components/learn/types"
 
 export type StudioCanvasFormatGroup = "document" | "presentation" | "social" | "poster"
 
+export type StudioCanvasFormatGroupMeta = {
+  id: StudioCanvasFormatGroup
+  label: string
+  description: string
+}
+
 export type StudioCanvasFormat = {
   id: string
   label: string
@@ -23,6 +29,13 @@ export const studioCanvasFormats: StudioCanvasFormat[] = [
   { id: "poster", label: "Poster", group: "poster", width: 3, height: 4, description: "Infographics, one-pagers, and wall notes", supportedKinds: ["notes", "docs", "slides"] },
 ]
 
+export const studioCanvasFormatGroups: StudioCanvasFormatGroupMeta[] = [
+  { id: "presentation", label: "Presentation", description: "Slides, lessons, and deck workflows" },
+  { id: "document", label: "Document", description: "Notes, docs, worksheets, and print pages" },
+  { id: "social", label: "Social", description: "Square cards and mobile story visuals" },
+  { id: "poster", label: "Poster", description: "One-pagers, infographics, and wall notes" },
+]
+
 export function getStudioCanvasFormat(id: string | undefined, kind: StudioKind) {
   const direct = studioCanvasFormats.find((format) => format.id === id && format.supportedKinds.includes(kind))
   if (direct) return direct
@@ -40,6 +53,17 @@ export function groupStudioCanvasFormats(kind: StudioKind) {
       groups[format.group] = [...(groups[format.group] || []), format]
       return groups
     }, { document: [], presentation: [], social: [], poster: [] })
+}
+
+export function listStudioCanvasFormatGroups(kind: StudioKind) {
+  const groups = groupStudioCanvasFormats(kind)
+  return studioCanvasFormatGroups
+    .map((group) => ({ ...group, formats: groups[group.id] }))
+    .filter((group) => group.formats.length > 0)
+}
+
+export function listStudioCanvasFormats(kind: StudioKind) {
+  return listStudioCanvasFormatGroups(kind).flatMap((group) => group.formats)
 }
 
 export function canvasPreviewWidth(format: StudioCanvasFormat) {
