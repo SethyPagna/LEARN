@@ -1,6 +1,6 @@
 # LEARN Comprehensive Improvement Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans when implementing this plan phase-by-phase. Steps use checkbox syntax in `progress.md` for tracking.
+> **For maintainers:** Implement this plan phase-by-phase with the checklist syntax in `progress.md`, small commits, and verification evidence before each push.
 
 **Goal:** Turn LEARN into a comprehensive learning operating system with stronger workflow, design, architecture, AI prompting, response handling, templates, Office-style tooling, imports, exports, presentations, discussions, quizzes, activities, and traceable delivery.
 
@@ -781,4 +781,3 @@
 - Do not mix unrelated phase work in one commit.
 - Never stage unrelated user edits.
 - Each phase should include at least one test-focused commit and one implementation commit when code changes are involved.
-
