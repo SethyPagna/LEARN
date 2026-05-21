@@ -254,6 +254,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Continued Studio project-browser cleanup by centralizing active-kind filtering, search normalization, project counts, and template matching so the launcher behaves more like a focused design workspace.
 - 2026-05-21: Continued Studio decluttering by making tool panels title-first, moving panel guidance into info popovers, and replacing long action copy with compact Page/Data/Canvas/Insert chips.
 - 2026-05-21: Continued Studio launcher maturity by changing template clicks into preview selection with a deliberate Use template action, reducing accidental editor jumps while keeping design details expandable.
+- 2026-05-21: Continued Canva-style Studio sizing by centralizing canvas format groups and replacing the flat dimension picker with expandable Presentation, Document, Social, and Poster groups.
 
 ## Implementation Slices
 
