@@ -120,7 +120,7 @@ import { studioFontOptions, studioFontSizeOptions, studioHighlightColorOptions, 
 import { getStudioKindOption, getStudioViewModeOption, studioEmptyTabLabels, studioInspectorTabs, studioKindOptions, studioSectionFilters, studioViewModeOptions, type StudioViewMode } from "@/lib/studio-navigation"
 import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, blankNoteTitle, blankRichText, blankSheetCells, blankSheetFingerprint, blankSheetTitle, ensureSheetCells, parseDeckSlides, parseSheetCells, studioCreateLabels, studioDraftSummary, studioFallbackTitle, studioNoItemSummary } from "@/lib/studio-defaults"
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
-import { applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
+import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
 const HEADING_STYLE_KEY = "learn_heading_styles_v1"
@@ -2359,6 +2359,9 @@ function StudioCanvas({
   const resizeSelectedObject = (object: SlideObject, preset: "wide" | "tall" | "compact" | "hero") => {
     updateSelectedSlide((slide) => resizeSlideDesignObject(slide, object.id, preset))
   }
+  const alignSelectedObject = (object: SlideObject, alignment: "left" | "center" | "right" | "top" | "middle" | "bottom") => {
+    updateSelectedSlide((slide) => alignSlideDesignObject(slide, object.id, alignment))
+  }
   const slideIds = slides.map((_, index) => `slide-${index}`)
   const handleSlideDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
@@ -2495,6 +2498,11 @@ function StudioCanvas({
                     <MenuAction icon={ArrowDown} label="Nudge down" onClick={() => nudgeSelectedObject(selectedObject, "down")} />
                     <MenuAction icon={ArrowLeft} label="Nudge left" onClick={() => nudgeSelectedObject(selectedObject, "left")} />
                     <MenuAction icon={ArrowRight} label="Nudge right" onClick={() => nudgeSelectedObject(selectedObject, "right")} />
+                    <MenuAction icon={AlignLeft} label="Align left" onClick={() => alignSelectedObject(selectedObject, "left")} />
+                    <MenuAction icon={AlignCenter} label="Align center" onClick={() => alignSelectedObject(selectedObject, "center")} />
+                    <MenuAction icon={AlignRight} label="Align right" onClick={() => alignSelectedObject(selectedObject, "right")} />
+                    <MenuAction icon={ArrowUp} label="Align top" onClick={() => alignSelectedObject(selectedObject, "top")} />
+                    <MenuAction icon={ArrowDown} label="Align bottom" onClick={() => alignSelectedObject(selectedObject, "bottom")} />
                     <MenuAction icon={Maximize2} label="Bring to front" onClick={() => reorderSelectedObject(selectedObject, "front")} />
                     <MenuAction icon={Minus} label="Send to back" onClick={() => reorderSelectedObject(selectedObject, "back")} />
                     <MenuAction icon={Columns3} label="Wide size" onClick={() => resizeSelectedObject(selectedObject, "wide")} />
