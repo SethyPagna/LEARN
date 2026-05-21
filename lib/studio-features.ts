@@ -1,4 +1,5 @@
 import type { SheetMetadata, SlideObject, StudioDirtyBadge, StudioKind, StudioLayoutState, StudioPane, StudioTab, WorkspaceDeck } from "@/components/learn/types"
+import { studioFallbackTitle } from "./studio-defaults"
 
 export type StudioRecordActionId =
   | "open"
@@ -30,7 +31,7 @@ export function createStudioTab(kind: StudioKind, title: string, itemId?: string
   }
 }
 
-export function createDefaultStudioLayout(kind: StudioKind = "notes", title = "Studio item", itemId?: string): StudioLayoutState {
+export function createDefaultStudioLayout(kind: StudioKind = "notes", title = studioFallbackTitle, itemId?: string): StudioLayoutState {
   const tab = createStudioTab(kind, title, itemId)
   const pane: StudioPane = {
     id: "pane_1",

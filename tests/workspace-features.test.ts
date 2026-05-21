@@ -121,9 +121,11 @@ test("document helpers summarize outline and replace text", () => {
 })
 
 test("studio layout supports split and close pane operations", () => {
+  const defaultLayout = createDefaultStudioLayout()
   const layout = createDefaultStudioLayout("docs", "Study doc", "doc_1")
   const split = splitStudioPane(layout, "pane_1", "horizontal")
 
+  assert.equal(defaultLayout.groups[0].panes[0].tabs[0].title, studioFallbackTitle)
   assert.equal(split.groups[0].panes.length, 2)
   assert.equal(split.groups[0].panes[1].label, "Order 2")
   assert.equal(split.activePaneId, split.groups[0].panes[1].id)
