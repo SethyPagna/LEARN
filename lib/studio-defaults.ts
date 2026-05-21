@@ -1,10 +1,21 @@
 import type { WorkspaceDeck, WorkspaceSheet } from "@/components/learn/types"
+import type { StudioKind } from "@/components/learn/types"
 
 export const blankNoteTitle = "Untitled note"
 export const blankDocTitle = "Untitled document"
 export const blankSheetTitle = "Untitled sheet"
 export const blankDeckTitle = "Untitled deck"
 export const blankRichText = "<p></p>"
+export const studioFallbackTitle = "Studio item"
+export const studioNoItemSummary = "No item open"
+export const studioDraftSummary = "Draft pane"
+
+export const studioCreateLabels: Record<StudioKind, string> = {
+  notes: "New Note",
+  docs: "New Doc",
+  sheets: "New Sheet",
+  slides: "New Deck",
+}
 
 export const blankSheetCells: string[][] = Array.from({ length: 12 }, () => Array.from({ length: 6 }, () => ""))
 
@@ -25,7 +36,7 @@ export const blankDeckSlides: WorkspaceDeck["slides"] = [
 export const blankSheetFingerprint = JSON.stringify(blankSheetCells)
 export const blankDeckFingerprint = JSON.stringify(blankDeckSlides)
 
-export function getBlankStudioTitle(kind: "notes" | "docs" | "sheets" | "slides") {
+export function getBlankStudioTitle(kind: StudioKind) {
   if (kind === "notes") return blankNoteTitle
   if (kind === "docs") return blankDocTitle
   if (kind === "sheets") return blankSheetTitle

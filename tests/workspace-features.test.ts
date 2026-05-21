@@ -61,6 +61,10 @@ import {
   getBlankStudioTitle,
   parseDeckSlides,
   parseSheetCells,
+  studioCreateLabels,
+  studioDraftSummary,
+  studioFallbackTitle,
+  studioNoItemSummary,
 } from "../lib/studio-defaults"
 import {
   getSocialCommandTab,
@@ -281,6 +285,15 @@ test("Studio blank defaults do not seed new sheets or decks with sample content"
   assert.equal(blankDeckTitle, "Untitled deck")
   assert.equal(getBlankStudioTitle("notes"), blankNoteTitle)
   assert.equal(getBlankStudioTitle("slides"), blankDeckTitle)
+  assert.equal(studioFallbackTitle, "Studio item")
+  assert.equal(studioNoItemSummary, "No item open")
+  assert.equal(studioDraftSummary, "Draft pane")
+  assert.deepEqual(studioCreateLabels, {
+    notes: "New Note",
+    docs: "New Doc",
+    sheets: "New Sheet",
+    slides: "New Deck",
+  })
   assert.equal(cells.length >= 8, true)
   assert.equal(cells.every((row) => row.every((cell) => cell === "")), true)
   assert.equal(slides.length, 1)
