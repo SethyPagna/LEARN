@@ -121,6 +121,7 @@ import { getStudioKindOption, getStudioViewModeOption, studioEmptyTabLabels, stu
 import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, blankNoteTitle, blankRichText, blankSheetCells, blankSheetFingerprint, blankSheetTitle, ensureSheetCells, parseDeckSlides, parseSheetCells, studioCreateLabels, studioDraftSummary, studioFallbackTitle, studioNoItemSummary } from "@/lib/studio-defaults"
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
+import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, groupStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
 const HEADING_STYLE_KEY = "learn_heading_styles_v1"
@@ -445,6 +446,9 @@ export function StudioView({
   const [query, setQuery] = useState("")
   const [section, setSection] = useState("All")
   const [viewMode, setViewMode] = useState<StudioViewMode>("list")
+  const [studioMode, setStudioMode] = useState<"projects" | "editor">("projects")
+  const [canvasFormatId, setCanvasFormatId] = useState("")
+  const [toolRailCollapsed, setToolRailCollapsed] = useState(false)
   const [status, setStatus] = useState("Loading Studio...")
   const [draftNotice, setDraftNotice] = useState("")
   const [saving, setSaving] = useState(false)
@@ -762,6 +766,7 @@ export function StudioView({
   }, [selectedSlideIndex, slides.length])
 
   const activeTab = getStudioKindOption(kind)
+  const canvasFormat = getStudioCanvasFormat(canvasFormatId, kind)
   const dirtyBadgeMap = useMemo(() => new Map(dirtyBadges.map((badge) => [badge.kind, badge])), [dirtyBadges])
   const allItems = useMemo(() => {
     const needle = deferredQuery.trim().toLowerCase()
@@ -786,6 +791,11 @@ export function StudioView({
 
     return mapped.sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")))
   }, [archivedDecks, archivedDocs, archivedNotes, archivedSheets, decks, deferredQuery, docs, notes, section, sheets])
+
+  useEffect(() => {
+    const nextFormat = getStudioCanvasFormat(canvasFormatId, kind)
+    if (nextFormat.id !== canvasFormatId) setCanvasFormatId(nextFormat.id)
+  }, [canvasFormatId, kind])
 
   function updateActivePaneKind(nextKind: StudioKind, itemId?: string, title?: string) {
     setLayout((current) => {
@@ -853,6 +863,7 @@ export function StudioView({
 
   function applyTemplate(template: StudioTemplate) {
     const applied = buildAppliedTemplate(kind, template)
+    setStudioMode("editor")
     if (kind === "notes") {
       setNoteDraft((current) => current ? { ...current, title: applied.title } : current)
       setNoteHistory(pushHistory(noteHistory, applied.body))
@@ -874,6 +885,7 @@ export function StudioView({
   }
 
   async function createActive() {
+    setStudioMode("editor")
     if (kind === "notes") {
       const response = await api<{ item: Note }>("/api/notes", {
         method: "POST",
@@ -1319,6 +1331,7 @@ export function StudioView({
 
   function loadStudioItem(item: { id: string; kind: StudioKind }) {
     setKind(item.kind)
+    setStudioMode("editor")
     if (item.kind === "notes") setSelectedNoteId(item.id)
     if (item.kind === "docs") setDocId(item.id)
     if (item.kind === "sheets") setSheetId(item.id)
@@ -1383,10 +1396,32 @@ export function StudioView({
   const activeStudioTab = getStudioKindOption(kind)
   const ActiveStudioIcon = studioKindIcons[activeStudioTab.kind]
 
+  if (studioMode === "projects") {
+    return (
+      <StudioProjectBrowser
+        activeKind={kind}
+        canvasFormat={canvasFormat}
+        dirtyBadges={dirtyBadges}
+        items={allItems}
+        onApplyTemplate={applyTemplate}
+        onCanvasFormat={setCanvasFormatId}
+        onCreate={createActive}
+        onOpen={selectItem}
+        onQuery={setQuery}
+        onSelectKind={selectKind}
+        query={query}
+      />
+    )
+  }
+
   return (
     <div className="grid gap-3">
       <Panel className="p-2">
         <div className="flex flex-wrap items-center gap-2">
+          <button onClick={() => setStudioMode("projects")} className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </button>
           <ActionMenu label={activeStudioTab.label} icon={ActiveStudioIcon} primary>
             <div className="grid gap-1">
               {studioKindOptions.map((tab) => {
@@ -1416,10 +1451,15 @@ export function StudioView({
             <MenuAction icon={PanelRight} label="Export" onClick={() => downloadActive(true)} meta={kind === "slides" ? "PPTX when available" : "Portable text format"} />
           </ActionMenu>
           <ActionMenu label="Layout" icon={SplitSquareHorizontal}>
+            <MenuSelect label="Canvas" onChange={setCanvasFormatId} options={groupStudioCanvasFormats(kind)[kind === "slides" ? "presentation" : "document"].concat(groupStudioCanvasFormats(kind).social, groupStudioCanvasFormats(kind).poster).map((format) => ({ label: format.label, value: format.id }))} />
             <MenuAction icon={SplitSquareHorizontal} label="Split right" onClick={() => setLayout((current) => splitStudioPane(current, current.activePaneId, "horizontal"))} />
             <MenuAction icon={SplitSquareVertical} label="Split down" onClick={() => setLayout((current) => splitStudioPane(current, current.activePaneId, "vertical"))} />
             <MenuAction icon={Settings2} label="Reset layout" onClick={() => setLayout(createDefaultStudioLayout(kind, activeTitle() || "Studio"))} />
           </ActionMenu>
+          <button onClick={() => setToolRailCollapsed((collapsed) => !collapsed)} className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+            <LayoutPanelLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">{toolRailCollapsed ? "Tools" : "Hide tools"}</span>
+          </button>
           <button onClick={() => setLayout((current) => ({ ...current, inspectorOpen: !current.inspectorOpen }))} className="ml-auto flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
             <PanelRight className="h-4 w-4" />
             <span className="hidden sm:inline">Inspector</span>
@@ -1452,32 +1492,35 @@ export function StudioView({
         ) : null}
       </Panel>
 
-      <div className="grid gap-3 xl:grid-cols-[280px_1fr]">
-        <Panel className="min-h-[74vh] p-3">
-          <StudioLibrary
-            items={allItems}
-            query={query}
-            section={section}
-            viewMode={viewMode}
-            onApplyTemplate={applyTemplate}
-            onArchive={archiveStudioItem}
-            onAskAi={(item) => {
-              selectItem(item)
-              setInspectorTab("AI")
-            }}
-            onCopy={copyStudioItem}
-            onDownload={(item) => downloadStudioItem(item)}
-            onDuplicate={duplicateStudioItem}
-            onExport={(item) => downloadStudioItem(item, true)}
-            onOpenInSplit={openItemInSplit}
-            onQuery={setQuery}
-            onRestore={restoreStudioItem}
-            onSection={setSection}
-            onSelect={selectItem}
-            onViewMode={setViewMode}
-            activeKind={kind}
-          />
-        </Panel>
+      <div className={`grid gap-3 ${toolRailCollapsed ? "xl:grid-cols-[1fr]" : "xl:grid-cols-[72px_280px_1fr]"}`}>
+        {!toolRailCollapsed ? <StudioToolRail activeKind={kind} onSelectKind={selectKind} /> : null}
+        {!toolRailCollapsed ? (
+          <Panel className="min-h-[74vh] p-3">
+            <StudioLibrary
+              items={allItems}
+              query={query}
+              section={section}
+              viewMode={viewMode}
+              onApplyTemplate={applyTemplate}
+              onArchive={archiveStudioItem}
+              onAskAi={(item) => {
+                selectItem(item)
+                setInspectorTab("AI")
+              }}
+              onCopy={copyStudioItem}
+              onDownload={(item) => downloadStudioItem(item)}
+              onDuplicate={duplicateStudioItem}
+              onExport={(item) => downloadStudioItem(item, true)}
+              onOpenInSplit={openItemInSplit}
+              onQuery={setQuery}
+              onRestore={restoreStudioItem}
+              onSection={setSection}
+              onSelect={selectItem}
+              onViewMode={setViewMode}
+              activeKind={kind}
+            />
+          </Panel>
+        ) : null}
 
         <Panel className="min-w-0 p-0">
           <PanelGroup id="learn-studio-primary" direction={layout.groups[0]?.direction || "horizontal"} className="min-h-[74vh]">
@@ -1524,6 +1567,7 @@ export function StudioView({
                     onSetSelectedCell={setSelectedCell}
                     onSetSelectedSlideIndex={setSelectedSlideIndex}
                     onSetSlides={setSlides}
+                    canvasFormat={canvasFormat}
                     onSplitDown={() => setLayout((current) => splitStudioPane(current, pane.id, "vertical"))}
                     onSplitRight={() => setLayout((current) => splitStudioPane(current, pane.id, "horizontal"))}
                     options={options}
@@ -1669,6 +1713,193 @@ function StudioLibrary({
         </div>
       </details>
     </div>
+  )
+}
+
+function StudioProjectBrowser({
+  activeKind,
+  canvasFormat,
+  dirtyBadges,
+  items,
+  onApplyTemplate,
+  onCanvasFormat,
+  onCreate,
+  onOpen,
+  onQuery,
+  onSelectKind,
+  query,
+}: {
+  activeKind: StudioKind
+  canvasFormat: StudioCanvasFormat
+  dirtyBadges: StudioDirtyBadge[]
+  items: StudioListItem[]
+  onApplyTemplate: (template: StudioTemplate) => void
+  onCanvasFormat: (id: string) => void
+  onCreate: () => void
+  onOpen: (item: StudioRecordItem) => void
+  onQuery: (value: string) => void
+  onSelectKind: (kind: StudioKind) => void
+  query: string
+}) {
+  const dirtyBadgeMap = new Map(dirtyBadges.map((badge) => [badge.kind, badge.count]))
+  const formatGroups = groupStudioCanvasFormats(activeKind)
+  const formatChoices = [...formatGroups.presentation, ...formatGroups.document, ...formatGroups.social, ...formatGroups.poster]
+  const recentItems = items.slice(0, 12)
+  const ActiveIcon = studioKindIcons[activeKind]
+  return (
+    <div className="grid gap-4">
+      <Panel className="overflow-hidden p-0">
+        <div className="grid min-h-[76vh] lg:grid-cols-[76px_360px_1fr]">
+          <StudioToolRail activeKind={activeKind} onSelectKind={onSelectKind} />
+          <aside className="border-b border-border bg-card p-4 lg:border-b-0 lg:border-r">
+            <label className="flex h-11 items-center gap-2 rounded-xl border border-border bg-background px-3 shadow-sm">
+              <Plus className="h-4 w-4 text-muted-foreground" />
+              <input value={query} onChange={(event) => onQuery(event.target.value)} placeholder="Search projects or templates" className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
+            </label>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button onClick={onCreate} className="h-10 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm" type="button">New design</button>
+              <ActionMenu label={canvasFormat.label} icon={LayoutPanelLeft}>
+                {formatChoices.map((format) => (
+                  <MenuAction key={format.id} active={format.id === canvasFormat.id} icon={LayoutPanelLeft} label={format.label} meta={format.description} onClick={() => onCanvasFormat(format.id)} />
+                ))}
+              </ActionMenu>
+            </div>
+            <div className="mt-5 grid gap-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Choose a format first</p>
+              <div className="grid grid-cols-2 gap-2">
+                {formatChoices.slice(0, 6).map((format) => (
+                  <button key={format.id} onClick={() => onCanvasFormat(format.id)} className={`rounded-lg border p-2 text-left transition hover:-translate-y-0.5 hover:border-primary ${format.id === canvasFormat.id ? "border-primary bg-primary/10" : "border-border bg-background"}`} type="button">
+                    <span className="block text-xs font-bold text-foreground">{format.label}</span>
+                    <span className="mt-1 block text-[11px] text-muted-foreground">{format.group}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="mt-5 grid gap-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Templates</p>
+                <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{studioTemplates[activeKind].length}</span>
+              </div>
+              <div className="grid max-h-[34vh] gap-2 overflow-auto pr-1">
+                {studioTemplates[activeKind].map((template) => {
+                  const meta = getStudioTemplateMeta(activeKind, template)
+                  return (
+                    <button key={template.label} onClick={() => onApplyTemplate(template)} className="group grid grid-cols-[72px_1fr] gap-3 rounded-lg border border-border bg-background p-2 text-left transition hover:-translate-y-0.5 hover:border-primary hover:bg-accent" type="button">
+                      <span className="relative h-12 overflow-hidden rounded-md border border-border" style={{ background: meta.background }}>
+                        <span className="absolute left-2 top-2 h-1.5 w-9 rounded-full" style={{ background: meta.accent }} />
+                        <span className="absolute left-2 top-5 h-1.5 w-12 rounded-full bg-white/55 dark:bg-white/25" />
+                        <span className="absolute bottom-2 right-2 h-5 w-7 rounded bg-white/20" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-bold text-foreground">{template.label}</span>
+                        <span className="block truncate text-xs text-muted-foreground">{meta.style}</span>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </aside>
+          <main className="min-w-0 bg-muted/35 p-4 lg:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Studio projects</p>
+                <h2 className="mt-1 flex items-center gap-2 text-2xl font-bold text-foreground">
+                  <ActiveIcon className="h-6 w-6 text-primary" />
+                  {getStudioKindOption(activeKind).label}
+                </h2>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {studioKindOptions.map((option) => {
+                  const Icon = studioKindIcons[option.kind]
+                  const count = dirtyBadgeMap.get(option.kind)
+                  return (
+                    <button key={option.kind} onClick={() => onSelectKind(option.kind)} className={`relative flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-semibold ${activeKind === option.kind ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground hover:bg-accent"}`} type="button">
+                      <Icon className="h-4 w-4" />
+                      {option.label}
+                      {count ? <span className="absolute -right-1 -top-1 rounded-full bg-warning px-1.5 text-[10px] text-warning-foreground">{count}</span> : null}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
+              <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Your projects</p>
+                    <p className="text-xs text-muted-foreground">{recentItems.length} visible</p>
+                  </div>
+                  <button onClick={onCreate} className="h-9 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground" type="button">Create</button>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {recentItems.map((item) => {
+                    const Icon = studioKindIcons[item.kind]
+                    return (
+                      <button key={`${item.kind}_${item.id}`} onClick={() => onOpen(item)} className="group overflow-hidden rounded-xl border border-border bg-background text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md" type="button">
+                        <span className={`block h-24 ${studioKindStyles[item.kind].icon} p-3`}>
+                          <Icon className="h-7 w-7" />
+                        </span>
+                        <span className="block p-3">
+                          <span className="block truncate text-sm font-bold text-foreground">{item.title}</span>
+                          <span className="mt-1 block truncate text-xs text-muted-foreground">{studioKindStyles[item.kind].label} · {item.summary || "Ready"}</span>
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+                {!recentItems.length ? <EmptyState title="No projects yet" body="Choose a dimension, pick a template, or create a blank design." /> : null}
+              </section>
+              <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                <p className="text-sm font-bold text-foreground">Canvas preview</p>
+                <div className="mt-4 flex min-h-64 items-center justify-center rounded-xl bg-muted p-5">
+                  <div className="w-full max-w-56 rounded-lg border border-border bg-background shadow-xl" style={{ aspectRatio: canvasAspectRatio(canvasFormat) }}>
+                    <div className="grid h-full place-items-center p-4 text-center">
+                      <span>
+                        <span className="block text-sm font-bold text-foreground">{canvasFormat.label}</span>
+                        <span className="mt-1 block text-xs text-muted-foreground">{canvasFormat.description}</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </main>
+        </div>
+      </Panel>
+    </div>
+  )
+}
+
+function StudioToolRail({ activeKind, onSelectKind }: { activeKind: StudioKind; onSelectKind: (kind: StudioKind) => void }) {
+  return (
+    <nav className="flex gap-1 overflow-x-auto border-b border-border bg-background p-2 lg:flex-col lg:border-b-0 lg:border-r" aria-label="Studio tools">
+      {studioKindOptions.map((option) => {
+        const Icon = studioKindIcons[option.kind]
+        return (
+          <button key={option.kind} onClick={() => onSelectKind(option.kind)} className={`flex min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-[11px] font-semibold ${activeKind === option.kind ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`} type="button">
+            <Icon className="h-5 w-5" />
+            <span>{studioKindStyles[option.kind].label}</span>
+          </button>
+        )
+      })}
+      <span className="hidden h-px bg-border lg:block" />
+      {[
+        { icon: Type, label: "Text" },
+        { icon: Grid2X2, label: "Elements" },
+        { icon: ImageIcon, label: "Media" },
+        { icon: Paintbrush, label: "Brand" },
+        { icon: Bot, label: "AI" },
+      ].map((item) => {
+        const Icon = item.icon
+        return (
+          <button key={item.label} className="flex min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-[11px] font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+            <Icon className="h-5 w-5" />
+            <span>{item.label}</span>
+          </button>
+        )
+      })}
+    </nav>
   )
 }
 
@@ -1919,6 +2150,7 @@ function StudioPaneSurface({
   activeKind,
   activeSummary,
   activeTitle,
+  canvasFormat,
   cells,
   docHistory,
   inspectorOpen,
@@ -1962,6 +2194,7 @@ function StudioPaneSurface({
   activeKind: StudioKind
   activeSummary: string
   activeTitle: string
+  canvasFormat: StudioCanvasFormat
   cells: string[][]
   docHistory: HistoryState<string>
   inspectorOpen: boolean
@@ -2082,6 +2315,7 @@ function StudioPaneSurface({
             <div className="min-h-0 overflow-auto p-3">
               <StudioCanvas
                 activeKind={activeKind}
+                canvasFormat={canvasFormat}
                 cells={cells}
                 docHistory={docHistory}
                 noteDraft={noteDraft}
@@ -2165,6 +2399,7 @@ function StudioDraftNotice({ message }: { message: string }) {
 
 function StudioCanvas({
   activeKind,
+  canvasFormat,
   cells,
   docHistory,
   noteDraft,
@@ -2184,6 +2419,7 @@ function StudioCanvas({
   updateCell,
 }: {
   activeKind: StudioKind
+  canvasFormat: StudioCanvasFormat
   cells: string[][]
   docHistory: HistoryState<string>
   noteDraft: Note | null
@@ -2221,11 +2457,11 @@ function StudioCanvas({
 
   if (activeKind === "notes") {
     if (!noteDraft) return <EmptyState title="No note selected" body="Create or choose a note to begin capturing your learning." />
-    return <RichTextEditor value={noteHistory.present} onChange={(value) => onSetNoteHistory(pushHistory(noteHistory, value))} large={options.noteEditorSize === "large"} placeholder="Write notes, formulas, reflections, links, media cues, and AI-generated drafts..." />
+    return <RichTextEditor canvasFormat={canvasFormat} value={noteHistory.present} onChange={(value) => onSetNoteHistory(pushHistory(noteHistory, value))} large={options.noteEditorSize === "large"} placeholder="Write notes, formulas, reflections, links, media cues, and AI-generated drafts..." />
   }
 
   if (activeKind === "docs") {
-    return <RichTextEditor value={docHistory.present} onChange={(value) => onSetDocHistory(pushHistory(docHistory, value))} large placeholder="Draft headings, checklists, explanations, citations, tables, and practice tasks..." />
+    return <RichTextEditor canvasFormat={canvasFormat} value={docHistory.present} onChange={(value) => onSetDocHistory(pushHistory(docHistory, value))} large placeholder="Draft headings, checklists, explanations, citations, tables, and practice tasks..." />
   }
 
   if (activeKind === "sheets") {
@@ -2406,8 +2642,8 @@ function StudioCanvas({
         </DndContext>
       </div>
       <div
-        className={`${options.slidesAspect === "4:3" ? "aspect-[4/3]" : "aspect-video"} relative overflow-hidden rounded-lg border border-border p-8 text-white shadow-sm transition-all ${selectedSlide?.transition === "fade" ? "hover:opacity-90" : selectedSlide?.transition === "zoom" ? "hover:shadow-lg" : ""} ${selectedSlide?.animation === "rise" ? "hover:-translate-y-1" : selectedSlide?.animation === "emphasis" ? "hover:scale-[1.01]" : ""}`}
-        style={{ background: selectedSlide?.background || slideDesignPresets[(selectedSlide?.theme || "midnight") as keyof typeof slideDesignPresets]?.background || "#111827" }}
+        className={`relative mx-auto w-full overflow-hidden rounded-lg border border-border p-8 text-white shadow-sm transition-all ${selectedSlide?.transition === "fade" ? "hover:opacity-90" : selectedSlide?.transition === "zoom" ? "hover:shadow-lg" : ""} ${selectedSlide?.animation === "rise" ? "hover:-translate-y-1" : selectedSlide?.animation === "emphasis" ? "hover:scale-[1.01]" : ""}`}
+        style={{ aspectRatio: canvasAspectRatio(canvasFormat), background: selectedSlide?.background || slideDesignPresets[(selectedSlide?.theme || "midnight") as keyof typeof slideDesignPresets]?.background || "#111827", maxWidth: canvasPreviewWidth(canvasFormat) }}
       >
         <div className="absolute right-3 top-3 z-30 flex items-center gap-1 rounded-md border border-white/15 bg-black/20 p-1 backdrop-blur">
           <button onClick={() => goToSlide(-1)} disabled={selectedSlideIndex <= 0} className="h-8 rounded-md px-2 text-xs font-semibold text-white hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40" type="button">Prev</button>
@@ -2744,7 +2980,7 @@ function SortableSlideThumb({
   )
 }
 
-function RichTextEditor({ large, onChange, placeholder, value }: { large?: boolean; onChange: (value: string) => void; placeholder: string; value: string }) {
+function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: { canvasFormat: StudioCanvasFormat; large?: boolean; onChange: (value: string) => void; placeholder: string; value: string }) {
   const documentSummary = useMemo(() => summarizeDocumentHtml(value), [value])
   const editor = useEditor({
     immediatelyRender: false,
@@ -2780,13 +3016,21 @@ function RichTextEditor({ large, onChange, placeholder, value }: { large?: boole
   }, [editor, value])
 
   return (
-    <div className="rounded-md border border-border bg-background">
+    <div className="rounded-md border border-border bg-muted/40">
       <RichTextToolbar editor={editor} />
-      <EditorContent
-        editor={editor}
-        className={`${large ? "min-h-[62vh]" : "min-h-[52vh]"} px-5 py-4 text-foreground [&_.ProseMirror]:min-h-[48vh] [&_.ProseMirror]:outline-none [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-3 [&_h1]:text-3xl [&_h1]:font-semibold [&_h2]:text-2xl [&_h2]:font-semibold [&_p]:leading-8 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-2 [&_th]:border [&_th]:border-border [&_th]:bg-secondary [&_th]:p-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6`}
-      />
+      <div className="overflow-auto p-3 sm:p-5">
+        <div
+          className="mx-auto w-full rounded-lg border border-border bg-background shadow-xl"
+          style={{ aspectRatio: canvasAspectRatio(canvasFormat), maxWidth: canvasPreviewWidth(canvasFormat) }}
+        >
+          <EditorContent
+            editor={editor}
+            className={`${large ? "min-h-[62vh]" : "min-h-[52vh]"} px-6 py-6 text-foreground sm:px-10 sm:py-8 [&_.ProseMirror]:min-h-[48vh] [&_.ProseMirror]:outline-none [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-3 [&_h1]:text-3xl [&_h1]:font-semibold [&_h2]:text-2xl [&_h2]:font-semibold [&_p]:leading-8 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-2 [&_th]:border [&_th]:border-border [&_th]:bg-secondary [&_th]:p-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6`}
+          />
+        </div>
+      </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+        <span>{canvasFormat.label}</span>
         <span>{documentSummary.words} words</span>
         <span>{documentSummary.characters} chars</span>
         <span>{documentSummary.readingMinutes} min read</span>
