@@ -14,11 +14,15 @@ test("studio canvas format helpers expose aspect and grouped choices", () => {
   assert.equal(canvasAspectRatio(slide), "9 / 16")
   assert.ok(canvasPreviewWidth(slide) < canvasPreviewWidth(getStudioCanvasFormat("presentation-16-9", "slides")))
   assert.ok(groupStudioCanvasFormats("slides").presentation.length >= 2)
-  assert.equal(groupStudioCanvasFormats("sheets").document.length, 0)
+  assert.equal(groupStudioCanvasFormats("sheets").document.length, 1)
 })
 
 test("studio canvas format lists keep groups ordered and compatible", () => {
   assert.deepEqual(listStudioCanvasFormatGroups("slides").map((group) => group.id), ["presentation", "social", "poster"])
   assert.deepEqual(listStudioCanvasFormatGroups("docs").map((group) => group.id), ["document", "social", "poster"])
+  assert.deepEqual(listStudioCanvasFormatGroups("sheets").map((group) => group.id), ["document"])
+  assert.ok(listStudioCanvasFormats("slides").some((format) => format.id === "presentation-16-10"))
+  assert.ok(listStudioCanvasFormats("docs").some((format) => format.id === "infographic"))
+  assert.ok(listStudioCanvasFormats("sheets").some((format) => format.id === "a4-landscape"))
   assert.ok(listStudioCanvasFormats("slides").every((format) => format.supportedKinds.includes("slides")))
 })

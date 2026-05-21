@@ -1,4 +1,5 @@
 import type { StudioKind } from "@/components/learn/types"
+import type { StudioCanvasFormatGroup } from "./studio-canvas"
 
 export type StudioProjectKindFilter = StudioKind | "all"
 
@@ -12,6 +13,7 @@ export type StudioBrowserProject = {
 export type StudioBrowserTemplate = {
   body?: string
   description?: string
+  formatGroups?: StudioCanvasFormatGroup[]
   kind?: StudioKind
   label: string
   sections?: string[]
@@ -36,11 +38,13 @@ export type StudioTemplatePreviewMeta = {
 const studioKinds: StudioKind[] = ["notes", "docs", "sheets", "slides"]
 
 export function buildStudioProjectBrowserState<TProject extends StudioBrowserProject, TTemplate extends StudioBrowserTemplate>({
+  formatGroup,
   kindFilter,
   items,
   query,
   templates,
 }: {
+  formatGroup?: StudioCanvasFormatGroup | "all"
   kindFilter: StudioProjectKindFilter
   items: TProject[]
   query: string
@@ -50,7 +54,11 @@ export function buildStudioProjectBrowserState<TProject extends StudioBrowserPro
   const counts = countStudioProjects(items)
   const acceptsKind = (kind: StudioKind) => kindFilter === "all" || kind === kindFilter
   const projects = items.filter((item) => acceptsKind(item.kind) && matchesStudioBrowserQuery(item, needle))
-  const filteredTemplates = templates.filter((template) => (!template.kind || acceptsKind(template.kind)) && matchesStudioBrowserQuery(template, needle))
+  const filteredTemplates = templates.filter((template) => (
+    (!template.kind || acceptsKind(template.kind))
+    && templateMatchesFormatGroup(template, formatGroup || "all")
+    && matchesStudioBrowserQuery(template, needle)
+  ))
   return { counts, projects, templates: filteredTemplates }
 }
 
@@ -67,6 +75,7 @@ export function matchesStudioBrowserQuery(item: StudioBrowserProject | StudioBro
     "summary" in item ? item.summary : undefined,
     "label" in item ? item.label : undefined,
     "description" in item ? item.description : undefined,
+    "formatGroups" in item ? item.formatGroups?.join(" ") : undefined,
     "sections" in item ? item.sections?.join(" ") : undefined,
     "style" in item ? item.style : undefined,
     "body" in item ? item.body : undefined,
@@ -75,6 +84,14 @@ export function matchesStudioBrowserQuery(item: StudioBrowserProject | StudioBro
     .join(" ")
     .toLowerCase()
   return haystack.includes(needle)
+}
+
+export function templateMatchesFormatGroup(template: Pick<StudioBrowserTemplate, "formatGroups" | "kind">, formatGroup: StudioCanvasFormatGroup | "all") {
+  if (formatGroup === "all") return true
+  if (template.formatGroups?.length) return template.formatGroups.includes(formatGroup)
+  if (template.kind === "sheets") return formatGroup === "document"
+  if (template.kind === "slides") return formatGroup !== "document"
+  return formatGroup !== "presentation"
 }
 
 export function normalizeStudioBrowserQuery(query: string) {

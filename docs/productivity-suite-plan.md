@@ -257,6 +257,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Continued Canva-style Studio sizing by centralizing canvas format groups and replacing the flat dimension picker with expandable Presentation, Document, Social, and Poster groups.
 - 2026-05-21: Continued Studio preview cleanup by centralizing template preview labels, action text, section trimming, and fallback canvas display before rendering the launcher preview panel.
 - 2026-05-22: Continued Studio unification by making the launcher project-first, moving Notes/Docs/Sheets/Slides into metadata filters, showing all templates together, and expanding Canva-style tool actions across elements, text, media, brand, and AI.
+- 2026-05-22: Continued Studio format maturity by filtering templates against compatible canvas formats and expanding document, presentation, social, poster, sheet, thumbnail, and infographic sizes.
 
 ## Implementation Slices
 

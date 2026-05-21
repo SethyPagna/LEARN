@@ -1867,21 +1867,23 @@ function StudioProjectBrowser({
   const [projectToolPanel, setProjectToolPanel] = useState<StudioToolPanelId>("templates")
   const [selectedTemplateKey, setSelectedTemplateKey] = useState("")
   const formatKind = projectKindFilter === "all" ? activeKind : projectKindFilter
+  const compatibleCanvasFormat = getStudioCanvasFormat(canvasFormat.id, formatKind)
   const formatGroups = listStudioCanvasFormatGroups(formatKind)
   const templateLibrary = useMemo<StudioTemplateChoice[]>(() => (
     studioKindOptions.flatMap((option) => studioTemplates[option.kind].map((template) => ({ ...template, kind: option.kind })))
   ), [])
   const browserState = useMemo(() => buildStudioProjectBrowserState({
+    formatGroup: compatibleCanvasFormat.group,
     kindFilter: projectKindFilter,
     items,
     query,
     templates: templateLibrary,
-  }), [items, projectKindFilter, query, templateLibrary])
+  }), [compatibleCanvasFormat.group, items, projectKindFilter, query, templateLibrary])
   const recentItems = browserState.projects.slice(0, 12)
   const templateChoices = browserState.templates
   const selectedTemplate = templateChoices.find((template) => `${template.kind}:${template.label}` === selectedTemplateKey) || selectStudioBrowserTemplate(templateChoices, "")
   const selectedTemplateMeta = selectedTemplate ? getStudioTemplateMeta(selectedTemplate.kind, selectedTemplate) : null
-  const templatePreview = buildStudioTemplatePreview(selectedTemplate, selectedTemplateMeta, canvasFormat.label)
+  const templatePreview = buildStudioTemplatePreview(selectedTemplate, selectedTemplateMeta, compatibleCanvasFormat.label)
   const activeTool = getStudioToolPanel(projectToolPanel)
   const activeToolActions = getStudioToolActions(projectToolPanel, formatKind)
   return (
@@ -1912,19 +1914,19 @@ function StudioProjectBrowser({
             <div className="mt-5 grid gap-2">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Formats</p>
-                <ActionMenu label={canvasFormat.label} icon={LayoutPanelLeft}>
+                <ActionMenu label={compatibleCanvasFormat.label} icon={LayoutPanelLeft}>
                   {formatGroups.map((group) => (
                     <div key={group.id} className="border-t border-border/70 p-1 first:border-t-0">
                       <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{group.label}</p>
                       {group.formats.map((format) => (
-                        <MenuAction key={format.id} active={format.id === canvasFormat.id} icon={LayoutPanelLeft} label={format.label} meta={format.description} onClick={() => onCanvasFormat(format.id)} />
+                      <MenuAction key={format.id} active={format.id === compatibleCanvasFormat.id} icon={LayoutPanelLeft} label={format.label} meta={format.description} onClick={() => onCanvasFormat(format.id)} />
                       ))}
                     </div>
                   ))}
                 </ActionMenu>
               </div>
               {formatGroups.map((group) => (
-                <details key={group.id} className="rounded-lg border border-border bg-background p-2" open={group.formats.some((format) => format.id === canvasFormat.id)}>
+                <details key={group.id} className="rounded-lg border border-border bg-background p-2" open={group.formats.some((format) => format.id === compatibleCanvasFormat.id)}>
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-bold text-foreground">
                     <span>{group.label}</span>
                     <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground">{group.formats.length}</span>
@@ -1932,7 +1934,7 @@ function StudioProjectBrowser({
                   <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{group.description}</p>
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     {group.formats.map((format) => (
-                      <button key={format.id} onClick={() => onCanvasFormat(format.id)} className={`rounded-md border p-2 text-left transition hover:-translate-y-0.5 hover:border-primary ${format.id === canvasFormat.id ? "border-primary bg-primary/10" : "border-border bg-card"}`} type="button">
+                      <button key={format.id} onClick={() => onCanvasFormat(format.id)} className={`rounded-md border p-2 text-left transition hover:-translate-y-0.5 hover:border-primary ${format.id === compatibleCanvasFormat.id ? "border-primary bg-primary/10" : "border-border bg-card"}`} type="button">
                         <span className="block text-xs font-bold text-foreground">{format.label}</span>
                         <span className="mt-1 block truncate text-[11px] text-muted-foreground">{format.description}</span>
                       </button>
@@ -2036,12 +2038,12 @@ function StudioProjectBrowser({
                   ) : null}
                 </div>
                 <div className="mt-4 flex min-h-64 items-center justify-center rounded-xl bg-muted p-5">
-                  <div className="w-full max-w-56 overflow-hidden rounded-lg border border-border bg-background shadow-xl" style={{ aspectRatio: canvasAspectRatio(canvasFormat) }}>
+                  <div className="w-full max-w-56 overflow-hidden rounded-lg border border-border bg-background shadow-xl" style={{ aspectRatio: canvasAspectRatio(compatibleCanvasFormat) }}>
                     <div className="grid h-full place-items-center p-4 text-center" style={{ background: templatePreview.background || undefined }}>
                       <span>
                         {templatePreview.accent ? <span className="mx-auto mb-3 block h-1.5 w-20 rounded-full" style={{ background: templatePreview.accent }} /> : null}
                         <span className="block text-sm font-bold text-foreground">{templatePreview.label}</span>
-                        <span className="mt-1 block text-xs text-muted-foreground">{templatePreview.style || canvasFormat.description}</span>
+                        <span className="mt-1 block text-xs text-muted-foreground">{templatePreview.style || compatibleCanvasFormat.description}</span>
                         {templatePreview.sections.length ? (
                           <span className="mt-3 flex flex-wrap justify-center gap-1">
                             {templatePreview.sections.map((item) => (

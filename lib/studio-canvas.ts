@@ -20,13 +20,20 @@ export type StudioCanvasFormat = {
 
 export const studioCanvasFormats: StudioCanvasFormat[] = [
   { id: "presentation-16-9", label: "Presentation 16:9", group: "presentation", width: 16, height: 9, description: "Wide slides, lessons, and decks", supportedKinds: ["slides"] },
+  { id: "presentation-16-10", label: "Presentation 16:10", group: "presentation", width: 16, height: 10, description: "Modern classroom and laptop decks", supportedKinds: ["slides"] },
   { id: "presentation-4-3", label: "Presentation 4:3", group: "presentation", width: 4, height: 3, description: "Classic classroom and projector decks", supportedKinds: ["slides"] },
   { id: "a4", label: "A4 document", group: "document", width: 210, height: 297, description: "Reports, guides, notes, and worksheets", supportedKinds: ["notes", "docs"] },
+  { id: "a4-landscape", label: "A4 landscape", group: "document", width: 297, height: 210, description: "Wide worksheets, maps, and comparison pages", supportedKinds: ["notes", "docs", "sheets"] },
+  { id: "a3-poster", label: "A3 poster", group: "poster", width: 297, height: 420, description: "Large one-page summaries and classroom posters", supportedKinds: ["notes", "docs", "slides"] },
   { id: "a5", label: "A5 note", group: "document", width: 148, height: 210, description: "Compact handouts and study cards", supportedKinds: ["notes", "docs"] },
   { id: "letter", label: "US Letter", group: "document", width: 8.5, height: 11, description: "Printable North American documents", supportedKinds: ["notes", "docs"] },
+  { id: "legal", label: "US Legal", group: "document", width: 8.5, height: 14, description: "Long outlines, rubrics, and policy notes", supportedKinds: ["notes", "docs"] },
   { id: "square", label: "Square post", group: "social", width: 1, height: 1, description: "Cards, moments, and visual summaries", supportedKinds: ["notes", "docs", "slides"] },
+  { id: "portrait-post", label: "Portrait post 4:5", group: "social", width: 4, height: 5, description: "Feed posts, quote cards, and visual recaps", supportedKinds: ["notes", "docs", "slides"] },
   { id: "story", label: "Story 9:16", group: "social", width: 9, height: 16, description: "Mobile story-style learning visuals", supportedKinds: ["slides"] },
+  { id: "thumbnail", label: "Thumbnail 16:9", group: "social", width: 16, height: 9, description: "Video thumbnails and lesson covers", supportedKinds: ["slides"] },
   { id: "poster", label: "Poster", group: "poster", width: 3, height: 4, description: "Infographics, one-pagers, and wall notes", supportedKinds: ["notes", "docs", "slides"] },
+  { id: "infographic", label: "Infographic", group: "poster", width: 9, height: 21, description: "Tall visual explanations and process flows", supportedKinds: ["notes", "docs", "slides"] },
 ]
 
 export const studioCanvasFormatGroups: StudioCanvasFormatGroupMeta[] = [

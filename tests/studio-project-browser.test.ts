@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { buildStudioProjectBrowserState, buildStudioTemplatePreview, countStudioProjects, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate } from "../lib/studio-project-browser"
+import { buildStudioProjectBrowserState, buildStudioTemplatePreview, countStudioProjects, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate, templateMatchesFormatGroup } from "../lib/studio-project-browser"
 import { getStudioToolActions } from "../lib/studio-tool-library"
 
 const projects = [
@@ -54,6 +54,29 @@ test("studio project browser can show every project type as one workspace", () =
 
   assert.deepEqual(state.projects.map((item) => item.id), ["note_1", "doc_1", "sheet_1", "deck_1"])
   assert.deepEqual(state.templates.map((template) => template.label), ["Lesson", "Pitch"])
+})
+
+test("studio project browser filters template designs by canvas format", () => {
+  const state = buildStudioProjectBrowserState({
+    formatGroup: "document",
+    kindFilter: "all",
+    items: projects,
+    query: "",
+    templates: [
+      { ...templates[0], kind: "slides" as const },
+      { ...templates[1], kind: "docs" as const },
+      { label: "Tracker", title: "Study tracker", body: "Topic,Status", kind: "sheets" as const },
+    ],
+  })
+
+  assert.deepEqual(state.templates.map((template) => template.label), ["Pitch", "Tracker"])
+})
+
+test("template format matching falls back to useful kind defaults", () => {
+  assert.equal(templateMatchesFormatGroup({ kind: "slides" }, "presentation"), true)
+  assert.equal(templateMatchesFormatGroup({ kind: "slides" }, "document"), false)
+  assert.equal(templateMatchesFormatGroup({ kind: "sheets" }, "document"), true)
+  assert.equal(templateMatchesFormatGroup({ formatGroups: ["poster"], kind: "docs" }, "document"), false)
 })
 
 test("studio project browser searches summaries and template bodies", () => {
