@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildImportFollowupAction, detectImportTarget, previewImportedLearningContent, shapeImportedLearningContent } from "../lib/import-gateway"
+import { buildImportFollowupAction, detectImportTarget, getImportDestinationView, labelImportTarget, previewImportedLearningContent, shapeImportedLearningContent } from "../lib/import-gateway"
 
 test("import gateway detects sheets slides docs and notes", () => {
   assert.equal(detectImportTarget("Topic,Status\nReact,Review\nSQL,Weak"), "sheet")
@@ -39,6 +39,18 @@ test("import gateway previews detected targets and warnings", () => {
   assert.match(short.warnings.join(" "), /more learning material/)
   assert.equal(forced.confidence, "high")
   assert.equal(forced.title, "Deck")
+})
+
+test("import gateway exposes shared labels and destinations", () => {
+  assert.equal(labelImportTarget("auto"), "Auto detect")
+  assert.equal(labelImportTarget("doc"), "Document")
+  assert.equal(labelImportTarget("sheet"), "Sheet")
+  assert.equal(labelImportTarget("slides"), "Slides")
+  assert.equal(labelImportTarget("note"), "Note")
+  assert.equal(getImportDestinationView("doc"), "docs")
+  assert.equal(getImportDestinationView("sheet"), "sheets")
+  assert.equal(getImportDestinationView("slides"), "slides")
+  assert.equal(getImportDestinationView("note"), "notes")
 })
 
 test("import gateway follow-up actions load complete AI workflows", () => {

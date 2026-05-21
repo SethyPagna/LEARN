@@ -4,6 +4,7 @@ import type { AiTaskKey } from "./ai/prompt-library"
 
 export type ImportTarget = "note" | "doc" | "sheet" | "slides"
 export type ImportFollowupKind = "cleanup" | "practice" | "flashcards"
+export type ImportDestinationView = "notes" | "docs" | "sheets" | "slides"
 
 export interface ShapedImport {
   target: ImportTarget
@@ -18,7 +19,7 @@ export interface ImportPreviewSummary {
   confidence: "low" | "medium" | "high"
   itemCount: number
   itemLabel: string
-  destinationView: "notes" | "docs" | "sheets" | "slides"
+  destinationView: ImportDestinationView
   warnings: string[]
 }
 
@@ -113,7 +114,7 @@ export function previewImportedLearningContent(input: { raw: string; title?: str
     confidence: importConfidence({ forcedTarget: Boolean(forcedTarget), itemCount, raw, target }),
     itemCount,
     itemLabel: labelImportItems(target, itemCount),
-    destinationView: viewForImportTarget(target),
+    destinationView: getImportDestinationView(target),
     warnings,
   }
 }
@@ -198,14 +199,15 @@ function labelImportItems(target: ImportTarget, count: number) {
   return `${count} block${count === 1 ? "" : "s"}`
 }
 
-function viewForImportTarget(target: ImportTarget): ImportPreviewSummary["destinationView"] {
+export function getImportDestinationView(target: ImportTarget): ImportDestinationView {
   if (target === "doc") return "docs"
   if (target === "sheet") return "sheets"
   if (target === "slides") return "slides"
   return "notes"
 }
 
-function labelImportTarget(target: ImportTarget) {
+export function labelImportTarget(target: ImportTarget | "auto") {
+  if (target === "auto") return "Auto detect"
   if (target === "doc") return "Document"
   if (target === "sheet") return "Sheet"
   if (target === "slides") return "Slides"
