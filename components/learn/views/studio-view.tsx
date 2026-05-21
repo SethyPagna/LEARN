@@ -122,7 +122,7 @@ import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, b
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
-import { buildStudioProjectBrowserState, selectStudioBrowserTemplate } from "@/lib/studio-project-browser"
+import { buildStudioProjectBrowserState, buildStudioTemplatePreview, selectStudioBrowserTemplate } from "@/lib/studio-project-browser"
 import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 
@@ -1870,6 +1870,7 @@ function StudioProjectBrowser({
   const templateChoices = browserState.templates
   const selectedTemplate = selectStudioBrowserTemplate(templateChoices, selectedTemplateLabel)
   const selectedTemplateMeta = selectedTemplate ? getStudioTemplateMeta(activeKind, selectedTemplate) : null
+  const templatePreview = buildStudioTemplatePreview(selectedTemplate, selectedTemplateMeta, canvasFormat.label)
   const ActiveIcon = studioKindIcons[activeKind]
   return (
     <div className="grid gap-4">
@@ -1998,20 +1999,20 @@ function StudioProjectBrowser({
                   <p className="text-sm font-bold text-foreground">Canvas preview</p>
                   {selectedTemplate ? (
                     <button onClick={() => onApplyTemplate(selectedTemplate)} className="h-8 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground" type="button">
-                      Use template
+                      {templatePreview.actionLabel}
                     </button>
                   ) : null}
                 </div>
                 <div className="mt-4 flex min-h-64 items-center justify-center rounded-xl bg-muted p-5">
                   <div className="w-full max-w-56 overflow-hidden rounded-lg border border-border bg-background shadow-xl" style={{ aspectRatio: canvasAspectRatio(canvasFormat) }}>
-                    <div className="grid h-full place-items-center p-4 text-center" style={{ background: selectedTemplateMeta?.background }}>
+                    <div className="grid h-full place-items-center p-4 text-center" style={{ background: templatePreview.background || undefined }}>
                       <span>
-                        {selectedTemplateMeta ? <span className="mx-auto mb-3 block h-1.5 w-20 rounded-full" style={{ background: selectedTemplateMeta.accent }} /> : null}
-                        <span className="block text-sm font-bold text-foreground">{selectedTemplate?.label || canvasFormat.label}</span>
-                        <span className="mt-1 block text-xs text-muted-foreground">{selectedTemplateMeta?.style || canvasFormat.description}</span>
-                        {selectedTemplateMeta ? (
+                        {templatePreview.accent ? <span className="mx-auto mb-3 block h-1.5 w-20 rounded-full" style={{ background: templatePreview.accent }} /> : null}
+                        <span className="block text-sm font-bold text-foreground">{templatePreview.label}</span>
+                        <span className="mt-1 block text-xs text-muted-foreground">{templatePreview.style || canvasFormat.description}</span>
+                        {templatePreview.sections.length ? (
                           <span className="mt-3 flex flex-wrap justify-center gap-1">
-                            {selectedTemplateMeta.sections.slice(0, 3).map((item) => (
+                            {templatePreview.sections.map((item) => (
                               <span key={item} className="rounded-md bg-background/70 px-1.5 py-0.5 text-[10px] font-semibold text-foreground">{item}</span>
                             ))}
                           </span>
@@ -2023,7 +2024,7 @@ function StudioProjectBrowser({
                 {selectedTemplateMeta ? (
                   <details className="mt-3 rounded-md border border-border bg-background p-2">
                     <summary className="cursor-pointer list-none text-xs font-semibold text-foreground">Design details</summary>
-                    <p className="mt-2 text-xs leading-5 text-muted-foreground">{selectedTemplateMeta.description}</p>
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">{templatePreview.description}</p>
                   </details>
                 ) : null}
               </section>
