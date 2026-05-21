@@ -247,6 +247,25 @@ export interface SocialCommandRunActionState {
   busy: boolean
 }
 
+export interface SocialCommandModelInput {
+  battleCount: number
+  connectionCount: number
+  memberCount: number
+  roomCount: number
+  spaceCount: number
+  threadCount: number
+}
+
+export interface SocialCommandModel {
+  callModes: SocialCallMode[]
+  flowCards: SocialFlowCard[]
+  homeLanes: SocialHomeLane[]
+  momentOptions: SocialMomentOption[]
+  primaryAction: SocialCommandPrimaryAction
+  starterActions: SocialStarterAction[]
+  summary: SocialCommandSummary
+}
+
 export type SocialHomeLaneId = "friends" | "chats" | "moments" | "groups" | "calls"
 export type SocialHomeLaneTarget =
   | { kind: "command"; value: "people" | "post" | "invite" | "connections" }
@@ -1191,6 +1210,42 @@ export function buildSocialCommandRunActions(input: {
     busy: input.busyAction === action.id,
     disabled: busy || action.disabled,
   }))
+}
+
+export function buildSocialCommandModel(input: SocialCommandModelInput): SocialCommandModel {
+  return {
+    callModes: buildSocialCallModes({
+      battleCount: input.battleCount,
+      connectionCount: input.connectionCount,
+      roomCount: input.roomCount,
+    }),
+    flowCards: buildSocialFlowCards({
+      battleCount: input.battleCount,
+      roomCount: input.roomCount,
+      spaceCount: input.spaceCount,
+      threadCount: input.threadCount,
+    }),
+    homeLanes: buildSocialHomeLanes({
+      battleCount: input.battleCount,
+      connectionCount: input.connectionCount,
+      roomCount: input.roomCount,
+      spaceCount: input.spaceCount,
+      threadCount: input.threadCount,
+    }),
+    momentOptions: buildSocialMomentOptions({
+      connectionCount: input.connectionCount,
+      threadCount: input.threadCount,
+    }),
+    primaryAction: buildSocialCommandPrimaryAction(input),
+    starterActions: buildSocialStarterActions({
+      battleCount: input.battleCount,
+      connectionCount: input.connectionCount,
+      roomCount: input.roomCount,
+      spaceCount: input.spaceCount,
+      threadCount: input.threadCount,
+    }),
+    summary: buildSocialCommandSummary(input),
+  }
 }
 
 export function buildSocialHomeLanes(input: {

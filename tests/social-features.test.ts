@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialInviteReadiness, buildSocialMomentOptions, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialStarterActions, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, normalizeSocialInviteRole, parseThreadTitle, socialInviteRoleOptions, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCallModes, buildSocialCommandModel, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialInviteReadiness, buildSocialMomentOptions, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialStarterActions, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, normalizeSocialInviteRole, parseThreadTitle, socialInviteRoleOptions, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -376,6 +376,25 @@ test("social command run actions gate posting inviting and busy flows", () => {
   assert.equal(readyActions.find((action) => action.id === "invite")?.disabled, false)
   assert.equal(busyActions.find((action) => action.id === "spaces")?.busy, true)
   assert.equal(busyActions.every((action) => action.disabled), true)
+})
+
+test("social command model keeps hub counts and actions in one consistent pass", () => {
+  const model = buildSocialCommandModel({
+    battleCount: 0,
+    connectionCount: 2,
+    memberCount: 4,
+    roomCount: 0,
+    spaceCount: 1,
+    threadCount: 3,
+  })
+
+  assert.equal(model.summary.headline, "Social is ready")
+  assert.equal(model.primaryAction.id, "rooms")
+  assert.deepEqual(model.flowCards.map((card) => card.id), ["chat", "spaces", "rooms", "battles"])
+  assert.equal(model.homeLanes.find((lane) => lane.id === "friends")?.count, 2)
+  assert.equal(model.starterActions.find((action) => action.id === "call")?.primary, true)
+  assert.equal(model.callModes.find((mode) => mode.id === "voice")?.recommended, true)
+  assert.equal(model.momentOptions.find((option) => option.id === "resource")?.recommended, true)
 })
 
 test("social home lanes map familiar social actions to existing routes", () => {
