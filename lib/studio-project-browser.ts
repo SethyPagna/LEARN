@@ -22,6 +22,14 @@ export type StudioProjectBrowserState<TProject extends StudioBrowserProject, TTe
   templates: TTemplate[]
 }
 
+export type StudioTemplatePreviewMeta = {
+  accent: string
+  background: string
+  description: string
+  sections: string[]
+  style: string
+}
+
 const studioKinds: StudioKind[] = ["notes", "docs", "sheets", "slides"]
 
 export function buildStudioProjectBrowserState<TProject extends StudioBrowserProject, TTemplate extends StudioBrowserTemplate>({
@@ -72,4 +80,28 @@ export function normalizeStudioBrowserQuery(query: string) {
 export function selectStudioBrowserTemplate<TTemplate extends StudioBrowserTemplate>(templates: TTemplate[], selectedLabel: string) {
   if (!templates.length) return null
   return templates.find((template) => template.label === selectedLabel) || templates[0]
+}
+
+export function buildStudioTemplatePreview(template: StudioBrowserTemplate | null, meta: StudioTemplatePreviewMeta | null, fallbackLabel: string) {
+  if (!template || !meta) {
+    return {
+      actionLabel: "",
+      accent: "",
+      background: "",
+      description: "",
+      label: fallbackLabel,
+      sections: [],
+      style: "",
+    }
+  }
+
+  return {
+    actionLabel: `Use ${template.label}`,
+    accent: meta.accent,
+    background: meta.background,
+    description: meta.description,
+    label: template.label,
+    sections: meta.sections.slice(0, 3),
+    style: meta.style,
+  }
 }
