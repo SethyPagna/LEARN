@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, Bot, CalendarDays, CalendarPlus, Check, ChevronRight, Clock, Copy, FileText, Filter, Gauge, Languages, Link as LinkIcon, Lock, Palette, Repeat2, Save, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserPlus, UserRound, Users } from "lucide-react"
 import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
-import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, buildCalendarSummaryChips, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda, type CalendarAgendaFilter } from "@/lib/calendar-features"
+import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, buildCalendarSummaryChips, calendarDurationPresets, calendarEventTypeOptions, filterCalendarAgenda, formatCalendarDuration, labelCalendarEventType, normalizeCalendarEventType, summarizeCalendarAgenda, type CalendarAgendaFilter, type CalendarEventType } from "@/lib/calendar-features"
 import { buildProgressCommandPlan, summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
 import { buildSettingsControlPlan, buildSettingsSummaryChips, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
 import { adminPanelTabOptions, buildAdminOperationalPlan, buildAdminSummaryChips, filterAdminList, summarizeAdminOperations, type AdminAccessRequest, type AdminPanelTab, type AdminSummaryChip } from "@/lib/admin-features"
@@ -21,16 +21,6 @@ const progressActionIcons: Record<ProgressActionTarget, typeof Target> = {
   reviews: Repeat2,
   studio: FileText,
 }
-
-const calendarEventTypes = [
-  ["study", "Study"],
-  ["review", "Review"],
-  ["deadline", "Deadline"],
-  ["focus", "Focus"],
-  ["completed", "Completed"],
-] as const
-
-const calendarDurationPresets = [15, 30, 45, 60, 90]
 
 const adminPanelTabIcons: Record<AdminPanelTab, typeof Gauge> = {
   overview: Gauge,
@@ -263,7 +253,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
   const [visibleMonth, setVisibleMonth] = useState(() => new Date(2000, 0, 1))
   const [selectedDayKey, setSelectedDayKey] = useState("2000-01-01")
   const [title, setTitle] = useState("45 min focus block")
-  const [eventType, setEventType] = useState("study")
+  const [eventType, setEventType] = useState<CalendarEventType>("study")
   const [startsAt, setStartsAt] = useState("")
   const [durationMinutes, setDurationMinutes] = useState(options.calendarDefaultMinutes)
   const [notes, setNotes] = useState("")
@@ -314,7 +304,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
     const start = new Date(selected.starts_at)
     const end = new Date(selected.ends_at)
     setTitle(selected.title)
-    setEventType(selected.event_type)
+    setEventType(normalizeCalendarEventType(selected.event_type))
     setStartsAt(toLocalInputValue(start))
     setDurationMinutes(Math.max(5, Math.round((end.getTime() - start.getTime()) / 60000)))
     setNotes(selected.notes || "")
@@ -445,7 +435,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
     const suggestion = calendarPlan.suggestion
     setSelectedId("")
     setTitle(suggestion.title)
-    setEventType(suggestion.eventType)
+    setEventType(normalizeCalendarEventType(suggestion.eventType))
     setStartsAt(toLocalInputValue(suggestion.startsAt))
     setDurationMinutes(suggestion.durationMinutes)
     setNotes(suggestion.reason)
@@ -504,8 +494,8 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
           <Field label="Title" value={title} onChange={setTitle} />
           <label className="block rounded-lg bg-muted p-4">
             <span className="text-xs font-semibold uppercase text-muted-foreground">Type</span>
-            <select value={eventType} onChange={(event) => setEventType(event.target.value)} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none">
-              {calendarEventTypes.map(([type, label]) => <option key={type} value={type}>{label}</option>)}
+            <select value={eventType} onChange={(event) => setEventType(normalizeCalendarEventType(event.target.value))} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none">
+              {calendarEventTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
           </label>
           <DateTimeField label="Starts at" value={startsAt} onChange={setStartsAt} />
@@ -747,10 +737,6 @@ function moveLocalInputDate(value: string, dayKey: string) {
   const nextDate = dateFromLocalKey(dayKey)
   if (!Number.isFinite(parsed.getTime())) return toLocalInputValue(new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate(), 9, 0))
   return toLocalInputValue(new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate(), parsed.getHours(), parsed.getMinutes()))
-}
-
-function labelCalendarEventType(type: string) {
-  return calendarEventTypes.find(([value]) => value === type)?.[1] ?? type
 }
 
 function CalendarAction({
