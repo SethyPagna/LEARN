@@ -251,6 +251,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Began the Canva-style Studio redesign by adding a project-browser entry, universal canvas dimensions, collapsible tool rails, Back/New design actions, and page-like document/slides surfaces.
 - 2026-05-21: Continued the Canva-style Studio redesign by adding tested universal tool panels for Projects, Templates, Elements, Text, Media, Brand, and AI, with working insert actions for rich documents, sheets, and slide objects.
 - 2026-05-21: Continued Canva-style page workflows by adding tested rich-document page helpers, New page/Duplicate page tool actions, document page counters, and shared slide page creation behavior.
+- 2026-05-21: Continued Studio project-browser cleanup by centralizing active-kind filtering, search normalization, project counts, and template matching so the launcher behaves more like a focused design workspace.
 
 ## Implementation Slices
 
