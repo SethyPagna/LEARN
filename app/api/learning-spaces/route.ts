@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server"
 import { fail, isApiResponse, ok, requireApiUser } from "@/lib/api"
 import { deleteLearningSpace, listLearningSpaces, saveLearningSpace } from "@/lib/data"
-import { learningGroupApiMessages } from "@/lib/social-api-copy"
+import { learningGroupApiMessages } from "@/lib/social-api-messages"
 
 export async function GET(request: NextRequest) {
   const user = await requireApiUser(request)
