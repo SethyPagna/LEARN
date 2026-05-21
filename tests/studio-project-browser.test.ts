@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 
 import { buildStudioProjectBrowserState, buildStudioTemplatePreview, countStudioProjects, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate } from "../lib/studio-project-browser"
+import { getStudioToolActions } from "../lib/studio-tool-library"
 
 const projects = [
   { id: "note_1", kind: "notes" as const, title: "Operating systems note", summary: "Scheduling" },
@@ -30,7 +31,7 @@ test("studio project browser counts every Studio kind", () => {
 
 test("studio project browser filters active-kind projects and matching templates", () => {
   const state = buildStudioProjectBrowserState({
-    activeKind: "slides",
+    kindFilter: "slides",
     items: projects,
     query: "deck",
     templates,
@@ -38,6 +39,21 @@ test("studio project browser filters active-kind projects and matching templates
 
   assert.deepEqual(state.projects.map((item) => item.id), ["deck_1"])
   assert.deepEqual(state.templates.map((template) => template.label), ["Lesson"])
+})
+
+test("studio project browser can show every project type as one workspace", () => {
+  const state = buildStudioProjectBrowserState({
+    kindFilter: "all",
+    items: projects,
+    query: "",
+    templates: [
+      { ...templates[0], kind: "slides" as const },
+      { ...templates[1], kind: "docs" as const },
+    ],
+  })
+
+  assert.deepEqual(state.projects.map((item) => item.id), ["note_1", "doc_1", "sheet_1", "deck_1"])
+  assert.deepEqual(state.templates.map((template) => template.label), ["Lesson", "Pitch"])
 })
 
 test("studio project browser searches summaries and template bodies", () => {
@@ -72,4 +88,11 @@ test("studio template preview falls back to canvas label without a template", ()
   assert.equal(preview.label, "A4 document")
   assert.deepEqual(preview.sections, [])
   assert.equal(preview.actionLabel, "")
+})
+
+test("studio tool library exposes varied Canva-style insert targets", () => {
+  assert.ok(getStudioToolActions("elements", "slides").some((action) => action.slideObjectType === "table"))
+  assert.ok(getStudioToolActions("media", "docs").some((action) => action.id === "media-video"))
+  assert.ok(getStudioToolActions("text", "notes").some((action) => action.id === "text-checklist"))
+  assert.ok(getStudioToolActions("ai", "sheets").some((action) => action.sheetAction === "table"))
 })

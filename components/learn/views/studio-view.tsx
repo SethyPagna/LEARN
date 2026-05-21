@@ -75,6 +75,7 @@ import {
   Scissors,
   Search,
   Settings2,
+  SlidersHorizontal,
   SplitSquareHorizontal,
   SplitSquareVertical,
   Strikethrough,
@@ -122,7 +123,7 @@ import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, b
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
-import { buildStudioProjectBrowserState, buildStudioTemplatePreview, selectStudioBrowserTemplate } from "@/lib/studio-project-browser"
+import { buildStudioProjectBrowserState, buildStudioTemplatePreview, selectStudioBrowserTemplate, type StudioProjectKindFilter } from "@/lib/studio-project-browser"
 import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 
@@ -239,6 +240,10 @@ type StudioTemplate = {
   description?: string
   sections?: string[]
   style?: string
+}
+
+type StudioTemplateChoice = StudioTemplate & {
+  kind: StudioKind
 }
 
 const studioTemplates: Record<StudioKind, StudioTemplate[]> = {
@@ -865,20 +870,22 @@ export function StudioView({
     updateActivePaneKind(nextKind)
   }
 
-  function applyTemplate(template: StudioTemplate) {
-    const applied = buildAppliedTemplate(kind, template)
+  function applyTemplateForKind(templateKind: StudioKind, template: StudioTemplate) {
+    const applied = buildAppliedTemplate(templateKind, template)
+    selectKind(templateKind)
+    setCanvasFormatId((current) => getStudioCanvasFormat(current, templateKind).id)
     setStudioMode("editor")
-    if (kind === "notes") {
+    if (templateKind === "notes") {
       setNoteDraft((current) => current ? { ...current, title: applied.title } : current)
       setNoteHistory(pushHistory(noteHistory, applied.body))
       return
     }
-    if (kind === "docs") {
+    if (templateKind === "docs") {
       setDocTitle(applied.title)
       setDocHistory(pushHistory(docHistory, applied.body))
       return
     }
-    if (kind === "sheets") {
+    if (templateKind === "sheets") {
       setSheetTitle(applied.title)
       setCells(importCsvToSheet(applied.body).cells)
       return
@@ -1459,7 +1466,7 @@ export function StudioView({
         canvasFormat={canvasFormat}
         dirtyBadges={dirtyBadges}
         items={allItems}
-        onApplyTemplate={applyTemplate}
+        onApplyTemplate={applyTemplateForKind}
         onCanvasFormat={setCanvasFormatId}
         onCreate={createActive}
         onOpen={selectItem}
@@ -1558,7 +1565,7 @@ export function StudioView({
               query={query}
               section={section}
               viewMode={viewMode}
-              onApplyTemplate={applyTemplate}
+              onApplyTemplate={(template) => applyTemplateForKind(kind, template)}
               onArchive={archiveStudioItem}
               onAskAi={(item) => {
                 selectItem(item)
@@ -1848,7 +1855,7 @@ function StudioProjectBrowser({
   canvasFormat: StudioCanvasFormat
   dirtyBadges: StudioDirtyBadge[]
   items: StudioListItem[]
-  onApplyTemplate: (template: StudioTemplate) => void
+  onApplyTemplate: (kind: StudioKind, template: StudioTemplate) => void
   onCanvasFormat: (id: string) => void
   onCreate: () => void
   onOpen: (item: StudioRecordItem) => void
@@ -1856,27 +1863,32 @@ function StudioProjectBrowser({
   onSelectKind: (kind: StudioKind) => void
   query: string
 }) {
-  const [selectedTemplateLabel, setSelectedTemplateLabel] = useState("")
-  const dirtyBadgeMap = new Map(dirtyBadges.map((badge) => [badge.kind, badge.count]))
-  const formatGroups = listStudioCanvasFormatGroups(activeKind)
-  const formatChoices = formatGroups.flatMap((group) => group.formats)
+  const [projectKindFilter, setProjectKindFilter] = useState<StudioProjectKindFilter>("all")
+  const [projectToolPanel, setProjectToolPanel] = useState<StudioToolPanelId>("templates")
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState("")
+  const formatKind = projectKindFilter === "all" ? activeKind : projectKindFilter
+  const formatGroups = listStudioCanvasFormatGroups(formatKind)
+  const templateLibrary = useMemo<StudioTemplateChoice[]>(() => (
+    studioKindOptions.flatMap((option) => studioTemplates[option.kind].map((template) => ({ ...template, kind: option.kind })))
+  ), [])
   const browserState = useMemo(() => buildStudioProjectBrowserState({
-    activeKind,
+    kindFilter: projectKindFilter,
     items,
     query,
-    templates: studioTemplates[activeKind],
-  }), [activeKind, items, query])
+    templates: templateLibrary,
+  }), [items, projectKindFilter, query, templateLibrary])
   const recentItems = browserState.projects.slice(0, 12)
   const templateChoices = browserState.templates
-  const selectedTemplate = selectStudioBrowserTemplate(templateChoices, selectedTemplateLabel)
-  const selectedTemplateMeta = selectedTemplate ? getStudioTemplateMeta(activeKind, selectedTemplate) : null
+  const selectedTemplate = templateChoices.find((template) => `${template.kind}:${template.label}` === selectedTemplateKey) || selectStudioBrowserTemplate(templateChoices, "")
+  const selectedTemplateMeta = selectedTemplate ? getStudioTemplateMeta(selectedTemplate.kind, selectedTemplate) : null
   const templatePreview = buildStudioTemplatePreview(selectedTemplate, selectedTemplateMeta, canvasFormat.label)
-  const ActiveIcon = studioKindIcons[activeKind]
+  const activeTool = getStudioToolPanel(projectToolPanel)
+  const activeToolActions = getStudioToolActions(projectToolPanel, formatKind)
   return (
     <div className="grid gap-4">
       <Panel className="overflow-hidden p-0">
         <div className="grid min-h-[76vh] lg:grid-cols-[76px_360px_1fr]">
-          <StudioToolRail activeKind={activeKind} onSelectKind={onSelectKind} showToolPanels={false} />
+          <StudioToolRail activeKind={formatKind} activeToolPanel={projectToolPanel} onSelectKind={onSelectKind} onSelectToolPanel={setProjectToolPanel} showKindRail={false} />
           <aside className="border-b border-border bg-card p-4 lg:border-b-0 lg:border-r">
             <label className="flex h-11 items-center gap-2 rounded-xl border border-border bg-background px-3 shadow-sm">
               <Plus className="h-4 w-4 text-muted-foreground" />
@@ -1884,19 +1896,33 @@ function StudioProjectBrowser({
             </label>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button onClick={onCreate} className="h-10 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm" type="button">New design</button>
-              <ActionMenu label={canvasFormat.label} icon={LayoutPanelLeft}>
-                {formatGroups.map((group) => (
-                  <div key={group.id} className="border-t border-border/70 p-1 first:border-t-0">
-                    <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{group.label}</p>
-                    {group.formats.map((format) => (
-                      <MenuAction key={format.id} active={format.id === canvasFormat.id} icon={LayoutPanelLeft} label={format.label} meta={format.description} onClick={() => onCanvasFormat(format.id)} />
-                    ))}
-                  </div>
-                ))}
+              <ActionMenu label={projectKindFilter === "all" ? "All projects" : getStudioKindOption(projectKindFilter).label} icon={SlidersHorizontal}>
+                <MenuAction active={projectKindFilter === "all"} icon={LayoutPanelLeft} label="All projects" meta="Show every Studio project and template" onClick={() => setProjectKindFilter("all")} />
+                {studioKindOptions.map((option) => {
+                  const Icon = studioKindIcons[option.kind]
+                  return (
+                    <MenuAction key={option.kind} active={projectKindFilter === option.kind} icon={Icon} label={option.label} meta={`${browserState.counts[option.kind]} project${browserState.counts[option.kind] === 1 ? "" : "s"}`} onClick={() => {
+                      setProjectKindFilter(option.kind)
+                      onSelectKind(option.kind)
+                    }} />
+                  )
+                })}
               </ActionMenu>
             </div>
             <div className="mt-5 grid gap-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Choose a format first</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Formats</p>
+                <ActionMenu label={canvasFormat.label} icon={LayoutPanelLeft}>
+                  {formatGroups.map((group) => (
+                    <div key={group.id} className="border-t border-border/70 p-1 first:border-t-0">
+                      <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{group.label}</p>
+                      {group.formats.map((format) => (
+                        <MenuAction key={format.id} active={format.id === canvasFormat.id} icon={LayoutPanelLeft} label={format.label} meta={format.description} onClick={() => onCanvasFormat(format.id)} />
+                      ))}
+                    </div>
+                  ))}
+                </ActionMenu>
+              </div>
               {formatGroups.map((group) => (
                 <details key={group.id} className="rounded-lg border border-border bg-background p-2" open={group.formats.some((format) => format.id === canvasFormat.id)}>
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-bold text-foreground">
@@ -1917,28 +1943,45 @@ function StudioProjectBrowser({
             </div>
             <div className="mt-5 grid gap-2">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Templates</p>
-                <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{templateChoices.length}</span>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{activeTool.label}</p>
+                <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{projectToolPanel === "templates" ? templateChoices.length : activeToolActions.length}</span>
               </div>
               <div className="grid max-h-[34vh] gap-2 overflow-auto pr-1">
-                {templateChoices.map((template) => {
-                  const meta = getStudioTemplateMeta(activeKind, template)
-                  const selected = selectedTemplate?.label === template.label
+                {projectToolPanel === "templates" ? templateChoices.map((template) => {
+                  const meta = getStudioTemplateMeta(template.kind, template)
+                  const templateKey = `${template.kind}:${template.label}`
+                  const selected = selectedTemplate ? `${selectedTemplate.kind}:${selectedTemplate.label}` === templateKey : false
+                  const TemplateIcon = studioKindIcons[template.kind]
                   return (
-                    <button key={template.label} onClick={() => setSelectedTemplateLabel(template.label)} className={`group grid grid-cols-[72px_1fr] gap-3 rounded-lg border p-2 text-left transition hover:-translate-y-0.5 hover:border-primary hover:bg-accent ${selected ? "border-primary bg-primary/10" : "border-border bg-background"}`} title={`${meta.description} Sections: ${meta.sections.join(", ")}`} type="button">
+                    <button key={templateKey} onClick={() => {
+                      setSelectedTemplateKey(templateKey)
+                      onSelectKind(template.kind)
+                    }} className={`group grid grid-cols-[72px_1fr] gap-3 rounded-lg border p-2 text-left transition hover:-translate-y-0.5 hover:border-primary hover:bg-accent ${selected ? "border-primary bg-primary/10" : "border-border bg-background"}`} title={`${meta.description} Sections: ${meta.sections.join(", ")}`} type="button">
                       <span className="relative h-12 overflow-hidden rounded-md border border-border" style={{ background: meta.background }}>
                         <span className="absolute left-2 top-2 h-1.5 w-9 rounded-full" style={{ background: meta.accent }} />
                         <span className="absolute left-2 top-5 h-1.5 w-12 rounded-full bg-white/55 dark:bg-white/25" />
-                        <span className="absolute bottom-2 right-2 h-5 w-7 rounded bg-white/20" />
+                        <span className="absolute bottom-2 right-2 grid h-5 w-7 place-items-center rounded bg-white/30 text-foreground">
+                          <TemplateIcon className="h-3 w-3" />
+                        </span>
                       </span>
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-bold text-foreground">{template.label}</span>
-                        <span className="block truncate text-xs text-muted-foreground">{meta.style}</span>
+                        <span className="block truncate text-xs text-muted-foreground">{studioKindStyles[template.kind].label} - {meta.style}</span>
                       </span>
                     </button>
                   )
-                })}
-                {!templateChoices.length ? <EmptyState title="No designs found" body="Clear search or choose a different Studio type." /> : null}
+                }) : activeToolActions.map((action) => (
+                  <button key={action.id} onClick={() => {
+                    setProjectKindFilter(action.supportedKinds.includes(formatKind) ? formatKind : action.supportedKinds[0] || "notes")
+                    onSelectKind(action.supportedKinds.includes(formatKind) ? formatKind : action.supportedKinds[0] || "notes")
+                    onCreate()
+                  }} className="rounded-lg border border-border bg-background p-3 text-left transition hover:-translate-y-0.5 hover:border-primary hover:bg-accent" title={action.description} type="button">
+                    <span className="block text-sm font-bold text-foreground">{action.label}</span>
+                    <span className="mt-1 block line-clamp-2 text-xs text-muted-foreground">{action.description}</span>
+                  </button>
+                ))}
+                {projectToolPanel === "templates" && !templateChoices.length ? <EmptyState title="No designs found" body="Clear search or switch project filters." /> : null}
+                {projectToolPanel !== "templates" && !activeToolActions.length ? <EmptyState title="No tools here" body="Switch filters or open a project to use editor tools." /> : null}
               </div>
             </div>
           </aside>
@@ -1947,24 +1990,13 @@ function StudioProjectBrowser({
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Studio projects</p>
                 <h2 className="mt-1 flex items-center gap-2 text-2xl font-bold text-foreground">
-                  <ActiveIcon className="h-6 w-6 text-primary" />
-                  {getStudioKindOption(activeKind).label}
+                  <LayoutPanelLeft className="h-6 w-6 text-primary" />
+                  Projects
                 </h2>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                {studioKindOptions.map((option) => {
-                  const Icon = studioKindIcons[option.kind]
-                  const dirtyCount = dirtyBadgeMap.get(option.kind)
-                  const itemCount = browserState.counts[option.kind]
-                  return (
-                    <button key={option.kind} onClick={() => onSelectKind(option.kind)} className={`relative flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-semibold ${activeKind === option.kind ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground hover:bg-accent"}`} type="button">
-                      <Icon className="h-4 w-4" />
-                      {option.label}
-                      <span className={`rounded-md px-1.5 py-0.5 text-[10px] ${activeKind === option.kind ? "bg-primary-foreground/20 text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{itemCount}</span>
-                      {dirtyCount ? <span className="absolute -right-1 -top-1 rounded-full bg-warning px-1.5 text-[10px] text-warning-foreground">{dirtyCount}</span> : null}
-                    </button>
-                  )
-                })}
+                <span className="rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground">{recentItems.length} shown</span>
+                {dirtyBadges.length ? <span className="rounded-lg bg-warning/15 px-3 py-2 text-sm font-semibold text-warning-foreground">{dirtyBadges.reduce((total, badge) => total + badge.count, 0)} drafts</span> : null}
               </div>
             </div>
             <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
@@ -1972,7 +2004,7 @@ function StudioProjectBrowser({
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-bold text-foreground">Your projects</p>
-                    <p className="text-xs text-muted-foreground">{recentItems.length} {studioKindStyles[activeKind].label.toLowerCase()} project{recentItems.length === 1 ? "" : "s"}</p>
+                    <p className="text-xs text-muted-foreground">{recentItems.length} project{recentItems.length === 1 ? "" : "s"} across Studio</p>
                   </div>
                   <button onClick={onCreate} className="h-9 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground" type="button">Create</button>
                 </div>
@@ -1998,7 +2030,7 @@ function StudioProjectBrowser({
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-bold text-foreground">Canvas preview</p>
                   {selectedTemplate ? (
-                    <button onClick={() => onApplyTemplate(selectedTemplate)} className="h-8 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground" type="button">
+                    <button onClick={() => onApplyTemplate(selectedTemplate.kind, selectedTemplate)} className="h-8 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground" type="button">
                       {templatePreview.actionLabel}
                     </button>
                   ) : null}
@@ -2041,12 +2073,14 @@ function StudioToolRail({
   activeToolPanel = "templates",
   onSelectKind,
   onSelectToolPanel = () => undefined,
+  showKindRail = true,
   showToolPanels = true,
 }: {
   activeKind: StudioKind
   activeToolPanel?: StudioToolPanelId
   onSelectKind: (kind: StudioKind) => void
   onSelectToolPanel?: (panel: StudioToolPanelId) => void
+  showKindRail?: boolean
   showToolPanels?: boolean
 }) {
   const toolIcons: Record<StudioToolPanelId, React.ComponentType<{ className?: string }>> = {
@@ -2069,8 +2103,8 @@ function StudioToolRail({
           </button>
         )
       }) : null}
-      {showToolPanels ? <span className="hidden h-px bg-border lg:block" /> : null}
-      {studioKindOptions.map((option) => {
+      {showToolPanels && showKindRail ? <span className="hidden h-px bg-border lg:block" /> : null}
+      {showKindRail ? studioKindOptions.map((option) => {
         const Icon = studioKindIcons[option.kind]
         return (
           <button key={option.kind} onClick={() => onSelectKind(option.kind)} className={`flex min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-[11px] font-semibold ${activeKind === option.kind ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`} type="button">
@@ -2078,7 +2112,7 @@ function StudioToolRail({
             <span>{studioKindStyles[option.kind].label}</span>
           </button>
         )
-      })}
+      }) : null}
     </nav>
   )
 }

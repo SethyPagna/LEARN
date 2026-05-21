@@ -1,5 +1,7 @@
 import type { StudioKind } from "@/components/learn/types"
 
+export type StudioProjectKindFilter = StudioKind | "all"
+
 export type StudioBrowserProject = {
   id: string
   kind: StudioKind
@@ -10,6 +12,7 @@ export type StudioBrowserProject = {
 export type StudioBrowserTemplate = {
   body?: string
   description?: string
+  kind?: StudioKind
   label: string
   sections?: string[]
   style?: string
@@ -33,20 +36,21 @@ export type StudioTemplatePreviewMeta = {
 const studioKinds: StudioKind[] = ["notes", "docs", "sheets", "slides"]
 
 export function buildStudioProjectBrowserState<TProject extends StudioBrowserProject, TTemplate extends StudioBrowserTemplate>({
-  activeKind,
+  kindFilter,
   items,
   query,
   templates,
 }: {
-  activeKind: StudioKind
+  kindFilter: StudioProjectKindFilter
   items: TProject[]
   query: string
   templates: TTemplate[]
 }): StudioProjectBrowserState<TProject, TTemplate> {
   const needle = normalizeStudioBrowserQuery(query)
   const counts = countStudioProjects(items)
-  const projects = items.filter((item) => item.kind === activeKind && matchesStudioBrowserQuery(item, needle))
-  const filteredTemplates = templates.filter((template) => matchesStudioBrowserQuery(template, needle))
+  const acceptsKind = (kind: StudioKind) => kindFilter === "all" || kind === kindFilter
+  const projects = items.filter((item) => acceptsKind(item.kind) && matchesStudioBrowserQuery(item, needle))
+  const filteredTemplates = templates.filter((template) => (!template.kind || acceptsKind(template.kind)) && matchesStudioBrowserQuery(template, needle))
   return { counts, projects, templates: filteredTemplates }
 }
 
