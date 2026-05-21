@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { applySlideDesignPreset, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject } from "../lib/studio-design"
+import { applySlideDesignPreset, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTemplateDesigns, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject } from "../lib/studio-design"
 
 test("document insert blocks expose reusable editor snippets", () => {
   assert.match(getDocumentInsertBlock("callout"), /Callout/)
@@ -16,6 +16,18 @@ test("slide design presets add theme and background metadata", () => {
   assert.equal(Object.keys(slideDesignPresets).length >= 10, true)
   assert.equal(slide.theme, "forest")
   assert.equal(slide.background, "#052e2b")
+})
+
+test("slide template deck applies real design metadata and editable objects", () => {
+  const slides = buildDesignedSlideTemplateDeck("Hook|Why it matters|Open\nPractice|Try it|Do", "Lesson")
+
+  assert.equal(slides.length, 2)
+  assert.equal(slideTemplateDesigns.length, 10)
+  assert.equal(slides[0].theme, "midnight")
+  assert.equal(slides[1].layout, "two-column")
+  assert.ok(slides[0].background)
+  assert.ok(slides[0].objects?.length)
+  assert.match(slides[0].speakerNotes || "", /Lesson/)
 })
 
 test("slide design objects create editable placeholders", () => {

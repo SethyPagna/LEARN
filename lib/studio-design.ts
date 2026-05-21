@@ -42,6 +42,19 @@ export const slideDesignPresets = {
   parchment: { background: "#fffbeb", accent: "#a16207", foreground: "#292524" },
 }
 
+export const slideTemplateDesigns = [
+  { theme: "midnight", layout: "title", transition: "fade", animation: "rise" },
+  { theme: "atlas", layout: "two-column", transition: "push", animation: "reveal" },
+  { theme: "plain", layout: "image", transition: "wipe", animation: "rise" },
+  { theme: "forest", layout: "quote", transition: "zoom", animation: "emphasis" },
+  { theme: "sunrise", layout: "title", transition: "fade", animation: "reveal" },
+  { theme: "obsidian", layout: "two-column", transition: "push", animation: "rise" },
+  { theme: "blossom", layout: "image", transition: "wipe", animation: "emphasis" },
+  { theme: "circuit", layout: "quote", transition: "zoom", animation: "reveal" },
+  { theme: "parchment", layout: "title", transition: "fade", animation: "rise" },
+  { theme: "grape", layout: "two-column", transition: "push", animation: "emphasis" },
+] as const
+
 export const slideTransitionPresets = {
   none: { label: "None", description: "Instant slide change for fast reviews.", durationMs: 0 },
   fade: { label: "Fade", description: "Soft crossfade for calm teaching decks.", durationMs: 450 },
@@ -69,6 +82,70 @@ export function applySlideDesignPreset(slide: WorkspaceDeck["slides"][number], p
     background: design.background,
     accent: slide.accent || "LEARN",
   }
+}
+
+export function buildDesignedSlideTemplateDeck(body: string, templateLabel = "Deck") {
+  const lines = body.split("\n").map((line) => line.trim()).filter(Boolean)
+  const safeLines = lines.length ? lines : ["Opening|Start with one useful idea|LEARN"]
+  return safeLines.map((line, index) => {
+    const [rawTitle, rawBody, rawAccent] = line.split("|")
+    const design = slideTemplateDesigns[index % slideTemplateDesigns.length]
+    const theme = design.theme as keyof typeof slideDesignPresets
+    const palette = slideDesignPresets[theme]
+    const title = (rawTitle || `Slide ${index + 1}`).trim()
+    const bodyText = (rawBody || "Add the point.").trim()
+    const accent = (rawAccent || templateLabel).trim()
+    return {
+      title,
+      body: bodyText,
+      accent,
+      layout: design.layout,
+      theme,
+      background: palette.background,
+      transition: design.transition,
+      animation: design.animation,
+      speakerNotes: `${templateLabel}: explain "${title}" with one example, one visual cue, and one learner action.`,
+      objects: buildTemplateSlideObjects({ accent: palette.accent, body: bodyText, foreground: palette.foreground, index, layout: design.layout }),
+    } satisfies WorkspaceDeck["slides"][number]
+  })
+}
+
+function buildTemplateSlideObjects(input: {
+  accent: string
+  body: string
+  foreground: string
+  index: number
+  layout: typeof slideTemplateDesigns[number]["layout"]
+}) {
+  const mutedFill = input.foreground === "#ffffff" || input.foreground === "#f8fafc" || input.foreground === "#ecfeff" || input.foreground === "#faf5ff"
+    ? "rgba(255,255,255,0.13)"
+    : "rgba(15,23,42,0.08)"
+  const baseText = {
+    color: input.foreground,
+    fontSize: 14,
+  }
+  if (input.layout === "image") {
+    return [
+      { id: `image_cue_${input.index}`, type: "image", x: 60, y: 20, w: 28, h: 36, text: "Image / diagram", src: "", style: { background: mutedFill, color: input.foreground } },
+      { id: `caption_${input.index}`, type: "text", x: 12, y: 72, w: 52, h: 10, text: "Add a visual example or screenshot here.", style: baseText },
+    ] satisfies SlideObject[]
+  }
+  if (input.layout === "two-column") {
+    return [
+      { id: `left_${input.index}`, type: "shape", x: 10, y: 58, w: 34, h: 20, text: "Idea", style: { background: mutedFill, color: input.foreground, borderRadius: 10, fontSize: 15 } },
+      { id: `right_${input.index}`, type: "shape", x: 52, y: 58, w: 34, h: 20, text: "Example", style: { background: input.accent, color: "#071014", borderRadius: 10, fontSize: 15 } },
+    ] satisfies SlideObject[]
+  }
+  if (input.layout === "quote") {
+    return [
+      { id: `quote_bar_${input.index}`, type: "shape", x: 10, y: 26, w: 2, h: 45, text: "", style: { background: input.accent, color: input.accent, borderRadius: 4 } },
+      { id: `quote_note_${input.index}`, type: "text", x: 16, y: 60, w: 68, h: 14, text: "Turn the idea into a memorable line.", style: { ...baseText, fontSize: 16 } },
+    ] satisfies SlideObject[]
+  }
+  return [
+    { id: `pill_${input.index}`, type: "shape", x: 10, y: 70, w: 28, h: 9, text: "Key move", style: { background: input.accent, color: "#071014", borderRadius: 999, fontSize: 13 } },
+    { id: `prompt_${input.index}`, type: "text", x: 42, y: 70, w: 45, h: 10, text: input.body.slice(0, 72) || "Add a learner action.", style: baseText },
+  ] satisfies SlideObject[]
 }
 
 export function createSlideDesignObject(type: SlideObject["type"]) {
