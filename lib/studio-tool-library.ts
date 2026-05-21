@@ -13,6 +13,7 @@ export type StudioToolAction = {
   label: string
   description: string
   supportedKinds: StudioKind[]
+  canvasAction?: "new-page" | "duplicate-page"
   richHtml?: string
   sheetAction?: "add-row" | "add-column" | "table"
   slideObjectType?: "text" | "shape" | "image" | "table"
@@ -38,6 +39,8 @@ export const studioToolActions: Record<StudioToolPanelId, StudioToolAction[]> = 
     { id: "brand-callout", label: "Accent callout", description: "Add a reusable highlighted callout", richHtml: "<blockquote>Important idea</blockquote>", slideObjectType: "shape", supportedKinds: ["notes", "docs", "slides"] },
   ],
   elements: [
+    { id: "page-new", label: "New page", description: "Add another page/canvas to the current design", canvasAction: "new-page", supportedKinds: ["notes", "docs", "slides"] },
+    { id: "page-duplicate", label: "Duplicate page", description: "Copy the current page or selected slide", canvasAction: "duplicate-page", supportedKinds: ["notes", "docs", "slides"] },
     { id: "element-shape", label: "Shape", description: "Add a visual shape or callout frame", richHtml: "<blockquote>Shape callout</blockquote>", slideObjectType: "shape", supportedKinds: ["notes", "docs", "slides"] },
     { id: "element-table", label: "Table", description: "Add a table or grid area", richHtml: "<table><tbody><tr><th>Item</th><th>Detail</th></tr><tr><td></td><td></td></tr></tbody></table>", sheetAction: "table", slideObjectType: "table", supportedKinds: ["notes", "docs", "sheets", "slides"] },
     { id: "element-row", label: "Row", description: "Insert a spreadsheet row at the active cell", sheetAction: "add-row", supportedKinds: ["sheets"] },

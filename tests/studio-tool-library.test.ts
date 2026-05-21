@@ -10,6 +10,7 @@ test("studio tool panels keep Canva-style library sections discoverable", () => 
 
 test("studio tool actions are filtered by current Studio kind", () => {
   assert.ok(getStudioToolActions("elements", "slides").some((action) => action.slideObjectType === "shape"))
+  assert.ok(getStudioToolActions("elements", "docs").some((action) => action.canvasAction === "new-page"))
   assert.ok(getStudioToolActions("elements", "sheets").some((action) => action.sheetAction === "table"))
   assert.equal(getStudioToolActions("media", "sheets").length, 0)
   assert.ok(getStudioToolActions("text", "docs").every((action) => action.richHtml))
