@@ -25,6 +25,7 @@ export interface ImportPreviewSummary {
 export interface ImportFollowupAction {
   kind: ImportFollowupKind
   taskKey: AiTaskKey
+  aiMode: "cleanup" | "quiz" | "flashcards"
   legacyMode: "cleanup" | "quiz" | "flashcards"
   insertTarget: StudioInsertTarget
   sourceScope: "Uploaded files"
@@ -130,6 +131,7 @@ export function buildImportFollowupAction(input: {
     return {
       kind: input.kind,
       taskKey: "practice_generator",
+      aiMode: "quiz",
       legacyMode: "quiz",
       insertTarget: "quiz",
       sourceScope: "Uploaded files",
@@ -142,6 +144,7 @@ export function buildImportFollowupAction(input: {
     return {
       kind: input.kind,
       taskKey: "flashcard_generation",
+      aiMode: "flashcards",
       legacyMode: "flashcards",
       insertTarget: "flashcards",
       sourceScope: "Uploaded files",
@@ -154,6 +157,7 @@ export function buildImportFollowupAction(input: {
   return {
     kind: input.kind,
     taskKey: cleanupWorkflow.taskKey,
+    aiMode: "cleanup",
     legacyMode: "cleanup",
     insertTarget: cleanupWorkflow.insertTarget,
     sourceScope: "Uploaded files",
