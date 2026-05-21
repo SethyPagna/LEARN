@@ -116,7 +116,7 @@ import { studioFontOptions, studioFontSizeOptions, studioHighlightColorOptions, 
 import { getStudioKindOption, getStudioViewModeOption, studioEmptyTabLabels, studioInspectorTabs, studioKindOptions, studioSectionFilters, studioViewModeOptions, type StudioViewMode } from "@/lib/studio-navigation"
 import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, blankNoteTitle, blankRichText, blankSheetCells, blankSheetFingerprint, blankSheetTitle, ensureSheetCells, parseDeckSlides, parseSheetCells, studioCreateLabels, studioDraftSummary, studioFallbackTitle, studioNoItemSummary } from "@/lib/studio-defaults"
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
-import { applySlideDesignPreset, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
+import { applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
 const HEADING_STYLE_KEY = "learn_heading_styles_v1"
@@ -2028,7 +2028,7 @@ function StudioPaneSurface({
                   )
                 })}
               </div>
-              <ActionMenu align="right" compact label="Pane" icon={MoreHorizontal}>
+              <ActionMenu align="right" compact label="Layout" icon={SplitSquareHorizontal}>
                 <MenuAction icon={SplitSquareHorizontal} label="Split right" onClick={onSplitRight} />
                 <MenuAction icon={SplitSquareVertical} label="Split down" onClick={onSplitDown} />
                 <MenuAction icon={Maximize2} label={pane.pinned ? "Unpin pane" : "Pin pane"} onClick={onPinPane} />
@@ -2050,7 +2050,7 @@ function StudioPaneSurface({
                   <span>{viewSummary}</span>
                   <details className="relative">
                     <summary className="inline-flex h-6 w-6 list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${activeTab.label}`}>
-                      <MoreHorizontal className="h-3.5 w-3.5" />
+                      <BookOpen className="h-3.5 w-3.5" />
                     </summary>
                     <p className="absolute left-0 top-7 z-30 w-64 rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-xl">{activeTab.description}</p>
                   </details>
@@ -2059,7 +2059,7 @@ function StudioPaneSurface({
               {active ? (
                 <div className="flex items-center gap-1">
                   <MiniAction icon={Save} label="Save" onClick={onSave} />
-                  <ActionMenu align="right" compact label="Actions" icon={MoreHorizontal}>
+                  <ActionMenu align="right" compact label="File" icon={Settings2}>
                     <MenuAction icon={Clipboard} label="Copy" onClick={onCopy} />
                     <MenuAction icon={Copy} label="Duplicate" onClick={onDuplicate} />
                     <MenuAction icon={Download} label="Download" onClick={onDownload} />
@@ -2310,6 +2310,7 @@ function StudioCanvas({
   const slideShowSummary = useMemo(() => summarizeSlideShow(slides), [slides])
   const selectedTransition = slideTransitionPresets[selectedSlide?.transition || "none"]
   const selectedAnimation = slideAnimationPresets[selectedSlide?.animation || "none"]
+  const selectedPalette = slideDesignPresets[(selectedSlide?.theme || "midnight") as keyof typeof slideDesignPresets] || slideDesignPresets.midnight
   const slideIds = slides.map((_, index) => `slide-${index}`)
   const handleSlideDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
@@ -2364,9 +2365,9 @@ function StudioCanvas({
         </div>
         {selectedSlide ? (
           <div className="relative z-10 flex h-full flex-col">
-            <input value={selectedSlide.accent || ""} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, accent: event.target.value } : item))} className="mb-3 w-full bg-transparent text-xs font-semibold uppercase tracking-[0.16em] text-emerald-200 outline-none" />
-            <input value={selectedSlide.title} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, title: event.target.value } : item))} className="w-full bg-transparent text-4xl font-semibold leading-tight outline-none" />
-            <textarea value={selectedSlide.body} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, body: event.target.value } : item))} className="mt-5 min-h-32 flex-1 resize-none bg-transparent text-lg leading-8 text-slate-200 outline-none" />
+            <input value={selectedSlide.accent || ""} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, accent: event.target.value } : item))} className="mb-3 w-full bg-transparent text-xs font-semibold uppercase tracking-[0.16em] outline-none" style={{ color: selectedPalette.accent }} />
+            <input value={selectedSlide.title} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, title: event.target.value } : item))} className="w-full bg-transparent text-4xl font-semibold leading-tight outline-none" style={{ color: selectedPalette.foreground }} />
+            <textarea value={selectedSlide.body} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, body: event.target.value } : item))} className="mt-5 min-h-32 flex-1 resize-none bg-transparent text-lg leading-8 outline-none" style={{ color: selectedPalette.foreground }} />
           </div>
         ) : null}
         {selectedSlide?.objects?.map((object) => <SlideCanvasObject key={object.id} object={object} />)}
@@ -2380,6 +2381,7 @@ function StudioCanvas({
         <ActionMenu label="Design" icon={LayoutPanelLeft}>
           <MenuSelect label="Layout" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, layout: value as WorkspaceDeck["slides"][number]["layout"] } : item))} options={["title", "two-column", "image", "quote"].map((value) => ({ label: value, value }))} />
           <MenuSelect label="Theme" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? applySlideDesignPreset(item, value as keyof typeof slideDesignPresets) : item))} options={Object.keys(slideDesignPresets).map((value) => ({ label: value, value }))} />
+          <MenuAction icon={Paintbrush} label="Apply theme to all" onClick={() => onSetSlides((current) => applySlideDesignPresetToDeck(current, (selectedSlide?.theme || "midnight") as keyof typeof slideDesignPresets))} />
           <label className="grid gap-1 px-2 py-1 text-xs font-semibold text-muted-foreground">
             Background
             <input value={selectedSlide?.background || "#111827"} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, background: event.target.value } : item))} className="h-8 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
