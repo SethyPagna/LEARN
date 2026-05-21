@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, buildCalendarSummaryChips, calendarEventDurationMinutes, filterCalendarAgenda, formatCalendarDuration, summarizeCalendarAgenda } from "../lib/calendar-features"
+import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, buildCalendarSummaryChips, calendarDurationPresets, calendarEventDurationMinutes, calendarEventTypeOptions, filterCalendarAgenda, formatCalendarDuration, labelCalendarEventType, normalizeCalendarEventType, summarizeCalendarAgenda } from "../lib/calendar-features"
 
 const events = [
   event("study_today", "study", "2026-05-16T02:00:00.000Z", "2026-05-16T02:45:00.000Z"),
@@ -42,6 +42,15 @@ test("calendar agenda filters by today upcoming review and completed", () => {
   assert.deepEqual(filterCalendarAgenda(events, "upcoming", now).map((item) => item.id), ["study_today", "review_today", "future"])
   assert.deepEqual(filterCalendarAgenda(events, "review", now).map((item) => item.id), ["review_today"])
   assert.deepEqual(filterCalendarAgenda(events, "completed", now).map((item) => item.id), ["done"])
+})
+
+test("calendar event options and normalizers keep form values safe", () => {
+  assert.deepEqual(calendarEventTypeOptions.map((option) => option.value), ["study", "review", "deadline", "focus", "completed"])
+  assert.deepEqual([...calendarDurationPresets], [15, 30, 45, 60, 90])
+  assert.equal(normalizeCalendarEventType("REVIEW"), "review")
+  assert.equal(normalizeCalendarEventType("unknown"), "study")
+  assert.equal(labelCalendarEventType("deadline"), "Deadline")
+  assert.equal(labelCalendarEventType("custom"), "custom")
 })
 
 test("calendar duration helpers handle readable time labels", () => {

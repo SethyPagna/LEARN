@@ -1,4 +1,15 @@
 export type CalendarAgendaFilter = "all" | "today" | "upcoming" | "review" | "completed"
+export type CalendarEventType = "study" | "review" | "deadline" | "focus" | "completed"
+
+export const calendarEventTypeOptions: Array<{ value: CalendarEventType; label: string }> = [
+  { value: "study", label: "Study" },
+  { value: "review", label: "Review" },
+  { value: "deadline", label: "Deadline" },
+  { value: "focus", label: "Focus" },
+  { value: "completed", label: "Completed" },
+]
+
+export const calendarDurationPresets = [15, 30, 45, 60, 90] as const
 
 export interface CalendarEventLike {
   id: string
@@ -108,6 +119,17 @@ export function filterCalendarAgenda<T extends CalendarEventLike>(events: T[], f
     if (filter === "upcoming") return new Date(event.starts_at).getTime() >= nowTime && event.event_type !== "completed"
     return event.event_type === filter
   })
+}
+
+export function normalizeCalendarEventType(value: unknown): CalendarEventType {
+  const normalized = String(value || "").toLowerCase()
+  return calendarEventTypeOptions.some((option) => option.value === normalized)
+    ? normalized as CalendarEventType
+    : "study"
+}
+
+export function labelCalendarEventType(type: string) {
+  return calendarEventTypeOptions.find((option) => option.value === type)?.label ?? type
 }
 
 export function calendarEventDurationMinutes(event: Pick<CalendarEventLike, "starts_at" | "ends_at">) {
