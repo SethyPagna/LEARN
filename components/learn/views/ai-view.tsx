@@ -453,7 +453,7 @@ export function AiTutorView({
     const action = buildImportFollowupAction({ kind, title: lastImport.title, target: lastImport.target })
     setActiveTaskKey(action.taskKey)
     setModeGroup(modeGroupForTask(action.taskKey))
-    setOptions({ aiMode: action.legacyMode as WorkspaceOptions["aiMode"] })
+    setOptions({ aiMode: action.aiMode as WorkspaceOptions["aiMode"] })
     setSourceScope(action.sourceScope)
     setInsertTarget(action.insertTarget)
     setMessage(action.message)
