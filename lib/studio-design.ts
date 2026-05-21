@@ -29,6 +29,32 @@ export const documentInsertGroups: Array<{ label: string; items: DocumentInsertK
   { label: "Learning", items: ["study-summary", "quiz-seed", "citation-list"] },
 ]
 
+export const richTemplateDesigns = [
+  { name: "Library", background: "#f8fafc", accent: "#0f766e", foreground: "#0f172a", font: "Georgia, serif" },
+  { name: "Blueprint", background: "#eff6ff", accent: "#2563eb", foreground: "#172554", font: "Inter, sans-serif" },
+  { name: "Field notes", background: "#f7fee7", accent: "#65a30d", foreground: "#1a2e05", font: "Atkinson Hyperlegible, Inter, sans-serif" },
+  { name: "Research", background: "#faf5ff", accent: "#7c3aed", foreground: "#2e1065", font: "Inter, sans-serif" },
+  { name: "Warm brief", background: "#fff7ed", accent: "#c2410c", foreground: "#431407", font: "Georgia, serif" },
+  { name: "Minimal", background: "#ffffff", accent: "#334155", foreground: "#0f172a", font: "Inter, sans-serif" },
+  { name: "Focus", background: "#ecfeff", accent: "#0891b2", foreground: "#083344", font: "Inter, sans-serif" },
+  { name: "Review", background: "#fef2f2", accent: "#dc2626", foreground: "#450a0a", font: "Inter, sans-serif" },
+  { name: "Studio", background: "#fdf2f8", accent: "#db2777", foreground: "#500724", font: "Georgia, serif" },
+  { name: "Archive", background: "#f5f5f4", accent: "#78716c", foreground: "#292524", font: "Inter, sans-serif" },
+] as const
+
+export const sheetTemplateDesigns = [
+  { name: "Tracker", accent: "Emerald", status: ["Ready", "Review", "Blocked"] },
+  { name: "Planner", accent: "Blue", status: ["Next", "Doing", "Done"] },
+  { name: "Scoreboard", accent: "Amber", status: ["Low", "Target", "Strong"] },
+  { name: "Inventory", accent: "Slate", status: ["New", "Owned", "Archived"] },
+  { name: "Rubric", accent: "Purple", status: ["1", "2", "3", "4"] },
+  { name: "Lab", accent: "Cyan", status: ["Draft", "Run", "Reviewed"] },
+  { name: "Budget", accent: "Green", status: ["Planned", "Spent", "Saved"] },
+  { name: "Schedule", accent: "Indigo", status: ["Queued", "Today", "Moved"] },
+  { name: "Vocabulary", accent: "Rose", status: ["New", "Due", "Known"] },
+  { name: "Roadmap", accent: "Orange", status: ["Idea", "Build", "Ship"] },
+] as const
+
 export const slideDesignPresets = {
   midnight: { background: "#111827", accent: "#a7f3d0", foreground: "#ffffff" },
   sunrise: { background: "#fff3d6", accent: "#92400e", foreground: "#111827" },
@@ -72,6 +98,61 @@ export const slideAnimationPresets = {
 
 export function getDocumentInsertBlock(kind: DocumentInsertKind) {
   return documentInsertBlocks[kind]
+}
+
+export function buildDesignedRichTemplate(input: {
+  body: string
+  description: string
+  kind: "notes" | "docs"
+  label: string
+  sections: string[]
+}) {
+  const design = richTemplateDesignFor(input.label)
+  const sections = input.sections.slice(0, 4)
+  const isDoc = input.kind === "docs"
+  return [
+    `<blockquote style="border-left: 6px solid ${design.accent}; background: ${design.background}; color: ${design.foreground}; padding: 14px 16px; border-radius: 12px; font-family: ${design.font};">`,
+    `<p><strong>${escapeHtml(input.label)} - ${design.name}</strong></p>`,
+    `<p>${escapeHtml(input.description)}</p>`,
+    "</blockquote>",
+    input.body,
+    `<table><tbody><tr><th>Focus</th><th>Evidence</th><th>Next action</th></tr><tr><td>${escapeHtml(sections[0] || "Main idea")}</td><td>${escapeHtml(sections[1] || "Example or source")}</td><td>${isDoc ? "Polish and export" : "Turn into review"}</td></tr></tbody></table>`,
+    "<h2>Media / visual area</h2>",
+    `<blockquote style="border-style: dashed; border-color: ${design.accent}; background: ${design.background}; color: ${design.foreground};">Add an image, diagram, equation, source, or screenshot here.</blockquote>`,
+    "<h2>Review loop</h2>",
+    "<ul><li>Create one recall question.</li><li>Mark one weak point.</li><li>Link one related Studio item.</li></ul>",
+  ].join("")
+}
+
+export function buildDesignedSheetTemplateCsv(body: string, label: string) {
+  const design = sheetTemplateDesignFor(label)
+  const rows = parseCsvRows(body)
+  const header = rows[0] || []
+  const extras = ["Priority", "Owner", "Due", "Notes", "View"].filter((column) => !header.includes(column))
+  const styledRows = rows.map((row, index) => {
+    if (index === 0) return [...row, ...extras].join(",")
+    const defaults = extras.map((column) => {
+      if (column === "Priority") return index === 1 ? "High" : "Medium"
+      if (column === "Owner") return "Me"
+      if (column === "View") return design.accent
+      return ""
+    })
+    return [...row, ...defaults].join(",")
+  })
+  return [
+    styledRows.join("\n"),
+    `\n\nTemplate,${design.name}`,
+    `Accent,${design.accent}`,
+    `Status options,${design.status.join(" / ")}`,
+  ].join("")
+}
+
+export function richTemplateDesignFor(label: string) {
+  return pickTemplateDesign(richTemplateDesigns, label)
+}
+
+export function sheetTemplateDesignFor(label: string) {
+  return pickTemplateDesign(sheetTemplateDesigns, label)
 }
 
 export function applySlideDesignPreset(slide: WorkspaceDeck["slides"][number], preset: keyof typeof slideDesignPresets) {
@@ -237,4 +318,22 @@ export function buildSlideExportPayload(title: string, slides: WorkspaceDeck["sl
       estimatedSeconds: Math.ceil((summary.slideTimings[index]?.durationMs || 0) / 1000),
     })),
   }
+}
+
+function pickTemplateDesign<const T extends readonly unknown[]>(items: T, label: string): T[number] {
+  const checksum = label.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0)
+  return items[checksum % items.length] || items[0]
+}
+
+function parseCsvRows(body: string) {
+  return body.split("\n").map((row) => row.split(",").map((cell) => cell.trim()))
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;")
 }

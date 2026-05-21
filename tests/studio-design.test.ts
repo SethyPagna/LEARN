@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { applySlideDesignPreset, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTemplateDesigns, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject } from "../lib/studio-design"
+import { applySlideDesignPreset, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, richTemplateDesigns, sheetTemplateDesigns, slideAnimationPresets, slideDesignPresets, slideTemplateDesigns, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject } from "../lib/studio-design"
 
 test("document insert blocks expose reusable editor snippets", () => {
   assert.match(getDocumentInsertBlock("callout"), /Callout/)
@@ -8,6 +8,31 @@ test("document insert blocks expose reusable editor snippets", () => {
   assert.match(getDocumentInsertBlock("cornell-notes"), /Cues/)
   assert.match(getDocumentInsertBlock("quiz-seed"), /Question/)
   assert.deepEqual(documentInsertGroups.map((group) => group.label), ["Blocks", "Layouts", "Learning"])
+})
+
+test("rich document templates apply design surfaces and learning tools", () => {
+  const html = buildDesignedRichTemplate({
+    body: "<h1>Concept</h1><p>Explain it.</p>",
+    description: "Use this to capture and review a concept.",
+    kind: "notes",
+    label: "Concept card",
+    sections: ["Concept", "Example"],
+  })
+
+  assert.equal(richTemplateDesigns.length, 10)
+  assert.match(html, /Media \/ visual area/)
+  assert.match(html, /Review loop/)
+  assert.match(html, /border-left/)
+  assert.match(html, /<table>/)
+})
+
+test("sheet templates add design metadata and operational columns", () => {
+  const csv = buildDesignedSheetTemplateCsv("Topic,Status\nReact,Review", "Tracker")
+
+  assert.equal(sheetTemplateDesigns.length, 10)
+  assert.match(csv.split("\n")[0], /Priority,Owner,Due,Notes,View/)
+  assert.match(csv, /Template,/)
+  assert.match(csv, /Status options,/)
 })
 
 test("slide design presets add theme and background metadata", () => {
