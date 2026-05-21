@@ -234,6 +234,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Continued Studio cleanup by centralizing rich-text font, size, text color, and highlight options in a shared formatting helper used by the toolbar.
 - 2026-05-21: Continued Studio navigation cleanup by centralizing Studio kind labels, section filters, view modes, inspector tabs, and empty-tab labels in a tested navigation helper.
 - 2026-05-21: Continued workspace cleanup by centralizing Practice and Social tab labels, command labels, and route mapping in a tested workspace navigation helper.
+- 2026-05-21: Continued Social architecture cleanup by centralizing the hub summary, primary action, lanes, starter actions, call modes, and moment options in one tested command model.
 
 ## Implementation Slices
 
