@@ -1,12 +1,62 @@
 import type { StudioInsertTarget } from "@/components/learn/types"
 import type { AiGatewayReadiness } from "./gateway-readiness"
 import type { GuidedPromptResult } from "./prompt-builder"
+import type { AiTaskKey } from "./prompt-library"
+import type { TutorMode } from "./tutor"
 
 export type AiPromptReadinessStatus = "ready" | "warning" | "blocked"
 const SHORT_OUTPUT_TOKENS = 2048
 const BALANCED_OUTPUT_TOKENS = 4096
 const DEEP_OUTPUT_TOKENS = 8192
 const MAX_OUTPUT_TOKENS = 16_384
+
+export type AiTutorModeGroupId = "all" | "tutor" | "studio" | "practice"
+
+export interface AiTutorModeOption {
+  id: AiTaskKey
+  mode: TutorMode
+  label: string
+  prompt: string
+}
+
+export const aiTutorModeOptions: AiTutorModeOption[] = [
+  { id: "answer_explanation", mode: "mistake", label: "Mistake", prompt: "Explain the mistake, repair the misconception, and create a short retry drill." },
+  { id: "note_design", mode: "rewrite", label: "Rewrite", prompt: "Rewrite this into a clean study page with headings, callouts, examples, and review prompts." },
+  { id: "quiz_generation", mode: "quiz", label: "Quiz", prompt: "Generate a mixed quiz with MCQ, true/false, fill-in-the-blank, and explanations." },
+  { id: "flashcard_generation", mode: "flashcards", label: "Flashcards", prompt: "Create active-recall flashcards and a tiny memory game from this context." },
+  { id: "study_plan", mode: "route", label: "Study Plan", prompt: "Create a targeted 7-day study route with daily focus, review, and practice." },
+  { id: "document_formatter", mode: "cleanup", label: "Docs", prompt: "Format raw material into a Studio document with blocks, callouts, and review questions." },
+  { id: "document_editor", mode: "cleanup", label: "Doc Edit", prompt: "Edit this document for hierarchy, flow, references, and study usefulness." },
+  { id: "sheet_organizer", mode: "cleanup", label: "Sheets", prompt: "Organize messy data into spreadsheet columns, rows, filters, and validation notes." },
+  { id: "sheet_formula_builder", mode: "cleanup", label: "Formulas", prompt: "Design useful formulas, validation rules, filters, and chart suggestions for this sheet." },
+  { id: "slide_builder", mode: "cleanup", label: "Slides", prompt: "Build a concise lesson deck with layouts, objects, and speaker notes." },
+  { id: "slide_design_director", mode: "cleanup", label: "Deck Design", prompt: "Design a teaching deck with visual hierarchy, transitions, animations, timing, and presenter notes." },
+  { id: "practice_generator", mode: "quiz", label: "Practice", prompt: "Create targeted practice with timing, explanations, retry set, and review cards." },
+  { id: "personalized_prompt", mode: "coach", label: "Prompt", prompt: "Compose a precise personalized prompt with requirements and output format." },
+  { id: "translation", mode: "translate", label: "Translate", prompt: "Translate and simplify this learning material while preserving key terms." },
+]
+
+export const aiTutorSourceScopes = ["Recent notes", "Active Studio item", "Weak topics", "Uploaded files", "Manual only"]
+export const aiTutorDifficulties = ["Adaptive", "Beginner", "Intermediate", "Advanced", "Exam prep"]
+export const aiTutorTones = ["Kind", "Direct", "Socratic", "Concise", "Detailed"]
+export const aiTutorOutputLengths = ["Short", "Balanced", "Deep", "Max"]
+export const aiTutorLanguages = ["English", "Khmer", "French", "Spanish", "Korean", "Japanese", "Chinese"]
+export const aiTutorTokenPresets = [SHORT_OUTPUT_TOKENS, BALANCED_OUTPUT_TOKENS, DEEP_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS] as const
+
+export const aiTutorModeGroups: Array<{ id: AiTutorModeGroupId; label: string; modes: AiTaskKey[] }> = [
+  { id: "all", label: "All", modes: aiTutorModeOptions.map((mode) => mode.id) },
+  { id: "tutor", label: "Tutor", modes: ["answer_explanation", "study_plan", "personalized_prompt", "translation"] },
+  { id: "studio", label: "Studio", modes: ["note_design", "document_formatter", "document_editor", "sheet_organizer", "sheet_formula_builder", "slide_builder", "slide_design_director"] },
+  { id: "practice", label: "Practice", modes: ["quiz_generation", "flashcard_generation", "practice_generator"] },
+]
+
+export function getAiTutorModeOption(taskId: string) {
+  return aiTutorModeOptions.find((mode) => mode.id === taskId) || aiTutorModeOptions[0]
+}
+
+export function getAiTutorModeGroupForTask(taskId: string): AiTutorModeGroupId {
+  return aiTutorModeGroups.find((group) => group.id !== "all" && group.modes.includes(taskId as AiTaskKey))?.id ?? "all"
+}
 
 export interface AiTutorWorkflowSummary {
   status: AiPromptReadinessStatus

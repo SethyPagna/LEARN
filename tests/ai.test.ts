@@ -15,8 +15,18 @@ import { buildGuidedPrompt, listInsertActions, normalizeStudioInsertTarget, prom
 import { buildAiGatewayReadiness } from "../lib/ai/gateway-readiness"
 import { buildInsertBackPayload, parseAiJson } from "../lib/ai/insert-back"
 import {
+  aiTutorDifficulties,
+  aiTutorLanguages,
+  aiTutorModeGroups,
+  aiTutorModeOptions,
+  aiTutorOutputLengths,
+  aiTutorSourceScopes,
+  aiTutorTokenPresets,
+  aiTutorTones,
   buildAiTutorPrimaryActionPlan,
   buildAiTutorSourceContext,
+  getAiTutorModeGroupForTask,
+  getAiTutorModeOption,
   getRecommendedAiTutorTokens,
   resolveAiTutorEffectiveTokens,
   resolveAiTutorSourceScopeAfterUpload,
@@ -84,6 +94,21 @@ test("AI tutor token budget keeps the UI and runtime limits aligned", () => {
   assert.equal(resolveTutorTokenBudget(12000, 8192), 12000)
   assert.equal(resolveTutorTokenBudget(20000, 16384), 16384)
   assert.equal(resolveTutorTokenBudget(64, 8192), 128)
+})
+
+test("AI tutor controls expose shared mode and filter options", () => {
+  assert.deepEqual(aiTutorTokenPresets, [2048, 4096, 8192, 16384])
+  assert.ok(aiTutorModeOptions.some((mode) => mode.id === "slide_design_director" && mode.mode === "cleanup"))
+  assert.ok(aiTutorModeGroups.find((group) => group.id === "studio")?.modes.includes("document_formatter"))
+  assert.equal(getAiTutorModeOption("practice_generator").label, "Practice")
+  assert.equal(getAiTutorModeOption("missing-task").id, aiTutorModeOptions[0].id)
+  assert.equal(getAiTutorModeGroupForTask("quiz_generation"), "practice")
+  assert.equal(getAiTutorModeGroupForTask("missing-task"), "all")
+  assert.ok(aiTutorSourceScopes.includes("Uploaded files"))
+  assert.ok(aiTutorDifficulties.includes("Exam prep"))
+  assert.ok(aiTutorTones.includes("Socratic"))
+  assert.ok(aiTutorOutputLengths.includes("Max"))
+  assert.ok(aiTutorLanguages.includes("Khmer"))
 })
 
 test("provider preset catalog includes chat and embedding choices", () => {
