@@ -12,7 +12,7 @@ import { buildGuidedPrompt, listInsertActions, promptContracts } from "@/lib/ai/
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
 import { buildAiTutorPrimaryActionPlan, buildAiTutorSourceContext, getRecommendedAiTutorTokens, resolveAiTutorEffectiveTokens, resolveAiTutorSourceScopeAfterUpload, splitPromptPreview, summarizeAiTutorUploadedSource, summarizeAiTutorWorkflow } from "@/lib/ai/tutor-workflow"
 import type { AiTaskKey } from "@/lib/ai/prompt-library"
-import { buildImportFollowupAction, getImportDestinationView, labelImportTarget, previewImportedLearningContent, type ImportFollowupKind, type ImportTarget } from "@/lib/import-gateway"
+import { buildImportFollowupAction, getImportDestinationView, importTargetOptions, labelImportTarget, previewImportedLearningContent, type ImportFollowupKind, type ImportTarget } from "@/lib/import-gateway"
 
 const tutorModes = [
   { id: "answer_explanation", mode: "mistake", label: "Mistake", icon: Sparkles, prompt: "Explain the mistake, repair the misconception, and create a short retry drill." },
@@ -37,7 +37,6 @@ const tones = ["Kind", "Direct", "Socratic", "Concise", "Detailed"]
 const outputLengths = ["Short", "Balanced", "Deep", "Max"]
 const languages = ["English", "Khmer", "French", "Spanish", "Korean", "Japanese", "Chinese"]
 const insertTargets: StudioInsertTarget[] = ["note-block", "doc-section", "sheet-rows", "slide-outline", "quiz", "flashcards", "review-cards", "ai-note"]
-const importTargets: Array<ImportTarget | "auto"> = ["auto", "note", "doc", "sheet", "slides"]
 const tokenPresets = [2048, 4096, 8192, 16384]
 const AI_TUTOR_DRAFT_KEY = "learn_ai_tutor_draft_v1"
 const DEFAULT_AI_MESSAGE = "Create a study plan from my recent notes."
@@ -198,7 +197,7 @@ export function AiTutorView({
       setReply(draft.reply || "")
       setImportText(draft.importText || "")
       setImportTitle(draft.importTitle || "")
-      setImportTarget(importTargets.includes(draft.importTarget as ImportTarget | "auto") ? draft.importTarget as ImportTarget | "auto" : "auto")
+      setImportTarget(importTargetOptions.includes(draft.importTarget as ImportTarget | "auto") ? draft.importTarget as ImportTarget | "auto" : "auto")
       setLastImport(draft.lastImport || null)
       setLastImportText(draft.lastImportText || "")
       setSourceScope(normalizeChoice(draft.sourceScope, sourceScopes, sourceScopes[0]))
@@ -716,7 +715,7 @@ export function AiTutorView({
               setImportTarget(event.target.value as ImportTarget | "auto")
               clearSavedImportContext()
             }} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground">
-              {importTargets.map((target) => <option key={target} value={target}>{labelImportTarget(target)}</option>)}
+              {importTargetOptions.map((target) => <option key={target} value={target}>{labelImportTarget(target)}</option>)}
             </select>
             <textarea
               value={importText}
