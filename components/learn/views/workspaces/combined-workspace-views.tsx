@@ -232,20 +232,62 @@ export function SocialWorkspaceView({ initialView, options, setView, user }: { i
       eyebrow="Social workspace"
       title="Social"
       body="Find people first, then choose chat, groups, live rooms, or battles."
-      tabs={socialTabs}
-      activeTab={tab}
-      setActiveTab={(value) => {
-        const nextTab = value as SocialWorkspaceTab
-        setTab(nextTab)
-        setView(viewFromSocialWorkspaceTab(nextTab))
-      }}
     >
-      {tab === "home" ? <SocialCommandCenter currentUserId={user?.id} setActiveTab={setTab} setView={setView} /> : null}
-      {tab === "chat" ? <ChatView options={options} /> : null}
-      {tab === "spaces" ? <SocialLearningView kind="spaces" setView={setView} /> : null}
-      {tab === "rooms" ? <SocialLearningView kind="rooms" setView={setView} /> : null}
-      {tab === "battles" ? <SocialLearningView kind="battles" setView={setView} /> : null}
+      <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)]">
+        <SocialSectionNav
+          activeTab={tab}
+          tabs={socialTabs}
+          setActiveTab={(value) => {
+            const nextTab = value as SocialWorkspaceTab
+            setTab(nextTab)
+            setView(viewFromSocialWorkspaceTab(nextTab))
+          }}
+        />
+        <div className="min-w-0">
+          {tab === "home" ? <SocialCommandCenter currentUserId={user?.id} setActiveTab={setTab} setView={setView} /> : null}
+          {tab === "chat" ? <ChatView options={options} /> : null}
+          {tab === "spaces" ? <SocialLearningView kind="spaces" setView={setView} /> : null}
+          {tab === "rooms" ? <SocialLearningView kind="rooms" setView={setView} /> : null}
+          {tab === "battles" ? <SocialLearningView kind="battles" setView={setView} /> : null}
+        </div>
+      </div>
     </WorkspaceFrame>
+  )
+}
+
+function SocialSectionNav({
+  activeTab,
+  setActiveTab,
+  tabs,
+}: {
+  activeTab: SocialWorkspaceTab
+  setActiveTab: (tab: SocialWorkspaceTab) => void
+  tabs: Array<{ id: SocialWorkspaceTab; label: string; icon: ComponentType<{ className?: string }>; caption: string }>
+}) {
+  return (
+    <Panel className="h-max p-2 xl:sticky xl:top-4">
+      <div className="flex gap-1 overflow-x-auto xl:grid xl:gap-1.5 xl:overflow-visible">
+        {tabs.map((item) => {
+          const Icon = item.icon
+          const active = activeTab === item.id
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`group relative inline-flex h-11 min-w-[8rem] shrink-0 items-center gap-2 rounded-md px-2.5 text-left text-sm font-semibold transition xl:min-w-0 ${
+                active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              }`}
+              title={item.caption}
+              type="button"
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="min-w-0 flex-1 truncate">{item.label}</span>
+              <MoreHorizontal className={`h-4 w-4 shrink-0 ${active ? "opacity-80" : "opacity-0 transition group-hover:opacity-70"}`} />
+            </button>
+          )
+        })}
+      </div>
+    </Panel>
   )
 }
 
@@ -524,116 +566,97 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const ActiveCommandIcon = socialCommandTabIcons[activeCommand.id]
 
   return (
-    <div className="grid gap-4">
-      <Panel className="overflow-hidden p-0">
-        <div className="border-b border-border bg-card px-4 py-3">
-          <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
-            <div className="flex min-w-0 items-center gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary/12 text-primary">
-                <Users className="h-5 w-5" />
-              </span>
-              <div className="min-w-0">
-                <h3 className="text-xl font-semibold text-foreground">Social hub</h3>
-                <p className="mt-1 truncate text-xs font-semibold text-muted-foreground">{primaryCommand.detail}</p>
+    <Panel className="overflow-hidden p-0">
+      <div className="border-b border-border bg-card px-4 py-3">
+        <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary/12 text-primary">
+              <Users className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="text-xl font-semibold text-foreground">Social hub</h3>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {commandSummary.chips.slice(0, 3).map((chip) => (
+                  <span key={chip} className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{chip}</span>
+                ))}
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-              <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">{status}</span>
-              <button onClick={() => runPrimaryCommand(primaryCommand.id)} disabled={Boolean(commandAction)} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60" title={primaryCommand.detail} type="button">
-                <Sparkles className="h-4 w-4" />
-                {primaryCommand.label}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+            <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">{status}</span>
+            <button onClick={() => runPrimaryCommand(primaryCommand.id)} disabled={Boolean(commandAction)} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60" title={primaryCommand.detail} type="button">
+              <Sparkles className="h-4 w-4" />
+              {primaryCommand.label}
+            </button>
+            <button onClick={() => void refresh()} disabled={syncAction?.disabled} className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60" title={syncAction?.busy ? syncAction.busyLabel : syncAction?.label || "Sync"} type="button">
+              <Repeat2 className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className="grid gap-3 p-3 lg:grid-cols-[210px_minmax(0,1fr)] lg:p-4">
+        <aside className="grid content-start gap-2 rounded-lg border border-border bg-background p-2">
+          {socialCommandTabs.map((item) => {
+            const Icon = socialCommandTabIcons[item.id]
+            const active = commandTab === item.id
+            return (
+              <button
+                key={item.id}
+                onClick={() => setCommandTab(item.id)}
+                className={`inline-flex h-10 min-w-0 items-center gap-2 rounded-md px-2.5 text-left text-sm font-semibold transition ${
+                  active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                }`}
+                type="button"
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                <span className={`rounded px-1.5 py-0.5 text-[0.65rem] ${active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{commandCounts[item.id]}</span>
               </button>
-              <details className="relative">
-                <summary className="flex h-9 w-9 list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label="Social options">
-                  <MoreHorizontal className="h-4 w-4" />
+            )
+          })}
+          <details className="group/social-tools mt-1 rounded-md border border-border bg-card">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-sm font-semibold text-foreground">
+              <span className="flex items-center gap-2">
+                <MoreHorizontal className="h-4 w-4 text-primary" />
+                More tools
+              </span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/social-tools:rotate-180" />
+            </summary>
+            <div className="grid gap-2 border-t border-border p-2">
+              <div className="grid grid-cols-2 gap-1.5">
+                {starterActions.map((action) => (
+                  <SocialStarterActionButton key={action.id} action={action} onClick={() => openStarterAction(action)} />
+                ))}
+              </div>
+              <div className="grid gap-1.5">
+                {homeLanes.map((lane) => {
+                  const Icon = socialHomeLaneIcons[lane.id]
+                  return (
+                    <button key={lane.id} onClick={() => openHomeLane(lane)} className="flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground" title={lane.detail} type="button">
+                      <Icon className="h-3.5 w-3.5 shrink-0 text-primary" />
+                      <span className="min-w-0 flex-1 truncate">{lane.label}</span>
+                      <span className="rounded bg-secondary px-1.5 py-0.5 text-[0.62rem] text-secondary-foreground">{lane.count}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              <details className="group/calls rounded-md border border-border bg-background">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2 py-1.5 text-xs font-semibold text-foreground">
+                  <span className="flex items-center gap-1.5"><PhoneCall className="h-3.5 w-3.5 text-primary" />Calls</span>
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition group-open/calls:rotate-180" />
                 </summary>
-                <div className="absolute right-0 top-11 z-50 w-64 rounded-md border border-border bg-popover p-2 text-sm text-popover-foreground shadow-xl">
-                  <button onClick={() => void refresh()} disabled={syncAction?.disabled} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left font-semibold hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60">
-                    <Repeat2 className="h-4 w-4" />
-                    {syncAction?.busy ? syncAction.busyLabel : syncAction?.label || "Sync"}
-                  </button>
-                  <div className="mt-2 grid grid-cols-2 gap-1 border-t border-border pt-2">
-                    {commandSummary.chips.map((chip) => (
-                      <span key={chip} className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{chip}</span>
-                    ))}
-                  </div>
+                <div className="grid gap-1.5 border-t border-border p-1.5">
+                  {callModes.map((mode) => (
+                    <SocialCallModeButton key={mode.id} mode={mode} onClick={() => openCallMode(mode)} />
+                  ))}
                 </div>
               </details>
             </div>
-          </div>
-        </div>
-        <div className="grid gap-3 p-3 lg:p-4">
-          <div className="grid grid-cols-5 gap-2 rounded-md border border-border bg-background p-2">
-            {starterActions.map((action) => (
-              <SocialStarterActionButton key={action.id} action={action} onClick={() => openStarterAction(action)} />
-            ))}
-          </div>
-
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-            {homeLanes.map((lane) => {
-              const Icon = socialHomeLaneIcons[lane.id]
-              return (
-                <button
-                  key={lane.id}
-                  onClick={() => openHomeLane(lane)}
-                  className={`group flex min-w-0 items-center gap-3 rounded-md border p-2.5 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground ${
-                    lane.primary ? "border-primary/40 bg-primary/10" : "border-border bg-background"
-                  }`}
-                  title={lane.detail}
-                  type="button"
-                >
-                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${lane.primary ? "bg-primary text-primary-foreground" : "bg-primary/12 text-primary group-hover:text-accent-foreground"}`}>
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-foreground group-hover:text-accent-foreground">{lane.label}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{lane.action}</span>
-                  </span>
-                  <span className={`rounded-md px-2 py-1 text-[0.68rem] font-semibold ${lane.count ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{lane.count}</span>
-                </button>
-              )
-            })}
-          </div>
-
-          <details className="group/calls rounded-md border border-border bg-background">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-              <span className="flex min-w-0 items-center gap-2">
-                <PhoneCall className="h-4 w-4 text-primary" />
-                <span>Calls</span>
-              </span>
-              <span className="ml-auto rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">
-                {counts.rooms + counts.battles}
-              </span>
-              <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/calls:rotate-180" />
-            </summary>
-            <div className="grid gap-2 border-t border-border p-2 md:grid-cols-2 xl:grid-cols-5">
-              {callModes.map((mode) => (
-                <SocialCallModeButton key={mode.id} mode={mode} onClick={() => openCallMode(mode)} />
-              ))}
-            </div>
           </details>
+        </aside>
 
-          <div className="flex gap-1 overflow-x-auto rounded-md border border-border bg-background p-1">
-            {socialCommandTabs.map((item) => {
-              const Icon = socialCommandTabIcons[item.id]
-              const active = commandTab === item.id
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setCommandTab(item.id)}
-                  className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-md px-3 text-xs font-semibold transition ${active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}
-                  type="button"
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{item.label}</span>
-                  <span className={`rounded px-1.5 py-0.5 text-[0.65rem] ${active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{commandCounts[item.id]}</span>
-                </button>
-              )
-            })}
-          </div>
-
-          <section className="rounded-lg border border-border bg-background">
-            <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2">
+        <section className="min-w-0 rounded-lg border border-border bg-background">
+          <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2">
               <div className="flex min-w-0 items-center gap-2">
                 <ActiveCommandIcon className="h-4 w-4 text-primary" />
                 <span className="truncate text-sm font-semibold text-foreground">{activeCommand.label}</span>
@@ -796,15 +819,13 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
               </div>
             ) : null}
             </div>
-          </section>
-        </div>
-      </Panel>
-
-      <details className="group/advanced rounded-lg border border-border bg-card text-card-foreground shadow-sm">
+        </section>
+      </div>
+      <details className="group/advanced border-t border-border bg-card">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
           <span className="flex items-center gap-2">
             <Plus className="h-4 w-4 text-primary" />
-            Create social space
+            Create spaces, rooms, or battles
           </span>
           <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/advanced:rotate-180" />
         </summary>
@@ -829,7 +850,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
           })}
         </div>
       </details>
-    </div>
+    </Panel>
   )
 }
 
