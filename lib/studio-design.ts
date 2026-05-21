@@ -326,6 +326,24 @@ export function resizeSlideDesignObject(
   return updateSlideDesignObject(slide, objectId, sizes[preset])
 }
 
+export function alignSlideDesignObject(
+  slide: WorkspaceDeck["slides"][number],
+  objectId: string,
+  alignment: "left" | "center" | "right" | "top" | "middle" | "bottom",
+) {
+  const object = (slide.objects || []).find((item) => item.id === objectId)
+  if (!object) return slide
+  const patch = {
+    bottom: { y: clampSlidePercent(100 - object.h) },
+    center: { x: clampSlidePercent((100 - object.w) / 2) },
+    left: { x: 0 },
+    middle: { y: clampSlidePercent((100 - object.h) / 2) },
+    right: { x: clampSlidePercent(100 - object.w) },
+    top: { y: 0 },
+  }[alignment]
+  return updateSlideDesignObject(slide, objectId, patch)
+}
+
 export function reorderSlideDesignObject(
   slide: WorkspaceDeck["slides"][number],
   objectId: string,

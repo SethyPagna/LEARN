@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesigns, sheetTemplateDesigns, slideAnimationPresets, slideDesignPresets, slideTemplateDesigns, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject } from "../lib/studio-design"
+import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesigns, sheetTemplateDesigns, slideAnimationPresets, slideDesignPresets, slideTemplateDesigns, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject } from "../lib/studio-design"
 
 test("document insert blocks expose reusable editor snippets", () => {
   assert.match(getDocumentInsertBlock("callout"), /Callout/)
@@ -98,12 +98,16 @@ test("slide design objects support arrange duplicate nudge and resize operations
   const nudged = nudgeSlideDesignObject(slide, object.id, "right", 5)
   const resized = resizeSlideDesignObject(slide, object.id, "hero")
   const reordered = reorderSlideDesignObject(slide, object.id, "front")
+  const centered = alignSlideDesignObject(slide, object.id, "center")
+  const bottom = alignSlideDesignObject(slide, object.id, "bottom")
 
   assert.equal(duplicated.objects?.length, 3)
   assert.equal(duplicated.objects?.[2]?.x, 14)
   assert.equal(nudged.objects?.[0]?.x, 15)
   assert.equal(resized.objects?.[0]?.w, 68)
   assert.equal(reordered.objects?.at(-1)?.id, object.id)
+  assert.equal(centered.objects?.[0]?.x, 40)
+  assert.equal(bottom.objects?.[0]?.y, 90)
 })
 
 test("slide motion presets summarize deck duration", () => {
