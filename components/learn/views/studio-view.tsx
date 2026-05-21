@@ -111,7 +111,7 @@ import {
 } from "@/lib/studio-features"
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, replaceTextInHtml, summarizeDocumentHtml, undoHistory, type HistoryState } from "@/lib/workspace-features"
 import { clearStudioDraft, readStudioDrafts, shouldAnnounceStudioDraftSave, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
-import type { ImportTarget } from "@/lib/import-gateway"
+import { getImportDestinationView, importTargetOptions, labelImportTarget, type ImportTarget } from "@/lib/import-gateway"
 import { applySlideDesignPreset, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
@@ -133,7 +133,6 @@ const studioViewModes: Array<{ id: StudioViewMode; label: string; icon: React.Co
   { id: "gallery", label: "Gallery", icon: LayoutPanelLeft },
 ]
 const inspectorTabs = ["Info", "Outline", "Comments", "History", "AI", "Export"]
-const importTargets: Array<ImportTarget | "auto"> = ["auto", "note", "doc", "sheet", "slides"]
 
 type StudioListItem = {
   id: string
@@ -387,19 +386,8 @@ function fileTitle(title: string, fallback: string) {
   return (title.trim() || fallback).replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase()
 }
 
-function labelImportTarget(target: ImportTarget | "auto") {
-  if (target === "auto") return "Auto detect"
-  if (target === "doc") return "Document"
-  if (target === "sheet") return "Sheet"
-  if (target === "slides") return "Slides"
-  return "Note"
-}
-
 function importTargetToKind(target: ImportTarget): StudioKind {
-  if (target === "doc") return "docs"
-  if (target === "sheet") return "sheets"
-  if (target === "slides") return "slides"
-  return "notes"
+  return getImportDestinationView(target)
 }
 
 function downloadText(filename: string, body: string, type = "text/plain") {
@@ -1526,7 +1514,7 @@ export function StudioView({
               className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground outline-none focus:border-ring"
             />
             <select value={importTarget} onChange={(event) => setImportTarget(event.target.value as ImportTarget | "auto")} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground">
-              {importTargets.map((target) => <option key={target} value={target}>{labelImportTarget(target)}</option>)}
+              {importTargetOptions.map((target) => <option key={target} value={target}>{labelImportTarget(target)}</option>)}
             </select>
             <button onClick={organizeImport} disabled={importing} className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-60">
               {importing ? "Importing" : "Organize"}
