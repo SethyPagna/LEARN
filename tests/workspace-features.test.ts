@@ -53,6 +53,12 @@ import {
   studioViewModeOptions,
 } from "../lib/studio-navigation"
 import {
+  blankDeckTitle,
+  blankSheetTitle,
+  parseDeckSlides,
+  parseSheetCells,
+} from "../lib/studio-defaults"
+import {
   getSocialCommandTab,
   practiceWorkspaceTabs,
   socialCommandTabs,
@@ -258,6 +264,20 @@ test("combined workspace navigation keeps practice and social route mappings sta
   assert.equal(viewFromSocialWorkspaceTab("battles"), "battles")
   assert.deepEqual(socialCommandTabs.map((tab) => tab.label), ["Find", "Message", "Invite", "Friends"])
   assert.equal(getSocialCommandTab("invite").label, "Invite")
+})
+
+test("Studio blank defaults do not seed new sheets or decks with sample content", () => {
+  const cells = parseSheetCells()
+  const slides = parseDeckSlides()
+
+  assert.equal(blankSheetTitle, "Untitled sheet")
+  assert.equal(blankDeckTitle, "Untitled deck")
+  assert.equal(cells.length >= 8, true)
+  assert.equal(cells.every((row) => row.every((cell) => cell === "")), true)
+  assert.equal(slides.length, 1)
+  assert.equal(slides[0].title, "")
+  assert.equal(slides[0].body, "")
+  assert.deepEqual(parseSheetCells({ cells: [["Topic", "Status"]] }), [["Topic", "Status"]])
 })
 
 test("all supported vocabularies return usable text without mojibake", async () => {
