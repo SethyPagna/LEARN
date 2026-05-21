@@ -221,6 +221,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Continued CI/deploy hygiene by opting GitHub Actions into Node 24 and replacing old branch trigger naming with descriptive feature/fix/refine branch groups.
 - 2026-05-21: Continued Social architecture cleanup by replacing the temporary-looking `social-api-copy` module with an intentful Social API messages module and aligned tests.
 - 2026-05-21: Continued AI import-loop cleanup by renaming the old `legacyMode` follow-up field to `aiMode` across the import gateway, tests, and AI Tutor caller.
+- 2026-05-21: Continued Import Gateway cleanup by centralizing import target labels and destination views so AI Tutor and import previews share one routing source.
 
 ## Implementation Slices
 
