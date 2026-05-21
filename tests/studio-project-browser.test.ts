@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { buildStudioProjectBrowserState, countStudioProjects, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate } from "../lib/studio-project-browser"
+import { buildStudioProjectBrowserState, buildStudioTemplatePreview, countStudioProjects, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate } from "../lib/studio-project-browser"
 
 const projects = [
   { id: "note_1", kind: "notes" as const, title: "Operating systems note", summary: "Scheduling" },
@@ -50,4 +50,26 @@ test("studio project browser keeps a stable template preview fallback", () => {
   assert.equal(selectStudioBrowserTemplate(templates, "Pitch")?.label, "Pitch")
   assert.equal(selectStudioBrowserTemplate(templates, "Missing")?.label, "Lesson")
   assert.equal(selectStudioBrowserTemplate([], "Pitch"), null)
+})
+
+test("studio template preview trims sections and labels the next action", () => {
+  const preview = buildStudioTemplatePreview(templates[0], {
+    accent: "#10b981",
+    background: "#07111f",
+    description: "A lesson flow",
+    sections: ["Hook", "Explain", "Practice", "Close"],
+    style: "midnight",
+  }, "Presentation 16:9")
+
+  assert.equal(preview.actionLabel, "Use Lesson")
+  assert.deepEqual(preview.sections, ["Hook", "Explain", "Practice"])
+  assert.equal(preview.style, "midnight")
+})
+
+test("studio template preview falls back to canvas label without a template", () => {
+  const preview = buildStudioTemplatePreview(null, null, "A4 document")
+
+  assert.equal(preview.label, "A4 document")
+  assert.deepEqual(preview.sections, [])
+  assert.equal(preview.actionLabel, "")
 })
