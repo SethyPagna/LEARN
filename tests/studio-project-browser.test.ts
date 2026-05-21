@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { buildStudioProjectBrowserState, countStudioProjects, matchesStudioBrowserQuery, normalizeStudioBrowserQuery } from "../lib/studio-project-browser"
+import { buildStudioProjectBrowserState, countStudioProjects, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate } from "../lib/studio-project-browser"
 
 const projects = [
   { id: "note_1", kind: "notes" as const, title: "Operating systems note", summary: "Scheduling" },
@@ -44,4 +44,10 @@ test("studio project browser searches summaries and template bodies", () => {
   assert.equal(matchesStudioBrowserQuery(projects[0], "scheduling"), true)
   assert.equal(matchesStudioBrowserQuery(templates[1], "solution"), true)
   assert.equal(matchesStudioBrowserQuery(templates[1], "missing"), false)
+})
+
+test("studio project browser keeps a stable template preview fallback", () => {
+  assert.equal(selectStudioBrowserTemplate(templates, "Pitch")?.label, "Pitch")
+  assert.equal(selectStudioBrowserTemplate(templates, "Missing")?.label, "Lesson")
+  assert.equal(selectStudioBrowserTemplate([], "Pitch"), null)
 })
