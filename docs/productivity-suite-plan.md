@@ -244,6 +244,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Continued Studio maturity by turning slide templates into real design presets with themes, motion, speaker notes, editable objects, simpler template cards, and reliable slide navigation controls.
 - 2026-05-21: Continued Studio template maturity by adding tested rich-document and sheet design presets so templates apply visual surfaces, media areas, review tools, operational columns, and compact title-first cards.
 - 2026-05-21: Continued Studio slide polish by applying theme colors to slide objects and title/body text, adding one-click apply-to-all theme behavior, and replacing redundant ellipsis controls with clearer Layout/File actions.
+- 2026-05-21: Continued Studio slide-canvas maturity by making canvas objects selectable, focusing the properties panel on one selected object at a time, auto-selecting inserted objects, and removing always-expanded object editors.
 
 ## Implementation Slices
 
