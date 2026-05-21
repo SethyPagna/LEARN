@@ -113,7 +113,7 @@ import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, re
 import { clearStudioDraft, readStudioDrafts, shouldAnnounceStudioDraftSave, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
 import { studioFontOptions, studioFontSizeOptions, studioHighlightColorOptions, studioTextColorOptions } from "@/lib/studio-formatting"
 import { getStudioKindOption, getStudioViewModeOption, studioEmptyTabLabels, studioInspectorTabs, studioKindOptions, studioSectionFilters, studioViewModeOptions, type StudioViewMode } from "@/lib/studio-navigation"
-import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, blankNoteTitle, blankRichText, blankSheetCells, blankSheetFingerprint, blankSheetTitle, ensureSheetCells, parseDeckSlides, parseSheetCells } from "@/lib/studio-defaults"
+import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, blankNoteTitle, blankRichText, blankSheetCells, blankSheetFingerprint, blankSheetTitle, ensureSheetCells, parseDeckSlides, parseSheetCells, studioCreateLabels, studioDraftSummary, studioFallbackTitle, studioNoItemSummary } from "@/lib/studio-defaults"
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { applySlideDesignPreset, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 
@@ -151,13 +151,6 @@ type StudioPanePreview = {
   summary: string
   title: string
   updatedAt?: string
-}
-
-const studioCreateLabels: Record<StudioKind, string> = {
-  notes: "New Note",
-  docs: "New Doc",
-  sheets: "New Sheet",
-  slides: "New Deck",
 }
 
 type HeadingStyleLevel = 1 | 2 | 3
@@ -353,7 +346,7 @@ function richTextContent(value: string) {
 
 function formatStudioTabLabel(tab: StudioTab) {
   const trimmedTitle = tab.title?.trim()
-  if (!trimmedTitle || (!tab.itemId && (DRAFT_TAB_TITLE_PATTERN.test(trimmedTitle) || NUMBERED_EMPTY_TAB_PATTERN.test(trimmedTitle) || trimmedTitle === "Studio item"))) {
+  if (!trimmedTitle || (!tab.itemId && (DRAFT_TAB_TITLE_PATTERN.test(trimmedTitle) || NUMBERED_EMPTY_TAB_PATTERN.test(trimmedTitle) || trimmedTitle === studioFallbackTitle))) {
     return studioEmptyTabLabels[tab.kind]
   }
   return trimmedTitle
@@ -1346,9 +1339,9 @@ export function StudioView({
 
   function previewForPane(pane: StudioPane): StudioPanePreview {
     const tab = paneActiveTab(pane)
-    if (!tab) return { kind: "notes", title: "Studio item", summary: "No item open" }
+    if (!tab) return { kind: "notes", title: studioFallbackTitle, summary: studioNoItemSummary }
     const source = tab.itemId ? findStudioItem({ id: tab.itemId, kind: tab.kind }) : undefined
-    if (!source) return { kind: tab.kind, title: tab.title || studioCreateLabels[tab.kind], summary: "Draft pane" }
+    if (!source) return { kind: tab.kind, title: tab.title || studioCreateLabels[tab.kind], summary: studioDraftSummary }
     if (tab.kind === "notes") return { kind: tab.kind, title: (source as Note).title, summary: plainTextFromHtml((source as Note).content || "").slice(0, 180) || "Empty note", updatedAt: (source as Note).updated_at }
     if (tab.kind === "docs") return { kind: tab.kind, title: (source as WorkspaceDocument).title, summary: textFromDocument(source as WorkspaceDocument).slice(0, 180) || "Empty doc", updatedAt: (source as WorkspaceDocument).updated_at }
     if (tab.kind === "sheets") return { kind: tab.kind, title: (source as WorkspaceSheet).title, summary: `${cellsFromSheet(source as WorkspaceSheet).length} rows`, updatedAt: (source as WorkspaceSheet).updated_at }
