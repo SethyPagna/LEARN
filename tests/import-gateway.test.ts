@@ -50,7 +50,7 @@ test("import gateway follow-up actions load complete AI workflows", () => {
   const noteCleanup = buildImportFollowupAction({ kind: "cleanup", target: "note", title: "Daily Capture" })
 
   assert.equal(practice.taskKey, "practice_generator")
-  assert.equal(practice.legacyMode, "quiz")
+  assert.equal(practice.aiMode, "quiz")
   assert.equal(practice.insertTarget, "quiz")
   assert.equal(practice.sourceScope, "Uploaded files")
   assert.match(practice.message, /mixed question types/)
