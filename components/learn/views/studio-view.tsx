@@ -112,6 +112,7 @@ import {
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, replaceTextInHtml, summarizeDocumentHtml, undoHistory, type HistoryState } from "@/lib/workspace-features"
 import { clearStudioDraft, readStudioDrafts, shouldAnnounceStudioDraftSave, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
 import { studioFontOptions, studioFontSizeOptions, studioHighlightColorOptions, studioTextColorOptions } from "@/lib/studio-formatting"
+import { getStudioKindOption, getStudioViewModeOption, studioEmptyTabLabels, studioInspectorTabs, studioKindOptions, studioSectionFilters, studioViewModeOptions, type StudioViewMode } from "@/lib/studio-navigation"
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { applySlideDesignPreset, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 
@@ -120,20 +121,18 @@ const HEADING_STYLE_KEY = "learn_heading_styles_v1"
 const DRAFT_TAB_TITLE_PATTERN = /^New (Note|Doc|Sheet|Deck)$/i
 const NUMBERED_EMPTY_TAB_PATTERN = /^\d+\s+(Notes|Docs|Sheets|Slides)$/i
 
-const studioTabs: { kind: StudioKind; label: string; description: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { kind: "notes", label: "Notes", description: "Fast capture, review seeds, and daily learning reflections.", icon: FileText },
-  { kind: "docs", label: "Docs", description: "Rich study guides with headings, lists, tables, images, and AI cleanup.", icon: BookOpen },
-  { kind: "sheets", label: "Sheets", description: "Track topics, scores, resources, schedules, and lightweight formulas.", icon: Table2 },
-  { kind: "slides", label: "Slides", description: "Build lesson decks with thumbnails, canvas editing, notes, and PPTX export.", icon: Presentation },
-]
+const studioKindIcons: Record<StudioKind, React.ComponentType<{ className?: string }>> = {
+  notes: FileText,
+  docs: BookOpen,
+  sheets: Table2,
+  slides: Presentation,
+}
 
-const sections = ["All", "Notes", "Docs", "Sheets", "Slides", "Recent", "Favorites", "Archived"]
-const studioViewModes: Array<{ id: StudioViewMode; label: string; icon: React.ComponentType<{ className?: string }> }> = [
-  { id: "list", label: "List", icon: FileText },
-  { id: "board", label: "Board", icon: Columns3 },
-  { id: "gallery", label: "Gallery", icon: LayoutPanelLeft },
-]
-const inspectorTabs = ["Info", "Outline", "Comments", "History", "AI", "Export"]
+const studioViewModeIcons: Record<StudioViewMode, React.ComponentType<{ className?: string }>> = {
+  list: FileText,
+  board: Columns3,
+  gallery: LayoutPanelLeft,
+}
 
 type StudioListItem = {
   id: string
@@ -158,13 +157,6 @@ const studioCreateLabels: Record<StudioKind, string> = {
   docs: "New Doc",
   sheets: "New Sheet",
   slides: "New Deck",
-}
-
-const studioEmptyTabLabels: Record<StudioKind, string> = {
-  notes: "Notes",
-  docs: "Docs",
-  sheets: "Sheets",
-  slides: "Slides",
 }
 
 type HeadingStyleLevel = 1 | 2 | 3
@@ -296,8 +288,6 @@ const studioTemplates: Record<StudioKind, StudioTemplate[]> = {
     { label: "Debate", title: "Debate deck", body: "Claim|Position A|Frame\nCounter|Position B|Challenge\nEvidence|Compare support|Weigh\nDecision|What I believe now|Close" },
   ],
 }
-
-type StudioViewMode = "list" | "board" | "gallery"
 
 const starterCells = [
   ["Topic", "Status", "Score", "Next step"],
@@ -799,7 +789,7 @@ export function StudioView({
     }))
   }, [deckTitle, selectedDeck?.id, selectedDeck?.title, selectedDeckFingerprint, slides, slidesFingerprint])
 
-  const activeTab = studioTabs.find((tab) => tab.kind === kind) || studioTabs[0]
+  const activeTab = getStudioKindOption(kind)
   const dirtyBadgeMap = useMemo(() => new Map(dirtyBadges.map((badge) => [badge.kind, badge])), [dirtyBadges])
   const allItems = useMemo(() => {
     const needle = deferredQuery.trim().toLowerCase()
@@ -1430,8 +1420,8 @@ export function StudioView({
   const activePanes = layout.groups[0]?.panes || []
   const canUndoRedo = kind === "notes" || kind === "docs"
   const hasActiveItem = kind === "notes" ? Boolean(noteDraft) : true
-  const activeStudioTab = studioTabs.find((tab) => tab.kind === kind) || studioTabs[0]
-  const ActiveStudioIcon = activeStudioTab.icon
+  const activeStudioTab = getStudioKindOption(kind)
+  const ActiveStudioIcon = studioKindIcons[activeStudioTab.kind]
 
   return (
     <div className="grid gap-3">
@@ -1439,8 +1429,8 @@ export function StudioView({
         <div className="flex flex-wrap items-center gap-2">
           <ActionMenu label={activeStudioTab.label} icon={ActiveStudioIcon} primary>
             <div className="grid gap-1">
-              {studioTabs.map((tab) => {
-                const Icon = tab.icon
+              {studioKindOptions.map((tab) => {
+                const Icon = studioKindIcons[tab.kind]
                 const active = kind === tab.kind
                 const badge = dirtyBadgeMap.get(tab.kind)
                 return (
@@ -1651,20 +1641,20 @@ function StudioLibrary({
   })
   const virtualItems = virtualizer.getVirtualItems()
   const useVirtualList = viewMode !== "gallery" && items.length > 12
-  const activeViewMode = studioViewModes.find((item) => item.id === viewMode) || studioViewModes[0]
-  const ActiveViewIcon = activeViewMode.icon
+  const activeViewMode = getStudioViewModeOption(viewMode)
+  const ActiveViewIcon = studioViewModeIcons[activeViewMode.id]
 
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <ActionMenu label={section} icon={List} compact>
-          {sections.map((item) => (
+          {studioSectionFilters.map((item) => (
             <MenuAction key={item} active={section === item} icon={List} label={item} onClick={() => onSection(item)} />
           ))}
         </ActionMenu>
         <ActionMenu label={activeViewMode.label} icon={ActiveViewIcon} compact>
-          {studioViewModes.map((item) => (
-            <MenuAction key={item.id} active={viewMode === item.id} icon={item.icon} label={item.label} onClick={() => onViewMode(item.id)} />
+          {studioViewModeOptions.map((item) => (
+            <MenuAction key={item.id} active={viewMode === item.id} icon={studioViewModeIcons[item.id]} label={item.label} onClick={() => onViewMode(item.id)} />
           ))}
         </ActionMenu>
         <span className="rounded-md border border-border bg-background px-2.5 py-2 text-xs font-semibold text-muted-foreground">
@@ -2072,8 +2062,8 @@ function StudioPaneSurface({
   const viewKind = active ? activeKind : panePreview.kind
   const viewSummary = active ? activeSummary : panePreview.summary
   const viewTitle = active ? activeTitle : panePreview.title
-  const activeTab = studioTabs.find((tab) => tab.kind === viewKind) || studioTabs[0]
-  const Icon = activeTab.icon
+  const activeTab = getStudioKindOption(viewKind)
+  const Icon = studioKindIcons[activeTab.kind]
   const activePaneTab = pane.tabs.find((tab) => tab.id === pane.activeTabId) || pane.tabs[0]
   const itemTabs = pane.tabs.filter((tab) => tab.itemId)
   const visiblePaneTabs = itemTabs.length > 0
@@ -2192,8 +2182,8 @@ function StudioPaneSurface({
 }
 
 function StudioPanePreviewCard({ onOpen, preview }: { onOpen: () => void; preview: StudioPanePreview }) {
-  const tab = studioTabs.find((item) => item.kind === preview.kind) || studioTabs[0]
-  const Icon = tab.icon
+  const tab = getStudioKindOption(preview.kind)
+  const Icon = studioKindIcons[tab.kind]
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center p-4">
       <button onClick={onOpen} className="w-full max-w-md rounded-md border border-border bg-background p-4 text-left shadow-sm transition hover:border-primary/60 hover:bg-accent/40">
@@ -2808,7 +2798,7 @@ function StudioInspector({
       <label className="mb-3 grid gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         Inspector
         <select value={inspectorTab} onChange={(event) => onSetInspectorTab(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-sm font-semibold normal-case tracking-normal text-foreground">
-          {inspectorTabs.map((tab) => <option key={tab} value={tab}>{tab}</option>)}
+          {studioInspectorTabs.map((tab) => <option key={tab} value={tab}>{tab}</option>)}
         </select>
       </label>
       <div className="space-y-3 text-sm">
