@@ -20,6 +20,7 @@ import {
 import { buildGamePracticeSessionDraft, buildQuizPracticeSessionDraft, buildReviewCardsFromPracticeItems, type PracticeSessionDraft, type PracticeSessionQuestion } from "./practice-sessions"
 import { createId, ensureDatabase, logAudit } from "./schema"
 import { normalizeConnectionInput, normalizeSocialActionInput, normalizeSocialTargetType } from "./sharing"
+import { blankDeckTitle, blankDocTitle, blankSheetTitle } from "./studio-defaults"
 
 export const SESSION_COOKIE = "learn_session"
 const DEFAULT_WORKSPACE_ID = "workspace_demo"
@@ -635,13 +636,13 @@ export async function saveEditorDocument(user: User, input: Record<string, unkno
     [
       id,
       user.id,
-      String(input.title || "Untitled document").trim(),
+      String(input.title || blankDocTitle).trim(),
       documentType,
       JSON.stringify(input.content || {}),
       JSON.stringify(Array.isArray(input.tags) ? input.tags : []),
     ],
   )
-  const title = String(input.title || "Untitled document").trim()
+  const title = String(input.title || blankDocTitle).trim()
   const content = input.content || {}
   const contentItem = await upsertContentItemForSource({
     workspaceId: DEFAULT_WORKSPACE_ID,
@@ -711,12 +712,12 @@ export async function saveSheet(user: User, input: Record<string, unknown>) {
     [
       id,
       user.id,
-      String(input.title || "Untitled sheet").trim(),
+      String(input.title || blankSheetTitle).trim(),
       JSON.stringify(Array.isArray(input.cells) ? input.cells : []),
       JSON.stringify(Array.isArray(input.history) ? input.history : []),
     ],
   )
-  const title = String(input.title || "Untitled sheet").trim()
+  const title = String(input.title || blankSheetTitle).trim()
   const cells = Array.isArray(input.cells) ? input.cells : []
   const contentItem = await upsertContentItemForSource({
     workspaceId: DEFAULT_WORKSPACE_ID,
@@ -785,12 +786,12 @@ export async function saveSlideDeck(user: User, input: Record<string, unknown>) 
     [
       id,
       user.id,
-      String(input.title || "Untitled deck").trim(),
+      String(input.title || blankDeckTitle).trim(),
       JSON.stringify(Array.isArray(input.slides) ? input.slides : []),
       JSON.stringify(input.speakerNotes || input.speaker_notes || {}),
     ],
   )
-  const title = String(input.title || "Untitled deck").trim()
+  const title = String(input.title || blankDeckTitle).trim()
   const slides = Array.isArray(input.slides) ? input.slides : []
   const speakerNotes = input.speakerNotes || input.speaker_notes || {}
   const contentItem = await upsertContentItemForSource({
