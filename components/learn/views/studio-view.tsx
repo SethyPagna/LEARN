@@ -111,6 +111,7 @@ import {
 } from "@/lib/studio-features"
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, replaceTextInHtml, summarizeDocumentHtml, undoHistory, type HistoryState } from "@/lib/workspace-features"
 import { clearStudioDraft, readStudioDrafts, shouldAnnounceStudioDraftSave, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
+import { studioFontOptions, studioFontSizeOptions, studioHighlightColorOptions, studioTextColorOptions } from "@/lib/studio-formatting"
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { applySlideDesignPreset, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 
@@ -165,37 +166,6 @@ const studioEmptyTabLabels: Record<StudioKind, string> = {
   sheets: "Sheets",
   slides: "Slides",
 }
-
-const fontOptions = [
-  { label: "Aptos", value: "Aptos, Inter, sans-serif" },
-  { label: "Calibri", value: "Calibri, Inter, sans-serif" },
-  { label: "Inter", value: "Inter, sans-serif" },
-  { label: "Arial", value: "Arial, sans-serif" },
-  { label: "Georgia", value: "Georgia, serif" },
-  { label: "Times New Roman", value: "'Times New Roman', serif" },
-  { label: "Mono", value: "'Courier New', monospace" },
-]
-
-const fontSizeOptions = ["8px", "9px", "10px", "11px", "12px", "14px", "16px", "18px", "20px", "24px", "28px", "32px", "36px", "48px", "72px"].map((value) => ({
-  label: value.replace("px", ""),
-  value,
-}))
-
-const textColorOptions = [
-  { label: "Default", value: "inherit" },
-  { label: "Ink", value: "#111827" },
-  { label: "Blue", value: "#2563eb" },
-  { label: "Green", value: "#059669" },
-  { label: "Red", value: "#dc2626" },
-  { label: "Purple", value: "#7c3aed" },
-]
-
-const highlightColorOptions = [
-  { label: "Yellow", value: "#fef08a" },
-  { label: "Green", value: "#bbf7d0" },
-  { label: "Blue", value: "#bfdbfe" },
-  { label: "Pink", value: "#fbcfe8" },
-]
 
 type HeadingStyleLevel = 1 | 2 | 3
 type HeadingStylePreset = {
@@ -2744,8 +2714,8 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
         <MenuAction icon={Paintbrush} label="Update H2 from selection" onClick={() => saveHeadingStyle(2)} />
         <MenuAction icon={Paintbrush} label="Update H3 from selection" onClick={() => saveHeadingStyle(3)} />
         <MenuAction icon={RotateCcw} label="Reset saved headings" onClick={resetHeadingStyles} />
-        <MenuSelect label="Font" onChange={(value) => run((item) => item.chain().focus().setFontFamily(value).run())} options={fontOptions} />
-        <MenuSelect label="Size" onChange={(value) => run((item) => item.chain().focus().setMark("textStyle", { fontSize: value }).run())} options={fontSizeOptions} />
+        <MenuSelect label="Font" onChange={(value) => run((item) => item.chain().focus().setFontFamily(value).run())} options={studioFontOptions} />
+        <MenuSelect label="Size" onChange={(value) => run((item) => item.chain().focus().setMark("textStyle", { fontSize: value }).run())} options={studioFontSizeOptions} />
       </ActionMenu>
       <ActionMenu label="Text" icon={Bold}>
         <MenuAction icon={Bold} label="Bold" onClick={() => run((item) => item.chain().focus().toggleBold().run())} />
@@ -2753,8 +2723,8 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
         <MenuAction icon={UnderlineIcon} label="Underline" onClick={() => run((item) => item.chain().focus().toggleUnderline().run())} />
         <MenuAction icon={Strikethrough} label="Strike" onClick={() => run((item) => item.chain().focus().toggleStrike().run())} />
         <MenuAction icon={Braces} label="Inline code" onClick={() => run((item) => item.chain().focus().toggleCode().run())} />
-        <MenuSelect label="Text color" onChange={(value) => run((item) => value === "inherit" ? item.chain().focus().unsetColor().run() : item.chain().focus().setColor(value).run())} options={textColorOptions} />
-        <MenuSelect label="Highlight" onChange={(value) => run((item) => item.chain().focus().toggleHighlight({ color: value }).run())} options={highlightColorOptions} />
+        <MenuSelect label="Text color" onChange={(value) => run((item) => value === "inherit" ? item.chain().focus().unsetColor().run() : item.chain().focus().setColor(value).run())} options={studioTextColorOptions} />
+        <MenuSelect label="Highlight" onChange={(value) => run((item) => item.chain().focus().toggleHighlight({ color: value }).run())} options={studioHighlightColorOptions} />
       </ActionMenu>
       <ActionMenu label="Paragraph" icon={AlignLeft}>
         <MenuAction icon={AlignLeft} label="Align left" onClick={() => run((item) => item.chain().focus().setTextAlign("left").run())} />
