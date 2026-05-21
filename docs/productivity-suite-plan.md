@@ -241,6 +241,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Continued Studio label cleanup by centralizing create labels, preview fallbacks, and draft/no-item summaries in the shared Studio defaults helper.
 - 2026-05-21: Continued Studio fallback cleanup by reusing the shared fallback title in layout defaults and Dashboard recent-work cards.
 - 2026-05-21: Continued Social declutter by moving Social's Chat/Groups/Live/Battles navigation into a page subsidebar and folding starter, calls, and creation tools into compact drawers.
+- 2026-05-21: Continued Studio maturity by turning slide templates into real design presets with themes, motion, speaker notes, editable objects, simpler template cards, and reliable slide navigation controls.
 
 ## Implementation Slices
 
