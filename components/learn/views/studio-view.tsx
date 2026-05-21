@@ -33,6 +33,10 @@ import {
   AlignLeft,
   AlignRight,
   Archive,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
   Bold,
   BookOpen,
   Bot,
@@ -116,7 +120,7 @@ import { studioFontOptions, studioFontSizeOptions, studioHighlightColorOptions, 
 import { getStudioKindOption, getStudioViewModeOption, studioEmptyTabLabels, studioInspectorTabs, studioKindOptions, studioSectionFilters, studioViewModeOptions, type StudioViewMode } from "@/lib/studio-navigation"
 import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, blankNoteTitle, blankRichText, blankSheetCells, blankSheetFingerprint, blankSheetTitle, ensureSheetCells, parseDeckSlides, parseSheetCells, studioCreateLabels, studioDraftSummary, studioFallbackTitle, studioNoItemSummary } from "@/lib/studio-defaults"
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
-import { applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
+import { applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
 const HEADING_STYLE_KEY = "learn_heading_styles_v1"
@@ -2343,6 +2347,18 @@ function StudioCanvas({
   const updateSelectedObjectStyle = (object: SlideObject, patch: Record<string, unknown>) => {
     updateSelectedObject(object, { style: { ...(object.style || {}), ...patch } })
   }
+  const duplicateSelectedObject = (object: SlideObject) => {
+    updateSelectedSlide((slide) => duplicateSlideDesignObject(slide, object.id))
+  }
+  const nudgeSelectedObject = (object: SlideObject, direction: "up" | "down" | "left" | "right") => {
+    updateSelectedSlide((slide) => nudgeSlideDesignObject(slide, object.id, direction))
+  }
+  const reorderSelectedObject = (object: SlideObject, direction: "front" | "back" | "forward" | "backward") => {
+    updateSelectedSlide((slide) => reorderSlideDesignObject(slide, object.id, direction))
+  }
+  const resizeSelectedObject = (object: SlideObject, preset: "wide" | "tall" | "compact" | "hero") => {
+    updateSelectedSlide((slide) => resizeSlideDesignObject(slide, object.id, preset))
+  }
   const slideIds = slides.map((_, index) => `slide-${index}`)
   const handleSlideDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
@@ -2473,16 +2489,21 @@ function StudioCanvas({
               <div className="grid gap-2 rounded-md border border-border bg-card p-2">
                 <div className="flex items-center justify-between gap-2">
                   <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{selectedObject.type}</span>
-                  <button
-                    onClick={() => {
+                  <ActionMenu align="right" compact label="Object" icon={Settings2}>
+                    <MenuAction icon={Copy} label="Duplicate" onClick={() => duplicateSelectedObject(selectedObject)} />
+                    <MenuAction icon={ArrowUp} label="Nudge up" onClick={() => nudgeSelectedObject(selectedObject, "up")} />
+                    <MenuAction icon={ArrowDown} label="Nudge down" onClick={() => nudgeSelectedObject(selectedObject, "down")} />
+                    <MenuAction icon={ArrowLeft} label="Nudge left" onClick={() => nudgeSelectedObject(selectedObject, "left")} />
+                    <MenuAction icon={ArrowRight} label="Nudge right" onClick={() => nudgeSelectedObject(selectedObject, "right")} />
+                    <MenuAction icon={Maximize2} label="Bring to front" onClick={() => reorderSelectedObject(selectedObject, "front")} />
+                    <MenuAction icon={Minus} label="Send to back" onClick={() => reorderSelectedObject(selectedObject, "back")} />
+                    <MenuAction icon={Columns3} label="Wide size" onClick={() => resizeSelectedObject(selectedObject, "wide")} />
+                    <MenuAction icon={Rows3} label="Tall size" onClick={() => resizeSelectedObject(selectedObject, "tall")} />
+                    <MenuAction danger icon={Trash2} label="Delete" onClick={() => {
                       updateSelectedSlide((slide) => removeSlideDesignObject(slide, selectedObject.id))
                       setSelectedObjectId("")
-                    }}
-                    className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground hover:bg-destructive hover:text-destructive-foreground"
-                    type="button"
-                  >
-                    Delete
-                  </button>
+                    }} />
+                  </ActionMenu>
                 </div>
                 <input
                   value={selectedObject.text || ""}
