@@ -248,6 +248,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Continued Studio slide-object tooling by adding tested duplicate, nudge, resize, and layer-order helpers plus a compact Object menu for selected canvas objects.
 - 2026-05-21: Continued Studio slide-object alignment by adding tested left, center, right, top, and bottom alignment helpers and wiring them into the compact Object menu.
 - 2026-05-21: Continued Studio slide-object workflow by adding right-click canvas menus for duplicate, nudge, align, layer order, size presets, and delete actions without adding more always-visible buttons.
+- 2026-05-21: Began the Canva-style Studio redesign by adding a project-browser entry, universal canvas dimensions, collapsible tool rails, Back/New design actions, and page-like document/slides surfaces.
 
 ## Implementation Slices
 
