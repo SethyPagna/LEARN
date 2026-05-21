@@ -10,42 +10,56 @@ import { menuSurfaceClasses, statusToneClasses, toneTextClasses, type UiTone } f
 import { buildAiGatewayReadiness } from "@/lib/ai/gateway-readiness"
 import { buildGuidedPrompt, listInsertActions, normalizeStudioInsertTarget, promptContracts, studioInsertTargets } from "@/lib/ai/prompt-builder"
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
-import { buildAiTutorPrimaryActionPlan, buildAiTutorSourceContext, getRecommendedAiTutorTokens, resolveAiTutorEffectiveTokens, resolveAiTutorSourceScopeAfterUpload, splitPromptPreview, summarizeAiTutorUploadedSource, summarizeAiTutorWorkflow } from "@/lib/ai/tutor-workflow"
+import {
+  aiTutorDifficulties,
+  aiTutorLanguages,
+  aiTutorModeGroups,
+  aiTutorModeOptions,
+  aiTutorOutputLengths,
+  aiTutorSourceScopes,
+  aiTutorTokenPresets,
+  aiTutorTones,
+  buildAiTutorPrimaryActionPlan,
+  buildAiTutorSourceContext,
+  getAiTutorModeGroupForTask,
+  getAiTutorModeOption,
+  getRecommendedAiTutorTokens,
+  resolveAiTutorEffectiveTokens,
+  resolveAiTutorSourceScopeAfterUpload,
+  splitPromptPreview,
+  summarizeAiTutorUploadedSource,
+  summarizeAiTutorWorkflow,
+  type AiTutorModeGroupId,
+} from "@/lib/ai/tutor-workflow"
 import type { AiTaskKey } from "@/lib/ai/prompt-library"
 import { buildImportFollowupAction, getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, previewImportedLearningContent, type ImportFollowupKind, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 
-const tutorModes = [
-  { id: "answer_explanation", mode: "mistake", label: "Mistake", icon: Sparkles, prompt: "Explain the mistake, repair the misconception, and create a short retry drill." },
-  { id: "note_design", mode: "rewrite", label: "Rewrite", icon: Wand2, prompt: "Rewrite this into a clean study page with headings, callouts, examples, and review prompts." },
-  { id: "quiz_generation", mode: "quiz", label: "Quiz", icon: CheckSquare, prompt: "Generate a mixed quiz with MCQ, true/false, fill-in-the-blank, and explanations." },
-  { id: "flashcard_generation", mode: "flashcards", label: "Flashcards", icon: Brain, prompt: "Create active-recall flashcards and a tiny memory game from this context." },
-  { id: "study_plan", mode: "route", label: "Study Plan", icon: Route, prompt: "Create a targeted 7-day study route with daily focus, review, and practice." },
-  { id: "document_formatter", mode: "cleanup", label: "Docs", icon: FileText, prompt: "Format raw material into a Studio document with blocks, callouts, and review questions." },
-  { id: "document_editor", mode: "cleanup", label: "Doc Edit", icon: FileText, prompt: "Edit this document for hierarchy, flow, references, and study usefulness." },
-  { id: "sheet_organizer", mode: "cleanup", label: "Sheets", icon: ListFilter, prompt: "Organize messy data into spreadsheet columns, rows, filters, and validation notes." },
-  { id: "sheet_formula_builder", mode: "cleanup", label: "Formulas", icon: ListFilter, prompt: "Design useful formulas, validation rules, filters, and chart suggestions for this sheet." },
-  { id: "slide_builder", mode: "cleanup", label: "Slides", icon: Sparkles, prompt: "Build a concise lesson deck with layouts, objects, and speaker notes." },
-  { id: "slide_design_director", mode: "cleanup", label: "Deck Design", icon: Sparkles, prompt: "Design a teaching deck with visual hierarchy, transitions, animations, timing, and presenter notes." },
-  { id: "practice_generator", mode: "quiz", label: "Practice", icon: Gauge, prompt: "Create targeted practice with timing, explanations, retry set, and review cards." },
-  { id: "personalized_prompt", mode: "coach", label: "Prompt", icon: Bot, prompt: "Compose a precise personalized prompt with requirements and output format." },
-  { id: "translation", mode: "translate", label: "Translate", icon: Languages, prompt: "Translate and simplify this learning material while preserving key terms." },
-] 
+const tutorModeIcons: Record<AiTaskKey, React.ComponentType<{ className?: string }>> = {
+  answer_explanation: Sparkles,
+  note_design: Wand2,
+  quiz_generation: CheckSquare,
+  flashcard_generation: Brain,
+  study_plan: Route,
+  document_formatter: FileText,
+  document_editor: FileText,
+  sheet_organizer: ListFilter,
+  sheet_formula_builder: ListFilter,
+  slide_builder: Sparkles,
+  slide_design_director: Sparkles,
+  practice_generator: Gauge,
+  personalized_prompt: Bot,
+  translation: Languages,
+  question_import: UploadCloud,
+  answer_normalization: CheckSquare,
+  content_beautification: Wand2,
+  provider_health_check: Gauge,
+  provider_failover_review: Gauge,
+  daily_spark: Sparkles,
+  graph_edge_suggestion: Route,
+}
 
-const sourceScopes = ["Recent notes", "Active Studio item", "Weak topics", "Uploaded files", "Manual only"]
-const difficulties = ["Adaptive", "Beginner", "Intermediate", "Advanced", "Exam prep"]
-const tones = ["Kind", "Direct", "Socratic", "Concise", "Detailed"]
-const outputLengths = ["Short", "Balanced", "Deep", "Max"]
-const languages = ["English", "Khmer", "French", "Spanish", "Korean", "Japanese", "Chinese"]
-const tokenPresets = [2048, 4096, 8192, 16384]
 const AI_TUTOR_DRAFT_KEY = "learn_ai_tutor_draft_v1"
 const DEFAULT_AI_MESSAGE = "Create a study plan from my recent notes."
-const tutorModeGroups = [
-  { id: "all", label: "All", modes: tutorModes.map((mode) => mode.id) },
-  { id: "tutor", label: "Tutor", modes: ["answer_explanation", "study_plan", "personalized_prompt", "translation"] },
-  { id: "studio", label: "Studio", modes: ["note_design", "document_formatter", "document_editor", "sheet_organizer", "sheet_formula_builder", "slide_builder", "slide_design_director"] },
-  { id: "practice", label: "Practice", modes: ["quiz_generation", "flashcard_generation", "practice_generator"] },
-] as const
-type TutorModeGroupId = (typeof tutorModeGroups)[number]["id"]
 type TutorMenuId = "task" | "filters" | "gateway"
 
 type AiTutorDraft = {
@@ -97,23 +111,23 @@ export function AiTutorView({
   const [importLoading, setImportLoading] = useState(false)
   const [lastImport, setLastImport] = useState<{ target: ImportTarget; title: string } | null>(null)
   const [lastImportText, setLastImportText] = useState("")
-  const [sourceScope, setSourceScope] = useState(sourceScopes[0])
-  const [difficulty, setDifficulty] = useState(difficulties[0])
-  const [tone, setTone] = useState(tones[0])
-  const [outputLength, setOutputLength] = useState(outputLengths[1])
-  const [language, setLanguage] = useState(languages[0])
+  const [sourceScope, setSourceScope] = useState(aiTutorSourceScopes[0])
+  const [difficulty, setDifficulty] = useState(aiTutorDifficulties[0])
+  const [tone, setTone] = useState(aiTutorTones[0])
+  const [outputLength, setOutputLength] = useState(aiTutorOutputLengths[1])
+  const [language, setLanguage] = useState(aiTutorLanguages[0])
   const [providerFamily, setProviderFamily] = useState("auto")
   const [insertTarget, setInsertTarget] = useState<StudioInsertTarget>("ai-note")
   const [targetAudience, setTargetAudience] = useState("Self-directed learner")
   const [requiredOutput, setRequiredOutput] = useState("Clear sections, compact examples, and one next action.")
-  const [activeTaskKey, setActiveTaskKey] = useState(tutorModes[0].id)
-  const [modeGroup, setModeGroup] = useState<TutorModeGroupId>("tutor")
+  const [activeTaskKey, setActiveTaskKey] = useState(aiTutorModeOptions[0].id)
+  const [modeGroup, setModeGroup] = useState<AiTutorModeGroupId>("tutor")
   const [openTutorMenu, setOpenTutorMenu] = useState<TutorMenuId | null>(null)
   const [sidePanel, setSidePanel] = useState<"gateway" | "import" | "presets">("gateway")
   const draftHydrated = useRef(false)
   const draftStatusTimer = useRef<number | null>(null)
 
-  const activeMode = useMemo(() => tutorModes.find((mode) => mode.id === activeTaskKey) || tutorModes[0], [activeTaskKey])
+  const activeMode = useMemo(() => getAiTutorModeOption(activeTaskKey), [activeTaskKey])
   const recentContext = useMemo(() => notes.slice(0, 5).map((note) => `${note.title}: ${note.content}`).join("\n\n"), [notes])
   const uploadedContext = useMemo(() => (importText || lastImportText).trim(), [importText, lastImportText])
   const sourceContext = useMemo(() => buildAiTutorSourceContext({
@@ -199,18 +213,19 @@ export function AiTutorView({
       setImportTarget(normalizeImportTargetSelection(draft.importTarget))
       setLastImport(draft.lastImport || null)
       setLastImportText(draft.lastImportText || "")
-      setSourceScope(normalizeChoice(draft.sourceScope, sourceScopes, sourceScopes[0]))
-      setDifficulty(normalizeChoice(draft.difficulty, difficulties, difficulties[0]))
-      setTone(normalizeChoice(draft.tone, tones, tones[0]))
-      setOutputLength(normalizeChoice(draft.outputLength, outputLengths, outputLengths[1]))
-      setLanguage(normalizeChoice(draft.language, languages, languages[0]))
+      setSourceScope(normalizeChoice(draft.sourceScope, aiTutorSourceScopes, aiTutorSourceScopes[0]))
+      setDifficulty(normalizeChoice(draft.difficulty, aiTutorDifficulties, aiTutorDifficulties[0]))
+      setTone(normalizeChoice(draft.tone, aiTutorTones, aiTutorTones[0]))
+      setOutputLength(normalizeChoice(draft.outputLength, aiTutorOutputLengths, aiTutorOutputLengths[1]))
+      setLanguage(normalizeChoice(draft.language, aiTutorLanguages, aiTutorLanguages[0]))
       setProviderFamily(draft.providerFamily || "auto")
       setInsertTarget(normalizeStudioInsertTarget(draft.insertTarget))
       setTargetAudience(draft.targetAudience || "Self-directed learner")
       setRequiredOutput(draft.requiredOutput || "Clear sections, compact examples, and one next action.")
-      if (tutorModes.some((mode) => mode.id === draft.activeTaskKey)) {
-        setActiveTaskKey(draft.activeTaskKey)
-        setModeGroup(modeGroupForTask(draft.activeTaskKey))
+      const restoredTask = getAiTutorModeOption(draft.activeTaskKey)
+      if (restoredTask.id === draft.activeTaskKey) {
+        setActiveTaskKey(restoredTask.id)
+        setModeGroup(getAiTutorModeGroupForTask(restoredTask.id))
       }
     }
     draftHydrated.current = true
@@ -257,16 +272,16 @@ export function AiTutorView({
     setImportTarget("auto")
     setLastImport(null)
     setLastImportText("")
-    setSourceScope(sourceScopes[0])
-    setDifficulty(difficulties[0])
-    setTone(tones[0])
-    setOutputLength(outputLengths[1])
-    setLanguage(languages[0])
+    setSourceScope(aiTutorSourceScopes[0])
+    setDifficulty(aiTutorDifficulties[0])
+    setTone(aiTutorTones[0])
+    setOutputLength(aiTutorOutputLengths[1])
+    setLanguage(aiTutorLanguages[0])
     setProviderFamily("auto")
     setInsertTarget("ai-note")
     setTargetAudience("Self-directed learner")
     setRequiredOutput("Clear sections, compact examples, and one next action.")
-    setActiveTaskKey(tutorModes[0].id)
+    setActiveTaskKey(aiTutorModeOptions[0].id)
     setModeGroup("tutor")
     clearAiTutorDraft()
     setDraftStatus("Draft reset")
@@ -436,9 +451,9 @@ export function AiTutorView({
   }
 
   function useReplyAsPrompt(taskKey: AiTaskKey, instruction: string, target: StudioInsertTarget) {
-    const nextMode = tutorModes.find((mode) => mode.id === taskKey)
+    const nextMode = getAiTutorModeOption(taskKey)
     setActiveTaskKey(taskKey)
-    setModeGroup(modeGroupForTask(taskKey))
+    setModeGroup(getAiTutorModeGroupForTask(taskKey))
     setInsertTarget(target)
     setSourceScope("Manual only")
     if (nextMode) setOptions({ aiMode: nextMode.mode as WorkspaceOptions["aiMode"] })
@@ -450,7 +465,7 @@ export function AiTutorView({
     if (!lastImport) return
     const action = buildImportFollowupAction({ kind, title: lastImport.title, target: lastImport.target })
     setActiveTaskKey(action.taskKey)
-    setModeGroup(modeGroupForTask(action.taskKey))
+    setModeGroup(getAiTutorModeGroupForTask(action.taskKey))
     setOptions({ aiMode: action.aiMode as WorkspaceOptions["aiMode"] })
     setSourceScope(action.sourceScope)
     setInsertTarget(action.insertTarget)
@@ -472,8 +487,8 @@ export function AiTutorView({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 self-start rounded-lg border border-border bg-background p-2 shadow-sm lg:justify-end">
-            <TutorMenu label={`Task: ${activeMode.label}`} icon={activeMode.icon} menuId="task" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
-              {tutorModeGroups.map((group) => (
+            <TutorMenu label={`Task: ${activeMode.label}`} icon={tutorModeIcons[activeMode.id]} menuId="task" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
+              {aiTutorModeGroups.map((group) => (
                 <div key={group.id} className="grid gap-1">
                   <ControlButton
                     onClick={() => setModeGroup(group.id)}
@@ -485,18 +500,18 @@ export function AiTutorView({
                     {group.label}
                     <span className="text-[0.66rem] opacity-70">{group.modes.length}</span>
                   </ControlButton>
-                  {tutorModes
-                    .filter((mode) => (group.modes as readonly string[]).includes(mode.id))
+                  {aiTutorModeOptions
+                    .filter((mode) => group.modes.includes(mode.id))
                     .map((item) => (
                       <TutorMenuAction
                         key={`${group.id}-${item.id}`}
                         active={activeMode.id === item.id}
-                        icon={item.icon}
+                        icon={tutorModeIcons[item.id]}
                         label={item.label}
                         meta={item.prompt}
                         onClick={() => {
                           setActiveTaskKey(item.id)
-                          setModeGroup(modeGroupForTask(item.id))
+                          setModeGroup(getAiTutorModeGroupForTask(item.id))
                           setOptions({ aiMode: item.mode as WorkspaceOptions["aiMode"] })
                           setMessage(item.prompt)
                           setOpenTutorMenu(null)
@@ -508,11 +523,11 @@ export function AiTutorView({
             </TutorMenu>
             <TutorMenu label="Filters" icon={SlidersHorizontal} menuId="filters" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
               <TutorMenuSection title="Context">
-                <TutorMenuSelect label="Source" value={sourceScope} values={sourceScopes} onChange={setSourceScope} />
-                <TutorMenuSelect label="Difficulty" value={difficulty} values={difficulties} onChange={setDifficulty} />
-                <TutorMenuSelect label="Tone" value={tone} values={tones} onChange={setTone} />
-                <TutorMenuSelect label="Length" value={outputLength} values={outputLengths} onChange={chooseOutputLength} />
-                <TutorMenuSelect label="Language" value={language} values={languages} onChange={setLanguage} />
+                <TutorMenuSelect label="Source" value={sourceScope} values={aiTutorSourceScopes} onChange={setSourceScope} />
+                <TutorMenuSelect label="Difficulty" value={difficulty} values={aiTutorDifficulties} onChange={setDifficulty} />
+                <TutorMenuSelect label="Tone" value={tone} values={aiTutorTones} onChange={setTone} />
+                <TutorMenuSelect label="Length" value={outputLength} values={aiTutorOutputLengths} onChange={chooseOutputLength} />
+                <TutorMenuSelect label="Language" value={language} values={aiTutorLanguages} onChange={setLanguage} />
                 <TutorMenuSelect label="Insert" value={insertTarget} values={availableInsertTargets} onChange={(value) => setInsertTarget(value as StudioInsertTarget)} />
                 <TutorMenuToggle checked={options.aiIncludeNotes} label="Include recent notes" onChange={(checked) => setOptions({ aiIncludeNotes: checked })} />
               </TutorMenuSection>
@@ -529,7 +544,7 @@ export function AiTutorView({
                 <div className="grid gap-1">
                   <span className="text-xs font-semibold text-muted-foreground">Max tokens</span>
                   <div className="grid grid-cols-4 gap-1">
-                    {tokenPresets.map((tokens) => (
+                    {aiTutorTokenPresets.map((tokens) => (
                       <button key={tokens} onClick={() => setOptions({ aiMaxTokens: tokens })} className={`h-8 rounded-md border px-2 text-xs font-semibold ${options.aiMaxTokens === tokens ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} type="button">
                         {tokens}
                       </button>
@@ -952,10 +967,6 @@ function clearAiTutorDraft() {
 
 function normalizeChoice(value: string, options: string[], fallback: string) {
   return options.includes(value) ? value : fallback
-}
-
-function modeGroupForTask(taskId: string): TutorModeGroupId {
-  return tutorModeGroups.find((group) => group.id !== "all" && (group.modes as readonly string[]).includes(taskId))?.id ?? "all"
 }
 
 function buildPromptFields(message: string, recentContext: string, targetAudience: string, requiredOutput: string, difficulty: string, tone: string, outputLength: string, language: string) {
