@@ -2198,6 +2198,23 @@ function StudioCanvas({
   slides: WorkspaceDeck["slides"]
   updateCell: (rowIndex: number, cellIndex: number, value: string) => void
 }) {
+  const [selectedObjectId, setSelectedObjectId] = useState("")
+  const activeSlide = activeKind === "slides" ? slides[selectedSlideIndex] || slides[0] : undefined
+  useEffect(() => {
+    if (activeKind !== "slides") {
+      if (selectedObjectId) setSelectedObjectId("")
+      return
+    }
+    const objects = activeSlide?.objects || []
+    if (!objects.length && selectedObjectId) {
+      setSelectedObjectId("")
+      return
+    }
+    if (objects.length && !objects.some((object) => object.id === selectedObjectId)) {
+      setSelectedObjectId(objects[0]?.id || "")
+    }
+  }, [activeKind, activeSlide?.objects, selectedObjectId])
+
   if (activeKind === "notes") {
     if (!noteDraft) return <EmptyState title="No note selected" body="Create or choose a note to begin capturing your learning." />
     return <RichTextEditor value={noteHistory.present} onChange={(value) => onSetNoteHistory(pushHistory(noteHistory, value))} large={options.noteEditorSize === "large"} placeholder="Write notes, formulas, reflections, links, media cues, and AI-generated drafts..." />
@@ -2306,11 +2323,26 @@ function StudioCanvas({
     )
   }
 
-  const selectedSlide = slides[selectedSlideIndex] || slides[0]
-  const slideShowSummary = useMemo(() => summarizeSlideShow(slides), [slides])
+  const selectedSlide = activeSlide
+  const selectedObject = selectedSlide?.objects?.find((object) => object.id === selectedObjectId) || null
+  const slideShowSummary = summarizeSlideShow(slides)
   const selectedTransition = slideTransitionPresets[selectedSlide?.transition || "none"]
   const selectedAnimation = slideAnimationPresets[selectedSlide?.animation || "none"]
   const selectedPalette = slideDesignPresets[(selectedSlide?.theme || "midnight") as keyof typeof slideDesignPresets] || slideDesignPresets.midnight
+  const updateSelectedSlide = (updater: (slide: WorkspaceDeck["slides"][number]) => WorkspaceDeck["slides"][number]) => {
+    onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? updater(item) : item))
+  }
+  const addSlideObject = (type: SlideObject["type"]) => {
+    const object = createSlideDesignObject(type)
+    updateSelectedSlide((slide) => ({ ...slide, objects: [...(slide.objects || []), object] }))
+    setSelectedObjectId(object.id)
+  }
+  const updateSelectedObject = (object: SlideObject, patch: Partial<SlideObject>) => {
+    updateSelectedSlide((slide) => updateSlideDesignObject(slide, object.id, patch))
+  }
+  const updateSelectedObjectStyle = (object: SlideObject, patch: Record<string, unknown>) => {
+    updateSelectedObject(object, { style: { ...(object.style || {}), ...patch } })
+  }
   const slideIds = slides.map((_, index) => `slide-${index}`)
   const handleSlideDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
@@ -2370,7 +2402,14 @@ function StudioCanvas({
             <textarea value={selectedSlide.body} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, body: event.target.value } : item))} className="mt-5 min-h-32 flex-1 resize-none bg-transparent text-lg leading-8 outline-none" style={{ color: selectedPalette.foreground }} />
           </div>
         ) : null}
-        {selectedSlide?.objects?.map((object) => <SlideCanvasObject key={object.id} object={object} />)}
+        {selectedSlide?.objects?.map((object) => (
+          <SlideCanvasObject
+            key={object.id}
+            active={object.id === selectedObjectId}
+            object={object}
+            onSelect={() => setSelectedObjectId(object.id)}
+          />
+        ))}
       </div>
       <div className="grid gap-3">
         <div className="grid grid-cols-3 gap-2 rounded-md border border-border bg-card p-2 text-center text-xs">
@@ -2394,10 +2433,10 @@ function StudioCanvas({
           <p className="mx-2 rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{selectedAnimation.description}</p>
         </ActionMenu>
         <ActionMenu label="Insert" icon={Plus}>
-          <MenuAction icon={Type} label="Text box" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("text")] } : item))} />
-          <MenuAction icon={LayoutPanelLeft} label="Shape" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("shape")] } : item))} />
-          <MenuAction icon={ImageIcon} label="Image" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("image")] } : item))} />
-          <MenuAction icon={Table2} label="Table" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("table")] } : item))} />
+          <MenuAction icon={Type} label="Text box" onClick={() => addSlideObject("text")} />
+          <MenuAction icon={LayoutPanelLeft} label="Shape" onClick={() => addSlideObject("shape")} />
+          <MenuAction icon={ImageIcon} label="Image" onClick={() => addSlideObject("image")} />
+          <MenuAction icon={Table2} label="Table" onClick={() => addSlideObject("table")} />
         </ActionMenu>
         <ActionMenu label="Arrange" icon={Scissors}>
           <MenuAction icon={ChevronDown} label="Move up" onClick={() => { onSetSlides((current) => moveSlide(current, selectedSlideIndex, -1)); goToSlide(-1) }} />
@@ -2414,28 +2453,47 @@ function StudioCanvas({
         </details>
         {selectedSlide?.objects?.length ? (
           <div className="grid gap-2 rounded-md border border-border bg-background p-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Objects</p>
-            {selectedSlide.objects.map((object) => (
-              <div key={object.id} className="grid gap-2 rounded-md border border-border bg-card p-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Objects</p>
+              <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{selectedSlide.objects.length}</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {selectedSlide.objects.map((object, index) => (
+                <button
+                  key={object.id}
+                  onClick={() => setSelectedObjectId(object.id)}
+                  className={`rounded-md border px-2 py-1 text-xs font-semibold ${object.id === selectedObjectId ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+                  type="button"
+                >
+                  {index + 1}. {object.type}
+                </button>
+              ))}
+            </div>
+            {selectedObject ? (
+              <div className="grid gap-2 rounded-md border border-border bg-card p-2">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{object.type}</span>
+                  <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{selectedObject.type}</span>
                   <button
-                    onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? removeSlideDesignObject(item, object.id) : item))}
+                    onClick={() => {
+                      updateSelectedSlide((slide) => removeSlideDesignObject(slide, selectedObject.id))
+                      setSelectedObjectId("")
+                    }}
                     className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground hover:bg-destructive hover:text-destructive-foreground"
+                    type="button"
                   >
                     Delete
                   </button>
                 </div>
                 <input
-                  value={object.text || ""}
-                  onChange={(event) => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? updateSlideDesignObject(item, object.id, { text: event.target.value }) : item))}
+                  value={selectedObject.text || ""}
+                  onChange={(event) => updateSelectedObject(selectedObject, { text: event.target.value })}
                   placeholder="Label or text"
                   className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus:border-ring"
                 />
-                {object.type === "image" ? (
+                {selectedObject.type === "image" ? (
                   <input
-                    value={object.src || ""}
-                    onChange={(event) => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? updateSlideDesignObject(item, object.id, { src: event.target.value }) : item))}
+                    value={selectedObject.src || ""}
+                    onChange={(event) => updateSelectedObject(selectedObject, { src: event.target.value })}
                     placeholder="Image URL"
                     className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus:border-ring"
                   />
@@ -2448,20 +2506,20 @@ function StudioCanvas({
                         type="number"
                         min="0"
                         max="100"
-                        value={object[field]}
-                        onChange={(event) => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? updateSlideDesignObject(item, object.id, { [field]: Number(event.target.value) }) : item))}
+                        value={selectedObject[field]}
+                        onChange={(event) => updateSelectedObject(selectedObject, { [field]: Number(event.target.value) })}
                         className="h-8 rounded-md border border-input bg-background px-1 text-xs text-foreground outline-none focus:border-ring"
                       />
                     </label>
                   ))}
                 </div>
                 <div className="grid grid-cols-3 gap-1">
-                  <SlideStyleInput label="Text" value={styleValue(object, "color", "#ffffff")} onChange={(value) => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? updateSlideDesignObject(item, object.id, { style: { ...(object.style || {}), color: value } }) : item))} />
-                  <SlideStyleInput label="Fill" value={styleValue(object, "background", "rgba(255,255,255,0.14)")} onChange={(value) => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? updateSlideDesignObject(item, object.id, { style: { ...(object.style || {}), background: value } }) : item))} />
-                  <SlideStyleInput label="Size" value={styleValue(object, "fontSize", "14")} onChange={(value) => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? updateSlideDesignObject(item, object.id, { style: { ...(object.style || {}), fontSize: Number(value) || 14 } }) : item))} />
+                  <SlideStyleInput label="Text" value={styleValue(selectedObject, "color", "#ffffff")} onChange={(value) => updateSelectedObjectStyle(selectedObject, { color: value })} />
+                  <SlideStyleInput label="Fill" value={styleValue(selectedObject, "background", "rgba(255,255,255,0.14)")} onChange={(value) => updateSelectedObjectStyle(selectedObject, { background: value })} />
+                  <SlideStyleInput label="Size" value={styleValue(selectedObject, "fontSize", "14")} onChange={(value) => updateSelectedObjectStyle(selectedObject, { fontSize: Number(value) || 14 })} />
                 </div>
               </div>
-            ))}
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -2469,7 +2527,7 @@ function StudioCanvas({
   )
 }
 
-function SlideCanvasObject({ object }: { object: SlideObject }) {
+function SlideCanvasObject({ active, object, onSelect }: { active: boolean; object: SlideObject; onSelect: () => void }) {
   const style = object.style || {}
   const canvasStyle: React.CSSProperties = {
     left: `${object.x}%`,
@@ -2483,23 +2541,23 @@ function SlideCanvasObject({ object }: { object: SlideObject }) {
   }
   if (object.type === "image") {
     return (
-      <div className="absolute z-20 overflow-hidden border border-white/20 text-xs" style={canvasStyle}>
+      <button className={`absolute z-20 overflow-hidden border text-xs ${active ? "border-white shadow-[0_0_0_2px_rgba(255,255,255,0.45)]" : "border-white/20"}`} onClick={onSelect} style={canvasStyle} type="button">
         {object.src ? <img src={object.src} alt={object.text || "Slide image"} className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center p-2 text-center">{object.text || "Image"}</span>}
-      </div>
+      </button>
     )
   }
   if (object.type === "table") {
     const columns = (object.text || "Concept | Evidence | Action").split("|").map((item) => item.trim())
     return (
-      <div className="absolute z-20 grid overflow-hidden border border-white/20 text-xs font-semibold" style={{ ...canvasStyle, gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}>
+      <button className={`absolute z-20 grid overflow-hidden border text-xs font-semibold ${active ? "border-white shadow-[0_0_0_2px_rgba(255,255,255,0.45)]" : "border-white/20"}`} onClick={onSelect} style={{ ...canvasStyle, gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }} type="button">
         {columns.map((column, index) => <span key={`${column}-${index}`} className="border-r border-white/20 p-2 last:border-r-0">{column}</span>)}
-      </div>
+      </button>
     )
   }
   return (
-    <div className={`absolute z-20 overflow-hidden border border-white/20 p-2 ${object.type === "shape" ? "flex items-center justify-center text-center font-semibold" : ""}`} style={canvasStyle}>
+    <button className={`absolute z-20 overflow-hidden border p-2 text-left ${active ? "border-white shadow-[0_0_0_2px_rgba(255,255,255,0.45)]" : "border-white/20"} ${object.type === "shape" ? "flex items-center justify-center text-center font-semibold" : ""}`} onClick={onSelect} style={canvasStyle} type="button">
       {object.text || object.type}
-    </div>
+    </button>
   )
 }
 
