@@ -1,8 +1,8 @@
 # LEARN Comprehensive Improvement Progress
 
 Status: Active
-Last updated: 2026-05-16
-Current owner: Codex and user
+Last updated: 2026-05-21
+Current owner: User and maintainer
 Current branch: main
 
 ## Current Snapshot
@@ -234,6 +234,7 @@ Current branch: main
 | --- | --- | --- |
 | 2026-05-16 | Created comprehensive 20 phase plan and progress tracker. | `plan.md`, `progress.md` |
 | 2026-05-21 | Updated branch and local command guidance for descriptive branches and pinned pnpm wrapper usage. | `docs/change-control.md`, `README.md`, `progress.md` |
+| 2026-05-21 | Reworded plan ownership and execution guidance around maintainers and evidence-based delivery. | `plan.md`, `progress.md` |
 
 ## Risks And Open Decisions
 
