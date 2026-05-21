@@ -162,7 +162,12 @@ export function applySlideDesignPreset(slide: WorkspaceDeck["slides"][number], p
     theme: preset,
     background: design.background,
     accent: slide.accent || "LEARN",
+    objects: recolorSlideObjects(slide.objects || [], design),
   }
+}
+
+export function applySlideDesignPresetToDeck(slides: WorkspaceDeck["slides"], preset: keyof typeof slideDesignPresets) {
+  return slides.map((slide) => applySlideDesignPreset(slide, preset))
 }
 
 export function buildDesignedSlideTemplateDeck(body: string, templateLabel = "Deck") {
@@ -227,6 +232,25 @@ function buildTemplateSlideObjects(input: {
     { id: `pill_${input.index}`, type: "shape", x: 10, y: 70, w: 28, h: 9, text: "Key move", style: { background: input.accent, color: "#071014", borderRadius: 999, fontSize: 13 } },
     { id: `prompt_${input.index}`, type: "text", x: 42, y: 70, w: 45, h: 10, text: input.body.slice(0, 72) || "Add a learner action.", style: baseText },
   ] satisfies SlideObject[]
+}
+
+function recolorSlideObjects(objects: SlideObject[], design: typeof slideDesignPresets[keyof typeof slideDesignPresets]) {
+  return objects.map((object) => {
+    const style = object.style || {}
+    const nextStyle = {
+      ...style,
+      color: object.type === "shape" ? style.color || "#071014" : design.foreground,
+    }
+    if (object.type === "shape" && style.background && String(style.background).startsWith("#")) return { ...object, style: nextStyle }
+    if (object.type === "text") return { ...object, style: { ...nextStyle, background: "transparent" } }
+    return {
+      ...object,
+      style: {
+        ...nextStyle,
+        background: object.type === "image" ? "rgba(255,255,255,0.14)" : style.background || "rgba(255,255,255,0.12)",
+      },
+    }
+  })
 }
 
 export function createSlideDesignObject(type: SlideObject["type"]) {

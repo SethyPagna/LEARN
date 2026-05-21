@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { applySlideDesignPreset, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, richTemplateDesigns, sheetTemplateDesigns, slideAnimationPresets, slideDesignPresets, slideTemplateDesigns, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject } from "../lib/studio-design"
+import { applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, richTemplateDesigns, sheetTemplateDesigns, slideAnimationPresets, slideDesignPresets, slideTemplateDesigns, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject } from "../lib/studio-design"
 
 test("document insert blocks expose reusable editor snippets", () => {
   assert.match(getDocumentInsertBlock("callout"), /Callout/)
@@ -36,11 +36,23 @@ test("sheet templates add design metadata and operational columns", () => {
 })
 
 test("slide design presets add theme and background metadata", () => {
-  const slide = applySlideDesignPreset({ title: "One", body: "Body" }, "forest")
+  const slide = applySlideDesignPreset({ title: "One", body: "Body", objects: [{ id: "text", type: "text", x: 1, y: 1, w: 10, h: 10, text: "Point", style: { color: "#000000" } }] }, "forest")
 
   assert.equal(Object.keys(slideDesignPresets).length >= 10, true)
   assert.equal(slide.theme, "forest")
   assert.equal(slide.background, "#052e2b")
+  assert.equal(slide.objects?.[0]?.style?.color, "#ecfeff")
+})
+
+test("slide design presets can apply across a whole deck", () => {
+  const deck = applySlideDesignPresetToDeck([
+    { title: "One", body: "Body" },
+    { title: "Two", body: "Body", objects: [{ id: "shape", type: "shape", x: 1, y: 1, w: 10, h: 10, text: "Box", style: {} }] },
+  ], "grape")
+
+  assert.equal(deck.length, 2)
+  assert.equal(deck[0].theme, "grape")
+  assert.equal(deck[1].background, "#2e1065")
 })
 
 test("slide template deck applies real design metadata and editable objects", () => {
