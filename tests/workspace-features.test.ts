@@ -43,6 +43,15 @@ import {
   studioHighlightColorOptions,
   studioTextColorOptions,
 } from "../lib/studio-formatting"
+import {
+  getStudioKindOption,
+  getStudioViewModeOption,
+  studioEmptyTabLabels,
+  studioInspectorTabs,
+  studioKindOptions,
+  studioSectionFilters,
+  studioViewModeOptions,
+} from "../lib/studio-navigation"
 import { getVocabulary, isSupportedLocale, loadVocabulary, supportedLocales } from "../lib/i18n/vocabulary"
 
 test("editor history supports undo and redo without losing future states", () => {
@@ -216,6 +225,17 @@ test("studio formatting options keep Office-like controls stable", () => {
   assert.equal(findStudioFormattingOption(studioTextColorOptions, "inherit")?.label, "Default")
   assert.equal(findStudioFormattingOption(studioHighlightColorOptions, "#bfdbfe")?.label, "Blue")
   assert.equal(findStudioFormattingOption(studioTextColorOptions, "missing"), null)
+})
+
+test("studio navigation options keep unified routes and inspector labels stable", () => {
+  assert.deepEqual(studioKindOptions.map((option) => option.kind), ["notes", "docs", "sheets", "slides"])
+  assert.equal(getStudioKindOption("slides").label, "Slides")
+  assert.match(getStudioKindOption("docs").description, /Rich study guides/)
+  assert.deepEqual(studioSectionFilters, ["All", "Notes", "Docs", "Sheets", "Slides", "Recent", "Favorites", "Archived"])
+  assert.deepEqual(studioViewModeOptions.map((option) => option.id), ["list", "board", "gallery"])
+  assert.equal(getStudioViewModeOption("gallery").label, "Gallery")
+  assert.deepEqual(studioInspectorTabs, ["Info", "Outline", "Comments", "History", "AI", "Export"])
+  assert.equal(studioEmptyTabLabels.notes, "Notes")
 })
 
 test("all supported vocabularies return usable text without mojibake", async () => {
