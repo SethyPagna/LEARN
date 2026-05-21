@@ -26,7 +26,6 @@ export interface ImportFollowupAction {
   kind: ImportFollowupKind
   taskKey: AiTaskKey
   aiMode: "cleanup" | "quiz" | "flashcards"
-  legacyMode: "cleanup" | "quiz" | "flashcards"
   insertTarget: StudioInsertTarget
   sourceScope: "Uploaded files"
   message: string
@@ -132,7 +131,6 @@ export function buildImportFollowupAction(input: {
       kind: input.kind,
       taskKey: "practice_generator",
       aiMode: "quiz",
-      legacyMode: "quiz",
       insertTarget: "quiz",
       sourceScope: "Uploaded files",
       message: `Generate timed practice from the imported ${targetLabel.toLowerCase()} "${title}" with mixed question types, explanations, retry missed items, and review-card seeds.`,
@@ -145,7 +143,6 @@ export function buildImportFollowupAction(input: {
       kind: input.kind,
       taskKey: "flashcard_generation",
       aiMode: "flashcards",
-      legacyMode: "flashcards",
       insertTarget: "flashcards",
       sourceScope: "Uploaded files",
       message: `Create active-recall flashcards from the imported ${targetLabel.toLowerCase()} "${title}" with front/back cards, matching pairs, and one memory game.`,
@@ -158,7 +155,6 @@ export function buildImportFollowupAction(input: {
     kind: input.kind,
     taskKey: cleanupWorkflow.taskKey,
     aiMode: "cleanup",
-    legacyMode: "cleanup",
     insertTarget: cleanupWorkflow.insertTarget,
     sourceScope: "Uploaded files",
     message: `${cleanupWorkflow.messageVerb} the imported ${targetLabel.toLowerCase()} "${title}" into a polished Studio-ready structure with headings, concise sections, and one useful next action.`,
