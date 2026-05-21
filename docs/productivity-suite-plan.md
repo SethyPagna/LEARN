@@ -246,6 +246,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-21: Continued Studio slide polish by applying theme colors to slide objects and title/body text, adding one-click apply-to-all theme behavior, and replacing redundant ellipsis controls with clearer Layout/File actions.
 - 2026-05-21: Continued Studio slide-canvas maturity by making canvas objects selectable, focusing the properties panel on one selected object at a time, auto-selecting inserted objects, and removing always-expanded object editors.
 - 2026-05-21: Continued Studio slide-object tooling by adding tested duplicate, nudge, resize, and layer-order helpers plus a compact Object menu for selected canvas objects.
+- 2026-05-21: Continued Studio slide-object alignment by adding tested left, center, right, top, and bottom alignment helpers and wiring them into the compact Object menu.
 
 ## Implementation Slices
 
