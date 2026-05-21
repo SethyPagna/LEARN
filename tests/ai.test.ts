@@ -11,7 +11,7 @@ import {
 import { buildProviderAdminSummaryChips } from "../lib/ai/provider-admin-ui"
 import { getTutorModeInstruction, resolveTutorTokenBudget } from "../lib/ai/tutor"
 import { getPromptTemplate } from "../lib/ai/prompt-library"
-import { buildGuidedPrompt, listInsertActions, promptContracts } from "../lib/ai/prompt-builder"
+import { buildGuidedPrompt, listInsertActions, normalizeStudioInsertTarget, promptContracts, studioInsertTargets } from "../lib/ai/prompt-builder"
 import { buildAiGatewayReadiness } from "../lib/ai/gateway-readiness"
 import { buildInsertBackPayload, parseAiJson } from "../lib/ai/insert-back"
 import {
@@ -241,6 +241,10 @@ test("guided prompt builder adds task rules and insert target warnings", () => {
 test("guided prompt contracts expose insert-back actions", () => {
   const practice = promptContracts.find((item) => item.mode === "practice_generator")
   assert.ok(practice)
+  assert.deepEqual(studioInsertTargets, ["note-block", "doc-section", "sheet-rows", "slide-outline", "quiz", "flashcards", "review-cards", "ai-note"])
+  assert.equal(normalizeStudioInsertTarget("sheet-rows"), "sheet-rows")
+  assert.equal(normalizeStudioInsertTarget("missing"), "ai-note")
+  assert.equal(normalizeStudioInsertTarget("missing", "doc-section"), "doc-section")
   assert.deepEqual(listInsertActions(practice.insertTargets).map((item) => item.target), ["quiz", "flashcards", "review-cards"])
 })
 

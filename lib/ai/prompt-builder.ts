@@ -37,6 +37,8 @@ const commonInsertActions: AiInsertBackAction[] = [
   { target: "ai-note", label: "Save AI note", description: "Store the result as a Studio note." },
 ]
 
+export const studioInsertTargets: StudioInsertTarget[] = commonInsertActions.map((action) => action.target)
+
 export const promptContracts: AiPromptContract[] = [
   contract("answer_explanation", "Explain Mistake", ["question", "selectedAnswer", "correctAnswer", "context"], ["note-block", "review-cards"]),
   contract("note_design", "Rewrite", ["input"], ["note-block", "doc-section", "quiz", "flashcards"]),
@@ -92,9 +94,16 @@ const taskRequirements: Partial<Record<AiTaskKey, string[]>> = {
   ],
 }
 
-export function listInsertActions(targets: StudioInsertTarget[] = commonInsertActions.map((action) => action.target)) {
+export function listInsertActions(targets: StudioInsertTarget[] = studioInsertTargets) {
   const allowed = new Set(targets)
   return commonInsertActions.filter((action) => allowed.has(action.target))
+}
+
+export function normalizeStudioInsertTarget(value: unknown, fallback: StudioInsertTarget = "ai-note"): StudioInsertTarget {
+  const safeFallback = studioInsertTargets.includes(fallback) ? fallback : "ai-note"
+  return typeof value === "string" && studioInsertTargets.includes(value as StudioInsertTarget)
+    ? value as StudioInsertTarget
+    : safeFallback
 }
 
 export function buildGuidedPrompt(input: GuidedPromptInput): GuidedPromptResult {
