@@ -122,6 +122,7 @@ import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, b
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, groupStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
+import { buildStudioProjectBrowserState } from "@/lib/studio-project-browser"
 import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 
@@ -1851,7 +1852,14 @@ function StudioProjectBrowser({
   const dirtyBadgeMap = new Map(dirtyBadges.map((badge) => [badge.kind, badge.count]))
   const formatGroups = groupStudioCanvasFormats(activeKind)
   const formatChoices = [...formatGroups.presentation, ...formatGroups.document, ...formatGroups.social, ...formatGroups.poster]
-  const recentItems = items.slice(0, 12)
+  const browserState = useMemo(() => buildStudioProjectBrowserState({
+    activeKind,
+    items,
+    query,
+    templates: studioTemplates[activeKind],
+  }), [activeKind, items, query])
+  const recentItems = browserState.projects.slice(0, 12)
+  const templateChoices = browserState.templates
   const ActiveIcon = studioKindIcons[activeKind]
   return (
     <div className="grid gap-4">
@@ -1885,13 +1893,13 @@ function StudioProjectBrowser({
             <div className="mt-5 grid gap-2">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Templates</p>
-                <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{studioTemplates[activeKind].length}</span>
+                <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{templateChoices.length}</span>
               </div>
               <div className="grid max-h-[34vh] gap-2 overflow-auto pr-1">
-                {studioTemplates[activeKind].map((template) => {
+                {templateChoices.map((template) => {
                   const meta = getStudioTemplateMeta(activeKind, template)
                   return (
-                    <button key={template.label} onClick={() => onApplyTemplate(template)} className="group grid grid-cols-[72px_1fr] gap-3 rounded-lg border border-border bg-background p-2 text-left transition hover:-translate-y-0.5 hover:border-primary hover:bg-accent" type="button">
+                    <button key={template.label} onClick={() => onApplyTemplate(template)} className="group grid grid-cols-[72px_1fr] gap-3 rounded-lg border border-border bg-background p-2 text-left transition hover:-translate-y-0.5 hover:border-primary hover:bg-accent" title={`${meta.description} Sections: ${meta.sections.join(", ")}`} type="button">
                       <span className="relative h-12 overflow-hidden rounded-md border border-border" style={{ background: meta.background }}>
                         <span className="absolute left-2 top-2 h-1.5 w-9 rounded-full" style={{ background: meta.accent }} />
                         <span className="absolute left-2 top-5 h-1.5 w-12 rounded-full bg-white/55 dark:bg-white/25" />
@@ -1904,6 +1912,7 @@ function StudioProjectBrowser({
                     </button>
                   )
                 })}
+                {!templateChoices.length ? <EmptyState title="No designs found" body="Clear search or choose a different Studio type." /> : null}
               </div>
             </div>
           </aside>
@@ -1919,12 +1928,14 @@ function StudioProjectBrowser({
               <div className="flex flex-wrap items-center gap-2">
                 {studioKindOptions.map((option) => {
                   const Icon = studioKindIcons[option.kind]
-                  const count = dirtyBadgeMap.get(option.kind)
+                  const dirtyCount = dirtyBadgeMap.get(option.kind)
+                  const itemCount = browserState.counts[option.kind]
                   return (
                     <button key={option.kind} onClick={() => onSelectKind(option.kind)} className={`relative flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-semibold ${activeKind === option.kind ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground hover:bg-accent"}`} type="button">
                       <Icon className="h-4 w-4" />
                       {option.label}
-                      {count ? <span className="absolute -right-1 -top-1 rounded-full bg-warning px-1.5 text-[10px] text-warning-foreground">{count}</span> : null}
+                      <span className={`rounded-md px-1.5 py-0.5 text-[10px] ${activeKind === option.kind ? "bg-primary-foreground/20 text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{itemCount}</span>
+                      {dirtyCount ? <span className="absolute -right-1 -top-1 rounded-full bg-warning px-1.5 text-[10px] text-warning-foreground">{dirtyCount}</span> : null}
                     </button>
                   )
                 })}
@@ -1935,7 +1946,7 @@ function StudioProjectBrowser({
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-bold text-foreground">Your projects</p>
-                    <p className="text-xs text-muted-foreground">{recentItems.length} visible</p>
+                    <p className="text-xs text-muted-foreground">{recentItems.length} {studioKindStyles[activeKind].label.toLowerCase()} project{recentItems.length === 1 ? "" : "s"}</p>
                   </div>
                   <button onClick={onCreate} className="h-9 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground" type="button">Create</button>
                 </div>
@@ -1955,7 +1966,7 @@ function StudioProjectBrowser({
                     )
                   })}
                 </div>
-                {!recentItems.length ? <EmptyState title="No projects yet" body="Choose a dimension, pick a template, or create a blank design." /> : null}
+                {!recentItems.length ? <EmptyState title="No projects here" body="Create a design, pick a template, or clear the search." /> : null}
               </section>
               <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
                 <p className="text-sm font-bold text-foreground">Canvas preview</p>
