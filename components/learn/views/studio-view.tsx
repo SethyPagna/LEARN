@@ -2426,6 +2426,15 @@ function StudioCanvas({
             key={object.id}
             active={object.id === selectedObjectId}
             object={object}
+            onAlign={(alignment) => alignSelectedObject(object, alignment)}
+            onDelete={() => {
+              updateSelectedSlide((slide) => removeSlideDesignObject(slide, object.id))
+              if (selectedObjectId === object.id) setSelectedObjectId("")
+            }}
+            onDuplicate={() => duplicateSelectedObject(object)}
+            onNudge={(direction) => nudgeSelectedObject(object, direction)}
+            onReorder={(direction) => reorderSelectedObject(object, direction)}
+            onResize={(preset) => resizeSelectedObject(object, preset)}
             onSelect={() => setSelectedObjectId(object.id)}
           />
         ))}
@@ -2556,7 +2565,35 @@ function StudioCanvas({
   )
 }
 
-function SlideCanvasObject({ active, object, onSelect }: { active: boolean; object: SlideObject; onSelect: () => void }) {
+type SlideObjectAlignment = "left" | "center" | "right" | "top" | "middle" | "bottom"
+type SlideObjectNudgeDirection = "up" | "down" | "left" | "right"
+type SlideObjectOrderDirection = "front" | "back" | "forward" | "backward"
+type SlideObjectSizePreset = "wide" | "tall" | "compact" | "hero"
+
+type SlideObjectActionProps = {
+  onAlign: (alignment: SlideObjectAlignment) => void
+  onDelete: () => void
+  onDuplicate: () => void
+  onNudge: (direction: SlideObjectNudgeDirection) => void
+  onReorder: (direction: SlideObjectOrderDirection) => void
+  onResize: (preset: SlideObjectSizePreset) => void
+  onSelect: () => void
+}
+
+function SlideCanvasObject({
+  active,
+  object,
+  onAlign,
+  onDelete,
+  onDuplicate,
+  onNudge,
+  onReorder,
+  onResize,
+  onSelect,
+}: {
+  active: boolean
+  object: SlideObject
+} & SlideObjectActionProps) {
   const style = object.style || {}
   const canvasStyle: React.CSSProperties = {
     left: `${object.x}%`,
@@ -2568,25 +2605,74 @@ function SlideCanvasObject({ active, object, onSelect }: { active: boolean; obje
     borderRadius: Number(readStyleValue(style, "borderRadius", "8")),
     fontSize: Number(readStyleValue(style, "fontSize", "14")),
   }
+  const sharedProps = {
+    className: `absolute z-20 overflow-hidden border ${active ? "border-white shadow-[0_0_0_2px_rgba(255,255,255,0.45)]" : "border-white/20"}`,
+    onClick: onSelect,
+    onContextMenu: onSelect,
+    style: canvasStyle,
+    type: "button" as const,
+  }
   if (object.type === "image") {
     return (
-      <button className={`absolute z-20 overflow-hidden border text-xs ${active ? "border-white shadow-[0_0_0_2px_rgba(255,255,255,0.45)]" : "border-white/20"}`} onClick={onSelect} style={canvasStyle} type="button">
-        {object.src ? <img src={object.src} alt={object.text || "Slide image"} className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center p-2 text-center">{object.text || "Image"}</span>}
-      </button>
+      <SlideObjectContextMenu onAlign={onAlign} onDelete={onDelete} onDuplicate={onDuplicate} onNudge={onNudge} onReorder={onReorder} onResize={onResize}>
+        <button {...sharedProps} className={`${sharedProps.className} text-xs`}>
+          {object.src ? <img src={object.src} alt={object.text || "Slide image"} className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center p-2 text-center">{object.text || "Image"}</span>}
+        </button>
+      </SlideObjectContextMenu>
     )
   }
   if (object.type === "table") {
     const columns = (object.text || "Concept | Evidence | Action").split("|").map((item) => item.trim())
     return (
-      <button className={`absolute z-20 grid overflow-hidden border text-xs font-semibold ${active ? "border-white shadow-[0_0_0_2px_rgba(255,255,255,0.45)]" : "border-white/20"}`} onClick={onSelect} style={{ ...canvasStyle, gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }} type="button">
-        {columns.map((column, index) => <span key={`${column}-${index}`} className="border-r border-white/20 p-2 last:border-r-0">{column}</span>)}
-      </button>
+      <SlideObjectContextMenu onAlign={onAlign} onDelete={onDelete} onDuplicate={onDuplicate} onNudge={onNudge} onReorder={onReorder} onResize={onResize}>
+        <button {...sharedProps} className={`${sharedProps.className} grid text-xs font-semibold`} style={{ ...canvasStyle, gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}>
+          {columns.map((column, index) => <span key={`${column}-${index}`} className="border-r border-white/20 p-2 last:border-r-0">{column}</span>)}
+        </button>
+      </SlideObjectContextMenu>
     )
   }
   return (
-    <button className={`absolute z-20 overflow-hidden border p-2 text-left ${active ? "border-white shadow-[0_0_0_2px_rgba(255,255,255,0.45)]" : "border-white/20"} ${object.type === "shape" ? "flex items-center justify-center text-center font-semibold" : ""}`} onClick={onSelect} style={canvasStyle} type="button">
-      {object.text || object.type}
-    </button>
+    <SlideObjectContextMenu onAlign={onAlign} onDelete={onDelete} onDuplicate={onDuplicate} onNudge={onNudge} onReorder={onReorder} onResize={onResize}>
+      <button {...sharedProps} className={`${sharedProps.className} p-2 text-left ${object.type === "shape" ? "flex items-center justify-center text-center font-semibold" : ""}`}>
+        {object.text || object.type}
+      </button>
+    </SlideObjectContextMenu>
+  )
+}
+
+function SlideObjectContextMenu({ children, onAlign, onDelete, onDuplicate, onNudge, onReorder, onResize }: { children: React.ReactNode } & Omit<SlideObjectActionProps, "onSelect">) {
+  return (
+    <ContextMenu.Root>
+      <ContextMenu.Trigger asChild>{children}</ContextMenu.Trigger>
+      <ContextMenu.Portal>
+        <ContextMenu.Content className="z-50 min-w-52 rounded-md border border-border bg-popover p-1 text-sm text-popover-foreground shadow-xl">
+          <ContextMenu.Item onClick={onDuplicate} className="context-item"><Copy className="h-4 w-4" /> Duplicate</ContextMenu.Item>
+          <ContextMenu.Separator className="my-1 h-px bg-border" />
+          <ContextMenu.Item onClick={() => onNudge("up")} className="context-item"><ArrowUp className="h-4 w-4" /> Nudge up</ContextMenu.Item>
+          <ContextMenu.Item onClick={() => onNudge("down")} className="context-item"><ArrowDown className="h-4 w-4" /> Nudge down</ContextMenu.Item>
+          <ContextMenu.Item onClick={() => onNudge("left")} className="context-item"><ArrowLeft className="h-4 w-4" /> Nudge left</ContextMenu.Item>
+          <ContextMenu.Item onClick={() => onNudge("right")} className="context-item"><ArrowRight className="h-4 w-4" /> Nudge right</ContextMenu.Item>
+          <ContextMenu.Separator className="my-1 h-px bg-border" />
+          <ContextMenu.Item onClick={() => onAlign("left")} className="context-item"><AlignLeft className="h-4 w-4" /> Align left</ContextMenu.Item>
+          <ContextMenu.Item onClick={() => onAlign("center")} className="context-item"><AlignCenter className="h-4 w-4" /> Align center</ContextMenu.Item>
+          <ContextMenu.Item onClick={() => onAlign("right")} className="context-item"><AlignRight className="h-4 w-4" /> Align right</ContextMenu.Item>
+          <ContextMenu.Item onClick={() => onAlign("top")} className="context-item"><ArrowUp className="h-4 w-4" /> Align top</ContextMenu.Item>
+          <ContextMenu.Item onClick={() => onAlign("middle")} className="context-item"><Minus className="h-4 w-4" /> Align middle</ContextMenu.Item>
+          <ContextMenu.Item onClick={() => onAlign("bottom")} className="context-item"><ArrowDown className="h-4 w-4" /> Align bottom</ContextMenu.Item>
+          <ContextMenu.Separator className="my-1 h-px bg-border" />
+          <ContextMenu.Item onClick={() => onReorder("forward")} className="context-item"><ArrowUp className="h-4 w-4" /> Bring forward</ContextMenu.Item>
+          <ContextMenu.Item onClick={() => onReorder("backward")} className="context-item"><ArrowDown className="h-4 w-4" /> Send backward</ContextMenu.Item>
+          <ContextMenu.Item onClick={() => onReorder("front")} className="context-item"><Maximize2 className="h-4 w-4" /> Bring to front</ContextMenu.Item>
+          <ContextMenu.Item onClick={() => onReorder("back")} className="context-item"><Minus className="h-4 w-4" /> Send to back</ContextMenu.Item>
+          <ContextMenu.Item onClick={() => onResize("compact")} className="context-item"><Minus className="h-4 w-4" /> Make compact</ContextMenu.Item>
+          <ContextMenu.Item onClick={() => onResize("wide")} className="context-item"><Columns3 className="h-4 w-4" /> Make wide</ContextMenu.Item>
+          <ContextMenu.Item onClick={() => onResize("tall")} className="context-item"><Rows3 className="h-4 w-4" /> Make tall</ContextMenu.Item>
+          <ContextMenu.Item onClick={() => onResize("hero")} className="context-item"><Rows3 className="h-4 w-4" /> Make hero</ContextMenu.Item>
+          <ContextMenu.Separator className="my-1 h-px bg-border" />
+          <ContextMenu.Item onClick={onDelete} className="context-item text-destructive"><Trash2 className="h-4 w-4" /> Delete object</ContextMenu.Item>
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+    </ContextMenu.Root>
   )
 }
 
