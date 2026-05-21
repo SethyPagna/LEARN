@@ -123,6 +123,7 @@ import { getImportDestinationView, importTargetOptions, labelImportTarget, norma
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, groupStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
 import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
+import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
 const HEADING_STYLE_KEY = "learn_heading_styles_v1"
@@ -893,6 +894,29 @@ export function StudioView({
 
   function runStudioToolAction(action: StudioToolAction) {
     setStudioMode("editor")
+    if (action.canvasAction) {
+      if (kind === "notes") {
+        setNoteHistory(pushHistory(noteHistory, action.canvasAction === "new-page" ? appendRichDocumentPage(noteHistory.present) : duplicateRichDocumentLastPage(noteHistory.present)))
+        setStatus(`${action.label} added.`)
+        return
+      }
+      if (kind === "docs") {
+        setDocHistory(pushHistory(docHistory, action.canvasAction === "new-page" ? appendRichDocumentPage(docHistory.present) : duplicateRichDocumentLastPage(docHistory.present)))
+        setStatus(`${action.label} added.`)
+        return
+      }
+      if (kind === "slides") {
+        if (action.canvasAction === "duplicate-page") {
+          setSlides((current) => duplicateSlide(current, selectedSlideIndex))
+          setSelectedSlideIndex(selectedSlideIndex + 1)
+        } else {
+          setSlides((current) => [...current, createBlankStudioSlide(current.length + 1)])
+          setSelectedSlideIndex(slides.length)
+        }
+        setStatus(`${action.label} added.`)
+        return
+      }
+    }
     if ((kind === "notes" || kind === "docs") && action.richHtml) {
       appendRichToolContent(action.richHtml)
       setStatus(`${action.label} added.`)
@@ -1774,6 +1798,20 @@ function StudioLibrary({
       </div>
     </div>
   )
+}
+
+function createBlankStudioSlide(index: number): WorkspaceDeck["slides"][number] {
+  return {
+    accent: "New",
+    animation: "rise",
+    background: "#111827",
+    body: "Add the point, image cue, or quiz prompt.",
+    layout: "title",
+    speakerNotes: "",
+    theme: "midnight",
+    title: `Page ${index}`,
+    transition: "fade",
+  }
 }
 
 function StudioToolPanelHeader({ panel }: { panel: ReturnType<typeof getStudioToolPanel> }) {
@@ -2698,7 +2736,7 @@ function StudioCanvas({
   return (
     <div className="grid min-h-[58vh] gap-3 lg:grid-cols-[150px_1fr_230px]">
       <div className="space-y-2 overflow-auto">
-        <button onClick={() => { onSetSlides([...slides, { title: "New slide", body: "Add the point, image cue, or quiz prompt.", accent: "New", layout: "title", theme: "midnight", background: "#111827", transition: "fade", animation: "rise", speakerNotes: "" }]); onSetSelectedSlideIndex(slides.length) }} className="flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm font-semibold text-primary-foreground">
+        <button onClick={() => { onSetSlides([...slides, createBlankStudioSlide(slides.length + 1)]); onSetSelectedSlideIndex(slides.length) }} className="flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm font-semibold text-primary-foreground">
           <Plus className="h-4 w-4" /> Slide
         </button>
         <DndContext collisionDetection={closestCenter} onDragEnd={handleSlideDragEnd}>
@@ -3066,6 +3104,7 @@ function SortableSlideThumb({
 
 function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: { canvasFormat: StudioCanvasFormat; large?: boolean; onChange: (value: string) => void; placeholder: string; value: string }) {
   const documentSummary = useMemo(() => summarizeDocumentHtml(value), [value])
+  const pageCount = countRichDocumentPages(value)
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -3115,9 +3154,16 @@ function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: {
       </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-border bg-card px-3 py-2 text-xs text-muted-foreground">
         <span>{canvasFormat.label}</span>
+        <span>{pageCount} page{pageCount === 1 ? "" : "s"}</span>
         <span>{documentSummary.words} words</span>
         <span>{documentSummary.characters} chars</span>
         <span>{documentSummary.readingMinutes} min read</span>
+        <button onClick={() => onChange(appendRichDocumentPage(value))} className="ml-auto rounded-md border border-border bg-secondary px-2 py-1 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+          + Page
+        </button>
+        <button onClick={() => onChange(duplicateRichDocumentLastPage(value))} className="rounded-md border border-border bg-secondary px-2 py-1 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+          Duplicate page
+        </button>
         {documentSummary.headings.slice(0, 4).map((heading) => (
           <span key={`${heading.level}-${heading.title}`} className="rounded-md bg-secondary px-2 py-1 text-secondary-foreground">
             H{heading.level} {heading.title}
