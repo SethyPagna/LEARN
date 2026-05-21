@@ -46,6 +46,7 @@ import {
   FilePlus2,
   FileText,
   Grid2X2,
+  GripVertical,
   Heading1,
   Heading2,
   Heading3,
@@ -115,7 +116,7 @@ import { studioFontOptions, studioFontSizeOptions, studioHighlightColorOptions, 
 import { getStudioKindOption, getStudioViewModeOption, studioEmptyTabLabels, studioInspectorTabs, studioKindOptions, studioSectionFilters, studioViewModeOptions, type StudioViewMode } from "@/lib/studio-navigation"
 import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, blankNoteTitle, blankRichText, blankSheetCells, blankSheetFingerprint, blankSheetTitle, ensureSheetCells, parseDeckSlides, parseSheetCells, studioCreateLabels, studioDraftSummary, studioFallbackTitle, studioNoItemSummary } from "@/lib/studio-defaults"
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
-import { applySlideDesignPreset, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
+import { applySlideDesignPreset, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
 const HEADING_STYLE_KEY = "learn_heading_styles_v1"
@@ -752,6 +753,10 @@ export function StudioView({
     }))
   }, [deckTitle, selectedDeck?.id, selectedDeck?.title, selectedDeckFingerprint, slides, slidesFingerprint])
 
+  useEffect(() => {
+    if (selectedSlideIndex >= slides.length) setSelectedSlideIndex(Math.max(0, slides.length - 1))
+  }, [selectedSlideIndex, slides.length])
+
   const activeTab = getStudioKindOption(kind)
   const dirtyBadgeMap = useMemo(() => new Map(dirtyBadges.map((badge) => [badge.kind, badge])), [dirtyBadges])
   const allItems = useMemo(() => {
@@ -860,20 +865,8 @@ export function StudioView({
       return
     }
     setDeckTitle(applied.title)
-    const meta = getStudioTemplateMeta("slides", template)
-    setSlides(applied.body.split("\n").map((line, index) => {
-      const [title, body, accent] = line.split("|")
-      return {
-        title: title || "Slide",
-        body: body || "Add the point.",
-        accent: accent || "Slide",
-        layout: index === 0 ? "title" : index % 2 ? "two-column" : "image",
-        theme: template.style?.toLowerCase().includes("brief") ? "paper" : "midnight",
-        transition: index === 0 ? "fade" : "push",
-        animation: index % 2 ? "reveal" : "rise",
-        speakerNotes: `${meta.style} template: ${meta.sections[index] || "Explain the idea"} in one clear learner-centered step.`,
-      }
-    }))
+    setSlides(buildDesignedSlideTemplateDeck(applied.body, template.label))
+    setSelectedSlideIndex(0)
   }
 
   async function createActive() {
@@ -1656,28 +1649,18 @@ function StudioLibrary({
           {studioTemplates[activeKind].map((template) => {
             const meta = getStudioTemplateMeta(activeKind, template)
             return (
-            <button key={template.label} onClick={() => onApplyTemplate(template)} className="group/template overflow-hidden rounded-md border border-border bg-card text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:bg-accent hover:text-accent-foreground">
-              <span className="block h-1" style={{ background: meta.accent }} />
+            <button key={template.label} onClick={() => onApplyTemplate(template)} className="group/template overflow-hidden rounded-md border border-border bg-card text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:bg-accent hover:text-accent-foreground" title={`${meta.description} Sections: ${meta.sections.join(", ")}`}>
               <span className="grid gap-2 p-2.5">
-                <span className="flex items-start justify-between gap-2">
-                  <span>
-                    <span className="block text-xs font-bold text-foreground">{template.label}</span>
-                    <span className="mt-0.5 block text-[0.68rem] font-medium leading-4 text-muted-foreground">{meta.description}</span>
-                  </span>
+                <span className="flex items-center justify-between gap-2">
+                  <span className="truncate text-xs font-bold text-foreground">{template.label}</span>
                   <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[0.62rem] font-bold uppercase tracking-[0.08em] text-secondary-foreground">{meta.style}</span>
                 </span>
-                <span className="grid grid-cols-3 gap-1" aria-hidden="true">
-                  {meta.sections.slice(0, 3).map((section, index) => (
-                    <span key={`${template.label}_${section}`} className="rounded bg-background p-1">
-                      <span className="block h-1.5 rounded-full" style={{ background: index === 0 ? meta.accent : "hsl(var(--muted-foreground) / 0.28)" }} />
-                      <span className="mt-1 block h-1 rounded-full bg-muted" />
-                    </span>
-                  ))}
-                </span>
-                <span className="flex flex-wrap gap-1">
-                  {meta.sections.slice(0, 4).map((section) => (
-                    <span key={`${template.label}_${section}_chip`} className="rounded-md bg-secondary px-1.5 py-0.5 text-[0.62rem] font-semibold text-secondary-foreground">{section}</span>
-                  ))}
+                <span className="relative block h-14 overflow-hidden rounded-md border border-border bg-background" aria-hidden="true">
+                  <span className="absolute inset-0 opacity-95" style={{ background: meta.background }} />
+                  <span className="absolute left-2 top-2 h-2 w-12 rounded-full" style={{ background: meta.accent }} />
+                  <span className="absolute left-2 top-6 h-1.5 w-20 rounded-full bg-white/55 dark:bg-white/30" />
+                  <span className="absolute left-2 top-9 h-1.5 w-14 rounded-full bg-white/35 dark:bg-white/20" />
+                  <span className="absolute bottom-2 right-2 h-7 w-10 rounded-md border border-white/30 bg-white/15" />
                 </span>
               </span>
             </button>
@@ -1696,8 +1679,11 @@ function getStudioTemplateMeta(kind: StudioKind, template: StudioTemplate) {
     slides: "hsl(18 88% 58%)",
   }
   const sections = template.sections || extractTemplateSections(kind, template.body)
+  const slideTheme = kind === "slides" ? slideTemplateTheme(template.label) : undefined
+  const slidePalette = slideTheme ? slideDesignPresets[slideTheme] : undefined
   return {
     accent: template.accent || palette[kind],
+    background: slidePalette?.background || "hsl(var(--background))",
     description: template.description || describeTemplate(kind, template.label),
     sections,
     style: template.style || styleForTemplate(kind, template.label),
@@ -1765,7 +1751,7 @@ function describeTemplate(kind: StudioKind, label: string) {
 
 function styleForTemplate(kind: StudioKind, label: string) {
   if (kind === "sheets") return "Grid"
-  if (kind === "slides") return "Deck"
+  if (kind === "slides") return slideTemplateTheme(label)
   if (label.toLowerCase().includes("cornell")) return "Cornell"
   if (label.toLowerCase().includes("brief")) return "Brief"
   return kind === "docs" ? "Doc" : "Note"
@@ -1773,6 +1759,12 @@ function styleForTemplate(kind: StudioKind, label: string) {
 
 function stripTags(value: string) {
   return value.replace(/<[^>]*>/g, "")
+}
+
+function slideTemplateTheme(label: string): keyof typeof slideDesignPresets {
+  const themes = Object.keys(slideDesignPresets) as Array<keyof typeof slideDesignPresets>
+  const checksum = label.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0)
+  return themes[checksum % themes.length] || "midnight"
 }
 
 function StudioItemButton({
@@ -2345,10 +2337,13 @@ function StudioCanvas({
     onSetSlides((current) => arrayMove(current, from, to))
     onSetSelectedSlideIndex(to)
   }
+  const goToSlide = (direction: -1 | 1) => {
+    onSetSelectedSlideIndex(Math.min(Math.max(selectedSlideIndex + direction, 0), Math.max(0, slides.length - 1)))
+  }
   return (
     <div className="grid min-h-[58vh] gap-3 lg:grid-cols-[150px_1fr_230px]">
       <div className="space-y-2 overflow-auto">
-        <button onClick={() => onSetSlides([...slides, { title: "New slide", body: "Add the point, image cue, or quiz prompt.", accent: "New", layout: "title", theme: "midnight", background: "#111827", transition: "fade", animation: "rise", speakerNotes: "" }])} className="flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm font-semibold text-primary-foreground">
+        <button onClick={() => { onSetSlides([...slides, { title: "New slide", body: "Add the point, image cue, or quiz prompt.", accent: "New", layout: "title", theme: "midnight", background: "#111827", transition: "fade", animation: "rise", speakerNotes: "" }]); onSetSelectedSlideIndex(slides.length) }} className="flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm font-semibold text-primary-foreground">
           <Plus className="h-4 w-4" /> Slide
         </button>
         <DndContext collisionDetection={closestCenter} onDragEnd={handleSlideDragEnd}>
@@ -2359,9 +2354,15 @@ function StudioCanvas({
                 id={`slide-${index}`}
                 active={selectedSlideIndex === index}
                 index={index}
-                onArchive={() => onSetSlides((current) => current.length > 1 ? current.filter((_, next) => next !== index) : current)}
+                onArchive={() => {
+                  onSetSlides((current) => current.length > 1 ? current.filter((_, next) => next !== index) : current)
+                  onSetSelectedSlideIndex(Math.max(0, Math.min(selectedSlideIndex, slides.length - 2)))
+                }}
                 onCopy={() => navigator.clipboard?.writeText(`${slide.title}\n${slide.body}`)}
-                onDuplicate={() => onSetSlides((current) => duplicateSlide(current, index))}
+                onDuplicate={() => {
+                  onSetSlides((current) => duplicateSlide(current, index))
+                  onSetSelectedSlideIndex(index + 1)
+                }}
                 onSelect={() => onSetSelectedSlideIndex(index)}
                 slide={slide}
               />
@@ -2373,6 +2374,11 @@ function StudioCanvas({
         className={`${options.slidesAspect === "4:3" ? "aspect-[4/3]" : "aspect-video"} relative overflow-hidden rounded-lg border border-border p-8 text-white shadow-sm transition-all ${selectedSlide?.transition === "fade" ? "hover:opacity-90" : selectedSlide?.transition === "zoom" ? "hover:shadow-lg" : ""} ${selectedSlide?.animation === "rise" ? "hover:-translate-y-1" : selectedSlide?.animation === "emphasis" ? "hover:scale-[1.01]" : ""}`}
         style={{ background: selectedSlide?.background || slideDesignPresets[(selectedSlide?.theme || "midnight") as keyof typeof slideDesignPresets]?.background || "#111827" }}
       >
+        <div className="absolute right-3 top-3 z-30 flex items-center gap-1 rounded-md border border-white/15 bg-black/20 p-1 backdrop-blur">
+          <button onClick={() => goToSlide(-1)} disabled={selectedSlideIndex <= 0} className="h-8 rounded-md px-2 text-xs font-semibold text-white hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40" type="button">Prev</button>
+          <span className="rounded bg-white/15 px-2 py-1 text-xs font-semibold text-white">{selectedSlideIndex + 1}/{slides.length}</span>
+          <button onClick={() => goToSlide(1)} disabled={selectedSlideIndex >= slides.length - 1} className="h-8 rounded-md px-2 text-xs font-semibold text-white hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40" type="button">Next</button>
+        </div>
         {selectedSlide ? (
           <div className="relative z-10 flex h-full flex-col">
             <input value={selectedSlide.accent || ""} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, accent: event.target.value } : item))} className="mb-3 w-full bg-transparent text-xs font-semibold uppercase tracking-[0.16em] text-emerald-200 outline-none" />
@@ -2409,10 +2415,10 @@ function StudioCanvas({
           <MenuAction icon={Table2} label="Table" onClick={() => onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? { ...item, objects: [...(item.objects || []), createSlideDesignObject("table")] } : item))} />
         </ActionMenu>
         <ActionMenu label="Arrange" icon={Scissors}>
-          <MenuAction icon={ChevronDown} label="Move up" onClick={() => onSetSlides((current) => moveSlide(current, selectedSlideIndex, -1))} />
-          <MenuAction icon={ChevronDown} label="Move down" onClick={() => onSetSlides((current) => moveSlide(current, selectedSlideIndex, 1))} />
-          <MenuAction icon={Copy} label="Duplicate slide" onClick={() => onSetSlides((current) => duplicateSlide(current, selectedSlideIndex))} />
-          <MenuAction danger icon={Trash2} label="Delete slide" onClick={() => onSetSlides((current) => current.length > 1 ? current.filter((_, index) => index !== selectedSlideIndex) : current)} />
+          <MenuAction icon={ChevronDown} label="Move up" onClick={() => { onSetSlides((current) => moveSlide(current, selectedSlideIndex, -1)); goToSlide(-1) }} />
+          <MenuAction icon={ChevronDown} label="Move down" onClick={() => { onSetSlides((current) => moveSlide(current, selectedSlideIndex, 1)); goToSlide(1) }} />
+          <MenuAction icon={Copy} label="Duplicate slide" onClick={() => { onSetSlides((current) => duplicateSlide(current, selectedSlideIndex)); onSetSelectedSlideIndex(selectedSlideIndex + 1) }} />
+          <MenuAction danger icon={Trash2} label="Delete slide" onClick={() => { onSetSlides((current) => current.length > 1 ? current.filter((_, index) => index !== selectedSlideIndex) : current); onSetSelectedSlideIndex(Math.max(0, Math.min(selectedSlideIndex, slides.length - 2))) }} />
         </ActionMenu>
         <details className="rounded-md border border-border bg-background p-2">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
@@ -2557,12 +2563,22 @@ function SortableSlideThumb({
           ref={setNodeRef}
           style={{ transform: CSS.Transform.toString(transform), transition }}
           onClick={onSelect}
-          className={`mb-2 w-full rounded-md border p-2 text-left ${active ? "border-primary bg-primary/10" : "border-border bg-background hover:bg-accent"}`}
+          className={`mb-2 grid w-full grid-cols-[auto_1fr] gap-2 rounded-md border p-2 text-left ${active ? "border-primary bg-primary/10" : "border-border bg-background hover:bg-accent"}`}
+          type="button"
           {...attributes}
-          {...listeners}
         >
-          <span className="block text-xs font-semibold text-muted-foreground">Slide {index + 1}</span>
-          <span className="line-clamp-2 text-sm font-medium text-foreground">{slide.title}</span>
+          <span
+            className="flex h-8 w-6 cursor-grab items-center justify-center rounded-md bg-secondary text-secondary-foreground active:cursor-grabbing"
+            onClick={(event) => event.stopPropagation()}
+            title="Drag to reorder"
+            {...listeners}
+          >
+            <GripVertical className="h-4 w-4" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-xs font-semibold text-muted-foreground">Slide {index + 1}</span>
+            <span className="line-clamp-2 text-sm font-medium text-foreground">{slide.title || "Untitled slide"}</span>
+          </span>
         </button>
       </ContextMenu.Trigger>
       <StudioContextContent onCopy={onCopy} onDuplicate={onDuplicate} onArchive={onArchive} onAskAi={() => undefined} />
