@@ -5,6 +5,7 @@ import type { AiTaskKey } from "./ai/prompt-library"
 export type ImportTarget = "note" | "doc" | "sheet" | "slides"
 export type ImportFollowupKind = "cleanup" | "practice" | "flashcards"
 export type ImportDestinationView = "notes" | "docs" | "sheets" | "slides"
+export const importTargetOptions: Array<ImportTarget | "auto"> = ["auto", "note", "doc", "sheet", "slides"]
 
 export interface ShapedImport {
   target: ImportTarget

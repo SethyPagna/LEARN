@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildImportFollowupAction, detectImportTarget, getImportDestinationView, labelImportTarget, previewImportedLearningContent, shapeImportedLearningContent } from "../lib/import-gateway"
+import { buildImportFollowupAction, detectImportTarget, getImportDestinationView, importTargetOptions, labelImportTarget, previewImportedLearningContent, shapeImportedLearningContent } from "../lib/import-gateway"
 
 test("import gateway detects sheets slides docs and notes", () => {
   assert.equal(detectImportTarget("Topic,Status\nReact,Review\nSQL,Weak"), "sheet")
@@ -42,6 +42,7 @@ test("import gateway previews detected targets and warnings", () => {
 })
 
 test("import gateway exposes shared labels and destinations", () => {
+  assert.deepEqual(importTargetOptions, ["auto", "note", "doc", "sheet", "slides"])
   assert.equal(labelImportTarget("auto"), "Auto detect")
   assert.equal(labelImportTarget("doc"), "Document")
   assert.equal(labelImportTarget("sheet"), "Sheet")
