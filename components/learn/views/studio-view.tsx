@@ -113,7 +113,7 @@ import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, re
 import { clearStudioDraft, readStudioDrafts, shouldAnnounceStudioDraftSave, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
 import { studioFontOptions, studioFontSizeOptions, studioHighlightColorOptions, studioTextColorOptions } from "@/lib/studio-formatting"
 import { getStudioKindOption, getStudioViewModeOption, studioEmptyTabLabels, studioInspectorTabs, studioKindOptions, studioSectionFilters, studioViewModeOptions, type StudioViewMode } from "@/lib/studio-navigation"
-import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankSheetCells, blankSheetFingerprint, blankSheetTitle, ensureSheetCells, parseDeckSlides, parseSheetCells } from "@/lib/studio-defaults"
+import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, blankNoteTitle, blankRichText, blankSheetCells, blankSheetFingerprint, blankSheetTitle, ensureSheetCells, parseDeckSlides, parseSheetCells } from "@/lib/studio-defaults"
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { applySlideDesignPreset, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, getDocumentInsertBlock, removeSlideDesignObject, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 
@@ -339,7 +339,7 @@ function escapeHtml(value: string) {
 }
 
 function richTextContent(value: string) {
-  if (!value.trim()) return "<p></p>"
+  if (!value.trim()) return blankRichText
   if (isHtml(value)) return value
   return value
     .split(/\n{2,}/)
@@ -474,7 +474,7 @@ export function StudioView({
   const [docs, setDocs] = useState<WorkspaceDocument[]>([])
   const [docId, setDocId] = useState("")
   const selectedDoc = docId ? docs.find((item) => item.id === docId) : undefined
-  const [docTitle, setDocTitle] = useState("Untitled document")
+  const [docTitle, setDocTitle] = useState(blankDocTitle)
   const [docHistory, setDocHistory] = useState<HistoryState<string>>(createHistoryState(""))
 
   const [sheets, setSheets] = useState<WorkspaceSheet[]>([])
@@ -689,7 +689,7 @@ export function StudioView({
 
   useEffect(() => {
     if (!draftReady.current || !noteDraft) return
-    const title = noteDraft.title || "Untitled learning page"
+    const title = noteDraft.title || blankNoteTitle
     const changed = title !== (selectedNote?.title || "") || noteHistory.present !== (selectedNote?.content || "")
     if (!changed) return
     const fingerprint = ["notes", noteDraft.id || "", title, noteHistory.present].join("\u001f")
@@ -705,10 +705,10 @@ export function StudioView({
   useEffect(() => {
     if (!draftReady.current) return
     const selectedContent = textFromDocument(selectedDoc)
-    const title = docTitle || "Untitled document"
+    const title = docTitle || blankDocTitle
     const changed = selectedDoc
       ? title !== selectedDoc.title || docHistory.present !== selectedContent
-      : title !== "Untitled document" || plainTextFromHtml(docHistory.present).length > 0
+      : title !== blankDocTitle || plainTextFromHtml(docHistory.present).length > 0
     if (!changed) return
     const fingerprint = ["docs", selectedDoc?.id || "", title, docHistory.present].join("\u001f")
     return scheduleStudioDraft("docs", fingerprint, () => ({
@@ -812,7 +812,7 @@ export function StudioView({
   }
 
   function activeTitle() {
-    if (kind === "notes") return noteDraft?.title || "Untitled learning page"
+    if (kind === "notes") return noteDraft?.title || blankNoteTitle
     if (kind === "docs") return docTitle
     if (kind === "sheets") return sheetTitle
     return deckTitle
@@ -887,7 +887,7 @@ export function StudioView({
     if (kind === "notes") {
       const response = await api<{ item: Note }>("/api/notes", {
         method: "POST",
-        body: JSON.stringify({ title: "Untitled learning page", content: "<p></p>", template: "blank" }),
+        body: JSON.stringify({ title: blankNoteTitle, content: blankRichText, template: "blank" }),
       })
       setNotes((current) => [response.item, ...current])
       setSelectedNoteId(response.item.id)
@@ -896,7 +896,7 @@ export function StudioView({
     }
     if (kind === "docs") {
       setDocId("")
-      setDocTitle("Untitled document")
+      setDocTitle(blankDocTitle)
       setDocHistory(createHistoryState(docTemplates[options.docsTemplate]))
       return
     }
@@ -1232,7 +1232,7 @@ export function StudioView({
       setDocs((current) => current.filter((entry) => entry.id !== item.id))
       if (docId === item.id) {
         setDocId("")
-        setDocTitle("Untitled document")
+        setDocTitle(blankDocTitle)
         setDocHistory(createHistoryState(docTemplates[options.docsTemplate]))
       }
     }
