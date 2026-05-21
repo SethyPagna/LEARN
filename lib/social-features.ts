@@ -167,9 +167,16 @@ export interface SocialActionKit {
   actions: SocialActionItem[]
 }
 
+export type SocialInviteRole = "learner" | "admin"
+
+export const socialInviteRoleOptions: Array<{ value: SocialInviteRole; label: string }> = [
+  { value: "learner", label: "Learner" },
+  { value: "admin", label: "Admin" },
+]
+
 export interface SocialInviteDraft {
   email: string
-  role: "learner" | "admin"
+  role: SocialInviteRole
 }
 
 export interface WorkspaceMemberLike {
@@ -889,9 +896,13 @@ export function buildSocialInviteReadiness(input: {
 
 export function normalizeSocialInviteDraft(input: { email?: string; role?: string }): SocialInviteValidation {
   const email = String(input.email || "").trim().toLowerCase()
-  const role = input.role === "admin" ? "admin" : "learner"
+  const role = normalizeSocialInviteRole(input.role)
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: "Enter a valid email address." }
   return { ok: true, value: { email, role } }
+}
+
+export function normalizeSocialInviteRole(value: unknown): SocialInviteRole {
+  return value === "admin" ? "admin" : "learner"
 }
 
 export function summarizeWorkspaceMembers(members: WorkspaceMemberLike[]): WorkspaceMemberSummary {

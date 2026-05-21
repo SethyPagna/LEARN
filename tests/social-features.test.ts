@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialInviteReadiness, buildSocialMomentOptions, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialStarterActions, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, parseThreadTitle, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCallModes, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialInviteReadiness, buildSocialMomentOptions, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialStarterActions, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, normalizeSocialInviteRole, parseThreadTitle, socialInviteRoleOptions, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -201,6 +201,9 @@ test("buildSocialActionReadiness keeps draft actions clear and disabled", () => 
 })
 
 test("normalizeSocialInviteDraft validates email and role for secure invites", () => {
+  assert.deepEqual(socialInviteRoleOptions.map((option) => option.value), ["learner", "admin"])
+  assert.equal(normalizeSocialInviteRole("admin"), "admin")
+  assert.equal(normalizeSocialInviteRole("owner"), "learner")
   assert.deepEqual(normalizeSocialInviteDraft({ email: " New.User@Example.COM ", role: "admin" }), {
     ok: true,
     value: { email: "new.user@example.com", role: "admin" },
