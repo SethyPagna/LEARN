@@ -22,6 +22,21 @@ export type StudioRecordActionGroup = {
   actions: StudioRecordActionId[]
 }
 
+export type StudioShareOption = {
+  id: "copy-link" | "private-access" | "present" | "record"
+  label: string
+  detail: string
+  primary?: boolean
+}
+
+export type StudioDownloadOption = {
+  id: "html" | "text" | "csv" | "pptx" | "outline" | "json"
+  label: string
+  detail: string
+  action: "download" | "export"
+  suggested?: boolean
+}
+
 export function createStudioTab(kind: StudioKind, title: string, itemId?: string): StudioTab {
   return {
     id: `${kind}_${itemId || "draft"}_${Date.now().toString(36)}`,
@@ -157,6 +172,43 @@ export function buildStudioRecordActionGroups({ archived = false }: { archived?:
       actions: archived ? ["restore"] : ["archive"],
     },
   ]
+}
+
+export function buildStudioShareOptions(kind: StudioKind): StudioShareOption[] {
+  const presentationOptions: StudioShareOption[] = kind === "slides"
+    ? [
+        { id: "present", label: "Present", detail: "Open the deck flow and rehearse timing." },
+        { id: "record", label: "Record", detail: "Use speaker notes as a recording plan." },
+      ]
+    : []
+  return [
+    { id: "copy-link", label: "Copy link", detail: "Copy the Studio route for this project.", primary: true },
+    { id: "private-access", label: "Private", detail: "Only signed-in workspace members can access it." },
+    ...presentationOptions,
+  ]
+}
+
+export function buildStudioDownloadOptions(kind: StudioKind): StudioDownloadOption[] {
+  if (kind === "sheets") {
+    return [
+      { id: "csv", label: "CSV", detail: "Spreadsheet rows for Excel, Sheets, and imports.", action: "download", suggested: true },
+      { id: "text", label: "Plain text", detail: "Readable table text for quick sharing.", action: "export" },
+    ]
+  }
+  if (kind === "slides") {
+    return [
+      { id: "pptx", label: "PPTX", detail: "Editable Microsoft PowerPoint deck.", action: "export", suggested: true },
+      { id: "outline", label: "Outline", detail: "Speaker-ready text outline.", action: "download" },
+    ]
+  }
+  return [
+    { id: "html", label: "HTML", detail: "Designed document with headings and formatting.", action: "download", suggested: true },
+    { id: "text", label: "Plain text", detail: "Clean text for email, AI, and lightweight export.", action: "export" },
+  ]
+}
+
+export function recommendedStudioDownloadOption(kind: StudioKind) {
+  return buildStudioDownloadOptions(kind).find((option) => option.suggested) || buildStudioDownloadOptions(kind)[0]
 }
 
 export function addRow(cells: string[][], afterIndex = cells.length - 1) {

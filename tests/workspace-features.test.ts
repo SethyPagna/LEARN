@@ -15,7 +15,9 @@ import {
   addColumn,
   addRow,
   buildSheetFormula,
+  buildStudioDownloadOptions,
   buildStudioRecordActionGroups,
+  buildStudioShareOptions,
   closeStudioPane,
   closeOtherStudioPanes,
   computeStudioDirtyBadges,
@@ -30,6 +32,7 @@ import {
   moveRow,
   moveSlide,
   pinStudioPane,
+  recommendedStudioDownloadOption,
   renameStudioPane,
   slideToObjects,
   sortSheetByColumn,
@@ -222,6 +225,14 @@ test("studio record action groups swap manage actions for archived items", () =>
   assert.deepEqual(openGroup?.actions, ["open"])
   assert.equal(manageGroup?.priority, "primary")
   assert.deepEqual(manageGroup?.actions, ["restore"])
+})
+
+test("studio share and download options match Canva-style Studio outputs", () => {
+  assert.equal(buildStudioShareOptions("slides").some((option) => option.id === "present"), true)
+  assert.equal(buildStudioShareOptions("docs").some((option) => option.id === "present"), false)
+  assert.deepEqual(buildStudioDownloadOptions("sheets").map((option) => option.id), ["csv", "text"])
+  assert.deepEqual(buildStudioDownloadOptions("slides").map((option) => option.id), ["pptx", "outline"])
+  assert.equal(recommendedStudioDownloadOption("docs")?.id, "html")
 })
 
 test("studio draft summary counts typed workspace drafts", () => {

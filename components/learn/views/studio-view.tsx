@@ -95,7 +95,9 @@ import {
   addColumn,
   addRow,
   buildSheetFormula,
+  buildStudioDownloadOptions,
   buildStudioRecordActionGroups,
+  buildStudioShareOptions,
   closeOtherStudioPanes,
   closeStudioPane,
   computeStudioDirtyBadges,
@@ -111,6 +113,7 @@ import {
   moveSlide,
   normalizeStudioLayout,
   pinStudioPane,
+  recommendedStudioDownloadOption,
   sortSheetByColumn,
   splitStudioPane,
   type StudioRecordActionId,
@@ -2602,6 +2605,9 @@ function StudioPaneSurface({
                 cells={cells}
                 currentTitle={activeTitle}
                 inspectorTab={inspectorTab}
+                onCopyLink={() => navigator.clipboard?.writeText(window.location.href)}
+                onDownload={onDownload}
+                onExport={onExport}
                 onSetInspectorTab={onSetInspectorTab}
                 selectedCell={selectedCell}
                 selectedSlideIndex={selectedSlideIndex}
@@ -3427,6 +3433,9 @@ function StudioInspector({
   cells,
   currentTitle,
   inspectorTab,
+  onCopyLink,
+  onDownload,
+  onExport,
   onSetInspectorTab,
   selectedCell,
   selectedSlideIndex,
@@ -3437,6 +3446,9 @@ function StudioInspector({
   cells: string[][]
   currentTitle: string
   inspectorTab: string
+  onCopyLink: () => void
+  onDownload: () => void
+  onExport: () => void
   onSetInspectorTab: (value: string) => void
   selectedCell: { row: number; column: number }
   selectedSlideIndex: number
@@ -3458,9 +3470,61 @@ function StudioInspector({
         {activeKind === "slides" ? <InspectorCard title="Slide" body={`${selectedSlideIndex + 1} / ${slides.length}: ${slides[selectedSlideIndex]?.layout || "title"}`} /> : null}
         {inspectorTab === "AI" ? <InspectorCard title="AI actions" body="Summarize, rewrite, translate, generate quiz, flashcards, or a study route from this active Studio item." /> : null}
         {inspectorTab === "History" ? <InspectorCard title="History" body="Undo/redo is local; saved versions and audit entries stay tied to the record APIs." /> : null}
-        {inspectorTab === "Export" ? <InspectorCard title="Export" body="Docs export HTML/text, sheets export CSV, slides export JSON or PPTX." /> : null}
+        {inspectorTab === "Export" ? <StudioExportInspector activeKind={activeKind} onCopyLink={onCopyLink} onDownload={onDownload} onExport={onExport} /> : null}
       </div>
     </aside>
+  )
+}
+
+function StudioExportInspector({
+  activeKind,
+  onCopyLink,
+  onDownload,
+  onExport,
+}: {
+  activeKind: StudioKind
+  onCopyLink: () => void
+  onDownload: () => void
+  onExport: () => void
+}) {
+  const shareOptions = buildStudioShareOptions(activeKind)
+  const downloadOptions = buildStudioDownloadOptions(activeKind)
+  const recommendedDownload = recommendedStudioDownloadOption(activeKind)
+  return (
+    <div className="space-y-3">
+      <section className="rounded-lg border border-border bg-card p-3">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Share</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">Access and presentation</p>
+          </div>
+          <button onClick={onCopyLink} className="rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground" type="button">Copy link</button>
+        </div>
+        <div className="mt-3 grid gap-2">
+          {shareOptions.map((option) => (
+            <div key={option.id} className={`rounded-md border p-2 ${option.primary ? "border-primary bg-primary/10" : "border-border bg-background"}`}>
+              <p className="text-xs font-bold text-foreground">{option.label}</p>
+              <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{option.detail}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className="rounded-lg border border-border bg-card p-3">
+        <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Download</p>
+        <p className="mt-1 text-sm font-semibold text-foreground">{recommendedDownload?.label || "Best format"} ready</p>
+        <div className="mt-3 grid gap-2">
+          {downloadOptions.map((option) => (
+            <button key={option.id} onClick={option.action === "download" ? onDownload : onExport} className="rounded-md border border-border bg-background p-2 text-left transition hover:border-primary hover:bg-accent" type="button">
+              <span className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-foreground">{option.label}</span>
+                {option.suggested ? <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary">Suggested</span> : null}
+              </span>
+              <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">{option.detail}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+    </div>
   )
 }
 
