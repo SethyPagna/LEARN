@@ -23,7 +23,7 @@ import {
   type SocialWorkspaceTab,
 } from "@/lib/learn-workspace-navigation"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
-import { buildPracticeGameModes, buildPracticePlayStyles, buildPracticeWorkspacePlan, type PracticeGameMode, type PracticePlayStyle, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
+import { buildPracticeGameModes, buildPracticeLiveJoinCard, buildPracticePlayStyles, buildPracticeWorkspacePlan, type PracticeGameMode, type PracticeLiveJoinCard, type PracticePlayStyle, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
 import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialCommandModel, buildSocialCommandRunActions, buildSocialContactQuickActions, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeConnections, type ConnectionActionId, type PeopleSearchShortcut, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialHomeLane, type SocialInviteRole, type SocialMomentOption, type SocialMomentTypeId, type SocialStarterAction, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 const practiceTabIcons: Record<PracticeWorkspaceTab, ComponentType<{ className?: string }>> = {
@@ -146,6 +146,14 @@ export function PracticeWorkspaceView({
     markedDraftCount: draftCards.reduce((sum, draft) => sum + draft.markedCount, 0),
     retryDraftCount: draftCards.reduce((sum, draft) => sum + draft.retryCount, 0),
   }), [draftCards, quizzes.length, tab])
+  const liveJoinCard = useMemo(() => buildPracticeLiveJoinCard({
+    quizCount: quizzes.length,
+    draftCount: draftCards.length,
+    answeredDraftCount: draftCards.reduce((sum, draft) => sum + draft.answeredCount, 0),
+    markedDraftCount: draftCards.reduce((sum, draft) => sum + draft.markedCount, 0),
+    retryDraftCount: draftCards.reduce((sum, draft) => sum + draft.retryCount, 0),
+    seed: selectedQuizId || "practice",
+  }), [draftCards, quizzes.length, selectedQuizId])
   const playStyles = useMemo(() => buildPracticePlayStyles({
     draftCount: draftCards.length,
     hasQuizBanks: quizzes.length > 0,
@@ -209,7 +217,7 @@ export function PracticeWorkspaceView({
     >
       <div className="grid gap-4 xl:grid-cols-[1fr_300px]">
         <div>{tab === "quizzes" ? <QuizView quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={options} /> : <GamesView quizzes={quizzes} options={options} />}</div>
-        <PracticeGuide draftCards={draftCards} gameModes={gameModes} onClearDraft={discardDraft} onCreatePractice={() => setView("ai")} onOpenTarget={openPracticeTarget} onResumeDraft={resumeDraft} plan={practicePlan} playStyles={playStyles} />
+        <PracticeGuide draftCards={draftCards} gameModes={gameModes} liveJoinCard={liveJoinCard} onClearDraft={discardDraft} onCreatePractice={() => setView("ai")} onOpenTarget={openPracticeTarget} onResumeDraft={resumeDraft} plan={practicePlan} playStyles={playStyles} />
       </div>
     </WorkspaceFrame>
   )
@@ -1127,6 +1135,7 @@ function InfoMenu({ body, title }: { body: string; title: string }) {
 function PracticeGuide({
   draftCards,
   gameModes,
+  liveJoinCard,
   onClearDraft,
   onCreatePractice,
   onOpenTarget,
@@ -1136,6 +1145,7 @@ function PracticeGuide({
 }: {
   draftCards: PracticeDraftCard[]
   gameModes: PracticeGameMode[]
+  liveJoinCard: PracticeLiveJoinCard
   onClearDraft: (quizId: string) => void
   onCreatePractice: () => void
   onOpenTarget: (target: PracticeWorkspaceTarget) => void
@@ -1155,11 +1165,44 @@ function PracticeGuide({
     onOpenTarget(action.target)
   }
 
+  function runLiveAction() {
+    const action = plan.actions.find((item) => item.id === liveJoinCard.primaryAction) || plan.primaryAction
+    runAction(action)
+  }
+
   return (
     <Panel className="h-max p-3">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-semibold text-foreground">Practice next</h3>
         <InfoMenu title="Practice next" body="Choose the plain action first. The detailed quiz modes, timers, marks, drafts, and game runs stay inside each practice area." />
+      </div>
+      <div className="mt-3 overflow-hidden rounded-lg border border-violet-500/30 bg-[radial-gradient(circle_at_top_right,rgba(168,85,247,0.32),transparent_38%),linear-gradient(135deg,#1f1147,#5b21b6_52%,#111827)] p-3 text-white shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-white/70">Live game</p>
+            <p className="mt-1 text-base font-bold">{liveJoinCard.headline}</p>
+          </div>
+          <span className={`rounded-full px-2 py-1 text-[0.68rem] font-bold ${liveJoinCard.ready ? "bg-emerald-400 text-emerald-950" : "bg-white/15 text-white"}`}>
+            {liveJoinCard.ready ? "Ready" : "Needs bank"}
+          </span>
+        </div>
+        <div className="mt-3 rounded-md bg-white p-2 text-center shadow-inner">
+          <p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-slate-500">Game PIN</p>
+          <p className="font-mono text-3xl font-black tracking-[0.18em] text-slate-950">{liveJoinCard.pin}</p>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-1.5">
+          {liveJoinCard.scoringRules.map((rule) => (
+            <div key={rule.label} className="rounded-md bg-white/10 p-2" title={rule.detail}>
+              <p className="text-[0.65rem] font-bold uppercase text-white/65">{rule.label}</p>
+              <p className="text-sm font-black">{rule.value}</p>
+            </div>
+          ))}
+        </div>
+        <button onClick={runLiveAction} className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-white px-3 text-sm font-black text-violet-950 shadow-sm transition hover:-translate-y-0.5" type="button">
+          <Swords className="h-4 w-4" />
+          {liveJoinCard.primaryLabel}
+        </button>
+        <p className="mt-2 text-xs leading-5 text-white/75">{liveJoinCard.caption}</p>
       </div>
       <div className="mt-3 rounded-md border border-primary/25 bg-primary/10 p-3">
         <p className="text-sm font-semibold text-foreground">{plan.headline}</p>

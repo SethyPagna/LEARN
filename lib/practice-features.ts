@@ -51,6 +51,17 @@ export interface PracticeWorkspacePlan {
   signals: Array<{ label: string; value: string }>
 }
 
+export interface PracticeLiveJoinCard {
+  pin: string
+  headline: string
+  caption: string
+  primaryAction: PracticeWorkspaceActionId
+  primaryLabel: string
+  ready: boolean
+  stats: Array<{ label: string; value: string }>
+  scoringRules: Array<{ label: string; value: string; detail: string }>
+}
+
 export interface PracticePlayStyle {
   id: PracticePlayStyleId
   label: string
@@ -508,6 +519,51 @@ export function buildPracticeWorkspacePlan(input: {
       { label: "Flagged", value: String(markedDraftCount + retryDraftCount) },
     ],
   }
+}
+
+export function buildPracticeLiveJoinCard(input: {
+  quizCount: number
+  draftCount?: number
+  answeredDraftCount?: number
+  markedDraftCount?: number
+  retryDraftCount?: number
+  seed?: string
+}): PracticeLiveJoinCard {
+  const draftCount = input.draftCount ?? 0
+  const answeredDraftCount = input.answeredDraftCount ?? 0
+  const flaggedCount = (input.markedDraftCount ?? 0) + (input.retryDraftCount ?? 0)
+  const ready = input.quizCount > 0
+  const pin = practicePinFromSeed(`${input.seed || "learn"}:${input.quizCount}:${draftCount}:${answeredDraftCount}:${flaggedCount}`)
+
+  return {
+    pin,
+    headline: ready ? "Live challenge ready" : "Create a live challenge",
+    caption: ready
+      ? "Start a fast round with points for accuracy, speed, and streaks."
+      : "Generate practice from Studio or AI, then launch it as a live game.",
+    primaryAction: ready ? "speed" : "create",
+    primaryLabel: ready ? "Start live game" : "Generate with AI",
+    ready,
+    stats: [
+      { label: "Banks", value: String(input.quizCount) },
+      { label: "Drafts", value: String(draftCount) },
+      { label: "Answered", value: String(answeredDraftCount) },
+      { label: "Flagged", value: String(flaggedCount) },
+    ],
+    scoringRules: [
+      { label: "Points", value: "1000", detail: "Correct answers earn the base score." },
+      { label: "Speed", value: "+300", detail: "Faster correct answers add a time bonus." },
+      { label: "Accuracy", value: "x1.5", detail: "Clean streaks multiply the final round score." },
+    ],
+  }
+}
+
+function practicePinFromSeed(seed: string) {
+  let hash = 0
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 31 + seed.charCodeAt(index)) >>> 0
+  }
+  return String((hash % 900000) + 100000)
 }
 
 export function buildPracticePlayStyles(input: {

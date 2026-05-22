@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import type { QuizQuestion } from "../components/learn/types"
 import { hasPracticeDraftContent, listPracticeDraftCards, normalizePracticeDraft, summarizePracticeDrafts } from "../lib/practice-drafts"
-import { buildGameRunActions, buildMistakeRetrySet, buildPracticeGameModes, buildPracticePlayStyles, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, buildPracticeSessionSummary, buildPracticeWorkspacePlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../lib/practice-features"
+import { buildGameRunActions, buildMistakeRetrySet, buildPracticeGameModes, buildPracticeLiveJoinCard, buildPracticePlayStyles, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, buildPracticeSessionSummary, buildPracticeWorkspacePlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../lib/practice-features"
 
 const questions: QuizQuestion[] = [
   { id: "q1", question: "One?", choices: [{ id: "a", text: "1" }, { id: "b", text: "2" }], correct_answer_id: "a", topic: "Math", explanation: "One" },
@@ -75,6 +75,20 @@ test("practice play styles map popular product patterns to clean targets", () =>
   assert.equal(repair.find((style) => style.id === "assessment")?.badge, "Repair")
   assert.equal(empty.find((style) => style.id === "strategy")?.recommended, true)
   assert.equal(empty.find((style) => style.id === "arcade")?.target, "games")
+})
+
+test("practice live join card creates Kahoot-style ready and generation states", () => {
+  const ready = buildPracticeLiveJoinCard({ quizCount: 4, draftCount: 1, answeredDraftCount: 3, markedDraftCount: 1, retryDraftCount: 2, seed: "quiz_a" })
+  const empty = buildPracticeLiveJoinCard({ quizCount: 0, seed: "quiz_a" })
+
+  assert.match(ready.pin, /^\d{6}$/)
+  assert.equal(ready.ready, true)
+  assert.equal(ready.primaryAction, "speed")
+  assert.deepEqual(ready.stats.map((stat) => stat.value), ["4", "1", "3", "3"])
+  assert.deepEqual(ready.scoringRules.map((rule) => rule.label), ["Points", "Speed", "Accuracy"])
+  assert.equal(empty.ready, false)
+  assert.equal(empty.primaryAction, "create")
+  assert.match(empty.caption, /Generate practice/)
 })
 
 test("practice game modes expose familiar quiz and game loops", () => {
