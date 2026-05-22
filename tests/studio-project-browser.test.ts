@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { buildStudioProjectBrowserState, buildStudioTemplatePreview, countStudioProjects, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate, templateMatchesFormatGroup } from "../lib/studio-project-browser"
+import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, countStudioProjects, getStudioProjectDisplayMeta, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate, templateMatchesFormatGroup } from "../lib/studio-project-browser"
 import { getStudioToolActions, groupStudioToolActions, resolveStudioToolActionKind } from "../lib/studio-tool-library"
 
 const projects = [
@@ -27,6 +27,13 @@ test("studio project browser counts every Studio kind", () => {
     sheets: 1,
     slides: 1,
   })
+})
+
+test("studio project browser uses project-first display labels", () => {
+  assert.equal(getStudioProjectDisplayMeta("notes").badge, "Capture")
+  assert.equal(buildStudioProjectSubtitle(projects[2]), "Data · 12 rows")
+  assert.equal(buildStudioProjectSubtitle({ kind: "slides" as const, summary: "" }), "Deck · 16:9 / poster canvas")
+  assert.equal(buildStudioTemplateSubtitle({ kind: "docs" as const, style: "Editorial" }), "Editorial · A4 / Letter page")
 })
 
 test("studio project browser filters active-kind projects and matching templates", () => {

@@ -260,6 +260,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-22: Continued Studio format maturity by filtering templates against compatible canvas formats and expanding document, presentation, social, poster, sheet, thumbnail, and infographic sizes.
 - 2026-05-22: Continued Studio launcher functionality by making Canva-style tool cards apply real editor actions instead of only opening blank designs, with tested kind resolution for compatible Notes, Docs, Sheets, and Slides targets.
 - 2026-05-22: Continued Studio launcher clarity by grouping Canva-style tool actions into compact Pages, Visuals, Data, Inserts, Media, Brand kit, Text styles, and AI prompt sections instead of one long button list.
+- 2026-05-22: Continued Studio project-first cleanup by moving Notes/Docs/Sheets/Slides language into quieter project metadata so the launcher reads as one Projects workspace with formats, designs, and tools.
 
 ## Implementation Slices
 

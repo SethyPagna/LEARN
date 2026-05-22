@@ -27,6 +27,12 @@ export type StudioProjectBrowserState<TProject extends StudioBrowserProject, TTe
   templates: TTemplate[]
 }
 
+export type StudioProjectDisplayMeta = {
+  badge: string
+  detail: string
+  format: string
+}
+
 export type StudioTemplatePreviewMeta = {
   accent: string
   background: string
@@ -36,6 +42,13 @@ export type StudioTemplatePreviewMeta = {
 }
 
 const studioKinds: StudioKind[] = ["notes", "docs", "sheets", "slides"]
+
+const studioKindDisplayMeta: Record<StudioKind, StudioProjectDisplayMeta> = {
+  notes: { badge: "Capture", detail: "quick learning page", format: "A5 / A4 page" },
+  docs: { badge: "Document", detail: "rich guide page", format: "A4 / Letter page" },
+  sheets: { badge: "Data", detail: "grid workspace", format: "worksheet grid" },
+  slides: { badge: "Deck", detail: "presentation canvas", format: "16:9 / poster canvas" },
+}
 
 export function buildStudioProjectBrowserState<TProject extends StudioBrowserProject, TTemplate extends StudioBrowserTemplate>({
   formatGroup,
@@ -66,6 +79,20 @@ export function countStudioProjects(items: Array<Pick<StudioBrowserProject, "kin
   const counts = Object.fromEntries(studioKinds.map((kind) => [kind, 0])) as Record<StudioKind, number>
   for (const item of items) counts[item.kind] += 1
   return counts
+}
+
+export function getStudioProjectDisplayMeta(kind: StudioKind) {
+  return studioKindDisplayMeta[kind]
+}
+
+export function buildStudioProjectSubtitle(project: Pick<StudioBrowserProject, "kind" | "summary">) {
+  const meta = getStudioProjectDisplayMeta(project.kind)
+  return `${meta.badge} · ${project.summary || meta.format}`
+}
+
+export function buildStudioTemplateSubtitle(template: Pick<StudioBrowserTemplate, "kind" | "style">, fallbackStyle = "") {
+  const meta = template.kind ? getStudioProjectDisplayMeta(template.kind) : null
+  return [fallbackStyle || template.style, meta?.format].filter(Boolean).join(" · ")
 }
 
 export function matchesStudioBrowserQuery(item: StudioBrowserProject | StudioBrowserTemplate, needle: string) {

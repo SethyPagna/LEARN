@@ -123,7 +123,7 @@ import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, b
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
-import { buildStudioProjectBrowserState, buildStudioTemplatePreview, selectStudioBrowserTemplate, type StudioProjectKindFilter } from "@/lib/studio-project-browser"
+import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, getStudioProjectDisplayMeta, selectStudioBrowserTemplate, type StudioProjectKindFilter } from "@/lib/studio-project-browser"
 import { getStudioToolActions, getStudioToolPanel, groupStudioToolActions, resolveStudioToolActionKind, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 
@@ -1975,11 +1975,11 @@ function StudioProjectBrowser({
                           <TemplateIcon className="h-3 w-3" />
                         </span>
                       </span>
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-bold text-foreground">{template.label}</span>
-                        <span className="block truncate text-xs text-muted-foreground">{studioKindStyles[template.kind].label} - {meta.style}</span>
-                      </span>
-                    </button>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-bold text-foreground">{template.label}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{buildStudioTemplateSubtitle(template, meta.style)}</span>
+                    </span>
+                  </button>
                   )
                 }) : activeToolActionGroups.map((group) => (
                   <section key={group.id} className="grid gap-2">
@@ -2032,14 +2032,16 @@ function StudioProjectBrowser({
                 <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {recentItems.map((item) => {
                     const Icon = studioKindIcons[item.kind]
+                    const meta = getStudioProjectDisplayMeta(item.kind)
                     return (
                       <button key={`${item.kind}_${item.id}`} onClick={() => onOpen(item)} className="group overflow-hidden rounded-xl border border-border bg-background text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md" type="button">
                         <span className={`block h-24 ${studioKindStyles[item.kind].icon} p-3`}>
                           <Icon className="h-7 w-7" />
+                          <span className="mt-7 inline-flex rounded-md bg-background/80 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-foreground shadow-sm">{meta.badge}</span>
                         </span>
                         <span className="block p-3">
                           <span className="block truncate text-sm font-bold text-foreground">{item.title}</span>
-                          <span className="mt-1 block truncate text-xs text-muted-foreground">{studioKindStyles[item.kind].label} - {item.summary || "Ready"}</span>
+                          <span className="mt-1 block truncate text-xs text-muted-foreground">{buildStudioProjectSubtitle(item)}</span>
                         </span>
                       </button>
                     )
