@@ -34,6 +34,12 @@ export type StudioProjectDisplayMeta = {
   format: string
 }
 
+export type StudioProjectFilterOption = {
+  description: string
+  label: string
+  value: StudioProjectKindFilter
+}
+
 export type StudioTemplatePreviewMeta = {
   accent: string
   background: string
@@ -50,6 +56,14 @@ const studioKindDisplayMeta: Record<StudioKind, StudioProjectDisplayMeta> = {
   sheets: { badge: "Data", detail: "grid workspace", format: "worksheet grid" },
   slides: { badge: "Deck", detail: "presentation canvas", format: "16:9 / poster canvas" },
 }
+
+const studioProjectFilterOptions: StudioProjectFilterOption[] = [
+  { description: "Show every Studio project and template", label: "All designs", value: "all" },
+  { description: "Learning pages, journals, and quick captures", label: "Pages", value: "notes" },
+  { description: "Guides, reports, handouts, and long-form work", label: "Guides", value: "docs" },
+  { description: "Trackers, tables, imports, and spreadsheet layouts", label: "Tables", value: "sheets" },
+  { description: "Decks, posters, galleries, and presentation canvases", label: "Decks", value: "slides" },
+]
 
 export function buildStudioProjectBrowserState<TProject extends StudioBrowserProject, TTemplate extends StudioBrowserTemplate>({
   formatGroup,
@@ -80,6 +94,14 @@ export function countStudioProjects(items: Array<Pick<StudioBrowserProject, "kin
   const counts = Object.fromEntries(studioKinds.map((kind) => [kind, 0])) as Record<StudioKind, number>
   for (const item of items) counts[item.kind] += 1
   return counts
+}
+
+export function listStudioProjectFilterOptions() {
+  return studioProjectFilterOptions
+}
+
+export function getStudioProjectFilterOption(value: StudioProjectKindFilter) {
+  return studioProjectFilterOptions.find((option) => option.value === value) || studioProjectFilterOptions[0]
 }
 
 export function selectStudioProjectShelf<TProject extends StudioBrowserProject>(projects: TProject[], limit = 12) {

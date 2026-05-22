@@ -126,7 +126,7 @@ import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, b
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
-import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, getStudioProjectDisplayMeta, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, type StudioProjectKindFilter } from "@/lib/studio-project-browser"
+import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, getStudioProjectDisplayMeta, getStudioProjectFilterOption, listStudioProjectFilterOptions, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, type StudioProjectKindFilter } from "@/lib/studio-project-browser"
 import { getStudioToolActions, getStudioToolPanel, groupStudioToolActions, resolveStudioToolActionKind, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 
@@ -1904,6 +1904,8 @@ function StudioProjectBrowser({
   const activeToolActions = getStudioToolActions(projectToolPanel, formatKind)
   const activeToolActionGroups = groupStudioToolActions(projectToolPanel, formatKind)
   const activeToolCount = projectToolPanel === "templates" ? templateChoices.length : projectToolPanel === "projects" ? recentItems.length : activeToolActions.length
+  const projectFilterOptions = listStudioProjectFilterOptions()
+  const activeProjectFilter = getStudioProjectFilterOption(projectKindFilter)
   return (
     <div className="grid gap-4">
       <Panel className="overflow-hidden p-0">
@@ -1916,14 +1918,15 @@ function StudioProjectBrowser({
             </label>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button onClick={onCreate} className="h-10 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm" type="button">New design</button>
-              <ActionMenu label={projectKindFilter === "all" ? "All projects" : getStudioKindOption(projectKindFilter).label} icon={SlidersHorizontal}>
-                <MenuAction active={projectKindFilter === "all"} icon={LayoutPanelLeft} label="All projects" meta="Show every Studio project and template" onClick={() => setProjectKindFilter("all")} />
-                {studioKindOptions.map((option) => {
-                  const Icon = studioKindIcons[option.kind]
+              <ActionMenu label={activeProjectFilter.label} icon={SlidersHorizontal}>
+                {projectFilterOptions.map((option) => {
+                  const active = projectKindFilter === option.value
+                  const Icon = option.value === "all" ? LayoutPanelLeft : studioKindIcons[option.value]
+                  const count = option.value === "all" ? items.length : browserState.counts[option.value]
                   return (
-                    <MenuAction key={option.kind} active={projectKindFilter === option.kind} icon={Icon} label={option.label} meta={`${browserState.counts[option.kind]} project${browserState.counts[option.kind] === 1 ? "" : "s"}`} onClick={() => {
-                      setProjectKindFilter(option.kind)
-                      onSelectKind(option.kind)
+                    <MenuAction key={option.value} active={active} icon={Icon} label={option.label} meta={`${count} project${count === 1 ? "" : "s"} - ${option.description}`} onClick={() => {
+                      setProjectKindFilter(option.value)
+                      if (option.value !== "all") onSelectKind(option.value)
                     }} />
                   )
                 })}
@@ -2037,11 +2040,11 @@ function StudioProjectBrowser({
                 <input value={query} onChange={(event) => onQuery(event.target.value)} placeholder="Search across all content" className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
               </label>
               <div className="mt-3 flex flex-wrap justify-center gap-2">
-                <ActionMenu compact label={projectKindFilter === "all" ? "Type" : getStudioKindOption(projectKindFilter).label} icon={SlidersHorizontal}>
-                  <MenuAction active={projectKindFilter === "all"} icon={LayoutPanelLeft} label="All types" onClick={() => setProjectKindFilter("all")} />
-                  {studioKindOptions.map((option) => {
-                    const Icon = studioKindIcons[option.kind]
-                    return <MenuAction key={option.kind} active={projectKindFilter === option.kind} icon={Icon} label={option.label} meta={`${browserState.counts[option.kind]} project${browserState.counts[option.kind] === 1 ? "" : "s"}`} onClick={() => { setProjectKindFilter(option.kind); onSelectKind(option.kind) }} />
+                <ActionMenu compact label={activeProjectFilter.label} icon={SlidersHorizontal}>
+                  {projectFilterOptions.map((option) => {
+                    const Icon = option.value === "all" ? LayoutPanelLeft : studioKindIcons[option.value]
+                    const count = option.value === "all" ? items.length : browserState.counts[option.value]
+                    return <MenuAction key={option.value} active={projectKindFilter === option.value} icon={Icon} label={option.label} meta={`${count} project${count === 1 ? "" : "s"}`} onClick={() => { setProjectKindFilter(option.value); if (option.value !== "all") onSelectKind(option.value) }} />
                   })}
                 </ActionMenu>
                 <ActionMenu compact label="Category" icon={Grid2X2}>

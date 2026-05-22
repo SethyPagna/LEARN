@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, countStudioProjects, getStudioProjectDisplayMeta, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, templateMatchesFormatGroup } from "../lib/studio-project-browser"
+import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, countStudioProjects, getStudioProjectDisplayMeta, getStudioProjectFilterOption, listStudioProjectFilterOptions, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, templateMatchesFormatGroup } from "../lib/studio-project-browser"
 import { getStudioToolActions, groupStudioToolActions, resolveStudioToolActionKind } from "../lib/studio-tool-library"
 
 const projects = [
@@ -27,6 +27,12 @@ test("studio project browser counts every Studio kind", () => {
     sheets: 1,
     slides: 1,
   })
+})
+
+test("studio project browser exposes project-first filter labels", () => {
+  assert.deepEqual(listStudioProjectFilterOptions().map((option) => option.label), ["All designs", "Pages", "Guides", "Tables", "Decks"])
+  assert.equal(getStudioProjectFilterOption("docs").label, "Guides")
+  assert.equal(getStudioProjectFilterOption("all").description, "Show every Studio project and template")
 })
 
 test("studio project browser uses project-first display labels", () => {

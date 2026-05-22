@@ -266,6 +266,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-22: Continued Canva-style Studio export work by adding tested Share and Download option models and surfacing them in the Export inspector with copy-link and suggested format actions.
 - 2026-05-22: Continued Canva-style Projects polish by redesigning the Studio launcher canvas around an All projects hero search, Type/Category/Owner/Date filters, and a horizontal Recents thumbnail shelf.
 - 2026-05-23: Continued Studio project-first maturity by adding a main-canvas template shelf, keeping template cards title-first, and replacing fragile separator glyphs with ASCII-safe Studio labels.
+- 2026-05-23: Continued Studio consolidation by replacing launcher Notes/Docs/Sheets/Slides filter language with project-first Pages, Guides, Tables, and Decks labels while preserving the existing data routes.
 
 ## Implementation Slices
 
