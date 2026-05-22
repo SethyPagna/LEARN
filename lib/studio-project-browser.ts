@@ -81,6 +81,10 @@ export function countStudioProjects(items: Array<Pick<StudioBrowserProject, "kin
   return counts
 }
 
+export function selectStudioProjectShelf<TProject extends StudioBrowserProject>(projects: TProject[], limit = 12) {
+  return projects.slice(0, Math.max(0, limit))
+}
+
 export function getStudioProjectDisplayMeta(kind: StudioKind) {
   return studioKindDisplayMeta[kind]
 }

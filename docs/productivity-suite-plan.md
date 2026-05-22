@@ -262,6 +262,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-22: Continued Studio launcher clarity by grouping Canva-style tool actions into compact Pages, Visuals, Data, Inserts, Media, Brand kit, Text styles, and AI prompt sections instead of one long button list.
 - 2026-05-22: Continued Studio project-first cleanup by moving Notes/Docs/Sheets/Slides language into quieter project metadata so the launcher reads as one Projects workspace with formats, designs, and tools.
 - 2026-05-22: Continued Studio template cleanup by making template rows title-first and moving style, format, and section details into the selected preview panel.
+- 2026-05-22: Continued Studio rail maturity by making the Projects tool panel show a compact filtered project shelf instead of an empty decorative tab.
 
 ## Implementation Slices
 

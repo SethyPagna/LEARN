@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, countStudioProjects, getStudioProjectDisplayMeta, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate, templateMatchesFormatGroup } from "../lib/studio-project-browser"
+import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, countStudioProjects, getStudioProjectDisplayMeta, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate, selectStudioProjectShelf, templateMatchesFormatGroup } from "../lib/studio-project-browser"
 import { getStudioToolActions, groupStudioToolActions, resolveStudioToolActionKind } from "../lib/studio-tool-library"
 
 const projects = [
@@ -34,6 +34,11 @@ test("studio project browser uses project-first display labels", () => {
   assert.equal(buildStudioProjectSubtitle(projects[2]), "Data · 12 rows")
   assert.equal(buildStudioProjectSubtitle({ kind: "slides" as const, summary: "" }), "Deck · 16:9 / poster canvas")
   assert.equal(buildStudioTemplateSubtitle({ kind: "docs" as const, style: "Editorial" }), "Editorial · A4 / Letter page")
+})
+
+test("studio project browser limits the project drawer shelf", () => {
+  assert.deepEqual(selectStudioProjectShelf(projects, 2).map((item) => item.id), ["note_1", "doc_1"])
+  assert.deepEqual(selectStudioProjectShelf(projects, 0), [])
 })
 
 test("studio project browser filters active-kind projects and matching templates", () => {

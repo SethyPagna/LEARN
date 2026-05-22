@@ -123,7 +123,7 @@ import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, b
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
-import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, getStudioProjectDisplayMeta, selectStudioBrowserTemplate, type StudioProjectKindFilter } from "@/lib/studio-project-browser"
+import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, getStudioProjectDisplayMeta, selectStudioBrowserTemplate, selectStudioProjectShelf, type StudioProjectKindFilter } from "@/lib/studio-project-browser"
 import { getStudioToolActions, getStudioToolPanel, groupStudioToolActions, resolveStudioToolActionKind, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 
@@ -1887,7 +1887,7 @@ function StudioProjectBrowser({
     query,
     templates: templateLibrary,
   }), [compatibleCanvasFormat.group, items, projectKindFilter, query, templateLibrary])
-  const recentItems = browserState.projects.slice(0, 12)
+  const recentItems = selectStudioProjectShelf(browserState.projects)
   const templateChoices = browserState.templates
   const selectedTemplate = templateChoices.find((template) => `${template.kind}:${template.label}` === selectedTemplateKey) || selectStudioBrowserTemplate(templateChoices, "")
   const selectedTemplateMeta = selectedTemplate ? getStudioTemplateMeta(selectedTemplate.kind, selectedTemplate) : null
@@ -1898,6 +1898,7 @@ function StudioProjectBrowser({
   const activeTool = getStudioToolPanel(projectToolPanel)
   const activeToolActions = getStudioToolActions(projectToolPanel, formatKind)
   const activeToolActionGroups = groupStudioToolActions(projectToolPanel, formatKind)
+  const activeToolCount = projectToolPanel === "templates" ? templateChoices.length : projectToolPanel === "projects" ? recentItems.length : activeToolActions.length
   return (
     <div className="grid gap-4">
       <Panel className="overflow-hidden p-0">
@@ -1958,7 +1959,7 @@ function StudioProjectBrowser({
             <div className="mt-5 grid gap-2">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{activeTool.label}</p>
-                <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{projectToolPanel === "templates" ? templateChoices.length : activeToolActions.length}</span>
+                <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{activeToolCount}</span>
               </div>
               <div className="grid max-h-[34vh] gap-2 overflow-auto pr-1">
                 {projectToolPanel === "templates" ? templateChoices.map((template) => {
@@ -1983,6 +1984,20 @@ function StudioProjectBrowser({
                       </span>
                     </button>
                   )
+                }) : projectToolPanel === "projects" ? recentItems.map((item) => {
+                  const Icon = studioKindIcons[item.kind]
+                  const meta = getStudioProjectDisplayMeta(item.kind)
+                  return (
+                    <button key={`${item.kind}_${item.id}`} onClick={() => onOpen(item)} className="grid grid-cols-[44px_1fr] items-center gap-3 rounded-lg border border-border bg-background p-2 text-left transition hover:-translate-y-0.5 hover:border-primary hover:bg-accent" type="button">
+                      <span className={`grid h-11 w-11 place-items-center rounded-md ${studioKindStyles[item.kind].icon}`}>
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-bold text-foreground">{item.title}</span>
+                        <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{meta.badge} · {item.summary || meta.format}</span>
+                      </span>
+                    </button>
+                  )
                 }) : activeToolActionGroups.map((group) => (
                   <section key={group.id} className="grid gap-2">
                     <div className="flex items-center justify-between">
@@ -2004,7 +2019,8 @@ function StudioProjectBrowser({
                   </section>
                 ))}
                 {projectToolPanel === "templates" && !templateChoices.length ? <EmptyState title="No designs found" body="Clear search or switch project filters." /> : null}
-                {projectToolPanel !== "templates" && !activeToolActions.length ? <EmptyState title="No tools here" body="Switch filters or open a project to use editor tools." /> : null}
+                {projectToolPanel === "projects" && !recentItems.length ? <EmptyState title="No projects found" body="Create a project, choose a template, or clear the search." /> : null}
+                {projectToolPanel !== "templates" && projectToolPanel !== "projects" && !activeToolActions.length ? <EmptyState title="No tools here" body="Switch filters or open a project to use editor tools." /> : null}
               </div>
             </div>
           </aside>
