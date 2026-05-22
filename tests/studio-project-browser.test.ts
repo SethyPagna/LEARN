@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 
 import { buildStudioProjectBrowserState, buildStudioTemplatePreview, countStudioProjects, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate, templateMatchesFormatGroup } from "../lib/studio-project-browser"
-import { getStudioToolActions } from "../lib/studio-tool-library"
+import { getStudioToolActions, resolveStudioToolActionKind } from "../lib/studio-tool-library"
 
 const projects = [
   { id: "note_1", kind: "notes" as const, title: "Operating systems note", summary: "Scheduling" },
@@ -118,4 +118,10 @@ test("studio tool library exposes varied Canva-style insert targets", () => {
   assert.ok(getStudioToolActions("media", "docs").some((action) => action.id === "media-video"))
   assert.ok(getStudioToolActions("text", "notes").some((action) => action.id === "text-checklist"))
   assert.ok(getStudioToolActions("ai", "sheets").some((action) => action.sheetAction === "table"))
+})
+
+test("studio tool action kind resolver keeps launcher actions compatible", () => {
+  assert.equal(resolveStudioToolActionKind({ supportedKinds: ["notes", "docs"] }, "docs"), "docs")
+  assert.equal(resolveStudioToolActionKind({ supportedKinds: ["sheets"] }, "slides"), "sheets")
+  assert.equal(resolveStudioToolActionKind({ supportedKinds: [] }, "slides"), "slides")
 })

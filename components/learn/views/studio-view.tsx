@@ -124,7 +124,7 @@ import { getImportDestinationView, importTargetOptions, labelImportTarget, norma
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
 import { buildStudioProjectBrowserState, buildStudioTemplatePreview, selectStudioBrowserTemplate, type StudioProjectKindFilter } from "@/lib/studio-project-browser"
-import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
+import { getStudioToolActions, getStudioToolPanel, resolveStudioToolActionKind, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
@@ -895,25 +895,30 @@ export function StudioView({
     setSelectedSlideIndex(0)
   }
 
-  function appendRichToolContent(html: string) {
-    if (kind === "notes") setNoteHistory(pushHistory(noteHistory, `${noteHistory.present}${html}`))
-    if (kind === "docs") setDocHistory(pushHistory(docHistory, `${docHistory.present}${html}`))
+  function appendRichToolContentForKind(targetKind: StudioKind, html: string) {
+    if (targetKind === "notes") setNoteHistory((current) => pushHistory(current, `${current.present}${html}`))
+    if (targetKind === "docs") setDocHistory((current) => pushHistory(current, `${current.present}${html}`))
   }
 
   function runStudioToolAction(action: StudioToolAction) {
+    runStudioToolActionForKind(kind, action)
+  }
+
+  function runStudioToolActionForKind(targetKind: StudioKind, action: StudioToolAction) {
+    if (targetKind !== kind) selectKind(targetKind)
     setStudioMode("editor")
     if (action.canvasAction) {
-      if (kind === "notes") {
-        setNoteHistory(pushHistory(noteHistory, action.canvasAction === "new-page" ? appendRichDocumentPage(noteHistory.present) : duplicateRichDocumentLastPage(noteHistory.present)))
+      if (targetKind === "notes") {
+        setNoteHistory((current) => pushHistory(current, action.canvasAction === "new-page" ? appendRichDocumentPage(current.present) : duplicateRichDocumentLastPage(current.present)))
         setStatus(`${action.label} added.`)
         return
       }
-      if (kind === "docs") {
-        setDocHistory(pushHistory(docHistory, action.canvasAction === "new-page" ? appendRichDocumentPage(docHistory.present) : duplicateRichDocumentLastPage(docHistory.present)))
+      if (targetKind === "docs") {
+        setDocHistory((current) => pushHistory(current, action.canvasAction === "new-page" ? appendRichDocumentPage(current.present) : duplicateRichDocumentLastPage(current.present)))
         setStatus(`${action.label} added.`)
         return
       }
-      if (kind === "slides") {
+      if (targetKind === "slides") {
         if (action.canvasAction === "duplicate-page") {
           setSlides((current) => duplicateSlide(current, selectedSlideIndex))
           setSelectedSlideIndex(selectedSlideIndex + 1)
@@ -925,19 +930,19 @@ export function StudioView({
         return
       }
     }
-    if ((kind === "notes" || kind === "docs") && action.richHtml) {
-      appendRichToolContent(action.richHtml)
+    if ((targetKind === "notes" || targetKind === "docs") && action.richHtml) {
+      appendRichToolContentForKind(targetKind, action.richHtml)
       setStatus(`${action.label} added.`)
       return
     }
-    if (kind === "sheets") {
+    if (targetKind === "sheets") {
       if (action.sheetAction === "add-row") setCells((current) => addRow(ensureSheetCells(current), selectedCell.row))
       if (action.sheetAction === "add-column") setCells((current) => addColumn(ensureSheetCells(current), selectedCell.column))
       if (action.sheetAction === "table") setCells((current) => ensureSheetCells(current).map((row, rowIndex) => row.map((cell, columnIndex) => cell || (rowIndex === 0 ? ["Item", "Detail", "Status"][columnIndex] || "" : ""))))
       setStatus(`${action.label} added.`)
       return
     }
-    if (kind === "slides" && action.slideObjectType) {
+    if (targetKind === "slides" && action.slideObjectType) {
       setSlides((current) => current.map((slide, index) => (
         index === selectedSlideIndex
           ? { ...slide, objects: [...(slide.objects || []), createSlideDesignObject(action.slideObjectType || "text")] }
@@ -1472,6 +1477,7 @@ export function StudioView({
         onOpen={selectItem}
         onQuery={setQuery}
         onSelectKind={selectKind}
+        onUseToolAction={runStudioToolActionForKind}
         query={query}
       />
     )
@@ -1849,6 +1855,7 @@ function StudioProjectBrowser({
   onOpen,
   onQuery,
   onSelectKind,
+  onUseToolAction,
   query,
 }: {
   activeKind: StudioKind
@@ -1861,6 +1868,7 @@ function StudioProjectBrowser({
   onOpen: (item: StudioRecordItem) => void
   onQuery: (value: string) => void
   onSelectKind: (kind: StudioKind) => void
+  onUseToolAction: (kind: StudioKind, action: StudioToolAction) => void
   query: string
 }) {
   const [projectKindFilter, setProjectKindFilter] = useState<StudioProjectKindFilter>("all")
@@ -1974,9 +1982,9 @@ function StudioProjectBrowser({
                   )
                 }) : activeToolActions.map((action) => (
                   <button key={action.id} onClick={() => {
-                    setProjectKindFilter(action.supportedKinds.includes(formatKind) ? formatKind : action.supportedKinds[0] || "notes")
-                    onSelectKind(action.supportedKinds.includes(formatKind) ? formatKind : action.supportedKinds[0] || "notes")
-                    onCreate()
+                    const targetKind = resolveStudioToolActionKind(action, formatKind)
+                    setProjectKindFilter(targetKind)
+                    onUseToolAction(targetKind, action)
                   }} className="rounded-lg border border-border bg-background p-3 text-left transition hover:-translate-y-0.5 hover:border-primary hover:bg-accent" title={action.description} type="button">
                     <span className="block text-sm font-bold text-foreground">{action.label}</span>
                     <span className="mt-1 block line-clamp-2 text-xs text-muted-foreground">{action.description}</span>

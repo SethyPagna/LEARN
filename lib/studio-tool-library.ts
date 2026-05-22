@@ -81,3 +81,7 @@ export function getStudioToolPanel(id: StudioToolPanelId) {
 export function getStudioToolActions(panel: StudioToolPanelId, kind: StudioKind) {
   return (studioToolActions[panel] || []).filter((action) => action.supportedKinds.includes(kind))
 }
+
+export function resolveStudioToolActionKind(action: Pick<StudioToolAction, "supportedKinds">, preferredKind: StudioKind) {
+  return action.supportedKinds.includes(preferredKind) ? preferredKind : action.supportedKinds[0] || preferredKind
+}
