@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, countStudioProjects, filterStudioProjectsByDraftStatus, getStudioProjectDisplayMeta, getStudioProjectFilterOption, listStudioProjectFilterOptions, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, templateMatchesFormatGroup } from "../lib/studio-project-browser"
+import { buildStudioProjectBrowserHeader, buildStudioProjectBrowserState, buildStudioProjectBrowserSummary, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, countStudioProjects, filterStudioProjectsByDraftStatus, getStudioProjectDisplayMeta, getStudioProjectFilterOption, listStudioProjectFilterOptions, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, templateMatchesFormatGroup } from "../lib/studio-project-browser"
 import { getStudioToolActions, groupStudioToolActions, resolveStudioToolActionKind } from "../lib/studio-tool-library"
 
 const projects = [
@@ -94,6 +94,31 @@ test("studio project browser can show every project type as one workspace", () =
 
   assert.deepEqual(state.projects.map((item) => item.id), ["note_1", "doc_1", "sheet_1", "deck_1"])
   assert.deepEqual(state.templates.map((template) => template.label), ["Lesson", "Pitch"])
+})
+
+test("studio project browser summary keeps the launcher compact", () => {
+  const summary = buildStudioProjectBrowserSummary({
+    draftCount: 2,
+    filterLabel: "All designs",
+    formatLabel: "A4 document",
+    projectCount: 4,
+    query: "",
+    templateCount: 10,
+  })
+  const searched = buildStudioProjectBrowserSummary({
+    draftCount: 0,
+    filterLabel: "Decks",
+    formatLabel: "Presentation 16:9",
+    projectCount: 1,
+    query: "database",
+    templateCount: 2,
+  })
+
+  assert.equal(summary.title, "All projects")
+  assert.equal(summary.chips.find((chip) => chip.label === "Format")?.value, "A4 document")
+  assert.equal(searched.title, "Search results")
+  assert.equal(searched.chips.find((chip) => chip.label === "Format")?.value, "Decks")
+  assert.match(buildStudioProjectBrowserHeader(summary), /4 visible/)
 })
 
 test("studio project browser filters template designs by canvas format", () => {

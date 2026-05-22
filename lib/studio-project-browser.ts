@@ -29,6 +29,12 @@ export type StudioProjectBrowserState<TProject extends StudioBrowserProject, TTe
   templates: TTemplate[]
 }
 
+export type StudioProjectBrowserSummary = {
+  caption: string
+  chips: Array<{ label: string; value: string }>
+  title: string
+}
+
 export type StudioProjectDisplayMeta = {
   badge: string
   detail: string
@@ -89,6 +95,40 @@ export function buildStudioProjectBrowserState<TProject extends StudioBrowserPro
     && matchesStudioBrowserQuery(template, needle)
   ))
   return { counts, projects, templates: filteredTemplates }
+}
+
+export function buildStudioProjectBrowserSummary({
+  draftCount,
+  filterLabel,
+  formatLabel,
+  projectCount,
+  query,
+  templateCount,
+}: {
+  draftCount: number
+  filterLabel: string
+  formatLabel: string
+  projectCount: number
+  query: string
+  templateCount: number
+}): StudioProjectBrowserSummary {
+  const hasQuery = Boolean(normalizeStudioBrowserQuery(query))
+  return {
+    title: hasQuery ? "Search results" : "All projects",
+    caption: hasQuery
+      ? "Matching projects and designs are grouped below."
+      : "Start from a blank canvas, open recent work, or apply a reusable design.",
+    chips: [
+      { label: "Visible", value: String(projectCount) },
+      { label: "Designs", value: String(templateCount) },
+      { label: "Drafts", value: String(draftCount) },
+      { label: "Format", value: filterLabel === "All designs" ? formatLabel : filterLabel },
+    ],
+  }
+}
+
+export function buildStudioProjectBrowserHeader(summary: StudioProjectBrowserSummary) {
+  return `${summary.title} - ${summary.chips.map((chip) => `${chip.value} ${chip.label.toLowerCase()}`).join(", ")}`
 }
 
 export function countStudioProjects(items: Array<Pick<StudioBrowserProject, "kind">>) {

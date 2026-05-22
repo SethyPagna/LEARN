@@ -131,7 +131,7 @@ import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, b
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
-import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, filterStudioProjectsByDraftStatus, getStudioProjectDisplayMeta, getStudioProjectFilterOption, listStudioProjectFilterOptions, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, type StudioProjectKindFilter, type StudioProjectStatusFilter } from "@/lib/studio-project-browser"
+import { buildStudioProjectBrowserHeader, buildStudioProjectBrowserState, buildStudioProjectBrowserSummary, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, filterStudioProjectsByDraftStatus, getStudioProjectDisplayMeta, getStudioProjectFilterOption, listStudioProjectFilterOptions, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, type StudioProjectKindFilter, type StudioProjectStatusFilter } from "@/lib/studio-project-browser"
 import { getStudioToolActions, getStudioToolPanel, groupStudioToolActions, resolveStudioToolActionKind, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 
@@ -1916,6 +1916,14 @@ function StudioProjectBrowser({
   const activeToolCount = projectToolPanel === "templates" ? templateChoices.length : projectToolPanel === "projects" ? recentItems.length : activeToolActions.length
   const projectFilterOptions = listStudioProjectFilterOptions()
   const activeProjectFilter = getStudioProjectFilterOption(projectKindFilter)
+  const browserSummary = buildStudioProjectBrowserSummary({
+    draftCount: draftProjectCount,
+    filterLabel: activeProjectFilter.label,
+    formatLabel: compatibleCanvasFormat.label,
+    projectCount: filteredProjects.length,
+    query,
+    templateCount: templateChoices.length,
+  })
   return (
     <div className="grid gap-4">
       <Panel className="overflow-hidden p-0">
@@ -1927,7 +1935,7 @@ function StudioProjectBrowser({
               <input value={query} onChange={(event) => onQuery(event.target.value)} placeholder="Search projects or templates" className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
             </label>
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <button onClick={onCreate} className="h-10 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm" type="button">New design</button>
+              <button onClick={onCreate} className="h-10 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm" type="button">New project</button>
               <ActionMenu label={activeProjectFilter.label} icon={SlidersHorizontal}>
                 {projectFilterOptions.map((option) => {
                   const active = projectKindFilter === option.value
@@ -2044,11 +2052,20 @@ function StudioProjectBrowser({
           </aside>
           <main className="min-w-0 bg-gradient-to-b from-primary/10 via-muted/35 to-muted/35 p-4 lg:p-6">
             <div className="mx-auto max-w-4xl text-center">
-              <h2 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">All projects</h2>
+              <h2 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">{browserSummary.title}</h2>
+              <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground" title={buildStudioProjectBrowserHeader(browserSummary)}>{browserSummary.caption}</p>
               <label className="mx-auto mt-5 flex h-14 max-w-3xl items-center gap-3 rounded-2xl border border-primary/20 bg-background px-5 shadow-xl shadow-primary/10">
                 <Search className="h-5 w-5 text-foreground" />
                 <input value={query} onChange={(event) => onQuery(event.target.value)} placeholder="Search across all content" className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
               </label>
+              <div className="mx-auto mt-3 grid max-w-3xl grid-cols-2 gap-2 md:grid-cols-4">
+                {browserSummary.chips.map((chip) => (
+                  <div key={chip.label} className="rounded-xl border border-border bg-background/80 px-3 py-2 text-left shadow-sm">
+                    <p className="truncate text-[0.65rem] font-bold uppercase tracking-[0.12em] text-muted-foreground">{chip.label}</p>
+                    <p className="mt-1 truncate text-sm font-black text-foreground" title={chip.value}>{chip.value}</p>
+                  </div>
+                ))}
+              </div>
               <div className="mt-3 flex flex-wrap justify-center gap-2">
                 <ActionMenu compact label={activeProjectFilter.label} icon={SlidersHorizontal}>
                   {projectFilterOptions.map((option) => {
