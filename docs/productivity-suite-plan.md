@@ -264,6 +264,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-22: Continued Studio template cleanup by making template rows title-first and moving style, format, and section details into the selected preview panel.
 - 2026-05-22: Continued Studio rail maturity by making the Projects tool panel show a compact filtered project shelf instead of an empty decorative tab.
 - 2026-05-22: Continued Canva-style Studio export work by adding tested Share and Download option models and surfacing them in the Export inspector with copy-link and suggested format actions.
+- 2026-05-22: Continued Canva-style Projects polish by redesigning the Studio launcher canvas around an All projects hero search, Type/Category/Owner/Date filters, and a horizontal Recents thumbnail shelf.
 
 ## Implementation Slices
 

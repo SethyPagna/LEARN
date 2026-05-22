@@ -8,6 +8,7 @@ export type StudioBrowserProject = {
   kind: StudioKind
   summary?: string
   title: string
+  updated_at?: string
 }
 
 export type StudioBrowserTemplate = {
@@ -83,6 +84,16 @@ export function countStudioProjects(items: Array<Pick<StudioBrowserProject, "kin
 
 export function selectStudioProjectShelf<TProject extends StudioBrowserProject>(projects: TProject[], limit = 12) {
   return projects.slice(0, Math.max(0, limit))
+}
+
+export function sortStudioProjectsByModified<TProject extends StudioBrowserProject>(projects: TProject[], direction: "newest" | "oldest" = "newest") {
+  const multiplier = direction === "newest" ? -1 : 1
+  return [...projects].sort((left, right) => multiplier * (modifiedTime(left) - modifiedTime(right)))
+}
+
+function modifiedTime(project: Pick<StudioBrowserProject, "updated_at">) {
+  const value = project.updated_at ? Date.parse(project.updated_at) : 0
+  return Number.isFinite(value) ? value : 0
 }
 
 export function getStudioProjectDisplayMeta(kind: StudioKind) {

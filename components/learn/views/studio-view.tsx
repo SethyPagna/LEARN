@@ -126,7 +126,7 @@ import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, b
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
-import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, getStudioProjectDisplayMeta, selectStudioBrowserTemplate, selectStudioProjectShelf, type StudioProjectKindFilter } from "@/lib/studio-project-browser"
+import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, getStudioProjectDisplayMeta, selectStudioBrowserTemplate, selectStudioProjectShelf, sortStudioProjectsByModified, type StudioProjectKindFilter } from "@/lib/studio-project-browser"
 import { getStudioToolActions, getStudioToolPanel, groupStudioToolActions, resolveStudioToolActionKind, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 
@@ -1876,6 +1876,7 @@ function StudioProjectBrowser({
 }) {
   const [projectKindFilter, setProjectKindFilter] = useState<StudioProjectKindFilter>("all")
   const [projectToolPanel, setProjectToolPanel] = useState<StudioToolPanelId>("templates")
+  const [projectSort, setProjectSort] = useState<"newest" | "oldest">("newest")
   const [selectedTemplateKey, setSelectedTemplateKey] = useState("")
   const formatKind = projectKindFilter === "all" ? activeKind : projectKindFilter
   const compatibleCanvasFormat = getStudioCanvasFormat(canvasFormat.id, formatKind)
@@ -1890,7 +1891,7 @@ function StudioProjectBrowser({
     query,
     templates: templateLibrary,
   }), [compatibleCanvasFormat.group, items, projectKindFilter, query, templateLibrary])
-  const recentItems = selectStudioProjectShelf(browserState.projects)
+  const recentItems = selectStudioProjectShelf(sortStudioProjectsByModified(browserState.projects, projectSort))
   const templateChoices = browserState.templates
   const selectedTemplate = templateChoices.find((template) => `${template.kind}:${template.label}` === selectedTemplateKey) || selectStudioBrowserTemplate(templateChoices, "")
   const selectedTemplateMeta = selectedTemplate ? getStudioTemplateMeta(selectedTemplate.kind, selectedTemplate) : null
@@ -2027,42 +2028,66 @@ function StudioProjectBrowser({
               </div>
             </div>
           </aside>
-          <main className="min-w-0 bg-muted/35 p-4 lg:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Studio projects</p>
-                <h2 className="mt-1 flex items-center gap-2 text-2xl font-bold text-foreground">
-                  <LayoutPanelLeft className="h-6 w-6 text-primary" />
-                  Projects
-                </h2>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground">{recentItems.length} shown</span>
-                {dirtyBadges.length ? <span className="rounded-lg bg-warning/15 px-3 py-2 text-sm font-semibold text-warning-foreground">{dirtyBadges.reduce((total, badge) => total + badge.count, 0)} drafts</span> : null}
+          <main className="min-w-0 bg-gradient-to-b from-primary/10 via-muted/35 to-muted/35 p-4 lg:p-6">
+            <div className="mx-auto max-w-4xl text-center">
+              <h2 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">All projects</h2>
+              <label className="mx-auto mt-5 flex h-14 max-w-3xl items-center gap-3 rounded-2xl border border-primary/20 bg-background px-5 shadow-xl shadow-primary/10">
+                <Search className="h-5 w-5 text-foreground" />
+                <input value={query} onChange={(event) => onQuery(event.target.value)} placeholder="Search across all content" className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
+              </label>
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                <ActionMenu compact label={projectKindFilter === "all" ? "Type" : getStudioKindOption(projectKindFilter).label} icon={SlidersHorizontal}>
+                  <MenuAction active={projectKindFilter === "all"} icon={LayoutPanelLeft} label="All types" onClick={() => setProjectKindFilter("all")} />
+                  {studioKindOptions.map((option) => {
+                    const Icon = studioKindIcons[option.kind]
+                    return <MenuAction key={option.kind} active={projectKindFilter === option.kind} icon={Icon} label={option.label} meta={`${browserState.counts[option.kind]} project${browserState.counts[option.kind] === 1 ? "" : "s"}`} onClick={() => { setProjectKindFilter(option.kind); onSelectKind(option.kind) }} />
+                  })}
+                </ActionMenu>
+                <ActionMenu compact label="Category" icon={Grid2X2}>
+                  {formatGroups.map((group) => (
+                    <MenuAction key={group.id} active={group.id === compatibleCanvasFormat.group} icon={LayoutPanelLeft} label={group.label} meta={group.description} onClick={() => onCanvasFormat(group.formats[0]?.id || compatibleCanvasFormat.id)} />
+                  ))}
+                </ActionMenu>
+                <ActionMenu compact label="Owner" icon={BookOpen}>
+                  <MenuAction active icon={BookOpen} label="My workspace" meta="Personal LEARN projects" onClick={() => undefined} />
+                </ActionMenu>
+                <ActionMenu compact label="Date modified" icon={ArrowDown}>
+                  <MenuAction active={projectSort === "newest"} icon={ArrowDown} label="Newest first" onClick={() => setProjectSort("newest")} />
+                  <MenuAction active={projectSort === "oldest"} icon={ArrowUp} label="Oldest first" onClick={() => setProjectSort("oldest")} />
+                </ActionMenu>
               </div>
             </div>
-            <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-              <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
+            <div className="mt-14 grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
+              <section className="min-w-0">
                 <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-bold text-foreground">Your projects</p>
-                    <p className="text-xs text-muted-foreground">{recentItems.length} project{recentItems.length === 1 ? "" : "s"} across Studio</p>
+                  <h3 className="text-xl font-bold text-foreground">Recents</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-lg bg-background px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">{recentItems.length} shown</span>
+                    {dirtyBadges.length ? <span className="rounded-lg bg-warning/15 px-2.5 py-1.5 text-xs font-semibold text-warning-foreground">{dirtyBadges.reduce((total, badge) => total + badge.count, 0)} drafts</span> : null}
+                    <button onClick={onCreate} className="h-9 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground" type="button">Create</button>
                   </div>
-                  <button onClick={onCreate} className="h-9 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground" type="button">Create</button>
                 </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="mt-4 flex gap-4 overflow-x-auto pb-4">
                   {recentItems.map((item) => {
                     const Icon = studioKindIcons[item.kind]
                     const meta = getStudioProjectDisplayMeta(item.kind)
                     return (
-                      <button key={`${item.kind}_${item.id}`} onClick={() => onOpen(item)} className="group overflow-hidden rounded-xl border border-border bg-background text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md" type="button">
-                        <span className={`block h-24 ${studioKindStyles[item.kind].icon} p-3`}>
-                          <Icon className="h-7 w-7" />
-                          <span className="mt-7 inline-flex rounded-md bg-background/80 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-foreground shadow-sm">{meta.badge}</span>
+                      <button key={`${item.kind}_${item.id}`} onClick={() => onOpen(item)} className="group w-48 shrink-0 text-left" type="button">
+                        <span className={`relative block h-32 overflow-hidden rounded-xl border border-border ${studioKindStyles[item.kind].icon} p-4 shadow-sm transition group-hover:-translate-y-0.5 group-hover:border-primary group-hover:shadow-lg`}>
+                          <Icon className="h-6 w-6" />
+                          <span className="absolute bottom-4 left-4 right-4 space-y-2">
+                            <span className="block h-2 w-20 rounded-full bg-background/80" />
+                            <span className="block h-2 w-28 rounded-full bg-background/60" />
+                            <span className="block h-2 w-16 rounded-full bg-background/50" />
+                          </span>
+                          <span className="absolute right-3 top-3 rounded-full bg-background/85 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-foreground">{meta.badge}</span>
                         </span>
-                        <span className="block p-3">
-                          <span className="block truncate text-sm font-bold text-foreground">{item.title}</span>
-                          <span className="mt-1 block truncate text-xs text-muted-foreground">{buildStudioProjectSubtitle(item)}</span>
+                        <span className="mt-3 block">
+                          <span className="block truncate text-sm font-bold text-foreground" title={item.title}>{item.title}</span>
+                          <span className="mt-1 flex items-center gap-1 truncate text-xs text-muted-foreground">
+                            <span className={`h-2 w-2 rounded-full ${studioKindStyles[item.kind].accent}`} />
+                            {item.updated_at ? `Edited ${formatDate(item.updated_at)}` : buildStudioProjectSubtitle(item)}
+                          </span>
                         </span>
                       </button>
                     )

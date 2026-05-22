@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, countStudioProjects, getStudioProjectDisplayMeta, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate, selectStudioProjectShelf, templateMatchesFormatGroup } from "../lib/studio-project-browser"
+import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, countStudioProjects, getStudioProjectDisplayMeta, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate, selectStudioProjectShelf, sortStudioProjectsByModified, templateMatchesFormatGroup } from "../lib/studio-project-browser"
 import { getStudioToolActions, groupStudioToolActions, resolveStudioToolActionKind } from "../lib/studio-tool-library"
 
 const projects = [
@@ -39,6 +39,17 @@ test("studio project browser uses project-first display labels", () => {
 test("studio project browser limits the project drawer shelf", () => {
   assert.deepEqual(selectStudioProjectShelf(projects, 2).map((item) => item.id), ["note_1", "doc_1"])
   assert.deepEqual(selectStudioProjectShelf(projects, 0), [])
+})
+
+test("studio project browser sorts project shelves by modified time", () => {
+  const sorted = sortStudioProjectsByModified([
+    { ...projects[0], updated_at: "2026-01-01T00:00:00.000Z" },
+    { ...projects[1], updated_at: "2026-01-03T00:00:00.000Z" },
+    { ...projects[2], updated_at: "2026-01-02T00:00:00.000Z" },
+  ])
+
+  assert.deepEqual(sorted.map((item) => item.id), ["doc_1", "sheet_1", "note_1"])
+  assert.deepEqual(sortStudioProjectsByModified(sorted, "oldest").map((item) => item.id), ["note_1", "sheet_1", "doc_1"])
 })
 
 test("studio project browser filters active-kind projects and matching templates", () => {
