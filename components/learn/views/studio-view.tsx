@@ -1892,6 +1892,9 @@ function StudioProjectBrowser({
   const selectedTemplate = templateChoices.find((template) => `${template.kind}:${template.label}` === selectedTemplateKey) || selectStudioBrowserTemplate(templateChoices, "")
   const selectedTemplateMeta = selectedTemplate ? getStudioTemplateMeta(selectedTemplate.kind, selectedTemplate) : null
   const templatePreview = buildStudioTemplatePreview(selectedTemplate, selectedTemplateMeta, compatibleCanvasFormat.label)
+  const selectedTemplateDetails = selectedTemplate
+    ? [buildStudioTemplateSubtitle(selectedTemplate, templatePreview.style), compatibleCanvasFormat.label, ...templatePreview.sections].filter(Boolean)
+    : []
   const activeTool = getStudioToolPanel(projectToolPanel)
   const activeToolActions = getStudioToolActions(projectToolPanel, formatKind)
   const activeToolActionGroups = groupStudioToolActions(projectToolPanel, formatKind)
@@ -1975,11 +1978,10 @@ function StudioProjectBrowser({
                           <TemplateIcon className="h-3 w-3" />
                         </span>
                       </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-bold text-foreground">{template.label}</span>
-                      <span className="block truncate text-xs text-muted-foreground">{buildStudioTemplateSubtitle(template, meta.style)}</span>
-                    </span>
-                  </button>
+                      <span className="flex min-w-0 items-center">
+                        <span className="block truncate text-sm font-bold text-foreground">{template.label}</span>
+                      </span>
+                    </button>
                   )
                 }) : activeToolActionGroups.map((group) => (
                   <section key={group.id} className="grid gap-2">
@@ -2080,6 +2082,11 @@ function StudioProjectBrowser({
                   <details className="mt-3 rounded-md border border-border bg-background p-2">
                     <summary className="cursor-pointer list-none text-xs font-semibold text-foreground">Design details</summary>
                     <p className="mt-2 text-xs leading-5 text-muted-foreground">{templatePreview.description}</p>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {selectedTemplateDetails.map((detail) => (
+                        <span key={detail} className="rounded-md bg-secondary px-2 py-1 text-[10px] font-semibold text-secondary-foreground">{detail}</span>
+                      ))}
+                    </div>
                   </details>
                 ) : null}
               </section>
