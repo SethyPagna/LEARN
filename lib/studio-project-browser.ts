@@ -86,6 +86,10 @@ export function selectStudioProjectShelf<TProject extends StudioBrowserProject>(
   return projects.slice(0, Math.max(0, limit))
 }
 
+export function selectStudioTemplateShelf<TTemplate extends StudioBrowserTemplate>(templates: TTemplate[], limit = 10) {
+  return templates.slice(0, Math.max(0, limit))
+}
+
 export function sortStudioProjectsByModified<TProject extends StudioBrowserProject>(projects: TProject[], direction: "newest" | "oldest" = "newest") {
   const multiplier = direction === "newest" ? -1 : 1
   return [...projects].sort((left, right) => multiplier * (modifiedTime(left) - modifiedTime(right)))
@@ -102,12 +106,12 @@ export function getStudioProjectDisplayMeta(kind: StudioKind) {
 
 export function buildStudioProjectSubtitle(project: Pick<StudioBrowserProject, "kind" | "summary">) {
   const meta = getStudioProjectDisplayMeta(project.kind)
-  return `${meta.badge} · ${project.summary || meta.format}`
+  return `${meta.badge} - ${project.summary || meta.format}`
 }
 
 export function buildStudioTemplateSubtitle(template: Pick<StudioBrowserTemplate, "kind" | "style">, fallbackStyle = "") {
   const meta = template.kind ? getStudioProjectDisplayMeta(template.kind) : null
-  return [fallbackStyle || template.style, meta?.format].filter(Boolean).join(" · ")
+  return [fallbackStyle || template.style, meta?.format].filter(Boolean).join(" - ")
 }
 
 export function matchesStudioBrowserQuery(item: StudioBrowserProject | StudioBrowserTemplate, needle: string) {

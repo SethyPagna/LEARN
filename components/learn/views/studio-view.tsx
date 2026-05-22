@@ -126,7 +126,7 @@ import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, b
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
-import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, getStudioProjectDisplayMeta, selectStudioBrowserTemplate, selectStudioProjectShelf, sortStudioProjectsByModified, type StudioProjectKindFilter } from "@/lib/studio-project-browser"
+import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, getStudioProjectDisplayMeta, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, type StudioProjectKindFilter } from "@/lib/studio-project-browser"
 import { getStudioToolActions, getStudioToolPanel, groupStudioToolActions, resolveStudioToolActionKind, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 
@@ -1893,6 +1893,7 @@ function StudioProjectBrowser({
   }), [compatibleCanvasFormat.group, items, projectKindFilter, query, templateLibrary])
   const recentItems = selectStudioProjectShelf(sortStudioProjectsByModified(browserState.projects, projectSort))
   const templateChoices = browserState.templates
+  const templateShelf = selectStudioTemplateShelf(templateChoices)
   const selectedTemplate = templateChoices.find((template) => `${template.kind}:${template.label}` === selectedTemplateKey) || selectStudioBrowserTemplate(templateChoices, "")
   const selectedTemplateMeta = selectedTemplate ? getStudioTemplateMeta(selectedTemplate.kind, selectedTemplate) : null
   const templatePreview = buildStudioTemplatePreview(selectedTemplate, selectedTemplateMeta, compatibleCanvasFormat.label)
@@ -1998,7 +1999,7 @@ function StudioProjectBrowser({
                       </span>
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-bold text-foreground">{item.title}</span>
-                        <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{meta.badge} · {item.summary || meta.format}</span>
+                        <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{meta.badge} - {item.summary || meta.format}</span>
                       </span>
                     </button>
                   )
@@ -2094,6 +2095,40 @@ function StudioProjectBrowser({
                   })}
                 </div>
                 {!recentItems.length ? <EmptyState title="No projects here" body="Create a design, pick a template, or clear the search." /> : null}
+                <div className="mt-8 flex items-center justify-between gap-3">
+                  <h3 className="text-xl font-bold text-foreground">Start with a design</h3>
+                  <span className="rounded-lg bg-background px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">{templateShelf.length} templates</span>
+                </div>
+                <div className="mt-4 flex gap-4 overflow-x-auto pb-4">
+                  {templateShelf.map((template) => {
+                    const meta = getStudioTemplateMeta(template.kind, template)
+                    const TemplateIcon = studioKindIcons[template.kind]
+                    const templateKey = `${template.kind}:${template.label}`
+                    const selected = selectedTemplate ? `${selectedTemplate.kind}:${selectedTemplate.label}` === templateKey : false
+                    return (
+                      <button key={templateKey} onClick={() => {
+                        setSelectedTemplateKey(templateKey)
+                        onSelectKind(template.kind)
+                      }} className="group w-44 shrink-0 text-left" title={meta.description} type="button">
+                        <span className={`relative block h-32 overflow-hidden rounded-xl border p-4 shadow-sm transition group-hover:-translate-y-0.5 group-hover:border-primary group-hover:shadow-lg ${selected ? "border-primary bg-primary/10" : "border-border bg-card"}`} style={{ background: meta.background }}>
+                          <span className="absolute left-4 top-4 h-2 w-16 rounded-full" style={{ background: meta.accent }} />
+                          <span className="absolute left-4 top-10 h-2 w-24 rounded-full bg-white/55 dark:bg-white/20" />
+                          <span className="absolute bottom-4 left-4 right-4 grid grid-cols-3 gap-1">
+                            {meta.sections.slice(0, 3).map((section) => (
+                              <span key={section} className="h-7 rounded-md bg-background/65" />
+                            ))}
+                          </span>
+                          <span className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-lg bg-background/85 text-foreground">
+                            <TemplateIcon className="h-4 w-4" />
+                          </span>
+                        </span>
+                        <span className="mt-3 block truncate text-sm font-bold text-foreground">{template.label}</span>
+                        <span className="mt-1 block truncate text-xs text-muted-foreground">{buildStudioTemplateSubtitle(template, meta.style)}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+                {!templateShelf.length ? <EmptyState title="No matching designs" body="Clear search or switch the format filter." /> : null}
               </section>
               <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
                 <div className="flex items-center justify-between gap-2">
