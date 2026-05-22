@@ -2,6 +2,7 @@ import type { StudioKind } from "@/components/learn/types"
 import type { StudioCanvasFormatGroup } from "./studio-canvas"
 
 export type StudioProjectKindFilter = StudioKind | "all"
+export type StudioProjectStatusFilter = "all" | "drafts" | "saved"
 
 export type StudioBrowserProject = {
   id: string
@@ -106,6 +107,16 @@ export function getStudioProjectFilterOption(value: StudioProjectKindFilter) {
 
 export function selectStudioProjectShelf<TProject extends StudioBrowserProject>(projects: TProject[], limit = 12) {
   return projects.slice(0, Math.max(0, limit))
+}
+
+export function filterStudioProjectsByDraftStatus<TProject extends Pick<StudioBrowserProject, "kind">>(
+  projects: TProject[],
+  dirtyKinds: Iterable<StudioKind>,
+  status: StudioProjectStatusFilter,
+) {
+  if (status === "all") return projects
+  const dirtyKindSet = new Set(dirtyKinds)
+  return projects.filter((project) => status === "drafts" ? dirtyKindSet.has(project.kind) : !dirtyKindSet.has(project.kind))
 }
 
 export function selectStudioTemplateShelf<TTemplate extends StudioBrowserTemplate>(templates: TTemplate[], limit = 10) {

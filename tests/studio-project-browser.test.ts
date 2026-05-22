@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, countStudioProjects, getStudioProjectDisplayMeta, getStudioProjectFilterOption, listStudioProjectFilterOptions, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, templateMatchesFormatGroup } from "../lib/studio-project-browser"
+import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, countStudioProjects, filterStudioProjectsByDraftStatus, getStudioProjectDisplayMeta, getStudioProjectFilterOption, listStudioProjectFilterOptions, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, templateMatchesFormatGroup } from "../lib/studio-project-browser"
 import { getStudioToolActions, groupStudioToolActions, resolveStudioToolActionKind } from "../lib/studio-tool-library"
 
 const projects = [
@@ -45,6 +45,12 @@ test("studio project browser uses project-first display labels", () => {
 test("studio project browser limits the project drawer shelf", () => {
   assert.deepEqual(selectStudioProjectShelf(projects, 2).map((item) => item.id), ["note_1", "doc_1"])
   assert.deepEqual(selectStudioProjectShelf(projects, 0), [])
+})
+
+test("studio project browser filters project shelves by draft status", () => {
+  assert.deepEqual(filterStudioProjectsByDraftStatus(projects, ["notes", "slides"], "drafts").map((item) => item.id), ["note_1", "deck_1"])
+  assert.deepEqual(filterStudioProjectsByDraftStatus(projects, ["notes", "slides"], "saved").map((item) => item.id), ["doc_1", "sheet_1"])
+  assert.deepEqual(filterStudioProjectsByDraftStatus(projects, ["notes"], "all"), projects)
 })
 
 test("studio project browser limits template shelves", () => {

@@ -42,8 +42,10 @@ import {
   Bot,
   Braces,
   CheckSquare,
+  CheckCircle2,
   ChevronDown,
   Clipboard,
+  Clock,
   Columns3,
   Copy,
   Download,
@@ -126,7 +128,7 @@ import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, b
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
-import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, getStudioProjectDisplayMeta, getStudioProjectFilterOption, listStudioProjectFilterOptions, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, type StudioProjectKindFilter } from "@/lib/studio-project-browser"
+import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, filterStudioProjectsByDraftStatus, getStudioProjectDisplayMeta, getStudioProjectFilterOption, listStudioProjectFilterOptions, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, type StudioProjectKindFilter, type StudioProjectStatusFilter } from "@/lib/studio-project-browser"
 import { getStudioToolActions, getStudioToolPanel, groupStudioToolActions, resolveStudioToolActionKind, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 
@@ -1877,6 +1879,7 @@ function StudioProjectBrowser({
   const [projectKindFilter, setProjectKindFilter] = useState<StudioProjectKindFilter>("all")
   const [projectToolPanel, setProjectToolPanel] = useState<StudioToolPanelId>("templates")
   const [projectSort, setProjectSort] = useState<"newest" | "oldest">("newest")
+  const [projectStatusFilter, setProjectStatusFilter] = useState<StudioProjectStatusFilter>("all")
   const [selectedTemplateKey, setSelectedTemplateKey] = useState("")
   const formatKind = projectKindFilter === "all" ? activeKind : projectKindFilter
   const compatibleCanvasFormat = getStudioCanvasFormat(canvasFormat.id, formatKind)
@@ -1891,7 +1894,11 @@ function StudioProjectBrowser({
     query,
     templates: templateLibrary,
   }), [compatibleCanvasFormat.group, items, projectKindFilter, query, templateLibrary])
-  const recentItems = selectStudioProjectShelf(sortStudioProjectsByModified(browserState.projects, projectSort))
+  const dirtyKindSet = useMemo(() => new Set(dirtyBadges.map((badge) => badge.kind)), [dirtyBadges])
+  const filteredProjects = useMemo(() => filterStudioProjectsByDraftStatus(browserState.projects, dirtyKindSet, projectStatusFilter), [browserState.projects, dirtyKindSet, projectStatusFilter])
+  const draftProjectCount = useMemo(() => filterStudioProjectsByDraftStatus(browserState.projects, dirtyKindSet, "drafts").length, [browserState.projects, dirtyKindSet])
+  const savedProjectCount = useMemo(() => filterStudioProjectsByDraftStatus(browserState.projects, dirtyKindSet, "saved").length, [browserState.projects, dirtyKindSet])
+  const recentItems = selectStudioProjectShelf(sortStudioProjectsByModified(filteredProjects, projectSort))
   const templateChoices = browserState.templates
   const templateShelf = selectStudioTemplateShelf(templateChoices)
   const selectedTemplate = templateChoices.find((template) => `${template.kind}:${template.label}` === selectedTemplateKey) || selectStudioBrowserTemplate(templateChoices, "")
@@ -2052,8 +2059,10 @@ function StudioProjectBrowser({
                     <MenuAction key={group.id} active={group.id === compatibleCanvasFormat.group} icon={LayoutPanelLeft} label={group.label} meta={group.description} onClick={() => onCanvasFormat(group.formats[0]?.id || compatibleCanvasFormat.id)} />
                   ))}
                 </ActionMenu>
-                <ActionMenu compact label="Owner" icon={BookOpen}>
-                  <MenuAction active icon={BookOpen} label="My workspace" meta="Personal LEARN projects" onClick={() => undefined} />
+                <ActionMenu compact label={projectStatusFilter === "all" ? "Status" : projectStatusFilter === "drafts" ? "Drafts" : "Saved"} icon={BookOpen}>
+                  <MenuAction active={projectStatusFilter === "all"} icon={BookOpen} label="All projects" meta={`${browserState.projects.length} visible`} onClick={() => setProjectStatusFilter("all")} />
+                  <MenuAction active={projectStatusFilter === "drafts"} icon={Clock} label="Drafts" meta={`${draftProjectCount} with local changes`} onClick={() => setProjectStatusFilter("drafts")} />
+                  <MenuAction active={projectStatusFilter === "saved"} icon={CheckCircle2} label="Saved" meta={`${savedProjectCount} without local drafts`} onClick={() => setProjectStatusFilter("saved")} />
                 </ActionMenu>
                 <ActionMenu compact label="Date modified" icon={ArrowDown}>
                   <MenuAction active={projectSort === "newest"} icon={ArrowDown} label="Newest first" onClick={() => setProjectSort("newest")} />
