@@ -19,6 +19,12 @@ export type StudioToolAction = {
   slideObjectType?: "text" | "shape" | "image" | "table"
 }
 
+export type StudioToolActionGroup = {
+  id: string
+  label: string
+  actions: StudioToolAction[]
+}
+
 export const studioToolPanels: StudioToolPanel[] = [
   { id: "templates", label: "Templates", description: "Start from designed layouts" },
   { id: "elements", label: "Elements", description: "Add shapes, tables, frames, and page parts" },
@@ -84,4 +90,25 @@ export function getStudioToolActions(panel: StudioToolPanelId, kind: StudioKind)
 
 export function resolveStudioToolActionKind(action: Pick<StudioToolAction, "supportedKinds">, preferredKind: StudioKind) {
   return action.supportedKinds.includes(preferredKind) ? preferredKind : action.supportedKinds[0] || preferredKind
+}
+
+export function groupStudioToolActions(panel: StudioToolPanelId, kind: StudioKind): StudioToolActionGroup[] {
+  const groups = new Map<string, StudioToolActionGroup>()
+  for (const action of getStudioToolActions(panel, kind)) {
+    const label = studioToolActionGroupLabel(action)
+    const id = label.toLowerCase().replace(/\W+/g, "-")
+    groups.set(id, { id, label, actions: [...(groups.get(id)?.actions || []), action] })
+  }
+  return [...groups.values()]
+}
+
+export function studioToolActionGroupLabel(action: StudioToolAction) {
+  if (action.canvasAction) return "Pages"
+  if (action.sheetAction) return "Data"
+  if (action.slideObjectType === "image" || action.id.startsWith("media-")) return "Media"
+  if (action.slideObjectType === "shape" || action.id.includes("frame") || action.id.includes("callout")) return "Visuals"
+  if (action.id.startsWith("ai-")) return "AI prompts"
+  if (action.id.startsWith("brand-")) return "Brand kit"
+  if (action.id.startsWith("text-")) return "Text styles"
+  return "Inserts"
 }

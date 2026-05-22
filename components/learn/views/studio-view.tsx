@@ -124,7 +124,7 @@ import { getImportDestinationView, importTargetOptions, labelImportTarget, norma
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
 import { buildStudioProjectBrowserState, buildStudioTemplatePreview, selectStudioBrowserTemplate, type StudioProjectKindFilter } from "@/lib/studio-project-browser"
-import { getStudioToolActions, getStudioToolPanel, resolveStudioToolActionKind, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
+import { getStudioToolActions, getStudioToolPanel, groupStudioToolActions, resolveStudioToolActionKind, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 
 const LAYOUT_KEY = "learn_studio_layout_v2"
@@ -1894,6 +1894,7 @@ function StudioProjectBrowser({
   const templatePreview = buildStudioTemplatePreview(selectedTemplate, selectedTemplateMeta, compatibleCanvasFormat.label)
   const activeTool = getStudioToolPanel(projectToolPanel)
   const activeToolActions = getStudioToolActions(projectToolPanel, formatKind)
+  const activeToolActionGroups = groupStudioToolActions(projectToolPanel, formatKind)
   return (
     <div className="grid gap-4">
       <Panel className="overflow-hidden p-0">
@@ -1980,15 +1981,25 @@ function StudioProjectBrowser({
                       </span>
                     </button>
                   )
-                }) : activeToolActions.map((action) => (
-                  <button key={action.id} onClick={() => {
-                    const targetKind = resolveStudioToolActionKind(action, formatKind)
-                    setProjectKindFilter(targetKind)
-                    onUseToolAction(targetKind, action)
-                  }} className="rounded-lg border border-border bg-background p-3 text-left transition hover:-translate-y-0.5 hover:border-primary hover:bg-accent" title={action.description} type="button">
-                    <span className="block text-sm font-bold text-foreground">{action.label}</span>
-                    <span className="mt-1 block line-clamp-2 text-xs text-muted-foreground">{action.description}</span>
-                  </button>
+                }) : activeToolActionGroups.map((group) => (
+                  <section key={group.id} className="grid gap-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{group.label}</p>
+                      <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-semibold text-secondary-foreground">{group.actions.length}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {group.actions.map((action) => (
+                        <button key={action.id} onClick={() => {
+                          const targetKind = resolveStudioToolActionKind(action, formatKind)
+                          setProjectKindFilter(targetKind)
+                          onUseToolAction(targetKind, action)
+                        }} className="min-h-20 rounded-lg border border-border bg-background p-2 text-left transition hover:-translate-y-0.5 hover:border-primary hover:bg-accent" title={action.description} type="button">
+                          <span className="block truncate text-xs font-bold text-foreground">{action.label}</span>
+                          <span className="mt-1 block line-clamp-2 text-[11px] leading-4 text-muted-foreground">{action.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
                 ))}
                 {projectToolPanel === "templates" && !templateChoices.length ? <EmptyState title="No designs found" body="Clear search or switch project filters." /> : null}
                 {projectToolPanel !== "templates" && !activeToolActions.length ? <EmptyState title="No tools here" body="Switch filters or open a project to use editor tools." /> : null}

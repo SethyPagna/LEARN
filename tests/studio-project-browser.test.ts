@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 
 import { buildStudioProjectBrowserState, buildStudioTemplatePreview, countStudioProjects, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate, templateMatchesFormatGroup } from "../lib/studio-project-browser"
-import { getStudioToolActions, resolveStudioToolActionKind } from "../lib/studio-tool-library"
+import { getStudioToolActions, groupStudioToolActions, resolveStudioToolActionKind } from "../lib/studio-tool-library"
 
 const projects = [
   { id: "note_1", kind: "notes" as const, title: "Operating systems note", summary: "Scheduling" },
@@ -124,4 +124,14 @@ test("studio tool action kind resolver keeps launcher actions compatible", () =>
   assert.equal(resolveStudioToolActionKind({ supportedKinds: ["notes", "docs"] }, "docs"), "docs")
   assert.equal(resolveStudioToolActionKind({ supportedKinds: ["sheets"] }, "slides"), "sheets")
   assert.equal(resolveStudioToolActionKind({ supportedKinds: [] }, "slides"), "slides")
+})
+
+test("studio tool actions group into compact launcher sections", () => {
+  const elementGroups = groupStudioToolActions("elements", "slides")
+  assert.deepEqual(elementGroups.map((group) => group.label), ["Pages", "Visuals", "Data", "Inserts"])
+  assert.equal(elementGroups.find((group) => group.label === "Pages")?.actions[0]?.id, "page-new")
+
+  const mediaGroups = groupStudioToolActions("media", "docs")
+  assert.deepEqual(mediaGroups.map((group) => group.label), ["Media"])
+  assert.ok(mediaGroups[0]?.actions.some((action) => action.id === "media-video"))
 })
