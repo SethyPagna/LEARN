@@ -23,16 +23,20 @@ export type StudioRecordActionGroup = {
 }
 
 export type StudioShareOption = {
-  id: "copy-link" | "private-access" | "present" | "record"
+  id: "copy-link" | "private-access" | "public-preview" | "template-link" | "present" | "record"
   label: string
   detail: string
+  badge: string
+  tone: "primary" | "neutral" | "social" | "present"
   primary?: boolean
 }
 
 export type StudioDownloadOption = {
-  id: "html" | "text" | "csv" | "pptx" | "outline" | "json"
+  id: "html" | "text" | "csv" | "pptx" | "outline" | "json" | "markdown"
   label: string
   detail: string
+  bestFor: string
+  sizeHint: string
   action: "download" | "export"
   suggested?: boolean
 }
@@ -177,13 +181,15 @@ export function buildStudioRecordActionGroups({ archived = false }: { archived?:
 export function buildStudioShareOptions(kind: StudioKind): StudioShareOption[] {
   const presentationOptions: StudioShareOption[] = kind === "slides"
     ? [
-        { id: "present", label: "Present", detail: "Open the deck flow and rehearse timing." },
-        { id: "record", label: "Record", detail: "Use speaker notes as a recording plan." },
+        { id: "present", label: "Present", detail: "Open the deck flow and rehearse timing.", badge: "Live", tone: "present" },
+        { id: "record", label: "Record", detail: "Use speaker notes as a recording plan.", badge: "Talk", tone: "present" },
       ]
     : []
   return [
-    { id: "copy-link", label: "Copy link", detail: "Copy the Studio route for this project.", primary: true },
-    { id: "private-access", label: "Private", detail: "Only signed-in workspace members can access it." },
+    { id: "copy-link", label: "Copy link", detail: "Copy the Studio route for this project.", badge: "Now", tone: "primary", primary: true },
+    { id: "private-access", label: "Private", detail: "Only signed-in workspace members can access it.", badge: "Safe", tone: "neutral" },
+    { id: "public-preview", label: "Preview", detail: "Prepare a public-view version before sharing outside the workspace.", badge: "Opt in", tone: "social" },
+    { id: "template-link", label: "Template", detail: "Duplicate the structure into a reusable starter.", badge: "Reuse", tone: "social" },
     ...presentationOptions,
   ]
 }
@@ -191,19 +197,22 @@ export function buildStudioShareOptions(kind: StudioKind): StudioShareOption[] {
 export function buildStudioDownloadOptions(kind: StudioKind): StudioDownloadOption[] {
   if (kind === "sheets") {
     return [
-      { id: "csv", label: "CSV", detail: "Spreadsheet rows for Excel, Sheets, and imports.", action: "download", suggested: true },
-      { id: "text", label: "Plain text", detail: "Readable table text for quick sharing.", action: "export" },
+      { id: "csv", label: "CSV", detail: "Spreadsheet rows for Excel, Sheets, and imports.", bestFor: "Excel, Sheets, and AI cleanup", sizeHint: "Small", action: "download", suggested: true },
+      { id: "text", label: "Table text", detail: "Readable rows for messages, docs, or quick review.", bestFor: "Fast sharing", sizeHint: "Tiny", action: "export" },
+      { id: "json", label: "Sheet JSON", detail: "Cells plus lightweight metadata for LEARN imports.", bestFor: "Backups and automation", sizeHint: "Medium", action: "export" },
     ]
   }
   if (kind === "slides") {
     return [
-      { id: "pptx", label: "PPTX", detail: "Editable Microsoft PowerPoint deck.", action: "export", suggested: true },
-      { id: "outline", label: "Outline", detail: "Speaker-ready text outline.", action: "download" },
+      { id: "pptx", label: "PPTX", detail: "Editable Microsoft PowerPoint deck.", bestFor: "Presentation handoff", sizeHint: "Medium", action: "export", suggested: true },
+      { id: "outline", label: "Speaker outline", detail: "Slide titles, bullets, and notes in a compact script.", bestFor: "Rehearsal", sizeHint: "Tiny", action: "download" },
+      { id: "json", label: "Deck JSON", detail: "Slide objects, layouts, theme, and speaker notes.", bestFor: "Studio backup", sizeHint: "Medium", action: "export" },
     ]
   }
   return [
-    { id: "html", label: "HTML", detail: "Designed document with headings and formatting.", action: "download", suggested: true },
-    { id: "text", label: "Plain text", detail: "Clean text for email, AI, and lightweight export.", action: "export" },
+    { id: "html", label: "HTML", detail: "Designed document with headings and formatting.", bestFor: "Reading and publishing", sizeHint: "Small", action: "download", suggested: true },
+    { id: "markdown", label: "Markdown", detail: "Portable headings, lists, links, and study structure.", bestFor: "Docs, notes, and AI", sizeHint: "Small", action: "export" },
+    { id: "text", label: "Plain text", detail: "Clean text for email, AI, and lightweight export.", bestFor: "Fast sharing", sizeHint: "Tiny", action: "export" },
   ]
 }
 

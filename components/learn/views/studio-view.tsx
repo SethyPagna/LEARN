@@ -62,6 +62,7 @@ import {
   LayoutPanelLeft,
   List,
   ListOrdered,
+  Lock,
   Maximize2,
   Minus,
   MoreHorizontal,
@@ -77,6 +78,7 @@ import {
   Scissors,
   Search,
   Settings2,
+  Share2,
   SlidersHorizontal,
   SplitSquareHorizontal,
   SplitSquareVertical,
@@ -87,6 +89,7 @@ import {
   Underline as UnderlineIcon,
   Undo2,
   UploadCloud,
+  Video,
   X,
 } from "lucide-react"
 import { api, formatDate } from "../api"
@@ -3562,36 +3565,103 @@ function StudioExportInspector({
   const shareOptions = buildStudioShareOptions(activeKind)
   const downloadOptions = buildStudioDownloadOptions(activeKind)
   const recommendedDownload = recommendedStudioDownloadOption(activeKind)
+  const shareIconById = {
+    "copy-link": Copy,
+    "private-access": Lock,
+    "public-preview": Share2,
+    "template-link": Clipboard,
+    present: Presentation,
+    record: Video,
+  } satisfies Record<(typeof shareOptions)[number]["id"], React.ComponentType<{ className?: string }>>
+  const downloadIconById = {
+    html: FileText,
+    text: FileText,
+    markdown: Braces,
+    csv: Table2,
+    pptx: Presentation,
+    outline: List,
+    json: Braces,
+  } satisfies Record<(typeof downloadOptions)[number]["id"], React.ComponentType<{ className?: string }>>
   return (
     <div className="space-y-3">
-      <section className="rounded-lg border border-border bg-card p-3">
-        <div className="flex items-center justify-between gap-2">
+      <section className="rounded-lg border border-border bg-card p-3 shadow-sm">
+        <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Share</p>
-            <p className="mt-1 text-sm font-semibold text-foreground">Access and presentation</p>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Share design</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">Private by default</p>
           </div>
-          <button onClick={onCopyLink} className="rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground" type="button">Copy link</button>
+          <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-bold text-secondary-foreground">0 visitors</span>
         </div>
-        <div className="mt-3 grid gap-2">
+        <div className="mt-3 rounded-md border border-border bg-background p-2">
+          <p className="text-[0.68rem] font-bold uppercase tracking-[0.1em] text-muted-foreground">Access level</p>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="inline-flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
+              <Lock className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="truncate">Only you can access</span>
+            </span>
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          </div>
+        </div>
+        <button onClick={onCopyLink} className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90" type="button">
+          <Copy className="h-4 w-4" />
+          Copy link
+        </button>
+        <div className="mt-3 grid grid-cols-2 gap-2">
           {shareOptions.map((option) => (
-            <div key={option.id} className={`rounded-md border p-2 ${option.primary ? "border-primary bg-primary/10" : "border-border bg-background"}`}>
-              <p className="text-xs font-bold text-foreground">{option.label}</p>
-              <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{option.detail}</p>
+            <div key={option.id} className={`group rounded-md border p-2 text-center transition hover:-translate-y-0.5 ${option.primary ? "border-primary bg-primary/10" : "border-border bg-background"}`} title={option.detail}>
+              <span className={`mx-auto flex h-10 w-10 items-center justify-center rounded-full ${
+                option.tone === "primary" ? "bg-primary text-primary-foreground" :
+                option.tone === "present" ? "bg-violet-500/15 text-violet-700 dark:text-violet-200" :
+                option.tone === "social" ? "bg-success/15 text-success" :
+                "bg-secondary text-secondary-foreground"
+              }`}>
+                {(() => {
+                  const Icon = shareIconById[option.id]
+                  return <Icon className="h-4 w-4" />
+                })()}
+              </span>
+              <p className="mt-2 truncate text-xs font-bold text-foreground">{option.label}</p>
+              <p className="mt-0.5 text-[0.66rem] font-semibold text-muted-foreground">{option.badge}</p>
             </div>
           ))}
         </div>
       </section>
-      <section className="rounded-lg border border-border bg-card p-3">
-        <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Download</p>
-        <p className="mt-1 text-sm font-semibold text-foreground">{recommendedDownload?.label || "Best format"} ready</p>
+      <section className="rounded-lg border border-border bg-card p-3 shadow-sm">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Download</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">{recommendedDownload?.label || "Best format"} ready</p>
+          </div>
+          <span className="rounded-md bg-primary/15 px-2 py-1 text-[0.68rem] font-bold text-primary">Suggested</span>
+        </div>
+        <div className="mt-3 rounded-md border border-primary/40 bg-primary/10 p-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="inline-flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
+              <Download className="h-4 w-4 shrink-0 text-primary" />
+              <span className="truncate">{recommendedDownload?.label || "Download"}</span>
+            </span>
+            <span className="rounded-md bg-background px-2 py-0.5 text-[0.66rem] font-semibold text-muted-foreground">{recommendedDownload?.sizeHint || "Ready"}</span>
+          </div>
+          <p className="mt-1 text-[0.7rem] leading-4 text-muted-foreground">{recommendedDownload?.bestFor || "Recommended for this project type."}</p>
+        </div>
         <div className="mt-3 grid gap-2">
           {downloadOptions.map((option) => (
             <button key={option.id} onClick={option.action === "download" ? onDownload : onExport} className="rounded-md border border-border bg-background p-2 text-left transition hover:border-primary hover:bg-accent" type="button">
               <span className="flex items-center justify-between gap-2">
-                <span className="text-xs font-bold text-foreground">{option.label}</span>
+                <span className="inline-flex min-w-0 items-center gap-2 text-xs font-bold text-foreground">
+                  {(() => {
+                    const Icon = downloadIconById[option.id]
+                    return <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  })()}
+                  <span className="truncate">{option.label}</span>
+                </span>
                 {option.suggested ? <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary">Suggested</span> : null}
               </span>
               <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">{option.detail}</span>
+              <span className="mt-2 flex items-center justify-between gap-2 text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                <span>{option.bestFor}</span>
+                <span>{option.sizeHint}</span>
+              </span>
             </button>
           ))}
         </div>

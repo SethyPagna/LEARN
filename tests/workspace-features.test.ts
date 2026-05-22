@@ -230,9 +230,10 @@ test("studio record action groups swap manage actions for archived items", () =>
 test("studio share and download options match Canva-style Studio outputs", () => {
   assert.equal(buildStudioShareOptions("slides").some((option) => option.id === "present"), true)
   assert.equal(buildStudioShareOptions("docs").some((option) => option.id === "present"), false)
-  assert.deepEqual(buildStudioDownloadOptions("sheets").map((option) => option.id), ["csv", "text"])
-  assert.deepEqual(buildStudioDownloadOptions("slides").map((option) => option.id), ["pptx", "outline"])
+  assert.deepEqual(buildStudioDownloadOptions("sheets").map((option) => option.id), ["csv", "text", "json"])
+  assert.deepEqual(buildStudioDownloadOptions("slides").map((option) => option.id), ["pptx", "outline", "json"])
   assert.equal(recommendedStudioDownloadOption("docs")?.id, "html")
+  assert.equal(buildStudioShareOptions("docs").find((option) => option.id === "copy-link")?.badge, "Now")
 })
 
 test("studio draft summary counts typed workspace drafts", () => {
