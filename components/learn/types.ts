@@ -136,6 +136,8 @@ export interface WorkspaceDeck {
     background?: string
     transition?: "none" | "fade" | "push" | "zoom" | "wipe"
     animation?: "none" | "rise" | "reveal" | "emphasis"
+    hidden?: boolean
+    locked?: boolean
     objects?: SlideObject[]
     speakerNotes?: string
   }[]
