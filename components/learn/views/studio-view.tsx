@@ -469,6 +469,7 @@ export function StudioView({
   const [canvasFormatId, setCanvasFormatId] = useState("")
   const [activeToolPanel, setActiveToolPanel] = useState<StudioToolPanelId>("templates")
   const [toolRailCollapsed, setToolRailCollapsed] = useState(false)
+  const [toolDrawerOpen, setToolDrawerOpen] = useState(true)
   const [status, setStatus] = useState("Loading Studio...")
   const [draftNotice, setDraftNotice] = useState("")
   const [saving, setSaving] = useState(false)
@@ -1553,7 +1554,10 @@ export function StudioView({
             <MenuAction icon={SplitSquareVertical} label="Split down" onClick={() => setLayout((current) => splitStudioPane(current, current.activePaneId, "vertical"))} />
             <MenuAction icon={Settings2} label="Reset layout" onClick={() => setLayout(createDefaultStudioLayout(kind, activeTitle() || "Studio"))} />
           </ActionMenu>
-          <button onClick={() => setToolRailCollapsed((collapsed) => !collapsed)} className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+          <button onClick={() => {
+            setToolRailCollapsed((collapsed) => !collapsed)
+            setToolDrawerOpen(true)
+          }} className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
             <LayoutPanelLeft className="h-4 w-4" />
             <span className="hidden sm:inline">{toolRailCollapsed ? "Tools" : "Hide tools"}</span>
           </button>
@@ -1589,10 +1593,19 @@ export function StudioView({
         ) : null}
       </Panel>
 
-      <div className={`grid gap-3 ${toolRailCollapsed ? "xl:grid-cols-[1fr]" : "xl:grid-cols-[72px_280px_1fr]"}`}>
-        {!toolRailCollapsed ? <StudioToolRail activeKind={kind} activeToolPanel={activeToolPanel} onSelectKind={selectKind} onSelectToolPanel={setActiveToolPanel} showKindRail={false} /> : null}
-        {!toolRailCollapsed ? (
+      <div className={`grid gap-3 ${toolRailCollapsed ? "xl:grid-cols-[1fr]" : toolDrawerOpen ? "xl:grid-cols-[72px_280px_1fr]" : "xl:grid-cols-[72px_1fr]"}`}>
+        {!toolRailCollapsed ? <StudioToolRail activeKind={kind} activeToolPanel={activeToolPanel} onSelectKind={selectKind} onSelectToolPanel={(panel) => {
+          setActiveToolPanel(panel)
+          setToolDrawerOpen(true)
+        }} showKindRail={false} /> : null}
+        {!toolRailCollapsed && toolDrawerOpen ? (
           <Panel className="min-h-[74vh] p-3">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <span className="rounded-md bg-secondary px-2.5 py-1.5 text-xs font-bold text-secondary-foreground">{getStudioToolPanel(activeToolPanel).label}</span>
+              <button onClick={() => setToolDrawerOpen(false)} className="icon-button" title="Close library drawer" type="button">
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+            </div>
             <StudioLibrary
               activeToolPanel={activeToolPanel}
               items={allItems}
@@ -2852,6 +2865,13 @@ function StudioCanvas({
   }
   const toggleSelectedSlideHidden = () => updateSelectedSlide((slide) => ({ ...slide, hidden: !slide.hidden }))
   const toggleSelectedSlideLocked = () => updateSelectedSlide((slide) => ({ ...slide, locked: !slide.locked }))
+  const applyQuickSlideColor = (color: string) => {
+    if (selectedObject) {
+      updateSelectedObjectStyle(selectedObject, { background: color })
+      return
+    }
+    updateSelectedSlide((slide) => ({ ...slide, background: color }))
+  }
   return (
     <div className="grid min-h-[58vh] gap-3 lg:grid-cols-[150px_1fr_230px]">
       <div className="space-y-2 overflow-auto">
@@ -2883,6 +2903,50 @@ function StudioCanvas({
         </DndContext>
       </div>
       <div className="min-w-0">
+        <div className="mb-3 flex justify-center">
+          <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-border bg-card/95 px-2 py-1.5 text-sm shadow-lg backdrop-blur">
+            <ActionMenu compact label="Edit" icon={Settings2}>
+              <MenuAction icon={Type} label="Text box" onClick={() => addSlideObject("text")} />
+              <MenuAction icon={ImageIcon} label="Image frame" onClick={() => addSlideObject("image")} />
+              <MenuAction icon={Grid2X2} label="Shape" onClick={() => addSlideObject("shape")} />
+              <MenuAction icon={Table2} label="Table" onClick={() => addSlideObject("table")} />
+            </ActionMenu>
+            <button onClick={() => selectedObject ? updateSelectedObjectStyle(selectedObject, { background: "transparent" }) : updateSelectedSlide((slide) => ({ ...slide, background: "#ffffff" }))} className="h-8 rounded-md px-2 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground" title="Remove image background or reset page background" type="button">BG remover</button>
+            <ToolbarIcon icon={Scissors} label="Erase selected object" onClick={() => selectedObject ? updateSelectedSlide((slide) => removeSlideDesignObject(slide, selectedObject.id)) : updateSelectedSlide((slide) => ({ ...slide, body: "" }))} />
+            <span className="mx-1 h-6 w-px bg-border" />
+            {["#24305e", "#64748b", "#a7794f", "#b7e4dc"].map((color) => (
+              <button key={color} onClick={() => applyQuickSlideColor(color)} className="h-6 w-6 rounded-full border border-border shadow-sm transition hover:scale-105" style={{ background: color }} title={`Apply ${color}`} type="button" />
+            ))}
+            <ActionMenu compact label="Flip" icon={RotateCcw}>
+              <MenuAction disabled={!selectedObject} icon={ArrowLeft} label="Nudge left" onClick={() => selectedObject ? nudgeSelectedObject(selectedObject, "left") : undefined} />
+              <MenuAction disabled={!selectedObject} icon={ArrowRight} label="Nudge right" onClick={() => selectedObject ? nudgeSelectedObject(selectedObject, "right") : undefined} />
+              <MenuAction disabled={!selectedObject} icon={Rows3} label="Tall crop" onClick={() => selectedObject ? resizeSelectedObject(selectedObject, "tall") : undefined} />
+              <MenuAction disabled={!selectedObject} icon={Columns3} label="Wide crop" onClick={() => selectedObject ? resizeSelectedObject(selectedObject, "wide") : undefined} />
+            </ActionMenu>
+            <ActionMenu compact label="Effects" icon={Highlighter}>
+              <MenuAction disabled={!selectedObject} icon={Paintbrush} label="Soft card" onClick={() => selectedObject ? updateSelectedObjectStyle(selectedObject, { background: "rgba(255,255,255,0.18)", boxShadow: "0 20px 50px rgba(15,23,42,0.22)" }) : undefined} />
+              <MenuAction disabled={!selectedObject} icon={Highlighter} label="Transparent" onClick={() => selectedObject ? updateSelectedObjectStyle(selectedObject, { opacity: 0.72 }) : undefined} />
+              <MenuAction icon={Paintbrush} label="Apply theme to all" onClick={() => onSetSlides((current) => applySlideDesignPresetToDeck(current, (selectedSlide?.theme || "midnight") as keyof typeof slideDesignPresets))} />
+            </ActionMenu>
+            <ActionMenu compact label="Animate" icon={RotateCcw}>
+              <MenuSelect label="Transition" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, transition: value as WorkspaceDeck["slides"][number]["transition"] } : item))} options={Object.keys(slideTransitionPresets).map((value) => ({ label: value, value }))} />
+              <MenuSelect label="Element" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, animation: value as WorkspaceDeck["slides"][number]["animation"] } : item))} options={Object.keys(slideAnimationPresets).map((value) => ({ label: value, value }))} />
+            </ActionMenu>
+            <ActionMenu compact label="Position" icon={Maximize2}>
+              <MenuAction disabled={!selectedObject} icon={AlignLeft} label="Align left" onClick={() => selectedObject ? alignSelectedObject(selectedObject, "left") : undefined} />
+              <MenuAction disabled={!selectedObject} icon={AlignCenter} label="Align center" onClick={() => selectedObject ? alignSelectedObject(selectedObject, "center") : undefined} />
+              <MenuAction disabled={!selectedObject} icon={AlignRight} label="Align right" onClick={() => selectedObject ? alignSelectedObject(selectedObject, "right") : undefined} />
+              <MenuAction disabled={!selectedObject} icon={Maximize2} label="Bring to front" onClick={() => selectedObject ? reorderSelectedObject(selectedObject, "front") : undefined} />
+            </ActionMenu>
+            <ToolbarIcon
+              icon={Paintbrush}
+              label="Apply style"
+              onClick={() => selectedObject
+                ? updateSelectedObjectStyle(selectedObject, { borderRadius: 18, boxShadow: "0 18px 45px rgba(15,23,42,0.20)" })
+                : updateSelectedSlide((slide) => ({ ...slide, background: "#f8fafc" }))}
+            />
+          </div>
+        </div>
         <div className="mb-2 flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm">
           <span className="font-bold text-foreground">Page {selectedSlideIndex + 1}</span>
           <input value={selectedSlide?.title || ""} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, title: event.target.value } : item))} disabled={selectedSlide?.locked} className="min-w-0 flex-1 bg-transparent text-muted-foreground outline-none disabled:opacity-60" placeholder="Add page title" />
@@ -2929,6 +2993,15 @@ function StudioCanvas({
         ))}
         </div>
         <div className="mt-2 flex flex-wrap items-center justify-end gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+          <details className="mr-auto">
+            <summary className="inline-flex h-8 cursor-pointer list-none items-center gap-1 rounded-md border border-border bg-secondary px-2 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+              <FileText className="h-3.5 w-3.5" /> Notes
+            </summary>
+            <textarea value={selectedSlide?.speakerNotes || ""} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, speakerNotes: event.target.value } : item))} className="absolute z-40 mt-2 h-32 w-72 rounded-lg border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl" placeholder="Speaker notes" />
+          </details>
+          <button onClick={() => updateSelectedSlide((slide) => ({ ...slide, speakerNotes: slide.speakerNotes || "Timer: 5 min explain, 2 min question, 1 min recap." }))} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-secondary px-2 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" title="Add a timing note" type="button">
+            <Clock className="h-3.5 w-3.5" /> Timer
+          </button>
           <input value={slideZoom} onChange={(event) => setSlideZoom(Number(event.target.value))} min={50} max={140} type="range" className="w-28 accent-primary" aria-label="Slide zoom" />
           <span className="w-10 text-right font-semibold text-foreground">{slideZoom}%</span>
           <span className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 font-semibold text-secondary-foreground"><LayoutPanelLeft className="h-3.5 w-3.5" /> Pages</span>
@@ -3101,7 +3174,9 @@ function SlideCanvasObject({
     color: readStyleValue(style, "color", "#ffffff"),
     background: readStyleValue(style, "background", object.type === "text" ? "transparent" : "rgba(255,255,255,0.14)"),
     borderRadius: Number(readStyleValue(style, "borderRadius", "8")),
+    boxShadow: readStyleValue(style, "boxShadow", "none"),
     fontSize: Number(readStyleValue(style, "fontSize", "14")),
+    opacity: Number(readStyleValue(style, "opacity", "1")),
   }
   const sharedProps = {
     className: `absolute z-20 overflow-hidden border ${active ? "border-white shadow-[0_0_0_2px_rgba(255,255,255,0.45)]" : "border-white/20"}`,
