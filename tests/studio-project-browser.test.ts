@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import test from "node:test"
 
 import { buildStudioProjectBrowserHeader, buildStudioProjectBrowserState, buildStudioProjectBrowserSummary, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, countStudioProjects, filterStudioProjectsByDraftStatus, getStudioProjectDisplayMeta, getStudioProjectFilterOption, listStudioProjectFilterOptions, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, templateMatchesFormatGroup } from "../lib/studio-project-browser"
@@ -119,6 +120,19 @@ test("studio project browser summary keeps the launcher compact", () => {
   assert.equal(searched.title, "Search results")
   assert.equal(searched.chips.find((chip) => chip.label === "Format")?.value, "Decks")
   assert.match(buildStudioProjectBrowserHeader(summary), /4 visible/)
+})
+
+test("studio project launcher keeps edit tools behind project entry", () => {
+  const source = readFileSync("components/learn/views/studio-view.tsx", "utf8")
+  const start = source.indexOf("function StudioProjectBrowser(")
+  const end = source.indexOf("function StudioToolRail(")
+  const launcherSource = source.slice(start, end)
+
+  assert.ok(start > -1)
+  assert.ok(end > start)
+  assert.match(launcherSource, /Recent projects/)
+  assert.match(launcherSource, /New project/)
+  assert.doesNotMatch(launcherSource, /Canvas preview|Use Daily note|<StudioToolRail/)
 })
 
 test("studio project browser filters template designs by canvas format", () => {
