@@ -1,6 +1,6 @@
 import type { StudioKind } from "@/components/learn/types"
 
-export type StudioToolPanelId = "projects" | "templates" | "elements" | "text" | "media" | "brand" | "ai"
+export type StudioToolPanelId = "projects" | "templates" | "elements" | "text" | "media" | "brand" | "effects" | "animate" | "position" | "apps" | "ai"
 
 export type StudioToolPanel = {
   id: StudioToolPanelId
@@ -16,7 +16,11 @@ export type StudioToolAction = {
   canvasAction?: "new-page" | "duplicate-page"
   richHtml?: string
   sheetAction?: "add-row" | "add-column" | "table"
+  slideAnimation?: "none" | "rise" | "reveal" | "emphasis"
+  slideLayout?: "title" | "two-column" | "image" | "quote"
   slideObjectType?: "text" | "shape" | "image" | "table"
+  slideTheme?: string
+  slideTransition?: "none" | "fade" | "push" | "zoom" | "wipe"
 }
 
 export type StudioToolActionGroup = {
@@ -31,6 +35,10 @@ export const studioToolPanels: StudioToolPanel[] = [
   { id: "text", label: "Text", description: "Add headings, body styles, and callouts" },
   { id: "media", label: "Media", description: "Insert image areas and upload-ready placeholders" },
   { id: "brand", label: "Brand", description: "Apply colors, surfaces, and reusable styles" },
+  { id: "effects", label: "Effects", description: "Apply shadows, color emphasis, and visual treatments" },
+  { id: "animate", label: "Animate", description: "Choose slide transitions and entrance motion" },
+  { id: "position", label: "Position", description: "Arrange page layouts and slide composition" },
+  { id: "apps", label: "Apps", description: "Insert learning widgets, tables, quizzes, and review blocks" },
   { id: "ai", label: "AI", description: "Generate, rewrite, and organize content" },
   { id: "projects", label: "Projects", description: "Browse existing Studio work" },
 ]
@@ -42,6 +50,21 @@ export const studioToolActions: Record<StudioToolPanelId, StudioToolAction[]> = 
     { id: "ai-practice-loop", label: "Practice loop", description: "Add prompt slots for mistake retry and reviews", richHtml: "<h2>Practice loop</h2><p>Mistake -> explanation -> retry -> review card.</p>", supportedKinds: ["notes", "docs"] },
     { id: "ai-slide-outline", label: "Slide outline", description: "Add an outline object for AI-generated decks", slideObjectType: "text", supportedKinds: ["slides"] },
     { id: "ai-sheet-organizer", label: "Sheet organizer", description: "Prepare columns for AI cleanup or imported tables", sheetAction: "table", supportedKinds: ["sheets"] },
+  ],
+  animate: [
+    { id: "animate-fade", label: "Fade", description: "Soft transition for calm decks and explainers", slideTransition: "fade", supportedKinds: ["slides"] },
+    { id: "animate-push", label: "Push", description: "Directional movement for step-by-step stories", slideTransition: "push", supportedKinds: ["slides"] },
+    { id: "animate-zoom", label: "Zoom", description: "Emphasize section breaks or big ideas", slideTransition: "zoom", supportedKinds: ["slides"] },
+    { id: "animate-rise", label: "Rise", description: "Content enters gently from below", slideAnimation: "rise", supportedKinds: ["slides"] },
+    { id: "animate-reveal", label: "Reveal", description: "Best for progressive bullets and teaching flows", slideAnimation: "reveal", supportedKinds: ["slides"] },
+    { id: "animate-emphasis", label: "Emphasis", description: "Subtle scale cue for key moments", slideAnimation: "emphasis", supportedKinds: ["slides"] },
+  ],
+  apps: [
+    { id: "app-review-card", label: "Review card", description: "Insert a spaced-review prompt and answer block", richHtml: "<h2>Review card</h2><p><strong>Prompt:</strong> </p><p><strong>Answer:</strong> </p><p><strong>Next review:</strong> </p>", supportedKinds: ["notes", "docs"] },
+    { id: "app-quiz-widget", label: "Quiz widget", description: "Insert a lightweight question, choices, and explanation block", richHtml: "<h2>Quiz widget</h2><ol><li>Question</li></ol><p><strong>Choices:</strong></p><ul><li>A.</li><li>B.</li><li>C.</li></ul><p><strong>Explanation:</strong></p>", slideObjectType: "table", supportedKinds: ["notes", "docs", "slides"] },
+    { id: "app-progress-table", label: "Progress table", description: "Create a tracker for topic, score, status, and next action", sheetAction: "table", richHtml: "<table><tbody><tr><th>Topic</th><th>Score</th><th>Status</th><th>Next</th></tr><tr><td></td><td></td><td></td><td></td></tr></tbody></table>", supportedKinds: ["notes", "docs", "sheets"] },
+    { id: "app-flashcards", label: "Flashcards", description: "Prepare front, back, topic, and review columns", sheetAction: "table", supportedKinds: ["sheets"] },
+    { id: "app-slide-quiz", label: "Slide quiz", description: "Add a quiz-ready slide table placeholder", slideObjectType: "table", supportedKinds: ["slides"] },
   ],
   brand: [
     { id: "brand-cover", label: "Cover system", description: "Add a branded cover and visual hierarchy", richHtml: "<h1>Title</h1><blockquote>Key promise or learning goal</blockquote>", slideObjectType: "shape", supportedKinds: ["notes", "docs", "slides"] },
@@ -61,6 +84,13 @@ export const studioToolActions: Record<StudioToolPanelId, StudioToolAction[]> = 
     { id: "element-section", label: "Section page", description: "Add a new page-like section", richHtml: "<hr><h2>New section</h2><p></p>", slideObjectType: "text", supportedKinds: ["notes", "docs", "slides"] },
     { id: "element-timeline", label: "Timeline", description: "Add a sequence for process or history notes", richHtml: "<h2>Timeline</h2><ol><li>Step one</li><li>Step two</li><li>Step three</li></ol>", slideObjectType: "text", supportedKinds: ["notes", "docs", "slides"] },
   ],
+  effects: [
+    { id: "effect-focus", label: "Focus glow", description: "Add a highlighted focus block or glowing slide shape", richHtml: "<blockquote><strong>Focus:</strong> The idea to remember.</blockquote>", slideObjectType: "shape", supportedKinds: ["notes", "docs", "slides"] },
+    { id: "effect-warning", label: "Warning tag", description: "Add a caution callout for common mistakes", richHtml: "<blockquote><strong>Watch out:</strong> Add the common mistake and fix.</blockquote>", slideObjectType: "shape", supportedKinds: ["notes", "docs", "slides"] },
+    { id: "effect-minimal", label: "Minimal theme", description: "Apply a clean white slide surface", slideTheme: "plain", supportedKinds: ["slides"] },
+    { id: "effect-dark", label: "Dark theme", description: "Apply a high-contrast dark slide surface", slideTheme: "obsidian", supportedKinds: ["slides"] },
+    { id: "effect-warm", label: "Warm theme", description: "Apply a warm presentation surface", slideTheme: "sunrise", supportedKinds: ["slides"] },
+  ],
   media: [
     { id: "media-image", label: "Image frame", description: "Add an image placeholder", richHtml: "<p><img src=\"\" alt=\"Image placeholder\"></p>", slideObjectType: "image", supportedKinds: ["notes", "docs", "slides"] },
     { id: "media-caption", label: "Caption block", description: "Add media notes and attribution", richHtml: "<h3>Caption</h3><p>Source and notes</p>", supportedKinds: ["notes", "docs"] },
@@ -69,6 +99,12 @@ export const studioToolActions: Record<StudioToolPanelId, StudioToolAction[]> = 
     { id: "media-gallery", label: "Image gallery", description: "Add a multi-image layout placeholder", richHtml: "<table><tbody><tr><td>Image</td><td>Image</td><td>Image</td></tr><tr><td>Caption</td><td>Caption</td><td>Caption</td></tr></tbody></table>", slideObjectType: "image", supportedKinds: ["notes", "docs", "slides"] },
   ],
   projects: [],
+  position: [
+    { id: "position-title", label: "Title layout", description: "Arrange the slide as a strong title page", slideLayout: "title", supportedKinds: ["slides"] },
+    { id: "position-columns", label: "Two columns", description: "Split content into two balanced columns", richHtml: "<table><tbody><tr><th>Left</th><th>Right</th></tr><tr><td></td><td></td></tr></tbody></table>", slideLayout: "two-column", supportedKinds: ["notes", "docs", "slides"] },
+    { id: "position-image", label: "Image layout", description: "Reserve space for a visual and caption", richHtml: "<table><tbody><tr><td>Image</td><td>Notes</td></tr></tbody></table>", slideLayout: "image", supportedKinds: ["notes", "docs", "slides"] },
+    { id: "position-quote", label: "Quote layout", description: "Center a quote or key takeaway", richHtml: "<blockquote>Key quote or takeaway</blockquote>", slideLayout: "quote", supportedKinds: ["notes", "docs", "slides"] },
+  ],
   templates: [],
   text: [
     { id: "text-heading", label: "Heading", description: "Add a clean heading", richHtml: "<h1>Heading</h1><p></p>", slideObjectType: "text", supportedKinds: ["notes", "docs", "slides"] },
@@ -103,8 +139,13 @@ export function groupStudioToolActions(panel: StudioToolPanelId, kind: StudioKin
 }
 
 export function studioToolActionGroupLabel(action: StudioToolAction) {
+  if (action.slideTransition) return "Transitions"
+  if (action.slideAnimation) return "Motion"
+  if (action.slideLayout) return "Layout"
+  if (action.slideTheme) return "Themes"
   if (action.canvasAction) return "Pages"
   if (action.sheetAction) return "Data"
+  if (action.id.startsWith("app-")) return "Learning apps"
   if (action.slideObjectType === "image" || action.id.startsWith("media-")) return "Media"
   if (action.slideObjectType === "shape" || action.id.includes("frame") || action.id.includes("callout")) return "Visuals"
   if (action.id.startsWith("ai-")) return "AI prompts"

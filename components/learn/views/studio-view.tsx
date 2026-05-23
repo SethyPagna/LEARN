@@ -938,6 +938,24 @@ export function StudioView({
         return
       }
     }
+    if (targetKind === "slides" && (action.slideAnimation || action.slideLayout || action.slideTheme || action.slideTransition)) {
+      const themeKey = action.slideTheme as keyof typeof slideDesignPresets | undefined
+      const palette = themeKey ? slideDesignPresets[themeKey] : undefined
+      setSlides((current) => current.map((slide, index) => (
+        index === selectedSlideIndex
+          ? {
+              ...slide,
+              animation: action.slideAnimation || slide.animation,
+              background: palette?.background || slide.background,
+              layout: action.slideLayout || slide.layout,
+              theme: action.slideTheme || slide.theme,
+              transition: action.slideTransition || slide.transition,
+            }
+          : slide
+      )))
+      setStatus(`${action.label} applied.`)
+      return
+    }
     if ((targetKind === "notes" || targetKind === "docs") && action.richHtml) {
       appendRichToolContentForKind(targetKind, action.richHtml)
       setStatus(`${action.label} added.`)
@@ -2226,9 +2244,13 @@ function StudioToolRail({
 }) {
   const toolIcons: Record<StudioToolPanelId, React.ComponentType<{ className?: string }>> = {
     ai: Bot,
+    animate: RotateCcw,
+    apps: Grid2X2,
     brand: Paintbrush,
     elements: Grid2X2,
+    effects: Highlighter,
     media: ImageIcon,
+    position: Maximize2,
     projects: LayoutPanelLeft,
     templates: FilePlus2,
     text: Type,

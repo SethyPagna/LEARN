@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 
 import { buildStudioProjectBrowserHeader, buildStudioProjectBrowserState, buildStudioProjectBrowserSummary, buildStudioProjectSubtitle, buildStudioTemplatePreview, buildStudioTemplateSubtitle, countStudioProjects, filterStudioProjectsByDraftStatus, getStudioProjectDisplayMeta, getStudioProjectFilterOption, listStudioProjectFilterOptions, matchesStudioBrowserQuery, normalizeStudioBrowserQuery, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, templateMatchesFormatGroup } from "../lib/studio-project-browser"
-import { getStudioToolActions, groupStudioToolActions, resolveStudioToolActionKind } from "../lib/studio-tool-library"
+import { getStudioToolActions, groupStudioToolActions, resolveStudioToolActionKind, studioToolPanels } from "../lib/studio-tool-library"
 
 const projects = [
   { id: "note_1", kind: "notes" as const, title: "Operating systems note", summary: "Scheduling" },
@@ -183,6 +183,11 @@ test("studio tool library exposes varied Canva-style insert targets", () => {
   assert.ok(getStudioToolActions("media", "docs").some((action) => action.id === "media-video"))
   assert.ok(getStudioToolActions("text", "notes").some((action) => action.id === "text-checklist"))
   assert.ok(getStudioToolActions("ai", "sheets").some((action) => action.sheetAction === "table"))
+  assert.ok(getStudioToolActions("animate", "slides").some((action) => action.slideTransition === "fade"))
+  assert.ok(getStudioToolActions("effects", "slides").some((action) => action.slideTheme === "obsidian"))
+  assert.ok(getStudioToolActions("apps", "docs").some((action) => action.id === "app-quiz-widget"))
+  assert.ok(getStudioToolActions("position", "slides").some((action) => action.slideLayout === "two-column"))
+  assert.deepEqual(studioToolPanels.map((panel) => panel.label), ["Templates", "Elements", "Text", "Media", "Brand", "Effects", "Animate", "Position", "Apps", "AI", "Projects"])
 })
 
 test("studio tool action kind resolver keeps launcher actions compatible", () => {
@@ -199,4 +204,9 @@ test("studio tool actions group into compact launcher sections", () => {
   const mediaGroups = groupStudioToolActions("media", "docs")
   assert.deepEqual(mediaGroups.map((group) => group.label), ["Media"])
   assert.ok(mediaGroups[0]?.actions.some((action) => action.id === "media-video"))
+
+  assert.deepEqual(groupStudioToolActions("animate", "slides").map((group) => group.label), ["Transitions", "Motion"])
+  assert.deepEqual(groupStudioToolActions("effects", "slides").map((group) => group.label), ["Visuals", "Themes"])
+  assert.deepEqual(groupStudioToolActions("apps", "docs").map((group) => group.label), ["Learning apps", "Data"])
+  assert.deepEqual(groupStudioToolActions("position", "slides").map((group) => group.label), ["Layout"])
 })
