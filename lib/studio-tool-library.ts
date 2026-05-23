@@ -55,9 +55,11 @@ export const studioToolActions: Record<StudioToolPanelId, StudioToolAction[]> = 
     { id: "animate-fade", label: "Fade", description: "Soft transition for calm decks and explainers", slideTransition: "fade", supportedKinds: ["slides"] },
     { id: "animate-push", label: "Push", description: "Directional movement for step-by-step stories", slideTransition: "push", supportedKinds: ["slides"] },
     { id: "animate-zoom", label: "Zoom", description: "Emphasize section breaks or big ideas", slideTransition: "zoom", supportedKinds: ["slides"] },
+    { id: "animate-wipe", label: "Wipe", description: "Reveal comparisons, timelines, and before/after slides", slideTransition: "wipe", supportedKinds: ["slides"] },
     { id: "animate-rise", label: "Rise", description: "Content enters gently from below", slideAnimation: "rise", supportedKinds: ["slides"] },
     { id: "animate-reveal", label: "Reveal", description: "Best for progressive bullets and teaching flows", slideAnimation: "reveal", supportedKinds: ["slides"] },
     { id: "animate-emphasis", label: "Emphasis", description: "Subtle scale cue for key moments", slideAnimation: "emphasis", supportedKinds: ["slides"] },
+    { id: "animate-none", label: "No motion", description: "Remove motion for reduced-distraction decks", slideAnimation: "none", slideTransition: "none", supportedKinds: ["slides"] },
   ],
   apps: [
     { id: "app-review-card", label: "Review card", description: "Insert a spaced-review prompt and answer block", richHtml: "<h2>Review card</h2><p><strong>Prompt:</strong> </p><p><strong>Answer:</strong> </p><p><strong>Next review:</strong> </p>", supportedKinds: ["notes", "docs"] },
@@ -65,6 +67,8 @@ export const studioToolActions: Record<StudioToolPanelId, StudioToolAction[]> = 
     { id: "app-progress-table", label: "Progress table", description: "Create a tracker for topic, score, status, and next action", sheetAction: "table", richHtml: "<table><tbody><tr><th>Topic</th><th>Score</th><th>Status</th><th>Next</th></tr><tr><td></td><td></td><td></td><td></td></tr></tbody></table>", supportedKinds: ["notes", "docs", "sheets"] },
     { id: "app-flashcards", label: "Flashcards", description: "Prepare front, back, topic, and review columns", sheetAction: "table", supportedKinds: ["sheets"] },
     { id: "app-slide-quiz", label: "Slide quiz", description: "Add a quiz-ready slide table placeholder", slideObjectType: "table", supportedKinds: ["slides"] },
+    { id: "app-timer", label: "Focus timer", description: "Insert a timer cue for study blocks or presentation pacing", richHtml: "<h2>Focus timer</h2><p><strong>Length:</strong> 25 minutes</p><p><strong>Goal:</strong> </p>", slideObjectType: "text", supportedKinds: ["notes", "docs", "slides"] },
+    { id: "app-rubric", label: "Rubric", description: "Add criteria, score, evidence, and feedback structure", richHtml: "<table><tbody><tr><th>Criteria</th><th>Score</th><th>Evidence</th><th>Feedback</th></tr><tr><td></td><td></td><td></td><td></td></tr></tbody></table>", sheetAction: "table", supportedKinds: ["notes", "docs", "sheets"] },
   ],
   brand: [
     { id: "brand-cover", label: "Cover system", description: "Add a branded cover and visual hierarchy", richHtml: "<h1>Title</h1><blockquote>Key promise or learning goal</blockquote>", slideObjectType: "shape", supportedKinds: ["notes", "docs", "slides"] },
@@ -87,6 +91,8 @@ export const studioToolActions: Record<StudioToolPanelId, StudioToolAction[]> = 
   effects: [
     { id: "effect-focus", label: "Focus glow", description: "Add a highlighted focus block or glowing slide shape", richHtml: "<blockquote><strong>Focus:</strong> The idea to remember.</blockquote>", slideObjectType: "shape", supportedKinds: ["notes", "docs", "slides"] },
     { id: "effect-warning", label: "Warning tag", description: "Add a caution callout for common mistakes", richHtml: "<blockquote><strong>Watch out:</strong> Add the common mistake and fix.</blockquote>", slideObjectType: "shape", supportedKinds: ["notes", "docs", "slides"] },
+    { id: "effect-shadow", label: "Soft shadow", description: "Add a layered card-style emphasis block", richHtml: "<blockquote><strong>Key card:</strong> Add the takeaway.</blockquote>", slideObjectType: "shape", supportedKinds: ["notes", "docs", "slides"] },
+    { id: "effect-blur", label: "Blur cue", description: "Create a visual placeholder for hidden answers or reveal states", richHtml: "<blockquote><strong>Hidden answer:</strong> Reveal after recall.</blockquote>", slideObjectType: "shape", supportedKinds: ["notes", "docs", "slides"] },
     { id: "effect-minimal", label: "Minimal theme", description: "Apply a clean white slide surface", slideTheme: "plain", supportedKinds: ["slides"] },
     { id: "effect-dark", label: "Dark theme", description: "Apply a high-contrast dark slide surface", slideTheme: "obsidian", supportedKinds: ["slides"] },
     { id: "effect-warm", label: "Warm theme", description: "Apply a warm presentation surface", slideTheme: "sunrise", supportedKinds: ["slides"] },
@@ -97,6 +103,8 @@ export const studioToolActions: Record<StudioToolPanelId, StudioToolAction[]> = 
     { id: "media-video", label: "Video notes", description: "Add a video reference block with timestamps", richHtml: "<h2>Video notes</h2><table><tbody><tr><th>Time</th><th>Moment</th><th>Question</th></tr><tr><td>00:00</td><td></td><td></td></tr></tbody></table>", supportedKinds: ["notes", "docs"] },
     { id: "media-audio", label: "Audio recap", description: "Add transcript and recall sections", richHtml: "<h2>Audio recap</h2><h3>Transcript notes</h3><p></p><h3>Recall prompts</h3><ul><li></li></ul>", supportedKinds: ["notes", "docs"] },
     { id: "media-gallery", label: "Image gallery", description: "Add a multi-image layout placeholder", richHtml: "<table><tbody><tr><td>Image</td><td>Image</td><td>Image</td></tr><tr><td>Caption</td><td>Caption</td><td>Caption</td></tr></tbody></table>", slideObjectType: "image", supportedKinds: ["notes", "docs", "slides"] },
+    { id: "media-mockup", label: "Mockup frame", description: "Add a device or screenshot-ready frame", richHtml: "<blockquote><strong>Screenshot:</strong> Add image, source, and note.</blockquote>", slideObjectType: "image", supportedKinds: ["notes", "docs", "slides"] },
+    { id: "media-diagram", label: "Diagram area", description: "Add a visual explanation area for arrows, flow, or systems", richHtml: "<h2>Diagram</h2><p>Nodes, arrows, labels, and takeaway.</p>", slideObjectType: "shape", supportedKinds: ["notes", "docs", "slides"] },
   ],
   projects: [],
   position: [
@@ -104,6 +112,8 @@ export const studioToolActions: Record<StudioToolPanelId, StudioToolAction[]> = 
     { id: "position-columns", label: "Two columns", description: "Split content into two balanced columns", richHtml: "<table><tbody><tr><th>Left</th><th>Right</th></tr><tr><td></td><td></td></tr></tbody></table>", slideLayout: "two-column", supportedKinds: ["notes", "docs", "slides"] },
     { id: "position-image", label: "Image layout", description: "Reserve space for a visual and caption", richHtml: "<table><tbody><tr><td>Image</td><td>Notes</td></tr></tbody></table>", slideLayout: "image", supportedKinds: ["notes", "docs", "slides"] },
     { id: "position-quote", label: "Quote layout", description: "Center a quote or key takeaway", richHtml: "<blockquote>Key quote or takeaway</blockquote>", slideLayout: "quote", supportedKinds: ["notes", "docs", "slides"] },
+    { id: "position-grid", label: "Card grid", description: "Arrange ideas as a clean 2x2 card grid", richHtml: "<table><tbody><tr><td>Card 1</td><td>Card 2</td></tr><tr><td>Card 3</td><td>Card 4</td></tr></tbody></table>", slideObjectType: "table", supportedKinds: ["notes", "docs", "slides"] },
+    { id: "position-sidebar", label: "Sidebar layout", description: "Use a narrow context column with a larger workspace area", richHtml: "<table><tbody><tr><th>Context</th><th>Work area</th></tr><tr><td></td><td></td></tr></tbody></table>", slideObjectType: "table", supportedKinds: ["notes", "docs", "slides"] },
   ],
   templates: [],
   text: [
@@ -113,6 +123,9 @@ export const studioToolActions: Record<StudioToolPanelId, StudioToolAction[]> = 
     { id: "text-pullquote", label: "Pull quote", description: "Add a prominent quote or takeaway", richHtml: "<blockquote>Memorable takeaway</blockquote>", slideObjectType: "text", supportedKinds: ["notes", "docs", "slides"] },
     { id: "text-checklist", label: "Checklist", description: "Add a task list for study steps", richHtml: "<ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"false\">First action</li><li data-type=\"taskItem\" data-checked=\"false\">Second action</li></ul>", slideObjectType: "text", supportedKinds: ["notes", "docs", "slides"] },
     { id: "text-equation", label: "Equation note", description: "Add an equation placeholder with explanation", richHtml: "<h3>Equation</h3><pre><code>f(x) = </code></pre><p>Meaning:</p>", supportedKinds: ["notes", "docs"] },
+    { id: "text-label", label: "Label", description: "Add a small label or badge", richHtml: "<p><strong>Label:</strong> </p>", slideObjectType: "text", supportedKinds: ["notes", "docs", "slides"] },
+    { id: "text-page-number", label: "Page numbers", description: "Add page numbering or a slide footer cue", richHtml: "<p><small>Page 1</small></p>", slideObjectType: "text", supportedKinds: ["notes", "docs", "slides"] },
+    { id: "text-script", label: "Script note", description: "Add a speaker script or narration block", richHtml: "<h3>Script</h3><p></p>", slideObjectType: "text", supportedKinds: ["notes", "docs", "slides"] },
   ],
 }
 
@@ -141,7 +154,7 @@ export function groupStudioToolActions(panel: StudioToolPanelId, kind: StudioKin
 export function studioToolActionGroupLabel(action: StudioToolAction) {
   if (action.slideTransition) return "Transitions"
   if (action.slideAnimation) return "Motion"
-  if (action.slideLayout) return "Layout"
+  if (action.slideLayout || action.id.startsWith("position-")) return "Layout"
   if (action.slideTheme) return "Themes"
   if (action.canvasAction) return "Pages"
   if (action.sheetAction) return "Data"
