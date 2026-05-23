@@ -34,6 +34,7 @@ export type PracticeWorkspaceTarget = "quizzes" | "games"
 export type PracticeWorkspaceActionId = "resume" | "careful" | "speed" | "repair" | "create"
 export type PracticePlayStyleId = "live" | "study" | "assessment" | "arcade" | "strategy"
 export type PracticeGameModeId = "classic" | "team-race" | "match" | "redemption" | "arcade-quest" | "economy"
+export type PracticeArenaPresetId = "classic" | "accuracy" | "team" | "flashcards" | "redemption" | "ai-generated"
 
 export interface PracticeWorkspaceAction {
   id: PracticeWorkspaceActionId
@@ -60,6 +61,18 @@ export interface PracticeLiveJoinCard {
   ready: boolean
   stats: Array<{ label: string; value: string }>
   scoringRules: Array<{ label: string; value: string; detail: string }>
+}
+
+export interface PracticeArenaPreset {
+  id: PracticeArenaPresetId
+  label: string
+  model: string
+  caption: string
+  action: PracticeWorkspaceActionId
+  target: PracticeWorkspaceTarget
+  scoring: Array<{ label: string; value: string }>
+  recommended: boolean
+  disabledReason?: string
 }
 
 export interface PracticePlayStyle {
@@ -556,6 +569,112 @@ export function buildPracticeLiveJoinCard(input: {
       { label: "Accuracy", value: "x1.5", detail: "Clean streaks multiply the final round score." },
     ],
   }
+}
+
+export function buildPracticeArenaPresets(input: {
+  quizCount: number
+  draftCount?: number
+  markedDraftCount?: number
+  retryDraftCount?: number
+}): PracticeArenaPreset[] {
+  const hasQuizBanks = input.quizCount > 0
+  const hasDrafts = (input.draftCount ?? 0) > 0
+  const repairCount = (input.markedDraftCount ?? 0) + (input.retryDraftCount ?? 0)
+  const hasRepairWork = repairCount > 0
+  const needsQuizBank = hasQuizBanks ? undefined : "Create or import a quiz bank first"
+  const needsMisses = hasRepairWork ? undefined : "Mark or miss questions first"
+
+  return [
+    {
+      id: "classic",
+      label: "Classic",
+      model: "Kahoot speed",
+      caption: "Fast live round with score, streak, and instant feedback.",
+      action: "speed",
+      target: "games",
+      scoring: [
+        { label: "Base", value: "1000" },
+        { label: "Speed", value: "+300" },
+        { label: "Streak", value: "x1.5" },
+      ],
+      recommended: hasQuizBanks && !hasDrafts && !hasRepairWork,
+      disabledReason: needsQuizBank,
+    },
+    {
+      id: "accuracy",
+      label: "Accuracy",
+      model: "Quizizz mastery",
+      caption: "Slower scoring that rewards correct answers and explanations.",
+      action: "careful",
+      target: "quizzes",
+      scoring: [
+        { label: "Correct", value: "100%" },
+        { label: "Time", value: "Soft" },
+        { label: "Explain", value: "On" },
+      ],
+      recommended: hasQuizBanks && hasRepairWork,
+      disabledReason: needsQuizBank,
+    },
+    {
+      id: "team",
+      label: "Team",
+      model: "Quizlet Live",
+      caption: "A shared race mode for group recall and quick collaboration.",
+      action: "speed",
+      target: "games",
+      scoring: [
+        { label: "Team", value: "Shared" },
+        { label: "Wrong", value: "Reset" },
+        { label: "Round", value: "3 min" },
+      ],
+      recommended: false,
+      disabledReason: needsQuizBank,
+    },
+    {
+      id: "flashcards",
+      label: "Flashcards",
+      model: "Quizlet learn",
+      caption: "Steady recall for saved drafts, terms, and weak facts.",
+      action: hasDrafts ? "resume" : "careful",
+      target: "quizzes",
+      scoring: [
+        { label: "Pace", value: "Self" },
+        { label: "Recall", value: "Flip" },
+        { label: "Save", value: "Review" },
+      ],
+      recommended: hasDrafts,
+      disabledReason: needsQuizBank,
+    },
+    {
+      id: "redemption",
+      label: "Redemption",
+      model: "Retry missed",
+      caption: "Only missed or marked questions, then save hard ones to Reviews.",
+      action: "repair",
+      target: "quizzes",
+      scoring: [
+        { label: "Misses", value: String(repairCount) },
+        { label: "Retry", value: "On" },
+        { label: "Cards", value: "After" },
+      ],
+      recommended: hasRepairWork,
+      disabledReason: needsMisses,
+    },
+    {
+      id: "ai-generated",
+      label: "AI",
+      model: "Generate from Studio",
+      caption: "Build a quiz, flashcards, or game from notes and uploads.",
+      action: "create",
+      target: "quizzes",
+      scoring: [
+        { label: "Source", value: "Studio" },
+        { label: "Types", value: "Mixed" },
+        { label: "Review", value: "Auto" },
+      ],
+      recommended: !hasQuizBanks,
+    },
+  ]
 }
 
 function practicePinFromSeed(seed: string) {

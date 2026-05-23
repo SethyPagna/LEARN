@@ -23,7 +23,7 @@ import {
   type SocialWorkspaceTab,
 } from "@/lib/learn-workspace-navigation"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
-import { buildPracticeGameModes, buildPracticeLiveJoinCard, buildPracticePlayStyles, buildPracticeWorkspacePlan, type PracticeGameMode, type PracticeLiveJoinCard, type PracticePlayStyle, type PracticeWorkspaceAction, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
+import { buildPracticeArenaPresets, buildPracticeGameModes, buildPracticeLiveJoinCard, buildPracticePlayStyles, buildPracticeWorkspacePlan, type PracticeArenaPreset, type PracticeGameMode, type PracticeLiveJoinCard, type PracticePlayStyle, type PracticeWorkspaceAction, type PracticeWorkspaceActionId, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
 import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialCommandModel, buildSocialCommandRunActions, buildSocialContactQuickActions, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeConnections, type ConnectionActionId, type PeopleSearchShortcut, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialHomeLane, type SocialInviteRole, type SocialMomentOption, type SocialMomentTypeId, type SocialStarterAction, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 const practiceTabIcons: Record<PracticeWorkspaceTab, ComponentType<{ className?: string }>> = {
@@ -100,6 +100,15 @@ const practiceGameModeIcons: Record<PracticeGameMode["id"], ComponentType<{ clas
   economy: Swords,
 }
 
+const practiceArenaPresetIcons: Record<PracticeArenaPreset["id"], ComponentType<{ className?: string }>> = {
+  classic: Swords,
+  accuracy: Target,
+  team: UsersRound,
+  flashcards: BookOpen,
+  redemption: Repeat2,
+  "ai-generated": Sparkles,
+}
+
 export function LearnWorkspaceView({
   dashboard,
   quizzes,
@@ -138,34 +147,45 @@ export function PracticeWorkspaceView({
   const [tab, setTab] = useState<PracticeWorkspaceTab>(initialView === "games" ? "games" : "quizzes")
   const [draftCards, setDraftCards] = useState<PracticeDraftCard[]>([])
   const quizTitles = useMemo(() => Object.fromEntries(quizzes.map((quiz) => [quiz.id, quiz.title])), [quizzes])
+  const draftCounts = useMemo(() => draftCards.reduce((counts, draft) => ({
+    answered: counts.answered + draft.answeredCount,
+    marked: counts.marked + draft.markedCount,
+    retry: counts.retry + draft.retryCount,
+  }), { answered: 0, marked: 0, retry: 0 }), [draftCards])
   const practicePlan = useMemo(() => buildPracticeWorkspacePlan({
     activeTarget: tab,
     quizCount: quizzes.length,
     draftCount: draftCards.length,
-    answeredDraftCount: draftCards.reduce((sum, draft) => sum + draft.answeredCount, 0),
-    markedDraftCount: draftCards.reduce((sum, draft) => sum + draft.markedCount, 0),
-    retryDraftCount: draftCards.reduce((sum, draft) => sum + draft.retryCount, 0),
-  }), [draftCards, quizzes.length, tab])
+    answeredDraftCount: draftCounts.answered,
+    markedDraftCount: draftCounts.marked,
+    retryDraftCount: draftCounts.retry,
+  }), [draftCards.length, draftCounts, quizzes.length, tab])
   const liveJoinCard = useMemo(() => buildPracticeLiveJoinCard({
     quizCount: quizzes.length,
     draftCount: draftCards.length,
-    answeredDraftCount: draftCards.reduce((sum, draft) => sum + draft.answeredCount, 0),
-    markedDraftCount: draftCards.reduce((sum, draft) => sum + draft.markedCount, 0),
-    retryDraftCount: draftCards.reduce((sum, draft) => sum + draft.retryCount, 0),
+    answeredDraftCount: draftCounts.answered,
+    markedDraftCount: draftCounts.marked,
+    retryDraftCount: draftCounts.retry,
     seed: selectedQuizId || "practice",
-  }), [draftCards, quizzes.length, selectedQuizId])
+  }), [draftCards.length, draftCounts, quizzes.length, selectedQuizId])
+  const arenaPresets = useMemo(() => buildPracticeArenaPresets({
+    quizCount: quizzes.length,
+    draftCount: draftCards.length,
+    markedDraftCount: draftCounts.marked,
+    retryDraftCount: draftCounts.retry,
+  }), [draftCards.length, draftCounts, quizzes.length])
   const playStyles = useMemo(() => buildPracticePlayStyles({
     draftCount: draftCards.length,
     hasQuizBanks: quizzes.length > 0,
-    markedCount: draftCards.reduce((sum, draft) => sum + draft.markedCount, 0),
-    retryCount: draftCards.reduce((sum, draft) => sum + draft.retryCount, 0),
-  }), [draftCards, quizzes.length])
+    markedCount: draftCounts.marked,
+    retryCount: draftCounts.retry,
+  }), [draftCards.length, draftCounts, quizzes.length])
   const gameModes = useMemo(() => buildPracticeGameModes({
     draftCount: draftCards.length,
     hasQuizBanks: quizzes.length > 0,
-    markedCount: draftCards.reduce((sum, draft) => sum + draft.markedCount, 0),
-    retryCount: draftCards.reduce((sum, draft) => sum + draft.retryCount, 0),
-  }), [draftCards, quizzes.length])
+    markedCount: draftCounts.marked,
+    retryCount: draftCounts.retry,
+  }), [draftCards.length, draftCounts, quizzes.length])
   const practiceTabs = useMemo(() => practiceWorkspaceTabs.map((item) => ({
     ...item,
     caption: item.caption || "",
@@ -217,7 +237,7 @@ export function PracticeWorkspaceView({
     >
       <div className="grid gap-4 xl:grid-cols-[1fr_300px]">
         <div>{tab === "quizzes" ? <QuizView quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={options} /> : <GamesView quizzes={quizzes} options={options} />}</div>
-        <PracticeGuide draftCards={draftCards} gameModes={gameModes} liveJoinCard={liveJoinCard} onClearDraft={discardDraft} onCreatePractice={() => setView("ai")} onOpenTarget={openPracticeTarget} onResumeDraft={resumeDraft} plan={practicePlan} playStyles={playStyles} />
+        <PracticeGuide arenaPresets={arenaPresets} draftCards={draftCards} gameModes={gameModes} liveJoinCard={liveJoinCard} onClearDraft={discardDraft} onCreatePractice={() => setView("ai")} onOpenTarget={openPracticeTarget} onResumeDraft={resumeDraft} plan={practicePlan} playStyles={playStyles} />
       </div>
     </WorkspaceFrame>
   )
@@ -1133,6 +1153,7 @@ function InfoMenu({ body, title }: { body: string; title: string }) {
 }
 
 function PracticeGuide({
+  arenaPresets,
   draftCards,
   gameModes,
   liveJoinCard,
@@ -1143,6 +1164,7 @@ function PracticeGuide({
   plan,
   playStyles,
 }: {
+  arenaPresets: PracticeArenaPreset[]
   draftCards: PracticeDraftCard[]
   gameModes: PracticeGameMode[]
   liveJoinCard: PracticeLiveJoinCard
@@ -1163,6 +1185,19 @@ function PracticeGuide({
       return
     }
     onOpenTarget(action.target)
+  }
+
+  function runActionId(actionId: PracticeWorkspaceActionId, target: PracticeWorkspaceTarget) {
+    const action = plan.actions.find((item) => item.id === actionId)
+    if (action) {
+      runAction(action)
+      return
+    }
+    if (actionId === "create") {
+      onCreatePractice()
+      return
+    }
+    onOpenTarget(target)
   }
 
   function runLiveAction() {
@@ -1204,6 +1239,18 @@ function PracticeGuide({
         </button>
         <p className="mt-2 text-xs leading-5 text-white/75">{liveJoinCard.caption}</p>
       </div>
+      <details className="group/arena mt-3 rounded-md border border-border bg-background" open>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+          <span>Game setup</span>
+          <span className="ml-auto rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{arenaPresets.filter((preset) => preset.recommended).length || arenaPresets.length}</span>
+          <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/arena:rotate-180" />
+        </summary>
+        <div className="grid gap-2 border-t border-border p-2">
+          {arenaPresets.map((preset) => (
+            <PracticeArenaPresetButton key={preset.id} onClick={() => runActionId(preset.action, preset.target)} preset={preset} />
+          ))}
+        </div>
+      </details>
       <div className="mt-3 rounded-md border border-primary/25 bg-primary/10 p-3">
         <p className="text-sm font-semibold text-foreground">{plan.headline}</p>
         <div className="mt-3 flex flex-wrap gap-1.5">
@@ -1289,6 +1336,47 @@ function PracticeGuide({
         </details>
       ) : null}
     </Panel>
+  )
+}
+
+function PracticeArenaPresetButton({ onClick, preset }: { onClick: () => void; preset: PracticeArenaPreset }) {
+  const Icon = practiceArenaPresetIcons[preset.id]
+  return (
+    <button
+      aria-disabled={Boolean(preset.disabledReason)}
+      className={`group rounded-md border p-2.5 text-left transition ${
+        preset.disabledReason
+          ? "cursor-not-allowed border-border bg-muted/45 opacity-70"
+          : preset.recommended
+            ? "border-violet-400/60 bg-violet-500/10 hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground"
+            : "border-border bg-background hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground"
+      }`}
+      onClick={() => {
+        if (!preset.disabledReason) onClick()
+      }}
+      title={preset.disabledReason || preset.caption}
+      type="button"
+    >
+      <div className="flex items-center gap-2">
+        <span className={`flex h-9 w-9 items-center justify-center rounded-md ${preset.recommended ? "bg-violet-600 text-white" : "bg-secondary text-secondary-foreground"}`}>
+          <Icon className="h-4 w-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className="truncate text-sm font-semibold text-foreground group-hover:text-accent-foreground">{preset.label}</span>
+            {preset.recommended ? <span className="rounded-full bg-success px-1.5 py-0.5 text-[0.6rem] font-black uppercase text-success-foreground">Best</span> : null}
+          </span>
+          <span className="block truncate text-[0.68rem] font-semibold text-muted-foreground">{preset.model}</span>
+        </span>
+      </div>
+      <div className="mt-2 grid grid-cols-3 gap-1">
+        {preset.scoring.map((score) => (
+          <span key={score.label} className="rounded-md bg-secondary px-1.5 py-1 text-center text-[0.62rem] font-semibold text-secondary-foreground" title={`${score.label}: ${score.value}`}>
+            {score.value}
+          </span>
+        ))}
+      </div>
+    </button>
   )
 }
 

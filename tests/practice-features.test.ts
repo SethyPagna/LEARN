@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import type { QuizQuestion } from "../components/learn/types"
 import { hasPracticeDraftContent, listPracticeDraftCards, normalizePracticeDraft, summarizePracticeDrafts } from "../lib/practice-drafts"
-import { buildGameRunActions, buildMistakeRetrySet, buildPracticeGameModes, buildPracticeLiveJoinCard, buildPracticePlayStyles, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, buildPracticeSessionSummary, buildPracticeWorkspacePlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../lib/practice-features"
+import { buildGameRunActions, buildMistakeRetrySet, buildPracticeArenaPresets, buildPracticeGameModes, buildPracticeLiveJoinCard, buildPracticePlayStyles, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, buildPracticeSessionSummary, buildPracticeWorkspacePlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../lib/practice-features"
 
 const questions: QuizQuestion[] = [
   { id: "q1", question: "One?", choices: [{ id: "a", text: "1" }, { id: "b", text: "2" }], correct_answer_id: "a", topic: "Math", explanation: "One" },
@@ -89,6 +89,22 @@ test("practice live join card creates Kahoot-style ready and generation states",
   assert.equal(empty.ready, false)
   assert.equal(empty.primaryAction, "create")
   assert.match(empty.caption, /Generate practice/)
+})
+
+test("practice arena presets recommend the cleanest game setup", () => {
+  const ready = buildPracticeArenaPresets({ quizCount: 2 })
+  const repair = buildPracticeArenaPresets({ quizCount: 2, markedDraftCount: 1, retryDraftCount: 1 })
+  const drafts = buildPracticeArenaPresets({ quizCount: 2, draftCount: 1 })
+  const empty = buildPracticeArenaPresets({ quizCount: 0 })
+
+  assert.deepEqual(ready.map((preset) => preset.label), ["Classic", "Accuracy", "Team", "Flashcards", "Redemption", "AI"])
+  assert.equal(ready.find((preset) => preset.id === "classic")?.recommended, true)
+  assert.equal(repair.find((preset) => preset.id === "redemption")?.recommended, true)
+  assert.equal(repair.find((preset) => preset.id === "accuracy")?.recommended, true)
+  assert.equal(drafts.find((preset) => preset.id === "flashcards")?.action, "resume")
+  assert.equal(empty.find((preset) => preset.id === "ai-generated")?.recommended, true)
+  assert.match(empty.find((preset) => preset.id === "classic")?.disabledReason || "", /quiz bank/)
+  assert.match(ready.find((preset) => preset.id === "redemption")?.disabledReason || "", /miss/)
 })
 
 test("practice game modes expose familiar quiz and game loops", () => {
