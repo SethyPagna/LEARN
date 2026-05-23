@@ -1519,7 +1519,7 @@ export function StudioView({
             <ArrowLeft className="h-4 w-4" />
             Back
           </button>
-          <ActionMenu label={activeStudioTab.label} icon={ActiveStudioIcon} primary>
+          <ActionMenu label="Project" icon={ActiveStudioIcon} primary>
             <div className="grid gap-1">
               {studioKindOptions.map((tab) => {
                 const Icon = studioKindIcons[tab.kind]
@@ -1532,7 +1532,7 @@ export function StudioView({
             </div>
           </ActionMenu>
           <ActionMenu label="Create" icon={Plus} primary>
-            <MenuAction icon={Plus} label={studioCreateLabels[kind]} onClick={createActive} meta={`Create in ${activeStudioTab.label}`} />
+            <MenuAction icon={Plus} label="Blank design" onClick={createActive} meta={`${studioCreateLabels[kind]} format`} />
             <MenuAction icon={UploadCloud} label="Import content" onClick={() => setImportOpen((open) => !open)} meta="Paste raw notes, CSV, or slide outlines" />
           </ActionMenu>
           <StudioButton label="Save" icon={Save} onClick={() => saveActive()} disabled={!hasActiveItem} />
@@ -1590,7 +1590,7 @@ export function StudioView({
       </Panel>
 
       <div className={`grid gap-3 ${toolRailCollapsed ? "xl:grid-cols-[1fr]" : "xl:grid-cols-[72px_280px_1fr]"}`}>
-        {!toolRailCollapsed ? <StudioToolRail activeKind={kind} activeToolPanel={activeToolPanel} onSelectKind={selectKind} onSelectToolPanel={setActiveToolPanel} /> : null}
+        {!toolRailCollapsed ? <StudioToolRail activeKind={kind} activeToolPanel={activeToolPanel} onSelectKind={selectKind} onSelectToolPanel={setActiveToolPanel} showKindRail={false} /> : null}
         {!toolRailCollapsed ? (
           <Panel className="min-h-[74vh] p-3">
             <StudioLibrary
