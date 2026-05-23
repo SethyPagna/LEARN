@@ -19,3 +19,12 @@ test("studio tool actions are filtered by current Studio kind", () => {
   assert.equal(getStudioToolActions("animate", "docs").length, 0)
   assert.ok(getStudioToolActions("apps", "sheets").some((action) => action.sheetAction === "table"))
 })
+
+test("studio tool library has broad editor coverage without exposing tools to incompatible kinds", () => {
+  assert.ok(getStudioToolActions("text", "slides").length >= 7)
+  assert.ok(getStudioToolActions("media", "slides").some((action) => action.id === "media-mockup"))
+  assert.ok(getStudioToolActions("effects", "docs").some((action) => action.id === "effect-blur"))
+  assert.ok(getStudioToolActions("position", "docs").some((action) => action.id === "position-grid"))
+  assert.ok(getStudioToolActions("apps", "slides").some((action) => action.id === "app-timer"))
+  assert.equal(getStudioToolActions("animate", "sheets").length, 0)
+})
