@@ -43,10 +43,10 @@ const dashboardCommandIcons: Record<DashboardCommandTarget, React.ComponentType<
 
 const dashboardMetricIcons = {
   drafts: FileText,
-  focus: CalendarDays,
+  hours: Clock3,
+  progress: BarChart3,
   reviews: Repeat2,
   streak: Trophy,
-  xp: Sparkles,
 } satisfies Record<ReturnType<typeof buildDashboardMetricTiles>[number]["id"], React.ComponentType<{ className?: string }>>
 
 const recentWorkIcons = {
@@ -139,46 +139,41 @@ export function DashboardView({
   }, [forceOnboarding, user?.preferences])
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid gap-3 2xl:grid-cols-2">
       {showOnboarding ? <OnboardingCard setShowOnboarding={setShowOnboarding} setView={setView} /> : null}
       <section className="rounded-lg border border-border bg-card text-card-foreground shadow-sm xl:col-span-2">
-        <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center lg:p-5">
+        <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between lg:p-4">
           <div className="min-w-0">
-            <div className="mb-3 flex flex-wrap items-center gap-2" aria-label="Today signals">
+            <div className="mb-2 flex max-w-full items-center gap-2 overflow-x-auto pb-1" aria-label="Today signals">
               <span className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">Today Route</span>
               {dashboardSignals.map((signal) => <StatusPill key={signal.label} label={`${signal.label} ${signal.value}`} tone={signal.tone} />)}
             </div>
             <div className="flex items-start gap-3">
-              <h2 className="max-w-4xl text-2xl font-semibold leading-tight text-foreground md:text-3xl">
+              <h2 className="max-w-4xl text-xl font-semibold leading-tight text-foreground md:text-2xl">
                 {commandPlan.headline}
               </h2>
               <InfoPopover label="About today's route" body={commandPlan.detail} />
             </div>
           </div>
-          <div className="rounded-lg border border-border bg-secondary p-3">
+          <div className="flex min-w-0 items-center gap-2 overflow-x-auto rounded-lg border border-border bg-secondary/70 p-2 md:max-w-[560px]">
             {routeActions.slice(0, 1).map((action) => {
               const Icon = dashboardCommandIcons[action.target] || CommandIcon
               return (
-                <button key={action.id} onClick={() => setView(action.target)} className="w-full rounded-md bg-primary p-3 text-left text-primary-foreground transition hover:opacity-90">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary-foreground/15">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold">{action.label}</p>
-                      <p className="mt-1 truncate text-xs opacity-85">Start the next useful move</p>
-                    </div>
-                    <ArrowRight className="h-4 w-4 opacity-80" />
-                  </div>
+                <button key={action.id} onClick={() => setView(action.target)} className="flex h-11 shrink-0 items-center gap-2 rounded-md bg-primary px-3 text-left text-sm font-semibold text-primary-foreground transition hover:opacity-90" title={action.detail}>
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary-foreground/15">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <span>{action.label}</span>
+                  <ArrowRight className="h-4 w-4 opacity-80" />
                 </button>
               )
             })}
-            <details className="group mt-3 rounded-md border border-border bg-background">
-              <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
+            <details className="group relative shrink-0 rounded-md border border-border bg-background">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden">
                 <span>More moves</span>
                 <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{routeActions.length - 1}</span>
               </summary>
-              <div className="grid gap-2 border-t border-border p-2">
+              <div className="grid w-60 gap-2 border-t border-border bg-popover p-2 text-popover-foreground">
                 {routeActions.slice(1).map((action) => {
                   const Icon = dashboardCommandIcons[action.target]
                   return (
@@ -192,12 +187,12 @@ export function DashboardView({
                 })}
               </div>
             </details>
-            <details className="mt-2 rounded-md border border-border bg-background">
-              <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
+            <details className="relative shrink-0 rounded-md border border-border bg-background">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden">
                 <span>Signals</span>
                 <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{commandPlan.chips.length}</span>
               </summary>
-              <div className="flex flex-wrap gap-2 border-t border-border p-2">
+              <div className="flex w-64 flex-wrap gap-2 border-t border-border bg-popover p-2 text-popover-foreground">
                 {commandPlan.chips.map((chip) => <StatusPill key={chip} label={chip} />)}
               </div>
             </details>
@@ -250,9 +245,9 @@ export function DashboardView({
         </Panel>
       ) : null}
 
-      <Panel className="p-4 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--accent)/0.28))]">
+      <Panel className="min-w-0 p-3 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--accent)/0.28))]">
         <SectionHeader icon={Sparkles} title="AI suggestion" body="Use the tutor as a quiet co-pilot, not a replacement for your work." />
-        <div className="mt-4 rounded-lg border border-border bg-muted/35 p-3">
+        <div className="mt-3 rounded-lg border border-border bg-muted/35 p-3">
           <div className="flex items-center justify-between gap-3">
             <p className="truncate text-sm font-semibold text-foreground">Review route for {focus}</p>
             <InfoPopover label="Suggested prompt" body={`Use my latest Studio notes to make a short review route for ${focus}, including one example and three recall questions.`} />
@@ -261,11 +256,11 @@ export function DashboardView({
         </div>
       </Panel>
 
-      <Panel className="p-4 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--warning)/0.12))]">
+      <Panel className="min-w-0 p-3 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--warning)/0.12))]">
         <SectionHeader icon={Brain} title="Weak topics" body="Lower accuracy appears first so practice is easier to choose." />
-        <div className="mt-4 flex snap-x gap-2 overflow-x-auto pb-1">
+        <div className="mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
           {weakTopicCards.map((topic) => (
-            <button key={topic.label} onClick={() => setView("practice")} className="min-w-[220px] snap-start rounded-md border border-border bg-background p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
+            <button key={topic.label} onClick={() => setView("practice")} className="min-w-[180px] snap-start rounded-md border border-border bg-background p-2.5 text-left transition hover:bg-accent hover:text-accent-foreground">
               <div className="flex justify-between gap-3 text-sm">
                 <span className="font-medium text-foreground">{topic.label}</span>
                 <StatusPill label={`${topic.accuracy}%`} tone={topic.tone} />
@@ -287,13 +282,13 @@ export function DashboardView({
         </div>
       </Panel>
 
-      <Panel className="p-4 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--success)/0.10))]">
+      <Panel className="min-w-0 p-3 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--success)/0.10))]">
         <SectionHeader icon={FileText} title="Recent work" body="Recent Studio items, AI chats, practice attempts, and uploads appear together so resuming is simpler." />
-        <div className="mt-4 flex snap-x gap-3 overflow-x-auto pb-1">
+        <div className="mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
           {recentWork.length ? recentWork.slice(0, 4).map((item) => {
             const Icon = recentWorkIcons[item.kind]
             return (
-              <button key={item.id} onClick={() => setView(item.target)} className="min-w-[240px] snap-start rounded-md border border-border bg-background p-3 text-left hover:bg-accent hover:text-accent-foreground">
+              <button key={item.id} onClick={() => setView(item.target)} className="min-w-[210px] snap-start rounded-md border border-border bg-background p-2.5 text-left hover:bg-accent hover:text-accent-foreground">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
                     <Icon className="h-5 w-5" />
@@ -313,26 +308,28 @@ export function DashboardView({
         </div>
       </Panel>
 
-      <Panel className="p-4 xl:col-span-2 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--primary)/0.10))]">
+      <Panel className="min-w-0 p-3 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--primary)/0.10))]">
         <SectionHeader icon={Clock3} title="Review queue" body="Turn recent work into active recall before it fades." />
-        <div className="mt-4 flex snap-x gap-2 overflow-x-auto pb-1">
-          {["Review weak topic", "Retry quiz mistakes", "Save an AI route"].map((item, index) => (
-            <button key={item} onClick={() => setView("practice")} className="flex min-w-[220px] snap-start items-center gap-3 rounded-md border border-border bg-background p-3 text-left text-sm hover:bg-accent hover:text-accent-foreground">
+        <div className="mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
+          {["Review weak topic", "Retry quiz mistakes", "Save an AI route"].map((item) => (
+            <button key={item} onClick={() => setView("practice")} className="flex min-w-[190px] snap-start items-center gap-2 rounded-md border border-border bg-background p-2.5 text-left text-sm hover:bg-accent hover:text-accent-foreground">
               <Repeat2 className="h-5 w-5 text-success" />
               <span className="font-medium">{item}</span>
             </button>
           ))}
         </div>
-        <div className="mt-4 border-t border-border pt-3">
-          <SectionHeader icon={Table2} title="Quick actions" body="Grouped by purpose so the dashboard stays compact." />
-        <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+      </Panel>
+
+      <Panel className="min-w-0 p-3 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--accent)/0.22))]">
+        <SectionHeader icon={Table2} title="Quick actions" body="Grouped by purpose so the dashboard stays compact." />
+        <div className="mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
           {actionGroups.map((group) => (
-            <details key={group.label} className="rounded-md border border-border bg-background">
-              <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
+            <details key={group.label} className="relative min-w-[170px] snap-start rounded-md border border-border bg-background">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden">
                 <span>{group.label}</span>
                 <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{group.actions.length}</span>
               </summary>
-              <div className="grid gap-2 border-t border-border p-2">
+              <div className="grid w-64 gap-2 border-t border-border bg-popover p-2 text-popover-foreground">
                 {group.actions.map((action) => {
                   const Icon = quickActionIcons[action.icon]
                   return (
@@ -349,12 +346,11 @@ export function DashboardView({
             </details>
           ))}
         </div>
-        </div>
       </Panel>
 
-      <Panel className="p-4 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--primary)/0.08))]">
+      <Panel className="min-w-0 p-3 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--primary)/0.08))]">
         <SectionHeader icon={CalendarDays} title="Calendar agenda" body="Plan small blocks instead of waiting for a long study session." />
-        <div className="mt-4 flex snap-x gap-2 overflow-x-auto pb-1">
+        <div className="mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
           <AgendaItem label="Focus block" value={`${options.calendarDefaultMinutes} min`} />
           <AgendaItem label="Lead" value={`${options.calendarLeadMinutes} min`} />
           <button onClick={() => setView("calendar")} className="min-w-[140px] rounded-md border border-border bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
@@ -448,14 +444,14 @@ function OnboardingCard({
 
 function BigMetric({ body, icon: Icon, label, tone, value }: { body: string; icon: React.ComponentType<{ className?: string }>; label: string; tone: "critical" | "steady" | "watch"; value: string }) {
   return (
-    <div className={`group relative min-w-[190px] rounded-md border p-3 shadow-sm ${dashboardMetricToneClass(tone)}`}>
+    <div className={`group relative min-w-[155px] rounded-md border p-2.5 shadow-sm ${dashboardMetricToneClass(tone)}`}>
       <div className="flex items-center gap-3">
-        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md ${toneSurfaceClasses(tone)}`}>
-          <Icon className="h-6 w-6" />
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${toneSurfaceClasses(tone)}`}>
+          <Icon className="h-5 w-5" />
         </span>
         <div className="min-w-0">
           <p className="truncate text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
-          <p className="text-3xl font-semibold leading-none text-foreground">{value}</p>
+          <p className="text-2xl font-semibold leading-none text-foreground">{value}</p>
         </div>
       </div>
       <p className="pointer-events-none absolute left-3 right-3 top-[calc(100%-0.2rem)] z-[70] hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{body}</p>
@@ -486,7 +482,7 @@ function SectionHeader({ body, icon: Icon, title }: { body: string; icon: React.
 function InfoPopover({ body, label }: { body: string; label: string }) {
   return (
     <details className="relative shrink-0">
-      <summary className="flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground" aria-label={label} title={label}>
+      <summary className="flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden" aria-label={label} title={label}>
         <Info className="h-4 w-4" />
       </summary>
       <p className="absolute right-0 top-10 z-[80] w-72 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">
