@@ -182,3 +182,16 @@ test("studio menu actions close their dropdown after selection", () => {
   assert.match(helperSource, /closest\("details"\)\?\.removeAttribute\("open"\)/)
   assert.match(helperSource, /onClick=\{handleClick\}/)
 })
+
+test("studio menu selects close their dropdown after choosing a value", () => {
+  const source = readFileSync("components/learn/views/studio-view.tsx", "utf8")
+  const start = source.indexOf("function MenuSelect(")
+  const end = source.indexOf("\nfunction StudioContextContent", start)
+  const helperSource = source.slice(start, end)
+
+  assert.ok(start > -1)
+  assert.ok(end > start)
+  assert.match(helperSource, /React\.ChangeEvent<HTMLSelectElement>/)
+  assert.match(helperSource, /closest\("details"\)\?\.removeAttribute\("open"\)/)
+  assert.match(helperSource, /onChange=\{handleChange\}/)
+})

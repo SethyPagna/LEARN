@@ -3794,10 +3794,16 @@ function MenuAction({
 }
 
 function MenuSelect({ label, onChange, options }: { label: string; onChange: (value: string) => void; options: Array<{ label: string; value: string }> }) {
+  const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    if (!event.target.value) return
+    onChange(event.target.value)
+    event.currentTarget.closest("details")?.removeAttribute("open")
+  }
+
   return (
     <label className="grid gap-1 px-2 py-1 text-xs font-semibold text-muted-foreground">
       {label}
-      <select defaultValue="" onChange={(event) => event.target.value ? onChange(event.target.value) : undefined} className="h-8 rounded-md border border-input bg-background px-2 text-sm font-medium text-foreground">
+      <select defaultValue="" onChange={handleChange} className="h-8 rounded-md border border-input bg-background px-2 text-sm font-medium text-foreground">
         <option value="" disabled>Choose {label.toLowerCase()}</option>
         {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
