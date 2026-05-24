@@ -183,6 +183,21 @@ test("studio menu actions close their dropdown after selection", () => {
   assert.match(helperSource, /onClick=\{handleClick\}/)
 })
 
+test("studio action menus support keyboard escape closing", () => {
+  const source = readFileSync("components/learn/views/studio-view.tsx", "utf8")
+  const start = source.indexOf("function ActionMenu(")
+  const end = source.indexOf("\nfunction MenuAction", start)
+  const helperSource = source.slice(start, end)
+
+  assert.ok(start > -1)
+  assert.ok(end > start)
+  assert.match(helperSource, /React\.KeyboardEvent<HTMLDetailsElement>/)
+  assert.match(helperSource, /event\.key !== "Escape"/)
+  assert.match(helperSource, /removeAttribute\("open"\)/)
+  assert.match(helperSource, /querySelector\("summary"\)/)
+  assert.match(helperSource, /aria-label=\{label\}/)
+})
+
 test("studio menu selects close their dropdown after choosing a value", () => {
   const source = readFileSync("components/learn/views/studio-view.tsx", "utf8")
   const start = source.indexOf("function MenuSelect(")

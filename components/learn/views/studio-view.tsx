@@ -3726,9 +3726,17 @@ function ActionMenu({
   label: string
   primary?: boolean
 }) {
+  const closeMenuOnEscape = (event: React.KeyboardEvent<HTMLDetailsElement>) => {
+    if (event.key !== "Escape") return
+    event.currentTarget.removeAttribute("open")
+    const summary = event.currentTarget.querySelector("summary")
+    if (summary instanceof HTMLElement) summary.focus()
+  }
+
   return (
-    <details className="group relative inline-block">
+    <details className="group relative inline-block" onKeyDown={closeMenuOnEscape}>
       <summary
+        aria-label={label}
         className={`flex h-9 cursor-pointer list-none items-center gap-2 rounded-md border px-3 text-sm font-medium [&::-webkit-details-marker]:hidden ${
           compact ? "px-2" : ""
         } ${
