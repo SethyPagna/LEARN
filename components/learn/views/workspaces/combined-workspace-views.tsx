@@ -259,7 +259,7 @@ export function SocialWorkspaceView({ initialView, options, setView, user }: { i
     <WorkspaceFrame
       eyebrow="Social workspace"
       title="Social"
-      body="Find people first, then choose chat, groups, live rooms, or battles."
+      body="Friends, chats, groups, and calls in one place."
     >
       <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)]">
         <SocialSectionNav
@@ -602,7 +602,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
               <Users className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <h3 className="text-xl font-semibold text-foreground">Social hub</h3>
+              <h3 className="text-xl font-semibold text-foreground">Friends</h3>
               <div className="mt-1 flex flex-wrap gap-1">
                 {commandSummary.chips.slice(0, 3).map((chip) => (
                   <span key={chip} className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{chip}</span>
@@ -646,7 +646,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
             <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-sm font-semibold text-foreground">
               <span className="flex items-center gap-2">
                 <MoreHorizontal className="h-4 w-4 text-primary" />
-                More tools
+                Shortcuts
               </span>
               <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/social-tools:rotate-180" />
             </summary>
@@ -853,7 +853,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
           <span className="flex items-center gap-2">
             <Plus className="h-4 w-4 text-primary" />
-            Create spaces, rooms, or battles
+            Create
           </span>
           <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/advanced:rotate-180" />
         </summary>
