@@ -33,6 +33,7 @@ import {
   splitPromptPreview,
   summarizeAiTutorUploadedSource,
   summarizeAiTutorWorkflow,
+  visibleAiTutorModeGroups,
 } from "../lib/ai/tutor-workflow"
 import { listProviderPresets, getProviderMetadata, resolveConfiguredProvider } from "../lib/ai/providers"
 
@@ -100,6 +101,7 @@ test("AI tutor controls expose shared mode and filter options", () => {
   assert.deepEqual(aiTutorTokenPresets, [2048, 4096, 8192, 16384])
   assert.ok(aiTutorModeOptions.some((mode) => mode.id === "slide_design_director" && mode.mode === "cleanup"))
   assert.ok(aiTutorModeGroups.find((group) => group.id === "studio")?.modes.includes("document_formatter"))
+  assert.deepEqual(visibleAiTutorModeGroups.map((group) => group.id), ["tutor", "studio", "practice"])
   assert.equal(getAiTutorModeOption("practice_generator").label, "Practice")
   assert.equal(getAiTutorModeOption("missing-task").id, aiTutorModeOptions[0].id)
   assert.equal(getAiTutorModeGroupForTask("quiz_generation"), "practice")
