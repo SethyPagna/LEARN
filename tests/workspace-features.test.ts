@@ -279,6 +279,7 @@ test("combined workspace navigation keeps practice and social route mappings sta
   assert.deepEqual(practiceWorkspaceTabs.map((tab) => tab.id), ["quizzes", "games"])
   assert.equal(viewFromPracticeWorkspaceTab("games"), "games")
   assert.deepEqual(socialWorkspaceTabs.map((tab) => tab.id), ["home", "chat", "spaces", "rooms", "battles"])
+  assert.deepEqual(socialWorkspaceTabs.map((tab) => tab.label), ["Friends", "Chats", "Groups", "Calls", "Games"])
   assert.equal(socialWorkspaceTabFromView("social"), "home")
   assert.equal(socialWorkspaceTabFromView("rooms"), "rooms")
   assert.equal(socialWorkspaceTabFromView("dashboard"), "home")
