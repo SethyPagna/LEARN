@@ -70,7 +70,7 @@ export interface DashboardMetricInput extends DashboardCommandInput {
 }
 
 export interface DashboardMetricTile {
-  id: "drafts" | "focus" | "reviews" | "streak" | "xp"
+  id: "drafts" | "hours" | "progress" | "reviews" | "streak"
   label: string
   value: string
   detail: string
@@ -309,10 +309,11 @@ export function buildDashboardEmptyStates(input: DashboardCommandInput): Dashboa
 export function buildDashboardMetricTiles(input: DashboardMetricInput): DashboardMetricTile[] {
   const snapshot = input.snapshot ?? {}
   const streak = Math.max(0, Math.floor(input.userMetrics?.streakCurrent ?? 0))
-  const xp = Math.max(0, Math.floor(input.userMetrics?.xpTotal ?? 0))
   const reviewCount = Math.max((snapshot.weakTopics ?? []).length, uniqueNonEmpty(snapshot.recommendedFocus ?? []).length)
   const totalDrafts = Math.max(0, input.studioDraftCount) + Math.max(0, input.practiceDraftCount)
   const focusMinutes = Math.max(0, Math.floor(input.calendarDefaultMinutes))
+  const goalCompletion = clampPercentage(snapshot.goalCompletion ?? 0)
+  const plannedHours = focusMinutes >= 60 ? `${roundToSingleDecimal(focusMinutes / 60)}h` : `${focusMinutes}m`
 
   return [
     {
@@ -323,11 +324,11 @@ export function buildDashboardMetricTiles(input: DashboardMetricInput): Dashboar
       tone: streak ? "steady" : "watch",
     },
     {
-      id: "xp",
-      label: "XP",
-      value: String(xp),
-      detail: xp ? "Progress earned from learning actions" : "Practice and reviews will build XP",
-      tone: xp ? "steady" : "watch",
+      id: "progress",
+      label: "Progress",
+      value: `${goalCompletion}%`,
+      detail: goalCompletion ? "Today goal progress from completed learning activity" : "Complete a block or practice run to move today's progress",
+      tone: goalCompletion >= 70 ? "steady" : goalCompletion > 0 ? "watch" : "critical",
     },
     {
       id: "reviews",
@@ -344,13 +345,17 @@ export function buildDashboardMetricTiles(input: DashboardMetricInput): Dashboar
       tone: totalDrafts ? "watch" : "steady",
     },
     {
-      id: "focus",
-      label: "Focus",
-      value: `${focusMinutes}m`,
-      detail: "Default calendar block length",
+      id: "hours",
+      label: "Hours",
+      value: plannedHours,
+      detail: "Default planned study block length for calendar scheduling",
       tone: focusMinutes >= 20 ? "steady" : "watch",
     },
   ]
+}
+
+function roundToSingleDecimal(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
 export function buildDashboardWeakTopicCards(topics: DashboardWeakTopic[], limit = 5): DashboardWeakTopicCard[] {
