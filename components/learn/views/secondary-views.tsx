@@ -1034,6 +1034,7 @@ export function SettingsView({
           <SettingsSectionHeader icon={Palette} title="Experience" body="Tune density, language, contrast, motion, and reading comfort without hiding controls in long text." />
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <SelectField label="Dashboard" value={options.dashboardDetail} options={["focused", "detailed"]} onChange={(value) => setOptions({ dashboardDetail: value as WorkspaceOptions["dashboardDetail"] })} />
+            <SelectField label="Accent color" value={options.appAccent} options={["teal", "sky", "violet", "rose", "amber"]} onChange={(value) => setOptions({ appAccent: value as WorkspaceOptions["appAccent"] })} />
             <SelectField label="Files layout" value={options.fileLayout} options={["list", "grid"]} onChange={(value) => setOptions({ fileLayout: value as WorkspaceOptions["fileLayout"] })} />
             <SelectField label="Docs template" value={options.docsTemplate} options={["study", "cornell", "project"]} onChange={(value) => setOptions({ docsTemplate: value as WorkspaceOptions["docsTemplate"] })} />
             <SelectField label="Slides aspect" value={options.slidesAspect} options={["16:9", "4:3"]} onChange={(value) => setOptions({ slidesAspect: value as WorkspaceOptions["slidesAspect"] })} />

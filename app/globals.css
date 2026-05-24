@@ -80,6 +80,76 @@
   --sidebar-ring: oklch(0.69 0.14 240);
 }
 
+html[data-learn-accent='teal'] {
+  --primary: oklch(0.48 0.12 178);
+  --accent: oklch(0.91 0.055 178);
+  --ring: oklch(0.66 0.13 178);
+  --sidebar-primary: oklch(0.48 0.12 178);
+}
+
+html.dark[data-learn-accent='teal'] {
+  --primary: oklch(0.74 0.13 178);
+  --accent: oklch(0.25 0.055 178);
+  --ring: oklch(0.74 0.13 178);
+  --sidebar-primary: oklch(0.74 0.13 178);
+}
+
+html[data-learn-accent='sky'] {
+  --primary: oklch(0.52 0.15 238);
+  --accent: oklch(0.91 0.05 238);
+  --ring: oklch(0.66 0.15 238);
+  --sidebar-primary: oklch(0.52 0.15 238);
+}
+
+html.dark[data-learn-accent='sky'] {
+  --primary: oklch(0.72 0.15 238);
+  --accent: oklch(0.25 0.055 238);
+  --ring: oklch(0.72 0.15 238);
+  --sidebar-primary: oklch(0.72 0.15 238);
+}
+
+html[data-learn-accent='violet'] {
+  --primary: oklch(0.48 0.18 292);
+  --accent: oklch(0.92 0.055 292);
+  --ring: oklch(0.65 0.17 292);
+  --sidebar-primary: oklch(0.48 0.18 292);
+}
+
+html.dark[data-learn-accent='violet'] {
+  --primary: oklch(0.74 0.16 292);
+  --accent: oklch(0.27 0.065 292);
+  --ring: oklch(0.74 0.16 292);
+  --sidebar-primary: oklch(0.74 0.16 292);
+}
+
+html[data-learn-accent='rose'] {
+  --primary: oklch(0.52 0.18 18);
+  --accent: oklch(0.92 0.055 18);
+  --ring: oklch(0.66 0.15 18);
+  --sidebar-primary: oklch(0.52 0.18 18);
+}
+
+html.dark[data-learn-accent='rose'] {
+  --primary: oklch(0.72 0.15 18);
+  --accent: oklch(0.27 0.06 18);
+  --ring: oklch(0.72 0.15 18);
+  --sidebar-primary: oklch(0.72 0.15 18);
+}
+
+html[data-learn-accent='amber'] {
+  --primary: oklch(0.55 0.14 72);
+  --accent: oklch(0.93 0.07 72);
+  --ring: oklch(0.68 0.14 72);
+  --sidebar-primary: oklch(0.55 0.14 72);
+}
+
+html.dark[data-learn-accent='amber'] {
+  --primary: oklch(0.78 0.14 72);
+  --accent: oklch(0.28 0.055 72);
+  --ring: oklch(0.78 0.14 72);
+  --sidebar-primary: oklch(0.78 0.14 72);
+}
+
 .learn-high-contrast {
   --foreground: oklch(0.99 0 0);
   --muted-foreground: oklch(0.88 0.01 255);

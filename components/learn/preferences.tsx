@@ -5,6 +5,7 @@ import { useTheme } from "next-themes"
 import { getVocabulary, isSupportedLocale, loadVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
 
 type Density = "compact" | "comfortable"
+type AppAccent = "teal" | "sky" | "violet" | "rose" | "amber"
 export type WorkspaceOptions = {
   dashboardDetail: "focused" | "detailed"
   showWeakTopicBars: boolean
@@ -39,6 +40,7 @@ export type WorkspaceOptions = {
   notificationDraftWarnings: boolean
   notificationSocialUpdates: boolean
   notificationSystemHealth: boolean
+  appAccent: AppAccent
 }
 
 const LANGUAGE_KEY = "learn_locale"
@@ -79,6 +81,7 @@ export const defaultWorkspaceOptions: WorkspaceOptions = {
   notificationDraftWarnings: true,
   notificationSocialUpdates: true,
   notificationSystemHealth: true,
+  appAccent: "teal",
 }
 
 function getStoredValue(key: string) {
@@ -143,7 +146,8 @@ export function useWorkspacePreferences() {
     document.documentElement.classList.toggle("learn-high-contrast", options.highContrast)
     document.documentElement.classList.toggle("learn-reduced-motion", options.reducedMotion)
     document.documentElement.classList.toggle("learn-dyslexia", options.dyslexiaFriendly)
-  }, [options.highContrast, options.reducedMotion, options.dyslexiaFriendly])
+    document.documentElement.dataset.learnAccent = options.appAccent
+  }, [options.appAccent, options.highContrast, options.reducedMotion, options.dyslexiaFriendly])
 
   function setLocale(nextLocale: SupportedLocale) {
     setLocaleState(nextLocale)
