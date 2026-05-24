@@ -3797,6 +3797,7 @@ function MenuSelect({ label, onChange, options }: { label: string; onChange: (va
   const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     if (!event.target.value) return
     onChange(event.target.value)
+    event.currentTarget.value = ""
     event.currentTarget.closest("details")?.removeAttribute("open")
   }
 

@@ -192,6 +192,7 @@ test("studio menu selects close their dropdown after choosing a value", () => {
   assert.ok(start > -1)
   assert.ok(end > start)
   assert.match(helperSource, /React\.ChangeEvent<HTMLSelectElement>/)
+  assert.match(helperSource, /event\.currentTarget\.value = ""/)
   assert.match(helperSource, /closest\("details"\)\?\.removeAttribute\("open"\)/)
   assert.match(helperSource, /onChange=\{handleChange\}/)
 })
