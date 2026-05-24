@@ -1149,6 +1149,7 @@ export async function listQuizzes() {
     `SELECT q.*, count(qq.id)::int AS question_count
      FROM quizzes q
      LEFT JOIN quiz_questions qq ON qq.quiz_id = q.id
+     WHERE q.archived_at IS NULL
      GROUP BY q.id
      ORDER BY q.topic ASC`,
   )
@@ -1158,11 +1159,19 @@ export async function listQuizzes() {
 export async function getQuiz(id: string) {
   await ensureDatabase()
   const [quiz, questions] = await Promise.all([
-    query("SELECT * FROM quizzes WHERE id = $1 LIMIT 1", [id]),
+    query("SELECT * FROM quizzes WHERE id = $1 AND archived_at IS NULL LIMIT 1", [id]),
     query("SELECT * FROM quiz_questions WHERE quiz_id = $1 ORDER BY id ASC", [id]),
   ])
   if (!quiz.rows[0]) return null
   return { ...quiz.rows[0], questions: questions.rows.map(normalizeQuizQuestion) }
+}
+
+export async function archiveQuiz(user: User, id: string) {
+  await ensureDatabase()
+  const result = await query("UPDATE quizzes SET archived_at = datetime('now') WHERE id = $1 AND archived_at IS NULL RETURNING id", [id])
+  if (!result.rows[0]) return false
+  await logAudit({ userId: user.id, action: "archive", entity: "quiz", entityId: id })
+  return true
 }
 
 export async function recordQuizAttempt(user: User, input: {
