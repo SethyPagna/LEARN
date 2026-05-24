@@ -282,6 +282,9 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-24: Continued Studio context-menu polish by adding highlighted and keyboard focus states to shared right-click menu items.
 - 2026-05-24: Continued Tutor cleanup by hiding the redundant all-task category, combining setup signals into one compact panel, and keeping prompt preview behind a single checkpoint.
 - 2026-05-24: Continued Social cleanup by renaming the main social workspace tabs to plain Friends, Chats, Groups, Calls, and Games labels while preserving route compatibility.
+- 2026-05-24: Continued profile maturity by saving avatar, about text, visibility, daily goal minutes, and public links through Settings and showing them on the Profile page.
+- 2026-05-24: Continued Practice maturity by adding a real quiz archive path with an additive D1 migration, DELETE endpoint, and active-bank UI update.
+- 2026-05-24: Continued Social simplification by reducing hub copy to Friends, Shortcuts, and Create labels while keeping chat, groups, calls, and games available behind compact controls.
 
 ## Implementation Slices
 
