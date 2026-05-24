@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, Bot, CalendarDays, CalendarPlus, Check, ChevronRight, Clock, Copy, FileText, Filter, Gauge, Languages, Link as LinkIcon, Lock, Palette, Repeat2, Save, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserPlus, UserRound, Users } from "lucide-react"
+import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, Bot, CalendarDays, CalendarPlus, Camera, Check, ChevronRight, Clock, Copy, FileText, Filter, Gauge, Languages, Link as LinkIcon, Lock, Palette, Repeat2, Save, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserPlus, UserRound, Users, X } from "lucide-react"
 import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
 import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, buildCalendarSummaryChips, calendarDurationPresets, calendarEventTypeOptions, filterCalendarAgenda, formatCalendarDuration, labelCalendarEventType, normalizeCalendarEventType, summarizeCalendarAgenda, type CalendarAgendaFilter, type CalendarEventType } from "@/lib/calendar-features"
 import { buildProgressCommandPlan, summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
@@ -814,6 +814,12 @@ export function SettingsView({
 }) {
   const [name, setName] = useState(user?.name || "")
   const [email, setEmail] = useState(user?.email || "")
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || "")
+  const [bio, setBio] = useState(user?.bio || "")
+  const [profileVisibility, setProfileVisibility] = useState(user?.profileVisibility || "private")
+  const [facebookUrl, setFacebookUrl] = useState(preferenceString(user?.preferences?.facebookUrl))
+  const [websiteUrl, setWebsiteUrl] = useState(preferenceString(user?.preferences?.websiteUrl))
+  const [introUrl, setIntroUrl] = useState(preferenceString(user?.preferences?.introUrl))
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState(Number(user?.preferences?.dailyGoalMinutes || 45))
   const [section, setSection] = useState<SettingsSectionId>("profile")
   const [status, setStatus] = useState("")
@@ -823,13 +829,46 @@ export function SettingsView({
   const primarySettingsChips = settingsSummaryChips.filter((chip) => chip.priority === "primary")
   const secondarySettingsChips = settingsSummaryChips.filter((chip) => chip.priority === "secondary")
   const settingsPlan = useMemo(() => buildSettingsControlPlan(settingsSummary), [settingsSummary])
-  const profileDirty = name !== (user?.name || "") || email !== (user?.email || "") || dailyGoalMinutes !== Number(user?.preferences?.dailyGoalMinutes || 45)
+  const profileDirty = name !== (user?.name || "")
+    || email !== (user?.email || "")
+    || avatarUrl !== (user?.avatarUrl || "")
+    || bio !== (user?.bio || "")
+    || profileVisibility !== (user?.profileVisibility || "private")
+    || facebookUrl !== preferenceString(user?.preferences?.facebookUrl)
+    || websiteUrl !== preferenceString(user?.preferences?.websiteUrl)
+    || introUrl !== preferenceString(user?.preferences?.introUrl)
+    || dailyGoalMinutes !== Number(user?.preferences?.dailyGoalMinutes || 45)
 
   useEffect(() => {
     setName(user?.name || "")
     setEmail(user?.email || "")
+    setAvatarUrl(user?.avatarUrl || "")
+    setBio(user?.bio || "")
+    setProfileVisibility(user?.profileVisibility || "private")
+    setFacebookUrl(preferenceString(user?.preferences?.facebookUrl))
+    setWebsiteUrl(preferenceString(user?.preferences?.websiteUrl))
+    setIntroUrl(preferenceString(user?.preferences?.introUrl))
     setDailyGoalMinutes(Number(user?.preferences?.dailyGoalMinutes || 45))
   }, [user?.id])
+
+  function handleAvatarFile(file?: File | null) {
+    if (!file) return
+    if (!file.type.startsWith("image/")) {
+      setStatus("Choose an image file for the avatar.")
+      return
+    }
+    if (file.size > 256 * 1024) {
+      setStatus("Use an avatar image under 256 KB.")
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      setAvatarUrl(typeof reader.result === "string" ? reader.result : "")
+      setStatus("Avatar draft ready. Save to apply it.")
+    }
+    reader.onerror = () => setStatus("Unable to read that image.")
+    reader.readAsDataURL(file)
+  }
 
   async function saveProfile() {
     if (saveBusy) return
@@ -838,11 +877,18 @@ export function SettingsView({
     try {
       await api("/api/profile", {
         method: "PUT",
-        body: JSON.stringify({ name, email, preferences: { dailyGoalMinutes } }),
+        body: JSON.stringify({
+          name,
+          email,
+          avatarUrl,
+          bio,
+          profileVisibility,
+          preferences: { dailyGoalMinutes, facebookUrl, websiteUrl, introUrl },
+        }),
       })
       await api("/api/preferences", {
         method: "PUT",
-        body: JSON.stringify({ dailyGoalMinutes, localeReady: supportedLocales.length, workspaceOptions: options }),
+        body: JSON.stringify({ dailyGoalMinutes, facebookUrl, websiteUrl, introUrl, localeReady: supportedLocales.length, workspaceOptions: options }),
       })
       setStatus("Saved profile and preferences.")
     } catch (error) {
@@ -916,11 +962,42 @@ export function SettingsView({
       {section === "profile" ? (
         <Panel className="p-4">
           <SettingsSectionHeader icon={UserRound} title="Profile" body="Keep identity details simple. Learning artifacts remain private unless sharing settings say otherwise." />
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <Field label="Name" value={name} onChange={setName} />
-            <Field label="Email" value={email} onChange={setEmail} />
-            <Field label="Daily goal minutes" value={String(dailyGoalMinutes)} onChange={(value) => setDailyGoalMinutes(normalizeSettingsNumber({ value, fallback: 45, min: 5, max: 240 }))} />
-            <Info label="Role" value={user?.role} />
+          <div className="mt-4 grid gap-4 xl:grid-cols-[280px_1fr]">
+            <div className="rounded-lg bg-muted p-4">
+              <span className="text-xs font-semibold uppercase text-muted-foreground">Avatar</span>
+              <div className="mt-3 flex items-center gap-3">
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-primary text-2xl font-semibold text-primary-foreground">
+                  {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : (name || user?.username || "L").slice(0, 1)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground">
+                    <Camera className="h-4 w-4" />
+                    Upload
+                    <input type="file" accept="image/*" className="sr-only" onChange={(event) => handleAvatarFile(event.target.files?.[0])} />
+                  </label>
+                  {avatarUrl ? (
+                    <button type="button" onClick={() => setAvatarUrl("")} className="ml-2 inline-flex items-center gap-1 rounded-md border border-border px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                      <X className="h-4 w-4" />
+                      Clear
+                    </button>
+                  ) : null}
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">Small images save fastest.</p>
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <Field label="Name" value={name} onChange={setName} />
+              <Field label="Email" value={email} onChange={setEmail} />
+              <SelectField label="Profile visibility" value={profileVisibility} options={["private", "connections", "public"]} onChange={setProfileVisibility} />
+              <Field label="Daily goal minutes" value={String(dailyGoalMinutes)} onChange={(value) => setDailyGoalMinutes(normalizeSettingsNumber({ value, fallback: 45, min: 5, max: 240 }))} />
+              <TextAreaField label="About" value={bio} onChange={(value) => setBio(value.slice(0, 800))} />
+              <div className="grid gap-3">
+                <Field label="Facebook" value={facebookUrl} onChange={setFacebookUrl} />
+                <Field label="Website" value={websiteUrl} onChange={setWebsiteUrl} />
+                <Field label="Intro link" value={introUrl} onChange={setIntroUrl} />
+                <Info label="Role" value={user?.role} />
+              </div>
+            </div>
           </div>
         </Panel>
       ) : null}
@@ -1045,6 +1122,10 @@ function settingsTone(tone: "good" | "watch" | "neutral") {
   if (tone === "good") return "steady"
   if (tone === "watch") return "watch"
   return "neutral"
+}
+
+function preferenceString(value: unknown) {
+  return typeof value === "string" ? value : ""
 }
 
 export function AdminView({ user, adminData, automationData, options }: { user: User | null; adminData: any; automationData: any; options: WorkspaceOptions }) {
@@ -1212,6 +1293,15 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
     <label className="block rounded-lg bg-muted p-4">
       <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
       <input value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none" />
+    </label>
+  )
+}
+
+function TextAreaField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="block rounded-lg bg-muted p-4">
+      <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
+      <textarea value={value} onChange={(event) => onChange(event.target.value)} rows={7} className="mt-2 w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm leading-6 text-foreground outline-none" />
     </label>
   )
 }
