@@ -486,19 +486,19 @@ export function AiTutorView({
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
-      <Panel className="p-4">
-        <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <Panel className="p-3 sm:p-4">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
           <div>
-            <h2 className="text-2xl font-semibold text-foreground">Tutor</h2>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <h2 className="text-2xl font-semibold text-foreground">AI tutor</h2>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <StatusPill label={workflowSummary.statusLabel} tone={readinessTone(workflowSummary.status)} />
-              <StatusPill label={workflowSummary.nextAction} />
+              <StatusPill label={workflowSummary.taskLabel} />
               {draftStatus ? <StatusPill label={draftStatus} tone="steady" /> : null}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 self-start rounded-lg border border-border bg-background p-2 shadow-sm lg:justify-end">
-            <TutorMenu label={activeMode.label} icon={tutorModeIcons[activeMode.id]} menuId="task" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
+          <div className="flex flex-wrap items-center gap-2 self-start rounded-lg border border-border bg-background p-1.5 shadow-sm lg:justify-end">
+            <TutorMenu label={`Task: ${activeMode.label}`} icon={tutorModeIcons[activeMode.id]} menuId="task" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
               {visibleAiTutorModeGroups.map((group) => (
                 <div key={group.id} className="grid gap-1">
                   <ControlButton
@@ -571,13 +571,25 @@ export function AiTutorView({
           </div>
         </div>
 
-        <details open className="mt-4 rounded-lg border border-border bg-background text-sm">
+        <div className="mt-4 grid gap-2 rounded-lg border border-border bg-muted/30 p-2 text-sm sm:grid-cols-2 lg:grid-cols-5">
+          <AiSummaryChip label="Source" value={workflowSummary.contextLabel} />
+          <AiSummaryChip label="Output" value={`${outputLength} / ${language}`} />
+          <AiSummaryChip label="Target" value={insertTarget} />
+          <AiSummaryChip label="Gateway" value={workflowSummary.providerLabel} />
+          <AiSummaryChip label="Next" value={workflowSummary.nextAction} />
+        </div>
+
+        <label className="mt-4 grid gap-2 text-sm font-semibold text-foreground">
+          Prompt
+          <textarea value={message} onChange={(event) => setMessage(event.target.value)} className="min-h-44 w-full rounded-md border border-input bg-background p-4 font-normal text-foreground outline-none focus:border-ring" />
+        </label>
+
+        <details className="mt-3 rounded-lg border border-border bg-background text-sm">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 font-semibold text-foreground [&::-webkit-details-marker]:hidden">
-            <span>Setup</span>
+            <span>Requirements</span>
             <span className="flex flex-wrap items-center justify-end gap-1.5">
-              <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{workflowSummary.taskLabel}</span>
-              <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{workflowSummary.contextLabel}</span>
-              <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{workflowSummary.providerLabel}</span>
+              <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{targetAudience}</span>
+              <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{difficulty}</span>
             </span>
           </summary>
           <div className="grid gap-3 border-t border-border p-3">
@@ -603,10 +615,6 @@ export function AiTutorView({
           </div>
         </details>
 
-        <label className="mt-5 grid gap-2 text-sm font-semibold text-foreground">
-          Input prompt
-          <textarea value={message} onChange={(event) => setMessage(event.target.value)} className="min-h-40 w-full rounded-md border border-input bg-background p-4 font-normal text-foreground outline-none focus:border-ring" />
-        </label>
         <details className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm">
           <summary className="cursor-pointer font-semibold text-foreground">Prompt preview {promptBuild.ok ? "" : `- ${promptBuild.missing.length} missing`}</summary>
           <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-background p-3 text-xs leading-5 text-muted-foreground">{completePromptPreview}</pre>
@@ -648,9 +656,9 @@ export function AiTutorView({
         ) : null}
       </Panel>
 
-      <Panel className="p-4">
+      <Panel className="p-3 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
         <div className="flex items-center justify-between gap-3">
-          <p className="flex items-center gap-2 font-semibold text-foreground"><Brain className="h-4 w-4 text-success" /> Gateway and import</p>
+          <p className="flex items-center gap-2 font-semibold text-foreground"><Brain className="h-4 w-4 text-success" /> Tools</p>
           <button onClick={loadProviders} className="h-8 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
             Refresh
           </button>
@@ -802,6 +810,15 @@ function SidePanelButton({
       <span className="truncate">{label}</span>
       <span className={active ? "text-primary-foreground/80" : "text-muted-foreground"}>{count}</span>
     </button>
+  )
+}
+
+function AiSummaryChip({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-md border border-border bg-background px-3 py-2">
+      <p className="text-[0.66rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+      <p className="mt-0.5 truncate text-sm font-semibold text-foreground">{value}</p>
+    </div>
   )
 }
 
