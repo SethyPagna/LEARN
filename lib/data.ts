@@ -224,7 +224,7 @@ export async function revokeSession(token: string) {
 
 export async function getDashboardData(user: User) {
   await ensureDatabase()
-  const [notes, goals, answers, chats, attempts, files] = await Promise.all([
+  const [notes, goals, answers, chats, attempts, files, todayStudy] = await Promise.all([
     query<NoteRecord>(
       `SELECT n.*,
         COALESCE((
@@ -266,18 +266,28 @@ export async function getDashboardData(user: User) {
        LIMIT 5`,
       [user.id, user.role],
     ),
+    query<{ seconds: number }>(
+      `SELECT COALESCE(SUM(duration_seconds), 0) AS seconds
+       FROM practice_sessions
+       WHERE user_id = $1
+         AND substr(started_at, 1, 10) = date('now')`,
+      [user.id],
+    ),
   ])
 
   const normalizedNotes = notes.rows.map(normalizeNote)
-  const snapshot = buildLearningSnapshot({
-    goals: goals.rows,
-    notes: normalizedNotes.map((note) => ({
-      id: note.id,
-      title: note.title,
-      updatedAt: new Date(note.updated_at).toISOString(),
-    })),
-    answers: answers.rows,
-  })
+  const snapshot = {
+    ...buildLearningSnapshot({
+      goals: goals.rows,
+      notes: normalizedNotes.map((note) => ({
+        id: note.id,
+        title: note.title,
+        updatedAt: new Date(note.updated_at).toISOString(),
+      })),
+      answers: answers.rows,
+    }),
+    todayStudyMinutes: Math.max(0, Math.round(Number(todayStudy.rows[0]?.seconds || 0) / 60)),
+  }
 
   return {
     user,
