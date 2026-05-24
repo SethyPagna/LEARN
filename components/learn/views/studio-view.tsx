@@ -3726,6 +3726,7 @@ function ActionMenu({
   label: string
   primary?: boolean
 }) {
+  const [isOpen, setIsOpen] = useState(false)
   const closeMenuOnEscape = (event: React.KeyboardEvent<HTMLDetailsElement>) => {
     if (event.key !== "Escape") return
     event.currentTarget.removeAttribute("open")
@@ -3737,10 +3738,14 @@ function ActionMenu({
     if (nextFocusedElement instanceof Node && event.currentTarget.contains(nextFocusedElement)) return
     event.currentTarget.removeAttribute("open")
   }
+  const syncOpenState = (event: React.SyntheticEvent<HTMLDetailsElement>) => {
+    setIsOpen(event.currentTarget.open)
+  }
 
   return (
-    <details className="group relative inline-block" onBlur={closeMenuOnFocusLeave} onKeyDown={closeMenuOnEscape}>
+    <details className="group relative inline-block" onBlur={closeMenuOnFocusLeave} onKeyDown={closeMenuOnEscape} onToggle={syncOpenState}>
       <summary
+        aria-expanded={isOpen}
         aria-label={label}
         aria-haspopup="menu"
         className={`flex h-9 cursor-pointer list-none items-center gap-2 rounded-md border px-3 text-sm font-medium [&::-webkit-details-marker]:hidden ${
