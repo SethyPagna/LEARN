@@ -3766,9 +3766,14 @@ function MenuAction({
   meta?: string
   onClick: () => void
 }) {
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    onClick()
+    event.currentTarget.closest("details")?.removeAttribute("open")
+  }
+
   return (
     <button
-      onClick={onClick}
+      onClick={handleClick}
       disabled={disabled}
       className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${
         danger

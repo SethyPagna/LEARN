@@ -170,3 +170,15 @@ test("studio shared button helpers avoid accidental form submits", () => {
     assert.match(helperSource, /type="button"/, `${helperName} uses button type`)
   }
 })
+
+test("studio menu actions close their dropdown after selection", () => {
+  const source = readFileSync("components/learn/views/studio-view.tsx", "utf8")
+  const start = source.indexOf("function MenuAction(")
+  const end = source.indexOf("\nfunction MenuSelect", start)
+  const helperSource = source.slice(start, end)
+
+  assert.ok(start > -1)
+  assert.ok(end > start)
+  assert.match(helperSource, /closest\("details"\)\?\.removeAttribute\("open"\)/)
+  assert.match(helperSource, /onClick=\{handleClick\}/)
+})
