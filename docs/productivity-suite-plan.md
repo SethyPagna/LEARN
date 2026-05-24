@@ -280,6 +280,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-24: Continued Studio menu accessibility by adding visible keyboard focus rings to compact Studio menu triggers and actions.
 - 2026-05-24: Continued Studio menu accessibility by adding labels and visible focus rings to select controls inside compact Studio menus.
 - 2026-05-24: Continued Studio context-menu polish by adding highlighted and keyboard focus states to shared right-click menu items.
+- 2026-05-24: Continued Tutor cleanup by hiding the redundant all-task category, combining setup signals into one compact panel, and keeping prompt preview behind a single checkpoint.
 
 ## Implementation Slices
 
