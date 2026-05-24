@@ -273,6 +273,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-24: Continued Studio interaction hardening by making shared Studio buttons explicit non-submit controls and closing compact dropdown menus immediately after a user selects an action.
 - 2026-05-24: Continued Studio menu polish by closing select-based compact menus after choices such as canvas, transition, animation, and layout selections.
 - 2026-05-24: Continued Studio menu repeatability by resetting select menus after a choice so the same canvas, motion, or layout command can be run again later.
+- 2026-05-24: Continued Studio menu accessibility by letting compact Studio menus close with Escape and return focus to the trigger.
 
 ## Implementation Slices
 
