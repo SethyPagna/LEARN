@@ -736,6 +736,7 @@ function Navigation({
   function renderItem(item: LearnNavigationItem) {
     const active = viewBelongsToNavigationItem(view, item)
     const Icon = navIconMap[item.iconKey]
+    const accent = navigationAccentClass(item.iconKey, active)
     const badge = item.view === "studio" ? studioDraftSummary.count : item.view === "practice" ? practiceDraftSummary.count : 0
     const badgeTitle = item.view === "practice"
       ? formatNavigationBadge(badge, "saved Practice attempt", "saved Practice attempts")
@@ -748,8 +749,8 @@ function Navigation({
         title={`${text[item.labelKey]} - ${getNavigationItemDetail(item)}`}
         className={`relative flex ${rowHeight} ${iconRail ? "w-11 justify-center rounded-xl px-0" : "w-full gap-3 rounded-md px-3"} items-center text-sm font-medium transition ${
           active
-            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm ring-1 ring-sidebar-ring/20"
-            : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            ? `${accent} text-sidebar-primary-foreground shadow-sm ring-1 ring-sidebar-ring/20`
+            : `text-muted-foreground hover:text-sidebar-accent-foreground ${accent}`
         }`}
       >
         <Icon className="h-[18px] w-[18px] shrink-0" />
@@ -796,4 +797,23 @@ function Navigation({
       ))}
     </nav>
   )
+}
+
+function navigationAccentClass(iconKey: NavigationIconKey, active: boolean) {
+  if (active) {
+    if (iconKey === "calendar") return "bg-gradient-to-br from-emerald-500 to-sky-500"
+    if (iconKey === "studio") return "bg-gradient-to-br from-cyan-500 to-blue-600"
+    if (iconKey === "ai") return "bg-gradient-to-br from-fuchsia-500 to-violet-600"
+    if (iconKey === "practice") return "bg-gradient-to-br from-amber-500 to-rose-500"
+    if (iconKey === "social") return "bg-gradient-to-br from-teal-500 to-emerald-600"
+    if (iconKey === "settings") return "bg-gradient-to-br from-slate-600 to-slate-900"
+    return "bg-gradient-to-br from-primary to-success"
+  }
+  if (iconKey === "calendar") return "hover:bg-emerald-500/12"
+  if (iconKey === "studio") return "hover:bg-cyan-500/12"
+  if (iconKey === "ai") return "hover:bg-fuchsia-500/12"
+  if (iconKey === "practice") return "hover:bg-amber-500/12"
+  if (iconKey === "social") return "hover:bg-teal-500/12"
+  if (iconKey === "settings") return "hover:bg-slate-500/12"
+  return "hover:bg-sidebar-accent"
 }
