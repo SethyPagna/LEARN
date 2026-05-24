@@ -259,9 +259,9 @@ export function SocialWorkspaceView({ initialView, options, setView, user }: { i
     <WorkspaceFrame
       eyebrow="Social workspace"
       title="Social"
-      body="Friends, chats, groups, and calls in one place."
+      body="Message people, start groups, call, or play a quick learning game."
     >
-      <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)]">
+      <div className="grid gap-3">
         <SocialSectionNav
           activeTab={tab}
           tabs={socialTabs}
@@ -293,8 +293,8 @@ function SocialSectionNav({
   tabs: Array<{ id: SocialWorkspaceTab; label: string; icon: ComponentType<{ className?: string }>; caption: string }>
 }) {
   return (
-    <Panel className="h-max p-2 xl:sticky xl:top-4">
-      <div className="flex gap-1 overflow-x-auto xl:grid xl:gap-1.5 xl:overflow-visible">
+    <Panel className="p-2">
+      <div className="flex gap-1.5 overflow-x-auto">
         {tabs.map((item) => {
           const Icon = item.icon
           const active = activeTab === item.id
@@ -302,15 +302,14 @@ function SocialSectionNav({
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`group relative inline-flex h-11 min-w-[8rem] shrink-0 items-center gap-2 rounded-md px-2.5 text-left text-sm font-semibold transition xl:min-w-0 ${
+              className={`relative inline-flex h-10 min-w-[7.5rem] shrink-0 items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold transition ${
                 active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               }`}
               title={item.caption}
               type="button"
             >
               <Icon className="h-4 w-4 shrink-0" />
-              <span className="min-w-0 flex-1 truncate">{item.label}</span>
-              <MoreHorizontal className={`h-4 w-4 shrink-0 ${active ? "opacity-80" : "opacity-0 transition group-hover:opacity-70"}`} />
+              <span className="truncate">{item.label}</span>
             </button>
           )
         })}
@@ -358,7 +357,6 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     momentOptions,
     primaryAction: primaryCommand,
     starterActions,
-    summary: commandSummary,
   } = socialModel
   const activeMomentOption = momentOptions.find((option) => option.id === momentType) ?? momentOptions[0]
   const commandCounts = useMemo<Record<SocialCommandTab, string>>(() => ({
@@ -594,7 +592,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const ActiveCommandIcon = socialCommandTabIcons[activeCommand.id]
 
   return (
-    <Panel className="overflow-hidden p-0">
+    <Panel className="overflow-visible p-0">
       <div className="border-b border-border bg-card px-4 py-3">
         <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
           <div className="flex min-w-0 items-center gap-3">
@@ -602,12 +600,8 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
               <Users className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <h3 className="text-xl font-semibold text-foreground">Friends</h3>
-              <div className="mt-1 flex flex-wrap gap-1">
-                {commandSummary.chips.slice(0, 3).map((chip) => (
-                  <span key={chip} className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{chip}</span>
-                ))}
-              </div>
+              <h3 className="text-xl font-semibold text-foreground">Messages</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Find people, invite, chat, call, or start a game.</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 lg:justify-end">
@@ -622,8 +616,8 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
           </div>
         </div>
       </div>
-      <div className="grid gap-3 p-3 lg:grid-cols-[210px_minmax(0,1fr)] lg:p-4">
-        <aside className="grid content-start gap-2 rounded-lg border border-border bg-background p-2">
+      <div className="grid gap-3 p-3 lg:p-4">
+        <aside className="flex gap-2 overflow-x-auto rounded-lg border border-border bg-background p-2">
           {socialCommandTabs.map((item) => {
             const Icon = socialCommandTabIcons[item.id]
             const active = commandTab === item.id
@@ -631,7 +625,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
               <button
                 key={item.id}
                 onClick={() => setCommandTab(item.id)}
-                className={`inline-flex h-10 min-w-0 items-center gap-2 rounded-md px-2.5 text-left text-sm font-semibold transition ${
+                className={`inline-flex h-10 min-w-[8rem] shrink-0 items-center gap-2 rounded-md px-2.5 text-left text-sm font-semibold transition ${
                   active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 }`}
                 type="button"
@@ -642,15 +636,15 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
               </button>
             )
           })}
-          <details className="group/social-tools mt-1 rounded-md border border-border bg-card">
+          <details className="group/social-tools relative shrink-0 rounded-md border border-border bg-card">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-sm font-semibold text-foreground">
               <span className="flex items-center gap-2">
                 <MoreHorizontal className="h-4 w-4 text-primary" />
-                Shortcuts
+                More
               </span>
               <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/social-tools:rotate-180" />
             </summary>
-            <div className="grid gap-2 border-t border-border p-2">
+            <div className="absolute right-0 top-11 z-50 grid w-80 gap-2 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl">
               <div className="grid grid-cols-2 gap-1.5">
                 {starterActions.map((action) => (
                   <SocialStarterActionButton key={action.id} action={action} onClick={() => openStarterAction(action)} />
