@@ -280,3 +280,17 @@ test("studio menu selects keep accessible labels and focus styles", () => {
   assert.match(helperSource, /focus-visible:ring-2/)
   assert.match(helperSource, /focus-visible:ring-offset-popover/)
 })
+
+test("studio context menu items expose highlighted and keyboard focus styles", () => {
+  const styles = readFileSync("app/globals.css", "utf8")
+  const start = styles.indexOf(".context-item")
+  const end = styles.indexOf("\n  }", start)
+  const contextItemStyles = styles.slice(start, end)
+
+  assert.ok(start > -1)
+  assert.ok(end > start)
+  assert.match(contextItemStyles, /data-\[highlighted\]:bg-accent/)
+  assert.match(contextItemStyles, /data-\[highlighted\]:text-accent-foreground/)
+  assert.match(contextItemStyles, /focus-visible:ring-2/)
+  assert.match(contextItemStyles, /focus-visible:ring-offset-popover/)
+})

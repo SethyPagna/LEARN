@@ -165,6 +165,6 @@
     @apply inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring;
   }
   .context-item {
-    @apply flex cursor-default select-none items-center gap-2 rounded px-2 py-1.5 outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground;
+    @apply flex cursor-default select-none items-center gap-2 rounded px-2 py-1.5 outline-none transition hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground;
   }
 }
