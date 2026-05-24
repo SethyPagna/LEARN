@@ -23,7 +23,7 @@ import {
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import type React from "react"
-import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardQuickActionGroups, buildDashboardRecentWork, buildDashboardRouteActions, buildDashboardSignals, buildDashboardWeakTopicCards, type DashboardCommandTarget, type DashboardQuickActionIcon, type DashboardRecentWorkItem } from "@/lib/dashboard-features"
+import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardQuickActionGroups, buildDashboardRecentWork, buildDashboardRouteActions, buildDashboardWeakTopicCards, type DashboardCommandTarget, type DashboardQuickActionIcon, type DashboardRecentWorkItem } from "@/lib/dashboard-features"
 import { normalizeOnboardingPreferences, normalizeOnboardingStudioKind, normalizeOnboardingWorkflow, onboardingStudioKindOptions, onboardingTargetView, onboardingWorkflowOptions, shouldShowOnboarding, type OnboardingStudioKind, type OnboardingWorkflow } from "@/lib/onboarding-features"
 import { api } from "../api"
 import type { WorkspaceOptions } from "../preferences"
@@ -97,10 +97,6 @@ export function DashboardView({
     () => buildDashboardCommandPlan({ noteCount: notes.length, quizCount: quizzes.length, snapshot: dashboard?.snapshot }),
     [dashboard?.snapshot, notes.length, quizzes.length],
   )
-  const dashboardSignals = useMemo(
-    () => buildDashboardSignals({ noteCount: notes.length, quizCount: quizzes.length, snapshot: dashboard?.snapshot }),
-    [dashboard?.snapshot, notes.length, quizzes.length],
-  )
   const emptyStates = useMemo(
     () => buildDashboardEmptyStates({ noteCount: notes.length, quizCount: quizzes.length, snapshot: dashboard?.snapshot }),
     [dashboard?.snapshot, notes.length, quizzes.length],
@@ -108,6 +104,7 @@ export function DashboardView({
   const metricTiles = useMemo(
     () => buildDashboardMetricTiles({
       calendarDefaultMinutes: options.calendarDefaultMinutes,
+      dailyGoalMinutes: Number(user?.preferences?.dailyGoalMinutes || 45),
       noteCount: notes.length,
       practiceDraftCount: practiceDraftSummary.count,
       quizCount: quizzes.length,
@@ -115,7 +112,7 @@ export function DashboardView({
       studioDraftCount: studioDraftSummary.count,
       userMetrics: user?.metrics,
     }),
-    [dashboard?.snapshot, notes.length, options.calendarDefaultMinutes, practiceDraftSummary.count, quizzes.length, studioDraftSummary.count, user?.metrics],
+    [dashboard?.snapshot, notes.length, options.calendarDefaultMinutes, practiceDraftSummary.count, quizzes.length, studioDraftSummary.count, user?.metrics, user?.preferences],
   )
   const routeActions = useMemo(
     () => buildDashboardRouteActions({ noteCount: notes.length, quizCount: quizzes.length, snapshot: dashboard?.snapshot }),
@@ -146,7 +143,6 @@ export function DashboardView({
           <div className="min-w-0">
             <div className="mb-2 flex max-w-full items-center gap-2 overflow-x-auto pb-1" aria-label="Today signals">
               <span className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">Today Route</span>
-              {dashboardSignals.map((signal) => <StatusPill key={signal.label} label={`${signal.label} ${signal.value}`} tone={signal.tone} />)}
             </div>
             <div className="flex items-start gap-3">
               <h2 className="max-w-4xl text-xl font-semibold leading-tight text-foreground md:text-2xl">
@@ -250,7 +246,6 @@ export function DashboardView({
         <div className="mt-3 rounded-lg border border-border bg-muted/35 p-3">
           <div className="flex items-center justify-between gap-3">
             <p className="truncate text-sm font-semibold text-foreground">Review route for {focus}</p>
-            <InfoPopover label="Suggested prompt" body={`Use my latest Studio notes to make a short review route for ${focus}, including one example and three recall questions.`} />
           </div>
           <button onClick={() => setView("ai")} className="mt-3 rounded-md bg-success px-3 py-2 text-sm font-semibold text-success-foreground">Open AI tutor</button>
         </div>
@@ -444,7 +439,7 @@ function OnboardingCard({
 
 function BigMetric({ body, icon: Icon, label, tone, value }: { body: string; icon: React.ComponentType<{ className?: string }>; label: string; tone: "critical" | "steady" | "watch"; value: string }) {
   return (
-    <div className={`group relative min-w-[155px] rounded-md border p-2.5 shadow-sm ${dashboardMetricToneClass(tone)}`}>
+    <div className={`group relative z-10 min-w-[155px] rounded-md border p-2.5 shadow-sm hover:z-[999] ${dashboardMetricToneClass(tone)}`}>
       <div className="flex items-center gap-3">
         <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${toneSurfaceClasses(tone)}`}>
           <Icon className="h-5 w-5" />
@@ -454,7 +449,7 @@ function BigMetric({ body, icon: Icon, label, tone, value }: { body: string; ico
           <p className="text-2xl font-semibold leading-none text-foreground">{value}</p>
         </div>
       </div>
-      <p className="pointer-events-none absolute left-3 right-3 top-[calc(100%-0.2rem)] z-[70] hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{body}</p>
+      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-[999] hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-xl group-hover:block group-focus-visible:block">{body}</p>
     </div>
   )
 }
