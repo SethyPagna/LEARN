@@ -32,6 +32,9 @@ export interface User {
   name: string
   username: string
   email: string
+  avatarUrl?: string
+  bio?: string
+  profileVisibility?: string
   role: "admin" | "learner"
   preferences: Record<string, unknown>
   metrics?: {
