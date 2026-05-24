@@ -1984,9 +1984,10 @@ export async function listAchievements(user: User) {
 
 export async function getPublicProfile(username: string, viewer: "public" | "connections" | "owner" = "public") {
   await ensureDatabase()
-  const result = await query("SELECT id, username, name, bio, avatar_url, xp_total, streak_current, streak_longest, reputation, profile_visibility FROM users WHERE username = $1 LIMIT 1", [username])
+  const result = await query("SELECT id, username, name, bio, avatar_url, preferences, xp_total, streak_current, streak_longest, reputation, profile_visibility FROM users WHERE username = $1 LIMIT 1", [username])
   const row = result.rows[0]
   if (!row) return null
+  const preferences = parseJsonObject(row.preferences)
   const nodes = (await query("SELECT * FROM knowledge_nodes WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 80", [row.id])).rows.map(normalizeKnowledgeNode)
   return {
     id: row.id,
@@ -1994,6 +1995,12 @@ export async function getPublicProfile(username: string, viewer: "public" | "con
     name: row.name,
     bio: row.bio || "",
     avatar_url: row.avatar_url || "",
+    profile_visibility: row.profile_visibility || "private",
+    social_links: {
+      facebook: preferenceLink(preferences.facebookUrl),
+      intro: preferenceLink(preferences.introUrl),
+      website: preferenceLink(preferences.websiteUrl),
+    },
     metrics: {
       xp: Number(row.xp_total || 0),
       ...calculateLevelFromXp(Number(row.xp_total || 0)),
@@ -2003,6 +2010,10 @@ export async function getPublicProfile(username: string, viewer: "public" | "con
     },
     artifacts: filterPublicProfileArtifacts(nodes, viewer),
   }
+}
+
+function preferenceLink(value: unknown) {
+  return typeof value === "string" ? value.trim() : ""
 }
 
 export async function listLearningSpaces(user: User) {
