@@ -12,6 +12,7 @@ import {
   Copy,
   Edit3,
   Eye,
+  ExternalLink,
   FolderOpen,
   GitFork,
   Lock,
@@ -1722,19 +1723,35 @@ export function ProfileView({ setView, user }: { setView?: (view: View) => void;
   const secondaryProfileChips = profileSummaryChips.filter((chip) => chip.priority === "secondary")
   const unlockedAchievements = achievementItems.filter((achievement) => achievement.unlocked)
   const lockedAchievements = achievementItems.filter((achievement) => !achievement.unlocked)
+  const profileAvatarUrl = profile?.avatar_url || user?.avatarUrl || ""
+  const profileLinks = [
+    { href: profile?.social_links?.intro || preferenceString(user?.preferences?.introUrl), label: "Intro" },
+    { href: profile?.social_links?.website || preferenceString(user?.preferences?.websiteUrl), label: "Website" },
+    { href: profile?.social_links?.facebook || preferenceString(user?.preferences?.facebookUrl), label: "Facebook" },
+  ].filter((link) => link.href)
 
   return (
     <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
       <Panel className="p-5">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-md bg-primary text-xl font-semibold text-primary-foreground">
-            {(profile?.name || user?.name || "L").slice(0, 1)}
+          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-md bg-primary text-xl font-semibold text-primary-foreground">
+            {profileAvatarUrl ? <img src={profileAvatarUrl} alt="" className="h-full w-full object-cover" /> : (profile?.name || user?.name || "L").slice(0, 1)}
           </div>
           <span className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">{profilePlan.privacyLabel}</span>
         </div>
         <h2 className="mt-4 text-2xl font-semibold text-foreground">{profile?.name || user?.name || "Learner"}</h2>
         <p className="text-sm text-muted-foreground">@{profile?.username || username}</p>
         <p className="mt-4 text-sm leading-6 text-muted-foreground">{profile?.bio || "A private learning portrait that grows from Vault activity."}</p>
+        {profileLinks.length ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {profileLinks.map((link) => (
+              <a key={link.label} href={link.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+                {link.label}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            ))}
+          </div>
+        ) : null}
         <div className="mt-4 flex flex-wrap gap-2">
           {primaryProfileChips.map((chip) => (
             <ProfileSummaryChipButton key={chip.id} chip={chip} onClick={() => setView?.(profileTargetView(chip.target))} />
@@ -1853,6 +1870,10 @@ function profileTargetView(target: ProfilePlanTarget): View {
   if (target === "studio") return "studio"
   if (target === "reviews") return "reviews"
   return "social"
+}
+
+function preferenceString(value: unknown) {
+  return typeof value === "string" ? value : ""
 }
 
 function profileToneDotClass(tone: "good" | "watch" | "neutral") {
