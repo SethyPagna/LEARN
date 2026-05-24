@@ -279,6 +279,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-24: Continued Studio menu accessibility by syncing compact menu expanded state with the real dropdown open state.
 - 2026-05-24: Continued Studio menu accessibility by adding visible keyboard focus rings to compact Studio menu triggers and actions.
 - 2026-05-24: Continued Studio menu accessibility by adding labels and visible focus rings to select controls inside compact Studio menus.
+- 2026-05-24: Continued Studio context-menu polish by adding highlighted and keyboard focus states to shared right-click menu items.
 
 ## Implementation Slices
 
