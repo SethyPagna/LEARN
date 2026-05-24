@@ -16,11 +16,11 @@ export const practiceWorkspaceTabs: Array<WorkspaceTabOption<PracticeWorkspaceTa
 ]
 
 export const socialWorkspaceTabs: Array<WorkspaceTabOption<SocialWorkspaceTab>> = [
-  { id: "home", label: "Start", caption: "Find people, post, and choose the right social flow" },
-  { id: "chat", label: "Chat", caption: "Messages and threads" },
-  { id: "spaces", label: "Groups", caption: "Shared goals and resources" },
-  { id: "rooms", label: "Live", caption: "Focus rooms" },
-  { id: "battles", label: "Battles", caption: "Quiz challenges" },
+  { id: "home", label: "Friends", caption: "Find and add people" },
+  { id: "chat", label: "Chats", caption: "Messages" },
+  { id: "spaces", label: "Groups", caption: "Study groups" },
+  { id: "rooms", label: "Calls", caption: "Voice, video, and focus" },
+  { id: "battles", label: "Games", caption: "Quiz games" },
 ]
 
 export const socialCommandTabs: Array<WorkspaceTabOption<SocialCommandTab>> = [
