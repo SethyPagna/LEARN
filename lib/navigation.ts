@@ -43,8 +43,8 @@ export interface NavigationTarget {
 export const studioViews = ["studio", "notes", "docs", "sheets", "slides"] as const satisfies readonly View[]
 export const studioAliasViews = ["notes", "docs", "sheets", "slides", "files"] as const satisfies readonly View[]
 export const learnAliasViews = ["vault", "feed", "discover", "graph", "progress"] as const satisfies readonly View[]
-export const learnWorkspaceViews = ["learn"] as const satisfies readonly View[]
-export const practiceViews = ["practice", "quizzes", "games"] as const satisfies readonly View[]
+export const learnWorkspaceViews = [] as const satisfies readonly View[]
+export const practiceViews = ["practice", "quizzes", "games", "reviews"] as const satisfies readonly View[]
 export const socialViews = ["social", "chat", "spaces", "rooms", "battles"] as const satisfies readonly View[]
 export const manageAliasViews = ["profile", "admin"] as const satisfies readonly View[]
 
@@ -110,6 +110,8 @@ export const viewLabelKeys: Record<View, keyof Vocabulary> = {
 
 const pathViewAliases: Record<string, View> = {
   groups: "spaces",
+  learn: "dashboard",
+  reviews: "practice",
 }
 
 export const navigationGroups: readonly LearnNavigationGroup[] = [
@@ -120,11 +122,9 @@ export const navigationGroups: readonly LearnNavigationGroup[] = [
   },
   {
     label: "Learn",
-    caption: "Daily route, reviews, progress, graph, and calendar",
+    caption: "Calendar, progress, and planned learning blocks",
     items: [
-      { view: "learn", labelKey: "learn", iconKey: "workspaces", aliases: learnAliasViews },
-      { view: "reviews", labelKey: "reviews", iconKey: "practice" },
-      { view: "calendar", labelKey: "calendar", iconKey: "calendar" },
+      { view: "calendar", labelKey: "calendar", iconKey: "calendar", aliases: learnAliasViews },
     ],
   },
   {
@@ -137,8 +137,8 @@ export const navigationGroups: readonly LearnNavigationGroup[] = [
   },
   {
     label: "Practice",
-    caption: "Quizzes, games, retries, and review loops",
-    items: [{ view: "practice", labelKey: "practice", iconKey: "practice", aliases: ["quizzes", "games"] }],
+    caption: "Quizzes, games, retries, and reviews",
+    items: [{ view: "practice", labelKey: "practice", iconKey: "practice", aliases: ["quizzes", "games", "reviews"] }],
   },
   {
     label: "Social",
@@ -155,7 +155,7 @@ export const navigationGroups: readonly LearnNavigationGroup[] = [
 export const launcherCommands: readonly LauncherCommandConfig[] = [
   { label: "Create in Studio", detail: "New note, doc, sheet, or slide", view: "studio", iconKey: "studio", keywords: ["new", "create", "note", "doc", "sheet", "slide", "studio"] },
   { label: "Open files", detail: "Uploads, media, and imports", view: "files", iconKey: "studio", keywords: ["file", "upload", "download", "media", "import"] },
-  { label: "Start reviews", detail: "Open active recall queue", view: "reviews", iconKey: "workspaces", keywords: ["review", "recall", "flashcard", "practice"] },
+  { label: "Start reviews", detail: "Open practice and review loops", view: "practice", iconKey: "practice", keywords: ["review", "recall", "flashcard", "practice"] },
   { label: "Practice now", detail: "Quizzes and games", view: "practice", iconKey: "practice", keywords: ["quiz", "game", "practice", "test"] },
   { label: "Ask AI tutor", detail: "Prompt, rewrite, quiz, plan", view: "ai", iconKey: "ai", keywords: ["ai", "tutor", "prompt", "rewrite", "plan"] },
   { label: "Plan calendar", detail: "Study blocks and due dates", view: "calendar", iconKey: "calendar", keywords: ["calendar", "time", "schedule", "plan"] },
