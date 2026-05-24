@@ -3742,6 +3742,7 @@ function ActionMenu({
     <details className="group relative inline-block" onBlur={closeMenuOnFocusLeave} onKeyDown={closeMenuOnEscape}>
       <summary
         aria-label={label}
+        aria-haspopup="menu"
         className={`flex h-9 cursor-pointer list-none items-center gap-2 rounded-md border px-3 text-sm font-medium [&::-webkit-details-marker]:hidden ${
           compact ? "px-2" : ""
         } ${
@@ -3755,7 +3756,7 @@ function ActionMenu({
         <span className={compact ? "sr-only" : ""}>{label}</span>
         {!compact ? <ChevronDown className="h-3.5 w-3.5 opacity-70" /> : null}
       </summary>
-      <div className={`absolute top-10 z-50 w-64 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-xl ${align === "right" ? "right-0" : "left-0"}`}>
+      <div aria-label={label} className={`absolute top-10 z-50 w-64 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-xl ${align === "right" ? "right-0" : "left-0"}`} role="menu">
         {children}
       </div>
     </details>
@@ -3788,6 +3789,7 @@ function MenuAction({
     <button
       onClick={handleClick}
       disabled={disabled}
+      role="menuitem"
       className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${
         danger
           ? "text-destructive hover:bg-destructive/10"

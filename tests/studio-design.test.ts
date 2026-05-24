@@ -198,6 +198,25 @@ test("studio action menus support keyboard escape closing", () => {
   assert.match(helperSource, /aria-label=\{label\}/)
 })
 
+test("studio action menus expose accessible menu semantics", () => {
+  const source = readFileSync("components/learn/views/studio-view.tsx", "utf8")
+  const menuStart = source.indexOf("function ActionMenu(")
+  const menuEnd = source.indexOf("\nfunction MenuAction", menuStart)
+  const menuSource = source.slice(menuStart, menuEnd)
+  const actionStart = source.indexOf("function MenuAction(")
+  const actionEnd = source.indexOf("\nfunction MenuSelect", actionStart)
+  const actionSource = source.slice(actionStart, actionEnd)
+
+  assert.ok(menuStart > -1)
+  assert.ok(menuEnd > menuStart)
+  assert.ok(actionStart > -1)
+  assert.ok(actionEnd > actionStart)
+  assert.match(menuSource, /aria-haspopup="menu"/)
+  assert.match(menuSource, /role="menu"/)
+  assert.match(menuSource, /aria-label=\{label\}/)
+  assert.match(actionSource, /role="menuitem"/)
+})
+
 test("studio action menus close when focus leaves the menu", () => {
   const source = readFileSync("components/learn/views/studio-view.tsx", "utf8")
   const start = source.indexOf("function ActionMenu(")
