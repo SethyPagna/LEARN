@@ -204,7 +204,7 @@ export function DashboardView({
             </details>
           </div>
         </div>
-        <div className="grid border-t border-border bg-background/45 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="flex gap-2 overflow-x-auto border-t border-border bg-background/45 p-2">
           {metricTiles.map((metric) => (
             <BigMetric key={metric.id} icon={dashboardMetricIcons[metric.id]} label={metric.label} value={metric.value} body={metric.detail} tone={metric.tone} />
           ))}
@@ -251,7 +251,7 @@ export function DashboardView({
         </Panel>
       ) : null}
 
-      <Panel className="p-4">
+      <Panel className="p-4 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--accent)/0.28))]">
         <SectionHeader icon={Sparkles} title="AI suggestion" body="Use the tutor as a quiet co-pilot, not a replacement for your work." />
         <div className="mt-4 rounded-lg border border-border bg-muted/35 p-3">
           <div className="flex items-center justify-between gap-3">
@@ -262,11 +262,11 @@ export function DashboardView({
         </div>
       </Panel>
 
-      <Panel className="p-4">
+      <Panel className="p-4 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--warning)/0.12))]">
         <SectionHeader icon={Brain} title="Weak topics" body="Lower accuracy appears first so practice is easier to choose." />
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 flex snap-x gap-2 overflow-x-auto pb-1">
           {weakTopicCards.map((topic) => (
-            <button key={topic.label} onClick={() => setView("practice")} className="w-full rounded-md border border-border bg-background p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
+            <button key={topic.label} onClick={() => setView("practice")} className="min-w-[220px] snap-start rounded-md border border-border bg-background p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
               <div className="flex justify-between gap-3 text-sm">
                 <span className="font-medium text-foreground">{topic.label}</span>
                 <StatusPill label={`${topic.accuracy}%`} tone={topic.tone} />
@@ -280,7 +280,7 @@ export function DashboardView({
             </button>
           ))}
           {!weakTopicCards.length ? (
-            <button onClick={() => setView("practice")} className="w-full rounded-md border border-dashed border-border bg-background p-4 text-left transition hover:bg-accent hover:text-accent-foreground">
+            <button onClick={() => setView("practice")} className="min-w-[240px] rounded-md border border-dashed border-border bg-background p-4 text-left transition hover:bg-accent hover:text-accent-foreground">
               <span className="block text-sm font-semibold text-foreground">No weak topic yet</span>
               <span className="mt-1 block text-xs text-muted-foreground">Run a quiz or game to create real signals.</span>
             </button>
@@ -288,13 +288,13 @@ export function DashboardView({
         </div>
       </Panel>
 
-      <Panel className="p-4">
+      <Panel className="p-4 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--success)/0.10))]">
         <SectionHeader icon={FileText} title="Recent work" body="Recent Studio items, AI chats, practice attempts, and uploads appear together so resuming is simpler." />
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <div className="mt-4 flex snap-x gap-3 overflow-x-auto pb-1">
           {recentWork.length ? recentWork.slice(0, 4).map((item) => {
             const Icon = recentWorkIcons[item.kind]
             return (
-              <button key={item.id} onClick={() => setView(item.target)} className="rounded-md border border-border bg-background p-3 text-left hover:bg-accent hover:text-accent-foreground">
+              <button key={item.id} onClick={() => setView(item.target)} className="min-w-[240px] snap-start rounded-md border border-border bg-background p-3 text-left hover:bg-accent hover:text-accent-foreground">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
                     <Icon className="h-5 w-5" />
@@ -307,39 +307,26 @@ export function DashboardView({
               </button>
             )
           }) : (
-            <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground md:col-span-2">
+            <div className="min-w-[260px] rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
               Create a Studio item to start building your learning workspace.
             </div>
           )}
         </div>
       </Panel>
 
-      <Panel className="p-4">
+      <Panel className="p-4 xl:col-span-2 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--primary)/0.10))]">
         <SectionHeader icon={Clock3} title="Review queue" body="Turn recent work into active recall before it fades." />
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 flex snap-x gap-2 overflow-x-auto pb-1">
           {["Review weak topic", "Retry quiz mistakes", "Save an AI route"].map((item, index) => (
-            <button key={item} onClick={() => setView(index === 1 ? "practice" : "reviews")} className="flex w-full items-center gap-3 rounded-md border border-border bg-background p-3 text-left text-sm hover:bg-accent hover:text-accent-foreground">
+            <button key={item} onClick={() => setView("practice")} className="flex min-w-[220px] snap-start items-center gap-3 rounded-md border border-border bg-background p-3 text-left text-sm hover:bg-accent hover:text-accent-foreground">
               <Repeat2 className="h-5 w-5 text-success" />
               <span className="font-medium">{item}</span>
             </button>
           ))}
         </div>
-      </Panel>
-
-      <Panel className="p-4">
-        <SectionHeader icon={CalendarDays} title="Calendar agenda" body="Plan small blocks instead of waiting for a long study session." />
-        <div className="mt-4 space-y-2">
-          <AgendaItem label="Focus block" value={`${options.calendarDefaultMinutes} min`} />
-          <AgendaItem label="Reminder lead" value={`${options.calendarLeadMinutes} min`} />
-          <button onClick={() => setView("calendar")} className="mt-2 rounded-md border border-border bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-            Plan time
-          </button>
-        </div>
-      </Panel>
-
-      <Panel className="p-4 xl:col-span-2">
-        <SectionHeader icon={Table2} title="Quick actions" body="Grouped by purpose so the dashboard stays compact." />
-        <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+        <div className="mt-4 border-t border-border pt-3">
+          <SectionHeader icon={Table2} title="Quick actions" body="Grouped by purpose so the dashboard stays compact." />
+        <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-5">
           {actionGroups.map((group) => (
             <details key={group.label} className="rounded-md border border-border bg-background">
               <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
@@ -362,6 +349,18 @@ export function DashboardView({
               </div>
             </details>
           ))}
+        </div>
+        </div>
+      </Panel>
+
+      <Panel className="p-4 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--primary)/0.08))]">
+        <SectionHeader icon={CalendarDays} title="Calendar agenda" body="Plan small blocks instead of waiting for a long study session." />
+        <div className="mt-4 flex snap-x gap-2 overflow-x-auto pb-1">
+          <AgendaItem label="Focus block" value={`${options.calendarDefaultMinutes} min`} />
+          <AgendaItem label="Lead" value={`${options.calendarLeadMinutes} min`} />
+          <button onClick={() => setView("calendar")} className="min-w-[140px] rounded-md border border-border bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+            Plan time
+          </button>
         </div>
       </Panel>
     </div>
@@ -450,7 +449,7 @@ function OnboardingCard({
 
 function BigMetric({ body, icon: Icon, label, tone, value }: { body: string; icon: React.ComponentType<{ className?: string }>; label: string; tone: "critical" | "steady" | "watch"; value: string }) {
   return (
-    <div className="group relative border-b border-border p-4 sm:border-r xl:border-b-0">
+    <div className={`group relative min-w-[190px] rounded-md border p-3 shadow-sm ${dashboardMetricToneClass(tone)}`}>
       <div className="flex items-center gap-3">
         <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md ${toneSurfaceClasses(tone)}`}>
           <Icon className="h-6 w-6" />
@@ -463,6 +462,12 @@ function BigMetric({ body, icon: Icon, label, tone, value }: { body: string; ico
       <p className="pointer-events-none absolute left-3 right-3 top-[calc(100%-0.2rem)] z-[70] hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{body}</p>
     </div>
   )
+}
+
+function dashboardMetricToneClass(tone: "critical" | "steady" | "watch") {
+  if (tone === "critical") return "border-destructive/25 bg-destructive/10"
+  if (tone === "watch") return "border-warning/25 bg-warning/10"
+  return "border-success/25 bg-success/10"
 }
 
 function SectionHeader({ body, icon: Icon, title }: { body: string; icon: React.ComponentType<{ className?: string }>; title: string }) {
@@ -494,7 +499,7 @@ function InfoPopover({ body, label }: { body: string; label: string }) {
 
 function AgendaItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between rounded-md border border-border bg-background p-3 text-sm">
+    <div className="flex min-w-[150px] items-center justify-between rounded-md border border-border bg-background p-3 text-sm">
       <span className="font-medium text-foreground">{label}</span>
       <span className="text-muted-foreground">{value}</span>
     </div>
