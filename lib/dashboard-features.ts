@@ -16,6 +16,7 @@ export interface DashboardWeakTopic {
 
 export interface DashboardSnapshotLike {
   goalCompletion?: number
+  todayStudyMinutes?: number
   weakTopics?: DashboardWeakTopic[]
   recommendedFocus?: string[]
   recentNotes?: unknown[]
@@ -64,6 +65,7 @@ export interface DashboardUserMetrics {
 
 export interface DashboardMetricInput extends DashboardCommandInput {
   calendarDefaultMinutes: number
+  dailyGoalMinutes?: number
   practiceDraftCount: number
   studioDraftCount: number
   userMetrics?: DashboardUserMetrics | null
@@ -312,7 +314,9 @@ export function buildDashboardMetricTiles(input: DashboardMetricInput): Dashboar
   const reviewCount = Math.max((snapshot.weakTopics ?? []).length, uniqueNonEmpty(snapshot.recommendedFocus ?? []).length)
   const totalDrafts = Math.max(0, input.studioDraftCount) + Math.max(0, input.practiceDraftCount)
   const focusMinutes = Math.max(0, Math.floor(input.calendarDefaultMinutes))
-  const goalCompletion = clampPercentage(snapshot.goalCompletion ?? 0)
+  const dailyGoalMinutes = Math.max(5, Math.floor(input.dailyGoalMinutes || 45))
+  const todayStudyMinutes = Math.max(0, Math.floor(snapshot.todayStudyMinutes ?? 0))
+  const goalCompletion = clampPercentage((todayStudyMinutes / dailyGoalMinutes) * 100)
   const plannedHours = focusMinutes >= 60 ? `${roundToSingleDecimal(focusMinutes / 60)}h` : `${focusMinutes}m`
 
   return [
@@ -326,8 +330,8 @@ export function buildDashboardMetricTiles(input: DashboardMetricInput): Dashboar
     {
       id: "progress",
       label: "Progress",
-      value: `${goalCompletion}%`,
-      detail: goalCompletion ? "Today goal progress from completed learning activity" : "Complete a block or practice run to move today's progress",
+      value: `${todayStudyMinutes}/${dailyGoalMinutes}m`,
+      detail: todayStudyMinutes ? "Time spent today against your daily goal" : "Complete a timed practice run or focus block to add study time",
       tone: goalCompletion >= 70 ? "steady" : goalCompletion > 0 ? "watch" : "critical",
     },
     {

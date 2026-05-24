@@ -100,11 +100,13 @@ test("buildDashboardEmptyStates stays quiet when the loop has material", () => {
 test("buildDashboardMetricTiles combines learner progress drafts and focus time", () => {
   const metrics = buildDashboardMetricTiles({
     calendarDefaultMinutes: 45,
+    dailyGoalMinutes: 60,
     noteCount: 5,
     practiceDraftCount: 1,
     quizCount: 3,
     snapshot: {
       recommendedFocus: ["Databases"],
+      todayStudyMinutes: 25,
       weakTopics: [{ topic: "Databases", accuracy: 42 }, { topic: "Memory", accuracy: 71 }],
     },
     studioDraftCount: 2,
@@ -112,7 +114,7 @@ test("buildDashboardMetricTiles combines learner progress drafts and focus time"
   })
 
   assert.deepEqual(metrics.map((metric) => metric.id), ["streak", "progress", "reviews", "drafts", "hours"])
-  assert.equal(metrics.find((metric) => metric.id === "progress")?.value, "0%")
+  assert.equal(metrics.find((metric) => metric.id === "progress")?.value, "25/60m")
   assert.equal(metrics.find((metric) => metric.id === "hours")?.value, "45m")
   assert.equal(metrics.find((metric) => metric.id === "reviews")?.value, "2")
   assert.equal(metrics.find((metric) => metric.id === "drafts")?.detail, "2 Studio and 1 practice draft")
