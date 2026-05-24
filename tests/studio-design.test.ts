@@ -198,6 +198,20 @@ test("studio action menus support keyboard escape closing", () => {
   assert.match(helperSource, /aria-label=\{label\}/)
 })
 
+test("studio action menus close when focus leaves the menu", () => {
+  const source = readFileSync("components/learn/views/studio-view.tsx", "utf8")
+  const start = source.indexOf("function ActionMenu(")
+  const end = source.indexOf("\nfunction MenuAction", start)
+  const helperSource = source.slice(start, end)
+
+  assert.ok(start > -1)
+  assert.ok(end > start)
+  assert.match(helperSource, /React\.FocusEvent<HTMLDetailsElement>/)
+  assert.match(helperSource, /event\.relatedTarget/)
+  assert.match(helperSource, /event\.currentTarget\.contains\(nextFocusedElement\)/)
+  assert.match(helperSource, /onBlur=\{closeMenuOnFocusLeave\}/)
+})
+
 test("studio menu selects close their dropdown after choosing a value", () => {
   const source = readFileSync("components/learn/views/studio-view.tsx", "utf8")
   const start = source.indexOf("function MenuSelect(")

@@ -3732,9 +3732,14 @@ function ActionMenu({
     const summary = event.currentTarget.querySelector("summary")
     if (summary instanceof HTMLElement) summary.focus()
   }
+  const closeMenuOnFocusLeave = (event: React.FocusEvent<HTMLDetailsElement>) => {
+    const nextFocusedElement = event.relatedTarget
+    if (nextFocusedElement instanceof Node && event.currentTarget.contains(nextFocusedElement)) return
+    event.currentTarget.removeAttribute("open")
+  }
 
   return (
-    <details className="group relative inline-block" onKeyDown={closeMenuOnEscape}>
+    <details className="group relative inline-block" onBlur={closeMenuOnFocusLeave} onKeyDown={closeMenuOnEscape}>
       <summary
         aria-label={label}
         className={`flex h-9 cursor-pointer list-none items-center gap-2 rounded-md border px-3 text-sm font-medium [&::-webkit-details-marker]:hidden ${
