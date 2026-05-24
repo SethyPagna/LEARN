@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { AlertTriangle, Bot, Brain, CheckCircle2, CheckSquare, ChevronDown, FileText, Gauge, Info, Languages, ListFilter, MoreHorizontal, Plus, Route, SlidersHorizontal, Sparkles, UploadCloud, Wand2 } from "lucide-react"
+import { Bot, Brain, CheckCircle2, CheckSquare, ChevronDown, FileText, Gauge, Info, Languages, ListFilter, MoreHorizontal, Plus, Route, SlidersHorizontal, Sparkles, UploadCloud, Wand2 } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Note, StudioInsertTarget, View } from "../types"
 import { api } from "../api"
@@ -13,7 +13,6 @@ import { buildInsertBackPayload } from "@/lib/ai/insert-back"
 import {
   aiTutorDifficulties,
   aiTutorLanguages,
-  aiTutorModeGroups,
   aiTutorModeOptions,
   aiTutorOutputLengths,
   aiTutorSourceScopes,
@@ -30,6 +29,7 @@ import {
   summarizeAiTutorUploadedSource,
   summarizeAiTutorWorkflow,
   type AiTutorModeGroupId,
+  visibleAiTutorModeGroups,
 } from "@/lib/ai/tutor-workflow"
 import type { AiTaskKey } from "@/lib/ai/prompt-library"
 import { buildImportFollowupAction, getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, previewImportedLearningContent, type ImportFollowupKind, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
@@ -479,7 +479,7 @@ export function AiTutorView({
       <Panel className="p-4">
         <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
           <div>
-            <h2 className="text-2xl font-semibold text-foreground">AI tutor</h2>
+            <h2 className="text-2xl font-semibold text-foreground">Tutor</h2>
             <div className="mt-2 flex flex-wrap gap-2">
               <StatusPill label={workflowSummary.statusLabel} tone={readinessTone(workflowSummary.status)} />
               <StatusPill label={workflowSummary.nextAction} />
@@ -487,8 +487,8 @@ export function AiTutorView({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 self-start rounded-lg border border-border bg-background p-2 shadow-sm lg:justify-end">
-            <TutorMenu label={`Task: ${activeMode.label}`} icon={tutorModeIcons[activeMode.id]} menuId="task" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
-              {aiTutorModeGroups.map((group) => (
+            <TutorMenu label={activeMode.label} icon={tutorModeIcons[activeMode.id]} menuId="task" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
+              {visibleAiTutorModeGroups.map((group) => (
                 <div key={group.id} className="grid gap-1">
                   <ControlButton
                     onClick={() => setModeGroup(group.id)}
@@ -560,29 +560,22 @@ export function AiTutorView({
           </div>
         </div>
 
-        <div className="mt-3 h-px bg-border" />
-
-        <div className="mt-4 grid gap-2 rounded-md border border-border bg-muted/40 p-2 text-xs font-semibold text-muted-foreground sm:grid-cols-2 xl:grid-cols-4">
-          {workflowSummary.overview.map((item) => (
-            <CompactState key={item.id} detail={item.detail} label={item.label} tone={item.tone} value={item.value} />
-          ))}
-        </div>
-
-        <details className="mt-3 rounded-md border border-border bg-background text-sm">
+        <details open className="mt-4 rounded-lg border border-border bg-background text-sm">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 font-semibold text-foreground [&::-webkit-details-marker]:hidden">
-            <span>Review setup</span>
+            <span>Setup</span>
             <span className="flex flex-wrap items-center justify-end gap-1.5">
-              <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{gatewayReadiness.readyProviderCount} ready</span>
-              <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{promptBuild.ok ? "prompt ready" : `${promptBuild.missing.length} missing`}</span>
+              <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{workflowSummary.taskLabel}</span>
+              <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{workflowSummary.contextLabel}</span>
+              <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{workflowSummary.providerLabel}</span>
             </span>
           </summary>
           <div className="grid gap-3 border-t border-border p-3">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-              {workflowSummary.cards.map((card) => (
-                <WorkflowCard key={card.id} label={card.label} value={card.value} detail={card.detail} tone={card.tone} />
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              {workflowSummary.overview.map((item) => (
+                <CompactState key={item.id} detail={item.detail} label={item.label} tone={item.tone} value={item.value} />
               ))}
             </div>
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
               <label className="grid gap-1 text-sm text-foreground">
                 <span className="font-semibold">Audience</span>
                 <input value={targetAudience} onChange={(event) => setTargetAudience(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
@@ -591,35 +584,28 @@ export function AiTutorView({
                 <span className="font-semibold">Requirements</span>
                 <input value={requiredOutput} onChange={(event) => setRequiredOutput(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
               </label>
-              <details className="rounded-md border border-border bg-muted/40 p-3 text-sm md:col-span-2">
-                <summary className="cursor-pointer font-semibold text-foreground">Prompt preview {promptBuild.ok ? "" : `- missing ${promptBuild.missing.length}`}</summary>
-                <div className="mt-3 grid gap-2 md:grid-cols-2">
-                  <PreviewBlock title="Task" body={previewParts.task || activeMode.label} />
-                  <PreviewBlock title="Output" body={previewParts.output || promptBuild.outputContract || "Structured learning response"} />
-                  <PreviewBlock title="Requirements" body={previewParts.requirements.join("\n")} />
-                  <PreviewBlock title="Warnings" body={previewParts.warnings.length ? previewParts.warnings.join("\n") : "None"} />
-                </div>
-                {promptBuild.warnings.length ? <p className="mt-2 rounded-md bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">{promptBuild.warnings.join(" ")}</p> : null}
-              </details>
-              <div className={`rounded-md border p-3 md:col-span-2 ${gatewayReadiness.status === "ready" ? "border-success/50 bg-success/10" : gatewayReadiness.status === "warning" ? "border-warning/50 bg-warning/10" : "border-destructive/50 bg-destructive/10"}`}>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-foreground">{gatewayReadiness.label}</p>
-                  <div className="flex flex-wrap gap-2 text-xs font-semibold">
-                    <span className="rounded-md bg-background px-2 py-1 text-foreground">{gatewayReadiness.readyProviderCount} ready</span>
-                    <span className="rounded-md bg-background px-2 py-1 text-foreground">{gatewayReadiness.selectedProviderCount} selected</span>
-                  </div>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {gatewayReadiness.checks.map((check) => (
-                    <span key={check} className="rounded-md bg-background px-2 py-1 text-xs font-medium text-muted-foreground">{check}</span>
-                  ))}
-                </div>
+              <div className={`rounded-md border px-3 py-2 ${gatewayReadiness.status === "ready" ? "border-success/50 bg-success/10" : gatewayReadiness.status === "warning" ? "border-warning/50 bg-warning/10" : "border-destructive/50 bg-destructive/10"}`}>
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Gateway</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">{gatewayReadiness.readyProviderCount}/{gatewayReadiness.selectedProviderCount || gatewayReadiness.readyProviderCount} ready</p>
               </div>
             </div>
+            <details className="rounded-md border border-border bg-muted/40 p-3 text-sm">
+              <summary className="cursor-pointer font-semibold text-foreground">Prompt preview {promptBuild.ok ? "" : `- ${promptBuild.missing.length} missing`}</summary>
+              <div className="mt-3 grid gap-2 md:grid-cols-2">
+                <PreviewBlock title="Task" body={previewParts.task || activeMode.label} />
+                <PreviewBlock title="Requirements" body={previewParts.requirements.join("\n")} />
+                <PreviewBlock title="Output" body={previewParts.output || promptBuild.outputContract || "Structured learning response"} />
+                <PreviewBlock title="Warnings" body={previewParts.warnings.length ? previewParts.warnings.join("\n") : gatewayReadiness.checks.join("\n") || "None"} />
+              </div>
+              {promptBuild.warnings.length ? <p className="mt-2 rounded-md bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">{promptBuild.warnings.join(" ")}</p> : null}
+            </details>
           </div>
         </details>
 
-        <textarea value={message} onChange={(event) => setMessage(event.target.value)} className="mt-5 min-h-40 w-full rounded-md border border-input bg-background p-4 text-foreground outline-none focus:border-ring" />
+        <label className="mt-5 grid gap-2 text-sm font-semibold text-foreground">
+          Input prompt
+          <textarea value={message} onChange={(event) => setMessage(event.target.value)} className="min-h-40 w-full rounded-md border border-input bg-background p-4 font-normal text-foreground outline-none focus:border-ring" />
+        </label>
         <div className="mt-3 flex flex-wrap gap-2">
           <button disabled={primaryActionPlan.disabled} onClick={runPrimaryAction} className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
             <Bot className="h-4 w-4" />
@@ -658,7 +644,7 @@ export function AiTutorView({
 
       <Panel className="p-4">
         <div className="flex items-center justify-between gap-3">
-          <p className="flex items-center gap-2 font-semibold text-foreground"><Brain className="h-4 w-4 text-success" /> AI center</p>
+          <p className="flex items-center gap-2 font-semibold text-foreground"><Brain className="h-4 w-4 text-success" /> Gateway and import</p>
           <button onClick={loadProviders} className="h-8 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
             Refresh
           </button>
@@ -708,7 +694,7 @@ export function AiTutorView({
                 <span className="rounded-md bg-background px-2 py-1 font-semibold text-muted-foreground">{uploadedSourceSummary.detail}</span>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span>{uploadedSourceSummary.attached ? "AI will include this when Uploaded files is selected." : "Use this for cleanup, practice, flashcards, and summaries."}</span>
+                <span>{uploadedSourceSummary.attached ? "Attached when Uploaded files is selected." : "Paste material for cleanup, practice, or flashcards."}</span>
                 {uploadedSourceSummary.attached ? (
                   <button onClick={clearUploadedSource} className="rounded-md border border-border bg-secondary px-2 py-1 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
                     Clear
@@ -1080,21 +1066,6 @@ function workflowTone(tone: "good" | "watch" | "blocked" | "neutral"): UiTone {
   if (tone === "blocked") return "critical"
   if (tone === "watch") return "watch"
   return "neutral"
-}
-
-function WorkflowCard({ detail, label, tone, value }: { detail: string; label: string; tone: "good" | "watch" | "blocked" | "neutral"; value: string }) {
-  const Icon = tone === "blocked" ? AlertTriangle : tone === "good" ? CheckCircle2 : Info
-  const uiTone = workflowTone(tone)
-  return (
-    <div className={`group relative rounded-md border p-3 ${statusToneClasses(uiTone)}`}>
-      <div className="flex items-center justify-between gap-2">
-        <p className="truncate text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">{label}</p>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </div>
-      <p className="mt-2 truncate text-sm font-semibold text-foreground">{value}</p>
-      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-30 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{detail}</p>
-    </div>
-  )
 }
 
 function SectionLabel({ body, compact, icon: Icon, title }: { body: string; compact?: boolean; icon: React.ComponentType<{ className?: string }>; title: string }) {
