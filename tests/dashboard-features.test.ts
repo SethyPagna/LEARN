@@ -111,8 +111,9 @@ test("buildDashboardMetricTiles combines learner progress drafts and focus time"
     userMetrics: { streakCurrent: 6, xpTotal: 260 },
   })
 
-  assert.deepEqual(metrics.map((metric) => metric.id), ["streak", "xp", "reviews", "drafts", "focus"])
-  assert.equal(metrics.find((metric) => metric.id === "xp")?.value, "260")
+  assert.deepEqual(metrics.map((metric) => metric.id), ["streak", "progress", "reviews", "drafts", "hours"])
+  assert.equal(metrics.find((metric) => metric.id === "progress")?.value, "0%")
+  assert.equal(metrics.find((metric) => metric.id === "hours")?.value, "45m")
   assert.equal(metrics.find((metric) => metric.id === "reviews")?.value, "2")
   assert.equal(metrics.find((metric) => metric.id === "drafts")?.detail, "2 Studio and 1 practice draft")
 })
