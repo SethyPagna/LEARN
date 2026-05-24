@@ -288,6 +288,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-24: Continued navigation cleanup by removing the standalone Learn entry, routing Reviews into Practice, and keeping old /learn and /reviews paths compatible.
 - 2026-05-24: Continued Dashboard polish by making metrics, weak topics, recent work, review queue, and agenda cards horizontally scannable with stronger color personality and compact quick actions below reviews.
 - 2026-05-24: Continued Calendar polish by matching the compact study-calendar planning layout, adding colored event type controls, and showing selected-day time lanes.
+- 2026-05-24: Continued Dashboard compaction by replacing XP with progress and planned hours, turning route actions into compact popovers, and keeping quick actions as their own horizontal mini strip.
 
 ## Implementation Slices
 
