@@ -25,7 +25,7 @@ export const socialWorkspaceTabs: Array<WorkspaceTabOption<SocialWorkspaceTab>> 
 
 export const socialCommandTabs: Array<WorkspaceTabOption<SocialCommandTab>> = [
   { id: "people", label: "Find" },
-  { id: "post", label: "Message" },
+  { id: "post", label: "Post" },
   { id: "invite", label: "Invite" },
   { id: "connections", label: "Friends" },
 ]
