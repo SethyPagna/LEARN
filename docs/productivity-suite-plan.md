@@ -270,6 +270,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-23: Continued Studio launcher cleanup by replacing the decorative Owner menu with a working Status filter for all, draft, and saved project shelves.
 - 2026-05-24: Verified the latest Studio launcher instructions across sessions: the project page is project-first, the canvas preview panel is removed, a New project card sits with recents, and editing tools stay inside the editor workspace after a project opens.
 - 2026-05-24: Continued Canva-style Studio editing by adding a collapsible icon rail/library drawer and a floating slide toolbar with working edit, color, effect, animation, position, notes, and timer actions.
+- 2026-05-24: Continued Studio interaction hardening by making shared Studio buttons explicit non-submit controls and closing compact dropdown menus immediately after a user selects an action.
 
 ## Implementation Slices
 
