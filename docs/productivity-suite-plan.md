@@ -281,6 +281,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-24: Continued Studio menu accessibility by adding labels and visible focus rings to select controls inside compact Studio menus.
 - 2026-05-24: Continued Studio context-menu polish by adding highlighted and keyboard focus states to shared right-click menu items.
 - 2026-05-24: Continued Tutor cleanup by hiding the redundant all-task category, combining setup signals into one compact panel, and keeping prompt preview behind a single checkpoint.
+- 2026-05-24: Continued Social cleanup by renaming the main social workspace tabs to plain Friends, Chats, Groups, Calls, and Games labels while preserving route compatibility.
 
 ## Implementation Slices
 
