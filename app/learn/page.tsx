@@ -1,5 +1,5 @@
-import { LearnShell } from "@/components/learn/learn-shell"
+import { redirect } from "next/navigation"
 
 export default function LearnPage() {
-  return <LearnShell initialView="learn" />
+  redirect("/dashboard")
 }
