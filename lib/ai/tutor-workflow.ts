@@ -50,6 +50,8 @@ export const aiTutorModeGroups: Array<{ id: AiTutorModeGroupId; label: string; m
   { id: "practice", label: "Practice", modes: ["quiz_generation", "flashcard_generation", "practice_generator"] },
 ]
 
+export const visibleAiTutorModeGroups = aiTutorModeGroups.filter((group) => group.id !== "all")
+
 export function getAiTutorModeOption(taskId: string) {
   return aiTutorModeOptions.find((mode) => mode.id === taskId) || aiTutorModeOptions[0]
 }
