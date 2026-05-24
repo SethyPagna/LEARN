@@ -8,7 +8,7 @@ import { api } from "../api"
 import { ControlButton, Panel, StatusPill } from "../ui"
 import { menuSurfaceClasses, statusToneClasses, toneTextClasses, type UiTone } from "@/lib/design-system"
 import { buildAiGatewayReadiness } from "@/lib/ai/gateway-readiness"
-import { buildGuidedPrompt, listInsertActions, normalizeStudioInsertTarget, promptContracts, studioInsertTargets } from "@/lib/ai/prompt-builder"
+import { buildGuidedPrompt, listInsertActions, normalizeStudioInsertTarget, promptContracts, studioInsertTargets, type GuidedPromptResult } from "@/lib/ai/prompt-builder"
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
 import {
   aiTutorDifficulties,
@@ -25,7 +25,6 @@ import {
   getRecommendedAiTutorTokens,
   resolveAiTutorEffectiveTokens,
   resolveAiTutorSourceScopeAfterUpload,
-  splitPromptPreview,
   summarizeAiTutorUploadedSource,
   summarizeAiTutorWorkflow,
   type AiTutorModeGroupId,
@@ -177,7 +176,19 @@ export function AiTutorView({
     sourceScope,
     uploadedContextLength: uploadedContext.length,
   }), [gatewayReadiness, loading, promptBuild, sourceScope, uploadedContext.length])
-  const previewParts = useMemo(() => splitPromptPreview(promptBuild.preview), [promptBuild.preview])
+  const completePromptPreview = useMemo(() => buildCompletePromptPreview({
+    activeTask: activeMode.label,
+    audience: targetAudience,
+    effectiveMaxTokens,
+    gatewayChecks: gatewayReadiness.checks,
+    input: message,
+    insertTarget,
+    prompt: promptBuild,
+    providerFamily,
+    requiredOutput,
+    sourceContext,
+    taskPrompt: activeMode.prompt,
+  }), [activeMode.label, activeMode.prompt, effectiveMaxTokens, gatewayReadiness.checks, insertTarget, message, promptBuild, providerFamily, requiredOutput, sourceContext, targetAudience])
   const importPreview = useMemo(() => previewImportedLearningContent({ raw: importText, title: importTitle, target: importTarget }), [importTarget, importText, importTitle])
   const uploadedSourceSummary = useMemo(() => summarizeAiTutorUploadedSource({
     draftText: importText,
@@ -589,16 +600,6 @@ export function AiTutorView({
                 <p className="mt-1 text-sm font-semibold text-foreground">{gatewayReadiness.readyProviderCount}/{gatewayReadiness.selectedProviderCount || gatewayReadiness.readyProviderCount} ready</p>
               </div>
             </div>
-            <details className="rounded-md border border-border bg-muted/40 p-3 text-sm">
-              <summary className="cursor-pointer font-semibold text-foreground">Prompt preview {promptBuild.ok ? "" : `- ${promptBuild.missing.length} missing`}</summary>
-              <div className="mt-3 grid gap-2 md:grid-cols-2">
-                <PreviewBlock title="Task" body={previewParts.task || activeMode.label} />
-                <PreviewBlock title="Requirements" body={previewParts.requirements.join("\n")} />
-                <PreviewBlock title="Output" body={previewParts.output || promptBuild.outputContract || "Structured learning response"} />
-                <PreviewBlock title="Warnings" body={previewParts.warnings.length ? previewParts.warnings.join("\n") : gatewayReadiness.checks.join("\n") || "None"} />
-              </div>
-              {promptBuild.warnings.length ? <p className="mt-2 rounded-md bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">{promptBuild.warnings.join(" ")}</p> : null}
-            </details>
           </div>
         </details>
 
@@ -606,6 +607,11 @@ export function AiTutorView({
           Input prompt
           <textarea value={message} onChange={(event) => setMessage(event.target.value)} className="min-h-40 w-full rounded-md border border-input bg-background p-4 font-normal text-foreground outline-none focus:border-ring" />
         </label>
+        <details className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm">
+          <summary className="cursor-pointer font-semibold text-foreground">Prompt preview {promptBuild.ok ? "" : `- ${promptBuild.missing.length} missing`}</summary>
+          <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-background p-3 text-xs leading-5 text-muted-foreground">{completePromptPreview}</pre>
+          {promptBuild.warnings.length ? <p className="mt-2 rounded-md bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">{promptBuild.warnings.join(" ")}</p> : null}
+        </details>
         <div className="mt-3 flex flex-wrap gap-2">
           <button disabled={primaryActionPlan.disabled} onClick={runPrimaryAction} className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
             <Bot className="h-4 w-4" />
@@ -990,6 +996,37 @@ function buildPromptFields(message: string, recentContext: string, targetAudienc
     difficulty,
     constraints: requiredOutput,
   }
+}
+
+function buildCompletePromptPreview(input: {
+  activeTask: string
+  audience: string
+  effectiveMaxTokens: number
+  gatewayChecks: string[]
+  input: string
+  insertTarget: StudioInsertTarget
+  prompt: GuidedPromptResult
+  providerFamily: string
+  requiredOutput: string
+  sourceContext: string
+  taskPrompt: string
+}) {
+  const sections = [
+    ["Task", `${input.activeTask}\n${input.taskPrompt}`],
+    ["Audience", input.audience],
+    ["Requirements", input.requiredOutput],
+    ["Input", input.input.trim() || "No prompt text yet."],
+    ["Context", input.sourceContext.trim() || "No extra context selected."],
+    ["Output contract", input.prompt.outputContract || "Structured learning response"],
+    ["Insert target", input.insertTarget],
+    ["Gateway", [
+      input.providerFamily === "auto" ? "Provider: auto failover" : `Provider family: ${input.providerFamily}`,
+      `Max tokens: ${input.effectiveMaxTokens}`,
+      input.gatewayChecks.length ? input.gatewayChecks.join(" ") : "Provider route ready.",
+    ].join("\n")],
+  ]
+
+  return sections.map(([title, body]) => `## ${title}\n${body}`).join("\n\n")
 }
 
 function escapeHtml(value: string) {
