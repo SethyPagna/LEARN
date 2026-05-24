@@ -3,7 +3,7 @@
 import { Fragment, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import type React from "react"
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core"
-import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import * as ContextMenu from "@radix-ui/react-context-menu"
 import { useVirtualizer } from "@tanstack/react-virtual"
@@ -81,7 +81,6 @@ import {
   Search,
   Settings2,
   Share2,
-  SlidersHorizontal,
   Sparkles,
   SplitSquareHorizontal,
   SplitSquareVertical,
@@ -1599,7 +1598,7 @@ export function StudioView({
           setToolDrawerOpen(true)
         }} showKindRail={false} /> : null}
         {!toolRailCollapsed && toolDrawerOpen ? (
-          <Panel className="min-h-[74vh] p-3">
+          <Panel className="min-h-[74vh] p-3 xl:sticky xl:top-3 xl:max-h-[calc(100vh-6rem)] xl:overflow-auto">
             <div className="mb-3 flex items-center justify-between gap-2">
               <span className="rounded-md bg-secondary px-2.5 py-1.5 text-xs font-bold text-secondary-foreground">{getStudioToolPanel(activeToolPanel).label}</span>
               <button onClick={() => setToolDrawerOpen(false)} className="icon-button" title="Close library drawer" type="button">
@@ -1795,7 +1794,7 @@ function StudioLibrary({
 
   if (activeToolPanel !== "projects") {
     return (
-      <div className="grid gap-3">
+      <div className="grid gap-3 xl:sticky xl:top-24 xl:max-h-[calc(100vh-8rem)] xl:overflow-auto">
         <StudioToolPanelHeader panel={activeTool} />
         <div className="grid grid-cols-2 gap-2">
           {toolActions.map((action) => {
@@ -1866,13 +1865,35 @@ function StudioLibrary({
 
 function createBlankStudioSlide(index: number): WorkspaceDeck["slides"][number] {
   return {
-    accent: "New",
+    accent: "Canvas",
     animation: "rise",
-    background: "#111827",
-    body: "Add the point, image cue, or quiz prompt.",
+    background: "#f5f7fb",
+    body: "",
     layout: "title",
+    objects: [
+      {
+        id: `title_${Date.now().toString(36)}_${index}`,
+        type: "text",
+        x: 12,
+        y: 18,
+        w: 66,
+        h: 14,
+        text: "Add a clear title",
+        style: { background: "transparent", color: "#0f172a", fontSize: 34, fontWeight: 800 },
+      },
+      {
+        id: `body_${Date.now().toString(36)}_${index}`,
+        type: "text",
+        x: 12,
+        y: 39,
+        w: 54,
+        h: 18,
+        text: "Add a point, image cue, quiz prompt, or drag in a design block.",
+        style: { background: "transparent", color: "#334155", fontSize: 17 },
+      },
+    ],
     speakerNotes: "",
-    theme: "midnight",
+    theme: "plain",
     title: `Page ${index}`,
     transition: "fade",
   }
@@ -1956,11 +1977,11 @@ function StudioProjectBrowser({
   const templateChoices = browserState.templates
   const templateShelf = selectStudioTemplateShelf(templateChoices)
   const selectedTemplate = templateChoices.find((template) => `${template.kind}:${template.label}` === selectedTemplateKey) || selectStudioBrowserTemplate(templateChoices, "")
-  const projectFilterOptions = listStudioProjectFilterOptions()
-  const activeProjectFilter = getStudioProjectFilterOption(projectKindFilter)
+  const templateFilterOptions = listStudioProjectFilterOptions()
+  const activeTemplateFilter = getStudioProjectFilterOption(projectKindFilter)
   const browserSummary = buildStudioProjectBrowserSummary({
     draftCount: draftProjectCount,
-    filterLabel: activeProjectFilter.label,
+    filterLabel: projectKindFilter === "all" ? "All projects" : activeTemplateFilter.label,
     formatLabel: compatibleCanvasFormat.label,
     projectCount: filteredProjects.length,
     query,
@@ -1987,16 +2008,20 @@ function StudioProjectBrowser({
                 ))}
               </div>
               <div className="mt-3 flex flex-wrap justify-center gap-2">
-                <ActionMenu compact label={activeProjectFilter.label} icon={SlidersHorizontal}>
-                  {projectFilterOptions.map((option) => {
+                <ActionMenu compact label={projectKindFilter === "all" ? "Templates" : activeTemplateFilter.label} icon={LayoutPanelLeft}>
+                  {templateFilterOptions.map((option) => {
                     const Icon = option.value === "all" ? LayoutPanelLeft : studioKindIcons[option.value]
                     const count = option.value === "all" ? items.length : browserState.counts[option.value]
-                    return <MenuAction key={option.value} active={projectKindFilter === option.value} icon={Icon} label={option.label} meta={`${count} project${count === 1 ? "" : "s"}`} onClick={() => { setProjectKindFilter(option.value); if (option.value !== "all") onSelectKind(option.value) }} />
+                    return <MenuAction key={option.value} active={projectKindFilter === option.value} icon={Icon} label={option.label} meta={`${count} matching design${count === 1 ? "" : "s"}`} onClick={() => { setProjectKindFilter(option.value); if (option.value !== "all") onSelectKind(option.value) }} />
                   })}
                 </ActionMenu>
-                <ActionMenu compact label="Category" icon={Grid2X2}>
+                <ActionMenu compact label="Formats" icon={Grid2X2}>
                   {formatGroups.map((group) => (
                     <MenuAction key={group.id} active={group.id === compatibleCanvasFormat.group} icon={LayoutPanelLeft} label={group.label} meta={group.description} onClick={() => onCanvasFormat(group.formats[0]?.id || compatibleCanvasFormat.id)} />
+                  ))}
+                  <div className="my-1 h-px bg-border" />
+                  {formatGroups.flatMap((group) => group.formats).map((format) => (
+                    <MenuAction key={format.id} active={format.id === compatibleCanvasFormat.id} icon={Grid2X2} label={format.label} meta={format.description} onClick={() => onCanvasFormat(format.id)} />
                   ))}
                 </ActionMenu>
                 <ActionMenu compact label={projectStatusFilter === "all" ? "Status" : projectStatusFilter === "drafts" ? "Drafts" : "Saved"} icon={BookOpen}>
@@ -2127,7 +2152,7 @@ function StudioToolRail({
     text: Type,
   }
   return (
-    <nav className="flex gap-1 overflow-x-auto border-b border-border bg-background p-2 lg:flex-col lg:border-b-0 lg:border-r" aria-label="Studio tools">
+    <nav className="flex gap-1 overflow-x-auto border-b border-border bg-background p-2 lg:sticky lg:top-3 lg:max-h-[calc(100vh-6rem)] lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r" aria-label="Studio tools">
       {showToolPanels ? studioToolPanels.map((panel) => {
         const Icon = toolIcons[panel.id]
         return (
@@ -2584,20 +2609,22 @@ function StudioPaneSurface({
               />
             </div>
             {inspectorOpen ? (
-              <StudioInspector
-                activeKind={activeKind}
-                activeSummary={activeSummary}
-                cells={cells}
-                currentTitle={activeTitle}
-                inspectorTab={inspectorTab}
-                onCopyLink={() => navigator.clipboard?.writeText(window.location.href)}
-                onDownload={onDownload}
-                onExport={onExport}
-                onSetInspectorTab={onSetInspectorTab}
-                selectedCell={selectedCell}
-                selectedSlideIndex={selectedSlideIndex}
-                slides={slides}
-              />
+              <aside className="min-h-0 border-l border-border bg-card xl:sticky xl:top-3 xl:max-h-[calc(100vh-7rem)] xl:overflow-auto">
+                <StudioInspector
+                  activeKind={activeKind}
+                  activeSummary={activeSummary}
+                  cells={cells}
+                  currentTitle={activeTitle}
+                  inspectorTab={inspectorTab}
+                  onCopyLink={() => navigator.clipboard?.writeText(window.location.href)}
+                  onDownload={onDownload}
+                  onExport={onExport}
+                  onSetInspectorTab={onSetInspectorTab}
+                  selectedCell={selectedCell}
+                  selectedSlideIndex={selectedSlideIndex}
+                  slides={slides}
+                />
+              </aside>
             ) : null}
           </div>
           )}
@@ -2873,35 +2900,40 @@ function StudioCanvas({
     updateSelectedSlide((slide) => ({ ...slide, background: color }))
   }
   return (
-    <div className="grid min-h-[58vh] gap-3 lg:grid-cols-[150px_1fr_230px]">
-      <div className="space-y-2 overflow-auto">
-        <button onClick={() => { onSetSlides([...slides, createBlankStudioSlide(slides.length + 1)]); onSetSelectedSlideIndex(slides.length) }} className="flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm font-semibold text-primary-foreground">
-          <Plus className="h-4 w-4" /> Slide
-        </button>
-        <DndContext collisionDetection={closestCenter} onDragEnd={handleSlideDragEnd}>
-          <SortableContext items={slideIds} strategy={verticalListSortingStrategy}>
-            {slides.map((slide, index) => (
-              <SortableSlideThumb
-                key={`slide-${index}`}
-                id={`slide-${index}`}
-                active={selectedSlideIndex === index}
-                index={index}
-                onArchive={() => {
-                  onSetSlides((current) => current.length > 1 ? current.filter((_, next) => next !== index) : current)
-                  onSetSelectedSlideIndex(Math.max(0, Math.min(selectedSlideIndex, slides.length - 2)))
-                }}
-                onCopy={() => navigator.clipboard?.writeText(`${slide.title}\n${slide.body}`)}
-                onDuplicate={() => {
-                  onSetSlides((current) => duplicateSlide(current, index))
-                  onSetSelectedSlideIndex(index + 1)
-                }}
-                onSelect={() => onSetSelectedSlideIndex(index)}
-                slide={slide}
-              />
-            ))}
-          </SortableContext>
-        </DndContext>
+    <div className="grid min-h-[58vh] gap-3">
+      <div className="sticky top-0 z-30 rounded-lg border border-border bg-card/95 p-2 shadow-sm backdrop-blur">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <button onClick={() => { onSetSlides([...slides, createBlankStudioSlide(slides.length + 1)]); onSetSelectedSlideIndex(slides.length) }} className="flex h-16 w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-primary/50 bg-primary/10 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground" type="button">
+            <Plus className="h-4 w-4" /> Page
+          </button>
+          <DndContext collisionDetection={closestCenter} onDragEnd={handleSlideDragEnd}>
+            <SortableContext items={slideIds} strategy={horizontalListSortingStrategy}>
+              <div className="flex items-stretch gap-2">
+                {slides.map((slide, index) => (
+                  <SortableSlideThumb
+                    key={`slide-${index}`}
+                    id={`slide-${index}`}
+                    active={selectedSlideIndex === index}
+                    index={index}
+                    onArchive={() => {
+                      onSetSlides((current) => current.length > 1 ? current.filter((_, next) => next !== index) : current)
+                      onSetSelectedSlideIndex(Math.max(0, Math.min(selectedSlideIndex, slides.length - 2)))
+                    }}
+                    onCopy={() => navigator.clipboard?.writeText(`${slide.title}\n${slide.body}`)}
+                    onDuplicate={() => {
+                      onSetSlides((current) => duplicateSlide(current, index))
+                      onSetSelectedSlideIndex(index + 1)
+                    }}
+                    onSelect={() => onSetSelectedSlideIndex(index)}
+                    slide={slide}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </div>
       </div>
+      <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_250px]">
       <div className="min-w-0">
         <div className="mb-3 flex justify-center">
           <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-border bg-card/95 px-2 py-1.5 text-sm shadow-lg backdrop-blur">
@@ -2967,7 +2999,7 @@ function StudioCanvas({
             <span className="rounded bg-white/15 px-2 py-1 text-xs font-semibold text-white">{selectedSlideIndex + 1}/{slides.length}</span>
             <button onClick={() => goToSlide(1)} disabled={selectedSlideIndex >= slides.length - 1} className="h-8 rounded-md px-2 text-xs font-semibold text-white hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40" type="button">Next</button>
           </div>
-        {selectedSlide ? (
+        {selectedSlide && !(selectedSlide.objects?.length) ? (
           <div className="relative z-10 flex h-full flex-col">
             <input value={selectedSlide.accent || ""} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, accent: event.target.value } : item))} readOnly={selectedSlide.locked} className="mb-3 w-full bg-transparent text-xs font-semibold uppercase tracking-[0.16em] outline-none read-only:opacity-60" style={{ color: selectedPalette.accent }} />
             <input value={selectedSlide.title} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, title: event.target.value } : item))} readOnly={selectedSlide.locked} className="w-full bg-transparent text-4xl font-semibold leading-tight outline-none read-only:opacity-60" style={{ color: selectedPalette.foreground }} />
@@ -2989,6 +3021,7 @@ function StudioCanvas({
             onReorder={(direction) => reorderSelectedObject(object, direction)}
             onResize={(preset) => resizeSelectedObject(object, preset)}
             onSelect={() => setSelectedObjectId(object.id)}
+            onTextChange={(text) => updateSelectedObject(object, { text })}
           />
         ))}
         </div>
@@ -3133,6 +3166,7 @@ function StudioCanvas({
         ) : null}
       </div>
     </div>
+    </div>
   )
 }
 
@@ -3149,6 +3183,7 @@ type SlideObjectActionProps = {
   onReorder: (direction: SlideObjectOrderDirection) => void
   onResize: (preset: SlideObjectSizePreset) => void
   onSelect: () => void
+  onTextChange: (value: string) => void
 }
 
 function SlideCanvasObject({
@@ -3161,6 +3196,7 @@ function SlideCanvasObject({
   onReorder,
   onResize,
   onSelect,
+  onTextChange,
 }: {
   active: boolean
   object: SlideObject
@@ -3176,6 +3212,8 @@ function SlideCanvasObject({
     borderRadius: Number(readStyleValue(style, "borderRadius", "8")),
     boxShadow: readStyleValue(style, "boxShadow", "none"),
     fontSize: Number(readStyleValue(style, "fontSize", "14")),
+    fontWeight: readStyleValue(style, "fontWeight", object.type === "text" ? "600" : "500"),
+    lineHeight: readStyleValue(style, "lineHeight", "1.15"),
     opacity: Number(readStyleValue(style, "opacity", "1")),
   }
   const sharedProps = {
@@ -3184,6 +3222,22 @@ function SlideCanvasObject({
     onContextMenu: onSelect,
     style: canvasStyle,
     type: "button" as const,
+  }
+  if (object.type === "text") {
+    return (
+      <SlideObjectContextMenu onAlign={onAlign} onDelete={onDelete} onDuplicate={onDuplicate} onNudge={onNudge} onReorder={onReorder} onResize={onResize}>
+        <textarea
+          aria-label="Slide text block"
+          className={`${sharedProps.className} resize-none p-2 text-left font-semibold leading-tight outline-none focus:ring-2 focus:ring-white/70`}
+          onChange={(event) => onTextChange(event.target.value)}
+          onClick={onSelect}
+          onContextMenu={onSelect}
+          onFocus={onSelect}
+          style={canvasStyle}
+          value={object.text || ""}
+        />
+      </SlideObjectContextMenu>
+    )
   }
   if (object.type === "image") {
     return (
@@ -3213,7 +3267,7 @@ function SlideCanvasObject({
   )
 }
 
-function SlideObjectContextMenu({ children, onAlign, onDelete, onDuplicate, onNudge, onReorder, onResize }: { children: React.ReactNode } & Omit<SlideObjectActionProps, "onSelect">) {
+function SlideObjectContextMenu({ children, onAlign, onDelete, onDuplicate, onNudge, onReorder, onResize }: { children: React.ReactNode } & Omit<SlideObjectActionProps, "onSelect" | "onTextChange">) {
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger asChild>{children}</ContextMenu.Trigger>
@@ -3294,7 +3348,7 @@ function SortableSlideThumb({
           ref={setNodeRef}
           style={{ transform: CSS.Transform.toString(transform), transition }}
           onClick={onSelect}
-          className={`mb-2 grid w-full grid-cols-[auto_1fr] gap-2 rounded-md border p-2 text-left ${active ? "border-primary bg-primary/10" : "border-border bg-background hover:bg-accent"}`}
+          className={`grid h-16 w-36 shrink-0 grid-cols-[auto_1fr] gap-2 rounded-md border p-2 text-left ${active ? "border-primary bg-primary/10" : "border-border bg-background hover:bg-accent"}`}
           type="button"
           {...attributes}
         >
