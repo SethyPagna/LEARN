@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS quizzes (
   topic text NOT NULL,
   description text NOT NULL DEFAULT '',
   source text NOT NULL DEFAULT 'seed',
+  archived_at text,
   created_at text NOT NULL DEFAULT (datetime('now'))
 );
 
