@@ -41,7 +41,7 @@ export interface NavigationTarget {
 }
 
 export const studioViews = ["studio", "notes", "docs", "sheets", "slides"] as const satisfies readonly View[]
-export const studioAliasViews = ["notes", "docs", "sheets", "slides", "files"] as const satisfies readonly View[]
+export const studioAliasViews = ["notes", "docs", "sheets", "slides"] as const satisfies readonly View[]
 export const learnAliasViews = ["vault", "feed", "discover", "graph", "progress"] as const satisfies readonly View[]
 export const learnWorkspaceViews = [] as const satisfies readonly View[]
 export const practiceViews = ["practice", "quizzes", "games", "reviews"] as const satisfies readonly View[]
@@ -122,17 +122,12 @@ export const navigationGroups: readonly LearnNavigationGroup[] = [
   },
   {
     label: "Learn",
-    caption: "Calendar, progress, and planned learning blocks",
-    items: [
-      { view: "calendar", labelKey: "calendar", iconKey: "calendar", aliases: learnAliasViews },
-    ],
-  },
-  {
-    label: "Create",
-    caption: "Studio, files, and AI workflows",
+    caption: "Studio, AI tutor, files, calendar, and planned learning blocks",
     items: [
       { view: "studio", labelKey: "studio", iconKey: "studio", aliases: studioAliasViews },
       { view: "ai", labelKey: "aiTutor", iconKey: "ai" },
+      { view: "files", labelKey: "files", iconKey: "studio" },
+      { view: "calendar", labelKey: "calendar", iconKey: "calendar", aliases: learnAliasViews },
     ],
   },
   {

@@ -14,13 +14,15 @@ test("navigation keeps primary sidebar destinations compact", () => {
   assert.equal(primaryItems.length <= 9, true)
   assert.deepEqual(primaryItems.map((item) => item.view), [
     "dashboard",
-    "calendar",
     "studio",
     "ai",
+    "files",
+    "calendar",
     "practice",
     "social",
     "settings",
   ])
+  assert.equal(navigationGroups.find((group) => group.label === "Create"), undefined)
   assert.equal(navigationGroups.find((group) => group.label === "Practice")?.caption, "Quizzes, games, retries, and reviews")
 })
 
@@ -38,7 +40,7 @@ test("secondary product routes resolve to their grouped destinations", () => {
   assert.equal(resolveNavigationTarget("reviews").primaryView, "practice")
   assert.equal(resolveNavigationTarget("vault").primaryView, "calendar")
   assert.equal(resolveNavigationTarget("graph").primaryView, "calendar")
-  assert.equal(resolveNavigationTarget("files").primaryView, "studio")
+  assert.equal(resolveNavigationTarget("files").primaryView, "files")
   assert.equal(resolveNavigationTarget("quizzes").primaryView, "practice")
   assert.equal(resolveNavigationTarget("games").primaryView, "practice")
   assert.equal(resolveNavigationTarget("chat").primaryView, "social")
