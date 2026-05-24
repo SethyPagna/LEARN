@@ -888,12 +888,12 @@ export function StudioView({
     setStudioMode("editor")
     if (templateKind === "notes") {
       setNoteDraft((current) => current ? { ...current, title: applied.title } : current)
-      setNoteHistory(pushHistory(noteHistory, applied.body))
+      setNoteHistory(pushHistory(noteHistory, ensureTwoRichDocumentPages(applied.body)))
       return
     }
     if (templateKind === "docs") {
       setDocTitle(applied.title)
-      setDocHistory(pushHistory(docHistory, applied.body))
+      setDocHistory(pushHistory(docHistory, ensureTwoRichDocumentPages(applied.body)))
       return
     }
     if (templateKind === "sheets") {
@@ -902,7 +902,7 @@ export function StudioView({
       return
     }
     setDeckTitle(applied.title)
-    setSlides(buildDesignedSlideTemplateDeck(applied.body, template.label))
+    setSlides(ensureTwoSlidePages(buildDesignedSlideTemplateDeck(applied.body, template.label)))
     setSelectedSlideIndex(0)
   }
 
@@ -1491,7 +1491,7 @@ export function StudioView({
   const canUndoRedo = kind === "notes" || kind === "docs"
   const hasActiveItem = kind === "notes" ? Boolean(noteDraft) : true
   const activeStudioTab = getStudioKindOption(kind)
-  const ActiveStudioIcon = studioKindIcons[activeStudioTab.kind]
+  const projectMenuItems = allItems.slice(0, 12)
 
   if (studioMode === "projects") {
     return (
@@ -1519,16 +1519,18 @@ export function StudioView({
             <ArrowLeft className="h-4 w-4" />
             Back
           </button>
-          <ActionMenu label="Project" icon={ActiveStudioIcon} primary>
+          <ActionMenu label={activeTitle() || "Project"} icon={studioKindIcons[kind]} primary>
             <div className="grid gap-1">
-              {studioKindOptions.map((tab) => {
-                const Icon = studioKindIcons[tab.kind]
-                const active = kind === tab.kind
-                const badge = dirtyBadgeMap.get(tab.kind)
+              <MenuAction active icon={studioKindIcons[kind]} label={activeTitle() || "Current project"} onClick={() => undefined} meta={`${activeStudioTab.label} / ${canvasFormat.label}`} />
+              <MenuAction icon={ArrowLeft} label="All projects" onClick={() => setStudioMode("projects")} meta="Search, formats, and templates" />
+              {projectMenuItems.map((item) => {
+                const Icon = studioKindIcons[item.kind]
+                const badge = dirtyBadgeMap.get(item.kind)
                 return (
-                  <MenuAction key={tab.kind} active={active} icon={Icon} label={tab.label} onClick={() => selectKind(tab.kind)} meta={badge ? `${badge.count} draft${badge.count === 1 ? "" : "s"}` : tab.description} />
+                  <MenuAction key={`${item.kind}-${item.id}`} icon={Icon} label={item.title || studioFallbackTitle} onClick={() => openItemInSplit(item)} meta={badge ? `${badge.count} draft${badge.count === 1 ? "" : "s"}` : "Open in a new pane"} />
                 )
               })}
+              {projectMenuItems.length === 0 ? <MenuAction icon={Plus} label="Create first project" onClick={createActive} meta="Start from the selected template" /> : null}
             </div>
           </ActionMenu>
           <ActionMenu label="Create" icon={Plus} primary>
@@ -1551,19 +1553,13 @@ export function StudioView({
             <MenuSelect label="Canvas" onChange={setCanvasFormatId} options={listStudioCanvasFormats(kind).map((format) => ({ label: format.label, value: format.id }))} />
             <MenuAction icon={SplitSquareHorizontal} label="Split right" onClick={() => setLayout((current) => splitStudioPane(current, current.activePaneId, "horizontal"))} />
             <MenuAction icon={SplitSquareVertical} label="Split down" onClick={() => setLayout((current) => splitStudioPane(current, current.activePaneId, "vertical"))} />
+            <MenuAction icon={LayoutPanelLeft} label={toolDrawerOpen ? "Close tools drawer" : "Open tools drawer"} onClick={() => {
+              setToolRailCollapsed(false)
+              setToolDrawerOpen((open) => !open)
+            }} />
+            <MenuAction icon={PanelRight} label={layout.inspectorOpen ? "Hide inspector" : "Show inspector"} onClick={() => setLayout((current) => ({ ...current, inspectorOpen: !current.inspectorOpen }))} />
             <MenuAction icon={Settings2} label="Reset layout" onClick={() => setLayout(createDefaultStudioLayout(kind, activeTitle() || "Studio"))} />
           </ActionMenu>
-          <button onClick={() => {
-            setToolRailCollapsed((collapsed) => !collapsed)
-            setToolDrawerOpen(true)
-          }} className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-            <LayoutPanelLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">{toolRailCollapsed ? "Tools" : "Hide tools"}</span>
-          </button>
-          <button onClick={() => setLayout((current) => ({ ...current, inspectorOpen: !current.inspectorOpen }))} className="ml-auto flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-            <PanelRight className="h-4 w-4" />
-            <span className="hidden sm:inline">Inspector</span>
-          </button>
         </div>
         {importOpen ? (
           <div className="mt-3 grid gap-2 rounded-md border border-border bg-background p-3 md:grid-cols-[1fr_160px_160px_auto]">
@@ -2225,6 +2221,14 @@ function enrichSlideTemplate(body: string) {
   return enriched.join("\n")
 }
 
+function ensureTwoRichDocumentPages(html: string) {
+  return countRichDocumentPages(html) >= 2 ? html : appendRichDocumentPage(html)
+}
+
+function ensureTwoSlidePages(slides: WorkspaceDeck["slides"]) {
+  return slides.length >= 2 ? slides : [...slides, createBlankStudioSlide(slides.length + 1)]
+}
+
 function extractTemplateSections(kind: StudioKind, body: string) {
   if (kind === "sheets") return body.split("\n")[0]?.split(",").slice(0, 4).filter(Boolean) || ["Rows", "Status", "Next"]
   if (kind === "slides") return body.split("\n").slice(0, 4).map((line) => line.split("|")[0]).filter(Boolean)
@@ -2511,7 +2515,6 @@ function StudioPaneSurface({
   const viewSummary = active ? activeSummary : panePreview.summary
   const viewTitle = active ? activeTitle : panePreview.title
   const activeTab = getStudioKindOption(viewKind)
-  const Icon = studioKindIcons[activeTab.kind]
   const activePaneTab = pane.tabs.find((tab) => tab.id === pane.activeTabId) || pane.tabs[0]
   const itemTabs = pane.tabs.filter((tab) => tab.itemId)
   const visiblePaneTabs = itemTabs.length > 0
@@ -2521,8 +2524,8 @@ function StudioPaneSurface({
     <ContextMenu.Root>
       <ContextMenu.Trigger asChild>
         <section onFocus={onSelectPane} onClick={onSelectPane} className={`relative flex h-full min-w-0 flex-col border-border ${active ? "bg-card" : "bg-background/70"}`}>
-          <div className={`border-b border-border p-3 ${active ? "ring-1 ring-inset ring-primary/40" : ""}`}>
-            <div className="flex items-center gap-2">
+          <div className={`border-b border-border px-3 py-2 ${active ? "ring-1 ring-inset ring-primary/40" : ""}`}>
+            <div className="flex flex-wrap items-center gap-2">
               <input value={pane.label} onChange={(event) => onRenamePane(event.target.value)} className="h-8 w-24 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground outline-none focus:border-ring" title="Rename order group" />
               {pane.pinned ? <span className="inline-flex h-8 items-center rounded-md border border-primary/40 bg-primary/10 px-2 text-xs font-semibold text-primary">Pinned</span> : null}
               <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
@@ -2538,46 +2541,34 @@ function StudioPaneSurface({
                   )
                 })}
               </div>
-              <ActionMenu align="right" compact label="Layout" icon={SplitSquareHorizontal}>
-                <MenuAction icon={SplitSquareHorizontal} label="Split right" onClick={onSplitRight} />
-                <MenuAction icon={SplitSquareVertical} label="Split down" onClick={onSplitDown} />
-                <MenuAction icon={Maximize2} label={pane.pinned ? "Unpin pane" : "Pin pane"} onClick={onPinPane} />
-                <MenuAction icon={Scissors} label="Close other panes" onClick={onCloseOthers} />
-                <MenuAction danger icon={X} label="Close pane" onClick={onClosePane} />
-              </ActionMenu>
-            </div>
-            <div className="mt-3 flex flex-wrap items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                <Icon className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{activeTab.label} Studio</p>
-                <input value={viewTitle} onChange={(event) => onSetActiveTitle(event.target.value)} readOnly={!active} className="mt-1 w-full bg-transparent text-2xl font-semibold text-foreground outline-none" />
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <span className="inline-flex h-6 items-center rounded-md border border-border bg-background px-2 font-medium text-foreground">
-                    {active && saving ? "Saving..." : active && lastSaved ? `Saved ${lastSaved}` : "Draft"}
-                  </span>
-                  <span>{viewSummary}</span>
-                  <details className="relative">
-                    <summary className="inline-flex h-6 w-6 list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${activeTab.label}`}>
-                      <BookOpen className="h-3.5 w-3.5" />
-                    </summary>
-                    <p className="absolute left-0 top-7 z-30 w-64 rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-xl">{activeTab.description}</p>
-                  </details>
-                </div>
-              </div>
+              <input value={viewTitle} onChange={(event) => onSetActiveTitle(event.target.value)} readOnly={!active} className="h-8 min-w-48 flex-1 rounded-md border border-transparent bg-transparent px-2 text-sm font-semibold text-foreground outline-none hover:border-border focus:border-ring" title={`${activeTab.label} title`} />
+              <span className="inline-flex h-8 items-center rounded-md border border-border bg-background px-2 text-xs font-semibold text-muted-foreground">
+                {active && saving ? "Saving..." : active && lastSaved ? `Saved ${lastSaved}` : "Draft"}
+              </span>
+              <span className="hidden h-8 items-center rounded-md bg-secondary px-2 text-xs font-semibold text-secondary-foreground sm:inline-flex">{viewSummary}</span>
               {active ? (
                 <div className="flex items-center gap-1">
                   <MiniAction icon={Save} label="Save" onClick={onSave} />
-                  <ActionMenu align="right" compact label="File" icon={Settings2}>
+                  <ActionMenu align="right" compact label="Pane" icon={Settings2}>
+                    <MenuAction icon={SplitSquareHorizontal} label="Split right" onClick={onSplitRight} />
+                    <MenuAction icon={SplitSquareVertical} label="Split down" onClick={onSplitDown} />
+                    <MenuAction icon={Maximize2} label={pane.pinned ? "Unpin pane" : "Pin pane"} onClick={onPinPane} />
+                    <MenuAction icon={Scissors} label="Close other panes" onClick={onCloseOthers} />
                     <MenuAction icon={Clipboard} label="Copy" onClick={onCopy} />
                     <MenuAction icon={Copy} label="Duplicate" onClick={onDuplicate} />
                     <MenuAction icon={Download} label="Download" onClick={onDownload} />
                     <MenuAction icon={PanelRight} label="Export" onClick={onExport} />
                     <MenuAction danger icon={Archive} label="Archive/Delete" onClick={onArchive} />
+                    <MenuAction danger icon={X} label="Close pane" onClick={onClosePane} />
                   </ActionMenu>
                 </div>
               ) : null}
+              <details className="relative">
+                <summary className="inline-flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${activeTab.label}`}>
+                  <BookOpen className="h-4 w-4" />
+                </summary>
+                <p className="absolute right-0 top-9 z-30 w-64 rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-xl">{activeTab.description}</p>
+              </details>
             </div>
           </div>
           {active && status ? <StudioStatusToast message={status} /> : null}
@@ -3377,6 +3368,9 @@ function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: {
   const [pageHidden, setPageHidden] = useState(false)
   const [pageLocked, setPageLocked] = useState(false)
   const [zoom, setZoom] = useState(86)
+  const pageWidth = canvasPreviewWidth(canvasFormat)
+  const pageScale = zoom / 100
+  const pageAspectRatio = canvasAspectRatio(canvasFormat)
   const editor = useEditor({
     immediatelyRender: false,
     editable: !pageLocked,
@@ -3420,13 +3414,18 @@ function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: {
       <RichTextToolbar editor={editor} />
       <div className="overflow-auto bg-muted/35 p-3 sm:p-5">
         <div
-          className="mx-auto w-full rounded-lg border border-border bg-background shadow-xl"
-          style={{ aspectRatio: canvasAspectRatio(canvasFormat), maxWidth: Math.round(canvasPreviewWidth(canvasFormat) * (zoom / 100)), opacity: pageHidden ? 0.3 : 1 }}
+          className="mx-auto"
+          style={{ aspectRatio: pageAspectRatio, width: Math.round(pageWidth * pageScale) }}
         >
-          <EditorContent
-            editor={editor}
-            className={`${large ? "min-h-[62vh]" : "min-h-[52vh]"} px-6 py-6 text-foreground sm:px-10 sm:py-8 [&_.ProseMirror]:min-h-[48vh] [&_.ProseMirror]:outline-none [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-3 [&_h1]:text-3xl [&_h1]:font-semibold [&_h2]:text-2xl [&_h2]:font-semibold [&_p]:leading-8 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-2 [&_th]:border [&_th]:border-border [&_th]:bg-secondary [&_th]:p-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6`}
-          />
+          <div
+            className="origin-top-left rounded-lg border border-border bg-background shadow-xl"
+            style={{ aspectRatio: pageAspectRatio, opacity: pageHidden ? 0.3 : 1, transform: `scale(${pageScale})`, width: pageWidth }}
+          >
+            <EditorContent
+              editor={editor}
+              className={`${large ? "min-h-[62vh]" : "min-h-[52vh]"} px-6 py-6 text-foreground sm:px-10 sm:py-8 [&_.ProseMirror]:min-h-[48vh] [&_.ProseMirror]:outline-none [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-3 [&_h1]:text-3xl [&_h1]:font-semibold [&_h2]:text-2xl [&_h2]:font-semibold [&_p]:leading-8 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-2 [&_th]:border [&_th]:border-border [&_th]:bg-secondary [&_th]:p-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6`}
+            />
+          </div>
         </div>
       </div>
       <div className="sticky bottom-0 z-10 flex flex-wrap items-center gap-2 border-t border-border bg-card/95 px-3 py-2 text-xs text-muted-foreground backdrop-blur">
