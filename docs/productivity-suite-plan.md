@@ -285,6 +285,9 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-24: Continued profile maturity by saving avatar, about text, visibility, daily goal minutes, and public links through Settings and showing them on the Profile page.
 - 2026-05-24: Continued Practice maturity by adding a real quiz archive path with an additive D1 migration, DELETE endpoint, and active-bank UI update.
 - 2026-05-24: Continued Social simplification by reducing hub copy to Friends, Shortcuts, and Create labels while keeping chat, groups, calls, and games available behind compact controls.
+- 2026-05-24: Continued navigation cleanup by removing the standalone Learn entry, routing Reviews into Practice, and keeping old /learn and /reviews paths compatible.
+- 2026-05-24: Continued Dashboard polish by making metrics, weak topics, recent work, review queue, and agenda cards horizontally scannable with stronger color personality and compact quick actions below reviews.
+- 2026-05-24: Continued Calendar polish by matching the compact study-calendar planning layout, adding colored event type controls, and showing selected-day time lanes.
 
 ## Implementation Slices
 
