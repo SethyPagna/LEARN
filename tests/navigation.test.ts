@@ -14,8 +14,6 @@ test("navigation keeps primary sidebar destinations compact", () => {
   assert.equal(primaryItems.length <= 9, true)
   assert.deepEqual(primaryItems.map((item) => item.view), [
     "dashboard",
-    "learn",
-    "reviews",
     "calendar",
     "studio",
     "ai",
@@ -23,7 +21,7 @@ test("navigation keeps primary sidebar destinations compact", () => {
     "social",
     "settings",
   ])
-  assert.equal(navigationGroups.find((group) => group.label === "Social")?.caption, "Chat, groups, rooms, and battles")
+  assert.equal(navigationGroups.find((group) => group.label === "Practice")?.caption, "Quizzes, games, retries, and reviews")
 })
 
 test("stable Studio routes resolve to Studio with the matching tab", () => {
@@ -37,9 +35,9 @@ test("stable Studio routes resolve to Studio with the matching tab", () => {
 })
 
 test("secondary product routes resolve to their grouped destinations", () => {
-  assert.equal(resolveNavigationTarget("reviews").primaryView, "reviews")
-  assert.equal(resolveNavigationTarget("vault").primaryView, "learn")
-  assert.equal(resolveNavigationTarget("graph").primaryView, "learn")
+  assert.equal(resolveNavigationTarget("reviews").primaryView, "practice")
+  assert.equal(resolveNavigationTarget("vault").primaryView, "calendar")
+  assert.equal(resolveNavigationTarget("graph").primaryView, "calendar")
   assert.equal(resolveNavigationTarget("files").primaryView, "studio")
   assert.equal(resolveNavigationTarget("quizzes").primaryView, "practice")
   assert.equal(resolveNavigationTarget("games").primaryView, "practice")
@@ -55,6 +53,8 @@ test("viewFromPath preserves public route compatibility", () => {
   assert.equal(viewFromPath("/notes"), "notes")
   assert.equal(viewFromPath("/docs/some-id"), "docs")
   assert.equal(viewFromPath("/groups"), "spaces")
+  assert.equal(viewFromPath("/learn"), "dashboard")
+  assert.equal(viewFromPath("/reviews"), "practice")
   assert.equal(viewFromPath("/spaces"), "spaces")
   assert.equal(viewFromPath("/quiz/quiz_operating_systems"), "quizzes")
   assert.equal(viewFromPath("/unknown"), null)
