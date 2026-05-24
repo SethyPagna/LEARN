@@ -3824,7 +3824,12 @@ function MenuSelect({ label, onChange, options }: { label: string; onChange: (va
   return (
     <label className="grid gap-1 px-2 py-1 text-xs font-semibold text-muted-foreground">
       {label}
-      <select defaultValue="" onChange={handleChange} className="h-8 rounded-md border border-input bg-background px-2 text-sm font-medium text-foreground">
+      <select
+        aria-label={label}
+        className="h-8 rounded-md border border-input bg-background px-2 text-sm font-medium text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover"
+        defaultValue=""
+        onChange={handleChange}
+      >
         <option value="" disabled>Choose {label.toLowerCase()}</option>
         {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>

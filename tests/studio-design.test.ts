@@ -267,3 +267,16 @@ test("studio menu selects close their dropdown after choosing a value", () => {
   assert.match(helperSource, /closest\("details"\)\?\.removeAttribute\("open"\)/)
   assert.match(helperSource, /onChange=\{handleChange\}/)
 })
+
+test("studio menu selects keep accessible labels and focus styles", () => {
+  const source = readFileSync("components/learn/views/studio-view.tsx", "utf8")
+  const start = source.indexOf("function MenuSelect(")
+  const end = source.indexOf("\nfunction StudioContextContent", start)
+  const helperSource = source.slice(start, end)
+
+  assert.ok(start > -1)
+  assert.ok(end > start)
+  assert.match(helperSource, /aria-label=\{label\}/)
+  assert.match(helperSource, /focus-visible:ring-2/)
+  assert.match(helperSource, /focus-visible:ring-offset-popover/)
+})
