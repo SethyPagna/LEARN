@@ -225,8 +225,8 @@ export function PracticeWorkspaceView({
   return (
     <WorkspaceFrame
       eyebrow="Practice workspace"
-      title="Practice arena"
-      body="Quizzes and games share one practice surface. Start simple, then use modes, timers, and retries when needed."
+      title="Practice"
+      body="Quiz, retry, play, and save mistakes."
       tabs={practiceTabs}
       activeTab={tab}
       setActiveTab={(value) => {
@@ -235,7 +235,7 @@ export function PracticeWorkspaceView({
         setView(viewFromPracticeWorkspaceTab(nextTab))
       }}
     >
-      <div className="grid gap-4 xl:grid-cols-[1fr_300px]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_270px]">
         <div>{tab === "quizzes" ? <QuizView quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={options} /> : <GamesView quizzes={quizzes} options={options} />}</div>
         <PracticeGuide arenaPresets={arenaPresets} draftCards={draftCards} gameModes={gameModes} liveJoinCard={liveJoinCard} onClearDraft={discardDraft} onCreatePractice={() => setView("ai")} onOpenTarget={openPracticeTarget} onResumeDraft={resumeDraft} plan={practicePlan} playStyles={playStyles} />
       </div>
@@ -1200,16 +1200,31 @@ function PracticeGuide({
   }
 
   return (
-    <Panel className="h-max p-3">
+    <Panel className="h-max p-3 xl:sticky xl:top-3 xl:max-h-[calc(100vh-6rem)] xl:overflow-auto">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="font-semibold text-foreground">Practice next</h3>
-        <InfoMenu title="Practice next" body="Choose the plain action first. The detailed quiz modes, timers, marks, drafts, and game runs stay inside each practice area." />
+        <h3 className="font-semibold text-foreground">Next</h3>
+        <InfoMenu title="Practice" body="Start with one clear move. More modes, timers, draft recovery, and live game options stay grouped below." />
+      </div>
+      <div className="mt-3 rounded-md border border-primary/25 bg-primary/10 p-3">
+        <p className="text-sm font-semibold text-foreground">{plan.headline}</p>
+        <div className="mt-2 grid grid-cols-3 gap-1.5">
+          {plan.signals.slice(0, 3).map((signal) => (
+            <span key={signal.label} className="rounded-md bg-background/80 px-2 py-1 text-center text-[0.65rem] font-semibold uppercase text-muted-foreground" title={`${signal.label}: ${signal.value}`}>
+              <strong className="block text-sm text-foreground">{signal.value}</strong>
+              {signal.label}
+            </span>
+          ))}
+        </div>
+        <button onClick={() => runAction(plan.primaryAction)} className="mt-3 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground">
+          <Play className="h-3.5 w-3.5" />
+          {plan.primaryAction.label}
+        </button>
       </div>
       <div className="mt-3 overflow-hidden rounded-lg border border-violet-500/30 bg-[radial-gradient(circle_at_top_right,rgba(168,85,247,0.32),transparent_38%),linear-gradient(135deg,#1f1147,#5b21b6_52%,#111827)] p-3 text-white shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.12em] text-white/70">Live game</p>
-            <p className="mt-1 text-base font-bold">{liveJoinCard.headline}</p>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-white/70">Live</p>
+            <p className="mt-1 truncate text-base font-bold">{liveJoinCard.headline}</p>
           </div>
           <span className={`rounded-full px-2 py-1 text-[0.68rem] font-bold ${liveJoinCard.ready ? "bg-emerald-400 text-emerald-950" : "bg-white/15 text-white"}`}>
             {liveJoinCard.ready ? "Ready" : "Needs bank"}
@@ -1219,21 +1234,26 @@ function PracticeGuide({
           <p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-slate-500">Game PIN</p>
           <p className="font-mono text-3xl font-black tracking-[0.18em] text-slate-950">{liveJoinCard.pin}</p>
         </div>
-        <div className="mt-3 grid grid-cols-3 gap-1.5">
-          {liveJoinCard.scoringRules.map((rule) => (
-            <div key={rule.label} className="rounded-md bg-white/10 p-2" title={rule.detail}>
-              <p className="text-[0.65rem] font-bold uppercase text-white/65">{rule.label}</p>
-              <p className="text-sm font-black">{rule.value}</p>
-            </div>
-          ))}
-        </div>
         <button onClick={runLiveAction} className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-white px-3 text-sm font-black text-violet-950 shadow-sm transition hover:-translate-y-0.5" type="button">
           <Swords className="h-4 w-4" />
           {liveJoinCard.primaryLabel}
         </button>
-        <p className="mt-2 text-xs leading-5 text-white/75">{liveJoinCard.caption}</p>
+        <details className="group/live-rules mt-2 rounded-md bg-white/10">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2 py-1.5 text-xs font-bold text-white/80">
+            Rules
+            <ChevronDown className="h-3.5 w-3.5 transition group-open/live-rules:rotate-180" />
+          </summary>
+          <div className="grid gap-1 border-t border-white/10 p-2">
+            {liveJoinCard.scoringRules.map((rule) => (
+              <div key={rule.label} className="flex items-center justify-between gap-2 text-xs" title={rule.detail}>
+                <span className="text-white/65">{rule.label}</span>
+                <strong>{rule.value}</strong>
+              </div>
+            ))}
+          </div>
+        </details>
       </div>
-      <details className="group/arena mt-3 rounded-md border border-border bg-background" open>
+      <details className="group/arena mt-3 rounded-md border border-border bg-background">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
           <span>Game setup</span>
           <span className="ml-auto rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{arenaPresets.filter((preset) => preset.recommended).length || arenaPresets.length}</span>
@@ -1245,21 +1265,6 @@ function PracticeGuide({
           ))}
         </div>
       </details>
-      <div className="mt-3 rounded-md border border-primary/25 bg-primary/10 p-3">
-        <p className="text-sm font-semibold text-foreground">{plan.headline}</p>
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {plan.signals.map((signal) => (
-            <span key={signal.label} className="inline-flex items-center gap-1 rounded-md bg-background/80 px-2 py-1 text-[0.65rem] font-semibold uppercase text-muted-foreground" title={`${signal.label}: ${signal.value}`}>
-              <strong className="text-sm text-foreground">{signal.value}</strong>
-              {signal.label}
-            </span>
-          ))}
-        </div>
-        <button onClick={() => runAction(plan.primaryAction)} className="mt-3 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground">
-          <Play className="h-3.5 w-3.5" />
-          {plan.primaryAction.label}
-        </button>
-      </div>
       <details className="group/practice mt-3 rounded-md border border-border bg-background">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
           <span>Play styles</span>
