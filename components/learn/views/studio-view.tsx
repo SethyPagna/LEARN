@@ -1561,7 +1561,7 @@ export function StudioView({
             <LayoutPanelLeft className="h-4 w-4" />
             <span className="hidden sm:inline">{toolRailCollapsed ? "Tools" : "Hide tools"}</span>
           </button>
-          <button onClick={() => setLayout((current) => ({ ...current, inspectorOpen: !current.inspectorOpen }))} className="ml-auto flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+          <button onClick={() => setLayout((current) => ({ ...current, inspectorOpen: !current.inspectorOpen }))} className="ml-auto flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
             <PanelRight className="h-4 w-4" />
             <span className="hidden sm:inline">Inspector</span>
           </button>
@@ -1577,10 +1577,10 @@ export function StudioView({
             <select value={importTarget} onChange={(event) => setImportTarget(normalizeImportTargetSelection(event.target.value))} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground">
               {importTargetOptions.map((target) => <option key={target} value={target}>{labelImportTarget(target)}</option>)}
             </select>
-            <button onClick={organizeImport} disabled={importing} className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+            <button onClick={organizeImport} disabled={importing} className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-60" type="button">
               {importing ? "Importing" : "Organize"}
             </button>
-            <button onClick={() => setImportOpen(false)} className="h-9 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+            <button onClick={() => setImportOpen(false)} className="h-9 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
               Close
             </button>
             <textarea
@@ -3821,7 +3821,7 @@ function StudioContextContent({ children, onArchive, onAskAi, onCopy, onDuplicat
 
 function ViewModeButton({ active, compact, icon: Icon, label, onClick }: { active: boolean; compact?: boolean; icon: React.ComponentType<{ className?: string }>; label: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} className={`flex h-8 items-center justify-center gap-1.5 rounded-md text-xs font-semibold ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+    <button onClick={onClick} className={`flex h-8 items-center justify-center gap-1.5 rounded-md text-xs font-semibold ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`} type="button">
       <Icon className="h-3.5 w-3.5" />
       <span className={compact ? "sr-only" : ""}>{label}</span>
     </button>
@@ -3830,7 +3830,7 @@ function ViewModeButton({ active, compact, icon: Icon, label, onClick }: { activ
 
 function StudioButton({ disabled, icon: Icon, label, onClick, primary }: { disabled?: boolean; icon: React.ComponentType<{ className?: string }>; label: string; onClick: () => void; primary?: boolean }) {
   return (
-    <button onClick={onClick} disabled={disabled} className={`flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-45 ${primary ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+    <button onClick={onClick} disabled={disabled} className={`flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-45 ${primary ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} type="button">
       <Icon className="h-4 w-4" />
       <span>{label}</span>
     </button>
@@ -3838,7 +3838,7 @@ function StudioButton({ disabled, icon: Icon, label, onClick, primary }: { disab
 }
 
 function MiniAction({ icon: Icon, label, onClick }: { icon: React.ComponentType<{ className?: string }>; label: string; onClick: () => void }) {
-  return <button onClick={onClick} className="icon-button" title={label}><Icon className="h-4 w-4" /></button>
+  return <button onClick={onClick} className="icon-button" title={label} type="button"><Icon className="h-4 w-4" /></button>
 }
 
 function ToolbarIcon({ icon: Icon, label, onClick }: { icon: React.ComponentType<{ className?: string }>; label: string; onClick: () => void }) {
@@ -3847,7 +3847,7 @@ function ToolbarIcon({ icon: Icon, label, onClick }: { icon: React.ComponentType
 
 function SheetButton({ icon: Icon, label, onClick }: { icon: React.ComponentType<{ className?: string }>; label: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+    <button onClick={onClick} className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
       <Icon className="h-4 w-4" />
       {label}
     </button>

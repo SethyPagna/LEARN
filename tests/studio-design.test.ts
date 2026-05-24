@@ -158,3 +158,15 @@ test("slide editor toolbar keeps visible controls actionable", () => {
   assert.match(bottomBarSource, /Speaker notes/)
   assert.match(bottomBarSource, /Timer: 5 min/)
 })
+
+test("studio shared button helpers avoid accidental form submits", () => {
+  const source = readFileSync("components/learn/views/studio-view.tsx", "utf8")
+  for (const helperName of ["ViewModeButton", "StudioButton", "MiniAction", "ToolbarIcon", "SheetButton"]) {
+    const start = source.indexOf(`function ${helperName}`)
+    const end = source.indexOf("\nfunction ", start + 1)
+    const helperSource = source.slice(start, end > start ? end : undefined)
+
+    assert.ok(start > -1, `${helperName} exists`)
+    assert.match(helperSource, /type="button"/, `${helperName} uses button type`)
+  }
+})
