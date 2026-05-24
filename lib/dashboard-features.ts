@@ -1,10 +1,9 @@
 import { studioFallbackTitle } from "./studio-defaults"
 
-export type DashboardCommandTarget = "ai" | "calendar" | "files" | "practice" | "reviews" | "studio"
+export type DashboardCommandTarget = "ai" | "calendar" | "files" | "practice" | "studio"
 export type DashboardQuickActionTarget =
   | DashboardCommandTarget
   | "graph"
-  | "learn"
   | "rooms"
   | "settings"
   | "social"
@@ -157,7 +156,7 @@ export function buildDashboardCommandPlan(input: DashboardCommandInput): Dashboa
     return {
       headline: `Repair ${weakTopic.topic}`,
       detail: "Start with the weakest topic, then send misses into reviews.",
-      target: input.quizCount > 0 ? "practice" : "reviews",
+      target: "practice",
       targetTopic: weakTopic.topic,
       chips: [`${weakTopic.accuracy ?? 0}% accuracy`, `${weakTopic.attempts ?? 0} attempts`, "highest risk"],
     }
@@ -168,7 +167,7 @@ export function buildDashboardCommandPlan(input: DashboardCommandInput): Dashboa
     return {
       headline: `Continue ${focus}`,
       detail: "Keep today narrow: one concept, one practice loop, one review.",
-      target: "reviews",
+      target: "practice",
       targetTopic: focus,
       chips: ["today route", "active recall", `${clampPercentage(snapshot.goalCompletion ?? 0)}% goal`],
     }
@@ -231,14 +230,14 @@ export function buildDashboardRouteActions(input: DashboardCommandInput): Dashbo
     )
   } else if (hasWeakTopics || hasFocus) {
     backupCandidates.push(
-      { id: "backup-reviews", label: "Review queue", detail: "Recall before more input.", target: "reviews", primary: false },
+      { id: "backup-reviews", label: "Review queue", detail: "Recall before more input.", target: "practice", primary: false },
       { id: "backup-ai", label: "Ask tutor", detail: "Get an explanation or route.", target: "ai", primary: false },
       { id: "backup-calendar", label: "Plan time", detail: "Schedule the next block.", target: "calendar", primary: false },
     )
   } else {
     backupCandidates.push(
       { id: "backup-practice", label: "Practice", detail: "Run a short quiz loop.", target: "practice", primary: false },
-      { id: "backup-reviews", label: "Review", detail: "Refresh older concepts.", target: "reviews", primary: false },
+      { id: "backup-reviews", label: "Review", detail: "Refresh older concepts.", target: "practice", primary: false },
       { id: "backup-ai", label: "Ask tutor", detail: "Create a focused plan.", target: "ai", primary: false },
     )
   }
@@ -444,8 +443,8 @@ export function buildDashboardQuickActionGroups(): DashboardQuickActionGroup[] {
       id: "review",
       label: "Review",
       actions: [
-        { id: "learn-route", label: "Learn route", detail: "Route, graph, reviews, calendar", target: "learn", icon: "brain" },
-        { id: "review-queue", label: "Review queue", detail: "Due concepts and mistakes", target: "reviews", icon: "repeat" },
+        { id: "learn-route", label: "Today route", detail: "Calendar, progress, and weak topics", target: "calendar", icon: "brain" },
+        { id: "review-queue", label: "Review queue", detail: "Due concepts and mistakes", target: "practice", icon: "repeat" },
         { id: "knowledge-map", label: "Knowledge map", detail: "Links and weak areas", target: "graph", icon: "graph" },
       ],
     },
@@ -499,7 +498,6 @@ function firstNonEmpty(values: string[]) {
 
 function primaryActionLabel(plan: DashboardCommandPlan) {
   if (plan.target === "practice") return "Practice weak topic"
-  if (plan.target === "reviews") return "Start review"
   if (plan.target === "studio") return "Create Studio seed"
   if (plan.target === "ai") return "Generate practice"
   if (plan.target === "calendar") return "Schedule block"
@@ -509,7 +507,6 @@ function primaryActionLabel(plan: DashboardCommandPlan) {
 
 function primaryActionDetail(plan: DashboardCommandPlan) {
   if (plan.target === "practice") return plan.targetTopic ? `Repair ${plan.targetTopic}.` : "Retry the highest-risk material."
-  if (plan.target === "reviews") return plan.targetTopic ? `Recall ${plan.targetTopic}.` : "Open the active recall queue."
   if (plan.target === "studio") return "Capture the first reusable learning item."
   if (plan.target === "ai") return "Turn recent material into practice."
   if (plan.target === "calendar") return "Protect the next focus window."

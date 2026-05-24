@@ -61,7 +61,7 @@ export function normalizeOnboardingStudioKind(value: unknown): OnboardingStudioK
 }
 
 export function onboardingTargetView(preferences: Pick<OnboardingPreferences, "firstStudioKind" | "preferredWorkflow">) {
-  if (preferences.preferredWorkflow === "review") return "reviews" as const
+  if (preferences.preferredWorkflow === "review") return "practice" as const
   if (preferences.preferredWorkflow === "practice") return "practice" as const
   if (preferences.preferredWorkflow === "schedule") return "calendar" as const
   if (preferences.preferredWorkflow === "ai") return "ai" as const
