@@ -34,7 +34,7 @@ test("buildDashboardCommandPlan falls through to focus studio ai and calendar ro
   })
 
   assert.equal(focusPlan.headline, "Continue Graphs")
-  assert.equal(focusPlan.target, "reviews")
+  assert.equal(focusPlan.target, "practice")
 })
 
 test("buildDashboardRouteActions gives one primary and unique backups", () => {

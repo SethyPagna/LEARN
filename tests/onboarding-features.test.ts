@@ -23,7 +23,7 @@ test("normalizeOnboardingPreferences creates safe first-run preferences", () => 
 
 test("onboarding target routes match learner workflow", () => {
   assert.equal(onboardingTargetView({ firstStudioKind: "docs", preferredWorkflow: "create" }), "docs")
-  assert.equal(onboardingTargetView({ firstStudioKind: "notes", preferredWorkflow: "review" }), "reviews")
+  assert.equal(onboardingTargetView({ firstStudioKind: "notes", preferredWorkflow: "review" }), "practice")
   assert.equal(onboardingTargetView({ firstStudioKind: "slides", preferredWorkflow: "ai" }), "ai")
 })
 

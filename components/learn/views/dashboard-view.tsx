@@ -38,7 +38,6 @@ const dashboardCommandIcons: Record<DashboardCommandTarget, React.ComponentType<
   calendar: CalendarDays,
   files: Plus,
   practice: BookOpen,
-  reviews: Repeat2,
   studio: FileText,
 }
 
