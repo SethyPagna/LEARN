@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import test from "node:test"
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesigns, sheetTemplateDesigns, slideAnimationPresets, slideDesignPresets, slideTemplateDesigns, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject } from "../lib/studio-design"
 
@@ -136,4 +137,24 @@ test("slide export payload includes presenter outline and timings", () => {
   assert.equal(payload.title, "Lesson")
   assert.equal(payload.slides[0].estimatedSeconds >= 3, true)
   assert.match(payload.presenterOutline, /Speaker notes/)
+})
+
+test("slide editor toolbar keeps visible controls actionable", () => {
+  const source = readFileSync("components/learn/views/studio-view.tsx", "utf8")
+  const start = source.indexOf("BG remover")
+  const end = source.indexOf("<div className=\"mb-2 flex items-center gap-2", start)
+  const toolbarSource = source.slice(start, end)
+
+  assert.ok(start > -1)
+  assert.ok(end > start)
+  assert.match(toolbarSource, /Apply style/)
+  assert.match(toolbarSource, /label="Animate"/)
+  assert.match(toolbarSource, /label="Position"/)
+  assert.match(toolbarSource, /disabled=\{!selectedObject\}/)
+  assert.doesNotMatch(toolbarSource, /setSelectedObjectId\(selectedObject\?\.id/)
+
+  const bottomBarStart = source.indexOf("<FileText className=\"h-3.5 w-3.5\" /> Notes")
+  const bottomBarSource = source.slice(bottomBarStart, source.indexOf("aria-label=\"Slide zoom\"", bottomBarStart))
+  assert.match(bottomBarSource, /Speaker notes/)
+  assert.match(bottomBarSource, /Timer: 5 min/)
 })
