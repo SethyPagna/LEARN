@@ -30,6 +30,9 @@ export interface User {
   username: string
   email: string
   name: string
+  avatarUrl?: string
+  bio?: string
+  profileVisibility?: string
   role: "admin" | "learner"
   preferences: Record<string, unknown>
   metrics?: {
@@ -104,6 +107,9 @@ function normalizeUser(row: Record<string, unknown>): User {
     username: String(row.username),
     email: String(row.email),
     name: String(row.name),
+    avatarUrl: String(row.avatar_url || ""),
+    bio: String(row.bio || ""),
+    profileVisibility: String(row.profile_visibility || "private"),
     role: row.role === "admin" ? "admin" : "learner",
     preferences,
     metrics: {
@@ -420,14 +426,29 @@ export async function listNoteVersions(user: User, noteId: string) {
   return result.rows.map((row) => ({ ...row, metadata: parseJsonObject(row.metadata) }))
 }
 
-export async function updateProfile(user: User, input: { name?: string; email?: string; preferences?: Record<string, unknown> }) {
+export async function updateProfile(user: User, input: {
+  avatarUrl?: string
+  bio?: string
+  email?: string
+  name?: string
+  preferences?: Record<string, unknown>
+  profileVisibility?: string
+}) {
   await ensureDatabase()
   const nextName = String(input.name || user.name).trim() || user.name
   const nextEmail = String(input.email || user.email).trim() || user.email
+  const nextAvatarUrl = String(input.avatarUrl ?? user.avatarUrl ?? "").trim()
+  const nextBio = String(input.bio ?? user.bio ?? "").trim().slice(0, 800)
+  const nextProfileVisibility = ["private", "connections", "public"].includes(String(input.profileVisibility))
+    ? String(input.profileVisibility)
+    : user.profileVisibility || "private"
   const preferences = { ...user.preferences, ...(input.preferences || {}) }
   await query(
-    "UPDATE users SET name = $1, email = $2, preferences = $3::jsonb, updated_at = now() WHERE id = $4",
-    [nextName, nextEmail, JSON.stringify(preferences), user.id],
+    `UPDATE users
+     SET name = $1, email = $2, avatar_url = $3, bio = $4, profile_visibility = $5,
+         preferences = $6::jsonb, updated_at = now()
+     WHERE id = $7`,
+    [nextName, nextEmail, nextAvatarUrl, nextBio, nextProfileVisibility, JSON.stringify(preferences), user.id],
   )
   await logAudit({ userId: user.id, action: "update", entity: "profile", entityId: user.id })
   return getCurrentUserFromToken((await cookies()).get(SESSION_COOKIE)?.value)
