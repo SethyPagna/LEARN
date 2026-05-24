@@ -1168,8 +1168,9 @@ export async function getQuiz(id: string) {
 
 export async function archiveQuiz(user: User, id: string) {
   await ensureDatabase()
-  const result = await query("UPDATE quizzes SET archived_at = datetime('now') WHERE id = $1 AND archived_at IS NULL RETURNING id", [id])
-  if (!result.rows[0]) return false
+  const existing = await query("SELECT id FROM quizzes WHERE id = $1 AND archived_at IS NULL LIMIT 1", [id])
+  if (!existing.rows[0]) return false
+  await query("UPDATE quizzes SET archived_at = datetime('now') WHERE id = $1", [id])
   await logAudit({ userId: user.id, action: "archive", entity: "quiz", entityId: id })
   return true
 }
