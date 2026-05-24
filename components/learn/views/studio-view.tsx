@@ -3748,7 +3748,7 @@ function ActionMenu({
         aria-expanded={isOpen}
         aria-label={label}
         aria-haspopup="menu"
-        className={`flex h-9 cursor-pointer list-none items-center gap-2 rounded-md border px-3 text-sm font-medium [&::-webkit-details-marker]:hidden ${
+        className={`flex h-9 cursor-pointer list-none items-center gap-2 rounded-md border px-3 text-sm font-medium outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden ${
           compact ? "px-2" : ""
         } ${
           primary
@@ -3795,7 +3795,7 @@ function MenuAction({
       onClick={handleClick}
       disabled={disabled}
       role="menuitem"
-      className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover disabled:cursor-not-allowed disabled:opacity-50 ${
         danger
           ? "text-destructive hover:bg-destructive/10"
           : active

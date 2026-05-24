@@ -221,6 +221,25 @@ test("studio action menus expose accessible menu semantics", () => {
   assert.match(actionSource, /role="menuitem"/)
 })
 
+test("studio action menus keep visible keyboard focus styles", () => {
+  const source = readFileSync("components/learn/views/studio-view.tsx", "utf8")
+  const menuStart = source.indexOf("function ActionMenu(")
+  const menuEnd = source.indexOf("\nfunction MenuAction", menuStart)
+  const menuSource = source.slice(menuStart, menuEnd)
+  const actionStart = source.indexOf("function MenuAction(")
+  const actionEnd = source.indexOf("\nfunction MenuSelect", actionStart)
+  const actionSource = source.slice(actionStart, actionEnd)
+
+  assert.ok(menuStart > -1)
+  assert.ok(menuEnd > menuStart)
+  assert.ok(actionStart > -1)
+  assert.ok(actionEnd > actionStart)
+  assert.match(menuSource, /focus-visible:ring-2/)
+  assert.match(menuSource, /focus-visible:ring-offset-2/)
+  assert.match(actionSource, /focus-visible:ring-2/)
+  assert.match(actionSource, /focus-visible:ring-offset-popover/)
+})
+
 test("studio action menus close when focus leaves the menu", () => {
   const source = readFileSync("components/learn/views/studio-view.tsx", "utf8")
   const start = source.indexOf("function ActionMenu(")
