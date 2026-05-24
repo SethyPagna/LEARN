@@ -380,6 +380,12 @@ export interface PublicProfile {
   name: string
   bio: string
   avatar_url: string
+  profile_visibility?: string
+  social_links?: {
+    facebook?: string
+    intro?: string
+    website?: string
+  }
   metrics: Record<string, number>
   artifacts: KnowledgeNode[]
 }
