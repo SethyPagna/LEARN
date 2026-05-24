@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { CheckCircle2, ChevronDown, Clock, Flag, Info, ListFilter, MoreHorizontal, Pause, Play, RotateCcw, Sparkles, XCircle } from "lucide-react"
+import { CheckCircle2, ChevronDown, Clock, Flag, Info, ListFilter, MoreHorizontal, Pause, Play, RotateCcw, Sparkles, Trash2, XCircle } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { PracticeAttemptSummary, PracticeMode, Quiz } from "../types"
 import { api } from "../api"
@@ -44,7 +44,9 @@ export function QuizView({
   const [draftStatus, setDraftStatus] = useState("")
   const [practiceAction, setPracticeAction] = useState<PracticeRunActionId | null>(null)
   const [practiceStatus, setPracticeStatus] = useState("")
-  const selected = selectedQuizId || quizzes[0]?.id
+  const [archivedQuizIds, setArchivedQuizIds] = useState<string[]>([])
+  const visibleQuizBank = useMemo(() => quizzes.filter((item) => !archivedQuizIds.includes(item.id)), [archivedQuizIds, quizzes])
+  const selected = selectedQuizId && visibleQuizBank.some((item) => item.id === selectedQuizId) ? selectedQuizId : visibleQuizBank[0]?.id
   const defaultPracticeMode: PracticeMode = options.quizMode === "exam" ? "exam" : "quiz"
   const visibleQuestions = useMemo(() => {
     const questions = quiz?.questions || []
@@ -81,8 +83,8 @@ export function QuizView({
   }, [defaultPracticeMode, options.quizMode, selected])
 
   useEffect(() => {
-    if (!selectedQuizId && quizzes[0]?.id) setSelectedQuizId(quizzes[0].id)
-  }, [quizzes, selectedQuizId, setSelectedQuizId])
+    if (!selectedQuizId && visibleQuizBank[0]?.id) setSelectedQuizId(visibleQuizBank[0].id)
+  }, [selectedQuizId, setSelectedQuizId, visibleQuizBank])
 
   useEffect(() => {
     if (result || paused) return
@@ -270,6 +272,26 @@ export function QuizView({
     })
   }
 
+  async function archiveCurrentQuiz() {
+    if (!quiz || practiceAction) return
+    if (!window.confirm(`Archive "${quiz.title}"? Existing attempts stay saved, but this set leaves active practice.`)) return
+    setPracticeAction("submit")
+    setPracticeStatus("Archiving practice set...")
+    try {
+      await api(`/api/quizzes/${quiz.id}`, { method: "DELETE" })
+      setArchivedQuizIds((current) => [...new Set([...current, quiz.id])])
+      const nextQuiz = visibleQuizBank.find((item) => item.id !== quiz.id)
+      setSelectedQuizId(nextQuiz?.id || "")
+      setQuiz(null)
+      setAttemptSummary(null)
+      setPracticeStatus("Practice set archived.")
+    } catch (error) {
+      setPracticeStatus(error instanceof Error ? error.message : "Unable to archive this practice set.")
+    } finally {
+      setPracticeAction(null)
+    }
+  }
+
   return (
     <div className="grid gap-4 xl:grid-cols-[300px_1fr]">
       <Panel className="p-3">
@@ -279,7 +301,7 @@ export function QuizView({
             <ChevronDown className="h-4 w-4" />
           </summary>
           <div className="mt-2 xl:mt-0">
-            {quizzes.map((item) => (
+            {visibleQuizBank.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setSelectedQuizId(item.id)}
@@ -289,6 +311,7 @@ export function QuizView({
                 <p className="mt-1 text-sm opacity-70">{item.question_count || 0} questions</p>
               </button>
             ))}
+            {!visibleQuizBank.length ? <EmptyState title="No active practice sets" body="Generate a quiz from Studio or Tutor to practice." /> : null}
           </div>
         </details>
       </Panel>
@@ -338,6 +361,9 @@ export function QuizView({
                       <PracticeMenuAction key={filter.id} active={questionFilter === filter.id} icon={ListFilter} label={filter.label} onClick={() => setQuestionFilter(filter.id)} meta={`${count} question${count === 1 ? "" : "s"}`} />
                     )
                   })}
+                </PracticeMenu>
+                <PracticeMenu label="Set" icon={MoreHorizontal}>
+                  <PracticeMenuAction icon={Trash2} label="Archive set" onClick={archiveCurrentQuiz} meta="Hide from active practice" />
                 </PracticeMenu>
                 <ControlButton onClick={submit} active size="compact" disabled={runActionById.get("submit")?.disabled}>
                   <CheckCircle2 className="h-3.5 w-3.5" />
