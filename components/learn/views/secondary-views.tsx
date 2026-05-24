@@ -464,9 +464,9 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
           <SharedStatusPill label={`${options.calendarLeadMinutes}m lead`} />
           <SharedStatusPill label={timezone} />
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          {primaryCalendarChips.map((chip) => (
-            <CompactInfo key={chip.id} label={chip.label} value={chip.value} />
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {[...primaryCalendarChips, ...secondaryCalendarChips.filter((chip) => chip.id === "completed" || chip.id === "total")].map((chip) => (
+            <CompactInfo key={chip.id} label={chip.label} value={chip.value} tone={calendarSummaryTone(chip.id)} />
           ))}
         </div>
         <button onClick={applyPlanSuggestion} className="mt-4 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
@@ -483,10 +483,8 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
             <span>Planning details</span>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </summary>
-          <div className="mt-2 grid grid-cols-2 gap-2 border-t border-border pt-2">
-            {secondaryCalendarChips.map((chip) => (
-              <Info key={chip.id} label={chip.label} value={chip.value} />
-            ))}
+          <div className="mt-2 flex flex-wrap gap-2 border-t border-border pt-2">
+            {secondaryCalendarChips.map((chip) => <SharedStatusPill key={chip.id} label={`${chip.label} ${chip.value}`} />)}
           </div>
           <p className="mt-2 rounded-md bg-muted p-2 text-xs leading-5 text-muted-foreground">{calendarPlan.suggestion.reason}</p>
         </details>
@@ -494,7 +492,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
           <Field label="Title" value={title} onChange={setTitle} />
           <label className="block rounded-lg bg-muted p-4">
             <span className="text-xs font-semibold uppercase text-muted-foreground">Type</span>
-            <select value={eventType} onChange={(event) => setEventType(normalizeCalendarEventType(event.target.value))} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none">
+            <select value={eventType} onChange={(event) => setEventType(normalizeCalendarEventType(event.target.value))} className={`mt-2 h-9 w-full rounded-md border px-3 text-sm font-semibold outline-none ${calendarTypeSelectClass(eventType)}`}>
               {calendarEventTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
           </label>
@@ -594,13 +592,14 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
             <div className="mb-3 grid gap-2">
               {selectedDaySegments.map((segment) => (
                 <details key={segment.id} className="rounded-md border border-border bg-card" open={segment.events.length > 0}>
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-                    <span>{segment.label}</span>
+                  <summary className="grid cursor-pointer list-none grid-cols-[74px_minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+                    <span className={`rounded-md px-2 py-1 text-xs ${calendarSegmentClass(segment.id)}`}>{calendarSegmentTime(segment.id)}</span>
+                    <span className="truncate">{segment.label}</span>
                     <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
                       {segment.events.length ? `${segment.events.length} | ${formatCalendarDuration(segment.totalMinutes)}` : "open"}
                     </span>
                   </summary>
-                  <div className="grid gap-1 border-t border-border p-2">
+                  <div className="grid gap-1 border-t border-border p-2 pl-[92px]">
                     {segment.events.map((event) => (
                       <button key={event.id} onClick={() => setSelectedId(event.id)} className="flex items-center justify-between gap-2 rounded-md bg-background px-2 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground" type="button">
                         <span className="min-w-0 truncate font-semibold text-foreground">{event.title}</span>
@@ -703,6 +702,34 @@ function calendarDotClass(type: string) {
   if (type === "completed") return "bg-success"
   if (type === "focus") return "bg-primary"
   return "bg-sky-500"
+}
+
+function calendarSummaryTone(id: string) {
+  if (id === "today") return "primary"
+  if (id === "upcoming") return "sky"
+  if (id === "planned") return "success"
+  if (id === "review") return "warning"
+  return "neutral"
+}
+
+function calendarTypeSelectClass(type: string) {
+  if (type === "review") return "border-warning/40 bg-warning/10 text-warning"
+  if (type === "deadline") return "border-destructive/40 bg-destructive/10 text-destructive"
+  if (type === "completed") return "border-success/40 bg-success/10 text-success"
+  if (type === "focus") return "border-primary/40 bg-primary/10 text-primary"
+  return "border-sky-400/40 bg-sky-500/10 text-sky-700 dark:text-sky-300"
+}
+
+function calendarSegmentClass(id: string) {
+  if (id === "morning") return "bg-sky-500/10 text-sky-700 dark:text-sky-300"
+  if (id === "afternoon") return "bg-warning/10 text-warning"
+  return "bg-primary/10 text-primary"
+}
+
+function calendarSegmentTime(id: string) {
+  if (id === "morning") return "6-12"
+  if (id === "afternoon") return "12-5"
+  return "5-12"
 }
 
 function formatCalendarDayLabel(key: string) {
@@ -1333,13 +1360,21 @@ function Info({ label, value }: { label: string; value?: unknown }) {
   )
 }
 
-function CompactInfo({ label, value }: { label: string; value: string }) {
+function CompactInfo({ label, tone = "neutral", value }: { label: string; tone?: string; value: string }) {
   return (
-    <div className="rounded-md border border-border bg-background px-3 py-2">
+    <div className={`rounded-md border px-3 py-2 ${compactInfoToneClass(tone)}`}>
       <p className="text-[0.65rem] font-semibold uppercase text-muted-foreground">{label}</p>
       <p className="text-base font-semibold text-foreground">{value}</p>
     </div>
   )
+}
+
+function compactInfoToneClass(tone: string) {
+  if (tone === "primary") return "border-primary/25 bg-primary/10"
+  if (tone === "sky") return "border-sky-400/25 bg-sky-500/10"
+  if (tone === "success") return "border-success/25 bg-success/10"
+  if (tone === "warning") return "border-warning/25 bg-warning/10"
+  return "border-border bg-background"
 }
 
 function SelectField({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
