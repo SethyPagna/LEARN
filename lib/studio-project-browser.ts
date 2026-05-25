@@ -65,11 +65,11 @@ const studioKindDisplayMeta: Record<StudioKind, StudioProjectDisplayMeta> = {
 }
 
 const studioProjectFilterOptions: StudioProjectFilterOption[] = [
-  { description: "Show every Studio project and template", label: "All designs", value: "all" },
-  { description: "Learning pages, journals, and quick captures", label: "Pages", value: "notes" },
-  { description: "Guides, reports, handouts, and long-form work", label: "Guides", value: "docs" },
-  { description: "Trackers, tables, imports, and spreadsheet layouts", label: "Tables", value: "sheets" },
-  { description: "Decks, posters, galleries, and presentation canvases", label: "Decks", value: "slides" },
+  { description: "Show every Studio project and reusable design", label: "All templates", value: "all" },
+  { description: "Quick captures, journals, and study pages", label: "Notes", value: "notes" },
+  { description: "A4, Letter, guides, reports, and handouts", label: "Docs", value: "docs" },
+  { description: "Trackers, tables, CSV imports, and worksheets", label: "Sheets", value: "sheets" },
+  { description: "PPT dimensions, decks, posters, and lesson slides", label: "PPT / Slides", value: "slides" },
 ]
 
 export function buildStudioProjectBrowserState<TProject extends StudioBrowserProject, TTemplate extends StudioBrowserTemplate>({
@@ -122,7 +122,7 @@ export function buildStudioProjectBrowserSummary({
       { label: "Visible", value: String(projectCount) },
       { label: "Designs", value: String(templateCount) },
       { label: "Drafts", value: String(draftCount) },
-      { label: "Format", value: filterLabel === "All designs" ? formatLabel : filterLabel },
+      { label: "Format", value: filterLabel === "All projects" || filterLabel === "All templates" ? formatLabel : filterLabel },
     ],
   }
 }

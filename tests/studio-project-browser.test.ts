@@ -31,9 +31,9 @@ test("studio project browser counts every Studio kind", () => {
 })
 
 test("studio project browser exposes project-first filter labels", () => {
-  assert.deepEqual(listStudioProjectFilterOptions().map((option) => option.label), ["All designs", "Pages", "Guides", "Tables", "Decks"])
-  assert.equal(getStudioProjectFilterOption("docs").label, "Guides")
-  assert.equal(getStudioProjectFilterOption("all").description, "Show every Studio project and template")
+  assert.deepEqual(listStudioProjectFilterOptions().map((option) => option.label), ["All templates", "Notes", "Docs", "Sheets", "PPT / Slides"])
+  assert.equal(getStudioProjectFilterOption("docs").label, "Docs")
+  assert.equal(getStudioProjectFilterOption("all").description, "Show every Studio project and reusable design")
 })
 
 test("studio project browser uses project-first display labels", () => {
@@ -100,7 +100,7 @@ test("studio project browser can show every project type as one workspace", () =
 test("studio project browser summary keeps the launcher compact", () => {
   const summary = buildStudioProjectBrowserSummary({
     draftCount: 2,
-    filterLabel: "All designs",
+    filterLabel: "All templates",
     formatLabel: "A4 document",
     projectCount: 4,
     query: "",
@@ -108,7 +108,7 @@ test("studio project browser summary keeps the launcher compact", () => {
   })
   const searched = buildStudioProjectBrowserSummary({
     draftCount: 0,
-    filterLabel: "Decks",
+    filterLabel: "PPT / Slides",
     formatLabel: "Presentation 16:9",
     projectCount: 1,
     query: "database",
@@ -118,7 +118,7 @@ test("studio project browser summary keeps the launcher compact", () => {
   assert.equal(summary.title, "All projects")
   assert.equal(summary.chips.find((chip) => chip.label === "Format")?.value, "A4 document")
   assert.equal(searched.title, "Search results")
-  assert.equal(searched.chips.find((chip) => chip.label === "Format")?.value, "Decks")
+  assert.equal(searched.chips.find((chip) => chip.label === "Format")?.value, "PPT / Slides")
   assert.match(buildStudioProjectBrowserHeader(summary), /4 visible/)
 })
 
