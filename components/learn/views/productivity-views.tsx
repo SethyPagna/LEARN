@@ -12,7 +12,7 @@ import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload,
 
 const quizDetailCache = new Map<string, Quiz>()
 const CHAT_DRAFT_KEY = "learn_chat_draft_v1"
-type ChatMenuId = "compose" | "tools" | "signals" | "filters" | `threadActions:${string}`
+type ChatMenuId = "compose" | "tools" | "filters" | `threadActions:${string}`
 type ChatDraft = { body: string; title: string; intent: ChatIntent; channel: string; replyThreadId?: string }
 
 export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: WorkspaceOptions }) {
@@ -458,12 +458,12 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <Panel className={options.chatCompact ? "p-3" : "p-4"}>
-        <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
+    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <Panel className="p-3">
+        <div className="mb-3 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <label className="flex h-10 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground">
+              <label className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground">
                 <Hash className="h-4 w-4" />
                 <select value={channel} onChange={(event) => setChannel(event.target.value)} className="bg-transparent text-foreground outline-none">
                   <option value="#general">general</option>
@@ -472,12 +472,13 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                   <option value="#wins">wins</option>
                 </select>
               </label>
-              <input value={title} onChange={(event) => setTitle(event.target.value)} className="min-w-52 flex-1 bg-transparent text-2xl font-semibold text-foreground outline-none" />
+              <input value={title} onChange={(event) => setTitle(event.target.value)} className="min-w-52 flex-1 bg-transparent text-xl font-semibold text-foreground outline-none" />
             </div>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap gap-1.5">
               <ChatChip label={activeIntent.label} tone="strong" />
-              <ChatChip label={composerPlan.headline} />
-              {composerPlan.chips.slice(0, 2).map((chip) => <ChatChip key={chip} label={chip} />)}
+              <ChatChip label={`${chatSummary.total} threads`} />
+              <ChatChip label={`${chatSummary.questions} questions`} />
+              <ChatChip label={`${chatSummary.saved} saved`} />
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -509,18 +510,6 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                 />
               </ChatMenuSection>
             </ChatMenu>
-            <ChatMenu icon={SlidersHorizontal} label="Signals" menuId="signals" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
-              <ChatMenuSection title="Channel signals">
-                <div className="grid grid-cols-2 gap-2">
-                  <ChatSignal label="Threads" value={String(chatSummary.total)} />
-                  <ChatSignal label="Questions" value={String(chatSummary.questions)} />
-                  <ChatSignal label="Wins" value={String(chatSummary.wins)} />
-                  <ChatSignal label="Saved" value={String(chatSummary.saved)} />
-                  <ChatSignal label="Mentions" value={String(chatSummary.mentions)} />
-                  <ChatSignal label="Studio links" value={String(chatSummary.studioLinks)} />
-                </div>
-              </ChatMenuSection>
-            </ChatMenu>
             <ToolbarButton
               disabled={chatActionById.get("send")?.disabled}
               label={chatActionById.get("send")?.busy ? chatActionById.get("send")?.busyLabel || "Sending" : "Send"}
@@ -530,26 +519,31 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             />
           </div>
         </div>
-        <div className="mb-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <details className="mb-3 rounded-md border border-border bg-background">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+            <span>Starter prompts</span>
+            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{quickPrompts.length}</span>
+          </summary>
+          <div className="flex gap-2 overflow-x-auto border-t border-border p-2">
           {quickPrompts.map((prompt) => (
             <button
               key={prompt.id}
               onClick={() => applyQuickPrompt(prompt)}
               title={prompt.detail}
-              className={`group flex min-h-14 items-center justify-between gap-2 rounded-md border px-3 py-2 text-left transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-accent hover:text-accent-foreground ${
+              className={`group inline-flex h-10 min-w-[9rem] shrink-0 items-center justify-between gap-2 rounded-md border px-3 text-left transition hover:border-primary/40 hover:bg-accent hover:text-accent-foreground ${
                 prompt.recommended ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background text-foreground"
               }`}
             >
               <span className="min-w-0">
                 <span className="block truncate text-sm font-semibold">{prompt.label}</span>
-                <span className="block truncate text-[11px] font-semibold text-muted-foreground group-hover:text-accent-foreground/75">{prompt.channel}</span>
               </span>
               <span className="rounded-md bg-secondary px-2 py-1 text-[11px] font-semibold text-secondary-foreground">{prompt.badge}</span>
             </button>
           ))}
-        </div>
+          </div>
+        </details>
         <div className="rounded-md border border-input bg-background p-3">
-          <textarea value={body} onChange={(event) => setBody(event.target.value)} className="min-h-32 w-full resize-none bg-transparent text-sm leading-6 text-foreground outline-none" placeholder="Share a study update, @mention a person, link a Studio item, or ask for a quick explanation..." />
+          <textarea value={body} onChange={(event) => setBody(event.target.value)} className="min-h-28 w-full resize-none bg-transparent text-sm leading-6 text-foreground outline-none" placeholder="Message your study group, mention someone, link Studio, or ask a question..." />
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
             <ChatMenu compact icon={MoreHorizontal} label="Tools" menuId="tools" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
               <ChatMenuSection title="Composer tools">
@@ -583,7 +577,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
           </div>
         </div>
       </Panel>
-      <Panel className={options.chatCompact ? "p-3" : "p-4"}>
+      <Panel className="p-3 xl:sticky xl:top-3 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto">
         <div className="flex items-center justify-between gap-3">
           <h3 className="font-semibold text-foreground">Recent threads</h3>
           <div className="flex items-center gap-2">
@@ -611,12 +605,12 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             </ChatMenuSection>
           </ChatMenu>
         </div>
-        <div className="mt-3 grid grid-cols-3 gap-2">
+        <div className="mt-3 flex gap-2 overflow-x-auto">
           {inboxShortcuts.map((shortcut) => (
             <button
               key={shortcut.id}
               onClick={() => applyInboxShortcut(shortcut)}
-              className={`flex h-10 items-center justify-between gap-2 rounded-md border px-2 text-xs font-semibold transition hover:border-primary/40 hover:bg-accent hover:text-accent-foreground ${
+              className={`inline-flex h-9 min-w-[5.6rem] shrink-0 items-center justify-between gap-2 rounded-md border px-2 text-xs font-semibold transition hover:border-primary/40 hover:bg-accent hover:text-accent-foreground ${
                 shortcut.recommended ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-secondary text-secondary-foreground"
               }`}
             >
@@ -634,7 +628,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             ))}
           </div>
         ) : null}
-        <div className="mt-3 space-y-2">
+        <div className="mt-3 space-y-1.5">
           {visibleThreads.map((thread) => {
             const parsed = parseThreadTitle(thread.title)
             const targetId = chatThreadKey(thread)
@@ -649,7 +643,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             })
             const menuLabel = saved ? "saved" : helpful ? "helpful" : "react"
             return (
-            <div key={targetId || parsed.title} className="rounded-md border border-border bg-background p-3 text-sm">
+            <div key={targetId || parsed.title} className="rounded-md border border-border bg-background p-2.5 text-sm">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="font-medium text-foreground">{parsed.title}</p>
@@ -658,7 +652,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                 <span className={`rounded-md px-2 py-1 text-[11px] font-semibold ${chatStatusClasses(status.tone)}`}>{status.label}</span>
               </div>
               <p className="mt-1 line-clamp-2 text-muted-foreground">{thread.last_message || "No messages yet"}</p>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap gap-2">
                 <ChatMenu compact icon={Smile} label={menuLabel} menuId={`threadActions:${targetId || parsed.title}`} openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
                   <ChatMenuSection title="Thread actions">
                     {threadActions.map((item) => (
@@ -709,15 +703,6 @@ function clearChatDraft() {
 
 function ChatChip({ label, tone }: { label: string; tone?: "muted" | "strong" }) {
   return <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${tone === "strong" ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground"}`}>{label}</span>
-}
-
-function ChatSignal({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border border-border bg-background p-2">
-      <p className="text-[0.65rem] font-semibold uppercase text-muted-foreground">{label}</p>
-      <p className="mt-1 text-lg font-semibold leading-none text-foreground">{value}</p>
-    </div>
-  )
 }
 
 function chatStatusClasses(tone: "accent" | "muted" | "success" | "warning") {
