@@ -600,8 +600,8 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
               <Users className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <h3 className="text-lg font-semibold text-foreground">Friends</h3>
-              <p className="text-xs text-muted-foreground">Find, invite, message, call.</p>
+              <h3 className="text-lg font-semibold text-foreground">Social</h3>
+              <p className="text-xs text-muted-foreground">Friends, chats, groups, calls, and games.</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 lg:justify-end">
@@ -616,63 +616,85 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
           </div>
         </div>
       </div>
-      <div className="grid gap-3 p-3 lg:grid-cols-[188px_1fr] lg:p-4">
-        <aside className="flex gap-2 overflow-x-auto rounded-lg border border-border bg-background p-2 lg:sticky lg:top-3 lg:max-h-[calc(100vh-7rem)] lg:flex-col lg:overflow-visible">
-          {socialCommandTabs.map((item) => {
-            const Icon = socialCommandTabIcons[item.id]
-            const active = commandTab === item.id
-            return (
-              <button
-                key={item.id}
-                onClick={() => setCommandTab(item.id)}
-                className={`inline-flex h-10 min-w-[8rem] shrink-0 items-center gap-2 rounded-md px-2.5 text-left text-sm font-semibold transition lg:min-w-0 ${
-                  active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                }`}
-                type="button"
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                <span className={`rounded px-1.5 py-0.5 text-[0.65rem] ${active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{commandCounts[item.id]}</span>
-              </button>
-            )
-          })}
-          <details className="group/social-tools relative shrink-0 rounded-md border border-border bg-card">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-sm font-semibold text-foreground">
-              <span className="flex items-center gap-2">
-                <MoreHorizontal className="h-4 w-4 text-primary" />
-                More
-              </span>
-              <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/social-tools:rotate-180" />
+      <div className="grid gap-3 p-3 lg:grid-cols-[236px_1fr] lg:p-4">
+        <aside className="grid gap-2 rounded-lg border border-border bg-background p-2 lg:sticky lg:top-3 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
+          <div className="grid grid-cols-5 gap-1 lg:grid-cols-2">
+            {starterActions.map((action) => (
+              <SocialStarterActionButton key={action.id} action={action} onClick={() => openStarterAction(action)} />
+            ))}
+          </div>
+          <div className="grid gap-1 border-t border-border pt-2">
+            {socialCommandTabs.map((item) => {
+              const Icon = socialCommandTabIcons[item.id]
+              const active = commandTab === item.id
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setCommandTab(item.id)}
+                  className={`inline-flex h-10 min-w-0 items-center gap-2 rounded-md px-2.5 text-left text-sm font-semibold transition ${
+                    active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  }`}
+                  type="button"
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                  <span className={`rounded px-1.5 py-0.5 text-[0.65rem] ${active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{commandCounts[item.id]}</span>
+                </button>
+              )
+            })}
+          </div>
+          <details className="group/social-open rounded-md border border-border bg-card" open>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              <span>Open</span>
+              <ChevronDown className="h-4 w-4 transition group-open/social-open:rotate-180" />
             </summary>
-            <div className="absolute right-0 top-11 z-50 grid w-80 gap-2 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl lg:left-full lg:right-auto lg:top-0 lg:ml-2">
-              <div className="grid grid-cols-2 gap-1.5">
-                {starterActions.map((action) => (
-                  <SocialStarterActionButton key={action.id} action={action} onClick={() => openStarterAction(action)} />
-                ))}
-              </div>
-              <div className="grid gap-1.5">
-                {homeLanes.map((lane) => {
-                  const Icon = socialHomeLaneIcons[lane.id]
-                  return (
-                    <button key={lane.id} onClick={() => openHomeLane(lane)} className="flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground" title={lane.detail} type="button">
-                      <Icon className="h-3.5 w-3.5 shrink-0 text-primary" />
-                      <span className="min-w-0 flex-1 truncate">{lane.label}</span>
-                      <span className="rounded bg-secondary px-1.5 py-0.5 text-[0.62rem] text-secondary-foreground">{lane.count}</span>
-                    </button>
-                  )
-                })}
-              </div>
-              <details className="group/calls rounded-md border border-border bg-background">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2 py-1.5 text-xs font-semibold text-foreground">
-                  <span className="flex items-center gap-1.5"><PhoneCall className="h-3.5 w-3.5 text-primary" />Calls</span>
-                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition group-open/calls:rotate-180" />
-                </summary>
-                <div className="grid gap-1.5 border-t border-border p-1.5">
-                  {callModes.map((mode) => (
-                    <SocialCallModeButton key={mode.id} mode={mode} onClick={() => openCallMode(mode)} />
-                  ))}
-                </div>
-              </details>
+            <div className="grid gap-1.5 border-t border-border p-1.5">
+              {flowCards.map((card) => {
+                const Icon = card.id === "chat" ? MessageSquare : card.id === "spaces" ? Users : card.id === "rooms" ? Radio : Swords
+                const createAction = commandActionById.get(card.id)
+                return (
+                  <SocialFlowButton
+                    key={card.id}
+                    action={card.action}
+                    count={card.count}
+                    createDisabled={createAction?.disabled}
+                    createLabel={createAction?.busy ? createAction.busyLabel : card.createAction}
+                    icon={Icon}
+                    label={card.label}
+                    onCreate={() => void createSocialPlace(card.id)}
+                    onOpen={() => open(card.id)}
+                  />
+                )
+              })}
+            </div>
+          </details>
+          <details className="group/social-overview rounded-md border border-border bg-card">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              <span>Counts</span>
+              <ChevronDown className="h-4 w-4 transition group-open/social-overview:rotate-180" />
+            </summary>
+            <div className="grid gap-1.5 border-t border-border p-1.5">
+              {homeLanes.map((lane) => {
+                const Icon = socialHomeLaneIcons[lane.id]
+                return (
+                  <button key={lane.id} onClick={() => openHomeLane(lane)} className="flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground" title={lane.detail} type="button">
+                    <Icon className="h-3.5 w-3.5 shrink-0 text-primary" />
+                    <span className="min-w-0 flex-1 truncate">{lane.label}</span>
+                    <span className="rounded bg-secondary px-1.5 py-0.5 text-[0.62rem] text-secondary-foreground">{lane.count}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </details>
+          <details className="group/calls rounded-md border border-border bg-card">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              <span className="flex items-center gap-1.5"><PhoneCall className="h-3.5 w-3.5 text-primary" />Calls</span>
+              <ChevronDown className="h-4 w-4 transition group-open/calls:rotate-180" />
+            </summary>
+            <div className="grid gap-1.5 border-t border-border p-1.5">
+              {callModes.map((mode) => (
+                <SocialCallModeButton key={mode.id} mode={mode} onClick={() => openCallMode(mode)} />
+              ))}
             </div>
           </details>
         </aside>
@@ -843,35 +865,6 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
             </div>
         </section>
       </div>
-      <details className="group/advanced border-t border-border bg-card">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-          <span className="flex items-center gap-2">
-            <Plus className="h-4 w-4 text-primary" />
-            Create
-          </span>
-          <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/advanced:rotate-180" />
-        </summary>
-        <div className="grid gap-2 border-t border-border p-2 md:grid-cols-2 xl:grid-cols-4">
-          {flowCards.map((card) => {
-            const Icon = card.id === "chat" ? MessageSquare : card.id === "spaces" ? Users : card.id === "rooms" ? Radio : Swords
-            const createAction = commandActionById.get(card.id)
-            return (
-              <SocialFlowButton
-                key={card.id}
-                action={card.action}
-                count={card.count}
-                createDisabled={createAction?.disabled}
-                createLabel={createAction?.busy ? createAction.busyLabel : card.createAction}
-                icon={Icon}
-                label={card.label}
-                onCreate={() => void createSocialPlace(card.id)}
-                onOpen={() => open(card.id)}
-                ready={card.ready}
-              />
-            )
-          })}
-        </div>
-      </details>
     </Panel>
   )
 }
@@ -972,7 +965,6 @@ function SocialFlowButton({
   label,
   onCreate,
   onOpen,
-  ready,
 }: {
   action: string
   count: number
@@ -982,23 +974,21 @@ function SocialFlowButton({
   label: string
   onCreate: () => void
   onOpen: () => void
-  ready: boolean
 }) {
   return (
-    <div className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-md border border-border bg-card p-2">
-      <button onClick={onOpen} className="flex min-w-0 items-center gap-3 rounded-md p-1.5 text-left hover:bg-accent hover:text-accent-foreground">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/12 text-primary">
-          <Icon className="h-5 w-5" />
+    <div className="grid grid-cols-[1fr_auto] items-center gap-1.5 rounded-md border border-border bg-card p-1.5">
+      <button onClick={onOpen} className="flex min-w-0 items-center gap-2 rounded-md p-1.5 text-left hover:bg-accent hover:text-accent-foreground" type="button">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/12 text-primary">
+          <Icon className="h-4 w-4" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-foreground">{label}</span>
           <span className="block text-xs text-muted-foreground">{count} saved</span>
         </span>
-        <span className={`rounded-md px-2 py-1 text-[0.68rem] font-semibold ${ready ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{ready ? "ready" : "new"}</span>
       </button>
       <button onClick={onCreate} disabled={createDisabled} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60" title={createLabel || action}>
         <Plus className="h-4 w-4" />
-        <span className="hidden sm:inline">{createLabel || action}</span>
+        <span className="hidden 2xl:inline">{createLabel || action}</span>
       </button>
     </div>
   )
