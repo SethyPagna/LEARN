@@ -1,20 +1,13 @@
 <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="frame" x1="24" x2="156" y1="18" y2="162" gradientUnits="userSpaceOnUse">
+    <linearGradient id="leaf" x1="34" x2="146" y1="30" y2="150" gradientUnits="userSpaceOnUse">
       <stop stop-color="#2DD4BF" />
-      <stop offset="0.48" stop-color="#38BDF8" />
-      <stop offset="1" stop-color="#8B5CF6" />
-    </linearGradient>
-    <linearGradient id="page" x1="54" x2="126" y1="48" y2="130" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#F8FAFC" />
-      <stop offset="1" stop-color="#DFF7F1" />
+      <stop offset="0.55" stop-color="#10B981" />
+      <stop offset="1" stop-color="#0F766E" />
     </linearGradient>
   </defs>
-  <rect width="180" height="180" rx="40" fill="#06151B" />
-  <rect x="12" y="12" width="156" height="156" rx="34" fill="url(#frame)" />
-  <rect x="24" y="24" width="132" height="132" rx="28" fill="#071014" />
-  <path d="M53 51.5C53 47.9 55.9 45 59.5 45H87C94.2 45 100 50.8 100 58V127.5C100 130.2 96.8 131.6 94.8 129.8C88.6 124.1 81.1 121 72.6 121H59.5C55.9 121 53 118.1 53 114.5V51.5Z" fill="url(#page)" />
-  <path d="M127 51.5C127 47.9 124.1 45 120.5 45H93C85.8 45 80 50.8 80 58V127.5C80 130.2 83.2 131.6 85.2 129.8C91.4 124.1 98.9 121 107.4 121H120.5C124.1 121 127 118.1 127 114.5V51.5Z" fill="url(#page)" opacity="0.88" />
-  <path d="M67 66H86M67 80H88M94 66H113M94 80H111M67 95H84M96 95H113" stroke="#0F766E" stroke-width="5" stroke-linecap="round" />
-  <circle cx="90" cy="135" r="5" fill="#A7F3D0" />
+  <path d="M35 47.5C35 39.5 41.5 33 49.5 33H85C96.6 33 106 42.4 106 54V139.5C106 145.2 99.2 148.2 95 144.3C86.5 136.5 76.6 132.5 65.2 132.5H49.5C41.5 132.5 35 126 35 118V47.5Z" fill="url(#leaf)" />
+  <path d="M145 47.5C145 39.5 138.5 33 130.5 33H95C83.4 33 74 42.4 74 54V139.5C74 145.2 80.8 148.2 85 144.3C93.5 136.5 103.4 132.5 114.8 132.5H130.5C138.5 132.5 145 126 145 118V47.5Z" fill="url(#leaf)" opacity="0.86" />
+  <path d="M58 61H86M58 77H90M58 93H82M94 61H122M90 77H120M98 93H122" stroke="#ECFDF5" stroke-width="7" stroke-linecap="round" />
+  <path d="M89.5 51V137" stroke="#064E3B" stroke-width="5" stroke-linecap="round" opacity="0.34" />
 </svg>
