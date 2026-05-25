@@ -1522,6 +1522,10 @@ export function StudioView({
           <ActionMenu label={activeTitle() || "Project"} icon={studioKindIcons[kind]} primary>
             <div className="grid gap-1">
               <MenuAction active icon={studioKindIcons[kind]} label={activeTitle() || "Current project"} onClick={() => undefined} meta={`${activeStudioTab.label} / ${canvasFormat.label}`} />
+              <MenuAction icon={FileText} label="Rename project" onClick={() => {
+                const nextTitle = window.prompt("Project name", activeTitle() || studioFallbackTitle)
+                if (nextTitle?.trim()) setActiveTitle(nextTitle.trim())
+              }} meta="Update the title shown in Studio" />
               <MenuAction icon={ArrowLeft} label="All projects" onClick={() => setStudioMode("projects")} meta="Search, formats, and templates" />
               {projectMenuItems.map((item) => {
                 const Icon = studioKindIcons[item.kind]
@@ -1655,7 +1659,6 @@ export function StudioView({
                     onExport={() => downloadActive(true)}
                     onPinPane={() => setLayout((current) => pinStudioPane(current, pane.id))}
                     onRenamePane={(label) => setLayout((current) => normalizeStudioLayout({ ...current, groups: [{ ...current.groups[0], panes: current.groups[0].panes.map((item) => item.id === pane.id ? { ...item, label } : item) }] }))}
-                    onSave={() => saveActive()}
                     onSelectPane={() => activatePane(pane)}
                     onSelectTab={(tab) => {
                       if (tab.itemId) loadStudioItem({ id: tab.itemId, kind: tab.kind })
@@ -1666,7 +1669,6 @@ export function StudioView({
                         return normalizeStudioLayout({ ...current, activePaneId: pane.id, groups: [{ ...group, panes }] })
                       })
                     }}
-                    onSetActiveTitle={setActiveTitle}
                     onSetCells={setCells}
                     onSetDocHistory={setDocHistory}
                     onSetInspectorTab={setInspectorTab}
@@ -2444,10 +2446,8 @@ function StudioPaneSurface({
   onExport,
   onPinPane,
   onRenamePane,
-  onSave,
   onSelectPane,
   onSelectTab,
-  onSetActiveTitle,
   onSetCells,
   onSetDocHistory,
   onSetInspectorTab,
@@ -2488,10 +2488,8 @@ function StudioPaneSurface({
   onExport: () => void
   onPinPane: () => void
   onRenamePane: (value: string) => void
-  onSave: () => void
   onSelectPane: () => void
   onSelectTab: (tab: StudioTab) => void
-  onSetActiveTitle: (value: string) => void
   onSetCells: React.Dispatch<React.SetStateAction<string[][]>>
   onSetDocHistory: React.Dispatch<React.SetStateAction<HistoryState<string>>>
   onSetInspectorTab: (value: string) => void
@@ -2514,7 +2512,6 @@ function StudioPaneSurface({
   const viewKind = active ? activeKind : panePreview.kind
   const viewSummary = active ? activeSummary : panePreview.summary
   const viewTitle = active ? activeTitle : panePreview.title
-  const activeTab = getStudioKindOption(viewKind)
   const activePaneTab = pane.tabs.find((tab) => tab.id === pane.activeTabId) || pane.tabs[0]
   const itemTabs = pane.tabs.filter((tab) => tab.itemId)
   const visiblePaneTabs = itemTabs.length > 0
@@ -2524,8 +2521,8 @@ function StudioPaneSurface({
     <ContextMenu.Root>
       <ContextMenu.Trigger asChild>
         <section onFocus={onSelectPane} onClick={onSelectPane} className={`relative flex h-full min-w-0 flex-col border-border ${active ? "bg-card" : "bg-background/70"}`}>
-          <div className={`border-b border-border px-3 py-2 ${active ? "ring-1 ring-inset ring-primary/40" : ""}`}>
-            <div className="flex flex-wrap items-center gap-2">
+          <div className={`border-b border-border px-2 py-1.5 ${active ? "ring-1 ring-inset ring-primary/30" : ""}`}>
+            <div className="flex flex-wrap items-center gap-1.5">
               <input value={pane.label} onChange={(event) => onRenamePane(event.target.value)} className="h-8 w-24 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground outline-none focus:border-ring" title="Rename order group" />
               {pane.pinned ? <span className="inline-flex h-8 items-center rounded-md border border-primary/40 bg-primary/10 px-2 text-xs font-semibold text-primary">Pinned</span> : null}
               <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
@@ -2541,14 +2538,12 @@ function StudioPaneSurface({
                   )
                 })}
               </div>
-              <input value={viewTitle} onChange={(event) => onSetActiveTitle(event.target.value)} readOnly={!active} className="h-8 min-w-48 flex-1 rounded-md border border-transparent bg-transparent px-2 text-sm font-semibold text-foreground outline-none hover:border-border focus:border-ring" title={`${activeTab.label} title`} />
-              <span className="inline-flex h-8 items-center rounded-md border border-border bg-background px-2 text-xs font-semibold text-muted-foreground">
+              <span className="inline-flex h-8 shrink-0 items-center rounded-md border border-border bg-background px-2 text-xs font-semibold text-muted-foreground">
                 {active && saving ? "Saving..." : active && lastSaved ? `Saved ${lastSaved}` : "Draft"}
               </span>
-              <span className="hidden h-8 items-center rounded-md bg-secondary px-2 text-xs font-semibold text-secondary-foreground sm:inline-flex">{viewSummary}</span>
+              <span className="hidden h-8 items-center rounded-md bg-secondary px-2 text-xs font-semibold text-secondary-foreground lg:inline-flex">{viewSummary}</span>
               {active ? (
                 <div className="flex items-center gap-1">
-                  <MiniAction icon={Save} label="Save" onClick={onSave} />
                   <ActionMenu align="right" compact label="Pane" icon={Settings2}>
                     <MenuAction icon={SplitSquareHorizontal} label="Split right" onClick={onSplitRight} />
                     <MenuAction icon={SplitSquareVertical} label="Split down" onClick={onSplitDown} />
@@ -2563,12 +2558,6 @@ function StudioPaneSurface({
                   </ActionMenu>
                 </div>
               ) : null}
-              <details className="relative">
-                <summary className="inline-flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${activeTab.label}`}>
-                  <BookOpen className="h-4 w-4" />
-                </summary>
-                <p className="absolute right-0 top-9 z-30 w-64 rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-xl">{activeTab.description}</p>
-              </details>
             </div>
           </div>
           {active && status ? <StudioStatusToast message={status} /> : null}
@@ -3367,7 +3356,7 @@ function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: {
   const pageCount = countRichDocumentPages(value)
   const [pageHidden, setPageHidden] = useState(false)
   const [pageLocked, setPageLocked] = useState(false)
-  const [zoom, setZoom] = useState(86)
+  const [zoom, setZoom] = useState(100)
   const pageWidth = canvasPreviewWidth(canvasFormat)
   const pageScale = zoom / 100
   const pageAspectRatio = canvasAspectRatio(canvasFormat)
@@ -3412,7 +3401,21 @@ function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: {
   return (
     <div className="rounded-md border border-border bg-muted/40">
       <RichTextToolbar editor={editor} />
-      <div className="overflow-auto bg-muted/35 p-3 sm:p-5">
+      <RichDocumentPageControls
+        canvasLabel={canvasFormat.label}
+        documentSummary={documentSummary}
+        onAddPage={() => onChange(appendRichDocumentPage(value))}
+        onDuplicatePage={() => onChange(duplicateRichDocumentLastPage(value))}
+        pageCount={pageCount}
+        pageHidden={pageHidden}
+        pageLocked={pageLocked}
+        setPageHidden={setPageHidden}
+        setPageLocked={setPageLocked}
+        setZoom={setZoom}
+        zoom={zoom}
+        placement="top"
+      />
+      <div className="overflow-auto bg-muted/35 p-2 sm:p-3">
         <div
           className="mx-auto"
           style={{ aspectRatio: pageAspectRatio, width: Math.round(pageWidth * pageScale) }}
@@ -3428,36 +3431,81 @@ function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: {
           </div>
         </div>
       </div>
-      <div className="sticky bottom-0 z-10 flex flex-wrap items-center gap-2 border-t border-border bg-card/95 px-3 py-2 text-xs text-muted-foreground backdrop-blur">
-        <button onClick={() => onChange(appendRichDocumentPage(value))} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-secondary px-2 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" title="Add page" type="button">
-          <Plus className="h-3.5 w-3.5" />
-          Page
-        </button>
-        <button onClick={() => onChange(duplicateRichDocumentLastPage(value))} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-secondary px-2 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" title="Duplicate page" type="button">
-          <Copy className="h-3.5 w-3.5" />
-        </button>
-        <button onClick={() => setPageHidden((hidden) => !hidden)} className={`inline-flex h-8 items-center gap-1 rounded-md border px-2 font-semibold ${pageHidden ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} title={pageHidden ? "Show page" : "Hide page preview"} type="button">
-          {pageHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-        </button>
-        <button onClick={() => setPageLocked((locked) => !locked)} className={`inline-flex h-8 items-center gap-1 rounded-md border px-2 font-semibold ${pageLocked ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} title={pageLocked ? "Unlock editing" : "Lock editing"} type="button">
-          <Lock className="h-3.5 w-3.5" />
-        </button>
-        <span>{canvasFormat.label}</span>
-        <span>{documentSummary.words} words</span>
-        <span>{documentSummary.characters} chars</span>
-        <span>{documentSummary.readingMinutes} min read</span>
-        <div className="ml-auto flex items-center gap-2">
-          <input value={zoom} onChange={(event) => setZoom(Number(event.target.value))} min={50} max={140} type="range" className="w-28 accent-primary" aria-label="Zoom" />
-          <span className="w-10 text-right font-semibold text-foreground">{zoom}%</span>
-          <span className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 font-semibold text-secondary-foreground"><LayoutPanelLeft className="h-3.5 w-3.5" /> Pages</span>
-          <span className="font-semibold text-foreground">1 / {pageCount}</span>
-        </div>
-        {documentSummary.headings.slice(0, 4).map((heading) => (
-          <span key={`${heading.level}-${heading.title}`} className="rounded-md bg-secondary px-2 py-1 text-secondary-foreground">
-            H{heading.level} {heading.title}
-          </span>
-        ))}
+      <RichDocumentPageControls
+        canvasLabel={canvasFormat.label}
+        documentSummary={documentSummary}
+        onAddPage={() => onChange(appendRichDocumentPage(value))}
+        onDuplicatePage={() => onChange(duplicateRichDocumentLastPage(value))}
+        pageCount={pageCount}
+        pageHidden={pageHidden}
+        pageLocked={pageLocked}
+        setPageHidden={setPageHidden}
+        setPageLocked={setPageLocked}
+        setZoom={setZoom}
+        zoom={zoom}
+        placement="bottom"
+      />
+    </div>
+  )
+}
+
+function RichDocumentPageControls({
+  canvasLabel,
+  documentSummary,
+  onAddPage,
+  onDuplicatePage,
+  pageCount,
+  pageHidden,
+  pageLocked,
+  placement,
+  setPageHidden,
+  setPageLocked,
+  setZoom,
+  zoom,
+}: {
+  canvasLabel: string
+  documentSummary: ReturnType<typeof summarizeDocumentHtml>
+  onAddPage: () => void
+  onDuplicatePage: () => void
+  pageCount: number
+  pageHidden: boolean
+  pageLocked: boolean
+  placement: "top" | "bottom"
+  setPageHidden: React.Dispatch<React.SetStateAction<boolean>>
+  setPageLocked: React.Dispatch<React.SetStateAction<boolean>>
+  setZoom: React.Dispatch<React.SetStateAction<number>>
+  zoom: number
+}) {
+  return (
+    <div className={`${placement === "bottom" ? "sticky bottom-0 z-10 border-t" : "border-b"} flex flex-wrap items-center gap-2 border-border bg-card/95 px-3 py-2 text-xs text-muted-foreground backdrop-blur`}>
+      <button onClick={onAddPage} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-secondary px-2 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" title="Add page" type="button">
+        <Plus className="h-3.5 w-3.5" />
+        Page
+      </button>
+      <button onClick={onDuplicatePage} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-secondary px-2 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" title="Duplicate page" type="button">
+        <Copy className="h-3.5 w-3.5" />
+      </button>
+      <button onClick={() => setPageHidden((hidden) => !hidden)} className={`inline-flex h-8 items-center gap-1 rounded-md border px-2 font-semibold ${pageHidden ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} title={pageHidden ? "Show page" : "Hide page preview"} type="button">
+        {pageHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+      </button>
+      <button onClick={() => setPageLocked((locked) => !locked)} className={`inline-flex h-8 items-center gap-1 rounded-md border px-2 font-semibold ${pageLocked ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} title={pageLocked ? "Unlock editing" : "Lock editing"} type="button">
+        <Lock className="h-3.5 w-3.5" />
+      </button>
+      <span className="hidden font-semibold text-muted-foreground md:inline">{canvasLabel}</span>
+      <span className="hidden md:inline">{documentSummary.words} words</span>
+      <span className="hidden md:inline">{documentSummary.characters} chars</span>
+      <span className="hidden lg:inline">{documentSummary.readingMinutes} min read</span>
+      <div className="ml-auto flex items-center gap-2">
+        <input value={zoom} onChange={(event) => setZoom(Number(event.target.value))} min={60} max={150} type="range" className="w-24 accent-primary sm:w-32" aria-label="Zoom" />
+        <span className="w-10 text-right font-semibold text-foreground">{zoom}%</span>
+        <span className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 font-semibold text-secondary-foreground"><LayoutPanelLeft className="h-3.5 w-3.5" /> Pages</span>
+        <span className="font-semibold text-foreground">1 / {pageCount}</span>
       </div>
+      {placement === "bottom" ? documentSummary.headings.slice(0, 3).map((heading) => (
+        <span key={`${heading.level}-${heading.title}`} className="rounded-md bg-secondary px-2 py-1 text-secondary-foreground">
+          H{heading.level} {heading.title}
+        </span>
+      )) : null}
     </div>
   )
 }
