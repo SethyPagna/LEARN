@@ -2,7 +2,7 @@ import { cookies } from "next/headers"
 import Link from "next/link"
 import { ArrowRight, BookOpen, Brain, GraduationCap, Layers3, Play, Sparkles } from "lucide-react"
 import { SESSION_COOKIE } from "@/lib/data"
-import { IntroWorkflow } from "@/components/intro-workflow"
+import { IntroWorkflowEmil } from "@/components/intro-workflow-emil"
 import { PublicIntroControls } from "@/components/public-intro-controls"
 
 export default async function HomePage() {
@@ -79,7 +79,7 @@ export default async function HomePage() {
           }
         `}</style>
       </section>
-      <IntroWorkflow />
+      <IntroWorkflowEmil />
     </main>
   )
 }
