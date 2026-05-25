@@ -13,8 +13,8 @@ test("studio canvas format helpers expose aspect and grouped choices", () => {
   const slide = getStudioCanvasFormat("story", "slides")
   assert.equal(canvasAspectRatio(slide), "9 / 16")
   assert.ok(canvasPreviewWidth(slide) < canvasPreviewWidth(getStudioCanvasFormat("presentation-16-9", "slides")))
-  assert.ok(groupStudioCanvasFormats("slides").presentation.length >= 2)
-  assert.equal(groupStudioCanvasFormats("sheets").document.length, 1)
+  assert.ok(groupStudioCanvasFormats("slides").presentation.length >= 4)
+  assert.ok(groupStudioCanvasFormats("sheets").document.length >= 3)
 })
 
 test("studio canvas format lists keep groups ordered and compatible", () => {
