@@ -1071,28 +1071,31 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[340px_1fr]">
-      <section className="rounded-lg border border-border bg-card p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="grid gap-3 xl:grid-cols-[304px_minmax(0,1fr)]">
+      <section className="rounded-lg border border-border bg-card p-3 xl:sticky xl:top-3 xl:max-h-[calc(100vh-6rem)] xl:self-start xl:overflow-y-auto">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-2xl font-semibold text-foreground">{title}</h2>
-            <span className="mt-2 inline-flex rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{socialPlan.headline}</span>
+            <h2 className="text-xl font-semibold text-foreground">{title}</h2>
+            <span className="mt-1 inline-flex rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{socialPlan.headline}</span>
           </div>
-          <button onClick={startNew} className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground">
+          <button onClick={startNew} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground">
             <Icon className="h-4 w-4" />
             New
           </button>
         </div>
-        <label className="mt-4 flex h-10 items-center rounded-md border border-input bg-background px-3">
+        <label className="mt-3 flex h-9 items-center rounded-md border border-input bg-background px-3">
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${title.toLowerCase()}`} className="w-full bg-transparent text-sm outline-none" />
         </label>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-background p-2">
+        <div className="mt-3 grid gap-2 rounded-md border border-border bg-background p-2">
           <div className="flex min-w-0 flex-wrap gap-1">
-            <SocialSummaryChip label="Showing" value={recordFilter} />
-            <SocialSummaryChip label="Visible" value={`${filteredItems.length}/${recordPage.total}`} />
-            {recordFilterSummary.active ? <span className="rounded-md bg-warning/15 px-2 py-1 text-xs font-semibold text-warning">{recordFilterSummary.label}</span> : null}
+            <SocialSummaryChip label="Shown" value={`${filteredItems.length}/${recordPage.total}`} />
+            <SocialSummaryChip label={socialSummary.primaryLabel} value={String(socialSummary.primaryCount)} />
+            <SocialSummaryChip label={socialSummary.secondaryLabel} value={String(socialSummary.secondaryCount)} />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className={`truncate rounded-md px-2 py-1 text-xs font-semibold ${recordFilterSummary.active ? "bg-warning/15 text-warning" : "bg-muted text-muted-foreground"}`}>
+              {recordFilterSummary.active ? recordFilterSummary.label : "All visible"}
+            </span>
             {recordFilterSummary.active ? (
               <button onClick={clearRecordFilters} className="h-9 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
                 Clear
@@ -1120,24 +1123,12 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
             </SocialMenu>
           </div>
         </div>
-        <details className="mt-3 rounded-md border border-border bg-background">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-            <span>Signals</span>
-            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{socialSummary.total} total</span>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          </summary>
-          <div className="grid gap-2 border-t border-border p-2 sm:grid-cols-3">
-            <Metric label="Total" value={String(socialSummary.total)} />
-            <Metric label={socialSummary.primaryLabel} value={String(socialSummary.primaryCount)} />
-            <Metric label={socialSummary.secondaryLabel} value={String(socialSummary.secondaryCount)} />
-          </div>
-        </details>
-        <div className="mt-4 grid gap-2">
+        <div className="mt-3 grid gap-2">
           {recordCards.map(({ card, item }) => (
             <button
               key={item.id}
               onClick={() => selectSocialRecord(item)}
-              className={`rounded-md border p-3 text-left ${selectedId === item.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+              className={`rounded-md border p-2 text-left ${selectedId === item.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
             >
               <span className="flex min-w-0 items-center justify-between gap-2">
                 <span className="truncate text-sm font-semibold">{card.title}</span>
@@ -1173,11 +1164,11 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
         {message ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{message}</p> : null}
       </section>
 
-      <Panel className="p-4">
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+      <Panel className="p-3">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase text-muted-foreground">{draft.id ? "Editing" : "New draft"}</p>
-            <h3 className="mt-1 text-xl font-semibold text-foreground">{draft.name || draft.title || `Untitled ${noun}`}</h3>
+            <h3 className="mt-1 text-lg font-semibold text-foreground">{draft.name || draft.title || `Untitled ${noun}`}</h3>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">{recordStatus}</span>
@@ -1191,33 +1182,43 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
             </SocialMenu>
           </div>
         </div>
-        <div className="grid gap-3">
-          {kind === "battles" ? (
-            <>
-              <SocialField label="Title" value={draft.title} onChange={(value) => setDraft({ ...draft, title: value })} />
-              <SocialField label="Topic" value={draft.topic} onChange={(value) => setDraft({ ...draft, topic: value })} />
-              <SocialSelect label="Mode" value={draft.mode} options={["solo", "team"]} onChange={(value) => setDraft({ ...draft, mode: value })} />
-              <SocialSelect label="Status" value={draft.status} options={["waiting", "active", "completed"]} onChange={(value) => setDraft({ ...draft, status: value })} />
-            </>
-          ) : kind === "rooms" ? (
-            <>
-              <SocialField label="Room name" value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
-              <SocialSelect label="Mode" value={draft.mode} options={["focus", "discussion", "stage"]} onChange={(value) => setDraft({ ...draft, mode: value })} />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <SocialField label="Pomodoro minutes" value={String(draft.pomodoroMinutes)} onChange={(value) => setDraft({ ...draft, pomodoroMinutes: Number(value) || 25 })} />
-                <SocialField label="Break minutes" value={String(draft.breakMinutes)} onChange={(value) => setDraft({ ...draft, breakMinutes: Number(value) || 5 })} />
-              </div>
-              <SocialSelect label="Status" value={draft.status} options={["open", "active", "closed"]} onChange={(value) => setDraft({ ...draft, status: value })} />
-            </>
-          ) : (
-            <>
-              <SocialField label="Group name" value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
-              <SocialField label="Description" value={draft.description} onChange={(value) => setDraft({ ...draft, description: value })} multiline />
-              <SocialField label="Topic tags" value={draft.topicTags} onChange={(value) => setDraft({ ...draft, topicTags: value })} />
-              <SocialSelect label="Visibility" value={draft.visibility} options={["private", "connections", "public"]} onChange={(value) => setDraft({ ...draft, visibility: value })} />
-            </>
-          )}
-        </div>
+        <details className="rounded-md border border-border bg-background" open>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
+            <span>Setup</span>
+            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-semibold capitalize text-secondary-foreground">{recordStatus}</span>
+          </summary>
+          <div className="grid gap-3 border-t border-border p-3">
+            {kind === "battles" ? (
+              <>
+                <SocialField label="Title" value={draft.title} onChange={(value) => setDraft({ ...draft, title: value })} />
+                <SocialField label="Topic" value={draft.topic} onChange={(value) => setDraft({ ...draft, topic: value })} />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <SocialSelect label="Mode" value={draft.mode} options={["solo", "team"]} onChange={(value) => setDraft({ ...draft, mode: value })} />
+                  <SocialSelect label="Status" value={draft.status} options={["waiting", "active", "completed"]} onChange={(value) => setDraft({ ...draft, status: value })} />
+                </div>
+              </>
+            ) : kind === "rooms" ? (
+              <>
+                <SocialField label="Room name" value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <SocialSelect label="Mode" value={draft.mode} options={["focus", "discussion", "stage"]} onChange={(value) => setDraft({ ...draft, mode: value })} />
+                  <SocialSelect label="Status" value={draft.status} options={["open", "active", "closed"]} onChange={(value) => setDraft({ ...draft, status: value })} />
+                  <SocialField label="Pomodoro minutes" value={String(draft.pomodoroMinutes)} onChange={(value) => setDraft({ ...draft, pomodoroMinutes: Number(value) || 25 })} />
+                  <SocialField label="Break minutes" value={String(draft.breakMinutes)} onChange={(value) => setDraft({ ...draft, breakMinutes: Number(value) || 5 })} />
+                </div>
+              </>
+            ) : (
+              <>
+                <SocialField label="Group name" value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
+                <SocialField label="Description" value={draft.description} onChange={(value) => setDraft({ ...draft, description: value })} multiline />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <SocialField label="Topic tags" value={draft.topicTags} onChange={(value) => setDraft({ ...draft, topicTags: value })} />
+                  <SocialSelect label="Visibility" value={draft.visibility} options={["private", "connections", "public"]} onChange={(value) => setDraft({ ...draft, visibility: value })} />
+                </div>
+              </>
+            )}
+          </div>
+        </details>
         <div className="mt-4 grid gap-3">
           <div className="flex gap-1 overflow-x-auto rounded-md border border-border bg-background p-1">
             {detailTabs.map((tab) => {
