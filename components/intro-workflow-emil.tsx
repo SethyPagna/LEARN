@@ -107,11 +107,14 @@ const accentClasses: Record<IntroSlide["accent"], {
 
 export function IntroWorkflowEmil() {
   const [activeIndex, setActiveIndex] = useState(0)
+  const [scrollProgress, setScrollProgress] = useState(0)
   const sectionRef = useRef<HTMLElement | null>(null)
   const rafRef = useRef<number | null>(null)
   const activeSlide = introSlides[activeIndex] || introSlides[0]
   const accent = accentClasses[activeSlide.accent]
   const ActiveIcon = activeSlide.icon
+  const slideProgress = Math.min(1, Math.max(0, scrollProgress * introSlides.length - activeIndex))
+  const stepLabel = `${String(activeIndex + 1).padStart(2, "0")} / ${String(introSlides.length).padStart(2, "0")}`
 
   useEffect(() => {
     function update() {
@@ -122,6 +125,7 @@ export function IntroWorkflowEmil() {
       const scrollable = Math.max(1, rect.height - window.innerHeight)
       const progress = Math.min(1, Math.max(0, -rect.top / scrollable))
       const nextIndex = Math.min(introSlides.length - 1, Math.floor(progress * introSlides.length))
+      setScrollProgress((current) => (Math.abs(current - progress) < 0.003 ? current : progress))
       setActiveIndex((current) => (current === nextIndex ? current : nextIndex))
     }
 
@@ -166,9 +170,14 @@ export function IntroWorkflowEmil() {
 
           <div className="grid min-h-0 items-center gap-5 lg:grid-cols-[0.78fr_1.22fr]">
             <div className="max-w-xl">
-              <div className={`inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-sm font-semibold ${accent.soft}`}>
-                <ActiveIcon className="h-4 w-4" />
-                {activeSlide.route}
+              <div className="flex flex-wrap items-center gap-2" aria-live="polite">
+                <div className={`inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-sm font-semibold ${accent.soft}`}>
+                  <ActiveIcon className="h-4 w-4" />
+                  {activeSlide.route}
+                </div>
+                <span className="rounded-2xl border border-slate-300/70 bg-white/64 px-3 py-2 text-sm font-semibold text-slate-500 shadow-sm dark:border-white/10 dark:bg-white/[0.055] dark:text-white/48">
+                  {stepLabel}
+                </span>
               </div>
               <h2 className="mt-5 text-balance text-4xl font-semibold leading-[0.98] tracking-tight sm:text-6xl">
                 {activeSlide.title}
@@ -185,14 +194,21 @@ export function IntroWorkflowEmil() {
               </div>
             </div>
 
-            <div key={activeSlide.key} className="intro-emil-screen">
-              <WorkflowPreview slide={activeSlide} />
+            <div
+              key={activeSlide.key}
+              className="intro-emil-screen"
+              style={{
+                opacity: 0.92 + slideProgress * 0.08,
+                transform: `translate3d(0, ${(1 - slideProgress) * 8}px, 0) scale(${0.992 + slideProgress * 0.008})`,
+              }}
+            >
+              <WorkflowPreview slide={activeSlide} progress={slideProgress} />
             </div>
           </div>
 
           <div className="grid gap-3">
             <div className="h-1.5 overflow-hidden rounded-full bg-slate-200/90 dark:bg-white/10">
-              <div className={`h-full ${accent.bar} transition-[width] duration-200 ease-out`} style={{ width: `${((activeIndex + 1) / introSlides.length) * 100}%` }} />
+              <div className={`h-full ${accent.bar} transition-[width] duration-200 ease-out`} style={{ width: `${Math.max(4, scrollProgress * 100)}%` }} />
             </div>
             <div className="grid gap-2 sm:grid-cols-4">
               {introSlides.map((slide, index) => {
@@ -204,6 +220,7 @@ export function IntroWorkflowEmil() {
                     key={slide.key}
                     type="button"
                     onClick={() => moveToSlide(index)}
+                    aria-current={active ? "step" : undefined}
                     className={`group flex min-w-0 items-center gap-3 rounded-2xl border p-2.5 text-left transition-[border-color,background-color,transform,box-shadow] duration-150 ease-out active:scale-[0.98] ${
                       active
                         ? `border-transparent bg-slate-950 text-white shadow-xl shadow-slate-900/15 ring-2 ${itemAccent.ring} dark:bg-white dark:text-black`
@@ -215,7 +232,7 @@ export function IntroWorkflowEmil() {
                     </span>
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-semibold">{slide.route}</span>
-                      <span className={`block truncate text-xs ${active ? "text-white/62 dark:text-black/52" : "text-slate-400 dark:text-white/42"}`}>{slide.metric}</span>
+                      <span className={`block truncate text-xs ${active ? "text-white/62 dark:text-black/52" : "text-slate-400 dark:text-white/42"}`}>{active ? stepLabel : slide.metric}</span>
                     </span>
                   </button>
                 )
@@ -242,11 +259,11 @@ export function IntroWorkflowEmil() {
   )
 }
 
-function WorkflowPreview({ slide }: { slide: IntroSlide }) {
-  if (slide.key === "capture") return <CapturePreview />
-  if (slide.key === "studio") return <StudioPreview />
-  if (slide.key === "ai") return <AiPreview />
-  return <PracticePreview />
+function WorkflowPreview({ progress, slide }: { progress: number; slide: IntroSlide }) {
+  if (slide.key === "capture") return <CapturePreview progress={progress} />
+  if (slide.key === "studio") return <StudioPreview progress={progress} />
+  if (slide.key === "ai") return <AiPreview progress={progress} />
+  return <PracticePreview progress={progress} />
 }
 
 function PreviewFrame({ children, label }: { children: React.ReactNode; label: string }) {
@@ -265,7 +282,7 @@ function PreviewFrame({ children, label }: { children: React.ReactNode; label: s
   )
 }
 
-function CapturePreview() {
+function CapturePreview({ progress }: { progress: number }) {
   return (
     <PreviewFrame label="Vault">
       <div className="grid gap-3 lg:grid-cols-[0.75fr_1.25fr]">
@@ -281,13 +298,14 @@ function CapturePreview() {
           <div className="mt-5 grid gap-2 sm:grid-cols-3">
             {["Note", "Quiz", "Review"].map((item) => <span key={item} className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">{item}</span>)}
           </div>
+          <PreviewProgress value={progress} tone="emerald" />
         </section>
       </div>
     </PreviewFrame>
   )
 }
 
-function StudioPreview() {
+function StudioPreview({ progress }: { progress: number }) {
   return (
     <PreviewFrame label="Studio">
       <div className="rounded-2xl bg-[#edf2f7] p-4 text-slate-950">
@@ -300,13 +318,14 @@ function StudioPreview() {
           <div className="h-28 w-28 rounded-full bg-slate-700/80" />
           <h3 className="-mt-16 ml-24 max-w-lg text-4xl font-bold uppercase tracking-tight text-white drop-shadow">AI driven learning workspace</h3>
           <p className="ml-24 mt-4 text-lg text-slate-900">One canvas for notes, docs, sheets, and slides.</p>
+          <PreviewProgress value={progress} tone="sky" />
         </div>
       </div>
     </PreviewFrame>
   )
 }
 
-function AiPreview() {
+function AiPreview({ progress }: { progress: number }) {
   return (
     <PreviewFrame label="AI Tutor">
       <div className="grid gap-3 lg:grid-cols-[1fr_260px]">
@@ -321,6 +340,7 @@ function AiPreview() {
             <CheckCircle2 className="h-4 w-4" />
             Prompt preview ready
           </div>
+          <PreviewProgress value={progress} tone="violet" />
         </section>
         <aside className="rounded-2xl bg-slate-950 p-4 text-white">
           <p className="text-sm font-semibold text-violet-200">Gateway</p>
@@ -333,7 +353,7 @@ function AiPreview() {
   )
 }
 
-function PracticePreview() {
+function PracticePreview({ progress }: { progress: number }) {
   return (
     <PreviewFrame label="Practice">
       <div className="grid gap-3 lg:grid-cols-[1fr_250px]">
@@ -348,6 +368,7 @@ function PracticePreview() {
               <span key={item} className={`rounded-2xl p-3 text-sm font-semibold ${index === 1 ? "bg-emerald-300 text-slate-950" : "bg-white/12"}`}>{item}</span>
             ))}
           </div>
+          <PreviewProgress value={progress} tone="amber" />
         </section>
         <aside className="rounded-2xl bg-white p-4 text-slate-950 dark:bg-slate-50">
           <div className="flex items-center gap-2">
@@ -362,5 +383,14 @@ function PracticePreview() {
         </aside>
       </div>
     </PreviewFrame>
+  )
+}
+
+function PreviewProgress({ tone, value }: { tone: IntroSlide["accent"]; value: number }) {
+  const colors = accentClasses[tone]
+  return (
+    <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/14" aria-hidden="true">
+      <div className={`h-full ${colors.bar} transition-[width] duration-150 ease-out`} style={{ width: `${Math.max(8, Math.round(value * 100))}%` }} />
+    </div>
   )
 }
