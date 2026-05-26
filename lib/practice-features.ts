@@ -32,6 +32,7 @@ export interface PracticeModeSummary {
 
 export type PracticeWorkspaceTarget = "quizzes" | "games"
 export type PracticeWorkspaceActionId = "resume" | "careful" | "speed" | "repair" | "create"
+export type PracticeReadyLoopId = "generate" | "play" | "battle" | "share"
 export type PracticePlayStyleId = "live" | "study" | "assessment" | "arcade" | "strategy"
 export type PracticeGameModeId = "classic" | "team-race" | "match" | "redemption" | "arcade-quest" | "economy"
 export type PracticeArenaPresetId = "classic" | "accuracy" | "team" | "flashcards" | "redemption" | "ai-generated"
@@ -50,6 +51,16 @@ export interface PracticeWorkspacePlan {
   primaryAction: PracticeWorkspaceAction
   actions: PracticeWorkspaceAction[]
   signals: Array<{ label: string; value: string }>
+}
+
+export interface PracticeReadyLoop {
+  id: PracticeReadyLoopId
+  label: string
+  badge: string
+  target: PracticeWorkspaceTarget | "ai" | "battles" | "social"
+  enabled: boolean
+  reason: string
+  recommended: boolean
 }
 
 export interface PracticeLiveJoinCard {
@@ -569,6 +580,61 @@ export function buildPracticeLiveJoinCard(input: {
       { label: "Accuracy", value: "x1.5", detail: "Clean streaks multiply the final round score." },
     ],
   }
+}
+
+export function buildPracticeReadyLoops(input: {
+  quizCount: number
+  draftCount?: number
+  connectionCount?: number
+  battleCount?: number
+  hasStudioContext?: boolean
+}): PracticeReadyLoop[] {
+  const quizCount = Math.max(0, input.quizCount)
+  const draftCount = Math.max(0, input.draftCount ?? 0)
+  const connectionCount = Math.max(0, input.connectionCount ?? 0)
+  const battleCount = Math.max(0, input.battleCount ?? 0)
+  const hasQuizBank = quizCount > 0
+  const hasDraft = draftCount > 0
+  const hasStudioContext = input.hasStudioContext !== false
+
+  return [
+    {
+      id: "generate",
+      label: "Generate",
+      badge: hasStudioContext ? "AI" : "Add source",
+      target: "ai",
+      enabled: true,
+      reason: hasStudioContext ? "Create quiz, flashcards, or review cards from Studio." : "Add notes or uploads, then generate.",
+      recommended: !hasQuizBank,
+    },
+    {
+      id: "play",
+      label: hasDraft ? "Resume" : "Play",
+      badge: hasDraft ? `${draftCount} draft${draftCount === 1 ? "" : "s"}` : hasQuizBank ? `${quizCount} bank${quizCount === 1 ? "" : "s"}` : "Needs quiz",
+      target: hasDraft ? "quizzes" : "games",
+      enabled: hasQuizBank || hasDraft,
+      reason: hasDraft ? "Continue saved answers and timer." : "Start a fast scored run.",
+      recommended: hasQuizBank || hasDraft,
+    },
+    {
+      id: "battle",
+      label: "Battle",
+      badge: battleCount ? `${battleCount} live` : hasQuizBank ? "Ready" : "Needs quiz",
+      target: "battles",
+      enabled: hasQuizBank || battleCount > 0,
+      reason: battleCount ? "Open live battles." : "Launch a quick challenge from a quiz bank.",
+      recommended: hasQuizBank && !hasDraft,
+    },
+    {
+      id: "share",
+      label: "Share",
+      badge: connectionCount ? `${connectionCount} friend${connectionCount === 1 ? "" : "s"}` : "Invite",
+      target: "social",
+      enabled: true,
+      reason: connectionCount ? "Send practice to a friend or group." : "Invite a learner, then play together.",
+      recommended: hasQuizBank && connectionCount > 0,
+    },
+  ]
 }
 
 export function buildPracticeArenaPresets(input: {
