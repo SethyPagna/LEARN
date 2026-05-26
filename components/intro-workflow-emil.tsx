@@ -150,7 +150,8 @@ export function IntroWorkflowEmil() {
     const top = section.getBoundingClientRect().top + window.scrollY
     const scrollable = Math.max(1, section.offsetHeight - window.innerHeight)
     const target = top + scrollable * ((index + 0.5) / introSlides.length)
-    window.scrollTo({ top: target, behavior: "smooth" })
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    window.scrollTo({ top: target, behavior: reduceMotion ? "auto" : "smooth" })
   }
 
   return (
@@ -163,7 +164,7 @@ export function IntroWorkflowEmil() {
               <Sparkles className={`h-3.5 w-3.5 ${accent.text}`} />
               Workflow
             </div>
-            <a href="/intro-classic" className="rounded-full border border-slate-300/70 bg-white/72 px-3 py-1 text-xs font-semibold text-slate-600 transition-[border-color,background-color,transform] duration-150 ease-out hover:-translate-y-0.5 hover:border-emerald-400 hover:bg-white dark:border-white/10 dark:bg-white/[0.06] dark:text-white/58 dark:hover:border-emerald-300/50">
+            <a href="/intro-classic" className="rounded-full border border-slate-300/70 bg-white/72 px-3 py-1 text-xs font-semibold text-slate-600 transition-[border-color,background-color,transform] duration-150 ease-out hover:-translate-y-0.5 hover:border-emerald-400 hover:bg-white active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.06] dark:text-white/58 dark:hover:border-emerald-300/50">
               Classic version
             </a>
           </div>
