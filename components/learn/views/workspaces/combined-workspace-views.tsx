@@ -580,11 +580,10 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search people, chats, groups, or paste an email" className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-foreground outline-none" />
           </label>
           <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
-            <span className="shrink-0 rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">{status}</span>
             <details className="group/create relative shrink-0">
               <summary className="inline-flex h-10 cursor-pointer list-none items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground">
                 <Plus className="h-4 w-4" />
-                Create
+                <span className="hidden sm:inline">New</span>
               </summary>
               <div className="absolute right-0 top-11 z-50 grid w-64 gap-1.5 rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-xl">
                 {flowCards.map((card) => {
@@ -606,7 +605,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                 })}
               </div>
             </details>
-            <button onClick={() => void refresh()} disabled={syncAction?.disabled} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60" title={syncAction?.busy ? syncAction.busyLabel : syncAction?.label || "Sync"} type="button">
+            <button onClick={() => void refresh()} disabled={syncAction?.disabled} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60" title={syncAction?.busy ? syncAction.busyLabel : syncAction?.label || status} type="button">
               <Repeat2 className="h-4 w-4" />
             </button>
           </div>
@@ -626,7 +625,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
           {queryLooksLikeEmail ? (
             <button onClick={() => setInviteEmail(query.trim())} className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-success/40 bg-success/10 px-3 text-xs font-semibold text-success" type="button">
               <Mail className="h-3.5 w-3.5" />
-              Use email
+              Invite email
             </button>
           ) : null}
         </div>
@@ -796,7 +795,8 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
           </section>
         ) : null}
 
-        <details className="group/invite rounded-lg border border-border bg-background">
+        {queryLooksLikeEmail || inviteEmail.trim() ? (
+        <details className="group/invite rounded-lg border border-border bg-background" open>
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-semibold text-foreground">
             <span>Invite by email</span>
             <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/invite:rotate-180" />
@@ -813,6 +813,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                 <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground sm:col-span-3">{inviteStatus}</span>
           </div>
         </details>
+        ) : null}
       </div>
     </Panel>
   )
