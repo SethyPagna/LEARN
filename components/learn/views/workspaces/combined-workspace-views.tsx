@@ -601,10 +601,20 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
             </span>
             <div className="min-w-0">
               <h3 className="text-lg font-semibold text-foreground">Social</h3>
-              <p className="text-xs text-muted-foreground">Friends, chats, groups, calls, and games.</p>
+              <p className="text-xs text-muted-foreground">Friends, chat, groups, calls.</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+            {homeLanes.slice(0, 4).map((lane) => {
+              const Icon = socialHomeLaneIcons[lane.id]
+              return (
+                <button key={lane.id} onClick={() => openHomeLane(lane)} className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" title={lane.detail} type="button">
+                  <Icon className="h-3.5 w-3.5 text-primary" />
+                  <span className="hidden sm:inline">{lane.label}</span>
+                  <span className="rounded bg-background px-1.5 py-0.5 text-[0.62rem] text-foreground">{lane.count}</span>
+                </button>
+              )
+            })}
             <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">{status}</span>
             <button onClick={() => runPrimaryCommand(primaryCommand.id)} disabled={Boolean(commandAction)} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60" title={primaryCommand.detail} type="button">
               <Sparkles className="h-4 w-4" />
@@ -616,9 +626,9 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
           </div>
         </div>
       </div>
-      <div className="grid gap-3 p-3 lg:grid-cols-[236px_1fr] lg:p-4">
+      <div className="grid gap-3 p-3 lg:grid-cols-[190px_1fr] lg:p-4">
         <aside className="grid gap-2 rounded-lg border border-border bg-background p-2 lg:sticky lg:top-3 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
-          <div className="grid grid-cols-5 gap-1 lg:grid-cols-2">
+          <div className="grid grid-cols-5 gap-1 lg:grid-cols-1">
             {starterActions.map((action) => (
               <SocialStarterActionButton key={action.id} action={action} onClick={() => openStarterAction(action)} />
             ))}
@@ -643,9 +653,9 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
               )
             })}
           </div>
-          <details className="group/social-open rounded-md border border-border bg-card" open>
+          <details className="group/social-open rounded-md border border-border bg-card">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              <span>Open</span>
+              <span>New</span>
               <ChevronDown className="h-4 w-4 transition group-open/social-open:rotate-180" />
             </summary>
             <div className="grid gap-1.5 border-t border-border p-1.5">
@@ -664,24 +674,6 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                     onCreate={() => void createSocialPlace(card.id)}
                     onOpen={() => open(card.id)}
                   />
-                )
-              })}
-            </div>
-          </details>
-          <details className="group/social-overview rounded-md border border-border bg-card">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              <span>Counts</span>
-              <ChevronDown className="h-4 w-4 transition group-open/social-overview:rotate-180" />
-            </summary>
-            <div className="grid gap-1.5 border-t border-border p-1.5">
-              {homeLanes.map((lane) => {
-                const Icon = socialHomeLaneIcons[lane.id]
-                return (
-                  <button key={lane.id} onClick={() => openHomeLane(lane)} className="flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground" title={lane.detail} type="button">
-                    <Icon className="h-3.5 w-3.5 shrink-0 text-primary" />
-                    <span className="min-w-0 flex-1 truncate">{lane.label}</span>
-                    <span className="rounded bg-secondary px-1.5 py-0.5 text-[0.62rem] text-secondary-foreground">{lane.count}</span>
-                  </button>
                 )
               })}
             </div>
@@ -914,7 +906,7 @@ function SocialStarterActionButton({ action, onClick }: { action: SocialStarterA
   return (
     <button
       onClick={onClick}
-      className={`group flex min-w-0 flex-col items-center justify-center gap-1 rounded-md border px-2 py-2 text-center transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground ${
+      className={`group flex min-w-0 items-center justify-center gap-2 rounded-md border px-2 py-2 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground lg:justify-start ${
         action.primary ? "border-primary/40 bg-primary/10" : "border-border bg-card"
       }`}
       title={action.detail}
@@ -926,7 +918,7 @@ function SocialStarterActionButton({ action, onClick }: { action: SocialStarterA
           {action.badge}
         </span>
       </span>
-      <span className="max-w-full truncate text-[0.7rem] font-semibold text-foreground group-hover:text-accent-foreground">{action.label}</span>
+      <span className="max-w-full truncate text-[0.7rem] font-semibold text-foreground group-hover:text-accent-foreground lg:text-xs">{action.label}</span>
     </button>
   )
 }
