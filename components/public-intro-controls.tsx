@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useTheme } from "next-themes"
 import { ArrowRight, Check, Languages, Moon, Sun } from "lucide-react"
@@ -26,6 +26,7 @@ export function PublicIntroControls({ signedIn }: { signedIn: boolean }) {
   const [locale, setLocaleState] = useState<SupportedLocale>("en")
   const [mounted, setMounted] = useState(false)
   const [languageOpen, setLanguageOpen] = useState(false)
+  const languageMenuRef = useRef<HTMLDivElement | null>(null)
   const currentTheme = mounted ? resolvedTheme : "dark"
   const nextTheme = currentTheme === "dark" ? "light" : "dark"
   const ThemeIcon = currentTheme === "dark" ? Sun : Moon
@@ -40,6 +41,27 @@ export function PublicIntroControls({ signedIn }: { signedIn: boolean }) {
     document.documentElement.dir = locale === "ar" ? "rtl" : "ltr"
   }, [locale])
 
+  useEffect(() => {
+    if (!languageOpen) return
+
+    function closeFromOutside(event: PointerEvent) {
+      if (languageMenuRef.current?.contains(event.target as Node)) return
+      setLanguageOpen(false)
+    }
+
+    function closeFromEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setLanguageOpen(false)
+    }
+
+    document.addEventListener("pointerdown", closeFromOutside)
+    document.addEventListener("keydown", closeFromEscape)
+
+    return () => {
+      document.removeEventListener("pointerdown", closeFromOutside)
+      document.removeEventListener("keydown", closeFromEscape)
+    }
+  }, [languageOpen])
+
   function setLocale(nextLocale: SupportedLocale) {
     setLocaleState(nextLocale)
     window.localStorage.setItem(LANGUAGE_KEY, nextLocale)
@@ -52,26 +74,31 @@ export function PublicIntroControls({ signedIn }: { signedIn: boolean }) {
       <button
         type="button"
         onClick={() => setTheme(nextTheme)}
-        className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-300/70 bg-white/70 text-slate-800 shadow-sm transition hover:border-emerald-500/50 hover:bg-emerald-50 dark:border-white/12 dark:bg-white/8 dark:text-white/82 dark:hover:border-emerald-300/45 dark:hover:bg-white/14"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-300/70 bg-white/70 text-slate-800 shadow-sm transition-[background-color,border-color,box-shadow,transform] duration-150 ease-out hover:-translate-y-0.5 hover:border-emerald-500/50 hover:bg-emerald-50 active:scale-[0.97] dark:border-white/12 dark:bg-white/8 dark:text-white/82 dark:hover:border-emerald-300/45 dark:hover:bg-white/14"
         aria-label={nextTheme === "light" ? publicLabels.light : publicLabels.dark}
         title={nextTheme === "light" ? publicLabels.light : publicLabels.dark}
       >
         <ThemeIcon className="h-4 w-4" />
       </button>
 
-      <div className="relative">
+      <div className="relative" ref={languageMenuRef}>
         <button
           type="button"
           onClick={() => setLanguageOpen((open) => !open)}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-300/70 bg-white/70 text-slate-800 shadow-sm transition hover:border-emerald-500/50 hover:bg-emerald-50 dark:border-white/12 dark:bg-white/8 dark:text-white/82 dark:hover:border-emerald-300/45 dark:hover:bg-white/14"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-300/70 bg-white/70 text-slate-800 shadow-sm transition-[background-color,border-color,box-shadow,transform] duration-150 ease-out hover:-translate-y-0.5 hover:border-emerald-500/50 hover:bg-emerald-50 active:scale-[0.97] dark:border-white/12 dark:bg-white/8 dark:text-white/82 dark:hover:border-emerald-300/45 dark:hover:bg-white/14"
           aria-expanded={languageOpen}
+          aria-haspopup="menu"
           aria-label={publicLabels.language}
           title={mounted ? languageNames[locale] : publicLabels.language}
         >
           <Languages className="h-4 w-4" />
         </button>
         {languageOpen ? (
-          <div className="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-2 text-slate-950 shadow-2xl dark:border-white/12 dark:bg-[#101722] dark:text-white">
+          <div
+            className="absolute right-0 z-50 mt-2 w-72 origin-top-right rounded-xl border border-slate-200 bg-white p-2 text-slate-950 shadow-2xl transition-[opacity,transform] duration-150 ease-out dark:border-white/12 dark:bg-[#101722] dark:text-white"
+            role="menu"
+            aria-label={publicLabels.language}
+          >
             <p className="px-3 pb-2 pt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-white/48">{publicLabels.language}</p>
             <div className="grid max-h-80 gap-1 overflow-auto pr-1">
               {supportedLocales.map((item) => (
@@ -79,9 +106,11 @@ export function PublicIntroControls({ signedIn }: { signedIn: boolean }) {
                   key={item}
                   type="button"
                   onClick={() => setLocale(item)}
-                  className={`flex items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition hover:bg-emerald-50 hover:text-emerald-900 dark:hover:bg-white/8 dark:hover:text-white ${
+                  className={`flex items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition-[background-color,color,transform] duration-150 ease-out hover:bg-emerald-50 hover:text-emerald-900 active:scale-[0.99] dark:hover:bg-white/8 dark:hover:text-white ${
                     locale === item ? "bg-emerald-600 text-white dark:bg-emerald-300 dark:text-slate-950" : "text-slate-700 dark:text-white/78"
                   }`}
+                  role="menuitemradio"
+                  aria-checked={locale === item}
                 >
                   <span>{languageNames[item]}</span>
                   {locale === item ? <Check className="h-4 w-4" /> : null}
@@ -92,7 +121,7 @@ export function PublicIntroControls({ signedIn }: { signedIn: boolean }) {
         ) : null}
       </div>
 
-      <Link href={signedIn ? "/dashboard" : "/login"} className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-300/70 bg-white/70 px-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-emerald-500/50 hover:bg-emerald-50 dark:border-white/12 dark:bg-white/8 dark:text-white/82 dark:hover:border-emerald-300/45 dark:hover:bg-white/14">
+      <Link href={signedIn ? "/dashboard" : "/login"} className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-300/70 bg-white/70 px-3 text-sm font-semibold text-slate-800 shadow-sm transition-[background-color,border-color,box-shadow,transform] duration-150 ease-out hover:-translate-y-0.5 hover:border-emerald-500/50 hover:bg-emerald-50 active:scale-[0.98] dark:border-white/12 dark:bg-white/8 dark:text-white/82 dark:hover:border-emerald-300/45 dark:hover:bg-white/14">
         {signedIn ? publicLabels.open : publicLabels.signIn}
         <ArrowRight className="h-4 w-4" />
       </Link>
