@@ -582,7 +582,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
           </div>
         </div>
       </div>
-      <div className="grid gap-3 p-3 lg:grid-cols-[210px_1fr] lg:p-4">
+      <div className="grid gap-3 p-3 lg:grid-cols-[240px_1fr] lg:p-4">
         <aside className="grid gap-2 rounded-lg border border-border bg-background p-2 lg:sticky lg:top-3 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
           <div className="grid gap-1">
             {socialCommandTabs.map((item) => {
