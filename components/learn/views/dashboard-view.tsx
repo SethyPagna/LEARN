@@ -139,19 +139,18 @@ export function DashboardView({
     <div className="grid gap-3 2xl:grid-cols-2">
       {showOnboarding ? <OnboardingCard setShowOnboarding={setShowOnboarding} setView={setView} /> : null}
       <section className="rounded-lg border border-border bg-card text-card-foreground shadow-sm xl:col-span-2">
-        <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between lg:p-4">
-          <div className="min-w-0">
-            <div className="mb-2 flex max-w-full items-center gap-2 overflow-x-auto pb-1" aria-label="Today signals">
-              <span className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">Today Route</span>
-            </div>
-            <div className="flex items-start gap-3">
-              <h2 className="max-w-4xl text-xl font-semibold leading-tight text-foreground md:text-2xl">
-                {commandPlan.headline}
-              </h2>
-              <InfoPopover label="About today's route" body={commandPlan.detail} />
+        <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="mt-1 rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">Route</span>
+            <div className="min-w-0">
+              <div className="flex items-start gap-2">
+                <h2 className="max-w-4xl text-xl font-semibold leading-tight text-foreground md:text-2xl">{commandPlan.headline}</h2>
+                <InfoPopover label="About today's route" body={commandPlan.detail} />
+              </div>
+              <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">{commandPlan.detail}</p>
             </div>
           </div>
-          <div className="flex min-w-0 items-center gap-2 overflow-x-auto rounded-lg border border-border bg-secondary/70 p-2 md:max-w-[560px]">
+          <div className="flex min-w-0 items-center gap-2 overflow-x-auto rounded-lg border border-border bg-secondary/70 p-2 md:max-w-[520px]">
             {routeActions.slice(0, 1).map((action) => {
               const Icon = dashboardCommandIcons[action.target] || CommandIcon
               return (
@@ -194,7 +193,7 @@ export function DashboardView({
             </details>
           </div>
         </div>
-        <div className="flex gap-2 overflow-x-auto border-t border-border bg-background/45 p-2">
+        <div className="dashboard-rail flex gap-2 overflow-x-auto border-t border-border bg-background/45 p-2">
           {metricTiles.map((metric) => (
             <BigMetric key={metric.id} icon={dashboardMetricIcons[metric.id]} label={metric.label} value={metric.value} body={metric.detail} tone={metric.tone} />
           ))}
@@ -253,7 +252,7 @@ export function DashboardView({
 
       <Panel className="min-w-0 p-3 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--warning)/0.12))]">
         <SectionHeader icon={Brain} title="Weak topics" body="Lower accuracy appears first so practice is easier to choose." />
-        <div className="mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
+        <div className="dashboard-rail mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
           {weakTopicCards.map((topic) => (
             <button key={topic.label} onClick={() => setView("practice")} className="min-w-[180px] snap-start rounded-md border border-border bg-background p-2.5 text-left transition hover:bg-accent hover:text-accent-foreground">
               <div className="flex justify-between gap-3 text-sm">
@@ -279,7 +278,7 @@ export function DashboardView({
 
       <Panel className="min-w-0 p-3 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--success)/0.10))]">
         <SectionHeader icon={FileText} title="Recent work" body="Recent Studio items, AI chats, practice attempts, and uploads appear together so resuming is simpler." />
-        <div className="mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
+        <div className="dashboard-rail mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
           {recentWork.length ? recentWork.slice(0, 4).map((item) => {
             const Icon = recentWorkIcons[item.kind]
             return (
@@ -305,7 +304,7 @@ export function DashboardView({
 
       <Panel className="min-w-0 p-3 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--primary)/0.10))]">
         <SectionHeader icon={Clock3} title="Review queue" body="Turn recent work into active recall before it fades." />
-        <div className="mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
+        <div className="dashboard-rail mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
           {["Review weak topic", "Retry quiz mistakes", "Save an AI route"].map((item) => (
             <button key={item} onClick={() => setView("practice")} className="flex min-w-[190px] snap-start items-center gap-2 rounded-md border border-border bg-background p-2.5 text-left text-sm hover:bg-accent hover:text-accent-foreground">
               <Repeat2 className="h-5 w-5 text-success" />
@@ -317,7 +316,7 @@ export function DashboardView({
 
       <Panel className="min-w-0 p-3 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--accent)/0.22))]">
         <SectionHeader icon={Table2} title="Quick actions" body="Grouped by purpose so the dashboard stays compact." />
-        <div className="mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
+        <div className="dashboard-rail mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
           {actionGroups.map((group) => (
             <details key={group.label} className="relative min-w-[170px] snap-start rounded-md border border-border bg-background">
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden">
@@ -345,7 +344,7 @@ export function DashboardView({
 
       <Panel className="min-w-0 p-3 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--primary)/0.08))]">
         <SectionHeader icon={CalendarDays} title="Calendar agenda" body="Plan small blocks instead of waiting for a long study session." />
-        <div className="mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
+        <div className="dashboard-rail mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
           <AgendaItem label="Focus block" value={`${options.calendarDefaultMinutes} min`} />
           <AgendaItem label="Lead" value={`${options.calendarLeadMinutes} min`} />
           <button onClick={() => setView("calendar")} className="min-w-[140px] rounded-md border border-border bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
@@ -439,7 +438,7 @@ function OnboardingCard({
 
 function BigMetric({ body, icon: Icon, label, tone, value }: { body: string; icon: React.ComponentType<{ className?: string }>; label: string; tone: "critical" | "steady" | "watch"; value: string }) {
   return (
-    <div className={`group relative z-10 min-w-[155px] rounded-md border p-2.5 shadow-sm hover:z-[999] ${dashboardMetricToneClass(tone)}`}>
+    <div className={`min-w-[150px] rounded-md border p-2.5 shadow-sm ${dashboardMetricToneClass(tone)}`} title={body} aria-label={`${label}: ${value}. ${body}`}>
       <div className="flex items-center gap-3">
         <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${toneSurfaceClasses(tone)}`}>
           <Icon className="h-5 w-5" />
@@ -449,7 +448,6 @@ function BigMetric({ body, icon: Icon, label, tone, value }: { body: string; ico
           <p className="text-2xl font-semibold leading-none text-foreground">{value}</p>
         </div>
       </div>
-      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-[999] hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-xl group-hover:block group-focus-visible:block">{body}</p>
     </div>
   )
 }
