@@ -18,6 +18,7 @@ import {
   aiTutorSourceScopes,
   aiTutorTokenPresets,
   aiTutorTones,
+  AI_TUTOR_LAUNCH_KEY,
   buildAiTutorPrimaryActionPlan,
   buildAiTutorSourceContext,
   getAiTutorModeGroupForTask,
@@ -27,6 +28,7 @@ import {
   resolveAiTutorSourceScopeAfterUpload,
   summarizeAiTutorUploadedSource,
   summarizeAiTutorWorkflow,
+  type AiTutorLaunchPreset,
   type AiTutorModeGroupId,
   visibleAiTutorModeGroups,
 } from "@/lib/ai/tutor-workflow"
@@ -215,7 +217,8 @@ export function AiTutorView({
   }, [])
 
   useEffect(() => {
-    const draft = readAiTutorDraft()
+    const launch = readAiTutorLaunchPreset()
+    const draft = launch ? null : readAiTutorDraft()
     if (draft) {
       setMessage(draft.message || DEFAULT_AI_MESSAGE)
       setReply(draft.reply || "")
@@ -238,6 +241,18 @@ export function AiTutorView({
         setActiveTaskKey(restoredTask.id)
         setModeGroup(getAiTutorModeGroupForTask(restoredTask.id))
       }
+    } else if (launch) {
+      const restoredTask = getAiTutorModeOption(launch.activeTaskKey)
+      setMessage(launch.message || DEFAULT_AI_MESSAGE)
+      setReply("")
+      setSourceScope(normalizeChoice(launch.sourceScope, aiTutorSourceScopes, aiTutorSourceScopes[0]))
+      setOutputLength(normalizeChoice(launch.outputLength, aiTutorOutputLengths, aiTutorOutputLengths[1]))
+      setInsertTarget(normalizeStudioInsertTarget(launch.insertTarget))
+      setActiveTaskKey(restoredTask.id)
+      setModeGroup(launch.modeGroup || getAiTutorModeGroupForTask(restoredTask.id))
+      setOptions({ aiMode: restoredTask.mode as WorkspaceOptions["aiMode"], aiMaxTokens: getRecommendedAiTutorTokens(launch.outputLength) })
+      setActionStatus(launch.status)
+      clearAiTutorLaunchPreset()
     }
     draftHydrated.current = true
     return () => {
@@ -962,6 +977,21 @@ function readAiTutorDraft(): AiTutorDraft | null {
   } catch {
     return null
   }
+}
+
+function readAiTutorLaunchPreset(): AiTutorLaunchPreset | null {
+  if (typeof window === "undefined") return null
+  try {
+    const stored = window.localStorage.getItem(AI_TUTOR_LAUNCH_KEY)
+    return stored ? JSON.parse(stored) as AiTutorLaunchPreset : null
+  } catch {
+    return null
+  }
+}
+
+function clearAiTutorLaunchPreset() {
+  if (typeof window === "undefined") return
+  window.localStorage.removeItem(AI_TUTOR_LAUNCH_KEY)
 }
 
 function writeAiTutorDraft(draft: AiTutorDraft) {

@@ -10,6 +10,7 @@ import { SocialLearningView } from "../ecosystem-views"
 import { ChatView, GamesView } from "../productivity-views"
 import { QuizView } from "../quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
+import { AI_TUTOR_LAUNCH_KEY, buildPracticeAiTutorLaunch } from "@/lib/ai/tutor-workflow"
 import {
   getSocialCommandTab,
   practiceWorkspaceTabs,
@@ -217,6 +218,17 @@ export function PracticeWorkspaceView({
     setView(viewFromPracticeWorkspaceTab(target))
   }
 
+  function openAiPracticeGenerator() {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(AI_TUTOR_LAUNCH_KEY, JSON.stringify(buildPracticeAiTutorLaunch({
+        draftCount: draftCards.length,
+        quizCount: quizzes.length,
+        selectedQuizTitle: quizTitles[selectedQuizId],
+      })))
+    }
+    setView("ai")
+  }
+
   return (
     <WorkspaceFrame
       eyebrow="Practice workspace"
@@ -232,7 +244,7 @@ export function PracticeWorkspaceView({
     >
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_270px]">
         <div>{tab === "quizzes" ? <QuizView quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={options} /> : <GamesView quizzes={quizzes} options={options} />}</div>
-        <PracticeGuide arenaPresets={arenaPresets} draftCards={draftCards} gameModes={gameModes} liveJoinCard={liveJoinCard} onClearDraft={discardDraft} onCreatePractice={() => setView("ai")} onOpenTarget={openPracticeTarget} onOpenView={setView} onResumeDraft={resumeDraft} plan={practicePlan} playStyles={playStyles} readyLoops={readyLoops} />
+        <PracticeGuide arenaPresets={arenaPresets} draftCards={draftCards} gameModes={gameModes} liveJoinCard={liveJoinCard} onClearDraft={discardDraft} onCreatePractice={openAiPracticeGenerator} onOpenTarget={openPracticeTarget} onOpenView={setView} onResumeDraft={resumeDraft} plan={practicePlan} playStyles={playStyles} readyLoops={readyLoops} />
       </div>
     </WorkspaceFrame>
   )
