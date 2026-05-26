@@ -23,6 +23,7 @@ import {
   aiTutorSourceScopes,
   aiTutorTokenPresets,
   aiTutorTones,
+  buildPracticeAiTutorLaunch,
   buildAiTutorPrimaryActionPlan,
   buildAiTutorSourceContext,
   getAiTutorModeGroupForTask,
@@ -526,6 +527,20 @@ test("AI tutor primary action routes users to the useful next step", () => {
 
   assert.equal(gatewayPlan.action, "gateway")
   assert.equal(gatewayPlan.label, "Fix gateway")
+})
+
+test("practice AI launch opens tutor with a ready practice prompt", () => {
+  const empty = buildPracticeAiTutorLaunch({ draftCount: 0, quizCount: 0 })
+  const active = buildPracticeAiTutorLaunch({ draftCount: 1, quizCount: 2 })
+
+  assert.equal(empty.activeTaskKey, "practice_generator")
+  assert.equal(empty.modeGroup, "practice")
+  assert.equal(empty.insertTarget, "quiz")
+  assert.equal(empty.sourceScope, "Recent notes")
+  assert.match(empty.message, /Generate a mixed practice set/)
+  assert.match(empty.status, /Practice prompt loaded/)
+  assert.match(active.message, /continue saved drafts/i)
+  assert.equal(active.outputLength, "Deep")
 })
 
 test("AI tutor uploaded source summary prefers pasted material then saved imports", () => {

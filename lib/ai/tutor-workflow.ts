@@ -11,6 +11,7 @@ const DEEP_OUTPUT_TOKENS = 8192
 const MAX_OUTPUT_TOKENS = 16_384
 
 export type AiTutorModeGroupId = "all" | "tutor" | "studio" | "practice"
+export const AI_TUTOR_LAUNCH_KEY = "learn_ai_tutor_launch_v1"
 
 export interface AiTutorModeOption {
   id: AiTaskKey
@@ -93,6 +94,16 @@ export interface AiTutorPrimaryActionPlan {
   label: string
   disabled: boolean
   statusMessage: string
+}
+
+export interface AiTutorLaunchPreset {
+  activeTaskKey: AiTaskKey
+  insertTarget: StudioInsertTarget
+  message: string
+  modeGroup: AiTutorModeGroupId
+  outputLength: string
+  sourceScope: string
+  status: string
 }
 
 export interface AiTutorUploadedSourceSummary {
@@ -322,6 +333,30 @@ export function buildAiTutorPrimaryActionPlan(input: {
     label: "Run tutor",
     disabled: false,
     statusMessage: "",
+  }
+}
+
+export function buildPracticeAiTutorLaunch(input: {
+  draftCount: number
+  quizCount: number
+  selectedQuizTitle?: string
+}): AiTutorLaunchPreset {
+  const cues = [
+    "Generate a mixed practice set from my recent Studio notes.",
+    "Include MCQ, true/false, fill-in-the-blank, timing, explanations, retry rules, and review-card suggestions.",
+    input.selectedQuizTitle ? `Use "${input.selectedQuizTitle}" as the main reference set.` : "",
+    input.quizCount > 0 ? "Use the existing quiz bank as a style and difficulty reference." : "",
+    input.draftCount > 0 ? "Continue saved drafts and prioritize unfinished practice work." : "",
+  ].filter(Boolean)
+
+  return {
+    activeTaskKey: "practice_generator",
+    insertTarget: "quiz",
+    message: cues.join(" "),
+    modeGroup: "practice",
+    outputLength: input.quizCount || input.draftCount ? "Deep" : "Balanced",
+    sourceScope: "Recent notes",
+    status: "Practice prompt loaded. Review, then run.",
   }
 }
 
