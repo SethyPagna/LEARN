@@ -36,7 +36,7 @@ export function LearnShell({
   const [dashboard, setDashboard] = useState<any>(null)
   const [adminData, setAdminData] = useState<any>(null)
   const [automationData, setAutomationData] = useState<any>(null)
-  const [status, setStatus] = useState("Loading workspace...")
+  const [status, setStatus] = useState("")
   const [query, setQuery] = useState("")
   const [studioDraftSummary, setStudioDraftSummary] = useState<StudioDraftSummary>({ count: 0, labels: [] })
   const [practiceDraftSummary, setPracticeDraftSummary] = useState<PracticeDraftSummary>({ count: 0, quizIds: [] })
