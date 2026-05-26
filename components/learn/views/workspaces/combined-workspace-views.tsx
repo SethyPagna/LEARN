@@ -24,7 +24,7 @@ import {
 } from "@/lib/learn-workspace-navigation"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeArenaPresets, buildPracticeGameModes, buildPracticeLiveJoinCard, buildPracticePlayStyles, buildPracticeWorkspacePlan, type PracticeArenaPreset, type PracticeGameMode, type PracticeLiveJoinCard, type PracticePlayStyle, type PracticeWorkspaceAction, type PracticeWorkspaceActionId, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialCommandModel, buildSocialCommandRunActions, buildSocialContactQuickActions, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeConnections, type ConnectionActionId, type PeopleSearchShortcut, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialHomeLane, type SocialInviteRole, type SocialMomentOption, type SocialMomentTypeId, type SocialStarterAction, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialCommandModel, buildSocialCommandRunActions, buildSocialContactQuickActions, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeConnections, type ConnectionActionId, type PeopleSearchShortcut, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialInviteRole, type SocialMomentOption, type SocialMomentTypeId, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 const practiceTabIcons: Record<PracticeWorkspaceTab, ComponentType<{ className?: string }>> = {
   quizzes: BookOpen,
@@ -46,28 +46,12 @@ const socialCommandTabIcons: Record<SocialCommandTab, ComponentType<{ className?
   connections: Users,
 }
 
-const socialHomeLaneIcons: Record<SocialHomeLane["id"], ComponentType<{ className?: string }>> = {
-  friends: Users,
-  chats: MessageSquare,
-  moments: ImageIcon,
-  groups: Users,
-  calls: PhoneCall,
-}
-
 const socialCallModeIcons: Record<SocialCallMode["id"], ComponentType<{ className?: string }>> = {
   voice: Mic,
   video: Video,
   group: UsersRound,
   focus: Radio,
   battle: Swords,
-}
-
-const socialStarterActionIcons: Record<SocialStarterAction["id"], ComponentType<{ className?: string }>> = {
-  "add-friend": Users,
-  chat: MessageSquare,
-  moment: ImageIcon,
-  group: UsersRound,
-  call: PhoneCall,
 }
 
 const socialContactQuickActionIcons: Record<SocialContactQuickAction["id"], ComponentType<{ className?: string }>> = {
@@ -353,10 +337,8 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const {
     callModes,
     flowCards,
-    homeLanes,
     momentOptions,
     primaryAction: primaryCommand,
-    starterActions,
   } = socialModel
   const activeMomentOption = momentOptions.find((option) => option.id === momentType) ?? momentOptions[0]
   const commandCounts = useMemo<Record<SocialCommandTab, string>>(() => ({
@@ -533,22 +515,6 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     setView(viewFromSocialWorkspaceTab(tab))
   }
 
-  function openHomeLane(lane: SocialHomeLane) {
-    if (lane.target.kind === "command") {
-      setCommandTab(lane.target.value)
-      return
-    }
-    open(lane.target.value)
-  }
-
-  function openStarterAction(action: SocialStarterAction) {
-    if (action.target.kind === "command") {
-      setCommandTab(action.target.value)
-      return
-    }
-    open(action.target.value)
-  }
-
   function openContactAction(action: SocialContactQuickAction) {
     if (action.disabled) return
     open(action.target.value)
@@ -605,16 +571,6 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            {homeLanes.slice(0, 4).map((lane) => {
-              const Icon = socialHomeLaneIcons[lane.id]
-              return (
-                <button key={lane.id} onClick={() => openHomeLane(lane)} className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" title={lane.detail} type="button">
-                  <Icon className="h-3.5 w-3.5 text-primary" />
-                  <span className="hidden sm:inline">{lane.label}</span>
-                  <span className="rounded bg-background px-1.5 py-0.5 text-[0.62rem] text-foreground">{lane.count}</span>
-                </button>
-              )
-            })}
             <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">{status}</span>
             <button onClick={() => runPrimaryCommand(primaryCommand.id)} disabled={Boolean(commandAction)} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60" title={primaryCommand.detail} type="button">
               <Sparkles className="h-4 w-4" />
@@ -628,12 +584,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
       </div>
       <div className="grid gap-3 p-3 lg:grid-cols-[190px_1fr] lg:p-4">
         <aside className="grid gap-2 rounded-lg border border-border bg-background p-2 lg:sticky lg:top-3 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
-          <div className="grid grid-cols-5 gap-1 lg:grid-cols-1">
-            {starterActions.map((action) => (
-              <SocialStarterActionButton key={action.id} action={action} onClick={() => openStarterAction(action)} />
-            ))}
-          </div>
-          <div className="grid gap-1 border-t border-border pt-2">
+          <div className="grid gap-1">
             {socialCommandTabs.map((item) => {
               const Icon = socialCommandTabIcons[item.id]
               const active = commandTab === item.id
@@ -897,28 +848,6 @@ function SocialContactQuickActionButton({ action, onClick }: { action: SocialCon
     >
       <Icon className="h-3.5 w-3.5 shrink-0" />
       <span className="truncate">{action.label}</span>
-    </button>
-  )
-}
-
-function SocialStarterActionButton({ action, onClick }: { action: SocialStarterAction; onClick: () => void }) {
-  const Icon = socialStarterActionIcons[action.id]
-  return (
-    <button
-      onClick={onClick}
-      className={`group flex min-w-0 items-center justify-center gap-2 rounded-md border px-2 py-2 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground lg:justify-start ${
-        action.primary ? "border-primary/40 bg-primary/10" : "border-border bg-card"
-      }`}
-      title={action.detail}
-      type="button"
-    >
-      <span className={`relative flex h-9 w-9 items-center justify-center rounded-md ${action.primary ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground group-hover:text-accent-foreground"}`}>
-        <Icon className="h-4 w-4" />
-        <span className={`absolute -right-1 -top-1 rounded-full px-1.5 py-0.5 text-[0.58rem] font-semibold ${action.primary ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground"}`}>
-          {action.badge}
-        </span>
-      </span>
-      <span className="max-w-full truncate text-[0.7rem] font-semibold text-foreground group-hover:text-accent-foreground lg:text-xs">{action.label}</span>
     </button>
   )
 }
