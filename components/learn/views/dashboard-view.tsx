@@ -147,7 +147,7 @@ export function DashboardView({
                 <h2 className="min-w-0 flex-1 break-words text-xl font-semibold leading-tight text-foreground md:max-w-4xl md:text-2xl">{commandPlan.headline}</h2>
                 <InfoPopover label="About today's route" body={commandPlan.detail} />
               </div>
-              <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">{commandPlan.detail}</p>
+              <p className="mt-1 hidden truncate text-sm text-muted-foreground sm:block">{commandPlan.detail}</p>
             </div>
           </div>
           <div className="flex min-w-0 items-center gap-2 overflow-x-auto rounded-lg border border-border bg-secondary/70 p-2 md:max-w-[520px]">
