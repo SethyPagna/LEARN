@@ -12,7 +12,7 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#f6faf7] text-slate-950 dark:bg-[#040506] dark:text-white">
-      <section className="relative isolate grid min-h-screen content-center px-5 py-4 sm:px-8">
+      <section className="relative isolate grid h-[100svh] content-center overflow-hidden px-5 py-4 sm:px-8">
         <div className="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_18%_14%,rgba(14,165,233,0.18),transparent_28%),radial-gradient(circle_at_78%_20%,rgba(16,185,129,0.16),transparent_24%),linear-gradient(135deg,#f8fbff_0%,#eaf7f0_54%,#f6faf7_100%)] dark:bg-[radial-gradient(circle_at_18%_14%,rgba(96,165,250,0.22),transparent_28%),radial-gradient(circle_at_78%_20%,rgba(16,185,129,0.18),transparent_24%),linear-gradient(135deg,#040506_0%,#08111f_54%,#040506_100%)]" />
         <div className="absolute inset-x-0 bottom-0 -z-10 h-48 bg-gradient-to-t from-emerald-400/12 to-transparent" />
 
