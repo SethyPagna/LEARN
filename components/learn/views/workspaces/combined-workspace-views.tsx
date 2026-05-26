@@ -897,19 +897,16 @@ function SocialFlowButton({
   onOpen: () => void
 }) {
   return (
-    <div className="grid grid-cols-[1fr_auto] items-center gap-1.5 rounded-md border border-border bg-card p-1.5">
-      <button onClick={onOpen} className="flex min-w-0 items-center gap-2 rounded-md p-1.5 text-left hover:bg-accent hover:text-accent-foreground" type="button">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/12 text-primary">
+    <div className="grid grid-cols-[1fr_auto] items-center gap-1 rounded-md border border-border bg-card p-1">
+      <button onClick={onOpen} className="flex h-10 min-w-0 items-center gap-2 rounded-md px-2 text-left hover:bg-accent hover:text-accent-foreground" type="button">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/12 text-primary">
           <Icon className="h-4 w-4" />
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-foreground">{label}</span>
-          <span className="block text-xs text-muted-foreground">{count} saved</span>
-        </span>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{label}</span>
+        <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[0.65rem] font-semibold text-secondary-foreground">{count}</span>
       </button>
-      <button onClick={onCreate} disabled={createDisabled} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60" title={createLabel || action}>
+      <button onClick={onCreate} disabled={createDisabled} className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60" title={createLabel || action}>
         <Plus className="h-4 w-4" />
-        <span className="hidden 2xl:inline">{createLabel || action}</span>
       </button>
     </div>
   )
