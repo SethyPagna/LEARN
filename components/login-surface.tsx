@@ -34,6 +34,12 @@ const requestRoles = [
   { label: "Creator", value: "creator" },
 ]
 
+const accessSignals = [
+  { label: "Private vault", icon: ShieldCheck },
+  { label: "Draft safe", icon: Sparkles },
+  { label: "Admin reviewed", icon: LockKeyhole },
+]
+
 function getStoredLocale(): SupportedLocale {
   if (typeof window === "undefined") return "en"
   const storedLocale = window.localStorage.getItem(LANGUAGE_KEY) || ""
@@ -66,6 +72,8 @@ export function LoginSurface() {
   const currentTheme = mounted ? resolvedTheme : "dark"
   const nextTheme = currentTheme === "dark" ? "light" : "dark"
   const ThemeIcon = currentTheme === "dark" ? Sun : Moon
+  const canSignIn = Boolean(identifier.trim() && password)
+  const canRequestAccess = Boolean(requestName.trim().length >= 2 && requestEmail.trim() && requestGoal.trim().length >= 12)
 
   useEffect(() => {
     setMounted(true)
@@ -158,22 +166,25 @@ export function LoginSurface() {
             <h1 className="max-w-2xl text-5xl font-semibold leading-[1.02] tracking-tight">
               One calm door into your learning system.
             </h1>
-            <div className="mt-8 grid gap-3">
-              {[
-                ["Private by default", "Vault work, files, and provider keys stay behind authenticated sessions.", ShieldCheck],
-                ["Quick to resume", "Open the last workspace, continue Studio drafts, or jump into reviews.", Sparkles],
-                ["Admin-ready", "Access requests land in audit activity for review instead of open public signup.", LockKeyhole],
-              ].map(([title, detail, Icon]) => (
-                <div key={String(title)} className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-black/24">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-300/12 dark:text-emerald-200">
+            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+              {accessSignals.map(({ icon: Icon, label }) => (
+                <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-black/24">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-300/12 dark:text-emerald-200">
                     <Icon className="h-5 w-5" />
                   </span>
-                  <span>
-                    <span className="block text-sm font-semibold">{String(title)}</span>
-                    <span className="mt-1 block text-sm leading-6 text-slate-500 dark:text-white/55">{String(detail)}</span>
-                  </span>
+                  <span className="mt-4 block text-sm font-semibold">{label}</span>
                 </div>
               ))}
+            </div>
+            <div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-black/24">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                {["Sign in", "Create", "Practice"].map((step, index) => (
+                  <span key={step} className="rounded-2xl bg-white px-3 py-3 text-sm font-semibold text-slate-700 shadow-sm dark:bg-white/[0.055] dark:text-white/74">
+                    <span className="mr-2 text-emerald-600 dark:text-emerald-200">{index + 1}</span>
+                    {step}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -281,13 +292,34 @@ export function LoginSurface() {
               ))}
             </div>
 
-            <div className={`mt-4 rounded-2xl border p-4 ${plan.tone === "good" ? "border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-300/30 dark:bg-emerald-300/10 dark:text-emerald-100" : plan.tone === "watch" ? "border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-300/30 dark:bg-amber-300/10 dark:text-amber-100" : "border-slate-200 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-white/[0.045] dark:text-white/70"}`}>
-              <p className="text-sm font-semibold">{plan.label}</p>
+            <div className={`mt-4 rounded-2xl border p-4 ${plan.tone === "good" ? "border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-300/30 dark:bg-emerald-300/10 dark:text-emerald-100" : plan.tone === "watch" ? "border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-300/30 dark:bg-amber-300/10 dark:text-amber-100" : "border-slate-200 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-white/[0.045] dark:text-white/70"}`} aria-live="polite">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold">{plan.label}</p>
+                <span className="rounded-full bg-white/70 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:bg-white/10 dark:text-white/66">
+                  {mode === "signin" ? `To ${redirectPath}` : "Admin approval"}
+                </span>
+              </div>
               <p className="mt-1 text-sm opacity-80">{plan.nextAction}</p>
             </div>
 
             {mode === "signin" ? (
               <form onSubmit={handleSignIn} className="mt-5 grid gap-4">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {demoAccounts.map((account) => (
+                    <button
+                      key={account.identifier}
+                      type="button"
+                      onClick={() => applyDemoAccount(account)}
+                      className="group flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-left transition hover:-translate-y-0.5 hover:border-emerald-400 hover:bg-emerald-50 active:scale-[0.99] dark:border-white/10 dark:bg-white/[0.045] dark:hover:border-emerald-300/50 dark:hover:bg-emerald-300/10"
+                    >
+                      <span>
+                        <span className="block text-sm font-semibold">Use {account.label}</span>
+                        <span className="block text-xs text-slate-500 dark:text-white/50">{account.identifier}</span>
+                      </span>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-slate-400 transition group-hover:text-emerald-600 dark:group-hover:text-emerald-200" />
+                    </button>
+                  ))}
+                </div>
                 <label className="grid gap-2 text-sm font-semibold">
                   Username or email
                   <input
@@ -336,21 +368,10 @@ export function LoginSurface() {
                   </div>
                 ) : null}
 
-                <details className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/[0.045] lg:hidden">
-                  <summary className="cursor-pointer text-sm font-semibold">Sample accounts</summary>
-                  <div className="mt-3 grid gap-2">
-                    {demoAccounts.map((account) => (
-                      <button key={account.identifier} type="button" onClick={() => applyDemoAccount(account)} className="rounded-lg bg-white px-3 py-2 text-left text-sm font-semibold text-slate-800 dark:bg-white/8 dark:text-white">
-                        Use {account.label}
-                      </button>
-                    ))}
-                  </div>
-                </details>
-
                 {error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:bg-red-500/14 dark:text-red-100">{error}</p> : null}
 
                 <button
-                  disabled={loading}
+                  disabled={loading || !canSignIn}
                   className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-emerald-300 dark:text-slate-950 dark:hover:bg-emerald-200"
                 >
                   {loading ? "Signing in..." : "Open workspace"}
@@ -384,7 +405,7 @@ export function LoginSurface() {
                 {success ? <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 dark:bg-emerald-300/12 dark:text-emerald-100">{success}</p> : null}
 
                 <button
-                  disabled={loading}
+                  disabled={loading || !canRequestAccess}
                   className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-emerald-300 dark:text-slate-950 dark:hover:bg-emerald-200"
                 >
                   {loading ? "Saving request..." : "Request access"}
