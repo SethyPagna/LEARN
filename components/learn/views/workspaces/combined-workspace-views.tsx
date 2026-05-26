@@ -240,30 +240,24 @@ export function SocialWorkspaceView({ initialView, options, setView, user }: { i
   }, [initialView])
 
   return (
-    <WorkspaceFrame
-      eyebrow="Social workspace"
-      title="Social"
-      body="Find people, chat, group, call, and play."
-    >
-      <div className="grid gap-3 lg:grid-cols-[82px_1fr]">
-        <SocialSectionNav
-          activeTab={tab}
-          tabs={socialTabs}
-          setActiveTab={(value) => {
-            const nextTab = value as SocialWorkspaceTab
-            setTab(nextTab)
-            setView(viewFromSocialWorkspaceTab(nextTab))
-          }}
-        />
-        <div className="min-w-0">
-          {tab === "home" ? <SocialCommandCenter currentUserId={user?.id} setActiveTab={setTab} setView={setView} /> : null}
-          {tab === "chat" ? <ChatView options={options} /> : null}
-          {tab === "spaces" ? <SocialLearningView kind="spaces" setView={setView} /> : null}
-          {tab === "rooms" ? <SocialLearningView kind="rooms" setView={setView} /> : null}
-          {tab === "battles" ? <SocialLearningView kind="battles" setView={setView} /> : null}
-        </div>
+    <div className="grid gap-3 lg:grid-cols-[82px_1fr]">
+      <SocialSectionNav
+        activeTab={tab}
+        tabs={socialTabs}
+        setActiveTab={(value) => {
+          const nextTab = value as SocialWorkspaceTab
+          setTab(nextTab)
+          setView(viewFromSocialWorkspaceTab(nextTab))
+        }}
+      />
+      <div className="min-w-0">
+        {tab === "home" ? <SocialCommandCenter currentUserId={user?.id} setActiveTab={setTab} setView={setView} /> : null}
+        {tab === "chat" ? <ChatView options={options} /> : null}
+        {tab === "spaces" ? <SocialLearningView kind="spaces" setView={setView} /> : null}
+        {tab === "rooms" ? <SocialLearningView kind="rooms" setView={setView} /> : null}
+        {tab === "battles" ? <SocialLearningView kind="battles" setView={setView} /> : null}
       </div>
-    </WorkspaceFrame>
+    </div>
   )
 }
 
@@ -308,6 +302,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const [threads, setThreads] = useState<any[]>([])
   const [counts, setCounts] = useState({ spaces: 0, rooms: 0, battles: 0 })
   const [query, setQuery] = useState("")
+  const [searchScope, setSearchScope] = useState<"all" | "people" | "chats" | "groups">("all")
   const [quickPost, setQuickPost] = useState("")
   const [momentType, setMomentType] = useState<SocialMomentTypeId>("win")
   const [inviteEmail, setInviteEmail] = useState("")
@@ -353,6 +348,20 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     inviteReady,
   }), [commandAction, inviteReady, quickPost])
   const commandActionById = useMemo(() => new Map(commandActions.map((action) => [action.id, action])), [commandActions])
+  const matchingThreads = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return threads.slice(0, 4)
+    return threads.filter((thread) => `${thread.title || ""} ${thread.body || ""} ${thread.channel || ""}`.toLowerCase().includes(needle)).slice(0, 4)
+  }, [query, threads])
+  const filteredFlowCards = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return flowCards
+    return flowCards.filter((card) => `${card.label} ${card.action} ${card.createAction}`.toLowerCase().includes(needle))
+  }, [flowCards, query])
+  const showPeople = searchScope === "all" || searchScope === "people"
+  const showChats = searchScope === "all" || searchScope === "chats"
+  const showGroups = searchScope === "all" || searchScope === "groups"
+  const queryLooksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(query.trim())
 
   useEffect(() => {
     setPeopleLimit(5)
@@ -554,133 +563,81 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const syncAction = commandActionById.get("sync")
   const postAction = commandActionById.get("post")
   const inviteAction = commandActionById.get("invite")
-  const activeCommand = getSocialCommandTab(commandTab)
-  const ActiveCommandIcon = socialCommandTabIcons[activeCommand.id]
+  const scopeTabs: Array<{ id: typeof searchScope; label: string; count: number }> = [
+    { id: "all", label: "All", count: peoplePage.total + connectionPage.total + matchingThreads.length + filteredFlowCards.length },
+    { id: "people", label: "People", count: peoplePage.total + connectionPage.total },
+    { id: "chats", label: "Chats", count: matchingThreads.length },
+    { id: "groups", label: "Groups", count: filteredFlowCards.filter((card) => card.id !== "chat").length },
+  ]
 
   return (
     <Panel className="overflow-visible p-0">
-      <div className="border-b border-border bg-card px-3 py-2">
-        <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/12 text-primary">
-              <Users className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <h3 className="text-lg font-semibold text-foreground">Social</h3>
-              <p className="text-xs text-muted-foreground">Friends, chat, groups, calls.</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">{status}</span>
-            <button onClick={() => runPrimaryCommand(primaryCommand.id)} disabled={Boolean(commandAction)} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60" title={primaryCommand.detail} type="button">
-              <Sparkles className="h-4 w-4" />
-              {primaryCommand.label}
-            </button>
-            <button onClick={() => void refresh()} disabled={syncAction?.disabled} className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60" title={syncAction?.busy ? syncAction.busyLabel : syncAction?.label || "Sync"} type="button">
+      <div className="grid gap-3 border-b border-border bg-card p-3">
+        <div className="grid gap-2 lg:grid-cols-[1fr_auto] lg:items-center">
+          <label className="flex h-11 min-w-0 items-center gap-2 rounded-md border border-input bg-background px-3">
+            <Search className="h-4 w-4 text-primary" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search people, chats, groups, or paste an email" className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-foreground outline-none" />
+          </label>
+          <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
+            <span className="shrink-0 rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">{status}</span>
+            <details className="group/create relative shrink-0">
+              <summary className="inline-flex h-10 cursor-pointer list-none items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground">
+                <Plus className="h-4 w-4" />
+                Create
+              </summary>
+              <div className="absolute right-0 top-11 z-50 grid w-64 gap-1.5 rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-xl">
+                {flowCards.map((card) => {
+                  const Icon = card.id === "chat" ? MessageSquare : card.id === "spaces" ? Users : card.id === "rooms" ? Radio : Swords
+                  const createAction = commandActionById.get(card.id)
+                  return (
+                    <SocialFlowButton
+                      key={card.id}
+                      action={card.action}
+                      count={card.count}
+                      createDisabled={createAction?.disabled}
+                      createLabel={createAction?.busy ? createAction.busyLabel : card.createAction}
+                      icon={Icon}
+                      label={card.label}
+                      onCreate={() => void createSocialPlace(card.id)}
+                      onOpen={() => open(card.id)}
+                    />
+                  )
+                })}
+              </div>
+            </details>
+            <button onClick={() => void refresh()} disabled={syncAction?.disabled} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60" title={syncAction?.busy ? syncAction.busyLabel : syncAction?.label || "Sync"} type="button">
               <Repeat2 className="h-4 w-4" />
             </button>
           </div>
         </div>
+        <div className="flex gap-1.5 overflow-x-auto">
+          {scopeTabs.map((scope) => (
+            <button
+              key={scope.id}
+              onClick={() => setSearchScope(scope.id)}
+              className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-md border px-3 text-xs font-semibold transition ${searchScope === scope.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+              type="button"
+            >
+              {scope.label}
+              <span className={`rounded px-1.5 py-0.5 text-[0.65rem] ${searchScope === scope.id ? "bg-primary-foreground/20 text-primary-foreground" : "bg-background text-foreground"}`}>{scope.count}</span>
+            </button>
+          ))}
+          {queryLooksLikeEmail ? (
+            <button onClick={() => setInviteEmail(query.trim())} className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-success/40 bg-success/10 px-3 text-xs font-semibold text-success" type="button">
+              <Mail className="h-3.5 w-3.5" />
+              Use email
+            </button>
+          ) : null}
+        </div>
       </div>
-      <div className="grid gap-3 p-3 lg:grid-cols-[240px_1fr] lg:p-4">
-        <aside className="grid gap-2 rounded-lg border border-border bg-background p-2 lg:sticky lg:top-3 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
-          <div className="grid gap-1">
-            {socialCommandTabs.map((item) => {
-              const Icon = socialCommandTabIcons[item.id]
-              const active = commandTab === item.id
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setCommandTab(item.id)}
-                  className={`inline-flex h-10 min-w-0 items-center gap-2 rounded-md px-2.5 text-left text-sm font-semibold transition ${
-                    active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  }`}
-                  type="button"
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                  <span className={`rounded px-1.5 py-0.5 text-[0.65rem] ${active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{commandCounts[item.id]}</span>
-                </button>
-              )
-            })}
-          </div>
-          <details className="group/social-open rounded-md border border-border bg-card">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              <span>New</span>
-              <ChevronDown className="h-4 w-4 transition group-open/social-open:rotate-180" />
-            </summary>
-            <div className="grid gap-1.5 border-t border-border p-1.5">
-              {flowCards.map((card) => {
-                const Icon = card.id === "chat" ? MessageSquare : card.id === "spaces" ? Users : card.id === "rooms" ? Radio : Swords
-                const createAction = commandActionById.get(card.id)
-                return (
-                  <SocialFlowButton
-                    key={card.id}
-                    action={card.action}
-                    count={card.count}
-                    createDisabled={createAction?.disabled}
-                    createLabel={createAction?.busy ? createAction.busyLabel : card.createAction}
-                    icon={Icon}
-                    label={card.label}
-                    onCreate={() => void createSocialPlace(card.id)}
-                    onOpen={() => open(card.id)}
-                  />
-                )
-              })}
+      <div className="grid gap-3 p-3 lg:p-4">
+        {showPeople ? (
+          <section className="grid gap-3 rounded-lg border border-border bg-background p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-foreground">People</h3>
+              <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{peoplePage.total} available</span>
             </div>
-          </details>
-          <details className="group/calls rounded-md border border-border bg-card">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              <span className="flex items-center gap-1.5"><PhoneCall className="h-3.5 w-3.5 text-primary" />Calls</span>
-              <ChevronDown className="h-4 w-4 transition group-open/calls:rotate-180" />
-            </summary>
-            <div className="grid gap-1.5 border-t border-border p-1.5">
-              {callModes.map((mode) => (
-                <SocialCallModeButton key={mode.id} mode={mode} onClick={() => openCallMode(mode)} />
-              ))}
-            </div>
-          </details>
-        </aside>
-
-        <section className="min-w-0 rounded-lg border border-border bg-background">
-          <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <ActiveCommandIcon className="h-4 w-4 text-primary" />
-                <span className="truncate text-sm font-semibold text-foreground">{activeCommand.label}</span>
-              </div>
-              <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold text-secondary-foreground">{commandCounts[commandTab]}</span>
-            </div>
-            <div className="p-3">
-            {commandTab === "people" ? (
-              <div className="grid gap-3">
-                <div className="flex items-center gap-2 rounded-md border border-input bg-card px-3">
-                  <Search className="h-4 w-4 text-primary" />
-                  <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find people by name or email" className="h-10 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none" />
-                </div>
-                <div className="grid grid-cols-3 gap-2 md:grid-cols-5">
-                  {peopleShortcuts.map((shortcut) => (
-                    <button
-                      key={shortcut.id}
-                      onClick={() => applyPeopleShortcut(shortcut)}
-                      className={`flex h-9 items-center justify-between gap-2 rounded-md border px-2 text-xs font-semibold transition hover:border-primary/40 hover:bg-accent hover:text-accent-foreground ${
-                        shortcut.recommended && !query ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-secondary text-secondary-foreground"
-                      }`}
-                      type="button"
-                    >
-                      <span className="truncate">{shortcut.label}</span>
-                      <span className="rounded bg-background px-1.5 py-0.5 text-[0.65rem] text-foreground">{shortcut.count}</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{peoplePage.total} available</span>
-                  {peoplePage.hiddenCount ? (
-                    <button onClick={() => setPeopleLimit((limit) => limit + 5)} className="rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-                      Show {Math.min(5, peoplePage.hiddenCount)} more
-                    </button>
-                  ) : null}
-                </div>
-                <div className="grid gap-2">
+            <div className="grid gap-2">
                   {connectableMembers.map((member) => {
                     const targetId = String(member.id || "")
                     const actions = buildConnectionActions({
@@ -706,18 +663,87 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                   {!connectableMembers.length ? (
                     <div className="grid gap-2 rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground sm:grid-cols-[1fr_auto] sm:items-center">
                       <span>{peoplePage.emptyAction === "invite" ? "No matching learner yet." : "Search members or invite a new learner."}</span>
-                      <button onClick={() => setCommandTab("invite")} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground" type="button">
+                      <button onClick={() => setInviteEmail(queryLooksLikeEmail ? query.trim() : inviteEmail)} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground" type="button">
                         <Mail className="h-3.5 w-3.5" />
                         Invite
                       </button>
                     </div>
                   ) : null}
-                </div>
-              </div>
-            ) : null}
+                {peoplePage.hiddenCount ? (
+                  <button onClick={() => setPeopleLimit((limit) => limit + 5)} className="h-9 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+                    Show more
+                  </button>
+                ) : null}
+            </div>
+          </section>
+        ) : null}
 
-            {commandTab === "post" ? (
-              <div className="grid gap-3">
+        {showPeople && connections.length ? (
+          <section className="grid gap-3 rounded-lg border border-border bg-background p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-foreground">Friends</h3>
+              <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{connectionPage.total} connected</span>
+            </div>
+            <div className="grid gap-2 md:grid-cols-2">
+              {connectionPage.items.map((connection) => {
+                const targetUserId = String(connection.target_user_id || connection.targetUserId || "")
+                const label = connection.name || connection.username || targetUserId || "Connection"
+                const type = String(connection.connection_type || connection.connectionType || "follow")
+                const quickActions = buildSocialContactQuickActions(connection)
+                const removeAction = buildConnectionActions({
+                  busyAction: connectionAction?.targetId === targetUserId ? connectionAction.action : null,
+                  busyTargetId: connectionAction?.targetId,
+                  connected: true,
+                  targetId: targetUserId,
+                }).find((action) => action.id === "remove")
+                return (
+                  <div key={`${targetUserId}-${type}`} className="grid gap-2 rounded-md border border-border bg-card p-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">{label}</p>
+                        <p className="truncate text-xs text-muted-foreground">{type} - {connection.status || "accepted"}</p>
+                      </div>
+                      <button onClick={() => void removeConnection(connection)} disabled={removeAction?.disabled} className="inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-md border border-border px-2 text-xs font-semibold text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60" aria-label={`Remove ${label}`}>
+                        <Trash2 className="h-4 w-4" />
+                        {removeAction?.busy ? removeAction.busyLabel : ""}
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1">
+                      {quickActions.map((action) => (
+                        <SocialContactQuickActionButton key={action.id} action={action} onClick={() => openContactAction(action)} />
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        ) : null}
+
+        {showChats ? (
+          <section className="grid gap-3 rounded-lg border border-border bg-background p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-foreground">Chats</h3>
+              <button onClick={() => open("chat")} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+                <MessageSquare className="h-3.5 w-3.5" />
+                Open
+              </button>
+            </div>
+            <div className="grid gap-2 md:grid-cols-2">
+              {matchingThreads.map((thread) => (
+                <button key={thread.id || thread.title} onClick={() => open("chat")} className="rounded-md border border-border bg-card p-3 text-left hover:bg-accent hover:text-accent-foreground" type="button">
+                  <p className="truncate text-sm font-semibold text-foreground">{thread.title || "Chat"}</p>
+                  <p className="truncate text-xs text-muted-foreground">{thread.channel || "message"}</p>
+                </button>
+              ))}
+              {!matchingThreads.length ? <p className="rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">No chats match.</p> : null}
+            </div>
+            <details className="group/post rounded-md border border-border bg-card">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-semibold text-foreground">
+                <span>Share update</span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/post:rotate-180" />
+              </summary>
+              <div className="grid gap-3 border-t border-border p-3">
                 <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
                   {momentOptions.map((option) => (
                     <SocialMomentOptionButton key={option.id} active={option.id === momentType} option={option} onClick={() => chooseMoment(option)} />
@@ -737,10 +763,44 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                   <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{activeMomentOption.channel}</span>
                 </div>
               </div>
-            ) : null}
+            </details>
+          </section>
+        ) : null}
 
-            {commandTab === "invite" ? (
-              <div className="grid gap-2 sm:grid-cols-[1fr_120px_auto]">
+        {showGroups ? (
+          <section className="grid gap-3 rounded-lg border border-border bg-background p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-foreground">Groups, calls, games</h3>
+              <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{filteredFlowCards.length} actions</span>
+            </div>
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+              {filteredFlowCards.map((card) => {
+                const Icon = card.id === "chat" ? MessageSquare : card.id === "spaces" ? Users : card.id === "rooms" ? Radio : Swords
+                const createAction = commandActionById.get(card.id)
+                return (
+                  <SocialFlowButton
+                    key={card.id}
+                    action={card.action}
+                    count={card.count}
+                    createDisabled={createAction?.disabled}
+                    createLabel={createAction?.busy ? createAction.busyLabel : card.createAction}
+                    icon={Icon}
+                    label={card.label}
+                    onCreate={() => void createSocialPlace(card.id)}
+                    onOpen={() => open(card.id)}
+                  />
+                )
+              })}
+            </div>
+          </section>
+        ) : null}
+
+        <details className="group/invite rounded-lg border border-border bg-background">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-semibold text-foreground">
+            <span>Invite by email</span>
+            <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/invite:rotate-180" />
+          </summary>
+          <div className="grid gap-2 border-t border-border p-3 sm:grid-cols-[1fr_120px_auto]">
                 <input value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="email@example.com" className="h-9 min-w-0 rounded-md border border-input bg-card px-3 text-sm text-foreground outline-none" />
                 <select value={inviteRole} onChange={(event) => setInviteRole(normalizeSocialInviteRole(event.target.value))} className="h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground outline-none">
                   {socialInviteRoleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -750,63 +810,8 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                   {inviteAction?.busy ? inviteAction.busyLabel : inviteAction?.label || "Send"}
                 </button>
                 <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground sm:col-span-3">{inviteStatus}</span>
-              </div>
-            ) : null}
-
-            {commandTab === "connections" ? (
-              <div className="grid gap-3 lg:grid-cols-[1fr_1fr]">
-                <div className="grid gap-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{connectionPage.total} connected</span>
-                    {connectionPage.hiddenCount ? (
-                      <button onClick={() => setConnectionLimit((limit) => limit + 6)} className="rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-                        Show {Math.min(6, connectionPage.hiddenCount)} more
-                      </button>
-                    ) : null}
-                  </div>
-                  {connectionPage.items.map((connection) => {
-                    const targetUserId = String(connection.target_user_id || connection.targetUserId || "")
-                    const label = connection.name || connection.username || targetUserId || "Connection"
-                    const type = String(connection.connection_type || connection.connectionType || "follow")
-                    const quickActions = buildSocialContactQuickActions(connection)
-                    const removeAction = buildConnectionActions({
-                      busyAction: connectionAction?.targetId === targetUserId ? connectionAction.action : null,
-                      busyTargetId: connectionAction?.targetId,
-                      connected: true,
-                      targetId: targetUserId,
-                    }).find((action) => action.id === "remove")
-                    return (
-                      <div key={`${targetUserId}-${type}`} className="grid gap-2 rounded-md border border-border bg-card p-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-foreground">{label}</p>
-                            <p className="truncate text-xs text-muted-foreground">{type} - {connection.status || "accepted"}</p>
-                          </div>
-                          <button onClick={() => void removeConnection(connection)} disabled={removeAction?.disabled} className="inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-md border border-border px-2 text-xs font-semibold text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60" aria-label={`Remove ${label}`}>
-                            <Trash2 className="h-4 w-4" />
-                            {removeAction?.busy ? removeAction.busyLabel : ""}
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-3 gap-1">
-                          {quickActions.map((action) => (
-                            <SocialContactQuickActionButton key={action.id} action={action} onClick={() => openContactAction(action)} />
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  })}
-                  {!connections.length ? <p className="rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">No connections yet.</p> : null}
-                </div>
-                <div className="grid content-start gap-2 sm:grid-cols-2">
-                  <span className="rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground">{connectionPage.summary.friends} friends</span>
-                  <span className="rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground">{connectionPage.summary.follows} follows</span>
-                  <span className="rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground">{connectionPage.summary.pending} pending</span>
-                  <span className="rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground">{connectionPage.summary.blocked} blocked</span>
-                </div>
-              </div>
-            ) : null}
-            </div>
-        </section>
+          </div>
+        </details>
       </div>
     </Panel>
   )
