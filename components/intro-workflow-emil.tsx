@@ -107,9 +107,11 @@ const accentClasses: Record<IntroSlide["accent"], {
 
 export function IntroWorkflowEmil() {
   const [activeIndex, setActiveIndex] = useState(0)
+  const [overlayProgress, setOverlayProgress] = useState(0)
   const [scrollProgress, setScrollProgress] = useState(0)
   const sectionRef = useRef<HTMLElement | null>(null)
   const rafRef = useRef<number | null>(null)
+  const snapTimerRef = useRef<number | null>(null)
   const activeSlide = introSlides[activeIndex] || introSlides[0]
   const accent = accentClasses[activeSlide.accent]
   const ActiveIcon = activeSlide.icon
@@ -117,21 +119,49 @@ export function IntroWorkflowEmil() {
   const stepLabel = `${String(activeIndex + 1).padStart(2, "0")} / ${String(introSlides.length).padStart(2, "0")}`
 
   useEffect(() => {
+    const workflowRevealEnd = 0.18
+
+    function getMetrics() {
+      const section = sectionRef.current
+      if (!section) return null
+      const top = section.getBoundingClientRect().top + window.scrollY
+      const scrollable = Math.max(1, section.offsetHeight - window.innerHeight)
+      const progress = Math.min(1, Math.max(0, (window.scrollY - top) / scrollable))
+      return { progress, scrollable, top }
+    }
+
     function update() {
       rafRef.current = null
-      const section = sectionRef.current
-      if (!section) return
-      const rect = section.getBoundingClientRect()
-      const scrollable = Math.max(1, rect.height - window.innerHeight)
-      const progress = Math.min(1, Math.max(0, -rect.top / scrollable))
-      const nextIndex = Math.min(introSlides.length - 1, Math.floor(progress * introSlides.length))
-      setScrollProgress((current) => (Math.abs(current - progress) < 0.003 ? current : progress))
+      const metrics = getMetrics()
+      if (!metrics) return
+      const revealProgress = Math.min(1, Math.max(0, metrics.progress / workflowRevealEnd))
+      const easedReveal = revealProgress * revealProgress * (3 - 2 * revealProgress)
+      const workflowProgress = Math.min(1, Math.max(0, (metrics.progress - workflowRevealEnd) / (1 - workflowRevealEnd)))
+      const nextIndex = Math.min(introSlides.length - 1, Math.floor(workflowProgress * introSlides.length))
+      setOverlayProgress((current) => (Math.abs(current - easedReveal) < 0.01 ? current : easedReveal))
+      setScrollProgress((current) => (Math.abs(current - workflowProgress) < 0.003 ? current : workflowProgress))
       setActiveIndex((current) => (current === nextIndex ? current : nextIndex))
+    }
+
+    function snapToNearestSlide() {
+      const metrics = getMetrics()
+      if (!metrics) return
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+      if (metrics.progress < workflowRevealEnd || metrics.progress > 0.985) return
+
+      const workflowProgress = Math.min(1, Math.max(0, (metrics.progress - workflowRevealEnd) / (1 - workflowRevealEnd)))
+      const index = Math.min(introSlides.length - 1, Math.max(0, Math.floor(workflowProgress * introSlides.length)))
+      const targetProgress = workflowRevealEnd + ((index + 0.5) / introSlides.length) * (1 - workflowRevealEnd)
+      const targetTop = metrics.top + metrics.scrollable * targetProgress
+      if (Math.abs(window.scrollY - targetTop) < 28) return
+      window.scrollTo({ top: targetTop, behavior: "smooth" })
     }
 
     function requestUpdate() {
       if (rafRef.current) return
       rafRef.current = window.requestAnimationFrame(update)
+      if (snapTimerRef.current) window.clearTimeout(snapTimerRef.current)
+      snapTimerRef.current = window.setTimeout(snapToNearestSlide, 190)
     }
 
     update()
@@ -141,6 +171,7 @@ export function IntroWorkflowEmil() {
       window.removeEventListener("scroll", requestUpdate)
       window.removeEventListener("resize", requestUpdate)
       if (rafRef.current) window.cancelAnimationFrame(rafRef.current)
+      if (snapTimerRef.current) window.clearTimeout(snapTimerRef.current)
     }
   }, [])
 
@@ -149,16 +180,31 @@ export function IntroWorkflowEmil() {
     if (!section) return
     const top = section.getBoundingClientRect().top + window.scrollY
     const scrollable = Math.max(1, section.offsetHeight - window.innerHeight)
-    const target = top + scrollable * ((index + 0.5) / introSlides.length)
+    const target = top + scrollable * (0.18 + ((index + 0.5) / introSlides.length) * 0.82)
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
     window.scrollTo({ top: target, behavior: reduceMotion ? "auto" : "smooth" })
   }
 
   return (
-    <section id="workflow" ref={sectionRef} className="relative min-h-[285svh] bg-[#eef7f1] text-slate-950 dark:bg-[#050706] dark:text-white">
-      <div className="sticky top-0 grid min-h-screen overflow-hidden px-5 py-5 sm:px-8">
+    <section ref={sectionRef} className="pointer-events-none relative -mt-[100svh] min-h-[430svh] text-slate-950 dark:text-white">
+      <span id="workflow" className="absolute top-[100svh]" aria-hidden="true" />
+      <div
+        data-intro-workflow-overlay
+        data-active-slide={activeSlide.key}
+        className="fixed inset-0 z-20 grid h-[100svh] overflow-hidden px-5 py-5 sm:px-8"
+        style={{
+          pointerEvents: overlayProgress > 0.9 ? "auto" : "none",
+          visibility: overlayProgress > 0.01 ? "visible" : "hidden",
+        }}
+      >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(16,185,129,0.18),transparent_28%),radial-gradient(circle_at_84%_24%,rgba(14,165,233,0.16),transparent_24%),linear-gradient(180deg,#f7fbff_0%,#eef7f1_58%,#f8fbff_100%)] dark:bg-[radial-gradient(circle_at_18%_18%,rgba(16,185,129,0.2),transparent_28%),radial-gradient(circle_at_84%_24%,rgba(96,165,250,0.18),transparent_24%),linear-gradient(180deg,#050706_0%,#08121f_58%,#050706_100%)]" />
-        <div className="relative z-10 mx-auto grid w-full max-w-7xl grid-rows-[auto_1fr_auto] gap-5">
+        <div
+          className="relative z-10 mx-auto grid h-full w-full max-w-7xl grid-rows-[auto_1fr_auto] gap-5"
+          style={{
+            opacity: overlayProgress,
+            transform: `translate3d(0, ${(1 - overlayProgress) * 30}px, 0) scale(${0.982 + overlayProgress * 0.018})`,
+          }}
+        >
           <div className="flex items-center justify-between gap-4">
             <div className="inline-flex items-center gap-2 rounded-full border border-slate-300/70 bg-white/72 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 shadow-sm dark:border-white/10 dark:bg-white/[0.06] dark:text-white/55">
               <Sparkles className={`h-3.5 w-3.5 ${accent.text}`} />
