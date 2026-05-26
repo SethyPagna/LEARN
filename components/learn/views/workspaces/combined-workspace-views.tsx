@@ -358,9 +358,10 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     if (!needle) return flowCards
     return flowCards.filter((card) => `${card.label} ${card.action} ${card.createAction}`.toLowerCase().includes(needle))
   }, [flowCards, query])
+  const filteredPlaceCards = useMemo(() => filteredFlowCards.filter((card) => card.id !== "chat"), [filteredFlowCards])
   const showPeople = searchScope === "all" || searchScope === "people"
   const showChats = searchScope === "all" || searchScope === "chats"
-  const showGroups = searchScope === "all" || searchScope === "groups"
+  const showGroups = searchScope === "groups"
   const queryLooksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(query.trim())
 
   useEffect(() => {
@@ -564,10 +565,10 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const postAction = commandActionById.get("post")
   const inviteAction = commandActionById.get("invite")
   const scopeTabs: Array<{ id: typeof searchScope; label: string; count: number }> = [
-    { id: "all", label: "All", count: peoplePage.total + connectionPage.total + matchingThreads.length + filteredFlowCards.length },
+    { id: "all", label: "All", count: peoplePage.total + connectionPage.total + matchingThreads.length },
     { id: "people", label: "People", count: peoplePage.total + connectionPage.total },
     { id: "chats", label: "Chats", count: matchingThreads.length },
-    { id: "groups", label: "Groups", count: filteredFlowCards.filter((card) => card.id !== "chat").length },
+    { id: "groups", label: "Groups", count: filteredPlaceCards.length },
   ]
 
   return (
@@ -770,11 +771,11 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
         {showGroups ? (
           <section className="grid gap-3 rounded-lg border border-border bg-background p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-foreground">Groups, calls, games</h3>
-              <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{filteredFlowCards.length} actions</span>
+              <h3 className="text-sm font-semibold text-foreground">Group results</h3>
+              <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{filteredPlaceCards.length} actions</span>
             </div>
-            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-              {filteredFlowCards.map((card) => {
+            <div className="grid gap-2 md:grid-cols-3">
+              {filteredPlaceCards.map((card) => {
                 const Icon = card.id === "chat" ? MessageSquare : card.id === "spaces" ? Users : card.id === "rooms" ? Radio : Swords
                 const createAction = commandActionById.get(card.id)
                 return (
