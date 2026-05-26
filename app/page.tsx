@@ -30,7 +30,7 @@ export default async function HomePage() {
 
         <div className="mx-auto grid w-full max-w-7xl items-center gap-6 lg:grid-cols-[0.86fr_1.14fr]">
           <div className="intro-copy">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-sm text-emerald-800 dark:border-emerald-300/20 dark:bg-emerald-300/10 dark:text-emerald-100">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-sm text-emerald-800 shadow-sm shadow-emerald-950/5 dark:border-emerald-300/20 dark:bg-emerald-300/10 dark:text-emerald-100 dark:shadow-black/20">
               <Sparkles className="h-4 w-4" />
               Notes, AI, practice, and review in one loop
             </div>
@@ -41,18 +41,18 @@ export default async function HomePage() {
               LEARN is a personal study workspace where notes, docs, AI tutoring, quizzes, reviews, and your calendar stay connected.
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Link href={signedIn ? "/dashboard" : "/login"} className="inline-flex h-11 items-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-emerald-900 dark:bg-white dark:text-black dark:hover:bg-emerald-100">
+              <Link href={signedIn ? "/dashboard" : "/login"} className="inline-flex h-11 items-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white shadow-lg shadow-slate-950/12 transition-[background-color,box-shadow,transform] duration-150 ease-out hover:-translate-y-0.5 hover:bg-emerald-900 hover:shadow-xl active:scale-[0.98] dark:bg-white dark:text-black dark:shadow-black/25 dark:hover:bg-emerald-100">
                 {signedIn ? "Go to LEARN" : "Start learning"}
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link href="#workflow" className="inline-flex h-11 items-center gap-2 rounded-md border border-slate-300/80 bg-white/50 px-4 text-sm font-semibold text-slate-800 transition hover:bg-white dark:border-white/14 dark:bg-transparent dark:text-white/82 dark:hover:bg-white/10">
+              <Link href="#workflow" className="inline-flex h-11 items-center gap-2 rounded-md border border-slate-300/80 bg-white/50 px-4 text-sm font-semibold text-slate-800 shadow-sm shadow-slate-950/5 transition-[background-color,border-color,box-shadow,transform] duration-150 ease-out hover:-translate-y-0.5 hover:border-emerald-400/60 hover:bg-white hover:shadow-md active:scale-[0.98] dark:border-white/14 dark:bg-transparent dark:text-white/82 dark:shadow-black/20 dark:hover:bg-white/10">
                 <Play className="h-4 w-4" />
                 View workflow
               </Link>
             </div>
             <div className="mt-6 grid max-w-xl grid-cols-2 gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-white/58 sm:grid-cols-4">
               {["Capture", "Organize", "Practice", "Remember"].map((step) => (
-                <span key={step} className="rounded-full border border-slate-300/70 bg-white/50 px-3 py-2 text-center dark:border-white/10 dark:bg-white/[0.045]">{step}</span>
+                <span key={step} className="rounded-full border border-slate-300/70 bg-white/50 px-3 py-2 text-center shadow-sm shadow-slate-950/5 dark:border-white/10 dark:bg-white/[0.045] dark:shadow-black/20">{step}</span>
               ))}
             </div>
           </div>
