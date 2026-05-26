@@ -266,6 +266,16 @@ export interface SocialCommandModel {
   summary: SocialCommandSummary
 }
 
+export type SocialUnifiedSearchAction = "people" | "invite" | "chat" | "groups" | "sync"
+
+export interface SocialUnifiedSearchCommand {
+  action: SocialUnifiedSearchAction
+  badge: string
+  detail: string
+  label: string
+  scope: "all" | "people" | "chats" | "groups"
+}
+
 export type SocialHomeLaneId = "friends" | "chats" | "moments" | "groups" | "calls"
 export type SocialHomeLaneTarget =
   | { kind: "command"; value: "people" | "post" | "invite" | "connections" }
@@ -1245,6 +1255,108 @@ export function buildSocialCommandModel(input: SocialCommandModelInput): SocialC
       threadCount: input.threadCount,
     }),
     summary: buildSocialCommandSummary(input),
+  }
+}
+
+export function buildSocialUnifiedSearchCommand(input: {
+  connectionCount: number
+  groupResultCount: number
+  peopleResultCount: number
+  query?: string
+  roomCount: number
+  threadResultCount: number
+}): SocialUnifiedSearchCommand {
+  const query = input.query?.trim() || ""
+  const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(query)
+  const connectionCount = Math.max(0, input.connectionCount)
+  const groupCount = Math.max(0, input.groupResultCount)
+  const peopleCount = Math.max(0, input.peopleResultCount)
+  const roomCount = Math.max(0, input.roomCount)
+  const threadCount = Math.max(0, input.threadResultCount)
+
+  if (looksLikeEmail) {
+    return {
+      action: "invite",
+      badge: "email",
+      detail: "Open a secure invite for this address.",
+      label: "Invite",
+      scope: "people",
+    }
+  }
+
+  if (query) {
+    if (threadCount > 0) {
+      return {
+        action: "chat",
+        badge: `${threadCount}`,
+        detail: "Open matching chats.",
+        label: "Open chat",
+        scope: "chats",
+      }
+    }
+    if (groupCount > 0) {
+      return {
+        action: "groups",
+        badge: `${groupCount}`,
+        detail: "Show matching groups, rooms, or battles.",
+        label: "Open group",
+        scope: "groups",
+      }
+    }
+    if (peopleCount > 0) {
+      return {
+        action: "people",
+        badge: `${peopleCount}`,
+        detail: "Review matching people.",
+        label: "View people",
+        scope: "people",
+      }
+    }
+    return {
+      action: "invite",
+      badge: "new",
+      detail: "No match yet. Invite or refine the search.",
+      label: "Invite",
+      scope: "people",
+    }
+  }
+
+  if (connectionCount === 0) {
+    return {
+      action: "people",
+      badge: "start",
+      detail: "Find or invite the first trusted learner.",
+      label: "Find people",
+      scope: "people",
+    }
+  }
+
+  if (threadCount === 0) {
+    return {
+      action: "chat",
+      badge: `${connectionCount}`,
+      detail: "Start a chat with your connections.",
+      label: "Start chat",
+      scope: "chats",
+    }
+  }
+
+  if (roomCount === 0) {
+    return {
+      action: "groups",
+      badge: "live",
+      detail: "Create a group, focus room, or battle.",
+      label: "Create group",
+      scope: "groups",
+    }
+  }
+
+  return {
+    action: "sync",
+    badge: "ready",
+    detail: "Refresh people, chats, groups, and live rooms.",
+    label: "Refresh",
+    scope: "all",
   }
 }
 

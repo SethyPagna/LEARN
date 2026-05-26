@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCallModes, buildSocialCommandModel, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialInviteReadiness, buildSocialMomentOptions, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialStarterActions, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, normalizeSocialInviteRole, parseThreadTitle, socialInviteRoleOptions, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCallModes, buildSocialCommandModel, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialInviteReadiness, buildSocialMomentOptions, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialStarterActions, buildSocialUnifiedSearchCommand, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, normalizeSocialInviteRole, parseThreadTitle, socialInviteRoleOptions, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -395,6 +395,23 @@ test("social command model keeps hub counts and actions in one consistent pass",
   assert.equal(model.starterActions.find((action) => action.id === "call")?.primary, true)
   assert.equal(model.callModes.find((mode) => mode.id === "voice")?.recommended, true)
   assert.equal(model.momentOptions.find((option) => option.id === "resource")?.recommended, true)
+})
+
+test("social unified search command keeps one obvious next action", () => {
+  const empty = buildSocialUnifiedSearchCommand({ connectionCount: 0, groupResultCount: 0, peopleResultCount: 0, roomCount: 0, threadResultCount: 0 })
+  const email = buildSocialUnifiedSearchCommand({ connectionCount: 0, groupResultCount: 0, peopleResultCount: 0, query: "new@example.com", roomCount: 0, threadResultCount: 0 })
+  const chat = buildSocialUnifiedSearchCommand({ connectionCount: 2, groupResultCount: 1, peopleResultCount: 1, query: "review", roomCount: 0, threadResultCount: 2 })
+  const group = buildSocialUnifiedSearchCommand({ connectionCount: 2, groupResultCount: 1, peopleResultCount: 0, query: "math", roomCount: 0, threadResultCount: 0 })
+  const people = buildSocialUnifiedSearchCommand({ connectionCount: 2, groupResultCount: 0, peopleResultCount: 3, query: "alex", roomCount: 0, threadResultCount: 0 })
+  const ready = buildSocialUnifiedSearchCommand({ connectionCount: 2, groupResultCount: 0, peopleResultCount: 0, roomCount: 1, threadResultCount: 3 })
+
+  assert.deepEqual(empty, { action: "people", badge: "start", detail: "Find or invite the first trusted learner.", label: "Find people", scope: "people" })
+  assert.equal(email.action, "invite")
+  assert.equal(email.scope, "people")
+  assert.equal(chat.action, "chat")
+  assert.equal(group.scope, "groups")
+  assert.equal(people.label, "View people")
+  assert.equal(ready.action, "sync")
 })
 
 test("social home lanes map familiar social actions to existing routes", () => {
