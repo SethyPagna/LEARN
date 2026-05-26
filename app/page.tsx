@@ -1,9 +1,10 @@
 import { cookies } from "next/headers"
 import Link from "next/link"
-import { ArrowRight, BookOpen, Brain, GraduationCap, Layers3, Play, Sparkles } from "lucide-react"
+import { ArrowRight, BookOpen, Brain, GraduationCap, Layers3, Sparkles } from "lucide-react"
 import { SESSION_COOKIE } from "@/lib/data"
 import { IntroWorkflowEmil } from "@/components/intro-workflow-emil"
 import { PublicIntroControls } from "@/components/public-intro-controls"
+import { PublicWorkflowLink } from "@/components/public-workflow-link"
 
 export default async function HomePage() {
   const cookieStore = await cookies()
@@ -45,10 +46,7 @@ export default async function HomePage() {
                 {signedIn ? "Go to LEARN" : "Start learning"}
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link href="#workflow" className="inline-flex h-11 items-center gap-2 rounded-md border border-slate-300/80 bg-white/50 px-4 text-sm font-semibold text-slate-800 shadow-sm shadow-slate-950/5 transition-[background-color,border-color,box-shadow,transform] duration-150 ease-out hover:-translate-y-0.5 hover:border-emerald-400/60 hover:bg-white hover:shadow-md active:scale-[0.98] dark:border-white/14 dark:bg-transparent dark:text-white/82 dark:shadow-black/20 dark:hover:bg-white/10">
-                <Play className="h-4 w-4" />
-                View workflow
-              </Link>
+              <PublicWorkflowLink />
             </div>
             <div className="mt-6 grid max-w-xl grid-cols-2 gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-white/58 sm:grid-cols-4">
               {["Capture", "Organize", "Practice", "Remember"].map((step) => (
