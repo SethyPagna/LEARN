@@ -23,7 +23,7 @@ import {
   type SocialWorkspaceTab,
 } from "@/lib/learn-workspace-navigation"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
-import { buildPracticeArenaPresets, buildPracticeGameModes, buildPracticeLiveJoinCard, buildPracticePlayStyles, buildPracticeWorkspacePlan, type PracticeArenaPreset, type PracticeGameMode, type PracticeLiveJoinCard, type PracticePlayStyle, type PracticeWorkspaceAction, type PracticeWorkspaceActionId, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
+import { buildPracticeArenaPresets, buildPracticeGameModes, buildPracticeLiveJoinCard, buildPracticePlayStyles, buildPracticeReadyLoops, buildPracticeWorkspacePlan, type PracticeArenaPreset, type PracticeGameMode, type PracticeLiveJoinCard, type PracticePlayStyle, type PracticeReadyLoop, type PracticeWorkspaceAction, type PracticeWorkspaceActionId, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
 import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialCommandModel, buildSocialCommandRunActions, buildSocialContactQuickActions, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeConnections, type ConnectionActionId, type PeopleSearchShortcut, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialInviteRole, type SocialMomentOption, type SocialMomentTypeId, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 const practiceTabIcons: Record<PracticeWorkspaceTab, ComponentType<{ className?: string }>> = {
@@ -91,6 +91,13 @@ const practiceArenaPresetIcons: Record<PracticeArenaPreset["id"], ComponentType<
   flashcards: BookOpen,
   redemption: Repeat2,
   "ai-generated": Sparkles,
+}
+
+const practiceReadyLoopIcons: Record<PracticeReadyLoop["id"], ComponentType<{ className?: string }>> = {
+  generate: Sparkles,
+  play: Play,
+  battle: Swords,
+  share: Send,
 }
 
 export function LearnWorkspaceView({
@@ -170,6 +177,10 @@ export function PracticeWorkspaceView({
     markedCount: draftCounts.marked,
     retryCount: draftCounts.retry,
   }), [draftCards.length, draftCounts, quizzes.length])
+  const readyLoops = useMemo(() => buildPracticeReadyLoops({
+    quizCount: quizzes.length,
+    draftCount: draftCards.length,
+  }), [draftCards.length, quizzes.length])
   const practiceTabs = useMemo(() => practiceWorkspaceTabs.map((item) => ({
     ...item,
     caption: item.caption || "",
@@ -221,7 +232,7 @@ export function PracticeWorkspaceView({
     >
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_270px]">
         <div>{tab === "quizzes" ? <QuizView quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={options} /> : <GamesView quizzes={quizzes} options={options} />}</div>
-        <PracticeGuide arenaPresets={arenaPresets} draftCards={draftCards} gameModes={gameModes} liveJoinCard={liveJoinCard} onClearDraft={discardDraft} onCreatePractice={() => setView("ai")} onOpenTarget={openPracticeTarget} onResumeDraft={resumeDraft} plan={practicePlan} playStyles={playStyles} />
+        <PracticeGuide arenaPresets={arenaPresets} draftCards={draftCards} gameModes={gameModes} liveJoinCard={liveJoinCard} onClearDraft={discardDraft} onCreatePractice={() => setView("ai")} onOpenTarget={openPracticeTarget} onOpenView={setView} onResumeDraft={resumeDraft} plan={practicePlan} playStyles={playStyles} readyLoops={readyLoops} />
       </div>
     </WorkspaceFrame>
   )
@@ -1069,9 +1080,11 @@ function PracticeGuide({
   onClearDraft,
   onCreatePractice,
   onOpenTarget,
+  onOpenView,
   onResumeDraft,
   plan,
   playStyles,
+  readyLoops,
 }: {
   arenaPresets: PracticeArenaPreset[]
   draftCards: PracticeDraftCard[]
@@ -1080,9 +1093,11 @@ function PracticeGuide({
   onClearDraft: (quizId: string) => void
   onCreatePractice: () => void
   onOpenTarget: (target: PracticeWorkspaceTarget) => void
+  onOpenView: (view: View) => void
   onResumeDraft: (quizId: string) => void
   plan: PracticeWorkspacePlan
   playStyles: PracticePlayStyle[]
+  readyLoops: PracticeReadyLoop[]
 }) {
   function runAction(action: PracticeWorkspaceAction) {
     if (action.id === "resume" && draftCards[0]) {
@@ -1114,6 +1129,19 @@ function PracticeGuide({
     runAction(action)
   }
 
+  function runReadyLoop(loop: PracticeReadyLoop) {
+    if (!loop.enabled) return
+    if (loop.target === "ai") {
+      onCreatePractice()
+      return
+    }
+    if (loop.target === "battles" || loop.target === "social") {
+      onOpenView(loop.target)
+      return
+    }
+    onOpenTarget(loop.target)
+  }
+
   return (
     <Panel className="h-max p-3 xl:sticky xl:top-3 xl:max-h-[calc(100vh-6rem)] xl:overflow-auto">
       <div className="flex items-center justify-between gap-3">
@@ -1134,6 +1162,11 @@ function PracticeGuide({
           <Play className="h-3.5 w-3.5" />
           {plan.primaryAction.label}
         </button>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        {readyLoops.map((loop) => (
+          <PracticeReadyLoopButton key={loop.id} loop={loop} onClick={() => runReadyLoop(loop)} />
+        ))}
       </div>
       <div className="mt-3 overflow-hidden rounded-lg border border-violet-500/30 bg-[radial-gradient(circle_at_top_right,rgba(168,85,247,0.32),transparent_38%),linear-gradient(135deg,#1f1147,#5b21b6_52%,#111827)] p-3 text-white shadow-sm">
         <div className="flex items-start justify-between gap-3">
@@ -1250,6 +1283,35 @@ function PracticeGuide({
         </details>
       ) : null}
     </Panel>
+  )
+}
+
+function PracticeReadyLoopButton({ loop, onClick }: { loop: PracticeReadyLoop; onClick: () => void }) {
+  const Icon = practiceReadyLoopIcons[loop.id]
+  return (
+    <button
+      aria-disabled={!loop.enabled}
+      className={`group relative min-w-0 rounded-md border p-2 text-left transition ${
+        !loop.enabled
+          ? "cursor-not-allowed border-border bg-muted/45 opacity-70"
+          : loop.recommended
+            ? "border-primary/45 bg-primary/10 hover:-translate-y-0.5 hover:bg-primary hover:text-primary-foreground"
+            : "border-border bg-background hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground"
+      }`}
+      onClick={onClick}
+      title={loop.reason}
+      type="button"
+    >
+      <div className="flex items-center gap-2">
+        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${loop.recommended && loop.enabled ? "bg-primary text-primary-foreground group-hover:bg-primary-foreground group-hover:text-primary" : "bg-secondary text-secondary-foreground"}`}>
+          <Icon className="h-4 w-4" />
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-semibold text-foreground group-hover:text-inherit">{loop.label}</span>
+          <span className="block truncate text-[0.65rem] font-bold uppercase text-muted-foreground group-hover:text-inherit">{loop.badge}</span>
+        </span>
+      </div>
+    </button>
   )
 }
 
