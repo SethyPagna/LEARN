@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import type { QuizQuestion } from "../components/learn/types"
 import { hasPracticeDraftContent, listPracticeDraftCards, normalizePracticeDraft, summarizePracticeDrafts } from "../lib/practice-drafts"
-import { buildGameRunActions, buildMistakeRetrySet, buildPracticeArenaPresets, buildPracticeGameModes, buildPracticeLiveJoinCard, buildPracticePlayStyles, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, buildPracticeSessionSummary, buildPracticeWorkspacePlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../lib/practice-features"
+import { buildGameRunActions, buildMistakeRetrySet, buildPracticeArenaPresets, buildPracticeGameModes, buildPracticeLiveJoinCard, buildPracticePlayStyles, buildPracticeReadyLoops, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, buildPracticeSessionSummary, buildPracticeWorkspacePlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../lib/practice-features"
 
 const questions: QuizQuestion[] = [
   { id: "q1", question: "One?", choices: [{ id: "a", text: "1" }, { id: "b", text: "2" }], correct_answer_id: "a", topic: "Math", explanation: "One" },
@@ -89,6 +89,19 @@ test("practice live join card creates Kahoot-style ready and generation states",
   assert.equal(empty.ready, false)
   assert.equal(empty.primaryAction, "create")
   assert.match(empty.caption, /Generate practice/)
+})
+
+test("practice ready loops connect AI play battle and sharing", () => {
+  const empty = buildPracticeReadyLoops({ quizCount: 0, draftCount: 0, connectionCount: 0, battleCount: 0 })
+  const ready = buildPracticeReadyLoops({ quizCount: 2, draftCount: 1, connectionCount: 3, battleCount: 1 })
+
+  assert.deepEqual(empty.map((loop) => loop.id), ["generate", "play", "battle", "share"])
+  assert.equal(empty.find((loop) => loop.id === "generate")?.recommended, true)
+  assert.equal(empty.find((loop) => loop.id === "play")?.enabled, false)
+  assert.equal(empty.find((loop) => loop.id === "share")?.badge, "Invite")
+  assert.equal(ready.find((loop) => loop.id === "play")?.label, "Resume")
+  assert.equal(ready.find((loop) => loop.id === "battle")?.enabled, true)
+  assert.equal(ready.find((loop) => loop.id === "share")?.recommended, true)
 })
 
 test("practice arena presets recommend the cleanest game setup", () => {
