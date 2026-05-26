@@ -24,7 +24,7 @@ import {
 } from "@/lib/learn-workspace-navigation"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeArenaPresets, buildPracticeGameModes, buildPracticeLiveJoinCard, buildPracticePlayStyles, buildPracticeReadyLoops, buildPracticeWorkspacePlan, type PracticeArenaPreset, type PracticeGameMode, type PracticeLiveJoinCard, type PracticePlayStyle, type PracticeReadyLoop, type PracticeWorkspaceAction, type PracticeWorkspaceActionId, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialCommandModel, buildSocialCommandRunActions, buildSocialContactQuickActions, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeConnections, type ConnectionActionId, type PeopleSearchShortcut, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialInviteRole, type SocialMomentOption, type SocialMomentTypeId, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialCommandModel, buildSocialCommandRunActions, buildSocialContactQuickActions, buildSocialUnifiedSearchCommand, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeConnections, type ConnectionActionId, type PeopleSearchShortcut, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialInviteRole, type SocialMomentOption, type SocialMomentTypeId, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 const practiceTabIcons: Record<PracticeWorkspaceTab, ComponentType<{ className?: string }>> = {
   quizzes: BookOpen,
@@ -370,6 +370,14 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     return flowCards.filter((card) => `${card.label} ${card.action} ${card.createAction}`.toLowerCase().includes(needle))
   }, [flowCards, query])
   const filteredPlaceCards = useMemo(() => filteredFlowCards.filter((card) => card.id !== "chat"), [filteredFlowCards])
+  const searchCommand = useMemo(() => buildSocialUnifiedSearchCommand({
+    connectionCount: connectionSummary.total,
+    groupResultCount: filteredPlaceCards.length,
+    peopleResultCount: peoplePage.total,
+    query,
+    roomCount: counts.rooms,
+    threadResultCount: matchingThreads.length,
+  }), [connectionSummary.total, counts.rooms, filteredPlaceCards.length, matchingThreads.length, peoplePage.total, query])
   const showPeople = searchScope === "all" || searchScope === "people"
   const showChats = searchScope === "all" || searchScope === "chats"
   const showGroups = searchScope === "groups"
@@ -572,6 +580,32 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     void createSocialPlace(id)
   }
 
+  function runSearchCommand() {
+    if (commandAction) return
+    if (searchCommand.action === "invite") {
+      setSearchScope("people")
+      if (queryLooksLikeEmail) setInviteEmail(query.trim())
+      return
+    }
+    if (searchCommand.action === "people") {
+      setSearchScope("people")
+      return
+    }
+    if (searchCommand.action === "chat") {
+      open("chat")
+      return
+    }
+    if (searchCommand.action === "groups") {
+      if (filteredPlaceCards.length > 0) {
+        setSearchScope("groups")
+        return
+      }
+      void createSocialPlace("spaces")
+      return
+    }
+    void refresh()
+  }
+
   const syncAction = commandActionById.get("sync")
   const postAction = commandActionById.get("post")
   const inviteAction = commandActionById.get("invite")
@@ -591,6 +625,11 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search people, chats, groups, or paste an email" className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-foreground outline-none" />
           </label>
           <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
+            <button onClick={runSearchCommand} disabled={Boolean(commandAction)} className="inline-flex h-10 shrink-0 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60" title={searchCommand.detail} type="button">
+              <Sparkles className="h-4 w-4" />
+              <span>{searchCommand.label}</span>
+              <span className="rounded bg-primary-foreground/20 px-1.5 py-0.5 text-[0.65rem] uppercase">{searchCommand.badge}</span>
+            </button>
             <details className="group/create relative shrink-0">
               <summary className="inline-flex h-10 cursor-pointer list-none items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground">
                 <Plus className="h-4 w-4" />
