@@ -143,8 +143,8 @@ export function DashboardView({
           <div className="flex min-w-0 items-start gap-3">
             <span className="mt-1 rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">Route</span>
             <div className="min-w-0">
-              <div className="flex items-start gap-2">
-                <h2 className="max-w-4xl text-xl font-semibold leading-tight text-foreground md:text-2xl">{commandPlan.headline}</h2>
+              <div className="flex min-w-0 items-start gap-2">
+                <h2 className="min-w-0 flex-1 break-words text-xl font-semibold leading-tight text-foreground md:max-w-4xl md:text-2xl">{commandPlan.headline}</h2>
                 <InfoPopover label="About today's route" body={commandPlan.detail} />
               </div>
               <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">{commandPlan.detail}</p>
