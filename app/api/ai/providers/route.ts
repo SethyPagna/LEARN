@@ -14,9 +14,9 @@ export async function GET(request: NextRequest) {
   if (user.role !== "admin") {
     const providers = await listAiProviderConfigs()
     return ok({
-      items: sanitizeAiGatewayProviderStatuses(providers as Array<Record<string, unknown>>),
-      catalog: sanitizeAiGatewayProviderCatalog(listProviderMetadata() as Array<Record<string, unknown>>),
-      presets: sanitizeAiGatewayProviderPresets(listProviderPresets() as Array<Record<string, unknown>>),
+      items: sanitizeAiGatewayProviderStatuses(providers),
+      catalog: sanitizeAiGatewayProviderCatalog(listProviderMetadata()),
+      presets: sanitizeAiGatewayProviderPresets(listProviderPresets()),
     })
   }
   const state = await getAiProviderAdminState()

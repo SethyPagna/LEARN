@@ -44,46 +44,55 @@ export interface AiGatewayReadiness {
   selectedProviderCount: number
 }
 
-export function sanitizeAiGatewayProviderStatuses(providers: Array<Record<string, unknown>>): AiGatewayProviderStatus[] {
-  return providers.map((provider) => ({
-    name: typeof provider.name === "string" ? provider.name : undefined,
-    provider: typeof provider.provider === "string" ? provider.provider : undefined,
-    enabled: provider.enabled === true || provider.enabled === 1 || provider.enabled === "1",
-    has_key: Boolean(provider.has_key),
-    last_status: typeof provider.last_status === "string" ? provider.last_status : "untested",
-    default_model: typeof provider.default_model === "string" ? provider.default_model : undefined,
-    priority: Number(provider.priority || 50),
-  }))
+export function sanitizeAiGatewayProviderStatuses(providers: unknown[]): AiGatewayProviderStatus[] {
+  return providers.map((source) => {
+    const provider = readRecord(source)
+    return {
+      name: typeof provider.name === "string" ? provider.name : undefined,
+      provider: typeof provider.provider === "string" ? provider.provider : undefined,
+      enabled: provider.enabled === true || provider.enabled === 1 || provider.enabled === "1",
+      has_key: Boolean(provider.has_key),
+      last_status: typeof provider.last_status === "string" ? provider.last_status : "untested",
+      default_model: typeof provider.default_model === "string" ? provider.default_model : undefined,
+      priority: Number(provider.priority || 50),
+    }
+  })
 }
 
-export function sanitizeAiGatewayProviderCatalog(providers: Array<Record<string, unknown>>): AiGatewayProviderCatalogItem[] {
-  return providers.map((provider) => ({
-    provider: readString(provider.provider),
-    label: readString(provider.label),
-    defaultModel: readString(provider.defaultModel),
-    endpoint: readString(provider.endpoint),
-    type: typeof provider.type === "string" ? provider.type : undefined,
-    supportedTypes: readStringArray(provider.supportedTypes),
-    defaultPriority: readNumber(provider.defaultPriority, 50),
-    safeRequestsPerMinute: readNumber(provider.safeRequestsPerMinute, 10),
-    safeTimeoutMs: readNumber(provider.safeTimeoutMs, 18000),
-    safeCooldownSeconds: readNumber(provider.safeCooldownSeconds, 20),
-  }))
+export function sanitizeAiGatewayProviderCatalog(providers: unknown[]): AiGatewayProviderCatalogItem[] {
+  return providers.map((source) => {
+    const provider = readRecord(source)
+    return {
+      provider: readString(provider.provider),
+      label: readString(provider.label),
+      defaultModel: readString(provider.defaultModel),
+      endpoint: readString(provider.endpoint),
+      type: typeof provider.type === "string" ? provider.type : undefined,
+      supportedTypes: readStringArray(provider.supportedTypes),
+      defaultPriority: readNumber(provider.defaultPriority, 50),
+      safeRequestsPerMinute: readNumber(provider.safeRequestsPerMinute, 10),
+      safeTimeoutMs: readNumber(provider.safeTimeoutMs, 18000),
+      safeCooldownSeconds: readNumber(provider.safeCooldownSeconds, 20),
+    }
+  })
 }
 
-export function sanitizeAiGatewayProviderPresets(presets: Array<Record<string, unknown>>): AiGatewayProviderPresetItem[] {
-  return presets.map((preset) => ({
-    id: readString(preset.id),
-    provider: readString(preset.provider),
-    label: readString(preset.label),
-    model: readString(preset.model),
-    type: typeof preset.type === "string" ? preset.type : undefined,
-    priority: readNumber(preset.priority, 50),
-    requestsPerMinute: readNumber(preset.requestsPerMinute, 10),
-    timeoutMs: readNumber(preset.timeoutMs, 18000),
-    cooldownSeconds: readNumber(preset.cooldownSeconds, 20),
-    endpoint: readString(preset.endpoint),
-  }))
+export function sanitizeAiGatewayProviderPresets(presets: unknown[]): AiGatewayProviderPresetItem[] {
+  return presets.map((source) => {
+    const preset = readRecord(source)
+    return {
+      id: readString(preset.id),
+      provider: readString(preset.provider),
+      label: readString(preset.label),
+      model: readString(preset.model),
+      type: typeof preset.type === "string" ? preset.type : undefined,
+      priority: readNumber(preset.priority, 50),
+      requestsPerMinute: readNumber(preset.requestsPerMinute, 10),
+      timeoutMs: readNumber(preset.timeoutMs, 18000),
+      cooldownSeconds: readNumber(preset.cooldownSeconds, 20),
+      endpoint: readString(preset.endpoint),
+    }
+  })
 }
 
 export function buildAiGatewayReadiness(input: {
@@ -128,6 +137,10 @@ function isProviderReady(provider: AiGatewayProviderStatus) {
 
 function readString(value: unknown) {
   return typeof value === "string" ? value : ""
+}
+
+function readRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {}
 }
 
 function readNumber(value: unknown, fallback: number) {
