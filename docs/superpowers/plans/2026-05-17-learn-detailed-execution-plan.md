@@ -526,7 +526,7 @@
 
 **Primary files:**
 - `.github/workflows/*.yml`
-- `scripts/deploy-cloudflare.mjs`
+- `ops/scripts/deploy/cloudflare.ts`
 - `wrangler.jsonc`
 - `wrangler.realtime.jsonc`
 - `app/api/integrations/health/route.ts`
