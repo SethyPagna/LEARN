@@ -12,7 +12,7 @@ import { buildProviderAdminSummaryChips } from "../lib/ai/provider-admin-ui"
 import { getTutorModeInstruction, resolveTutorTokenBudget } from "../lib/ai/tutor"
 import { getPromptTemplate } from "../lib/ai/prompt-library"
 import { buildGuidedPrompt, listInsertActions, normalizeStudioInsertTarget, promptContracts, studioInsertTargets } from "../lib/ai/prompt-builder"
-import { buildAiGatewayReadiness } from "../lib/ai/gateway-readiness"
+import { buildAiGatewayReadiness, sanitizeAiGatewayProviderStatuses } from "../lib/ai/gateway-readiness"
 import { buildInsertBackPayload, parseAiJson } from "../lib/ai/insert-back"
 import {
   aiTutorDifficulties,
@@ -315,6 +315,35 @@ test("AI gateway readiness explains prompt and provider state", () => {
   })
   assert.equal(blocked.status, "blocked")
   assert.match(blocked.checks.join(" "), /Missing required fields/)
+})
+
+test("AI gateway provider status exposes only masked learner readiness", () => {
+  const statuses = sanitizeAiGatewayProviderStatuses([
+    {
+      id: "provider_1",
+      name: "Primary Groq",
+      provider: "groq",
+      account_email: "secret@example.com",
+      notes: "private note",
+      enabled: true,
+      priority: 10,
+      has_key: true,
+      key_masked: "stored",
+      last_status: "ok",
+      last_error: "hidden",
+      default_model: "groq/compound",
+    },
+  ])
+
+  assert.deepEqual(statuses, [{
+    name: "Primary Groq",
+    provider: "groq",
+    enabled: true,
+    has_key: true,
+    last_status: "ok",
+    default_model: "groq/compound",
+    priority: 10,
+  }])
 })
 
 test("AI tutor workflow summary combines prompt gateway insert and draft state", () => {

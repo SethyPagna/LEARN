@@ -16,6 +16,18 @@ export interface AiGatewayReadiness {
   selectedProviderCount: number
 }
 
+export function sanitizeAiGatewayProviderStatuses(providers: Array<Record<string, unknown>>): AiGatewayProviderStatus[] {
+  return providers.map((provider) => ({
+    name: typeof provider.name === "string" ? provider.name : undefined,
+    provider: typeof provider.provider === "string" ? provider.provider : undefined,
+    enabled: provider.enabled === true || provider.enabled === 1 || provider.enabled === "1",
+    has_key: Boolean(provider.has_key),
+    last_status: typeof provider.last_status === "string" ? provider.last_status : "untested",
+    default_model: typeof provider.default_model === "string" ? provider.default_model : undefined,
+    priority: Number(provider.priority || 50),
+  }))
+}
+
 export function buildAiGatewayReadiness(input: {
   prompt: GuidedPromptResult
   providers: AiGatewayProviderStatus[]
