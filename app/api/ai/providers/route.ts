@@ -1,6 +1,10 @@
 import type { NextRequest } from "next/server"
 import { fail, isApiResponse, ok, requireApiUser } from "@/lib/api"
-import { sanitizeAiGatewayProviderStatuses } from "@/lib/ai/gateway-readiness"
+import {
+  sanitizeAiGatewayProviderCatalog,
+  sanitizeAiGatewayProviderPresets,
+  sanitizeAiGatewayProviderStatuses,
+} from "@/lib/ai/gateway-readiness"
 import { listProviderMetadata, listProviderPresets } from "@/lib/ai/providers"
 import { deleteAiProviderConfig, getAiProviderAdminState, listAiProviderConfigs, saveAiProviderConfig, testAiProviderConfig } from "@/lib/data"
 
@@ -11,8 +15,8 @@ export async function GET(request: NextRequest) {
     const providers = await listAiProviderConfigs()
     return ok({
       items: sanitizeAiGatewayProviderStatuses(providers as Array<Record<string, unknown>>),
-      catalog: listProviderMetadata(),
-      presets: listProviderPresets(),
+      catalog: sanitizeAiGatewayProviderCatalog(listProviderMetadata() as Array<Record<string, unknown>>),
+      presets: sanitizeAiGatewayProviderPresets(listProviderPresets() as Array<Record<string, unknown>>),
     })
   }
   const state = await getAiProviderAdminState()

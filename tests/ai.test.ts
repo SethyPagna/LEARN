@@ -12,7 +12,7 @@ import { buildProviderAdminSummaryChips } from "../lib/ai/provider-admin-ui"
 import { getTutorModeInstruction, resolveTutorTokenBudget } from "../lib/ai/tutor"
 import { getPromptTemplate } from "../lib/ai/prompt-library"
 import { buildGuidedPrompt, listInsertActions, normalizeStudioInsertTarget, promptContracts, studioInsertTargets } from "../lib/ai/prompt-builder"
-import { buildAiGatewayReadiness, sanitizeAiGatewayProviderStatuses } from "../lib/ai/gateway-readiness"
+import { buildAiGatewayReadiness, sanitizeAiGatewayProviderCatalog, sanitizeAiGatewayProviderPresets, sanitizeAiGatewayProviderStatuses } from "../lib/ai/gateway-readiness"
 import { buildInsertBackPayload, parseAiJson } from "../lib/ai/insert-back"
 import {
   aiTutorDifficulties,
@@ -36,7 +36,7 @@ import {
   summarizeAiTutorWorkflow,
   visibleAiTutorModeGroups,
 } from "../lib/ai/tutor-workflow"
-import { listProviderPresets, getProviderMetadata, resolveConfiguredProvider } from "../lib/ai/providers"
+import { listProviderMetadata, listProviderPresets, getProviderMetadata, resolveConfiguredProvider } from "../lib/ai/providers"
 
 test("resolveConfiguredProvider selects the requested provider when a key exists", () => {
   const provider = resolveConfiguredProvider({
@@ -344,6 +344,18 @@ test("AI gateway provider status exposes only masked learner readiness", () => {
     default_model: "groq/compound",
     priority: 10,
   }])
+})
+
+test("AI gateway learner catalog hides admin secret metadata", () => {
+  const catalog = sanitizeAiGatewayProviderCatalog(listProviderMetadata())
+  const presets = sanitizeAiGatewayProviderPresets(listProviderPresets())
+  const serialized = JSON.stringify({ catalog, presets })
+
+  assert.ok(catalog.length)
+  assert.ok(presets.length)
+  assert.equal(serialized.includes("envKey"), false)
+  assert.equal(serialized.includes("API_KEY"), false)
+  assert.equal(serialized.includes("notes"), false)
 })
 
 test("AI tutor workflow summary combines prompt gateway insert and draft state", () => {
