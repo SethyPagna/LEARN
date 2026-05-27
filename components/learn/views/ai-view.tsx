@@ -61,7 +61,7 @@ const tutorModeIcons: Record<AiTaskKey, React.ComponentType<{ className?: string
 
 const AI_TUTOR_DRAFT_KEY = "learn_ai_tutor_draft_v1"
 const DEFAULT_AI_MESSAGE = "Create a study plan from my recent notes."
-type TutorMenuId = "task" | "filters" | "gateway"
+type TutorMenuId = "setup"
 
 type AiTutorDraft = {
   message: string
@@ -513,53 +513,65 @@ export function AiTutorView({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 self-start rounded-lg border border-border bg-background p-1.5 shadow-sm lg:justify-end">
-            <TutorMenu label={`Task: ${activeMode.label}`} icon={tutorModeIcons[activeMode.id]} menuId="task" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
-              {visibleAiTutorModeGroups.map((group) => (
-                <div key={group.id} className="grid gap-1">
-                  <ControlButton
-                    onClick={() => setModeGroup(group.id)}
-                    active={modeGroup === group.id}
-                    className="mb-1 flex w-full justify-between"
-                    size="compact"
-                    type="button"
-                  >
-                    {group.label}
-                    <span className="text-[0.66rem] opacity-70">{group.modes.length}</span>
-                  </ControlButton>
-                  {aiTutorModeOptions
-                    .filter((mode) => group.modes.includes(mode.id))
-                    .map((item) => (
-                      <TutorMenuAction
-                        key={`${group.id}-${item.id}`}
-                        active={activeMode.id === item.id}
-                        icon={tutorModeIcons[item.id]}
-                        label={item.label}
-                        meta={item.prompt}
-                        onClick={() => {
-                          setActiveTaskKey(item.id)
-                          setModeGroup(getAiTutorModeGroupForTask(item.id))
-                          setOptions({ aiMode: item.mode as WorkspaceOptions["aiMode"] })
-                          setMessage(item.prompt)
-                          setOpenTutorMenu(null)
-                        }}
-                      />
-                    ))}
+            <TutorMenu label={`${activeMode.label} setup`} icon={SlidersHorizontal} align="right" menuId="setup" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
+              <TutorMenuSection title="Task">
+                <div className="grid gap-2">
+                  {visibleAiTutorModeGroups.map((group) => (
+                    <div key={group.id} className="grid gap-1 rounded-md border border-border bg-muted/40 p-1.5">
+                      <ControlButton
+                        onClick={() => setModeGroup(group.id)}
+                        active={modeGroup === group.id}
+                        className="flex w-full justify-between"
+                        size="compact"
+                        type="button"
+                      >
+                        {group.label}
+                        <span className="text-[0.66rem] opacity-70">{group.modes.length}</span>
+                      </ControlButton>
+                      {modeGroup === group.id
+                        ? aiTutorModeOptions
+                          .filter((mode) => group.modes.includes(mode.id))
+                          .map((item) => (
+                            <TutorMenuAction
+                              key={`${group.id}-${item.id}`}
+                              active={activeMode.id === item.id}
+                              icon={tutorModeIcons[item.id]}
+                              label={item.label}
+                              meta={item.prompt}
+                              onClick={() => {
+                                setActiveTaskKey(item.id)
+                                setModeGroup(getAiTutorModeGroupForTask(item.id))
+                                setOptions({ aiMode: item.mode as WorkspaceOptions["aiMode"] })
+                                setMessage(item.prompt)
+                                setOpenTutorMenu(null)
+                              }}
+                            />
+                          ))
+                        : null}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </TutorMenu>
-            <TutorMenu label="Filters" icon={SlidersHorizontal} menuId="filters" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
+              </TutorMenuSection>
               <TutorMenuSection title="Context">
                 <TutorMenuSelect label="Source" value={sourceScope} values={aiTutorSourceScopes} onChange={setSourceScope} />
                 <TutorMenuSelect label="Difficulty" value={difficulty} values={aiTutorDifficulties} onChange={setDifficulty} />
                 <TutorMenuSelect label="Tone" value={tone} values={aiTutorTones} onChange={setTone} />
+                <TutorMenuToggle checked={options.aiIncludeNotes} label="Include recent notes" onChange={(checked) => setOptions({ aiIncludeNotes: checked })} />
+              </TutorMenuSection>
+              <TutorMenuSection title="Output">
                 <TutorMenuSelect label="Length" value={outputLength} values={aiTutorOutputLengths} onChange={chooseOutputLength} />
                 <TutorMenuSelect label="Language" value={language} values={aiTutorLanguages} onChange={setLanguage} />
                 <TutorMenuSelect label="Insert" value={insertTarget} values={availableInsertTargets} onChange={(value) => setInsertTarget(value as StudioInsertTarget)} />
-                <TutorMenuToggle checked={options.aiIncludeNotes} label="Include recent notes" onChange={(checked) => setOptions({ aiIncludeNotes: checked })} />
+                <label className="grid gap-1 text-sm text-foreground">
+                  <span className="font-semibold">Audience</span>
+                  <input value={targetAudience} onChange={(event) => setTargetAudience(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
+                </label>
+                <label className="grid gap-1 text-sm text-foreground">
+                  <span className="font-semibold">Requirements</span>
+                  <textarea value={requiredOutput} onChange={(event) => setRequiredOutput(event.target.value)} className="min-h-20 rounded-md border border-input bg-background px-2 py-2 text-foreground outline-none focus:border-ring" />
+                </label>
               </TutorMenuSection>
-            </TutorMenu>
-            <TutorMenu label="Gateway" icon={Brain} align="right" menuId="gateway" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
-              <TutorMenuSection title="Provider">
+              <TutorMenuSection title="Gateway">
                 <TutorMenuSelect
                   label="Family"
                   value={providerFamily}
@@ -599,41 +611,25 @@ export function AiTutorView({
           <textarea value={message} onChange={(event) => setMessage(event.target.value)} className="min-h-44 w-full rounded-md border border-input bg-background p-4 font-normal text-foreground outline-none focus:border-ring" />
         </label>
 
-        <details className="mt-3 rounded-lg border border-border bg-background text-sm">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 font-semibold text-foreground [&::-webkit-details-marker]:hidden">
-            <span>Requirements</span>
-            <span className="flex flex-wrap items-center justify-end gap-1.5">
-              <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{targetAudience}</span>
-              <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{difficulty}</span>
-            </span>
-          </summary>
-          <div className="grid gap-3 border-t border-border p-3">
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              {workflowSummary.overview.map((item) => (
-                <CompactState key={item.id} detail={item.detail} label={item.label} tone={item.tone} value={item.value} />
-              ))}
-            </div>
-            <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-              <label className="grid gap-1 text-sm text-foreground">
-                <span className="font-semibold">Audience</span>
-                <input value={targetAudience} onChange={(event) => setTargetAudience(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
-              </label>
-              <label className="grid gap-1 text-sm text-foreground">
-                <span className="font-semibold">Requirements</span>
-                <input value={requiredOutput} onChange={(event) => setRequiredOutput(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
-              </label>
-              <div className={`rounded-md border px-3 py-2 ${gatewayReadiness.status === "ready" ? "border-success/50 bg-success/10" : gatewayReadiness.status === "warning" ? "border-warning/50 bg-warning/10" : "border-destructive/50 bg-destructive/10"}`}>
-                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Gateway</p>
-                <p className="mt-1 text-sm font-semibold text-foreground">{gatewayReadiness.readyProviderCount}/{gatewayReadiness.selectedProviderCount || gatewayReadiness.readyProviderCount} ready</p>
-              </div>
-            </div>
-          </div>
-        </details>
-
         <details className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm">
           <summary className="cursor-pointer font-semibold text-foreground">Prompt preview {promptBuild.ok ? "" : `- ${promptBuild.missing.length} missing`}</summary>
           <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-background p-3 text-xs leading-5 text-muted-foreground">{completePromptPreview}</pre>
           {promptBuild.warnings.length ? <p className="mt-2 rounded-md bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">{promptBuild.warnings.join(" ")}</p> : null}
+        </details>
+
+        <details className="mt-3 rounded-lg border border-border bg-background text-sm">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+            <span>Run details</span>
+            <span className="flex flex-wrap items-center justify-end gap-1.5">
+              <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{workflowSummary.providerLabel}</span>
+              <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{workflowSummary.nextAction}</span>
+            </span>
+          </summary>
+          <div className="grid gap-2 border-t border-border p-3 sm:grid-cols-2 xl:grid-cols-4">
+            {workflowSummary.overview.map((item) => (
+              <CompactState key={item.id} detail={item.detail} label={item.label} tone={item.tone} value={item.value} />
+            ))}
+          </div>
         </details>
         <div className="mt-3 flex flex-wrap gap-2">
           <button disabled={primaryActionPlan.disabled} onClick={runPrimaryAction} className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
