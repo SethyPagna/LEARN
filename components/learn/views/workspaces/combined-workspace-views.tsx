@@ -12,20 +12,17 @@ import { QuizView } from "../quiz-view"
 import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { AI_TUTOR_LAUNCH_KEY, buildPracticeAiTutorLaunch } from "@/lib/ai/tutor-workflow"
 import {
-  getSocialCommandTab,
   practiceWorkspaceTabs,
-  socialCommandTabs,
   socialWorkspaceTabFromView,
   socialWorkspaceTabs,
   viewFromPracticeWorkspaceTab,
   viewFromSocialWorkspaceTab,
   type PracticeWorkspaceTab,
-  type SocialCommandTab,
   type SocialWorkspaceTab,
 } from "@/lib/learn-workspace-navigation"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeArenaPresets, buildPracticeGameModes, buildPracticeLiveJoinCard, buildPracticePlayStyles, buildPracticeReadyLoops, buildPracticeWorkspacePlan, type PracticeArenaPreset, type PracticeGameMode, type PracticeLiveJoinCard, type PracticePlayStyle, type PracticeReadyLoop, type PracticeWorkspaceAction, type PracticeWorkspaceActionId, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialCommandModel, buildSocialCommandRunActions, buildSocialContactQuickActions, buildSocialUnifiedSearchCommand, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeConnections, type ConnectionActionId, type PeopleSearchShortcut, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialInviteRole, type SocialMomentOption, type SocialMomentTypeId, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialCommandModel, buildSocialCommandRunActions, buildSocialContactQuickActions, buildSocialUnifiedSearchCommand, buildSocialUnifiedSearchSections, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeConnections, type ConnectionActionId, type PeopleSearchShortcut, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialInviteRole, type SocialMomentOption, type SocialMomentTypeId, type SocialUnifiedSearchScope, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 const practiceTabIcons: Record<PracticeWorkspaceTab, ComponentType<{ className?: string }>> = {
   quizzes: BookOpen,
@@ -38,13 +35,6 @@ const socialTabIcons: Record<SocialWorkspaceTab, ComponentType<{ className?: str
   spaces: Users,
   rooms: Radio,
   battles: Swords,
-}
-
-const socialCommandTabIcons: Record<SocialCommandTab, ComponentType<{ className?: string }>> = {
-  people: Search,
-  post: Send,
-  invite: Mail,
-  connections: Users,
 }
 
 const socialCallModeIcons: Record<SocialCallMode["id"], ComponentType<{ className?: string }>> = {
@@ -325,13 +315,12 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const [threads, setThreads] = useState<any[]>([])
   const [counts, setCounts] = useState({ spaces: 0, rooms: 0, battles: 0 })
   const [query, setQuery] = useState("")
-  const [searchScope, setSearchScope] = useState<"all" | "people" | "chats" | "groups">("all")
+  const [searchScope, setSearchScope] = useState<SocialUnifiedSearchScope>("all")
   const [quickPost, setQuickPost] = useState("")
   const [momentType, setMomentType] = useState<SocialMomentTypeId>("win")
   const [inviteEmail, setInviteEmail] = useState("")
   const [inviteRole, setInviteRole] = useState<SocialInviteRole>("learner")
   const [status, setStatus] = useState("Loading")
-  const [commandTab, setCommandTab] = useState<SocialCommandTab>("people")
   const [peopleLimit, setPeopleLimit] = useState(5)
   const [connectionLimit, setConnectionLimit] = useState(6)
   const [connectionAction, setConnectionAction] = useState<{ action: ConnectionActionId; targetId: string } | null>(null)
@@ -359,12 +348,6 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     primaryAction: primaryCommand,
   } = socialModel
   const activeMomentOption = momentOptions.find((option) => option.id === momentType) ?? momentOptions[0]
-  const commandCounts = useMemo<Record<SocialCommandTab, string>>(() => ({
-    people: String(peoplePage.total),
-    post: String(threads.length),
-    invite: inviteReady ? "ready" : "0",
-    connections: String(connectionSummary.total),
-  }), [connectionSummary.total, inviteReady, peoplePage.total, threads.length])
   const commandActions = useMemo(() => buildSocialCommandRunActions({
     busyAction: commandAction,
     hasPostDraft: Boolean(quickPost.trim()),
@@ -390,10 +373,15 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     roomCount: counts.rooms,
     threadResultCount: matchingThreads.length,
   }), [connectionSummary.total, counts.rooms, filteredPlaceCards.length, matchingThreads.length, peoplePage.total, query])
-  const showPeople = searchScope === "all" || searchScope === "people"
-  const showChats = searchScope === "all" || searchScope === "chats"
-  const showGroups = searchScope === "groups"
   const queryLooksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(query.trim())
+  const visibleSections = useMemo(() => buildSocialUnifiedSearchSections({
+    commandScope: searchCommand.scope,
+    inviteEmail,
+    query,
+    queryLooksLikeEmail,
+    selectedScope: searchScope,
+  }), [inviteEmail, query, queryLooksLikeEmail, searchCommand.scope, searchScope])
+  const { showChats, showGroups, showInvite, showPeople } = visibleSections
 
   useEffect(() => {
     setPeopleLimit(5)
@@ -573,15 +561,15 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   function runPrimaryCommand(id: SocialCommandPrimaryActionId) {
     if (commandAction) return
     if (id === "find") {
-      setCommandTab("people")
+      setSearchScope("people")
       return
     }
     if (id === "invite") {
-      setCommandTab("invite")
+      setSearchScope("people")
       return
     }
     if (id === "post") {
-      setCommandTab("post")
+      setSearchScope("chats")
       return
     }
     const count = id === "spaces" ? counts.spaces : id === "rooms" ? counts.rooms : id === "battles" ? counts.battles : threads.length
@@ -621,7 +609,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const syncAction = commandActionById.get("sync")
   const postAction = commandActionById.get("post")
   const inviteAction = commandActionById.get("invite")
-  const scopeTabs: Array<{ id: typeof searchScope; label: string; count: number }> = [
+  const scopeTabs: Array<{ id: SocialUnifiedSearchScope; label: string; count: number }> = [
     { id: "all", label: "All", count: peoplePage.total + connectionPage.total + matchingThreads.length },
     { id: "people", label: "People", count: peoplePage.total + connectionPage.total },
     { id: "chats", label: "Chats", count: matchingThreads.length },
@@ -857,7 +845,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
           </section>
         ) : null}
 
-        {queryLooksLikeEmail || inviteEmail.trim() ? (
+        {showInvite ? (
         <details className="group/invite rounded-lg border border-border bg-background" open>
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-semibold text-foreground">
             <span>Invite by email</span>

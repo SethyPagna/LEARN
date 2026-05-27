@@ -2,7 +2,6 @@ import type { View } from "@/components/learn/types"
 
 export type PracticeWorkspaceTab = "quizzes" | "games"
 export type SocialWorkspaceTab = "home" | "chat" | "spaces" | "rooms" | "battles"
-export type SocialCommandTab = "people" | "post" | "invite" | "connections"
 
 export type WorkspaceTabOption<T extends string> = {
   caption?: string
@@ -23,13 +22,6 @@ export const socialWorkspaceTabs: Array<WorkspaceTabOption<SocialWorkspaceTab>> 
   { id: "battles", label: "Games", caption: "Quiz games" },
 ]
 
-export const socialCommandTabs: Array<WorkspaceTabOption<SocialCommandTab>> = [
-  { id: "people", label: "Find" },
-  { id: "post", label: "Post" },
-  { id: "invite", label: "Invite" },
-  { id: "connections", label: "Friends" },
-]
-
 export function viewFromPracticeWorkspaceTab(tab: PracticeWorkspaceTab): View {
   return tab
 }
@@ -46,8 +38,4 @@ export function socialWorkspaceTabFromView(view: View): SocialWorkspaceTab {
 export function viewFromSocialWorkspaceTab(tab: SocialWorkspaceTab): View {
   if (tab === "home") return "social"
   return tab
-}
-
-export function getSocialCommandTab(tab: SocialCommandTab) {
-  return socialCommandTabs.find((item) => item.id === tab) || socialCommandTabs[0]
 }

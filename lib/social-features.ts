@@ -267,13 +267,22 @@ export interface SocialCommandModel {
 }
 
 export type SocialUnifiedSearchAction = "people" | "invite" | "chat" | "groups" | "sync"
+export type SocialUnifiedSearchScope = "all" | "people" | "chats" | "groups"
 
 export interface SocialUnifiedSearchCommand {
   action: SocialUnifiedSearchAction
   badge: string
   detail: string
   label: string
-  scope: "all" | "people" | "chats" | "groups"
+  scope: SocialUnifiedSearchScope
+}
+
+export interface SocialUnifiedSearchSections {
+  activeScope: SocialUnifiedSearchScope
+  showChats: boolean
+  showGroups: boolean
+  showInvite: boolean
+  showPeople: boolean
 }
 
 export type SocialHomeLaneId = "friends" | "chats" | "moments" | "groups" | "calls"
@@ -1357,6 +1366,26 @@ export function buildSocialUnifiedSearchCommand(input: {
     detail: "Refresh people, chats, groups, and live rooms.",
     label: "Refresh",
     scope: "all",
+  }
+}
+
+export function buildSocialUnifiedSearchSections(input: {
+  commandScope: SocialUnifiedSearchScope
+  inviteEmail?: string
+  query?: string
+  queryLooksLikeEmail?: boolean
+  selectedScope: SocialUnifiedSearchScope
+}): SocialUnifiedSearchSections {
+  const selectedScope = input.selectedScope
+  const activeScope = selectedScope === "all" ? input.commandScope : selectedScope
+  const showInvite = Boolean(input.queryLooksLikeEmail || input.inviteEmail?.trim())
+
+  return {
+    activeScope,
+    showChats: activeScope === "chats",
+    showGroups: activeScope === "groups",
+    showInvite,
+    showPeople: activeScope === "people" || (activeScope === "all" && !input.query?.trim()),
   }
 }
 

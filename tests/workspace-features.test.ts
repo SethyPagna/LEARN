@@ -70,9 +70,7 @@ import {
   studioNoItemSummary,
 } from "../lib/studio-defaults"
 import {
-  getSocialCommandTab,
   practiceWorkspaceTabs,
-  socialCommandTabs,
   socialWorkspaceTabFromView,
   socialWorkspaceTabs,
   viewFromPracticeWorkspaceTab,
@@ -285,8 +283,6 @@ test("combined workspace navigation keeps practice and social route mappings sta
   assert.equal(socialWorkspaceTabFromView("dashboard"), "home")
   assert.equal(viewFromSocialWorkspaceTab("home"), "social")
   assert.equal(viewFromSocialWorkspaceTab("battles"), "battles")
-  assert.deepEqual(socialCommandTabs.map((tab) => tab.label), ["Find", "Post", "Invite", "Friends"])
-  assert.equal(getSocialCommandTab("invite").label, "Invite")
 })
 
 test("Studio blank defaults do not seed new sheets or decks with sample content", () => {

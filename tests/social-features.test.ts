@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCallModes, buildSocialCommandModel, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialInviteReadiness, buildSocialMomentOptions, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialStarterActions, buildSocialUnifiedSearchCommand, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, normalizeSocialInviteRole, parseThreadTitle, socialInviteRoleOptions, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
+import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialCallModes, buildSocialCommandModel, buildSocialCommandPrimaryAction, buildSocialCommandRunActions, buildSocialCommandSummary, buildSocialContactQuickActions, buildSocialFlowCards, buildSocialHomeLanes, buildSocialInviteReadiness, buildSocialMomentOptions, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialStarterActions, buildSocialUnifiedSearchCommand, buildSocialUnifiedSearchSections, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterChatThreads, filterConnectableMembers, filterSocialRecords, filterWorkspaceMembers, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, normalizeSocialInviteRole, parseThreadTitle, socialInviteRoleOptions, summarizeChatWorkspace, summarizeConnections, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers } from "../lib/social-features"
 
 test("chat draft payload normalizes channel intent and metadata", () => {
   const payload = buildChatDraftPayload({
@@ -412,6 +412,19 @@ test("social unified search command keeps one obvious next action", () => {
   assert.equal(group.scope, "groups")
   assert.equal(people.label, "View people")
   assert.equal(ready.action, "sync")
+})
+
+test("social unified search sections show one primary result area", () => {
+  const autoPeople = buildSocialUnifiedSearchSections({ commandScope: "people", selectedScope: "all" })
+  const autoChats = buildSocialUnifiedSearchSections({ commandScope: "chats", selectedScope: "all", query: "review" })
+  const manualGroups = buildSocialUnifiedSearchSections({ commandScope: "people", selectedScope: "groups" })
+  const invite = buildSocialUnifiedSearchSections({ commandScope: "people", selectedScope: "all", query: "new@example.com", queryLooksLikeEmail: true })
+
+  assert.deepEqual(autoPeople, { activeScope: "people", showChats: false, showGroups: false, showInvite: false, showPeople: true })
+  assert.deepEqual(autoChats, { activeScope: "chats", showChats: true, showGroups: false, showInvite: false, showPeople: false })
+  assert.deepEqual(manualGroups, { activeScope: "groups", showChats: false, showGroups: true, showInvite: false, showPeople: false })
+  assert.equal(invite.showInvite, true)
+  assert.equal(invite.showPeople, true)
 })
 
 test("social home lanes map familiar social actions to existing routes", () => {
