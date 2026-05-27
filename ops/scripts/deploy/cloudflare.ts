@@ -1,6 +1,10 @@
 import { spawnSync } from "node:child_process"
 
-function run(command, args, options = {}) {
+interface RunOptions {
+  env?: Record<string, string | undefined>
+}
+
+function run(command: string, args: string[], options: RunOptions = {}) {
   const result = spawnSync(command, args, {
     env: { ...process.env, ...options.env },
     shell: process.platform === "win32",
@@ -8,7 +12,7 @@ function run(command, args, options = {}) {
   })
 
   if (result.status !== 0) {
-    process.exit(result.status || 1)
+    process.exit(result.status ?? 1)
   }
 }
 
