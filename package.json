@@ -11,7 +11,7 @@
     "dev": "next dev",
     "lint": "tsc --noEmit",
     "start": "next start",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "tsx ops/scripts/test/run-tests.ts",
     "db:migrate:local": "wrangler d1 migrations apply learn-db --local --config ops/cloudflare/wrangler.jsonc",
     "db:migrate:remote": "wrangler d1 migrations apply learn-db --remote --config ops/cloudflare/wrangler.jsonc",
     "preview:cloudflare": "tsx ops/scripts/deploy/preview-cloudflare.ts",
