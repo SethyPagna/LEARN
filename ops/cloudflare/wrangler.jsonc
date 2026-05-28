@@ -1,12 +1,12 @@
 {
-  "$schema": "./node_modules/wrangler/config-schema.json",
+  "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "learn",
   "account_id": "d105a82bc26b6913575355352c2d1bb1",
-  "main": "workers/app.ts",
+  "main": "../../workers/app.ts",
   "compatibility_date": "2026-05-13",
   "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
   "assets": {
-    "directory": ".open-next/assets",
+    "directory": "../../.open-next/assets",
     "binding": "ASSETS"
   },
   "d1_databases": [
@@ -14,7 +14,7 @@
       "binding": "LEARN_DB",
       "database_name": "learn-db",
       "database_id": "3eeb04af-c283-48c0-9469-82b64392fa79",
-      "migrations_dir": "migrations"
+      "migrations_dir": "../../migrations"
     }
   ],
   "r2_buckets": [

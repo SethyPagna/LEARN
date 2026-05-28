@@ -32,7 +32,7 @@ copy ops\env\dev.vars.example .dev.vars
 run\setup-first-time.bat
 ```
 
-When `wrangler d1 create learn-db` prints the database id, paste that id into `wrangler.jsonc` at `d1_databases[0].database_id` and set `CLOUDFLARE_D1_DATABASE_ID` in ignored local, GitHub, Vercel, or Docker env.
+When `wrangler d1 create learn-db` prints the database id, paste that id into `ops\cloudflare\wrangler.jsonc` at `d1_databases[0].database_id` and set `CLOUDFLARE_D1_DATABASE_ID` in ignored local, GitHub, Vercel, or Docker env.
 
 Set production secrets with Wrangler or the Cloudflare dashboard:
 

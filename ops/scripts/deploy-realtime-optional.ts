@@ -12,7 +12,7 @@ export function isCloudflareRealtimeEntitlementError(output: string) {
 }
 
 export function runRealtimeDeploy() {
-  const result = spawnSync("wrangler", ["deploy", "--config", "wrangler.realtime.jsonc"], {
+  const result = spawnSync("wrangler", ["deploy", "--config", "ops/cloudflare/wrangler.realtime.jsonc"], {
     encoding: "utf8",
     env: process.env,
     shell: process.platform === "win32",

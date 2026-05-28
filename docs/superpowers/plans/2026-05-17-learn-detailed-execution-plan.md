@@ -426,7 +426,7 @@
 - `app/api/study-rooms/route.ts`
 - `app/api/study-battles/route.ts`
 - `workers/realtime.ts` or current realtime worker files
-- `wrangler.realtime.jsonc`
+- `ops/cloudflare/wrangler.realtime.jsonc`
 - `tests/social-features.test.ts`
 
 **Detailed targets:**
@@ -527,8 +527,8 @@
 **Primary files:**
 - `.github/workflows/*.yml`
 - `ops/scripts/deploy/cloudflare.ts`
-- `wrangler.jsonc`
-- `wrangler.realtime.jsonc`
+- `ops/cloudflare/wrangler.jsonc`
+- `ops/cloudflare/wrangler.realtime.jsonc`
 - `app/api/integrations/health/route.ts`
 - `docs/change-control.md`
 

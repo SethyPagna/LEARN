@@ -1,8 +1,8 @@
 {
-  "$schema": "./node_modules/wrangler/config-schema.json",
+  "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "learn-realtime",
   "account_id": "d105a82bc26b6913575355352c2d1bb1",
-  "main": "workers/realtime.ts",
+  "main": "../../workers/realtime.ts",
   "compatibility_date": "2026-05-13",
   "workers_dev": false,
   "d1_databases": [
@@ -10,7 +10,7 @@
       "binding": "LEARN_DB",
       "database_name": "learn-db",
       "database_id": "3eeb04af-c283-48c0-9469-82b64392fa79",
-      "migrations_dir": "migrations"
+      "migrations_dir": "../../migrations"
     }
   ],
   "durable_objects": {

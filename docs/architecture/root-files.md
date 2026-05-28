@@ -9,7 +9,6 @@ LEARN keeps most implementation, operations, and planning files inside grouped f
 - `next.config.mjs`, `postcss.config.ts`, `open-next.config.ts`: Next.js, PostCSS/Tailwind, and OpenNext build entry points.
 - `components.json`: shadcn/ui component metadata.
 - `vercel.json`: Vercel project deployment metadata.
-- `wrangler.jsonc`, `wrangler.app-deploy.jsonc`, `wrangler.realtime.jsonc`: Cloudflare Worker and realtime deploy metadata.
 - `.gitignore`, `.dockerignore`: repository and Docker build-context ignore rules.
 - `README.md`: public project overview.
 
@@ -18,7 +17,7 @@ LEARN keeps most implementation, operations, and planning files inside grouped f
 - `app`, `components`, `lib`, `styles`, `types`: product source code.
 - `workers`: Cloudflare Worker entry points and runtime declarations.
 - `migrations`: Cloudflare D1 schema migrations.
-- `ops`: deploy, cleanup, seed, Docker, and environment template operations.
+- `ops`: deploy, cleanup, seed, Docker, Cloudflare, and environment template operations.
 - `run`: Windows-friendly command wrappers.
 - `docs`: product, architecture, roadmap, and implementation plans.
 - `tests`: fast unit and integration tests.
