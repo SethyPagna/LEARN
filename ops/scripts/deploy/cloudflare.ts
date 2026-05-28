@@ -17,7 +17,12 @@ function run(command: string, args: string[], options: RunOptions = {}) {
 }
 
 run("tsx", ["ops/scripts/cleanup/local-workspace.ts", "--apply"])
-run("opennextjs-cloudflare", ["build"])
+run("opennextjs-cloudflare", ["build"], {
+  env: {
+    ...process.env,
+    SKIP_WRANGLER_CONFIG_CHECK: "yes",
+  },
+})
 run("wrangler", ["deploy", "--config", "ops/cloudflare/wrangler.app-deploy.jsonc"], {
   env: { OPEN_NEXT_DEPLOY: "true" },
 })
