@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server"
-import { fail, isApiResponse, ok, requireApiUser } from "@/lib/api"
+import { fail, isApiResponse, ok, readJsonObject, requireApiUser } from "@/lib/api"
 import { deleteNote, getNote, restoreNote, saveNote } from "@/lib/data"
 
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -15,7 +15,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
   const { id } = await context.params
-  const body = await request.json().catch(() => ({}))
+  const body = await readJsonObject(request)
   const item = await saveNote(user, {
     id,
     title: String(body.title || "Untitled"),
@@ -39,7 +39,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
   const { id } = await context.params
-  const body = await request.json().catch(() => ({}))
+  const body = await readJsonObject(request)
   if (body.action === "restore") return ok({ item: await restoreNote(user, id) })
   return fail("Unsupported note action.", 400)
 }

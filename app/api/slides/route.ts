@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server"
-import { fail, isApiResponse, ok, requireApiUser } from "@/lib/api"
+import { fail, isApiResponse, ok, readJsonObject, requireApiUser } from "@/lib/api"
 import { archiveSlideDeck, listSlideDecks, normalizeArchiveStatus, restoreSlideDeck, saveSlideDeck } from "@/lib/data"
 
 export async function GET(request: NextRequest) {
@@ -12,14 +12,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
-  const body = await request.json().catch(() => ({}))
+  const body = await readJsonObject(request)
   return ok({ item: await saveSlideDeck(user, body) }, { status: 201 })
 }
 
 export async function PUT(request: NextRequest) {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
-  const body = await request.json().catch(() => ({}))
+  const body = await readJsonObject(request)
   return ok({ item: await saveSlideDeck(user, body) })
 }
 
@@ -33,7 +33,7 @@ export async function DELETE(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
-  const body = await request.json().catch(() => ({}))
+  const body = await readJsonObject(request)
   if (body.action === "restore") {
     return ok({ item: await restoreSlideDeck(user, String(body.id || "")) })
   }

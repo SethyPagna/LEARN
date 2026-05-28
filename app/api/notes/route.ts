@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server"
-import { fail, isApiResponse, ok, requireApiUser } from "@/lib/api"
+import { fail, isApiResponse, ok, readJsonObject, requireApiUser } from "@/lib/api"
 import { listNotes, normalizeArchiveStatus, saveNote } from "@/lib/data"
 
 export async function GET(request: NextRequest) {
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
 
-  const body = await request.json().catch(() => ({}))
+  const body = await readJsonObject(request)
   if (!String(body.title || "").trim()) return fail("Note title is required.")
   const item = await saveNote(user, {
     title: String(body.title || ""),
