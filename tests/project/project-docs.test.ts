@@ -15,3 +15,10 @@ test("public project docs use maintainer-facing ownership language", () => {
     }
   }
 })
+
+test("README uses the pinned Wrangler command path", () => {
+  const text = fs.readFileSync("README.md", "utf8")
+
+  assert.equal(/\bnpx\s+wrangler\b/i.test(text), false)
+  assert.match(text, /run\\bin\\pnpm\.cmd exec wrangler secret put SESSION_SECRET/)
+})

@@ -37,8 +37,8 @@ When `wrangler d1 create learn-db` prints the database id, paste that id into `o
 Set production secrets with Wrangler or the Cloudflare dashboard:
 
 ```powershell
-npx wrangler secret put SESSION_SECRET
-npx wrangler secret put CLOUDFLARE_AI_GATEWAY_TOKEN
+run\bin\pnpm.cmd exec wrangler secret put SESSION_SECRET
+run\bin\pnpm.cmd exec wrangler secret put CLOUDFLARE_AI_GATEWAY_TOKEN
 ```
 
 For Vercel and Docker, also set:
