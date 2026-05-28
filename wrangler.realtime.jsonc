@@ -2,7 +2,7 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "learn-realtime",
   "account_id": "d105a82bc26b6913575355352c2d1bb1",
-  "main": "workers/realtime.js",
+  "main": "workers/realtime.ts",
   "compatibility_date": "2026-05-13",
   "workers_dev": false,
   "d1_databases": [
