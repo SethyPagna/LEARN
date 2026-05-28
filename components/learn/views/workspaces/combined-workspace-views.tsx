@@ -253,7 +253,7 @@ export function SocialWorkspaceView({ initialView, options, setView, user }: { i
   }, [initialView])
 
   return (
-    <div className="grid gap-3 lg:grid-cols-[82px_1fr]">
+    <div className="grid gap-3 lg:grid-cols-[72px_1fr]">
       <SocialSectionNav
         activeTab={tab}
         tabs={socialTabs}
@@ -284,7 +284,7 @@ function SocialSectionNav({
   tabs: Array<{ id: SocialWorkspaceTab; label: string; icon: ComponentType<{ className?: string }>; caption: string }>
 }) {
   return (
-    <Panel className="p-1.5 lg:sticky lg:top-3 lg:self-start">
+    <Panel className="p-1.5 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:self-start lg:overflow-y-auto">
       <div className="flex gap-1.5 overflow-x-auto lg:flex-col lg:overflow-visible">
         {tabs.map((item) => {
           const Icon = item.icon
@@ -293,13 +293,13 @@ function SocialSectionNav({
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`relative inline-flex h-14 min-w-[4.25rem] shrink-0 flex-col items-center justify-center gap-1 rounded-md px-2 text-[0.7rem] font-semibold transition lg:min-w-0 ${
+              className={`relative inline-flex h-12 min-w-[4rem] shrink-0 flex-col items-center justify-center gap-0.5 rounded-md px-1.5 text-[0.68rem] font-semibold transition lg:min-w-0 ${
                 active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               }`}
               title={item.caption}
               type="button"
             >
-              <Icon className="h-5 w-5 shrink-0" />
+              <Icon className="h-4 w-4 shrink-0" />
               <span className="truncate">{item.label}</span>
             </button>
           )
