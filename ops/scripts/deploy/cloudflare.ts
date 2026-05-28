@@ -17,6 +17,7 @@ function run(command: string, args: string[], options: RunOptions = {}) {
 }
 
 run("tsx", ["ops/scripts/cleanup/local-workspace.ts", "--apply"])
+run("tsx", ["ops/scripts/assets/sync-browser-assets.ts"])
 run("opennextjs-cloudflare", ["build"], {
   env: {
     ...process.env,

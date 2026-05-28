@@ -30,6 +30,9 @@ yarn-error.log*
 # cloudflare local state
 .wrangler
 
+# generated browser vendor assets
+/public/vendor/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
