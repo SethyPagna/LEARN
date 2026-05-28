@@ -1,4 +1,9 @@
-import { default as handler } from "./.open-next/worker.js"
+// @ts-ignore OpenNext generates this module before Wrangler bundles the Worker.
+import { default as openNextHandler } from "../.open-next/worker.js"
+
+interface OpenNextHandler {
+  fetch(request: Request, env: unknown, ctx: ExecutionContext): Promise<Response> | Response
+}
 
 const REALTIME_ROUTE = /^\/api\/realtime\/(rooms|battles|presence)\/([^/]+)$/
 const WEBSOCKET_HEADERS = [
@@ -10,14 +15,19 @@ const WEBSOCKET_HEADERS = [
   "sec-websocket-version",
   "upgrade",
 ]
+const handler = openNextHandler as OpenNextHandler
 
-function realtimeServiceRequest(request, kind, id) {
+interface AppWorkerEnv {
+  LEARN_REALTIME?: { fetch(request: Request): Promise<Response> | Response }
+}
+
+function realtimeServiceRequest(request: Request, kind: string, id: string) {
   const url = new URL(request.url)
   url.pathname = `/${kind}/${encodeURIComponent(id)}`
   return new Request(url, request)
 }
 
-function sessionRequest(request) {
+function sessionRequest(request: Request) {
   const url = new URL(request.url)
   url.pathname = "/api/auth/session"
   url.search = ""
@@ -31,13 +41,13 @@ function sessionRequest(request) {
   })
 }
 
-async function isAuthenticated(request, env, ctx) {
+async function isAuthenticated(request: Request, env: AppWorkerEnv, ctx: ExecutionContext) {
   const response = await handler.fetch(sessionRequest(request), env, ctx)
   return response.ok
 }
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request: Request, env: AppWorkerEnv, ctx: ExecutionContext) {
     if (request.headers.get("upgrade") === "websocket") {
       const match = new URL(request.url).pathname.match(REALTIME_ROUTE)
       if (!match) return new Response("Unsupported websocket route.", { status: 404 })

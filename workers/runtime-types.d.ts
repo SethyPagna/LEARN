@@ -21,6 +21,11 @@ interface DurableObjectState {
   }
 }
 
+interface ExecutionContext {
+  passThroughOnException?(): void
+  waitUntil(promise: Promise<unknown>): void
+}
+
 declare class WebSocketPair {
   0: WebSocket
   1: WebSocket

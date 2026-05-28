@@ -2,7 +2,7 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "learn",
   "account_id": "d105a82bc26b6913575355352c2d1bb1",
-  "main": "worker.js",
+  "main": "workers/app.ts",
   "compatibility_date": "2026-05-13",
   "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
   "assets": {
