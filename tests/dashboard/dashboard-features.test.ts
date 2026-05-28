@@ -30,11 +30,12 @@ test("buildDashboardCommandPlan falls through to focus studio ai and calendar ro
   const focusPlan = buildDashboardCommandPlan({
     noteCount: 1,
     quizCount: 1,
-    snapshot: { recommendedFocus: ["  Graphs  "] },
+    snapshot: { recommendedFocus: ["  Graphs  "], todayStudyMinutes: 18 },
   })
 
   assert.equal(focusPlan.headline, "Continue Graphs")
   assert.equal(focusPlan.target, "practice")
+  assert.equal(focusPlan.chips[2], "18m today")
 })
 
 test("buildDashboardRouteActions gives one primary and unique backups", () => {

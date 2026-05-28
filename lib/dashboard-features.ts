@@ -166,12 +166,13 @@ export function buildDashboardCommandPlan(input: DashboardCommandInput): Dashboa
 
   const focus = firstNonEmpty(snapshot.recommendedFocus ?? [])
   if (focus) {
+    const todayStudyMinutes = Math.max(0, Math.floor(snapshot.todayStudyMinutes ?? 0))
     return {
       headline: `Continue ${focus}`,
       detail: "Keep today narrow: one concept, one practice loop, one review.",
       target: "practice",
       targetTopic: focus,
-      chips: ["today route", "active recall", `${clampPercentage(snapshot.goalCompletion ?? 0)}% goal`],
+      chips: ["today route", "active recall", `${todayStudyMinutes}m today`],
     }
   }
 
