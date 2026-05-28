@@ -8,12 +8,16 @@ import type { Quiz } from "../types"
 import { api } from "../api"
 import { EmptyState, Panel } from "../ui"
 import { buildGameRunActions, evaluateGameChoice, summarizeGameRun, type GameRunActionId } from "@/lib/practice-features"
-import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatInboxShortcut, type ChatIntent, type ChatQuickPrompt, type ChatThreadActionId, type ChatThreadFilter } from "@/lib/social-features"
+import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatInboxShortcut, type ChatIntent, type ChatQuickPrompt, type ChatThreadActionId, type ChatThreadFilter, type ChatThreadLike } from "@/lib/social-features"
 
 const quizDetailCache = new Map<string, Quiz>()
 const CHAT_DRAFT_KEY = "learn_chat_draft_v1"
 type ChatMenuId = "compose" | "tools" | "filters" | `threadActions:${string}`
 type ChatDraft = { body: string; title: string; intent: ChatIntent; channel: string; replyThreadId?: string }
+type ChatThreadRecord = ChatThreadLike & {
+  threadId?: string
+  thread_id?: string
+}
 
 export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: WorkspaceOptions }) {
   const [quizBank, setQuizBank] = useState<Quiz[]>(quizzes)
@@ -267,7 +271,7 @@ function currentElapsedSeconds(startedAt: number) {
 }
 
 export function ChatView({ options }: { options: WorkspaceOptions }) {
-  const [threads, setThreads] = useState<any[]>([])
+  const [threads, setThreads] = useState<ChatThreadRecord[]>([])
   const [body, setBody] = useState("")
   const [title, setTitle] = useState("Study room")
   const [intent, setIntent] = useState<ChatIntent>("update")
@@ -338,7 +342,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   }
 
   async function refresh() {
-    const response = await api<{ items: any[] }>("/api/chat")
+    const response = await api<{ items: ChatThreadRecord[] }>("/api/chat")
     setThreads(response.items)
   }
 
@@ -381,7 +385,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     }
   }
 
-  function replyToThread(thread: any) {
+  function replyToThread(thread: ChatThreadRecord) {
     const parsed = parseThreadTitle(thread.title)
     const targetId = chatThreadKey(thread)
     setChannel(parsed.channel || "#general")
@@ -392,11 +396,11 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     setDraftStatus("Reply draft ready")
   }
 
-  function chatThreadKey(thread: any) {
+  function chatThreadKey(thread: ChatThreadRecord) {
     return String(thread.id || thread.threadId || thread.thread_id || thread.title || "").trim()
   }
 
-  async function runThreadAction(thread: any, action: ChatThreadActionId) {
+  async function runThreadAction(thread: ChatThreadRecord, action: ChatThreadActionId) {
     const targetId = chatThreadKey(thread)
     if (!targetId) {
       setDraftStatus("Thread action needs a saved thread.")

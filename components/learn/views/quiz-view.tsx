@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { CheckCircle2, ChevronDown, Clock, Flag, Info, ListFilter, MoreHorizontal, Pause, Play, RotateCcw, Sparkles, Trash2, XCircle } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
-import type { PracticeAttemptSummary, PracticeMode, Quiz } from "../types"
+import type { PracticeAttemptSummary, PracticeMode, Quiz, QuizAttemptResult } from "../types"
 import { api } from "../api"
 import { ControlButton, EmptyState, Panel, StatusPill } from "../ui"
 import { menuSurfaceClasses, toneTextClasses } from "@/lib/design-system"
@@ -30,7 +30,7 @@ export function QuizView({
 }) {
   const [quiz, setQuiz] = useState<Quiz | null>(null)
   const [answers, setAnswers] = useState<Record<string, string>>({})
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<QuizAttemptResult | null>(null)
   const [startedAt, setStartedAt] = useState(() => Date.now())
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [targetMinutes, setTargetMinutes] = useState(options.quizMode === "exam" ? 20 : 10)
@@ -131,7 +131,7 @@ export function QuizView({
     setPracticeAction("submit")
     setPracticeStatus("")
     try {
-      const response = await api<any>("/api/quizzes/attempts", {
+      const response = await api<QuizAttemptResult>("/api/quizzes/attempts", {
         method: "POST",
         body: JSON.stringify({
           quizId: quiz.id,

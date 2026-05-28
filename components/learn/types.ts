@@ -80,6 +80,14 @@ export interface Quiz {
   questions?: QuizQuestion[]
 }
 
+export interface QuizAttemptResult {
+  attemptId: string
+  practiceSessionId: string
+  score: number
+  total: number
+  durationSeconds: number
+}
+
 export interface MediaFile {
   id: string
   filename: string

@@ -7,7 +7,7 @@ import type { Note, StudioInsertTarget, View } from "../types"
 import { api } from "../api"
 import { ControlButton, Panel, StatusPill } from "../ui"
 import { menuSurfaceClasses, statusToneClasses, toneTextClasses, type UiTone } from "@/lib/design-system"
-import { buildAiGatewayReadiness } from "@/lib/ai/gateway-readiness"
+import { buildAiGatewayReadiness, type AiGatewayProviderCatalogItem, type AiGatewayProviderPresetItem, type AiGatewayProviderStatus } from "@/lib/ai/gateway-readiness"
 import { buildGuidedPrompt, listInsertActions, normalizeStudioInsertTarget, promptContracts, studioInsertTargets, type GuidedPromptResult } from "@/lib/ai/prompt-builder"
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
 import {
@@ -62,6 +62,16 @@ const tutorModeIcons: Record<AiTaskKey, React.ComponentType<{ className?: string
 const AI_TUTOR_DRAFT_KEY = "learn_ai_tutor_draft_v1"
 const DEFAULT_AI_MESSAGE = "Create a study plan from my recent notes."
 type TutorMenuId = "setup"
+type AiTutorProviderStatus = AiGatewayProviderStatus & { id?: string }
+type AiTutorProviderCatalogItem = AiGatewayProviderCatalogItem & { id?: string }
+type AiTutorProviderPresetItem = AiGatewayProviderPresetItem & { max_tokens?: number }
+type AiTutorChatResponse = {
+  chatId?: string
+  model?: string | null
+  provider?: string | null
+  status: "ok" | "setup_required" | "error" | string
+  text: string
+}
 
 type AiTutorDraft = {
   message: string
@@ -102,9 +112,9 @@ export function AiTutorView({
   const [draftStatus, setDraftStatus] = useState("")
   const [actionStatus, setActionStatus] = useState("")
   const [loading, setLoading] = useState(false)
-  const [providers, setProviders] = useState<any[]>([])
-  const [catalog, setCatalog] = useState<any[]>([])
-  const [presets, setPresets] = useState<any[]>([])
+  const [providers, setProviders] = useState<AiTutorProviderStatus[]>([])
+  const [catalog, setCatalog] = useState<AiTutorProviderCatalogItem[]>([])
+  const [presets, setPresets] = useState<AiTutorProviderPresetItem[]>([])
   const [importText, setImportText] = useState("")
   const [importTitle, setImportTitle] = useState("")
   const [importTarget, setImportTarget] = useState<ImportTargetSelection>("auto")
@@ -207,6 +217,20 @@ export function AiTutorView({
       presetCount: presets.length,
     }
   }, [catalog.length, presets.length, providers])
+  const providerFamilyOptions = useMemo(
+    () => ["auto", ...catalog.map(providerCatalogKey).filter((value): value is string => Boolean(value))],
+    [catalog],
+  )
+  const providerFamilyLabels = useMemo(
+    () => ({
+      auto: "Auto failover",
+      ...Object.fromEntries(catalog.map((item) => {
+        const key = providerCatalogKey(item)
+        return key ? [key, item.label || key] : []
+      }).filter((entry): entry is [string, string] => entry.length === 2)),
+    }),
+    [catalog],
+  )
 
   useEffect(() => {
     if (!availableInsertTargets.includes(insertTarget)) setInsertTarget(availableInsertTargets[0] || "ai-note")
@@ -331,7 +355,7 @@ export function AiTutorView({
         `Max output tokens: ${effectiveMaxTokens}`,
         providerFamily !== "auto" ? `Preferred provider family: ${providerFamily}` : "",
       ].filter(Boolean)
-      const response = await api<any>("/api/ai/chat", {
+      const response = await api<AiTutorChatResponse>("/api/ai/chat", {
         method: "POST",
         body: JSON.stringify({
           message: promptBuild.user,
@@ -367,7 +391,7 @@ export function AiTutorView({
   }
 
   async function loadProviders() {
-    const response = await api<{ items: any[]; catalog?: any[]; presets?: any[] }>("/api/ai/providers").catch(() => ({ items: [], catalog: [], presets: [] }))
+    const response = await api<{ items: AiTutorProviderStatus[]; catalog?: AiTutorProviderCatalogItem[]; presets?: AiTutorProviderPresetItem[] }>("/api/ai/providers").catch(() => ({ items: [], catalog: [], presets: [] }))
     setProviders(response.items)
     setCatalog(response.catalog || [])
     setPresets(response.presets || [])
@@ -575,8 +599,8 @@ export function AiTutorView({
                 <TutorMenuSelect
                   label="Family"
                   value={providerFamily}
-                  values={["auto", ...catalog.map((item) => item.provider || item.id).filter(Boolean)]}
-                  labels={{ auto: "Auto failover", ...Object.fromEntries(catalog.map((item) => [item.provider || item.id, item.label || item.provider || item.id])) }}
+                  values={providerFamilyOptions}
+                  labels={providerFamilyLabels}
                   onChange={setProviderFamily}
                 />
                 <div className="grid gap-1">
@@ -1127,6 +1151,10 @@ function GatewayMetric({ label, tone, value }: { label: string; tone: "ready" | 
 
 function providerIsReady(provider: { enabled?: boolean; has_key?: boolean; last_status?: string }) {
   return Boolean(provider.enabled && provider.has_key && provider.last_status !== "error")
+}
+
+function providerCatalogKey(provider: AiTutorProviderCatalogItem) {
+  return provider.provider || provider.id || ""
 }
 
 function providerStatusLabel(provider: { has_key?: boolean; last_status?: string }) {
