@@ -14,8 +14,8 @@
     "test": "tsx --test tests/*.test.ts",
     "db:migrate:local": "wrangler d1 migrations apply learn-db --local --config ops/cloudflare/wrangler.jsonc",
     "db:migrate:remote": "wrangler d1 migrations apply learn-db --remote --config ops/cloudflare/wrangler.jsonc",
-    "preview:cloudflare": "tsx ops/scripts/preview-cloudflare.ts",
-    "deploy:realtime": "tsx ops/scripts/deploy-realtime-optional.ts",
+    "preview:cloudflare": "tsx ops/scripts/deploy/preview-cloudflare.ts",
+    "deploy:realtime": "tsx ops/scripts/deploy/realtime-optional.ts",
     "deploy:cloudflare": "tsx ops/scripts/deploy/cloudflare.ts",
     "deploy:vercel": "pnpm dlx vercel@latest deploy --prod",
     "cf-typegen": "wrangler types --config ops/cloudflare/wrangler.jsonc --env-interface CloudflareEnv cloudflare-env.d.ts"

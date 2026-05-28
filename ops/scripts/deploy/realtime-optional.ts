@@ -7,8 +7,21 @@ const REALTIME_ENTITLEMENT_PATTERNS = [
   /error\s+code:\s*10007/i,
 ]
 
+const HELP_FLAGS = new Set(["--help", "-h"])
+
 export function isCloudflareRealtimeEntitlementError(output: string) {
   return REALTIME_ENTITLEMENT_PATTERNS.some((pattern) => pattern.test(output))
+}
+
+export function shouldShowRealtimeDeployHelp(args: readonly string[]) {
+  return args.some((arg) => HELP_FLAGS.has(arg))
+}
+
+export function printRealtimeDeployHelp() {
+  console.log("Deploy the LEARN realtime Worker with optional Cloudflare entitlement handling.")
+  console.log("")
+  console.log("Usage:")
+  console.log("  corepack pnpm deploy:realtime")
 }
 
 export function runRealtimeDeploy() {
@@ -43,5 +56,10 @@ export function runRealtimeDeploy() {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] || "").href) {
+  if (shouldShowRealtimeDeployHelp(process.argv.slice(2))) {
+    printRealtimeDeployHelp()
+    process.exit(0)
+  }
+
   process.exit(runRealtimeDeploy())
 }
