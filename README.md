@@ -128,3 +128,7 @@ corepack pnpm build
 On Windows, `run\bin\pnpm.cmd <script>` is the preferred local wrapper for repo scripts. It uses the pinned pnpm toolchain directly and avoids npm reading pnpm-only project config.
 
 The test suite covers auth helpers, learning personalization, AI provider resolution and encrypted provider primitives, Cloudflare D1 API configuration, R2 object key isolation, upload validation, editor history, CSV sheet import/export, and localization fallback.
+
+## Repository Layout
+
+Most app code lives in `app`, `components`, `lib`, `workers`, `styles`, and `types`. Operations files live under `ops`, command wrappers under `run`, and planning or architecture notes under `docs`. See `docs/architecture/root-files.md` before moving root config files; several are intentionally kept at root because Next.js, pnpm, Vercel, Wrangler, Docker, or shadcn auto-discover them there.
