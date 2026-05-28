@@ -742,7 +742,9 @@ test("AI insert-back maps responses to Studio payloads", () => {
   assert.equal(sheet.endpoint, "/api/sheets")
   assert.deepEqual(sheet.body.cells, [["Topic", "Status"], ["React", "Review"]])
   assert.equal(slides.endpoint, "/api/slides")
-  assert.equal((slides.body.slides as any[])[0].layout, "quote")
+  const slideBody = slides.body as { slides: Array<{ layout?: string }> }
+  assert.equal(slideBody.slides[0]?.layout, "quote")
   assert.equal(doc.endpoint, "/api/docs")
-  assert.match(String((doc.body.content as any).text), /Summary/)
+  const docBody = doc.body as { content: { text: string } }
+  assert.match(docBody.content.text, /Summary/)
 })

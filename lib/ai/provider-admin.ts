@@ -49,12 +49,26 @@ export interface SerializedProviderConfig {
   name: string
   provider: string
   provider_type: string
+  account_email?: string
+  project_name?: string
+  default_model?: string
+  supported_models?: string[]
+  endpoint_override?: string
+  notes?: string
   enabled: boolean
   priority: number
+  requests_per_minute?: number
+  max_input_chars?: number
+  max_completion_tokens?: number
+  timeout_ms?: number
+  cooldown_seconds?: number
   has_key: boolean
   key_masked: string
   last_status: string
   last_error: string
+  last_checked_at?: string
+  created_at?: string
+  updated_at?: string
 }
 
 export interface ProviderAdminSummary {

@@ -22,7 +22,8 @@ test("import gateway shapes slide payloads", () => {
 
   assert.equal(shaped.target, "slides")
   assert.equal(shaped.payload.title, "Lesson")
-  assert.equal((shaped.payload.slides as any[])[0].accent, "Open")
+  const payload = shaped.payload as { slides: Array<{ accent?: string }> }
+  assert.equal(payload.slides[0]?.accent, "Open")
 })
 
 test("import gateway previews detected targets and warnings", () => {

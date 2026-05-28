@@ -1,5 +1,5 @@
 import { cookies } from "next/headers"
-import { buildProviderAdminSummary, decryptProviderSecret, encryptProviderSecret, maskProviderSecret, normalizeProviderConfigInput, type ProviderConfigInput } from "./ai/provider-admin"
+import { buildProviderAdminSummary, decryptProviderSecret, encryptProviderSecret, maskProviderSecret, normalizeProviderConfigInput, type ProviderConfigInput, type SerializedProviderConfig } from "./ai/provider-admin"
 import type { AiProviderKey } from "./ai/providers"
 import { createSessionToken, hashPassword, hashSessionToken, verifyPassword } from "./auth"
 import { query } from "./db"
@@ -54,6 +54,16 @@ export interface NoteRecord {
   updated_at: string
   archived_at?: string | null
   tags?: string[]
+}
+
+interface QuizQuestionRecord extends Record<string, unknown> {
+  id: string
+  quiz_id?: string
+  question: string
+  choices: Array<{ id: string; text: string }>
+  correct_answer_id: string
+  topic: string
+  explanation: string
 }
 
 export type ContentItemType =
@@ -157,10 +167,16 @@ function normalizeNote(row: NoteRecord): NoteRecord {
   }
 }
 
-function normalizeQuizQuestion(row: Record<string, unknown>) {
+function normalizeQuizQuestion(row: Record<string, unknown>): QuizQuestionRecord {
   return {
     ...row,
-    choices: parseJsonArray(row.choices),
+    id: String(row.id),
+    quiz_id: row.quiz_id ? String(row.quiz_id) : undefined,
+    question: String(row.question || ""),
+    choices: parseJsonArray<{ id: string; text: string }>(row.choices),
+    correct_answer_id: String(row.correct_answer_id || ""),
+    topic: String(row.topic || "General"),
+    explanation: String(row.explanation || ""),
   }
 }
 
@@ -1194,7 +1210,7 @@ export async function recordQuizAttempt(user: User, input: {
   const quiz = await getQuiz(input.quizId)
   if (!quiz) throw new Error("Quiz not found")
 
-  const questionMap = new Map(quiz.questions.map((question: any) => [String(question.id), question]))
+  const questionMap = new Map(quiz.questions.map((question) => [question.id, question]))
   let score = 0
   const normalizedAnswers = input.answers.map((answer) => {
     const question = questionMap.get(answer.questionId)
@@ -1211,13 +1227,13 @@ export async function recordQuizAttempt(user: User, input: {
   const practiceDraft = buildQuizPracticeSessionDraft({
     quizId: input.quizId,
     quizTitle: String((quiz as Record<string, unknown>).title || "Quiz"),
-    questions: quiz.questions.map((question: Record<string, unknown>): PracticeSessionQuestion => ({
-      id: String(question.id),
-      question: String(question.question || ""),
-      topic: String(question.topic || "General"),
-      choices: parseJsonArray<{ id: string; text: string }>(question.choices),
-      correct_answer_id: String(question.correct_answer_id || ""),
-      explanation: String(question.explanation || ""),
+    questions: quiz.questions.map((question): PracticeSessionQuestion => ({
+      id: question.id,
+      question: question.question,
+      topic: question.topic,
+      choices: question.choices,
+      correct_answer_id: question.correct_answer_id,
+      explanation: question.explanation,
     })),
     answers: input.answers.map((answer) => ({
       questionId: answer.questionId,
@@ -1263,19 +1279,19 @@ export async function listAdminData() {
   }
 }
 
-function serializeAiProvider(row: Record<string, unknown>) {
+function serializeAiProvider(row: Record<string, unknown>): SerializedProviderConfig {
   const encrypted = String(row.api_key_encrypted || "")
   return {
-    id: row.id,
-    name: row.name,
-    provider: row.provider,
-    provider_type: row.provider_type || "chat",
-    account_email: row.account_email || "",
-    project_name: row.project_name || "",
-    default_model: row.default_model || "",
-    supported_models: parseJsonArray(row.supported_models_json),
-    endpoint_override: row.endpoint_override || "",
-    notes: row.notes || "",
+    id: String(row.id || ""),
+    name: String(row.name || ""),
+    provider: String(row.provider || "cloudflare"),
+    provider_type: String(row.provider_type || "chat"),
+    account_email: String(row.account_email || ""),
+    project_name: String(row.project_name || ""),
+    default_model: String(row.default_model || ""),
+    supported_models: parseJsonArray<string>(row.supported_models_json),
+    endpoint_override: String(row.endpoint_override || ""),
+    notes: String(row.notes || ""),
     enabled: row.enabled === true || row.enabled === 1 || row.enabled === "1",
     priority: Number(row.priority || 50),
     requests_per_minute: Number(row.requests_per_minute || 10),
@@ -1283,11 +1299,11 @@ function serializeAiProvider(row: Record<string, unknown>) {
     max_completion_tokens: Number(row.max_completion_tokens || 1800),
     timeout_ms: Number(row.timeout_ms || 18_000),
     cooldown_seconds: Number(row.cooldown_seconds || 20),
-    last_status: row.last_status || "untested",
-    last_error: row.last_error || "",
-    last_checked_at: row.last_checked_at || "",
-    created_at: row.created_at,
-    updated_at: row.updated_at,
+    last_status: String(row.last_status || "untested"),
+    last_error: String(row.last_error || ""),
+    last_checked_at: String(row.last_checked_at || ""),
+    created_at: String(row.created_at || ""),
+    updated_at: String(row.updated_at || ""),
     has_key: Boolean(encrypted),
     key_masked: encrypted ? "stored" : "",
   }
@@ -1306,7 +1322,7 @@ export async function getAiProviderAdminState() {
   const providers = await listAiProviderConfigs()
   return {
     items: providers,
-    summary: buildProviderAdminSummary(providers as any),
+    summary: buildProviderAdminSummary(providers),
   }
 }
 
