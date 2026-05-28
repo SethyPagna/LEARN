@@ -22,7 +22,6 @@ const allowedRootFiles = new Set([
 
 const allowedJavaScriptFiles = new Set([
   "next.config.mjs",
-  "public/vendor/pptxgen.min.js",
 ])
 
 function listTrackedFiles() {
@@ -39,7 +38,7 @@ test("tracked root files stay limited to tool entry points", () => {
   )
 })
 
-test("tracked JavaScript files stay limited to framework and vendor exceptions", () => {
+test("tracked JavaScript files stay limited to framework exceptions", () => {
   const trackedJavaScriptFiles = listTrackedFiles()
     .map((filePath) => filePath.split(path.sep).join("/"))
     .filter((filePath) => /\.(?:cjs|js|mjs)$/.test(filePath))
