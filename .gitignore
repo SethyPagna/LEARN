@@ -39,3 +39,6 @@ next-env.d.ts
 
 # local caches
 .cache/
+
+# local assistant/tooling metadata
+.agents/

@@ -21,9 +21,8 @@ LEARN keeps most implementation, operations, and planning files inside grouped f
 - `run`: Windows-friendly command wrappers.
 - `docs`: product, architecture, roadmap, and implementation plans.
 - `tests`: fast unit and integration tests.
-- `public`: static assets and third-party browser bundles.
-- `.agents`: local agent metadata and skills lockfiles.
+- `public`: static assets; generated browser vendor assets are rebuilt locally and ignored.
 
 ## Conversion Policy
 
-Project source and operations code should be TypeScript. JavaScript files are not accepted by `tsconfig.json`. Exceptions need a tool or vendor reason, such as `next.config.mjs` for verified Next.js compatibility and minified third-party bundles under `public/vendor`.
+Project source and operations code should be TypeScript. JavaScript files are not accepted by `tsconfig.json`. The only tracked JavaScript-family exception is `next.config.mjs`, which remains an ES module for verified Next.js production-build compatibility. Generated browser vendor assets under `public/vendor` are rebuilt from installed packages and ignored.
