@@ -7,9 +7,9 @@ if not exist ".dev.vars" (
   echo .dev.vars is missing. Creating it from ops\env\dev.vars.example.
   copy ops\env\dev.vars.example .dev.vars >nul
 )
-corepack pnpm install
+call run\bin\pnpm.cmd install
 if errorlevel 1 exit /b 1
-corepack pnpm db:migrate:local
+call run\bin\pnpm.cmd db:migrate:local
 if errorlevel 1 exit /b 1
-corepack pnpm dev
+call run\bin\pnpm.cmd dev
 endlocal

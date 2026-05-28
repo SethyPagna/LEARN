@@ -8,7 +8,7 @@ if not exist ".dev.vars" (
   echo Created .dev.vars from ops\env\dev.vars.example. Fill SESSION_SECRET and AI secrets before production.
 )
 
-corepack pnpm install --frozen-lockfile
+call run\bin\pnpm.cmd install --frozen-lockfile
 if errorlevel 1 exit /b 1
 
 call run\setup-r2.bat

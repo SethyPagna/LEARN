@@ -14,19 +14,19 @@ if "%CLOUDFLARE_API_TOKEN%"=="" (
 )
 
 echo Installing dependencies...
-corepack pnpm install --frozen-lockfile
+call run\bin\pnpm.cmd install --frozen-lockfile
 if errorlevel 1 exit /b 1
 
 echo Running checks...
-corepack pnpm test
+call run\bin\pnpm.cmd test
 if errorlevel 1 exit /b 1
-corepack pnpm lint
+call run\bin\pnpm.cmd lint
 if errorlevel 1 exit /b 1
 
 echo Applying remote Cloudflare D1 migrations...
-corepack pnpm db:migrate:remote
+call run\bin\pnpm.cmd db:migrate:remote
 if errorlevel 1 exit /b 1
 
 echo Deploying LEARN to Cloudflare Workers...
-corepack pnpm deploy:cloudflare
+call run\bin\pnpm.cmd deploy:cloudflare
 endlocal
