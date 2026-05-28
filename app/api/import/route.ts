@@ -1,16 +1,26 @@
 import { NextResponse } from "next/server"
+import { readJsonObject } from "@/lib/api"
 import { getCurrentUser, saveEditorDocument, saveNote, saveSheet, saveSlideDeck } from "@/lib/data"
-import { shapeImportedLearningContent, type ImportTarget } from "@/lib/import-gateway"
+import { importTargetOptions, shapeImportedLearningContent, type ImportTargetSelection } from "@/lib/import-gateway"
+
+function normalizeImportTarget(value: unknown): ImportTargetSelection {
+  const target = String(value || "auto").trim()
+  return importTargetOptions.includes(target as ImportTargetSelection) ? target as ImportTargetSelection : "auto"
+}
 
 export async function POST(request: Request) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const body = await request.json().catch(() => null) as { text?: string; title?: string; target?: ImportTarget | "auto" } | null
-  const text = body?.text?.trim()
+  const body = await readJsonObject(request)
+  const text = String(body.text || "").trim()
   if (!text) return NextResponse.json({ error: "Provide text to import." }, { status: 400 })
 
-  const shaped = shapeImportedLearningContent({ raw: text, title: body?.title, target: body?.target || "auto" })
+  const shaped = shapeImportedLearningContent({
+    raw: text,
+    title: body.title ? String(body.title) : undefined,
+    target: normalizeImportTarget(body.target),
+  })
 
   if (shaped.target === "doc") {
     const item = await saveEditorDocument(user, shaped.payload, "doc")
