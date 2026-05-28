@@ -20,7 +20,7 @@
   - `components/learn/views/**`: UI flows for dashboard, Studio, practice, social, settings, admin, files, AI.
   - `lib/**`: schema, query layer, data access, learning/review logic, social helpers, storage, drafts, navigation, AI providers.
   - `migrations/**`: D1 relational schema.
-  - `workers/realtime.js`: Durable Object WebSocket snapshot/event model.
+  - `workers/realtime.ts`: Durable Object WebSocket snapshot/event model.
   - `tests/**`: current behavior coverage and accepted contracts.
 
 ### Verification Pass 2: D1 Migration Schema
@@ -58,7 +58,7 @@
 - `lib/api.ts` blocks cross-origin mutations and requires signed-in users for protected APIs.
 - `lib/rate-limit.ts` uses D1 `rate_limit_buckets` when configured, then falls back to memory.
 - `lib/storage.ts` stores R2 keys under `apps/learn/workspaces/.../users/...`, and `lib/file-security.ts` blocks common executable extensions/signatures while preserving image/video/audio/PDF/Office/CSV/text uploads.
-- `workers/realtime.js` now validates compact realtime event schemas before broadcast, keeps recent live events in Durable Object storage, and projects useful non-presence collaboration events to D1 when `LEARN_DB` is bound.
+- `workers/realtime.ts` now validates compact realtime event schemas before broadcast, keeps recent live events in Durable Object storage, and projects useful non-presence collaboration events to D1 when `LEARN_DB` is bound.
 
 ---
 
@@ -614,7 +614,7 @@ These targets merge the earlier product maturity, navigation, Studio, AI Tutor, 
 - Create: `migrations/0009_collaboration_events.sql`
 - Create: `lib/collaboration-events.ts`
 - Create: `tests/collaboration-events.test.ts`
-- Modify: `workers/realtime.js`
+- Modify: `workers/realtime.ts`
 - Modify: `app/api/realtime/[kind]/[id]/route.ts`
 
 - [x] Add `collaboration_sessions`, `collaboration_events`, and `client_mutations`.
