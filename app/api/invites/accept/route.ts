@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
-import { fail, ok } from "@/lib/api"
+import { fail, ok, readJsonObject } from "@/lib/api"
 import { normalizeInviteAcceptance } from "@/lib/auth-entry"
 import { acceptWorkspaceInvite, createUserSession, getWorkspaceInviteByToken, SESSION_COOKIE } from "@/lib/data"
 import { isDatabaseConfigured } from "@/lib/db"
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   if (!isDatabaseConfigured()) return fail("Cloudflare D1 is not configured. Invites need the LEARN database.", 503)
 
-  const body = await request.json().catch(() => ({}))
+  const body = await readJsonObject(request)
   const validation = normalizeInviteAcceptance(body)
   if (!validation.ok) return fail(validation.error, 400)
 

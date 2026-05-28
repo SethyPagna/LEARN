@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server"
-import { fail, isApiResponse, ok, requireApiUser } from "@/lib/api"
+import { fail, isApiResponse, ok, readJsonObject, requireApiUser } from "@/lib/api"
 import { deleteUserConnection, listUserConnections, upsertUserConnection } from "@/lib/data"
 
 export async function GET(request: NextRequest) {
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
-  const body = await request.json().catch(() => ({}))
+  const body = await readJsonObject(request)
   try {
     return ok({ item: await upsertUserConnection(user, body) }, { status: 201 })
   } catch (error) {
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
-  const body = await request.json().catch(() => ({}))
+  const body = await readJsonObject(request)
   try {
     await deleteUserConnection(user, body)
     return ok({ ok: true })
