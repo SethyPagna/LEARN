@@ -39,8 +39,8 @@ const questionFilters: PracticeQuestionFilter[] = ["all", "unanswered", "marked"
 const practiceModes: PracticeMode[] = ["quiz", "exam", "flashcards", "matching", "sprint", "mistake-retry", "fill-blank", "true-false", "generated"]
 
 export function normalizePracticeDraft(value: unknown, quizId: string): PracticeDraftState | null {
-  if (!value || typeof value !== "object") return null
-  const input = value as Record<string, unknown>
+  if (!isRecord(value)) return null
+  const input = value
   if (String(input.quizId || "") !== quizId) return null
 
   const questionFilter = questionFilters.includes(input.questionFilter as PracticeQuestionFilter)
@@ -139,16 +139,22 @@ function readPracticeDraftStore(): PracticeDraftStore {
   try {
     const stored = window.localStorage.getItem(PRACTICE_DRAFTS_KEY)
     const parsed = stored ? JSON.parse(stored) : {}
-    return parsed && typeof parsed === "object" ? parsed as PracticeDraftStore : {}
+    if (!isRecord(parsed)) return {}
+    const store: PracticeDraftStore = {}
+    for (const [quizId, value] of Object.entries(parsed)) {
+      const draft = normalizePracticeDraft(value, quizId)
+      if (draft) store[quizId] = draft
+    }
+    return store
   } catch {
     return {}
   }
 }
 
 function normalizeAnswers(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {}
+  if (!isRecord(value)) return {}
   const answers: Record<string, string> = {}
-  for (const [questionId, choiceId] of Object.entries(value as Record<string, unknown>)) {
+  for (const [questionId, choiceId] of Object.entries(value)) {
     if (typeof choiceId === "string" && questionId.trim() && choiceId.trim()) answers[questionId] = choiceId
   }
   return answers
@@ -163,4 +169,8 @@ function clampNumber(value: unknown, min: number, max: number, fallback: number)
   const numeric = Number(value)
   if (!Number.isFinite(numeric)) return fallback
   return Math.min(max, Math.max(min, Math.floor(numeric)))
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value)
 }
