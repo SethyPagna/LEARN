@@ -1,6 +1,6 @@
 # LEARN Comprehensive Improvement Plan
 
-> **For maintainers:** Implement this plan phase-by-phase with the checklist syntax in `progress.md`, small commits, and verification evidence before each push.
+> **For maintainers:** Implement this plan phase-by-phase with the checklist syntax in `docs/roadmap/progress.md`, small commits, and verification evidence before each push.
 
 **Goal:** Turn LEARN into a comprehensive learning operating system with stronger workflow, design, architecture, AI prompting, response handling, templates, Office-style tooling, imports, exports, presentations, discussions, quizzes, activities, and traceable delivery.
 
@@ -17,7 +17,7 @@
 - Every new AI workflow must define input schema, prompt template, output schema, response renderer, insert-back behavior, tests, and fallback states.
 - Every template must be stored as structured data, support preview, support apply/reapply, and preserve user content unless the action explicitly replaces content.
 - Every import/export feature must report what changed, what failed, and what the user can do next.
-- Every phase updates `progress.md` before merging.
+- Every phase updates `docs/roadmap/progress.md` before merging.
 - Run `corepack pnpm test`, `corepack pnpm lint`, and targeted browser checks before marking an implementation phase complete. Run `corepack pnpm build` before release phases.
 
 ## Planned File Ownership
@@ -45,7 +45,7 @@
   - Capture desktop and mobile layout risks.
 - Outputs:
   - `docs/audits/surface-inventory.md`
-  - Updated `progress.md`
+  - Updated `docs/roadmap/progress.md`
 - Acceptance:
   - No major user-facing surface is undocumented.
   - Each broken or incomplete action has a phase assignment.
@@ -66,7 +66,7 @@
   - Separate foundation work from polish work.
   - Identify what can ship independently.
 - Outputs:
-  - Updated `progress.md` phase ordering notes.
+  - Updated `docs/roadmap/progress.md` phase ordering notes.
 - Acceptance:
   - Implementation order is justified and testable.
 
@@ -102,7 +102,7 @@
   - Verify mobile layouts for Studio, AI, Practice, Calendar, Social, and Files.
   - Define accessible names for icon-only controls.
 - Outputs:
-  - Accessibility checklist in `progress.md`
+  - Accessibility checklist in `docs/roadmap/progress.md`
 - Acceptance:
   - Critical workflows are usable by keyboard and small screens.
 
@@ -728,7 +728,7 @@
 
 **Mini Phase 20.1: Tracking discipline**
 - Subtargets:
-  - Keep `progress.md` updated with phase status, current task, commit hash, test status, risks, and next target.
+  - Keep `docs/roadmap/progress.md` updated with phase status, current task, commit hash, test status, risks, and next target.
   - Keep architectural decisions in docs.
   - Record user-facing changes in release notes.
 - Outputs:
@@ -765,7 +765,7 @@
 - New or changed actions have loading, success, error, and disabled states.
 - New schemas have validation tests.
 - New UI is checked on desktop and mobile.
-- `progress.md` is updated with status, evidence, and next steps.
+- `docs/roadmap/progress.md` is updated with status, evidence, and next steps.
 - Commit message is specific and scoped.
 
 ## Commit Strategy

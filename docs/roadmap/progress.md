@@ -7,7 +7,7 @@ Current branch: main
 
 ## Current Snapshot
 
-- A comprehensive 20 phase improvement roadmap exists in `plan.md`.
+- A comprehensive 20 phase improvement roadmap exists in `docs/roadmap/plan.md`.
 - Existing in-progress files were already dirty before this tracking update and were not changed by this planning pass.
 - This tracker is the source of truth for phase status, evidence, risks, and next targets.
 
@@ -232,9 +232,9 @@ Current branch: main
 
 | Date | Change | Evidence |
 | --- | --- | --- |
-| 2026-05-16 | Created comprehensive 20 phase plan and progress tracker. | `plan.md`, `progress.md` |
-| 2026-05-21 | Updated branch and local command guidance for descriptive branches and pinned pnpm wrapper usage. | `docs/change-control.md`, `README.md`, `progress.md` |
-| 2026-05-21 | Reworded plan ownership and execution guidance around maintainers and evidence-based delivery. | `plan.md`, `progress.md` |
+| 2026-05-16 | Created comprehensive 20 phase plan and progress tracker. | `docs/roadmap/plan.md`, `docs/roadmap/progress.md` |
+| 2026-05-21 | Updated branch and local command guidance for descriptive branches and pinned pnpm wrapper usage. | `docs/change-control.md`, `README.md`, `docs/roadmap/progress.md` |
+| 2026-05-21 | Reworded plan ownership and execution guidance around maintainers and evidence-based delivery. | `docs/roadmap/plan.md`, `docs/roadmap/progress.md` |
 
 ## Risks And Open Decisions
 

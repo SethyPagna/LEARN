@@ -9,10 +9,10 @@ This file defines how roadmap changes, implementation changes, tests, commits, a
 
 ## Tracking Rules
 
-- `plan.md` describes the intended roadmap and phase scope.
-- `progress.md` tracks current status, checklists, evidence, risks, and next target.
+- `docs/roadmap/plan.md` describes the intended roadmap and phase scope.
+- `docs/roadmap/progress.md` tracks current status, checklists, evidence, risks, and next target.
 - Phase-specific audit, architecture, design, release, and decision docs live under `docs/`.
-- Every implementation phase must update `progress.md`.
+- Every implementation phase must update `docs/roadmap/progress.md`.
 - Every major architectural decision must be recorded in a doc under `docs/architecture/` or a dedicated decision log before implementation proceeds.
 - Every user-facing capability should have a release note before deployment.
 
@@ -34,7 +34,7 @@ This file defines how roadmap changes, implementation changes, tests, commits, a
 
 | Change Type | Required Evidence |
 | --- | --- |
-| Planning docs | Updated `plan.md` or phase doc plus `progress.md` log entry |
+| Planning docs | Updated `docs/roadmap/plan.md` or phase doc plus `docs/roadmap/progress.md` log entry |
 | New AI workflow | Prompt schema, output schema, response renderer, insert behavior, tests |
 | New template | Template data, preview behavior, apply/reapply behavior, tests |
 | New editor command | Command registry entry, availability rule, UI access point, tests |
@@ -56,7 +56,7 @@ Run the lightest gate that honestly covers the change:
 
 ## Progress Update Format
 
-Each work session should update `progress.md` with:
+Each work session should update `docs/roadmap/progress.md` with:
 
 - Date.
 - Phase and mini phase.
