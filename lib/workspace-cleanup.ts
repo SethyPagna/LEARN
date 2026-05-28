@@ -1,6 +1,7 @@
 import path from "node:path"
 
 export const generatedWorkspaceTargets = [
+  ".cache",
   ".next",
   ".open-next",
   ".wrangler",
@@ -48,6 +49,7 @@ export function buildWorkspaceCleanupPlan(input: {
 
 function cleanupReasonForTarget(target: GeneratedWorkspaceTarget) {
   const reasons: Record<GeneratedWorkspaceTarget, string> = {
+    ".cache": "local tool and build cache",
     ".next": "Next.js production build cache",
     ".open-next": "OpenNext Cloudflare build output",
     ".vercel": "local Vercel project metadata",
