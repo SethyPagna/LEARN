@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ComponentType } from "react"
 import { BookOpen, Bot, ChevronDown, Clock, Gamepad2, ImageIcon, Info, Mail, MessageSquare, Mic, MoreHorizontal, PhoneCall, Play, Plus, Radio, Repeat2, Search, Send, Sparkles, Swords, Target, Trash2, Users, UsersRound, Video } from "lucide-react"
-import type { Quiz, User, View } from "../../types"
+import type { DashboardData, LearningSpace, Quiz, StudyBattle, StudyRoom, User, View } from "../../types"
 import type { WorkspaceOptions } from "../../preferences"
 import { api } from "../../api"
 import { Panel } from "../../ui"
@@ -22,7 +22,7 @@ import {
 } from "@/lib/learn-workspace-navigation"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeArenaPresets, buildPracticeGameModes, buildPracticeLiveJoinCard, buildPracticePlayStyles, buildPracticeReadyLoops, buildPracticeWorkspacePlan, type PracticeArenaPreset, type PracticeGameMode, type PracticeLiveJoinCard, type PracticePlayStyle, type PracticeReadyLoop, type PracticeWorkspaceAction, type PracticeWorkspaceActionId, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialCommandModel, buildSocialCommandRunActions, buildSocialContactQuickActions, buildSocialUnifiedSearchCommand, buildSocialUnifiedSearchSections, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeConnections, type ConnectionActionId, type PeopleSearchShortcut, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialInviteRole, type SocialMomentOption, type SocialMomentTypeId, type SocialUnifiedSearchScope, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialCommandModel, buildSocialCommandRunActions, buildSocialContactQuickActions, buildSocialUnifiedSearchCommand, buildSocialUnifiedSearchSections, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeConnections, type ChatThreadLike, type ConnectionActionId, type PeopleSearchShortcut, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialInviteRole, type SocialMomentOption, type SocialMomentTypeId, type SocialUnifiedSearchScope, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 const practiceTabIcons: Record<PracticeWorkspaceTab, ComponentType<{ className?: string }>> = {
   quizzes: BookOpen,
@@ -91,12 +91,17 @@ const practiceReadyLoopIcons: Record<PracticeReadyLoop["id"], ComponentType<{ cl
   share: Send,
 }
 
+type SocialThreadRecord = ChatThreadLike & {
+  body?: string
+  channel?: string
+}
+
 export function LearnWorkspaceView({
   dashboard,
   quizzes,
   setView,
 }: {
-  dashboard: any
+  dashboard: DashboardData | null
   quizzes: Quiz[]
   setView: (view: View) => void
 }) {
@@ -312,7 +317,7 @@ function SocialSectionNav({
 function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { currentUserId?: string; setActiveTab: (tab: SocialWorkspaceTab) => void; setView: (view: View) => void }) {
   const [members, setMembers] = useState<WorkspaceMemberLike[]>([])
   const [connections, setConnections] = useState<UserConnectionLike[]>([])
-  const [threads, setThreads] = useState<any[]>([])
+  const [threads, setThreads] = useState<SocialThreadRecord[]>([])
   const [counts, setCounts] = useState({ spaces: 0, rooms: 0, battles: 0 })
   const [query, setQuery] = useState("")
   const [searchScope, setSearchScope] = useState<SocialUnifiedSearchScope>("all")
@@ -395,10 +400,10 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
       const [memberData, connectionData, chatData, spaceData, roomData, battleData] = await Promise.all([
         api<{ items: WorkspaceMemberLike[] }>("/api/workspace/members"),
         api<{ items: UserConnectionLike[] }>("/api/connections"),
-        api<{ items: any[] }>("/api/chat"),
-        api<{ items: any[] }>("/api/learning-spaces"),
-        api<{ items: any[] }>("/api/study-rooms"),
-        api<{ items: any[] }>("/api/study-battles"),
+        api<{ items: SocialThreadRecord[] }>("/api/chat"),
+        api<{ items: LearningSpace[] }>("/api/learning-spaces"),
+        api<{ items: StudyRoom[] }>("/api/study-rooms"),
+        api<{ items: StudyBattle[] }>("/api/study-battles"),
       ])
       setMembers(memberData.items)
       setConnections(connectionData.items)
@@ -1024,7 +1029,7 @@ function WorkspaceFrame<T extends string>({
   )
 }
 
-function LearnRoute({ dashboard, quizzes, setView }: { dashboard: any; quizzes: Quiz[]; setView: (view: View) => void }) {
+function LearnRoute({ dashboard, quizzes, setView }: { dashboard: DashboardData | null; quizzes: Quiz[]; setView: (view: View) => void }) {
   const focus = dashboard?.snapshot?.recommendedFocus ?? []
   const weakTopics = dashboard?.snapshot?.weakTopics ?? []
   const routePlan = useMemo(() => buildLearnRoutePlan({

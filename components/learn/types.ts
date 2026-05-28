@@ -276,13 +276,133 @@ export interface StudioItem {
   summary?: string
 }
 
+export interface DashboardWeakTopic {
+  topic: string
+  accuracy: number
+  attempts: number
+}
+
+export interface DashboardSnapshot {
+  goalCompletion?: number
+  todayStudyMinutes?: number
+  weakTopics?: DashboardWeakTopic[]
+  recommendedFocus?: string[]
+  recentNotes?: Array<{ id?: string; title?: string }>
+  [key: string]: unknown
+}
+
+export interface DashboardChat {
+  id: string
+  title: string
+  updated_at?: string
+  updatedAt?: string
+}
+
+export interface DashboardQuizAttempt {
+  id: string
+  quiz_title?: string
+  title?: string
+  score?: number
+  total?: number
+  created_at?: string
+  createdAt?: string
+}
+
+export interface DashboardFile {
+  id: string
+  filename: string
+  content_type?: string
+  contentType?: string
+  created_at?: string
+  createdAt?: string
+}
+
+export interface DashboardGoal {
+  title: string
+  completed: boolean
+}
+
+export interface DashboardData {
+  user?: User
+  snapshot?: DashboardSnapshot
+  notes?: Note[]
+  goals?: DashboardGoal[]
+  chats?: DashboardChat[]
+  attempts?: DashboardQuizAttempt[]
+  files?: DashboardFile[]
+}
+
+export interface AdminUserRecord {
+  id: string
+  username?: string
+  email?: string
+  name?: string
+  role?: string
+  created_at?: string
+}
+
+export interface AdminProviderRecord {
+  id?: string
+  name?: string
+  provider?: string
+  provider_type?: string
+  enabled?: boolean
+  has_key?: boolean
+  key_masked?: string
+  last_status?: string
+  last_error?: string
+  priority?: number
+  default_model?: string
+  [key: string]: unknown
+}
+
+export interface AdminAuditRecord {
+  id?: string
+  action?: string
+  entity?: string
+  entity_id?: string
+  details?: Record<string, unknown> | string
+  created_at?: string
+  user_id?: string
+}
+
+export interface AdminData {
+  users?: AdminUserRecord[]
+  providers?: AdminProviderRecord[]
+  audit?: AdminAuditRecord[]
+  counters?: Record<string, number>
+}
+
+export interface AutomationJobRecord {
+  key: string
+  label: string
+  cadence?: string
+  promptKey?: string
+  enabledByDefault?: boolean
+  description?: string
+}
+
+export interface AutomationPromptRecord {
+  key: string
+  title?: string
+  label?: string
+  mode?: string
+  description?: string
+  outputContract?: string
+}
+
+export interface AutomationData {
+  jobs?: AutomationJobRecord[]
+  prompts?: AutomationPromptRecord[]
+}
+
 export interface WorkspaceState {
   user: User | null
   notes: Note[]
   quizzes: Quiz[]
-  dashboard: any
-  adminData: any
-  automationData: any
+  dashboard: DashboardData | null
+  adminData: AdminData | null
+  automationData: AutomationData | null
 }
 
 export type VaultMode = "vault" | "graph" | "reviews"

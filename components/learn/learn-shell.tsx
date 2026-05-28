@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Sidebar, MobileMenu, Topbar, titleForView } from "./app-nav"
 import { api } from "./api"
-import type { Note, Quiz, User, View } from "./types"
+import type { AdminData, AutomationData, DashboardData, Note, Quiz, User, View } from "./types"
 import { StatusMessage } from "./ui"
 import { AiTutorView } from "./views/ai-view"
 import { DashboardView } from "./views/dashboard-view"
@@ -33,9 +33,9 @@ export function LearnShell({
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
   const [selectedNoteId, setSelectedNoteId] = useState(initialNoteId || "")
   const [selectedQuizId, setSelectedQuizId] = useState(initialQuizId || "")
-  const [dashboard, setDashboard] = useState<any>(null)
-  const [adminData, setAdminData] = useState<any>(null)
-  const [automationData, setAutomationData] = useState<any>(null)
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null)
+  const [adminData, setAdminData] = useState<AdminData | null>(null)
+  const [automationData, setAutomationData] = useState<AutomationData | null>(null)
   const [status, setStatus] = useState("")
   const [query, setQuery] = useState("")
   const [studioDraftSummary, setStudioDraftSummary] = useState<StudioDraftSummary>({ count: 0, labels: [] })
@@ -60,7 +60,7 @@ export function LearnShell({
     try {
       const [session, dashboardData, notesData, quizzesData] = await Promise.all([
         api<{ user: User | null }>("/api/auth/session"),
-        api<any>("/api/dashboard"),
+        api<DashboardData>("/api/dashboard"),
         api<{ items: Note[] }>("/api/notes"),
         api<{ items: Quiz[] }>("/api/quizzes"),
       ])
@@ -126,12 +126,12 @@ export function LearnShell({
 
   useEffect(() => {
     if (view !== "admin" || adminData || user?.role !== "admin") return
-    api<any>("/api/admin").then(setAdminData).catch((error) => setStatus(error.message))
+    api<AdminData>("/api/admin").then(setAdminData).catch((error) => setStatus(error.message))
   }, [view, adminData, user?.role])
 
   useEffect(() => {
     if (!["settings", "admin"].includes(view) || automationData) return
-    api<any>("/api/automation").then(setAutomationData).catch((error) => setStatus(error.message))
+    api<AutomationData>("/api/automation").then(setAutomationData).catch((error) => setStatus(error.message))
   }, [view, automationData])
 
   async function logout() {

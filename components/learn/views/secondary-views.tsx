@@ -8,7 +8,7 @@ import { buildProgressCommandPlan, summarizeLearningProgress, type ProgressActio
 import { buildSettingsControlPlan, buildSettingsSummaryChips, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
 import { adminPanelTabOptions, buildAdminOperationalPlan, buildAdminSummaryChips, filterAdminList, summarizeAdminOperations, type AdminAccessRequest, type AdminPanelTab, type AdminSummaryChip } from "@/lib/admin-features"
 import type { WorkspaceOptions } from "../preferences"
-import type { CalendarEvent, Quiz, User, View } from "../types"
+import type { AdminData, AutomationData, CalendarEvent, DashboardData, Quiz, User, View } from "../types"
 import { api, formatDate } from "../api"
 import { ControlButton, Panel, StatusPill as SharedStatusPill } from "../ui"
 import { ProviderAdminPanel } from "./provider-admin-panel"
@@ -31,7 +31,7 @@ const adminPanelTabIcons: Record<AdminPanelTab, typeof Gauge> = {
   automation: Sparkles,
 }
 
-export function ProgressView({ dashboard, quizzes, setView }: { dashboard: any; quizzes: Quiz[]; setView?: (view: View) => void }) {
+export function ProgressView({ dashboard, quizzes, setView }: { dashboard: DashboardData | null; quizzes: Quiz[]; setView?: (view: View) => void }) {
   const progress = useMemo(
     () => summarizeLearningProgress({ snapshot: dashboard?.snapshot, quizCount: quizzes.length }),
     [dashboard?.snapshot, quizzes.length],
@@ -833,7 +833,7 @@ export function SettingsView({
   setOptions,
 }: {
   user: User | null
-  automationData: any
+  automationData: AutomationData | null
   locale: SupportedLocale
   options: WorkspaceOptions
   setLocale: (locale: SupportedLocale) => void
@@ -1087,7 +1087,7 @@ export function SettingsView({
             <Toggle label="Verbose admin" checked={options.adminVerbose} onChange={(checked) => setOptions({ adminVerbose: checked })} />
           </div>
           <div className="mt-5 grid gap-2 md:grid-cols-2">
-            {(automationData?.jobs || []).slice(0, 4).map((job: any) => (
+            {(automationData?.jobs || []).slice(0, 4).map((job) => (
               <div key={job.key} className="rounded-md border border-border bg-background p-3">
                 <p className="text-sm font-semibold text-foreground">{job.label}</p>
                 <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{job.description}</p>
@@ -1156,7 +1156,7 @@ function preferenceString(value: unknown) {
   return typeof value === "string" ? value : ""
 }
 
-export function AdminView({ user, adminData, automationData, options }: { user: User | null; adminData: any; automationData: any; options: WorkspaceOptions }) {
+export function AdminView({ user, adminData, automationData, options }: { user: User | null; adminData: AdminData | null; automationData: AutomationData | null; options: WorkspaceOptions }) {
   const [tab, setTab] = useState<AdminPanelTab>("overview")
   const [query, setQuery] = useState("")
   const [inviteLinks, setInviteLinks] = useState<Record<string, string>>({})
@@ -1398,7 +1398,27 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
   )
 }
 
-function AdminList({
+interface AdminListItem {
+  id?: string
+  key?: string
+  name?: string
+  username?: string
+  action?: string
+  provider?: string
+  label?: string
+  email?: string
+  role?: string
+  entity?: string
+  description?: string
+  default_model?: string
+  details?: Record<string, unknown> | string
+  provider_type?: string
+  last_status?: string
+  enabled?: boolean
+  has_key?: boolean
+}
+
+function AdminList<TItem extends AdminListItem>({
   accent = "neutral",
   emptyLabel = "No records yet.",
   items,
@@ -1407,7 +1427,7 @@ function AdminList({
 }: {
   accent?: "good" | "watch" | "neutral"
   emptyLabel?: string
-  items: any[]
+  items: TItem[]
   query?: string
   title: string
 }) {
@@ -1427,7 +1447,7 @@ function AdminList({
               <span className="truncate font-semibold text-foreground">{item.name || item.username || item.action || item.provider || item.label || item.id || item.key || "Record"}</span>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
             </div>
-            <p className="mt-1 truncate text-xs text-muted-foreground">{item.email || item.role || item.entity || item.description || item.default_model || item.details || item.provider_type || item.key || "No detail"}</p>
+            <p className="mt-1 truncate text-xs text-muted-foreground">{String(item.email || item.role || item.entity || item.description || item.default_model || item.details || item.provider_type || item.key || "No detail")}</p>
             {item.last_status || item.enabled !== undefined || item.has_key !== undefined ? (
               <div className="mt-2 flex flex-wrap gap-1">
                 {item.last_status ? <SharedStatusPill label={item.last_status} /> : null}

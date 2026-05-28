@@ -27,7 +27,7 @@ import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMet
 import { normalizeOnboardingPreferences, normalizeOnboardingStudioKind, normalizeOnboardingWorkflow, onboardingStudioKindOptions, onboardingTargetView, onboardingWorkflowOptions, shouldShowOnboarding, type OnboardingStudioKind, type OnboardingWorkflow } from "@/lib/onboarding-features"
 import { api } from "../api"
 import type { WorkspaceOptions } from "../preferences"
-import type { Note, Quiz, User, View } from "../types"
+import type { DashboardData, Note, Quiz, User, View } from "../types"
 import { Panel, StatusPill } from "../ui"
 import type { PracticeDraftSummary } from "@/lib/practice-drafts"
 import type { StudioDraftSummary } from "@/lib/studio-drafts"
@@ -80,7 +80,7 @@ export function DashboardView({
   studioDraftSummary,
   user,
 }: {
-  dashboard: any
+  dashboard: DashboardData | null
   forceOnboarding?: boolean
   notes: Note[]
   quizzes: Quiz[]
