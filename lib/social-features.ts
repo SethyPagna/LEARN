@@ -1294,6 +1294,15 @@ export function buildSocialUnifiedSearchCommand(input: {
   }
 
   if (query) {
+    if (peopleCount > 0) {
+      return {
+        action: "people",
+        badge: `${peopleCount}`,
+        detail: "Review matching people.",
+        label: "View people",
+        scope: "people",
+      }
+    }
     if (threadCount > 0) {
       return {
         action: "chat",
@@ -1310,15 +1319,6 @@ export function buildSocialUnifiedSearchCommand(input: {
         detail: "Show matching groups, rooms, or battles.",
         label: "Open group",
         scope: "groups",
-      }
-    }
-    if (peopleCount > 0) {
-      return {
-        action: "people",
-        badge: `${peopleCount}`,
-        detail: "Review matching people.",
-        label: "View people",
-        scope: "people",
       }
     }
     return {
