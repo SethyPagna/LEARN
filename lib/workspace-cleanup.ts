@@ -1,6 +1,13 @@
 import path from "node:path"
 
-export const generatedWorkspaceTargets = [".next", ".open-next", ".wrangler", ".vercel", "output"] as const
+export const generatedWorkspaceTargets = [
+  ".next",
+  ".open-next",
+  ".wrangler",
+  ".vercel",
+  "ops/cloudflare/.wrangler",
+  "output",
+] as const
 
 export type GeneratedWorkspaceTarget = (typeof generatedWorkspaceTargets)[number]
 
@@ -45,6 +52,7 @@ function cleanupReasonForTarget(target: GeneratedWorkspaceTarget) {
     ".open-next": "OpenNext Cloudflare build output",
     ".vercel": "local Vercel project metadata",
     ".wrangler": "local Wrangler state and cache",
+    "ops/cloudflare/.wrangler": "local Wrangler state and cache for moved Cloudflare configs",
     output: "generated deployment output",
   }
 
