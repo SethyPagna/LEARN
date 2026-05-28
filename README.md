@@ -79,7 +79,7 @@ run\deploy-vercel.bat
 Docker/domain self-deploy:
 
 ```powershell
-docker compose up --build
+docker compose -f ops\docker\docker-compose.yml up --build
 ```
 
 Docker uses Cloudflare D1/R2 through API credentials. It does not run local database or object storage replacement services.

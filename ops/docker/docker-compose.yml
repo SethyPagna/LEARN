@@ -1,7 +1,8 @@
 services:
   app:
     build:
-      context: .
+      context: ../..
+      dockerfile: ops/docker/Dockerfile
     environment:
       APP_ID: learn
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
