@@ -4,8 +4,8 @@ cd /d "%~dp0\.."
 set PATH=%CD%\run\bin;%PATH%
 echo Starting LEARN in the Cloudflare Workers runtime...
 if not exist ".dev.vars" (
-  echo .dev.vars is missing. Creating it from .dev.vars.example.
-  copy .dev.vars.example .dev.vars >nul
+  echo .dev.vars is missing. Creating it from ops\env\dev.vars.example.
+  copy ops\env\dev.vars.example .dev.vars >nul
 )
 corepack pnpm install
 if errorlevel 1 exit /b 1
