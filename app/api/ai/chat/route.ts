@@ -1,18 +1,23 @@
 import type { NextRequest } from "next/server"
-import { fail, isApiResponse, ok, requireApiUser } from "@/lib/api"
+import { fail, isApiResponse, ok, readJsonObject, requireApiUser } from "@/lib/api"
 import { askTutor, type TutorMode } from "@/lib/ai/tutor"
 import { saveAiTurn } from "@/lib/data"
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
 
 const tutorModes: TutorMode[] = ["coach", "rewrite", "quiz", "flashcards", "translate", "route", "cleanup", "mistake"]
+const controlCharacterPattern = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g
+
+function cleanText(value: unknown, maxLength: number) {
+  return String(value || "").replace(controlCharacterPattern, "").trim().slice(0, maxLength)
+}
 
 export async function POST(request: NextRequest) {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
 
-  const body = await request.json().catch(() => ({}))
-  const message = String(body.message || "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim().slice(0, 4000)
-  const context = String(body.context || "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim().slice(0, 16000)
+  const body = await readJsonObject(request)
+  const message = cleanText(body.message, 4000)
+  const context = cleanText(body.context, 16_000)
   const mode = String(body.mode || "coach").trim()
   const temperature = Number(body.temperature)
   const maxTokens = Number(body.maxTokens)

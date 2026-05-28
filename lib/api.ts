@@ -11,6 +11,15 @@ export function fail(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status })
 }
 
+export function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value)
+}
+
+export async function readJsonObject(request: Request): Promise<Record<string, unknown>> {
+  const value: unknown = await request.json().catch(() => ({}))
+  return isPlainRecord(value) ? value : {}
+}
+
 function isMutation(method: string) {
   return ["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase())
 }
