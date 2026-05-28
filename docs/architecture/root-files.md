@@ -14,6 +14,7 @@ LEARN keeps most implementation, operations, and planning files inside grouped f
 
 ## Organized Folders
 
+- `.github`: GitHub Actions and repository automation.
 - `app`, `components`, `lib`, `styles`, `types`: product source code.
 - `workers`: Cloudflare Worker entry points and runtime declarations.
 - `migrations`: Cloudflare D1 schema migrations.

@@ -20,6 +20,22 @@ const allowedRootFiles = new Set([
   "vercel.json",
 ])
 
+const allowedRootDirectories = new Set([
+  ".github",
+  "app",
+  "components",
+  "docs",
+  "lib",
+  "migrations",
+  "ops",
+  "public",
+  "run",
+  "styles",
+  "tests",
+  "types",
+  "workers",
+])
+
 const allowedJavaScriptFiles = new Set([
   "next.config.mjs",
 ])
@@ -34,6 +50,19 @@ test("tracked root files stay limited to tool entry points", () => {
 
   assert.deepEqual(
     trackedRootFiles.filter((filePath) => !allowedRootFiles.has(filePath)),
+    [],
+  )
+})
+
+test("tracked root directories stay grouped by responsibility", () => {
+  const trackedRootDirectories = new Set(
+    listTrackedFiles()
+      .filter((filePath) => filePath.includes("/"))
+      .map((filePath) => filePath.split("/")[0])
+  )
+
+  assert.deepEqual(
+    [...trackedRootDirectories].filter((directory) => !allowedRootDirectories.has(directory)),
     [],
   )
 })
