@@ -189,20 +189,23 @@ export function buildStudioTemplateSubtitle(template: Pick<StudioBrowserTemplate
 
 export function matchesStudioBrowserQuery(item: StudioBrowserProject | StudioBrowserTemplate, needle: string) {
   if (!needle) return true
-  const haystack = [
-    item.title,
-    "summary" in item ? item.summary : undefined,
-    "label" in item ? item.label : undefined,
-    "description" in item ? item.description : undefined,
-    "formatGroups" in item ? item.formatGroups?.join(" ") : undefined,
-    "sections" in item ? item.sections?.join(" ") : undefined,
-    "style" in item ? item.style : undefined,
-    "body" in item ? item.body : undefined,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase()
-  return haystack.includes(needle)
+  if (fieldIncludesNeedle(item.title, needle)) return true
+  if ("summary" in item && fieldIncludesNeedle(item.summary, needle)) return true
+  if ("label" in item && fieldIncludesNeedle(item.label, needle)) return true
+  if ("description" in item && fieldIncludesNeedle(item.description, needle)) return true
+  if ("formatGroups" in item && listIncludesNeedle(item.formatGroups, needle)) return true
+  if ("sections" in item && listIncludesNeedle(item.sections, needle)) return true
+  if ("style" in item && fieldIncludesNeedle(item.style, needle)) return true
+  if ("body" in item && fieldIncludesNeedle(item.body, needle)) return true
+  return false
+}
+
+function fieldIncludesNeedle(value: string | undefined, needle: string) {
+  return Boolean(value?.toLowerCase().includes(needle))
+}
+
+function listIncludesNeedle(values: string[] | undefined, needle: string) {
+  return Boolean(values?.some((value) => fieldIncludesNeedle(value, needle)))
 }
 
 export function templateMatchesFormatGroup(template: Pick<StudioBrowserTemplate, "formatGroups" | "kind">, formatGroup: StudioCanvasFormatGroup | "all") {
