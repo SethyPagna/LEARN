@@ -136,9 +136,8 @@ import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, listStudi
 import { buildStudioProjectBrowserHeader, buildStudioProjectBrowserState, buildStudioProjectBrowserSummary, buildStudioProjectSubtitle, buildStudioTemplateSubtitle, filterStudioProjectsByDraftStatus, getStudioProjectDisplayMeta, getStudioProjectFilterOption, listStudioProjectFilterOptions, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, type StudioProjectKindFilter, type StudioProjectStatusFilter } from "@/lib/studio-project-browser"
 import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
+import { HEADING_STYLE_KEY, STUDIO_LAYOUT_KEY, parseStoredHeadingStyles, parseStoredStudioLayout, type HeadingStyleLevel, type HeadingStylePreset } from "@/lib/studio-preferences"
 
-const LAYOUT_KEY = "learn_studio_layout_v2"
-const HEADING_STYLE_KEY = "learn_heading_styles_v1"
 const DRAFT_TAB_TITLE_PATTERN = /^New (Note|Doc|Sheet|Deck)$/i
 const NUMBERED_EMPTY_TAB_PATTERN = /^\d+\s+(Notes|Docs|Sheets|Slides)$/i
 
@@ -171,13 +170,6 @@ type StudioPanePreview = {
   summary: string
   title: string
   updatedAt?: string
-}
-
-type HeadingStyleLevel = 1 | 2 | 3
-type HeadingStylePreset = {
-  color?: string
-  fontFamily?: string
-  fontSize?: string
 }
 
 const FontSize = Extension.create({
@@ -377,17 +369,7 @@ function formatStudioTabLabel(tab: StudioTab) {
 }
 
 function readHeadingStyles(): Record<HeadingStyleLevel, HeadingStylePreset> {
-  const fallback: Record<HeadingStyleLevel, HeadingStylePreset> = {
-    1: { color: "inherit", fontFamily: "Aptos, Inter, sans-serif", fontSize: "32px" },
-    2: { color: "inherit", fontFamily: "Aptos, Inter, sans-serif", fontSize: "24px" },
-    3: { color: "inherit", fontFamily: "Aptos, Inter, sans-serif", fontSize: "20px" },
-  }
-  if (typeof window === "undefined") return fallback
-  try {
-    return { ...fallback, ...JSON.parse(window.localStorage.getItem(HEADING_STYLE_KEY) || "{}") }
-  } catch {
-    return fallback
-  }
+  return parseStoredHeadingStyles(typeof window === "undefined" ? null : window.localStorage.getItem(HEADING_STYLE_KEY))
 }
 
 function writeHeadingStyles(styles: Record<HeadingStyleLevel, HeadingStylePreset>) {
@@ -586,7 +568,7 @@ export function StudioView({
       if (draftStatusTimeout.current) window.clearTimeout(draftStatusTimeout.current)
       if (layoutSaveTimeout.current) {
         window.clearTimeout(layoutSaveTimeout.current)
-        if (pendingLayoutSnapshot.current) window.localStorage.setItem(LAYOUT_KEY, pendingLayoutSnapshot.current)
+        if (pendingLayoutSnapshot.current) window.localStorage.setItem(STUDIO_LAYOUT_KEY, pendingLayoutSnapshot.current)
       }
     }
   }, [])
@@ -598,8 +580,7 @@ export function StudioView({
 
   useEffect(() => {
     try {
-      const saved = window.localStorage.getItem(LAYOUT_KEY)
-      if (saved) setLayout(normalizeStudioLayout(JSON.parse(saved)))
+      setLayout(parseStoredStudioLayout(window.localStorage.getItem(STUDIO_LAYOUT_KEY), createDefaultStudioLayout(initialKind, "Studio")))
     } catch {
       setLayout(createDefaultStudioLayout(initialKind, "Studio"))
     }
@@ -609,7 +590,7 @@ export function StudioView({
     pendingLayoutSnapshot.current = JSON.stringify(layout)
     if (layoutSaveTimeout.current) window.clearTimeout(layoutSaveTimeout.current)
     layoutSaveTimeout.current = window.setTimeout(() => {
-      window.localStorage.setItem(LAYOUT_KEY, pendingLayoutSnapshot.current)
+      window.localStorage.setItem(STUDIO_LAYOUT_KEY, pendingLayoutSnapshot.current)
       layoutSaveTimeout.current = null
     }, 250)
   }, [layout])
