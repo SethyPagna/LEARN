@@ -10,6 +10,7 @@ import { menuSurfaceClasses, statusToneClasses, toneTextClasses, type UiTone } f
 import { buildAiGatewayReadiness, type AiGatewayProviderCatalogItem, type AiGatewayProviderPresetItem, type AiGatewayProviderStatus } from "@/lib/ai/gateway-readiness"
 import { buildGuidedPrompt, listInsertActions, normalizeStudioInsertTarget, promptContracts, studioInsertTargets, type GuidedPromptResult } from "@/lib/ai/prompt-builder"
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
+import { AI_TUTOR_DRAFT_KEY, parseStoredAiTutorDraft, parseStoredAiTutorLaunchPreset, type AiTutorDraft } from "@/lib/ai/tutor-drafts"
 import {
   aiTutorDifficulties,
   aiTutorLanguages,
@@ -59,7 +60,6 @@ const tutorModeIcons: Record<AiTaskKey, React.ComponentType<{ className?: string
   graph_edge_suggestion: Route,
 }
 
-const AI_TUTOR_DRAFT_KEY = "learn_ai_tutor_draft_v1"
 const DEFAULT_AI_MESSAGE = "Create a study plan from my recent notes."
 type TutorMenuId = "setup"
 type AiTutorProviderStatus = AiGatewayProviderStatus & { id?: string }
@@ -71,27 +71,6 @@ type AiTutorChatResponse = {
   provider?: string | null
   status: "ok" | "setup_required" | "error" | string
   text: string
-}
-
-type AiTutorDraft = {
-  message: string
-  reply: string
-  importText?: string
-  importTitle?: string
-  importTarget?: ImportTargetSelection
-  lastImport?: { target: ImportTarget; title: string } | null
-  lastImportText?: string
-  sourceScope: string
-  difficulty: string
-  tone: string
-  outputLength: string
-  language: string
-  providerFamily: string
-  insertTarget: StudioInsertTarget
-  targetAudience: string
-  requiredOutput: string
-  activeTaskKey: string
-  updatedAt: string
 }
 
 export function AiTutorView({
@@ -991,22 +970,12 @@ function TutorMenuToggle({ checked, label, onChange }: { checked: boolean; label
 
 function readAiTutorDraft(): AiTutorDraft | null {
   if (typeof window === "undefined") return null
-  try {
-    const stored = window.localStorage.getItem(AI_TUTOR_DRAFT_KEY)
-    return stored ? JSON.parse(stored) as AiTutorDraft : null
-  } catch {
-    return null
-  }
+  return parseStoredAiTutorDraft(window.localStorage.getItem(AI_TUTOR_DRAFT_KEY))
 }
 
 function readAiTutorLaunchPreset(): AiTutorLaunchPreset | null {
   if (typeof window === "undefined") return null
-  try {
-    const stored = window.localStorage.getItem(AI_TUTOR_LAUNCH_KEY)
-    return stored ? JSON.parse(stored) as AiTutorLaunchPreset : null
-  } catch {
-    return null
-  }
+  return parseStoredAiTutorLaunchPreset(window.localStorage.getItem(AI_TUTOR_LAUNCH_KEY))
 }
 
 function clearAiTutorLaunchPreset() {
