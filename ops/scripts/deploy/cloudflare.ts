@@ -1,4 +1,9 @@
 import { spawnSync } from "node:child_process"
+import path from "node:path"
+
+const workspaceRoot = process.cwd()
+const localBinPath = path.join(workspaceRoot, "run", "bin")
+const deploymentPath = [localBinPath, process.env.PATH].filter(Boolean).join(path.delimiter)
 
 interface RunOptions {
   env?: Record<string, string | undefined>
@@ -6,7 +11,7 @@ interface RunOptions {
 
 function run(command: string, args: string[], options: RunOptions = {}) {
   const result = spawnSync(command, args, {
-    env: { ...process.env, ...options.env },
+    env: { ...process.env, PATH: deploymentPath, ...options.env },
     shell: process.platform === "win32",
     stdio: "inherit",
   })
