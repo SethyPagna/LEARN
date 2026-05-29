@@ -8,12 +8,11 @@ import type { Quiz } from "../types"
 import { api } from "../api"
 import { EmptyState, Panel } from "../ui"
 import { buildGameRunActions, evaluateGameChoice, summarizeGameRun, type GameRunActionId } from "@/lib/practice-features"
+import { CHAT_DRAFT_KEY, parseStoredChatDraft, serializeChatDraft, type ChatDraft } from "@/lib/chat-drafts"
 import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatInboxShortcut, type ChatIntent, type ChatQuickPrompt, type ChatThreadActionId, type ChatThreadFilter, type ChatThreadLike } from "@/lib/social-features"
 
 const quizDetailCache = new Map<string, Quiz>()
-const CHAT_DRAFT_KEY = "learn_chat_draft_v1"
 type ChatMenuId = "compose" | "tools" | "filters" | `threadActions:${string}`
-type ChatDraft = { body: string; title: string; intent: ChatIntent; channel: string; replyThreadId?: string }
 type ChatThreadRecord = ChatThreadLike & {
   threadId?: string
   thread_id?: string
@@ -687,17 +686,12 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
 
 function readChatDraft(): ChatDraft | null {
   if (typeof window === "undefined") return null
-  try {
-    const stored = window.localStorage.getItem(CHAT_DRAFT_KEY)
-    return stored ? JSON.parse(stored) : null
-  } catch {
-    return null
-  }
+  return parseStoredChatDraft(window.localStorage.getItem(CHAT_DRAFT_KEY))
 }
 
 function writeChatDraft(draft: ChatDraft) {
   if (typeof window === "undefined") return
-  window.localStorage.setItem(CHAT_DRAFT_KEY, JSON.stringify(draft))
+  window.localStorage.setItem(CHAT_DRAFT_KEY, serializeChatDraft(draft))
 }
 
 function clearChatDraft() {
