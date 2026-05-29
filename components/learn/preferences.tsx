@@ -3,86 +3,14 @@
 import { useEffect, useRef, useState } from "react"
 import { useTheme } from "next-themes"
 import { getVocabulary, isSupportedLocale, loadVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
-
-type Density = "compact" | "comfortable"
-type AppAccent = "teal" | "sky" | "violet" | "rose" | "amber"
-export type WorkspaceOptions = {
-  dashboardDetail: "focused" | "detailed"
-  showWeakTopicBars: boolean
-  notesAutosave: boolean
-  noteEditorSize: "standard" | "large"
-  docsTemplate: "study" | "cornell" | "project"
-  sheetRows: number
-  slidesAspect: "16:9" | "4:3"
-  fileLayout: "list" | "grid"
-  filePreview: boolean
-  quizMode: "practice" | "exam" | "review"
-  revealAnswers: boolean
-  gameMode: "sprint" | "matching" | "memory"
-  gameQuestionLimit: number
-  calendarLeadMinutes: number
-  calendarDefaultMinutes: number
-  aiMode: "coach" | "route" | "rewrite" | "quiz" | "flashcards" | "translate" | "cleanup" | "mistake"
-  aiIncludeNotes: boolean
-  aiTemperature: number
-  aiMaxTokens: number
-  collaborationPresence: boolean
-  chatCompact: boolean
-  adminVerbose: boolean
-  highContrast: boolean
-  reducedMotion: boolean
-  dyslexiaFriendly: boolean
-  privacyDefault: "private" | "connections" | "public"
-  dailyReviewCap: number
-  restDay: "sunday" | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday"
-  feedSerendipity: number
-  notificationReviewReminders: boolean
-  notificationDraftWarnings: boolean
-  notificationSocialUpdates: boolean
-  notificationSystemHealth: boolean
-  appAccent: AppAccent
-}
+import { defaultWorkspaceOptions, normalizeWorkspaceOptions, type Density, type WorkspaceOptions } from "@/lib/workspace-preferences"
 
 const LANGUAGE_KEY = "learn_locale"
 const DENSITY_KEY = "learn_density"
 const OPTIONS_KEY = "learn_workspace_options"
 
-export const defaultWorkspaceOptions: WorkspaceOptions = {
-  dashboardDetail: "detailed",
-  showWeakTopicBars: true,
-  notesAutosave: false,
-  noteEditorSize: "standard",
-  docsTemplate: "study",
-  sheetRows: 8,
-  slidesAspect: "16:9",
-  fileLayout: "list",
-  filePreview: true,
-  quizMode: "practice",
-  revealAnswers: true,
-  gameMode: "sprint",
-  gameQuestionLimit: 12,
-  calendarLeadMinutes: 15,
-  calendarDefaultMinutes: 45,
-  aiMode: "route",
-  aiIncludeNotes: true,
-  aiTemperature: 0.45,
-  aiMaxTokens: 8192,
-  collaborationPresence: true,
-  chatCompact: false,
-  adminVerbose: true,
-  highContrast: false,
-  reducedMotion: false,
-  dyslexiaFriendly: false,
-  privacyDefault: "private",
-  dailyReviewCap: 30,
-  restDay: "sunday",
-  feedSerendipity: 15,
-  notificationReviewReminders: true,
-  notificationDraftWarnings: true,
-  notificationSocialUpdates: true,
-  notificationSystemHealth: true,
-  appAccent: "teal",
-}
+export { defaultWorkspaceOptions }
+export type { WorkspaceOptions }
 
 function getStoredValue(key: string) {
   if (typeof window === "undefined") return ""
@@ -108,7 +36,7 @@ export function useWorkspacePreferences() {
     const storedOptions = getStoredValue(OPTIONS_KEY)
     if (storedOptions) {
       try {
-        setOptionsState({ ...defaultWorkspaceOptions, ...JSON.parse(storedOptions) })
+        setOptionsState(normalizeWorkspaceOptions(JSON.parse(storedOptions)))
       } catch {
         setOptionsState(defaultWorkspaceOptions)
       }
