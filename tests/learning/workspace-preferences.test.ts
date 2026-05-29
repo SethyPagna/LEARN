@@ -1,6 +1,10 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { defaultWorkspaceOptions, normalizeWorkspaceOptions } from "../../lib/workspace-preferences"
+import { WORKSPACE_OPTIONS_KEY, defaultWorkspaceOptions, normalizeWorkspaceOptions, parseStoredWorkspaceOptions, serializeWorkspaceOptions } from "../../lib/workspace-preferences"
+
+test("workspace preference storage key stays stable", () => {
+  assert.equal(WORKSPACE_OPTIONS_KEY, "learn_workspace_options")
+})
 
 test("workspace preference normalization keeps valid personalization choices", () => {
   const options = normalizeWorkspaceOptions({
@@ -49,4 +53,22 @@ test("workspace preference normalization clamps malformed saved options", () => 
 test("workspace preference normalization falls back for non-object input", () => {
   assert.deepEqual(normalizeWorkspaceOptions(null), defaultWorkspaceOptions)
   assert.deepEqual(normalizeWorkspaceOptions("bad"), defaultWorkspaceOptions)
+})
+
+test("workspace preference parser recovers from invalid saved JSON", () => {
+  assert.deepEqual(parseStoredWorkspaceOptions("{bad json"), defaultWorkspaceOptions)
+  assert.deepEqual(parseStoredWorkspaceOptions(JSON.stringify(["bad"])), defaultWorkspaceOptions)
+})
+
+test("workspace preference serializer writes normalized options", () => {
+  const parsed = JSON.parse(serializeWorkspaceOptions({
+    appAccent: "violet",
+    aiMaxTokens: 999999,
+    fileLayout: "grid",
+  }))
+
+  assert.equal(parsed.appAccent, "violet")
+  assert.equal(parsed.aiMaxTokens, 16384)
+  assert.equal(parsed.fileLayout, "grid")
+  assert.equal(parsed.dashboardDetail, defaultWorkspaceOptions.dashboardDetail)
 })
