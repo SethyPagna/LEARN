@@ -3,11 +3,10 @@
 import { useEffect, useRef, useState } from "react"
 import { useTheme } from "next-themes"
 import { getVocabulary, isSupportedLocale, loadVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
-import { defaultWorkspaceOptions, normalizeWorkspaceOptions, type Density, type WorkspaceOptions } from "@/lib/workspace-preferences"
+import { WORKSPACE_OPTIONS_KEY, defaultWorkspaceOptions, parseStoredWorkspaceOptions, serializeWorkspaceOptions, type Density, type WorkspaceOptions } from "@/lib/workspace-preferences"
 
 const LANGUAGE_KEY = "learn_locale"
 const DENSITY_KEY = "learn_density"
-const OPTIONS_KEY = "learn_workspace_options"
 
 export { defaultWorkspaceOptions }
 export type { WorkspaceOptions }
@@ -33,14 +32,8 @@ export function useWorkspacePreferences() {
     if (isSupportedLocale(storedLocale)) setLocaleState(storedLocale)
     const storedDensity = getStoredValue(DENSITY_KEY)
     if (storedDensity === "comfortable") setDensityState("comfortable")
-    const storedOptions = getStoredValue(OPTIONS_KEY)
-    if (storedOptions) {
-      try {
-        setOptionsState(normalizeWorkspaceOptions(JSON.parse(storedOptions)))
-      } catch {
-        setOptionsState(defaultWorkspaceOptions)
-      }
-    }
+    const storedOptions = getStoredValue(WORKSPACE_OPTIONS_KEY)
+    if (storedOptions) setOptionsState(parseStoredWorkspaceOptions(storedOptions))
   }, [])
 
   useEffect(() => {
@@ -48,7 +41,7 @@ export function useWorkspacePreferences() {
       if (optionsSaveTimeout.current) {
         window.clearTimeout(optionsSaveTimeout.current)
         if (pendingOptionsSnapshot.current) {
-          window.localStorage.setItem(OPTIONS_KEY, pendingOptionsSnapshot.current)
+          window.localStorage.setItem(WORKSPACE_OPTIONS_KEY, pendingOptionsSnapshot.current)
         }
       }
     }
@@ -91,10 +84,10 @@ export function useWorkspacePreferences() {
     setOptionsState((current) => {
       const merged = { ...current, ...nextOptions }
       if (typeof window !== "undefined") {
-        pendingOptionsSnapshot.current = JSON.stringify(merged)
+        pendingOptionsSnapshot.current = serializeWorkspaceOptions(merged)
         if (optionsSaveTimeout.current) window.clearTimeout(optionsSaveTimeout.current)
         optionsSaveTimeout.current = window.setTimeout(() => {
-          window.localStorage.setItem(OPTIONS_KEY, pendingOptionsSnapshot.current)
+          window.localStorage.setItem(WORKSPACE_OPTIONS_KEY, pendingOptionsSnapshot.current)
           optionsSaveTimeout.current = null
         }, 250)
       }
