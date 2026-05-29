@@ -3,6 +3,7 @@ import type { StudioKind, WorkspaceDeck } from "@/components/learn/types"
 export const STUDIO_DRAFTS_KEY = "learn_studio_drafts_v1"
 export const STUDIO_DRAFT_EVENT = "learn:studio-drafts"
 export const STUDIO_DRAFT_NOTICE_COOLDOWN_MS = 12000
+const studioKinds: StudioKind[] = ["notes", "docs", "sheets", "slides"]
 
 export type StudioDraftRecord =
   | { kind: "notes"; id?: string; title: string; content: string; updatedAt: string }
@@ -30,9 +31,51 @@ export function readStudioDrafts(): StudioDraftStore {
   if (typeof window === "undefined") return {}
   try {
     const stored = window.localStorage.getItem(STUDIO_DRAFTS_KEY)
-    return stored ? JSON.parse(stored) : {}
+    const parsed = stored ? JSON.parse(stored) : {}
+    if (!isRecord(parsed)) return {}
+    const drafts: StudioDraftStore = {}
+    for (const kind of studioKinds) {
+      const draft = normalizeStudioDraftRecord(parsed[kind], kind)
+      if (draft) drafts[kind] = draft
+    }
+    return drafts
   } catch {
     return {}
+  }
+}
+
+export function normalizeStudioDraftRecord(value: unknown, kind: StudioKind): StudioDraftRecord | null {
+  if (!isRecord(value) || value.kind !== kind) return null
+  const title = typeof value.title === "string" ? value.title : ""
+  const updatedAt = typeof value.updatedAt === "string" ? value.updatedAt : ""
+  const id = typeof value.id === "string" ? value.id : undefined
+
+  if (kind === "sheets") {
+    return {
+      kind,
+      ...(id ? { id } : {}),
+      title,
+      cells: normalizeDraftCells(value.cells),
+      updatedAt,
+    }
+  }
+
+  if (kind === "slides") {
+    return {
+      kind,
+      ...(id ? { id } : {}),
+      title,
+      slides: normalizeDraftSlides(value.slides),
+      updatedAt,
+    }
+  }
+
+  return {
+    kind,
+    ...(id ? { id } : {}),
+    title,
+    content: typeof value.content === "string" ? value.content : "",
+    updatedAt,
   }
 }
 
@@ -85,4 +128,47 @@ export function clearStudioDraft(kind: StudioKind) {
   window.localStorage.setItem(STUDIO_DRAFTS_KEY, JSON.stringify(next))
   publishStudioDraftSummary(next)
   return summarizeStudioDrafts(next)
+}
+
+function normalizeDraftCells(value: unknown): string[][] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((row): row is unknown[] => Array.isArray(row))
+    .map((row) => row.map((cell) => String(cell ?? "")))
+}
+
+function normalizeDraftSlides(value: unknown): WorkspaceDeck["slides"] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter(isRecord)
+    .map((slide) => ({
+      title: typeof slide.title === "string" ? slide.title : "",
+      body: typeof slide.body === "string" ? slide.body : "",
+      accent: typeof slide.accent === "string" ? slide.accent : undefined,
+      layout: isSlideLayout(slide.layout) ? slide.layout : undefined,
+      theme: typeof slide.theme === "string" ? slide.theme : undefined,
+      background: typeof slide.background === "string" ? slide.background : undefined,
+      transition: isSlideTransition(slide.transition) ? slide.transition : undefined,
+      animation: isSlideAnimation(slide.animation) ? slide.animation : undefined,
+      hidden: typeof slide.hidden === "boolean" ? slide.hidden : undefined,
+      locked: typeof slide.locked === "boolean" ? slide.locked : undefined,
+      objects: Array.isArray(slide.objects) ? slide.objects as WorkspaceDeck["slides"][number]["objects"] : undefined,
+      speakerNotes: typeof slide.speakerNotes === "string" ? slide.speakerNotes : undefined,
+    }))
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value)
+}
+
+function isSlideLayout(value: unknown): value is NonNullable<WorkspaceDeck["slides"][number]["layout"]> {
+  return value === "title" || value === "two-column" || value === "image" || value === "quote"
+}
+
+function isSlideTransition(value: unknown): value is NonNullable<WorkspaceDeck["slides"][number]["transition"]> {
+  return value === "none" || value === "fade" || value === "push" || value === "zoom" || value === "wipe"
+}
+
+function isSlideAnimation(value: unknown): value is NonNullable<WorkspaceDeck["slides"][number]["animation"]> {
+  return value === "none" || value === "rise" || value === "reveal" || value === "emphasis"
 }

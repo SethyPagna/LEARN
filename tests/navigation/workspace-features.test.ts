@@ -38,7 +38,7 @@ import {
   sortSheetByColumn,
   splitStudioPane,
 } from "../../lib/studio-features"
-import { shouldAnnounceStudioDraftSave, summarizeStudioDrafts } from "../../lib/studio-drafts"
+import { normalizeStudioDraftRecord, shouldAnnounceStudioDraftSave, summarizeStudioDrafts } from "../../lib/studio-drafts"
 import {
   findStudioFormattingOption,
   studioFontOptions,
@@ -243,6 +243,37 @@ test("studio draft summary counts typed workspace drafts", () => {
   assert.equal(summary.count, 2)
   assert.deepEqual(summary.labels.sort(), ["docs", "sheets"])
   assert.equal(summary.latestAt, "2026-01-02T00:00:00.000Z")
+})
+
+test("studio draft normalization rejects mismatched and malformed saved drafts", () => {
+  assert.equal(normalizeStudioDraftRecord({ kind: "docs", title: "Wrong" }, "notes"), null)
+  assert.equal(normalizeStudioDraftRecord(null, "docs"), null)
+
+  const sheetDraft = normalizeStudioDraftRecord({
+    kind: "sheets",
+    title: "Tracker",
+    cells: [["A", 3], "bad", [null]],
+    updatedAt: "2026-01-02T00:00:00.000Z",
+  }, "sheets")
+  assert.deepEqual(sheetDraft, {
+    kind: "sheets",
+    title: "Tracker",
+    cells: [["A", "3"], [""]],
+    updatedAt: "2026-01-02T00:00:00.000Z",
+  })
+
+  const slideDraft = normalizeStudioDraftRecord({
+    kind: "slides",
+    title: "Deck",
+    slides: [{ title: "One", body: "Body", transition: "fade", animation: "wild" }],
+    updatedAt: "2026-01-03T00:00:00.000Z",
+  }, "slides")
+  assert.deepEqual(slideDraft, {
+    kind: "slides",
+    title: "Deck",
+    slides: [{ title: "One", body: "Body", transition: "fade", animation: undefined, accent: undefined, background: undefined, hidden: undefined, layout: undefined, locked: undefined, objects: undefined, speakerNotes: undefined, theme: undefined }],
+    updatedAt: "2026-01-03T00:00:00.000Z",
+  })
 })
 
 test("studio draft notice helper avoids noisy repeated announcements", () => {
