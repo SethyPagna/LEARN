@@ -48,6 +48,7 @@ import type {
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { buildFeedActionPlan, buildFeedSummaryChips, buildKnowledgeGraphActionPlan, buildKnowledgeGraphSummaryChips, buildReviewActionPlan, buildReviewRatingActions, buildReviewSummaryChips, buildVaultBlockPalette, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession, type FeedSummaryChip, type KnowledgeGraphSummaryChip, type ReviewRating, type VaultBlockPaletteGroup, type VaultBlockType } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, buildProfileSummaryChips, type ProfilePlanTarget, type ProfileSummaryChip } from "@/lib/profile-features"
+import { createSocialDraft, parseStoredSocialDraftStore, socialDraftStorageKey, type SocialDraft, type SocialDraftStore, type SocialKind } from "@/lib/social-drafts"
 import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialInviteRole, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type VaultGraphPayload = {
@@ -61,8 +62,6 @@ type ReviewPayload = {
   isRestDay: boolean
   remainingDueCount: number
 }
-
-const SOCIAL_DRAFT_KEY_PREFIX = "learn_social_draft_v1"
 
 export function VaultView({ setView }: { setView: (view: View) => void }) {
   const { data, status } = useResource<VaultGraphPayload>("/api/vault/graph")
@@ -1430,57 +1429,16 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   )
 }
 
-type SocialDraft = {
-  id: string
-  name: string
-  title: string
-  description: string
-  visibility: string
-  topicTags: string
-  mode: string
-  status: string
-  topic: string
-  pomodoroMinutes: number
-  breakMinutes: number
-}
-
-type SocialDraftStore = {
-  selectedId: string
-  query: string
-  draft: SocialDraft
-  updatedAt: string
-}
-
-type SocialKind = "spaces" | "rooms" | "battles"
 type SocialDetailTab = "actions" | "invite" | "people" | "activity" | "safety"
-
-function createSocialDraft(kind: "spaces" | "rooms" | "battles"): SocialDraft {
-  if (kind === "battles") {
-    return { id: "", name: "", title: "Quick study battle", description: "", visibility: "private", topicTags: "review", mode: "solo", status: "waiting", topic: "Review", pomodoroMinutes: 25, breakMinutes: 5 }
-  }
-  if (kind === "rooms") {
-    return { id: "", name: "Focus room", title: "", description: "", visibility: "private", topicTags: "study", mode: "focus", status: "open", topic: "Review", pomodoroMinutes: 25, breakMinutes: 5 }
-  }
-  return { id: "", name: "Personal learning circle", title: "", description: "A focused group for shared study routes.", visibility: "private", topicTags: "study", mode: "focus", status: "open", topic: "Review", pomodoroMinutes: 25, breakMinutes: 5 }
-}
 
 function readSocialDraftStore(kind: SocialKind): SocialDraftStore | null {
   if (typeof window === "undefined") return null
-  try {
-    const stored = window.localStorage.getItem(socialDraftStorageKey(kind))
-    return stored ? JSON.parse(stored) as SocialDraftStore : null
-  } catch {
-    return null
-  }
+  return parseStoredSocialDraftStore(kind, window.localStorage.getItem(socialDraftStorageKey(kind)))
 }
 
 function writeSocialDraftStore(kind: SocialKind, store: SocialDraftStore) {
   if (typeof window === "undefined") return
   window.localStorage.setItem(socialDraftStorageKey(kind), JSON.stringify(store))
-}
-
-function socialDraftStorageKey(kind: SocialKind) {
-  return `${SOCIAL_DRAFT_KEY_PREFIX}_${kind}`
 }
 
 function hasMeaningfulSocialDraft(kind: SocialKind, draft: SocialDraft) {
