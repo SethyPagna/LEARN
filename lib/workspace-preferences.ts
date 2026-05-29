@@ -1,6 +1,8 @@
 export type Density = "compact" | "comfortable"
 export type AppAccent = "teal" | "sky" | "violet" | "rose" | "amber"
 
+export const WORKSPACE_OPTIONS_KEY = "learn_workspace_options"
+
 export type WorkspaceOptions = {
   dashboardDetail: "focused" | "detailed"
   showWeakTopicBars: boolean
@@ -125,6 +127,23 @@ export function normalizeWorkspaceOptions(value: unknown): WorkspaceOptions {
     notificationSocialUpdates: bool(value.notificationSocialUpdates, defaultWorkspaceOptions.notificationSocialUpdates),
     notificationSystemHealth: bool(value.notificationSystemHealth, defaultWorkspaceOptions.notificationSystemHealth),
     appAccent: choice(value.appAccent, appAccents, defaultWorkspaceOptions.appAccent),
+  }
+}
+
+export function parseStoredWorkspaceOptions(raw: string | null): WorkspaceOptions {
+  return normalizeWorkspaceOptions(parseJson(raw))
+}
+
+export function serializeWorkspaceOptions(options: Partial<WorkspaceOptions>): string {
+  return JSON.stringify(normalizeWorkspaceOptions(options))
+}
+
+function parseJson(raw: string | null): unknown {
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as unknown
+  } catch {
+    return null
   }
 }
 
