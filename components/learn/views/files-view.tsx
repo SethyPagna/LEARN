@@ -313,7 +313,7 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
             </div>
           </div>
         ) : (
-          <EmptyState title="No file selected" body="Choose a file to preview, download, copy, or delete it." />
+          <EmptyState title="No file selected" body="Select a file to preview or manage." />
         )}
       </Panel>
     </div>
