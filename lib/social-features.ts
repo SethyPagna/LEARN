@@ -385,6 +385,16 @@ export interface SocialInviteReadiness {
   tone: "blocked" | "invalid" | "ready" | "created"
 }
 
+interface ChatThreadSignals {
+  channel: string
+  hasMention: boolean
+  hasStudioLink: boolean
+  isQuestion: boolean
+  isSaved: boolean
+  isWin: boolean
+  searchText: string
+}
+
 export function parseThreadTitle(title = "") {
   const [maybeChannel, ...rest] = title.split(" - ")
   const channel = maybeChannel.startsWith("#") ? maybeChannel : "#general"
@@ -525,19 +535,33 @@ export function buildChatQuickPrompts(input: {
   ]
 }
 
+function getChatThreadSignals(thread: ChatThreadLike): ChatThreadSignals {
+  const parsed = parseThreadTitle(thread.title)
+  const body = String(thread.last_message || thread.lastMessage || "")
+  const searchText = `${thread.title || ""} ${body}`.toLowerCase()
+
+  return {
+    channel: parsed.channel,
+    hasMention: /(^|\s)@\w+/.test(body),
+    hasStudioLink: /\/(studio|notes|docs|sheets|slides)\b/.test(body),
+    isQuestion: searchText.includes("[question]") || searchText.includes("?"),
+    isSaved: Boolean(thread.saved) || searchText.includes("[saved]") || searchText.includes(" saved ") || searchText.includes("bookmark"),
+    isWin: searchText.includes("[win]") || searchText.includes("#wins"),
+    searchText,
+  }
+}
+
 export function filterChatThreads(threads: ChatThreadLike[], input: { query?: string; filter?: ChatThreadFilter }) {
   const query = input.query?.trim().toLowerCase() || ""
   const filter = input.filter || "all"
 
   return threads.filter((thread) => {
-    const title = String(thread.title || "")
-    const lastMessage = String(thread.last_message || thread.lastMessage || "")
-    const haystack = `${title} ${lastMessage}`.toLowerCase()
-    if (query && !haystack.includes(query)) return false
+    const signals = getChatThreadSignals(thread)
+    if (query && !signals.searchText.includes(query)) return false
     if (filter === "all") return true
-    if (filter === "questions") return haystack.includes("[question]") || haystack.includes("?")
-    if (filter === "wins") return haystack.includes("[win]") || haystack.includes("#wins")
-    return Boolean(thread.saved) || haystack.includes("[saved]") || haystack.includes(" saved ") || haystack.includes("bookmark")
+    if (filter === "questions") return signals.isQuestion
+    if (filter === "wins") return signals.isWin
+    return signals.isSaved
   })
 }
 
@@ -550,15 +574,13 @@ export function summarizeChatWorkspace(threads: ChatThreadLike[]): ChatWorkspace
   let studioLinks = 0
 
   for (const thread of threads) {
-    const parsed = parseThreadTitle(thread.title)
-    const body = String(thread.last_message || thread.lastMessage || "")
-    const searchable = `${thread.title || ""} ${body}`.toLowerCase()
-    channelCounts.set(parsed.channel, (channelCounts.get(parsed.channel) ?? 0) + 1)
-    if (searchable.includes("[question]") || searchable.includes("?")) questions += 1
-    if (searchable.includes("[win]") || searchable.includes("#wins")) wins += 1
-    if (thread.saved || searchable.includes("[saved]") || searchable.includes(" saved ") || searchable.includes("bookmark")) saved += 1
-    if (/(^|\s)@\w+/.test(body)) mentions += 1
-    if (/\/(studio|notes|docs|sheets|slides)\b/.test(body)) studioLinks += 1
+    const signals = getChatThreadSignals(thread)
+    channelCounts.set(signals.channel, (channelCounts.get(signals.channel) ?? 0) + 1)
+    if (signals.isQuestion) questions += 1
+    if (signals.isWin) wins += 1
+    if (signals.isSaved) saved += 1
+    if (signals.hasMention) mentions += 1
+    if (signals.hasStudioLink) studioLinks += 1
   }
 
   return {
@@ -750,9 +772,9 @@ export function buildChatThreadStatus(thread: ChatThreadLike, nowMs = Date.now()
   if (thread.saved) return { label: "saved", tone: "success" }
   if (thread.helpful) return { label: "helpful", tone: "accent" }
 
-  const body = String(thread.last_message || thread.lastMessage || "").toLowerCase()
-  if (body.includes("[question]") || body.includes("?")) return { label: "needs reply", tone: "warning" }
-  if (body.includes("[win]")) return { label: "win", tone: "success" }
+  const signals = getChatThreadSignals(thread)
+  if (signals.isQuestion) return { label: "needs reply", tone: "warning" }
+  if (signals.isWin) return { label: "win", tone: "success" }
 
   const updatedAt = thread.updated_at || thread.updatedAt
   const updatedMs = updatedAt ? new Date(updatedAt).getTime() : Number.NaN
@@ -760,15 +782,38 @@ export function buildChatThreadStatus(thread: ChatThreadLike, nowMs = Date.now()
   return isRecent ? { label: "new", tone: "accent" } : { label: "read", tone: "muted" }
 }
 
+function countSocialWorkspaceSignals(kind: SocialWorkspaceKind, records: SocialRecordLike[]) {
+  let primary = 0
+  let secondary = 0
+
+  for (const record of records) {
+    if (kind === "spaces") {
+      if (record.visibility === "public") primary += 1
+      if (record.visibility === "private") secondary += 1
+      continue
+    }
+
+    if (kind === "rooms") {
+      if (record.status === "open" || record.status === "active") primary += 1
+      if (record.mode === "focus") secondary += 1
+      continue
+    }
+
+    if (record.status === "waiting" || record.status === "active") primary += 1
+    if (record.mode === "team") secondary += 1
+  }
+
+  return { primary, secondary }
+}
+
 export function summarizeSocialWorkspace(kind: SocialWorkspaceKind, records: SocialRecordLike[]): SocialWorkspaceSummary {
   const modeCounts = countSocialModes(kind, records)
+  const counts = countSocialWorkspaceSignals(kind, records)
   if (kind === "spaces") {
-    const publicCount = records.filter((record) => record.visibility === "public").length
-    const privateCount = records.filter((record) => record.visibility === "private").length
     return {
       total: records.length,
-      primaryCount: publicCount,
-      secondaryCount: privateCount,
+      primaryCount: counts.primary,
+      secondaryCount: counts.secondary,
       primaryLabel: "Public",
       secondaryLabel: "Private",
       suggestedAction: records.length ? "Invite or publish selectively" : "Create a private circle",
@@ -776,27 +821,23 @@ export function summarizeSocialWorkspace(kind: SocialWorkspaceKind, records: Soc
     }
   }
   if (kind === "rooms") {
-    const openCount = records.filter((record) => record.status === "open" || record.status === "active").length
-    const focusCount = records.filter((record) => record.mode === "focus").length
     return {
       total: records.length,
-      primaryCount: openCount,
-      secondaryCount: focusCount,
+      primaryCount: counts.primary,
+      secondaryCount: counts.secondary,
       primaryLabel: "Open",
       secondaryLabel: "Focus",
-      suggestedAction: openCount ? "Join or run Pomodoro" : "Open a focus room",
+      suggestedAction: counts.primary ? "Join or run Pomodoro" : "Open a focus room",
       modeCounts,
     }
   }
-  const activeCount = records.filter((record) => record.status === "waiting" || record.status === "active").length
-  const teamCount = records.filter((record) => record.mode === "team").length
   return {
     total: records.length,
-    primaryCount: activeCount,
-    secondaryCount: teamCount,
+    primaryCount: counts.primary,
+    secondaryCount: counts.secondary,
     primaryLabel: "Playable",
     secondaryLabel: "Team",
-    suggestedAction: activeCount ? "Start the next round" : "Create a fresh battle",
+    suggestedAction: counts.primary ? "Start the next round" : "Create a fresh battle",
     modeCounts,
   }
 }
