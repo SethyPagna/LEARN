@@ -89,6 +89,7 @@ type SocialThreadRecord = ChatThreadLike & {
 }
 
 type PracticeGuideStep = "start" | "live" | "setup" | "drafts"
+type PracticeSetupStep = "arena" | "styles" | "modes" | "actions"
 
 export function LearnWorkspaceView({
   dashboard,
@@ -1065,11 +1066,18 @@ function PracticeGuide({
   readyLoops: PracticeReadyLoop[]
 }) {
   const [activeStep, setActiveStep] = useState<PracticeGuideStep>("start")
+  const [activeSetupStep, setActiveSetupStep] = useState<PracticeSetupStep>("arena")
   const guideSteps: Array<{ id: PracticeGuideStep; label: string; count?: number }> = [
     { id: "start", label: "Start", count: plan.signals.length },
     { id: "live", label: "Live", count: liveJoinCard.ready ? 1 : 0 },
     { id: "setup", label: "Setup", count: arenaPresets.length + gameModes.length },
     { id: "drafts", label: "Drafts", count: draftCards.length },
+  ]
+  const setupSteps: Array<{ id: PracticeSetupStep; label: string; count?: number }> = [
+    { id: "arena", label: "Arena", count: arenaPresets.length },
+    { id: "styles", label: "Styles", count: playStyles.length },
+    { id: "modes", label: "Modes", count: gameModes.length },
+    { id: "actions", label: "Actions", count: plan.actions.length },
   ]
 
   function runAction(action: PracticeWorkspaceAction) {
@@ -1196,58 +1204,37 @@ function PracticeGuide({
       </div>
       ) : null}
       {activeStep === "setup" ? (
-      <details className="group/arena mt-3 rounded-md border border-border bg-background">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-          <span>Game setup</span>
-          <span className="ml-auto rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{arenaPresets.filter((preset) => preset.recommended).length || arenaPresets.length}</span>
-          <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/arena:rotate-180" />
-        </summary>
-        <div className="grid gap-2 border-t border-border p-2">
-          {arenaPresets.map((preset) => (
-            <PracticeArenaPresetButton key={preset.id} onClick={() => runActionId(preset.action, preset.target)} preset={preset} />
-          ))}
+        <div className="mt-3 grid gap-2 rounded-md border border-border bg-background p-2">
+          <div className="grid grid-cols-4 gap-1">
+            {setupSteps.map((step) => (
+              <button
+                key={step.id}
+                onClick={() => setActiveSetupStep(step.id)}
+                className={`inline-flex h-8 min-w-0 items-center justify-center gap-1 rounded-md px-2 text-[0.68rem] font-semibold transition ${
+                  activeSetupStep === step.id ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
+                }`}
+                type="button"
+              >
+                <span className="truncate">{step.label}</span>
+                <span className={`rounded px-1 text-[0.58rem] ${activeSetupStep === step.id ? "bg-primary-foreground/20" : "bg-background text-foreground"}`}>{step.count}</span>
+              </button>
+            ))}
+          </div>
+          <div className="grid gap-2 border-t border-border pt-2">
+            {activeSetupStep === "arena" ? arenaPresets.map((preset) => (
+              <PracticeArenaPresetButton key={preset.id} onClick={() => runActionId(preset.action, preset.target)} preset={preset} />
+            )) : null}
+            {activeSetupStep === "styles" ? playStyles.map((style) => (
+              <PracticePlayStyleButton key={style.id} onClick={() => onOpenTarget(style.target)} style={style} />
+            )) : null}
+            {activeSetupStep === "modes" ? gameModes.map((mode) => (
+              <PracticeGameModeButton key={mode.id} mode={mode} onClick={() => onOpenTarget(mode.target)} />
+            )) : null}
+            {activeSetupStep === "actions" ? plan.actions.map((action) => (
+              <PracticeActionButton key={action.id} action={action} onClick={() => runAction(action)} />
+            )) : null}
+          </div>
         </div>
-      </details>
-      ) : null}
-      {activeStep === "setup" ? (
-      <details className="group/practice mt-3 rounded-md border border-border bg-background">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-          <span>Play styles</span>
-          <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/practice:rotate-180" />
-        </summary>
-        <div className="grid gap-2 border-t border-border p-2">
-          {playStyles.map((style) => (
-            <PracticePlayStyleButton key={style.id} onClick={() => onOpenTarget(style.target)} style={style} />
-          ))}
-        </div>
-      </details>
-      ) : null}
-      {activeStep === "setup" ? (
-      <details className="group/modes mt-3 rounded-md border border-border bg-background">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-          <span>Modes</span>
-          <span className="ml-auto rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{gameModes.length}</span>
-          <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/modes:rotate-180" />
-        </summary>
-        <div className="grid gap-2 border-t border-border p-2">
-          {gameModes.map((mode) => (
-            <PracticeGameModeButton key={mode.id} mode={mode} onClick={() => onOpenTarget(mode.target)} />
-          ))}
-        </div>
-      </details>
-      ) : null}
-      {activeStep === "setup" ? (
-      <details className="group/actions mt-3 rounded-md border border-border bg-background">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-          <span>Actions</span>
-          <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/actions:rotate-180" />
-        </summary>
-        <div className="grid gap-2 border-t border-border p-2">
-          {plan.actions.map((action) => (
-            <PracticeActionButton key={action.id} action={action} onClick={() => runAction(action)} />
-          ))}
-        </div>
-      </details>
       ) : null}
       {activeStep === "drafts" && draftCards.length ? (
         <details className="group/drafts mt-3 rounded-md border border-warning/50 bg-warning/10">
