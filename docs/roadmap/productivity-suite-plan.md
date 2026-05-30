@@ -305,6 +305,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-31: Continued Import Gateway optimization by parsing pasted learning material once into reusable line/count metadata for target detection, preview counts, fallback sheets, slide shaping, and title inference.
 - 2026-05-31: Continued Social and Practice UX cleanup by changing dense all-in-one panels into focused workflow steps: Social now defaults to one active People/Chats/Groups slice, and Practice exposes Start, Live, Setup, and Drafts one section at a time.
 - 2026-05-31: Continued Studio UX cleanup by making the project launcher step-based: Projects, Templates, and Formats are now selected one at a time instead of rendering every shelf and setup choice on the same screen.
+- 2026-05-31: Continued Social code cleanup by removing stale command-center shortcut and call-mode helpers from the active workspace view after the page moved to focused People, Chats, and Groups steps.
 
 ## Implementation Slices
 
