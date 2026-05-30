@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import type { QuizQuestion } from "../../components/learn/types"
-import { hasPracticeDraftContent, listPracticeDraftCards, normalizePracticeDraft, summarizePracticeDrafts } from "../../lib/practice-drafts"
+import { hasPracticeDraftContent, listPracticeDraftCards, normalizePracticeDraft, parseStoredPracticeDrafts, serializePracticeDrafts, summarizePracticeDrafts } from "../../lib/practice-drafts"
 import { buildGameRunActions, buildMistakeRetrySet, buildPracticeArenaPresets, buildPracticeGameModes, buildPracticeLiveJoinCard, buildPracticePlayStyles, buildPracticeReadyLoops, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, buildPracticeSessionSummary, buildPracticeWorkspacePlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../../lib/practice-features"
 
 const questions: QuizQuestion[] = [
@@ -282,6 +282,56 @@ test("practice draft summary counts unfinished quiz work", () => {
   assert.equal(summary.count, 1)
   assert.deepEqual(summary.quizIds, ["quiz_math"])
   assert.equal(summary.latestAt, "2026-05-16T01:00:00.000Z")
+})
+
+test("practice draft storage parser recovers valid drafts and ignores bad data", () => {
+  assert.deepEqual(parseStoredPracticeDrafts("{bad json"), {})
+  assert.deepEqual(parseStoredPracticeDrafts(JSON.stringify(["not", "a", "store"])), {})
+
+  const store = parseStoredPracticeDrafts(JSON.stringify({
+    quiz_math: {
+      quizId: "quiz_math",
+      answers: { q1: "a", q2: "" },
+      markedQuestionIds: ["q2", "q2"],
+      retryQuestionIds: ["q3"],
+      questionFilter: "missing-filter",
+      practiceMode: "missing-mode",
+      targetMinutes: 0,
+      elapsedSeconds: 12,
+      updatedAt: "2026-05-16T03:00:00.000Z",
+    },
+    mismatched: {
+      quizId: "other",
+      answers: { q1: "a" },
+    },
+  }))
+
+  assert.deepEqual(Object.keys(store), ["quiz_math"])
+  assert.equal(store.quiz_math.questionFilter, "all")
+  assert.equal(store.quiz_math.practiceMode, "quiz")
+  assert.equal(store.quiz_math.targetMinutes, 1)
+  assert.deepEqual(store.quiz_math.markedQuestionIds, ["q2"])
+})
+
+test("practice draft storage serializer writes normalized store only", () => {
+  const serialized = serializePracticeDrafts({
+    quiz_math: {
+      quizId: "quiz_math",
+      answers: { q1: "a" },
+      markedQuestionIds: ["q2", "q2"],
+      retryQuestionIds: [],
+      questionFilter: "marked",
+      practiceMode: "sprint",
+      targetMinutes: 20,
+      elapsedSeconds: 30,
+      updatedAt: "2026-05-16T03:00:00.000Z",
+    },
+  })
+  const parsed = JSON.parse(serialized)
+
+  assert.deepEqual(Object.keys(parsed), ["quiz_math"])
+  assert.deepEqual(parsed.quiz_math.markedQuestionIds, ["q2"])
+  assert.equal(parsed.quiz_math.practiceMode, "sprint")
 })
 
 test("practice draft cards sort recent work and show useful counts", () => {
