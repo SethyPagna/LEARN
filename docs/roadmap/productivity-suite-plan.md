@@ -295,6 +295,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-24: Continued Calendar polish by matching the compact study-calendar planning layout, adding colored event type controls, and showing selected-day time lanes.
 - 2026-05-24: Continued Dashboard compaction by replacing XP with progress and planned hours, turning route actions into compact popovers, and keeping quick actions as their own horizontal mini strip.
 - 2026-05-30: Continued project hygiene by removing the unused direct date-fns dependency after a source scan found no runtime imports, keeping the dependency graph smaller before larger major-version migrations.
+- 2026-05-30: Continued root cleanup by aligning Docker build-context ignores with generated workspace outputs and adding a regression test so local caches do not bloat self-deploy builds.
 
 ## Implementation Slices
 
