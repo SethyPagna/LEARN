@@ -2758,7 +2758,7 @@ function StudioCanvas({
   }, [activeKind, activeSlide?.objects, selectedObjectId])
 
   if (activeKind === "notes") {
-    if (!noteDraft) return <EmptyState title="No note selected" body="Create or choose a note to begin capturing your learning." />
+    if (!noteDraft) return <EmptyState title="No note selected" body="Create or choose one to start." />
     return <RichTextEditor canvasFormat={canvasFormat} value={noteHistory.present} onChange={(value) => onSetNoteHistory(pushHistory(noteHistory, value))} large={options.noteEditorSize === "large"} placeholder="Write notes, formulas, reflections, links, media cues, and AI-generated drafts..." />
   }
 
