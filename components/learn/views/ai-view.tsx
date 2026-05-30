@@ -602,11 +602,10 @@ export function AiTutorView({
         </div>
 
         <div className="mt-4 grid gap-2 rounded-lg border border-border bg-muted/30 p-2 text-sm sm:grid-cols-2 lg:grid-cols-5">
-          <AiSummaryChip label="Source" value={workflowSummary.contextLabel} />
-          <AiSummaryChip label="Output" value={`${outputLength} / ${language}`} />
-          <AiSummaryChip label="Target" value={insertTarget} />
-          <AiSummaryChip label="Gateway" value={workflowSummary.providerLabel} />
-          <AiSummaryChip label="Next" value={workflowSummary.nextAction} />
+          {workflowSummary.overview.map((item) => (
+            <AiSummaryChip key={item.id} detail={item.detail} label={item.label} tone={item.tone} value={item.value} />
+          ))}
+          <AiSummaryChip detail="Best next action from the current prompt, source, insert target, and gateway state." label="Next" value={workflowSummary.nextAction} />
         </div>
 
         <label className="mt-4 grid gap-2 text-sm font-semibold text-foreground">
@@ -620,20 +619,6 @@ export function AiTutorView({
           {promptBuild.warnings.length ? <p className="mt-2 rounded-md bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">{promptBuild.warnings.join(" ")}</p> : null}
         </details>
 
-        <details className="mt-3 rounded-lg border border-border bg-background text-sm">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 font-semibold text-foreground [&::-webkit-details-marker]:hidden">
-            <span>Run details</span>
-            <span className="flex flex-wrap items-center justify-end gap-1.5">
-              <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{workflowSummary.providerLabel}</span>
-              <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{workflowSummary.nextAction}</span>
-            </span>
-          </summary>
-          <div className="grid gap-2 border-t border-border p-3 sm:grid-cols-2 xl:grid-cols-4">
-            {workflowSummary.overview.map((item) => (
-              <CompactState key={item.id} detail={item.detail} label={item.label} tone={item.tone} value={item.value} />
-            ))}
-          </div>
-        </details>
         <div className="mt-3 flex flex-wrap gap-2">
           <button disabled={primaryActionPlan.disabled} onClick={runPrimaryAction} className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
             <Bot className="h-4 w-4" />
@@ -827,32 +812,13 @@ function SidePanelButton({
   )
 }
 
-function AiSummaryChip({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0 rounded-md border border-border bg-background px-3 py-2">
-      <p className="text-[0.66rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
-      <p className="mt-0.5 truncate text-sm font-semibold text-foreground">{value}</p>
-    </div>
-  )
-}
-
-function CompactState({
-  detail,
-  label,
-  tone,
-  value,
-}: {
-  detail: string
-  label: string
-  tone: "good" | "watch" | "blocked" | "neutral"
-  value: string
-}) {
+function AiSummaryChip({ detail, label, tone = "neutral", value }: { detail?: string; label: string; tone?: "good" | "watch" | "blocked" | "neutral"; value: string }) {
   const uiTone = workflowTone(tone)
   return (
-    <div className={`group relative min-w-0 rounded-md border px-3 py-2 ${statusToneClasses(uiTone)}`}>
-      <p className="text-[0.66rem] uppercase tracking-[0.12em]">{label}</p>
-      <p className="mt-0.5 truncate text-sm text-foreground">{value}</p>
-      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-30 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{detail}</p>
+    <div className={`group relative min-w-0 rounded-md border px-3 py-2 ${statusToneClasses(uiTone)}`} title={detail}>
+      <p className="text-[0.66rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+      <p className="mt-0.5 truncate text-sm font-semibold text-foreground">{value}</p>
+      {detail ? <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-30 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{detail}</p> : null}
     </div>
   )
 }
