@@ -2556,9 +2556,6 @@ function StudioPaneSurface({
   status: string
   updateCell: (rowIndex: number, cellIndex: number, value: string) => void
 }) {
-  const viewKind = active ? activeKind : panePreview.kind
-  const viewSummary = active ? activeSummary : panePreview.summary
-  const viewTitle = active ? activeTitle : panePreview.title
   const activePaneTab = pane.tabs.find((tab) => tab.id === pane.activeTabId) || pane.tabs[0]
   const itemTabs = pane.tabs.filter((tab) => tab.itemId)
   const visiblePaneTabs = itemTabs.length > 0
@@ -2588,7 +2585,6 @@ function StudioPaneSurface({
               <span className="inline-flex h-8 shrink-0 items-center rounded-md border border-border bg-background px-2 text-xs font-semibold text-muted-foreground">
                 {active && saving ? "Saving..." : active && lastSaved ? `Saved ${lastSaved}` : "Draft"}
               </span>
-              <span className="hidden h-8 items-center rounded-md bg-secondary px-2 text-xs font-semibold text-secondary-foreground lg:inline-flex">{viewSummary}</span>
               {active ? (
                 <div className="flex items-center gap-1">
                   <ActionMenu align="right" compact label="Pane" icon={Settings2}>
@@ -3719,7 +3715,7 @@ function StudioInspector({
   slides: WorkspaceDeck["slides"]
 }) {
   return (
-    <aside className="hidden border-l border-border bg-background p-3 xl:block">
+    <div className="p-3">
       <label className="mb-3 grid gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         Inspector
         <select value={inspectorTab} onChange={(event) => onSetInspectorTab(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-sm font-semibold normal-case tracking-normal text-foreground">
@@ -3736,7 +3732,7 @@ function StudioInspector({
         {inspectorTab === "History" ? <InspectorCard title="History" body="Undo/redo is local; saved versions and audit entries stay tied to the record APIs." /> : null}
         {inspectorTab === "Export" ? <StudioExportInspector activeKind={activeKind} onCopyLink={onCopyLink} onDownload={onDownload} onExport={onExport} /> : null}
       </div>
-    </aside>
+    </div>
   )
 }
 
