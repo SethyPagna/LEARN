@@ -7,6 +7,7 @@ export const generatedWorkspaceTargets = [
   ".wrangler",
   ".vercel",
   "ops/cloudflare/.wrangler",
+  "ops/learn-dev-3001.out.log",
   "output",
 ] as const
 
@@ -55,6 +56,7 @@ function cleanupReasonForTarget(target: GeneratedWorkspaceTarget) {
     ".vercel": "local Vercel project metadata",
     ".wrangler": "local Wrangler state and cache",
     "ops/cloudflare/.wrangler": "local Wrangler state and cache for moved Cloudflare configs",
+    "ops/learn-dev-3001.out.log": "local development server log",
     output: "generated deployment output",
   }
 

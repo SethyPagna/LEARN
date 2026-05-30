@@ -5,13 +5,14 @@ import { buildWorkspaceCleanupPlan, generatedWorkspaceTargets, isSafeWorkspaceCl
 
 test("workspace cleanup plan includes only generated local targets", () => {
   const rootDir = path.resolve("C:/repo/learn")
-  const existingPaths = [".next", ".open-next", "ops/cloudflare/.wrangler", "output"].map((item) => path.resolve(rootDir, item))
+  const existingPaths = [".next", ".open-next", "ops/cloudflare/.wrangler", "ops/learn-dev-3001.out.log", "output"].map((item) => path.resolve(rootDir, item))
   const plan = buildWorkspaceCleanupPlan({ existingPaths, rootDir })
 
   assert.deepEqual(plan.map((item) => item.relativePath), [...generatedWorkspaceTargets])
   assert.equal(plan.find((item) => item.relativePath === ".next")?.exists, true)
   assert.equal(plan.find((item) => item.relativePath === ".wrangler")?.exists, false)
   assert.equal(plan.find((item) => item.relativePath === "ops/cloudflare/.wrangler")?.exists, true)
+  assert.equal(plan.find((item) => item.relativePath === "ops/learn-dev-3001.out.log")?.exists, true)
   assert.equal(plan.every((item) => item.safe), true)
 })
 
@@ -20,6 +21,7 @@ test("workspace cleanup target safety rejects traversal and source folders", () 
 
   assert.equal(isSafeWorkspaceCleanupTarget(rootDir, path.resolve(rootDir, ".next")), true)
   assert.equal(isSafeWorkspaceCleanupTarget(rootDir, path.resolve(rootDir, "ops/cloudflare/.wrangler")), true)
+  assert.equal(isSafeWorkspaceCleanupTarget(rootDir, path.resolve(rootDir, "ops/learn-dev-3001.out.log")), true)
   assert.equal(isSafeWorkspaceCleanupTarget(rootDir, path.resolve(rootDir, "app")), false)
   assert.equal(isSafeWorkspaceCleanupTarget(rootDir, path.resolve(rootDir, "../outside/.next")), false)
 })
