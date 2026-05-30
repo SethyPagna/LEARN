@@ -9,6 +9,7 @@ import {
 import {
   buildR2ObjectKey,
   getR2ApiConfig,
+  parseMediaAssetMetadata,
 } from "../../lib/storage"
 
 test("normalizeD1Sql converts numbered placeholders and casts for D1", () => {
@@ -94,4 +95,12 @@ test("buildR2ObjectKey isolates LEARN files under an app namespace", () => {
   })
 
   assert.equal(key, "apps/learn/workspaces/workspace_demo/users/user_admin/asset_123-Unit-1-Notes.pdf")
+})
+
+test("parseMediaAssetMetadata accepts only object metadata", () => {
+  assert.deepEqual(parseMediaAssetMetadata({ originalName: "notes.pdf" }), { originalName: "notes.pdf" })
+  assert.deepEqual(parseMediaAssetMetadata('{"source":"upload","pages":4}'), { source: "upload", pages: 4 })
+  assert.deepEqual(parseMediaAssetMetadata("[]"), {})
+  assert.deepEqual(parseMediaAssetMetadata("not json"), {})
+  assert.deepEqual(parseMediaAssetMetadata(null), {})
 })
