@@ -38,7 +38,7 @@ import {
   sortSheetByColumn,
   splitStudioPane,
 } from "../../lib/studio-features"
-import { normalizeStudioDraftRecord, shouldAnnounceStudioDraftSave, summarizeStudioDrafts } from "../../lib/studio-drafts"
+import { normalizeStudioDraftRecord, parseStoredStudioDrafts, serializeStudioDrafts, shouldAnnounceStudioDraftSave, summarizeStudioDrafts } from "../../lib/studio-drafts"
 import {
   findStudioFormattingOption,
   studioFontOptions,
@@ -274,6 +274,34 @@ test("studio draft normalization rejects mismatched and malformed saved drafts",
     slides: [{ title: "One", body: "Body", transition: "fade", animation: undefined, accent: undefined, background: undefined, hidden: undefined, layout: undefined, locked: undefined, objects: undefined, speakerNotes: undefined, theme: undefined }],
     updatedAt: "2026-01-03T00:00:00.000Z",
   })
+})
+
+test("studio draft parser recovers typed drafts and ignores malformed storage", () => {
+  assert.deepEqual(parseStoredStudioDrafts("{bad json"), {})
+  assert.deepEqual(parseStoredStudioDrafts(JSON.stringify(["not", "a", "store"])), {})
+
+  const drafts = parseStoredStudioDrafts(JSON.stringify({
+    notes: { kind: "notes", title: "Note", content: "Draft", updatedAt: "2026-01-01T00:00:00.000Z" },
+    docs: { kind: "notes", title: "Wrong", content: "Nope", updatedAt: "2026-01-01T00:00:00.000Z" },
+    sheets: { kind: "sheets", title: "Tracker", cells: [["A", 2]], updatedAt: "2026-01-02T00:00:00.000Z" },
+  }))
+
+  assert.deepEqual(Object.keys(drafts).sort(), ["notes", "sheets"])
+  assert.equal(drafts.notes?.title, "Note")
+  assert.deepEqual(drafts.sheets?.kind === "sheets" ? drafts.sheets.cells : [], [["A", "2"]])
+})
+
+test("studio draft serializer writes normalized typed drafts only", () => {
+  const serialized = serializeStudioDrafts({
+    docs: { kind: "docs", title: "Guide", content: "<p>Draft</p>", updatedAt: "2026-01-01T00:00:00.000Z" },
+    slides: { kind: "slides", title: "Deck", slides: [{ title: "One", body: "Body", transition: "fade", animation: "wild" as never }], updatedAt: "2026-01-03T00:00:00.000Z" },
+  })
+  const parsed = JSON.parse(serialized)
+
+  assert.deepEqual(Object.keys(parsed).sort(), ["docs", "slides"])
+  assert.equal(parsed.docs.kind, "docs")
+  assert.equal(parsed.slides.slides[0].transition, "fade")
+  assert.equal(parsed.slides.slides[0].animation, undefined)
 })
 
 test("studio draft notice helper avoids noisy repeated announcements", () => {
