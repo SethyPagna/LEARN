@@ -2,10 +2,23 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import {
   collaborationSessionId,
+  parseCollaborationEventInput,
   sessionTypeForRealtimeKind,
   shouldPersistCollaborationEvent,
   validateCollaborationEvent,
 } from "../../lib/collaboration-events"
+
+test("collaboration event parser separates malformed JSON from validation", () => {
+  assert.deepEqual(parseCollaborationEventInput("not json"), { ok: false, error: "Message must be valid JSON." })
+  assert.deepEqual(parseCollaborationEventInput(JSON.stringify({ type: "presence", count: 2 })), {
+    ok: true,
+    input: { type: "presence", count: 2 },
+  })
+  assert.deepEqual(parseCollaborationEventInput({ type: "presence", count: 1 }), {
+    ok: true,
+    input: { type: "presence", count: 1 },
+  })
+})
 
 test("collaboration event validation rejects unknown and malformed messages", () => {
   assert.equal(validateCollaborationEvent("not json").ok, false)
