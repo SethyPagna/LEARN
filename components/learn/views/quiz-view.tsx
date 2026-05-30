@@ -467,7 +467,7 @@ export function QuizView({
         ) : (
           <>
             <QuizTimerControls paused={paused} setPaused={setPracticePaused} targetMinutes={targetMinutes} elapsedSeconds={elapsedSeconds} remainingSeconds={remainingSeconds} resetTimer={resetTimer} setTargetMinutes={setTargetMinutes} />
-            <EmptyState title="No quiz selected" body="Choose a quiz bank to start practice." />
+            <EmptyState title="No quiz selected" body="Choose a quiz bank to start." />
           </>
         )}
       </Panel>
