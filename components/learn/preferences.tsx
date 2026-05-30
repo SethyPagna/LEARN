@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useTheme } from "next-themes"
-import { getVocabulary, isSupportedLocale, loadVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
+import { applyLocaleToDocument, readStoredLocale, writeStoredLocale } from "@/lib/i18n/locale-storage"
+import { getVocabulary, loadVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
 import { WORKSPACE_OPTIONS_KEY, defaultWorkspaceOptions, parseStoredWorkspaceOptions, serializeWorkspaceOptions, type Density, type WorkspaceOptions } from "@/lib/workspace-preferences"
 
-const LANGUAGE_KEY = "learn_locale"
 const DENSITY_KEY = "learn_density"
 
 export { defaultWorkspaceOptions }
@@ -28,8 +28,7 @@ export function useWorkspacePreferences() {
 
   useEffect(() => {
     setMounted(true)
-    const storedLocale = getStoredValue(LANGUAGE_KEY)
-    if (isSupportedLocale(storedLocale)) setLocaleState(storedLocale)
+    setLocaleState(readStoredLocale())
     const storedDensity = getStoredValue(DENSITY_KEY)
     if (storedDensity === "comfortable") setDensityState("comfortable")
     const storedOptions = getStoredValue(WORKSPACE_OPTIONS_KEY)
@@ -48,8 +47,7 @@ export function useWorkspacePreferences() {
   }, [])
 
   useEffect(() => {
-    document.documentElement.lang = locale
-    document.documentElement.dir = locale === "ar" ? "rtl" : "ltr"
+    applyLocaleToDocument(locale)
   }, [locale])
 
   useEffect(() => {
@@ -72,7 +70,7 @@ export function useWorkspacePreferences() {
 
   function setLocale(nextLocale: SupportedLocale) {
     setLocaleState(nextLocale)
-    if (typeof window !== "undefined") window.localStorage.setItem(LANGUAGE_KEY, nextLocale)
+    writeStoredLocale(nextLocale)
   }
 
   function setDensity(nextDensity: Density) {
