@@ -112,3 +112,28 @@ test("tracked JavaScript files stay limited to framework exceptions", () => {
     [],
   )
 })
+
+test("Docker build context ignores generated workspace output", () => {
+  const dockerIgnoreText = fs.readFileSync(".dockerignore", "utf8")
+  const dockerIgnoreEntries = new Set(
+    dockerIgnoreText
+      .split(/\r?\n/)
+      .map((entry) => entry.trim().replace(/\/$/, ""))
+      .filter(Boolean)
+  )
+
+  for (const entry of [
+    ".cache",
+    ".next",
+    ".open-next",
+    ".pnpm-store",
+    ".vercel",
+    ".wrangler",
+    ".agents",
+    "node_modules",
+    "output",
+    "public/vendor",
+  ]) {
+    assert.equal(dockerIgnoreEntries.has(entry), true, `${entry} should stay out of Docker context`)
+  }
+})
