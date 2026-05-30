@@ -15,7 +15,7 @@ LEARN keeps most implementation, operations, and planning files inside grouped f
 ## Organized Folders
 
 - `.github`: GitHub Actions and repository automation.
-- `app`, `components`, `lib`, `styles`, `types`: product source code.
+- `app`, `components`, `lib`, `styles`, `types`: product source code. These stay at root for now because Next.js App Router, OpenNext, tests, and the `@/*` import map all discover them there; moving them into `src` should be handled as one dedicated routing migration.
 - `workers`: Cloudflare Worker entry points and runtime declarations.
 - `migrations`: Cloudflare D1 schema migrations.
 - `ops`: deploy, cleanup, seed, Docker, Cloudflare, and environment template operations.
@@ -23,6 +23,7 @@ LEARN keeps most implementation, operations, and planning files inside grouped f
 - `docs`: architecture notes, roadmap plans, operations docs, and implementation plans grouped by topic.
 - `tests`: fast unit and integration tests.
 - `public`: static assets; generated browser vendor assets are rebuilt locally and ignored.
+- Generated local logs such as `ops/learn-dev-3001.out.log` are ignored, excluded from Docker builds, and removed by the workspace cleanup script.
 
 ## Conversion Policy
 
