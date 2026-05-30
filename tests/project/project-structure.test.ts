@@ -36,6 +36,13 @@ const allowedRootDirectories = new Set([
   "workers",
 ])
 
+const allowedDocsDirectories = new Set([
+  "architecture",
+  "operations",
+  "roadmap",
+  "superpowers",
+])
+
 const allowedJavaScriptFiles = new Set([
   "next.config.mjs",
 ])
@@ -63,6 +70,17 @@ test("tracked root directories stay grouped by responsibility", () => {
 
   assert.deepEqual(
     [...trackedRootDirectories].filter((directory) => !allowedRootDirectories.has(directory)),
+    [],
+  )
+})
+
+test("tracked docs stay grouped by topic", () => {
+  const trackedDocsEntries = listTrackedFiles()
+    .filter((filePath) => filePath.startsWith("docs/"))
+    .map((filePath) => filePath.split("/")[1])
+
+  assert.deepEqual(
+    [...new Set(trackedDocsEntries)].filter((directory) => !allowedDocsDirectories.has(directory)),
     [],
   )
 })
