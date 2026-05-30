@@ -13,9 +13,8 @@ import {
   MessageSquare,
   Sparkles,
 } from "lucide-react"
-import { isSupportedLocale, type SupportedLocale } from "@/lib/i18n/vocabulary"
-
-const LANGUAGE_KEY = "learn_locale"
+import { LOCALE_CHANGE_EVENT, readStoredLocale } from "@/lib/i18n/locale-storage"
+import type { SupportedLocale } from "@/lib/i18n/vocabulary"
 
 const workflowSlides = [
   {
@@ -168,16 +167,15 @@ export function IntroWorkflow() {
 
   useEffect(() => {
     function readLocale() {
-      const storedLocale = window.localStorage.getItem(LANGUAGE_KEY) || ""
-      setLocale(isSupportedLocale(storedLocale) ? storedLocale : "en")
+      setLocale(readStoredLocale())
     }
 
     readLocale()
     window.addEventListener("storage", readLocale)
-    window.addEventListener("learn:locale-change", readLocale)
+    window.addEventListener(LOCALE_CHANGE_EVENT, readLocale)
     return () => {
       window.removeEventListener("storage", readLocale)
-      window.removeEventListener("learn:locale-change", readLocale)
+      window.removeEventListener(LOCALE_CHANGE_EVENT, readLocale)
     }
   }, [])
 
