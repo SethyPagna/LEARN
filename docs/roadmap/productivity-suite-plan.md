@@ -301,6 +301,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-30: Continued runtime alignment by moving Node type definitions from the Node 22 line to the latest Node 24 line used by CI and deployment, avoiding Node 25 APIs until the runtime itself moves.
 - 2026-05-31: Continued dependency hygiene by removing stale Tailwind-era packages after source scans confirmed the app now uses the Tailwind v4 PostCSS plugin and `tw-animate-css` instead of direct Autoprefixer or `tailwindcss-animate` imports.
 - 2026-05-31: Continued lockfile hygiene by deduping transitive AWS/Smithy patch versions and Node type consumers so installs resolve fewer duplicate packages without changing direct runtime dependencies.
+- 2026-05-31: Continued Social performance cleanup by centralizing chat-thread signal parsing and using single-pass workspace counts so filtering, summaries, and status chips share one compact classification path.
 
 ## Implementation Slices
 
