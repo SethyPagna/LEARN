@@ -71,12 +71,16 @@ export function getR2ApiConfig(env: RuntimeEnv = getProcessEnv()): R2ApiConfig |
   }
 }
 
-function parseMetadata(value: unknown): Record<string, unknown> {
-  if (typeof value === "object" && value) return value as Record<string, unknown>
+function isMetadataRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+export function parseMediaAssetMetadata(value: unknown): Record<string, unknown> {
+  if (isMetadataRecord(value)) return value
   if (typeof value !== "string" || !value.trim()) return {}
   try {
     const parsed = JSON.parse(value)
-    return typeof parsed === "object" && parsed ? parsed as Record<string, unknown> : {}
+    return isMetadataRecord(parsed) ? parsed : {}
   } catch {
     return {}
   }
@@ -94,7 +98,7 @@ function normalizeAsset(row: Record<string, unknown>): MediaAsset {
     size_bytes: Number(row.size_bytes || 0),
     note_id: row.note_id ? String(row.note_id) : null,
     source: String(row.source || "upload"),
-    metadata: parseMetadata(row.metadata),
+    metadata: parseMediaAssetMetadata(row.metadata),
     created_at: String(row.created_at),
   }
 }
