@@ -311,7 +311,7 @@ export function QuizView({
                 <p className="mt-1 text-sm opacity-70">{item.question_count || 0} questions</p>
               </button>
             ))}
-            {!visibleQuizBank.length ? <EmptyState title="No active practice sets" body="Generate a quiz from Studio or Tutor to practice." /> : null}
+            {!visibleQuizBank.length ? <EmptyState title="No practice sets" body="Generate one from Studio or Tutor." /> : null}
           </div>
         </details>
       </Panel>
@@ -418,7 +418,7 @@ export function QuizView({
                   </div>
                 </article>
               )})}
-              {!filteredQuestions.length ? <EmptyState title="No questions in this view" body="Switch filters or clear answers/marks to continue." /> : null}
+              {!filteredQuestions.length ? <EmptyState title="No questions here" body="Change filters or clear marks." /> : null}
             </div>
             {attemptSummary ? (
               <div className="mt-4 rounded-md border border-border bg-accent p-3 text-accent-foreground">
@@ -467,7 +467,7 @@ export function QuizView({
         ) : (
           <>
             <QuizTimerControls paused={paused} setPaused={setPracticePaused} targetMinutes={targetMinutes} elapsedSeconds={elapsedSeconds} remainingSeconds={remainingSeconds} resetTimer={resetTimer} setTargetMinutes={setTargetMinutes} />
-            <EmptyState title="No quiz selected" body="Choose a quiz bank to start." />
+            <EmptyState title="No quiz selected" body="Choose a set to start." />
           </>
         )}
       </Panel>
