@@ -634,7 +634,7 @@ export function AiTutorView({
         </div>
         {reply ? (
           <div className="mt-5 rounded-md border border-border bg-muted p-4">
-            <SectionLabel icon={CheckCircle2} title="Result" body="Send the output back into Studio, Practice, or Reviews without copying between pages." compact />
+            <SectionLabel icon={CheckCircle2} title="Result" body="Insert, save, copy, or turn this into practice." compact />
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <ResultAction label="Save as note" onClick={saveReplyAsNote} />
               <ResultAction label="Copy result" onClick={copyReply} />
@@ -678,7 +678,7 @@ export function AiTutorView({
             </div>
             <details className="mt-3 rounded-md border border-border bg-background p-3">
               <summary className="cursor-pointer text-sm font-semibold text-foreground">Provider details</summary>
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">Keys stay masked. LEARN tries enabled providers by priority with failover.</p>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">Keys stay masked. Failover follows priority.</p>
               <div className="mt-3 space-y-2">
                 {providers.map((provider) => (
                   <div key={provider.id} className="rounded-md bg-muted p-3 text-sm">
@@ -707,7 +707,7 @@ export function AiTutorView({
                 <span className="rounded-md bg-background px-2 py-1 font-semibold text-muted-foreground">{uploadedSourceSummary.detail}</span>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span>{uploadedSourceSummary.attached ? "Attached when Uploaded files is selected." : "Paste material for cleanup, practice, or flashcards."}</span>
+                <span>{uploadedSourceSummary.attached ? "Attached for uploaded-file context." : "Paste material to clean up or practice."}</span>
                 {uploadedSourceSummary.attached ? (
                   <button onClick={clearUploadedSource} className="rounded-md border border-border bg-secondary px-2 py-1 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
                     Clear
