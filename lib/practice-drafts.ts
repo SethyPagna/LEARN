@@ -82,10 +82,25 @@ export function readPracticeDrafts(): PracticeDraftStore {
   return readPracticeDraftStore()
 }
 
+export function parseStoredPracticeDrafts(raw: string | null): PracticeDraftStore {
+  if (!raw) return {}
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!isRecord(parsed)) return {}
+    return normalizePracticeDraftStore(parsed)
+  } catch {
+    return {}
+  }
+}
+
+export function serializePracticeDrafts(store: PracticeDraftStore): string {
+  return JSON.stringify(normalizePracticeDraftStore(store))
+}
+
 export function writePracticeDraft(draft: PracticeDraftState) {
   if (typeof window === "undefined") return
   const next = { ...readPracticeDraftStore(), [draft.quizId]: draft }
-  window.localStorage.setItem(PRACTICE_DRAFTS_KEY, JSON.stringify(next))
+  window.localStorage.setItem(PRACTICE_DRAFTS_KEY, serializePracticeDrafts(next))
   publishPracticeDraftSummary(next)
 }
 
@@ -93,7 +108,7 @@ export function clearPracticeDraft(quizId: string) {
   if (typeof window === "undefined") return
   const store = readPracticeDraftStore()
   delete store[quizId]
-  window.localStorage.setItem(PRACTICE_DRAFTS_KEY, JSON.stringify(store))
+  window.localStorage.setItem(PRACTICE_DRAFTS_KEY, serializePracticeDrafts(store))
   publishPracticeDraftSummary(store)
 }
 
@@ -136,19 +151,16 @@ export function publishPracticeDraftSummary(store: Record<string, unknown>) {
 }
 
 function readPracticeDraftStore(): PracticeDraftStore {
-  try {
-    const stored = window.localStorage.getItem(PRACTICE_DRAFTS_KEY)
-    const parsed = stored ? JSON.parse(stored) : {}
-    if (!isRecord(parsed)) return {}
-    const store: PracticeDraftStore = {}
-    for (const [quizId, value] of Object.entries(parsed)) {
-      const draft = normalizePracticeDraft(value, quizId)
-      if (draft) store[quizId] = draft
-    }
-    return store
-  } catch {
-    return {}
+  return parseStoredPracticeDrafts(window.localStorage.getItem(PRACTICE_DRAFTS_KEY))
+}
+
+function normalizePracticeDraftStore(value: Record<string, unknown>): PracticeDraftStore {
+  const store: PracticeDraftStore = {}
+  for (const [quizId, draftValue] of Object.entries(value)) {
+    const draft = normalizePracticeDraft(draftValue, quizId)
+    if (draft) store[quizId] = draft
   }
+  return store
 }
 
 function normalizeAnswers(value: unknown) {
