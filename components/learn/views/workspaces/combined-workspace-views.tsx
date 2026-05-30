@@ -22,7 +22,7 @@ import {
 } from "@/lib/learn-workspace-navigation"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeArenaPresets, buildPracticeGameModes, buildPracticeLiveJoinCard, buildPracticePlayStyles, buildPracticeReadyLoops, buildPracticeWorkspacePlan, type PracticeArenaPreset, type PracticeGameMode, type PracticeLiveJoinCard, type PracticePlayStyle, type PracticeReadyLoop, type PracticeWorkspaceAction, type PracticeWorkspaceActionId, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialCommandModel, buildSocialCommandRunActions, buildSocialContactQuickActions, buildSocialUnifiedSearchCommand, buildSocialUnifiedSearchSections, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeConnections, type ChatThreadLike, type ConnectionActionId, type PeopleSearchShortcut, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialInviteRole, type SocialMomentOption, type SocialMomentTypeId, type SocialUnifiedSearchScope, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialCommandModel, buildSocialCommandRunActions, buildSocialContactQuickActions, buildSocialUnifiedSearchCommand, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeConnections, type ChatThreadLike, type ConnectionActionId, type PeopleSearchShortcut, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialInviteRole, type SocialMomentOption, type SocialMomentTypeId, type SocialUnifiedSearchScope, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 const practiceTabIcons: Record<PracticeWorkspaceTab, ComponentType<{ className?: string }>> = {
   quizzes: BookOpen,
@@ -95,6 +95,8 @@ type SocialThreadRecord = ChatThreadLike & {
   body?: string
   channel?: string
 }
+
+type PracticeGuideStep = "start" | "live" | "setup" | "drafts"
 
 export function LearnWorkspaceView({
   dashboard,
@@ -320,7 +322,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const [threads, setThreads] = useState<SocialThreadRecord[]>([])
   const [counts, setCounts] = useState({ spaces: 0, rooms: 0, battles: 0 })
   const [query, setQuery] = useState("")
-  const [searchScope, setSearchScope] = useState<SocialUnifiedSearchScope>("all")
+  const [searchScope, setSearchScope] = useState<SocialUnifiedSearchScope>("people")
   const [quickPost, setQuickPost] = useState("")
   const [momentType, setMomentType] = useState<SocialMomentTypeId>("win")
   const [inviteEmail, setInviteEmail] = useState("")
@@ -379,14 +381,13 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     threadResultCount: matchingThreads.length,
   }), [connectionSummary.total, counts.rooms, filteredPlaceCards.length, matchingThreads.length, peoplePage.total, query])
   const queryLooksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(query.trim())
-  const visibleSections = useMemo(() => buildSocialUnifiedSearchSections({
-    commandScope: searchCommand.scope,
-    inviteEmail,
-    query,
-    queryLooksLikeEmail,
-    selectedScope: searchScope,
-  }), [inviteEmail, query, queryLooksLikeEmail, searchCommand.scope, searchScope])
-  const { showChats, showGroups, showInvite, showPeople } = visibleSections
+  const activeSocialScope = searchScope === "all"
+    ? searchCommand.scope === "all" ? "people" : searchCommand.scope
+    : searchScope
+  const showPeople = activeSocialScope === "people"
+  const showChats = activeSocialScope === "chats"
+  const showGroups = activeSocialScope === "groups"
+  const showInvite = showPeople
 
   useEffect(() => {
     setPeopleLimit(5)
@@ -615,7 +616,6 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const postAction = commandActionById.get("post")
   const inviteAction = commandActionById.get("invite")
   const scopeTabs: Array<{ id: SocialUnifiedSearchScope; label: string; count: number }> = [
-    { id: "all", label: "All", count: peoplePage.total + connectionPage.total + matchingThreads.length },
     { id: "people", label: "People", count: peoplePage.total + connectionPage.total },
     { id: "chats", label: "Chats", count: matchingThreads.length },
     { id: "groups", label: "Groups", count: filteredPlaceCards.length },
@@ -1143,6 +1143,14 @@ function PracticeGuide({
   playStyles: PracticePlayStyle[]
   readyLoops: PracticeReadyLoop[]
 }) {
+  const [activeStep, setActiveStep] = useState<PracticeGuideStep>("start")
+  const guideSteps: Array<{ id: PracticeGuideStep; label: string; count?: number }> = [
+    { id: "start", label: "Start", count: plan.signals.length },
+    { id: "live", label: "Live", count: liveJoinCard.ready ? 1 : 0 },
+    { id: "setup", label: "Setup", count: arenaPresets.length + gameModes.length },
+    { id: "drafts", label: "Drafts", count: draftCards.length },
+  ]
+
   function runAction(action: PracticeWorkspaceAction) {
     if (action.id === "resume" && draftCards[0]) {
       onResumeDraft(draftCards[0].quizId)
@@ -1192,6 +1200,22 @@ function PracticeGuide({
         <h3 className="font-semibold text-foreground">Next</h3>
         <InfoMenu title="Practice" body="Start with one clear move. More modes, timers, draft recovery, and live game options stay grouped below." />
       </div>
+      <div className="mt-3 grid grid-cols-4 gap-1 rounded-lg border border-border bg-background p-1">
+        {guideSteps.map((step) => (
+          <button
+            key={step.id}
+            onClick={() => setActiveStep(step.id)}
+            className={`inline-flex h-9 min-w-0 items-center justify-center gap-1 rounded-md px-2 text-xs font-semibold transition ${
+              activeStep === step.id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            }`}
+            type="button"
+          >
+            <span className="truncate">{step.label}</span>
+            {typeof step.count === "number" ? <span className={`rounded px-1 text-[0.62rem] ${activeStep === step.id ? "bg-primary-foreground/20" : "bg-secondary text-secondary-foreground"}`}>{step.count}</span> : null}
+          </button>
+        ))}
+      </div>
+      {activeStep === "start" ? (
       <div className="mt-3 rounded-md border border-primary/25 bg-primary/10 p-3">
         <p className="text-sm font-semibold text-foreground">{plan.headline}</p>
         <div className="mt-2 grid grid-cols-3 gap-1.5">
@@ -1207,11 +1231,15 @@ function PracticeGuide({
           {plan.primaryAction.label}
         </button>
       </div>
+      ) : null}
+      {activeStep === "start" ? (
       <div className="mt-3 grid grid-cols-2 gap-2">
         {readyLoops.map((loop) => (
           <PracticeReadyLoopButton key={loop.id} loop={loop} onClick={() => runReadyLoop(loop)} />
         ))}
       </div>
+      ) : null}
+      {activeStep === "live" ? (
       <div className="mt-3 overflow-hidden rounded-lg border border-violet-500/30 bg-[radial-gradient(circle_at_top_right,rgba(168,85,247,0.32),transparent_38%),linear-gradient(135deg,#1f1147,#5b21b6_52%,#111827)] p-3 text-white shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -1245,6 +1273,8 @@ function PracticeGuide({
           </div>
         </details>
       </div>
+      ) : null}
+      {activeStep === "setup" ? (
       <details className="group/arena mt-3 rounded-md border border-border bg-background">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
           <span>Game setup</span>
@@ -1257,6 +1287,8 @@ function PracticeGuide({
           ))}
         </div>
       </details>
+      ) : null}
+      {activeStep === "setup" ? (
       <details className="group/practice mt-3 rounded-md border border-border bg-background">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
           <span>Play styles</span>
@@ -1268,6 +1300,8 @@ function PracticeGuide({
           ))}
         </div>
       </details>
+      ) : null}
+      {activeStep === "setup" ? (
       <details className="group/modes mt-3 rounded-md border border-border bg-background">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
           <span>Modes</span>
@@ -1280,6 +1314,8 @@ function PracticeGuide({
           ))}
         </div>
       </details>
+      ) : null}
+      {activeStep === "setup" ? (
       <details className="group/actions mt-3 rounded-md border border-border bg-background">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
           <span>Actions</span>
@@ -1291,7 +1327,8 @@ function PracticeGuide({
           ))}
         </div>
       </details>
-      {draftCards.length ? (
+      ) : null}
+      {activeStep === "drafts" && draftCards.length ? (
         <details className="group/drafts mt-3 rounded-md border border-warning/50 bg-warning/10">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
             <span>Drafts</span>
@@ -1325,6 +1362,11 @@ function PracticeGuide({
             ))}
           </div>
         </details>
+      ) : null}
+      {activeStep === "drafts" && !draftCards.length ? (
+        <div className="mt-3 rounded-md border border-dashed border-border bg-background p-3 text-sm text-muted-foreground">
+          No practice drafts yet. Start a quiz, game, or AI-generated practice set and it will reappear here if you leave midway.
+        </div>
       ) : null}
     </Panel>
   )
