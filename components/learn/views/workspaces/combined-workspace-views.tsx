@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ComponentType } from "react"
-import { BookOpen, Bot, ChevronDown, Clock, Gamepad2, ImageIcon, Info, Mail, MessageSquare, MoreHorizontal, PhoneCall, Play, Plus, Radio, Repeat2, Search, Send, Sparkles, Swords, Target, Trash2, Users, UsersRound } from "lucide-react"
+import { BookOpen, Bot, ChevronDown, Clock, Gamepad2, Info, Mail, MessageSquare, MoreHorizontal, PhoneCall, Play, Plus, Radio, Repeat2, Search, Send, Sparkles, Swords, Target, Trash2, Users, UsersRound } from "lucide-react"
 import type { DashboardData, LearningSpace, Quiz, StudyBattle, StudyRoom, User, View } from "../../types"
 import type { WorkspaceOptions } from "../../preferences"
 import { api } from "../../api"
@@ -48,6 +48,13 @@ const socialMomentOptionIcons: Record<SocialMomentOption["id"], ComponentType<{ 
   question: MessageSquare,
   resource: BookOpen,
   milestone: Target,
+}
+
+const socialFlowIcons: Record<SocialFlowId, ComponentType<{ className?: string }>> = {
+  chat: MessageSquare,
+  spaces: Users,
+  rooms: Radio,
+  battles: Swords,
 }
 
 const practicePlayStyleIcons: Record<PracticePlayStyle["id"], ComponentType<{ className?: string }>> = {
@@ -588,31 +595,6 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
               <span>{searchCommand.label}</span>
               <span className="rounded bg-primary-foreground/20 px-1.5 py-0.5 text-[0.65rem] uppercase">{searchCommand.badge}</span>
             </button>
-            <details className="group/create relative shrink-0">
-              <summary className="inline-flex h-10 cursor-pointer list-none items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground">
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">New</span>
-              </summary>
-              <div className="absolute right-0 top-11 z-50 grid w-64 gap-1.5 rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-xl">
-                {flowCards.map((card) => {
-                  const Icon = card.id === "chat" ? MessageSquare : card.id === "spaces" ? Users : card.id === "rooms" ? Radio : Swords
-                  const createAction = commandActionById.get(card.id)
-                  return (
-                    <SocialFlowButton
-                      key={card.id}
-                      action={card.action}
-                      count={card.count}
-                      createDisabled={createAction?.disabled}
-                      createLabel={createAction?.busy ? createAction.busyLabel : card.createAction}
-                      icon={Icon}
-                      label={card.label}
-                      onCreate={() => void createSocialPlace(card.id)}
-                      onOpen={() => open(card.id)}
-                    />
-                  )
-                })}
-              </div>
-            </details>
             <button onClick={() => void refresh()} disabled={syncAction?.disabled} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60" title={syncAction?.busy ? syncAction.busyLabel : syncAction?.label || status} type="button">
               <Repeat2 className="h-4 w-4" />
             </button>
@@ -772,12 +754,12 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
         {showGroups ? (
           <section className="grid gap-3 rounded-lg border border-border bg-background p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-foreground">Group results</h3>
+              <h3 className="text-sm font-semibold text-foreground">Groups, calls, games</h3>
               <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{filteredPlaceCards.length} actions</span>
             </div>
             <div className="grid gap-2 md:grid-cols-3">
               {filteredPlaceCards.map((card) => {
-                const Icon = card.id === "chat" ? MessageSquare : card.id === "spaces" ? Users : card.id === "rooms" ? Radio : Swords
+                const Icon = socialFlowIcons[card.id]
                 const createAction = commandActionById.get(card.id)
                 return (
                   <SocialFlowButton
