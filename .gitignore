@@ -39,6 +39,7 @@ next-env.d.ts
 
 # local caches
 .cache/
+.pnpm-store/
 
 # local assistant/tooling metadata
 .agents/
