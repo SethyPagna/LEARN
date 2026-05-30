@@ -16,3 +16,5 @@ README.md
 Caddyfile
 npm-debug.log*
 pnpm-debug.log*
+*.out.log
+*.err.log
