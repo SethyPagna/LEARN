@@ -63,7 +63,7 @@ export function ProgressView({ dashboard, quizzes, setView }: { dashboard: Dashb
               <ProgressPlanIcon className="h-5 w-5 text-success" />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-foreground">{progressPlan.headline}</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{progressPlan.chips.slice(0, 2).join(" · ")}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{progressPlan.chips.slice(0, 2).join(" / ")}</p>
               </div>
               <ArrowRight className="h-4 w-4 text-muted-foreground" />
             </div>
@@ -142,7 +142,7 @@ export function ProgressView({ dashboard, quizzes, setView }: { dashboard: Dashb
             </div>
           )) : (
             <div className="rounded-md border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
-              No weak topics yet. Run a quiz or game to create a smarter route.
+              No weak topics yet. Run practice to create signals.
             </div>
           )}
         </div>
@@ -988,7 +988,7 @@ export function SettingsView({
 
       {section === "profile" ? (
         <Panel className="p-4">
-          <SettingsSectionHeader icon={UserRound} title="Profile" body="Keep identity details simple. Learning artifacts remain private unless sharing settings say otherwise." />
+          <SettingsSectionHeader icon={UserRound} title="Profile" body="Edit identity, avatar, privacy, and links." />
           <div className="mt-4 grid gap-4 xl:grid-cols-[280px_1fr]">
             <div className="rounded-lg bg-muted p-4">
               <span className="text-xs font-semibold uppercase text-muted-foreground">Avatar</span>
@@ -1008,7 +1008,7 @@ export function SettingsView({
                       Clear
                     </button>
                   ) : null}
-                  <p className="mt-2 text-xs leading-5 text-muted-foreground">Small images save fastest.</p>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">Small images load fastest.</p>
                 </div>
               </div>
             </div>
@@ -1031,7 +1031,7 @@ export function SettingsView({
 
       {section === "experience" ? (
         <Panel className="p-4">
-          <SettingsSectionHeader icon={Palette} title="Experience" body="Tune density, language, contrast, motion, and reading comfort without hiding controls in long text." />
+          <SettingsSectionHeader icon={Palette} title="Experience" body="Theme, language, density, and comfort." />
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <SelectField label="Dashboard" value={options.dashboardDetail} options={["focused", "detailed"]} onChange={(value) => setOptions({ dashboardDetail: value as WorkspaceOptions["dashboardDetail"] })} />
             <SelectField label="Accent color" value={options.appAccent} options={["teal", "sky", "violet", "rose", "amber"]} onChange={(value) => setOptions({ appAccent: value as WorkspaceOptions["appAccent"] })} />
@@ -1052,7 +1052,7 @@ export function SettingsView({
 
       {section === "learning" ? (
         <Panel className="p-4">
-          <SettingsSectionHeader icon={Target} title="Learning workflow" body="Caps and defaults keep practice focused while preserving user freedom." />
+          <SettingsSectionHeader icon={Target} title="Learning workflow" body="Caps, defaults, reviews, and AI limits." />
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <SelectField label="Quiz mode" value={options.quizMode} options={["practice", "exam", "review"]} onChange={(value) => setOptions({ quizMode: value as WorkspaceOptions["quizMode"] })} />
             <SelectField label="Game mode" value={options.gameMode} options={["sprint", "matching", "memory"]} onChange={(value) => setOptions({ gameMode: value as WorkspaceOptions["gameMode"] })} />
@@ -1074,7 +1074,7 @@ export function SettingsView({
 
       {section === "privacy" ? (
         <Panel className="p-4">
-          <SettingsSectionHeader icon={Lock} title="Privacy and notifications" body="Sharing stays opt-in. Notifications can be quieted without disabling core safety reminders." />
+          <SettingsSectionHeader icon={Lock} title="Privacy and notifications" body="Sharing, presence, reminders, and system alerts." />
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <SelectField label="Privacy default" value={options.privacyDefault} options={["private", "connections", "public"]} onChange={(value) => setOptions({ privacyDefault: value as WorkspaceOptions["privacyDefault"] })} />
             <Toggle label="Presence hints" checked={options.collaborationPresence} onChange={(checked) => setOptions({ collaborationPresence: checked })} />
