@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ComponentType } from "react"
-import { BookOpen, Bot, ChevronDown, Clock, Gamepad2, ImageIcon, Info, Mail, MessageSquare, Mic, MoreHorizontal, PhoneCall, Play, Plus, Radio, Repeat2, Search, Send, Sparkles, Swords, Target, Trash2, Users, UsersRound, Video } from "lucide-react"
+import { BookOpen, Bot, ChevronDown, Clock, Gamepad2, ImageIcon, Info, Mail, MessageSquare, MoreHorizontal, PhoneCall, Play, Plus, Radio, Repeat2, Search, Send, Sparkles, Swords, Target, Trash2, Users, UsersRound } from "lucide-react"
 import type { DashboardData, LearningSpace, Quiz, StudyBattle, StudyRoom, User, View } from "../../types"
 import type { WorkspaceOptions } from "../../preferences"
 import { api } from "../../api"
@@ -22,7 +22,7 @@ import {
 } from "@/lib/learn-workspace-navigation"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeArenaPresets, buildPracticeGameModes, buildPracticeLiveJoinCard, buildPracticePlayStyles, buildPracticeReadyLoops, buildPracticeWorkspacePlan, type PracticeArenaPreset, type PracticeGameMode, type PracticeLiveJoinCard, type PracticePlayStyle, type PracticeReadyLoop, type PracticeWorkspaceAction, type PracticeWorkspaceActionId, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildPeopleSearchShortcuts, buildSocialCommandModel, buildSocialCommandRunActions, buildSocialContactQuickActions, buildSocialUnifiedSearchCommand, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeConnections, type ChatThreadLike, type ConnectionActionId, type PeopleSearchShortcut, type SocialCallMode, type SocialCommandPrimaryActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialInviteRole, type SocialMomentOption, type SocialMomentTypeId, type SocialUnifiedSearchScope, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialCommandModel, buildSocialCommandRunActions, buildSocialContactQuickActions, buildSocialUnifiedSearchCommand, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeConnections, type ChatThreadLike, type ConnectionActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialInviteRole, type SocialMomentOption, type SocialMomentTypeId, type SocialUnifiedSearchScope, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 const practiceTabIcons: Record<PracticeWorkspaceTab, ComponentType<{ className?: string }>> = {
   quizzes: BookOpen,
@@ -35,14 +35,6 @@ const socialTabIcons: Record<SocialWorkspaceTab, ComponentType<{ className?: str
   spaces: Users,
   rooms: Radio,
   battles: Swords,
-}
-
-const socialCallModeIcons: Record<SocialCallMode["id"], ComponentType<{ className?: string }>> = {
-  voice: Mic,
-  video: Video,
-  group: UsersRound,
-  focus: Radio,
-  battle: Swords,
 }
 
 const socialContactQuickActionIcons: Record<SocialContactQuickAction["id"], ComponentType<{ className?: string }>> = {
@@ -334,7 +326,6 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const [commandAction, setCommandAction] = useState<SocialCommandRunId | null>(null)
   const connectionSummary = useMemo(() => summarizeConnections(connections), [connections])
   const peoplePage = useMemo(() => buildConnectablePeoplePage({ members, connections, currentUserId, query, limit: peopleLimit }), [connections, currentUserId, members, peopleLimit, query])
-  const peopleShortcuts = useMemo(() => buildPeopleSearchShortcuts({ connections, currentUserId, members }), [connections, currentUserId, members])
   const connectionPage = useMemo(() => buildConnectionsPage(connections, connectionLimit), [connectionLimit, connections])
   const connectableMembers = peoplePage.items
   const inviteValidation = useMemo(() => normalizeSocialInviteDraft({ email: inviteEmail, role: inviteRole }), [inviteEmail, inviteRole])
@@ -348,12 +339,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     roomCount: counts.rooms,
     battleCount: counts.battles,
   }), [connectionSummary.total, counts.battles, counts.rooms, counts.spaces, members.length, threads.length])
-  const {
-    callModes,
-    flowCards,
-    momentOptions,
-    primaryAction: primaryCommand,
-  } = socialModel
+  const { flowCards, momentOptions } = socialModel
   const activeMomentOption = momentOptions.find((option) => option.id === momentType) ?? momentOptions[0]
   const commandActions = useMemo(() => buildSocialCommandRunActions({
     busyAction: commandAction,
@@ -484,11 +470,6 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     if (!quickPost.trim()) setQuickPost(option.prompt)
   }
 
-  function applyPeopleShortcut(shortcut: PeopleSearchShortcut) {
-    setQuery(shortcut.query)
-    setPeopleLimit(5)
-  }
-
   async function createInvite() {
     if (commandActionById.get("invite")?.disabled) return
     if (!inviteValidation.ok) {
@@ -553,37 +534,6 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   function openContactAction(action: SocialContactQuickAction) {
     if (action.disabled) return
     open(action.target.value)
-  }
-
-  function openCallMode(mode: SocialCallMode) {
-    const count = mode.target === "rooms" ? counts.rooms : counts.battles
-    if (count > 0) {
-      open(mode.target)
-      return
-    }
-    void createSocialPlace(mode.target)
-  }
-
-  function runPrimaryCommand(id: SocialCommandPrimaryActionId) {
-    if (commandAction) return
-    if (id === "find") {
-      setSearchScope("people")
-      return
-    }
-    if (id === "invite") {
-      setSearchScope("people")
-      return
-    }
-    if (id === "post") {
-      setSearchScope("chats")
-      return
-    }
-    const count = id === "spaces" ? counts.spaces : id === "rooms" ? counts.rooms : id === "battles" ? counts.battles : threads.length
-    if (count > 0) {
-      open(id)
-      return
-    }
-    void createSocialPlace(id)
   }
 
   function runSearchCommand() {
@@ -910,31 +860,6 @@ function SocialContactQuickActionButton({ action, onClick }: { action: SocialCon
     >
       <Icon className="h-3.5 w-3.5 shrink-0" />
       <span className="truncate">{action.label}</span>
-    </button>
-  )
-}
-
-function SocialCallModeButton({ mode, onClick }: { mode: SocialCallMode; onClick: () => void }) {
-  const Icon = socialCallModeIcons[mode.id]
-  return (
-    <button
-      onClick={onClick}
-      className={`group flex min-w-0 items-center gap-2 rounded-md border p-2.5 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground ${
-        mode.recommended ? "border-primary/40 bg-primary/10" : "border-border bg-card"
-      }`}
-      title={mode.detail}
-      type="button"
-    >
-      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${mode.recommended ? "bg-primary text-primary-foreground" : "bg-primary/12 text-primary group-hover:text-accent-foreground"}`}>
-        <Icon className="h-5 w-5" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground group-hover:text-accent-foreground">{mode.label}</span>
-        <span className="block truncate text-xs text-muted-foreground">{mode.action}</span>
-      </span>
-      <span className={`rounded-md px-2 py-1 text-[0.68rem] font-semibold ${mode.recommended ? "bg-primary/15 text-primary" : "bg-secondary text-secondary-foreground"}`}>
-        {mode.badge}
-      </span>
     </button>
   )
 }
