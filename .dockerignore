@@ -1,11 +1,17 @@
 .git
+.cache
 .next
+.open-next
 node_modules
+output
 .env
 .env.*
 !.env.example
 .vercel
 .wrangler
+public/vendor
+.pnpm-store
+.agents
 README.md
 Caddyfile
 npm-debug.log*
