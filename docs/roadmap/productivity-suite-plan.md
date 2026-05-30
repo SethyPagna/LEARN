@@ -309,6 +309,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-31: Continued Social UX cleanup by folding invites into the single search flow: typing an email now opens a compact confirmation instead of showing a permanent separate invite form.
 - 2026-05-31: Continued Practice UX cleanup by turning the setup area into one small Arena, Styles, Modes, or Actions step at a time instead of rendering every setup drawer together.
 - 2026-05-31: Continued AI Tutor UX cleanup by merging repeated run details into the summary chip row with hover details, keeping prompt preview and run actions closer together.
+- 2026-05-31: Continued Social simplification by removing the duplicate New dropdown from the Social home search bar and keeping groups, calls, and games in the focused results/sidebar flow.
 
 ## Implementation Slices
 
