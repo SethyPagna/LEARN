@@ -248,6 +248,8 @@ type StudioTemplateChoice = StudioTemplate & {
   kind: StudioKind
 }
 
+type StudioProjectBrowserStep = "projects" | "templates" | "formats"
+
 const studioTemplates: Record<StudioKind, StudioTemplate[]> = {
   notes: [
     { label: "Daily note", title: "Daily learning note", body: "<h2>What I learned today</h2><p></p><h2>Questions</h2><p></p><h2>Review later</h2><p></p>" },
@@ -1934,6 +1936,7 @@ function StudioProjectBrowser({
   const [projectKindFilter, setProjectKindFilter] = useState<StudioProjectKindFilter>("all")
   const [projectSort, setProjectSort] = useState<"newest" | "oldest">("newest")
   const [projectStatusFilter, setProjectStatusFilter] = useState<StudioProjectStatusFilter>("all")
+  const [browserStep, setBrowserStep] = useState<StudioProjectBrowserStep>("projects")
   const [selectedTemplateKey, setSelectedTemplateKey] = useState("")
   const formatKind = projectKindFilter === "all" ? activeKind : projectKindFilter
   const compatibleCanvasFormat = getStudioCanvasFormat(canvasFormat.id, formatKind)
@@ -1966,6 +1969,11 @@ function StudioProjectBrowser({
     query,
     templateCount: templateChoices.length,
   })
+  const browserSteps: Array<{ id: StudioProjectBrowserStep; label: string; count: number }> = [
+    { id: "projects", label: "Projects", count: recentItems.length },
+    { id: "templates", label: "Templates", count: templateShelf.length },
+    { id: "formats", label: "Formats", count: formatGroups.reduce((total, group) => total + group.formats.length, 0) },
+  ]
   return (
     <div className="grid gap-4">
       <Panel className="overflow-hidden p-0">
@@ -1991,22 +1999,22 @@ function StudioProjectBrowser({
                   {templateFilterOptions.map((option) => {
                     const Icon = option.value === "all" ? LayoutPanelLeft : studioKindIcons[option.value]
                     const count = option.value === "all" ? items.length : browserState.counts[option.value]
-                    return <MenuAction key={option.value} active={projectKindFilter === option.value} icon={Icon} label={option.label} meta={`${count} matching design${count === 1 ? "" : "s"}`} onClick={() => { setProjectKindFilter(option.value); if (option.value !== "all") onSelectKind(option.value) }} />
+                    return <MenuAction key={option.value} active={projectKindFilter === option.value} icon={Icon} label={option.label} meta={`${count} matching design${count === 1 ? "" : "s"}`} onClick={() => { setBrowserStep("templates"); setProjectKindFilter(option.value); if (option.value !== "all") onSelectKind(option.value) }} />
                   })}
                 </ActionMenu>
                 <ActionMenu compact label="Formats" icon={Grid2X2}>
                   {formatGroups.map((group) => (
-                    <MenuAction key={group.id} active={group.id === compatibleCanvasFormat.group} icon={LayoutPanelLeft} label={group.label} meta={group.description} onClick={() => onCanvasFormat(group.formats[0]?.id || compatibleCanvasFormat.id)} />
+                    <MenuAction key={group.id} active={group.id === compatibleCanvasFormat.group} icon={LayoutPanelLeft} label={group.label} meta={group.description} onClick={() => { setBrowserStep("formats"); onCanvasFormat(group.formats[0]?.id || compatibleCanvasFormat.id) }} />
                   ))}
                   <div className="my-1 h-px bg-border" />
                   {formatGroups.flatMap((group) => group.formats).map((format) => (
-                    <MenuAction key={format.id} active={format.id === compatibleCanvasFormat.id} icon={Grid2X2} label={format.label} meta={format.description} onClick={() => onCanvasFormat(format.id)} />
+                    <MenuAction key={format.id} active={format.id === compatibleCanvasFormat.id} icon={Grid2X2} label={format.label} meta={format.description} onClick={() => { setBrowserStep("formats"); onCanvasFormat(format.id) }} />
                   ))}
                 </ActionMenu>
                 <ActionMenu compact label={projectStatusFilter === "all" ? "Status" : projectStatusFilter === "drafts" ? "Drafts" : "Saved"} icon={BookOpen}>
-                  <MenuAction active={projectStatusFilter === "all"} icon={BookOpen} label="All projects" meta={`${browserState.projects.length} visible`} onClick={() => setProjectStatusFilter("all")} />
-                  <MenuAction active={projectStatusFilter === "drafts"} icon={Clock} label="Drafts" meta={`${draftProjectCount} with local changes`} onClick={() => setProjectStatusFilter("drafts")} />
-                  <MenuAction active={projectStatusFilter === "saved"} icon={CheckCircle2} label="Saved" meta={`${savedProjectCount} without local drafts`} onClick={() => setProjectStatusFilter("saved")} />
+                  <MenuAction active={projectStatusFilter === "all"} icon={BookOpen} label="All projects" meta={`${browserState.projects.length} visible`} onClick={() => { setBrowserStep("projects"); setProjectStatusFilter("all") }} />
+                  <MenuAction active={projectStatusFilter === "drafts"} icon={Clock} label="Drafts" meta={`${draftProjectCount} with local changes`} onClick={() => { setBrowserStep("projects"); setProjectStatusFilter("drafts") }} />
+                  <MenuAction active={projectStatusFilter === "saved"} icon={CheckCircle2} label="Saved" meta={`${savedProjectCount} without local drafts`} onClick={() => { setBrowserStep("projects"); setProjectStatusFilter("saved") }} />
                 </ActionMenu>
                 <ActionMenu compact label="Date modified" icon={ArrowDown}>
                   <MenuAction active={projectSort === "newest"} icon={ArrowDown} label="Newest first" onClick={() => setProjectSort("newest")} />
@@ -2016,6 +2024,23 @@ function StudioProjectBrowser({
             </div>
             <div className="mt-14 grid gap-5">
               <section className="min-w-0">
+                <div className="mb-5 flex gap-2 overflow-x-auto rounded-2xl border border-border bg-background/75 p-1.5 shadow-sm">
+                  {browserSteps.map((step) => (
+                    <button
+                      key={step.id}
+                      onClick={() => setBrowserStep(step.id)}
+                      className={`inline-flex h-10 min-w-32 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold transition ${
+                        browserStep === step.id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      }`}
+                      type="button"
+                    >
+                      <span>{step.label}</span>
+                      <span className={`rounded-md px-1.5 py-0.5 text-[0.65rem] ${browserStep === step.id ? "bg-primary-foreground/20" : "bg-secondary text-secondary-foreground"}`}>{step.count}</span>
+                    </button>
+                  ))}
+                </div>
+                {browserStep === "projects" ? (
+                <>
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-xl font-bold text-foreground">Recent projects</h3>
                   <div className="flex items-center gap-2">
@@ -2058,6 +2083,10 @@ function StudioProjectBrowser({
                   })}
                 </div>
                 {!recentItems.length ? <EmptyState title="No projects here" body="Create a design, pick a template, or clear the search." /> : null}
+                </>
+                ) : null}
+                {browserStep === "templates" ? (
+                <>
                 <div className="mt-8 flex items-center justify-between gap-3">
                   <h3 className="text-xl font-bold text-foreground">Start with a design</h3>
                   <span className="rounded-lg bg-background px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">{templateShelf.length} templates</span>
@@ -2093,6 +2122,43 @@ function StudioProjectBrowser({
                   })}
                 </div>
                 {!templateShelf.length ? <EmptyState title="No matching designs" body="Clear search or switch the format filter." /> : null}
+                </>
+                ) : null}
+                {browserStep === "formats" ? (
+                <>
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-xl font-bold text-foreground">Choose a format</h3>
+                  <span className="rounded-lg bg-background px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">{compatibleCanvasFormat.label}</span>
+                </div>
+                <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {formatGroups.map((group) => (
+                    <div key={group.id} className="rounded-2xl border border-border bg-background/80 p-3 shadow-sm">
+                      <div className="mb-3 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h4 className="truncate text-sm font-black text-foreground">{group.label}</h4>
+                          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{group.description}</p>
+                        </div>
+                        <span className="rounded-md bg-secondary px-2 py-1 text-[0.65rem] font-bold text-secondary-foreground">{group.formats.length}</span>
+                      </div>
+                      <div className="grid gap-2">
+                        {group.formats.map((format) => {
+                          const active = format.id === compatibleCanvasFormat.id
+                          return (
+                            <button key={format.id} onClick={() => onCanvasFormat(format.id)} className={`group rounded-xl border p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground ${active ? "border-primary bg-primary/10" : "border-border bg-card"}`} type="button">
+                              <span className="flex items-center justify-between gap-3">
+                                <span className="truncate text-sm font-bold text-foreground group-hover:text-accent-foreground">{format.label}</span>
+                                <span className={`rounded px-1.5 py-0.5 text-[0.65rem] font-bold ${active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{active ? "Active" : `${format.width}:${format.height}`}</span>
+                              </span>
+                              <span className="mt-1 block line-clamp-2 text-xs text-muted-foreground">{format.description}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                </>
+                ) : null}
               </section>
             </div>
           </main>
