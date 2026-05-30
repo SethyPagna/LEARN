@@ -7,9 +7,9 @@ export function Panel({ children, className = "" }: { children: ReactNode; class
 
 export function EmptyState({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-lg border border-dashed border-border bg-muted/45 p-6 text-sm">
+    <div className="rounded-lg border border-dashed border-border bg-muted/45 p-4 text-sm">
       <p className="font-semibold text-foreground">{title}</p>
-      <p className="mt-2 leading-6 text-muted-foreground">{body}</p>
+      <p className="mt-1 leading-5 text-muted-foreground">{body}</p>
     </div>
   )
 }
