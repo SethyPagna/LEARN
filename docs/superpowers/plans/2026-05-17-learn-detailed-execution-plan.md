@@ -530,7 +530,7 @@
 - `ops/cloudflare/wrangler.jsonc`
 - `ops/cloudflare/wrangler.realtime.jsonc`
 - `app/api/integrations/health/route.ts`
-- `docs/change-control.md`
+- `docs/operations/change-control.md`
 
 **Detailed targets:**
 - [ ] Keep CI and Cloudflare deploy reliable.
