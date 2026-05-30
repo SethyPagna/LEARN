@@ -296,6 +296,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-24: Continued Dashboard compaction by replacing XP with progress and planned hours, turning route actions into compact popovers, and keeping quick actions as their own horizontal mini strip.
 - 2026-05-30: Continued project hygiene by removing the unused direct date-fns dependency after a source scan found no runtime imports, keeping the dependency graph smaller before larger major-version migrations.
 - 2026-05-30: Continued root cleanup by aligning Docker build-context ignores with generated workspace outputs and adding a regression test so local caches do not bloat self-deploy builds.
+- 2026-05-30: Continued dependency cleanup by removing unused scaffold-era UI packages after exact import scans and local gates confirmed the app no longer depends on those packages.
 
 ## Implementation Slices
 
