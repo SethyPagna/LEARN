@@ -297,6 +297,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-30: Continued project hygiene by removing the unused direct date-fns dependency after a source scan found no runtime imports, keeping the dependency graph smaller before larger major-version migrations.
 - 2026-05-30: Continued root cleanup by aligning Docker build-context ignores with generated workspace outputs and adding a regression test so local caches do not bloat self-deploy builds.
 - 2026-05-30: Continued dependency cleanup by removing unused scaffold-era UI packages after exact import scans and local gates confirmed the app no longer depends on those packages.
+- 2026-05-30: Continued dependency hygiene by removing unused Univer and Zod package entries after source scans confirmed the current Studio and API code paths do not import them; future spreadsheet-framework work should add packages only when wired into a tested editor surface.
 
 ## Implementation Slices
 
