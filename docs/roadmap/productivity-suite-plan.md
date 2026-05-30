@@ -302,6 +302,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-31: Continued dependency hygiene by removing stale Tailwind-era packages after source scans confirmed the app now uses the Tailwind v4 PostCSS plugin and `tw-animate-css` instead of direct Autoprefixer or `tailwindcss-animate` imports.
 - 2026-05-31: Continued lockfile hygiene by deduping transitive AWS/Smithy patch versions and Node type consumers so installs resolve fewer duplicate packages without changing direct runtime dependencies.
 - 2026-05-31: Continued Social performance cleanup by centralizing chat-thread signal parsing and using single-pass workspace counts so filtering, summaries, and status chips share one compact classification path.
+- 2026-05-31: Continued Import Gateway optimization by parsing pasted learning material once into reusable line/count metadata for target detection, preview counts, fallback sheets, slide shaping, and title inference.
 
 ## Implementation Slices
 
