@@ -307,6 +307,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-31: Continued Studio UX cleanup by making the project launcher step-based: Projects, Templates, and Formats are now selected one at a time instead of rendering every shelf and setup choice on the same screen.
 - 2026-05-31: Continued Social code cleanup by removing stale command-center shortcut and call-mode helpers from the active workspace view after the page moved to focused People, Chats, and Groups steps.
 - 2026-05-31: Continued Social UX cleanup by folding invites into the single search flow: typing an email now opens a compact confirmation instead of showing a permanent separate invite form.
+- 2026-05-31: Continued Practice UX cleanup by turning the setup area into one small Arena, Styles, Modes, or Actions step at a time instead of rendering every setup drawer together.
 
 ## Implementation Slices
 
