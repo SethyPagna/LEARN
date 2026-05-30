@@ -682,7 +682,7 @@ These targets merge the earlier product maturity, navigation, Studio, AI Tutor, 
 - Modify: `components/learn/**/*`
 - Modify: `lib/**/*`
 - Modify: route imports only where needed.
-- Modify: this plan and `docs/productivity-suite-plan.md`.
+- Modify: this plan and `docs/roadmap/productivity-suite-plan.md`.
 
 - [x] Add a language/runtime decision record: TypeScript-first for the Cloudflare app; add other languages only for measured isolated services or tooling.
 - [x] Start grouping workspace UI under `components/learn/views/workspaces`.

@@ -18,7 +18,7 @@
 - Keep all app resources isolated to `learn-*`.
 - Run `corepack pnpm lint`, `corepack pnpm test`, and `corepack pnpm build` for every phase.
 - Browser-test desktop and mobile for every visible UI phase.
-- Update this roadmap or `docs/productivity-suite-plan.md` when a phase starts, changes, or completes.
+- Update this roadmap or `docs/roadmap/productivity-suite-plan.md` when a phase starts, changes, or completes.
 
 ## Phase 1: Product Map And Information Architecture
 

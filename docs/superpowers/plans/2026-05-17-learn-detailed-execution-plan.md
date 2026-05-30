@@ -44,7 +44,7 @@
 - `components/learn/types.ts`
 - `lib/navigation.ts` if created
 - `tests/navigation.test.ts`
-- `docs/productivity-suite-plan.md`
+- `docs/roadmap/productivity-suite-plan.md`
 
 **Detailed targets:**
 - [ ] Create a canonical route-to-section map.
@@ -140,7 +140,7 @@
 - [ ] Eliminate accidental one-off colors inside views.
 
 **Implementation tasks:**
-- [ ] Add a token audit section in `docs/productivity-suite-plan.md`.
+- [ ] Add a token audit section in `docs/roadmap/productivity-suite-plan.md`.
 - [ ] Create or extend shared UI primitives for icon button, menu button, status chip, empty state, toolbar group.
 - [ ] Replace one-off button styles in major views with shared primitives.
 - [ ] Browser-test `/dashboard`, `/studio`, `/ai`, `/practice`, `/calendar`, `/settings`.
@@ -604,7 +604,7 @@
 ## Plan Maintenance
 
 - [ ] At the start of each session, mark the active phase and slice.
-- [ ] At the end of each session, add a progress note to `docs/productivity-suite-plan.md` or this file.
+- [ ] At the end of each session, add a progress note to `docs/roadmap/productivity-suite-plan.md` or this file.
 - [ ] When a phase completes, add date, commit range, test evidence, live URL evidence, and remaining risks.
 - [ ] If a phase grows too large, split it into a dedicated plan file under `docs/superpowers/plans/`.
 

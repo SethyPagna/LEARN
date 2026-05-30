@@ -20,7 +20,7 @@ LEARN keeps most implementation, operations, and planning files inside grouped f
 - `migrations`: Cloudflare D1 schema migrations.
 - `ops`: deploy, cleanup, seed, Docker, Cloudflare, and environment template operations.
 - `run`: Windows-friendly command wrappers.
-- `docs`: product, architecture, roadmap, and implementation plans.
+- `docs`: architecture notes, roadmap plans, operations docs, and implementation plans grouped by topic.
 - `tests`: fast unit and integration tests.
 - `public`: static assets; generated browser vendor assets are rebuilt locally and ignored.
 
