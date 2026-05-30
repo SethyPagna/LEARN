@@ -315,6 +315,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-31: Continued Dashboard cleanup by removing repeated route copy and shortening section help text so details live behind info controls instead of filling the main page.
 - 2026-05-31: Continued Practice cleanup by shortening empty states, draft copy, and learning-loop cards so Practice stays step-based instead of reading like documentation.
 - 2026-05-31: Continued AI Tutor cleanup by shortening result, gateway, and import helper copy while keeping the grouped task/context/output controls intact.
+- 2026-05-31: Continued Settings and Progress cleanup by shortening section help, compacting empty copy, and replacing a non-ASCII route-chip separator with an ASCII-safe divider.
 
 ## Implementation Slices
 
