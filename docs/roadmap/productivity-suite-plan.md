@@ -298,6 +298,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-30: Continued root cleanup by aligning Docker build-context ignores with generated workspace outputs and adding a regression test so local caches do not bloat self-deploy builds.
 - 2026-05-30: Continued dependency cleanup by removing unused scaffold-era UI packages after exact import scans and local gates confirmed the app no longer depends on those packages.
 - 2026-05-30: Continued dependency hygiene by removing unused Univer and Zod package entries after source scans confirmed the current Studio and API code paths do not import them; future spreadsheet-framework work should add packages only when wired into a tested editor surface.
+- 2026-05-30: Continued runtime alignment by moving Node type definitions from the Node 22 line to the latest Node 24 line used by CI and deployment, avoiding Node 25 APIs until the runtime itself moves.
 
 ## Implementation Slices
 
