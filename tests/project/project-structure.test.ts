@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import { execFileSync } from "node:child_process"
+import fs from "node:fs"
 import path from "node:path"
 import test from "node:test"
 
@@ -83,6 +84,22 @@ test("tracked docs stay grouped by topic", () => {
     [...new Set(trackedDocsEntries)].filter((directory) => !allowedDocsDirectories.has(directory)),
     [],
   )
+})
+
+test("GitHub workflows use current Node 24 action majors", () => {
+  const workflowPaths = [
+    ".github/workflows/ci.yml",
+    ".github/workflows/deploy-cloudflare.yml",
+  ]
+
+  for (const workflowPath of workflowPaths) {
+    const workflowText = fs.readFileSync(workflowPath, "utf8")
+
+    assert.match(workflowText, /actions\/checkout@v6/)
+    assert.match(workflowText, /actions\/setup-node@v6/)
+    assert.match(workflowText, /node-version:\s*24/)
+    assert.equal(workflowText.includes("FORCE_JAVASCRIPT_ACTIONS_TO_NODE24"), false)
+  }
 })
 
 test("tracked JavaScript files stay limited to framework exceptions", () => {
