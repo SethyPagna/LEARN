@@ -4,21 +4,15 @@ import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useTheme } from "next-themes"
 import { ArrowRight, Check, Languages, Moon, Sun } from "lucide-react"
-import { isSupportedLocale, languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
+import { applyLocaleToDocument, readStoredLocale, writeStoredLocale } from "@/lib/i18n/locale-storage"
+import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
 
-const LANGUAGE_KEY = "learn_locale"
 const publicLabels = {
   dark: "Dark mode",
   language: "Language",
   light: "Light mode",
   open: "Open workspace",
   signIn: "Sign in",
-}
-
-function getStoredLocale(): SupportedLocale {
-  if (typeof window === "undefined") return "en"
-  const storedLocale = window.localStorage.getItem(LANGUAGE_KEY) || ""
-  return isSupportedLocale(storedLocale) ? storedLocale : "en"
 }
 
 export function PublicIntroControls({ signedIn }: { signedIn: boolean }) {
@@ -33,12 +27,11 @@ export function PublicIntroControls({ signedIn }: { signedIn: boolean }) {
 
   useEffect(() => {
     setMounted(true)
-    setLocaleState(getStoredLocale())
+    setLocaleState(readStoredLocale())
   }, [])
 
   useEffect(() => {
-    document.documentElement.lang = locale
-    document.documentElement.dir = locale === "ar" ? "rtl" : "ltr"
+    applyLocaleToDocument(locale)
   }, [locale])
 
   useEffect(() => {
@@ -64,8 +57,7 @@ export function PublicIntroControls({ signedIn }: { signedIn: boolean }) {
 
   function setLocale(nextLocale: SupportedLocale) {
     setLocaleState(nextLocale)
-    window.localStorage.setItem(LANGUAGE_KEY, nextLocale)
-    window.dispatchEvent(new Event("learn:locale-change"))
+    writeStoredLocale(nextLocale)
     setLanguageOpen(false)
   }
 
