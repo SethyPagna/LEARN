@@ -147,7 +147,6 @@ export function DashboardView({
                 <h2 className="min-w-0 flex-1 break-words text-xl font-semibold leading-tight text-foreground md:max-w-4xl md:text-2xl">{commandPlan.headline}</h2>
                 <InfoPopover label="About today's route" body={commandPlan.detail} />
               </div>
-              <p className="mt-1 hidden truncate text-sm text-muted-foreground sm:block">{commandPlan.detail}</p>
             </div>
           </div>
           <div className="flex min-w-0 items-center gap-2 overflow-x-auto rounded-lg border border-border bg-secondary/70 p-2 md:max-w-[520px]">
@@ -241,7 +240,7 @@ export function DashboardView({
       ) : null}
 
       <Panel className="min-w-0 p-3 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--accent)/0.28))]">
-        <SectionHeader icon={Sparkles} title="AI suggestion" body="Use the tutor as a quiet co-pilot, not a replacement for your work." />
+        <SectionHeader icon={Sparkles} title="AI suggestion" body="Open the tutor with today, Studio drafts, and weak-topic context ready." />
         <div className="mt-3 rounded-lg border border-border bg-muted/35 p-3">
           <div className="flex items-center justify-between gap-3">
             <p className="truncate text-sm font-semibold text-foreground">Review route for {focus}</p>
@@ -251,7 +250,7 @@ export function DashboardView({
       </Panel>
 
       <Panel className="min-w-0 p-3 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--warning)/0.12))]">
-        <SectionHeader icon={Brain} title="Weak topics" body="Lower accuracy appears first so practice is easier to choose." />
+        <SectionHeader icon={Brain} title="Weak topics" body="Lower accuracy appears first." />
         <div className="dashboard-rail mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
           {weakTopicCards.map((topic) => (
             <button key={topic.label} onClick={() => setView("practice")} className="min-w-[180px] snap-start rounded-md border border-border bg-background p-2.5 text-left transition hover:bg-accent hover:text-accent-foreground">
@@ -277,7 +276,7 @@ export function DashboardView({
       </Panel>
 
       <Panel className="min-w-0 p-3 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--success)/0.10))]">
-        <SectionHeader icon={FileText} title="Recent work" body="Recent Studio items, AI chats, practice attempts, and uploads appear together so resuming is simpler." />
+        <SectionHeader icon={FileText} title="Recent work" body="Resume Studio, files, AI, or practice." />
         <div className="dashboard-rail mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
           {recentWork.length ? recentWork.slice(0, 4).map((item) => {
             const Icon = recentWorkIcons[item.kind]
@@ -303,7 +302,7 @@ export function DashboardView({
       </Panel>
 
       <Panel className="min-w-0 p-3 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--primary)/0.10))]">
-        <SectionHeader icon={Clock3} title="Review queue" body="Turn recent work into active recall before it fades." />
+        <SectionHeader icon={Clock3} title="Review queue" body="Turn recent work into recall." />
         <div className="dashboard-rail mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
           {["Review weak topic", "Retry quiz mistakes", "Save an AI route"].map((item) => (
             <button key={item} onClick={() => setView("practice")} className="flex min-w-[190px] snap-start items-center gap-2 rounded-md border border-border bg-background p-2.5 text-left text-sm hover:bg-accent hover:text-accent-foreground">
@@ -315,7 +314,7 @@ export function DashboardView({
       </Panel>
 
       <Panel className="min-w-0 p-3 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--accent)/0.22))]">
-        <SectionHeader icon={Table2} title="Quick actions" body="Grouped by purpose so the dashboard stays compact." />
+        <SectionHeader icon={Table2} title="Quick actions" body="Create, review, practice, share, or manage." />
         <div className="dashboard-rail mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
           {actionGroups.map((group) => (
             <details key={group.label} className="relative min-w-[170px] snap-start rounded-md border border-border bg-background">
@@ -343,7 +342,7 @@ export function DashboardView({
       </Panel>
 
       <Panel className="min-w-0 p-3 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--primary)/0.08))]">
-        <SectionHeader icon={CalendarDays} title="Calendar agenda" body="Plan small blocks instead of waiting for a long study session." />
+        <SectionHeader icon={CalendarDays} title="Calendar agenda" body="Plan the next study block." />
         <div className="dashboard-rail mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
           <AgendaItem label="Focus block" value={`${options.calendarDefaultMinutes} min`} />
           <AgendaItem label="Lead" value={`${options.calendarLeadMinutes} min`} />
