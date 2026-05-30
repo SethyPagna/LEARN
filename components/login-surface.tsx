@@ -18,9 +18,8 @@ import {
   UserPlus,
 } from "lucide-react"
 import { buildAuthEntryPlan, buildForgotPasswordPlan, safeRedirectPath } from "@/lib/auth-entry"
-import { isSupportedLocale, languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
-
-const LANGUAGE_KEY = "learn_locale"
+import { applyLocaleToDocument, readStoredLocale, writeStoredLocale } from "@/lib/i18n/locale-storage"
+import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
 
 const demoAccounts = [
   { label: "Admin", identifier: "admin", password: "Admin123456!", detail: "Full provider, audit, and workspace controls." },
@@ -39,12 +38,6 @@ const accessSignals = [
   { label: "Draft safe", icon: Sparkles },
   { label: "Admin reviewed", icon: LockKeyhole },
 ]
-
-function getStoredLocale(): SupportedLocale {
-  if (typeof window === "undefined") return "en"
-  const storedLocale = window.localStorage.getItem(LANGUAGE_KEY) || ""
-  return isSupportedLocale(storedLocale) ? storedLocale : "en"
-}
 
 export function LoginSurface() {
   const { resolvedTheme, setTheme } = useTheme()
@@ -77,20 +70,18 @@ export function LoginSurface() {
 
   useEffect(() => {
     setMounted(true)
-    setLocaleState(getStoredLocale())
+    setLocaleState(readStoredLocale())
     const params = new URLSearchParams(window.location.search)
     setRedirectPath(safeRedirectPath(params.get("redirect")))
   }, [])
 
   useEffect(() => {
-    document.documentElement.lang = locale
-    document.documentElement.dir = locale === "ar" ? "rtl" : "ltr"
+    applyLocaleToDocument(locale)
   }, [locale])
 
   function setLocale(nextLocale: SupportedLocale) {
     setLocaleState(nextLocale)
-    window.localStorage.setItem(LANGUAGE_KEY, nextLocale)
-    window.dispatchEvent(new Event("learn:locale-change"))
+    writeStoredLocale(nextLocale)
     setLanguageOpen(false)
   }
 
