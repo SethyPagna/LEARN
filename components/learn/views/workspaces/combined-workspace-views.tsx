@@ -328,9 +328,11 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
   const peoplePage = useMemo(() => buildConnectablePeoplePage({ members, connections, currentUserId, query, limit: peopleLimit }), [connections, currentUserId, members, peopleLimit, query])
   const connectionPage = useMemo(() => buildConnectionsPage(connections, connectionLimit), [connectionLimit, connections])
   const connectableMembers = peoplePage.items
-  const inviteValidation = useMemo(() => normalizeSocialInviteDraft({ email: inviteEmail, role: inviteRole }), [inviteEmail, inviteRole])
-  const inviteReady = Boolean(inviteEmail.trim()) && inviteValidation.ok
-  const inviteStatus = inviteEmail.trim() ? inviteValidation.ok ? "Ready" : inviteValidation.error : "Enter email"
+  const queryLooksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(query.trim())
+  const pendingInviteEmail = queryLooksLikeEmail ? query.trim() : inviteEmail.trim()
+  const inviteValidation = useMemo(() => normalizeSocialInviteDraft({ email: pendingInviteEmail, role: inviteRole }), [pendingInviteEmail, inviteRole])
+  const inviteReady = Boolean(pendingInviteEmail) && inviteValidation.ok
+  const inviteStatus = pendingInviteEmail ? inviteValidation.ok ? "Ready" : inviteValidation.error : "Paste an email in search"
   const socialModel = useMemo(() => buildSocialCommandModel({
     memberCount: members.length,
     connectionCount: connectionSummary.total,
@@ -366,14 +368,13 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
     roomCount: counts.rooms,
     threadResultCount: matchingThreads.length,
   }), [connectionSummary.total, counts.rooms, filteredPlaceCards.length, matchingThreads.length, peoplePage.total, query])
-  const queryLooksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(query.trim())
   const activeSocialScope = searchScope === "all"
     ? searchCommand.scope === "all" ? "people" : searchCommand.scope
     : searchScope
   const showPeople = activeSocialScope === "people"
   const showChats = activeSocialScope === "chats"
   const showGroups = activeSocialScope === "groups"
-  const showInvite = showPeople
+  const showInvite = showPeople && Boolean(pendingInviteEmail)
 
   useEffect(() => {
     setPeopleLimit(5)
@@ -484,6 +485,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
         body: JSON.stringify(inviteValidation.value),
       })
       setInviteEmail("")
+      if (query.trim() === pendingInviteEmail) setQuery("")
       setStatus("Invite sent")
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to invite")
@@ -627,12 +629,6 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
               <span className={`rounded px-1.5 py-0.5 text-[0.65rem] ${searchScope === scope.id ? "bg-primary-foreground/20 text-primary-foreground" : "bg-background text-foreground"}`}>{scope.count}</span>
             </button>
           ))}
-          {queryLooksLikeEmail ? (
-            <button onClick={() => setInviteEmail(query.trim())} className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-success/40 bg-success/10 px-3 text-xs font-semibold text-success" type="button">
-              <Mail className="h-3.5 w-3.5" />
-              Invite email
-            </button>
-          ) : null}
         </div>
       </div>
       <div className="grid gap-3 p-3 lg:p-4">
@@ -668,9 +664,9 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                   {!connectableMembers.length ? (
                     <div className="grid gap-2 rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground sm:grid-cols-[1fr_auto] sm:items-center">
                       <span>{peoplePage.emptyAction === "invite" ? "No matching learner yet." : "Search members or invite a new learner."}</span>
-                      <button onClick={() => setInviteEmail(queryLooksLikeEmail ? query.trim() : inviteEmail)} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground" type="button">
+                      <button onClick={() => setInviteEmail(queryLooksLikeEmail ? query.trim() : inviteEmail)} disabled={!queryLooksLikeEmail} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50" title={queryLooksLikeEmail ? "Invite this email" : "Paste an email in search first"} type="button">
                         <Mail className="h-3.5 w-3.5" />
-                        Invite
+                        {queryLooksLikeEmail ? "Invite" : "Paste email"}
                       </button>
                     </div>
                   ) : null}
@@ -803,11 +799,11 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
         {showInvite ? (
         <details className="group/invite rounded-lg border border-border bg-background" open>
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-semibold text-foreground">
-            <span>Invite by email</span>
+            <span>Invite {pendingInviteEmail}</span>
             <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/invite:rotate-180" />
           </summary>
-          <div className="grid gap-2 border-t border-border p-3 sm:grid-cols-[1fr_120px_auto]">
-                <input value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="email@example.com" className="h-9 min-w-0 rounded-md border border-input bg-card px-3 text-sm text-foreground outline-none" />
+          <div className="grid gap-2 border-t border-border p-3 sm:grid-cols-[1fr_120px_auto] sm:items-center">
+                <span className="truncate rounded-md border border-input bg-card px-3 py-2 text-sm font-semibold text-foreground">{pendingInviteEmail}</span>
                 <select value={inviteRole} onChange={(event) => setInviteRole(normalizeSocialInviteRole(event.target.value))} className="h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground outline-none">
                   {socialInviteRoleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
@@ -815,7 +811,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                   <Plus className="h-4 w-4" />
                   {inviteAction?.busy ? inviteAction.busyLabel : inviteAction?.label || "Send"}
                 </button>
-                <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground sm:col-span-3">{inviteStatus}</span>
+                <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground sm:col-span-3">Use the search bar to change the email. {inviteStatus}</span>
           </div>
         </details>
         ) : null}
