@@ -997,9 +997,9 @@ function LearnRoute({ dashboard, quizzes, setView }: { dashboard: DashboardData 
             <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/loop:rotate-180" />
           </summary>
           <div className="mt-3 grid gap-3 md:grid-cols-3">
-            <PatternCard icon={Sparkles} title="Capture" body="Studio keeps notes, docs, sheets, slides, and imports together." />
-            <PatternCard icon={Repeat2} title="Practice" body="Quiz, retry misses, and save hard items as review cards." />
-            <PatternCard icon={MessageSquare} title="Reflect" body="Use Social only when you want collaboration or accountability." />
+            <PatternCard icon={Sparkles} title="Capture" body="Save work in Studio." />
+            <PatternCard icon={Repeat2} title="Practice" body="Quiz, retry, review." />
+            <PatternCard icon={MessageSquare} title="Reflect" body="Share when useful." />
           </div>
         </details>
       </Panel>
@@ -1109,7 +1109,7 @@ function PracticeGuide({
     <Panel className="h-max p-3 xl:sticky xl:top-3 xl:max-h-[calc(100vh-6rem)] xl:overflow-auto">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-semibold text-foreground">Next</h3>
-        <InfoMenu title="Practice" body="Start with one clear move. More modes, timers, draft recovery, and live game options stay grouped below." />
+        <InfoMenu title="Practice" body="Pick one loop. Live, setup, and drafts stay grouped here." />
       </div>
       <div className="mt-3 grid grid-cols-4 gap-1 rounded-lg border border-border bg-background p-1">
         {guideSteps.map((step) => (
@@ -1255,7 +1255,7 @@ function PracticeGuide({
       ) : null}
       {activeStep === "drafts" && !draftCards.length ? (
         <div className="mt-3 rounded-md border border-dashed border-border bg-background p-3 text-sm text-muted-foreground">
-          No practice drafts yet. Start a quiz, game, or AI-generated practice set and it will reappear here if you leave midway.
+          No drafts yet. Unfinished practice reappears here.
         </div>
       ) : null}
     </Panel>
