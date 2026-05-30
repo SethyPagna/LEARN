@@ -29,19 +29,22 @@ export type StudioDraftNoticeInput = {
 
 export function readStudioDrafts(): StudioDraftStore {
   if (typeof window === "undefined") return {}
+  return parseStoredStudioDrafts(window.localStorage.getItem(STUDIO_DRAFTS_KEY))
+}
+
+export function parseStoredStudioDrafts(raw: string | null): StudioDraftStore {
+  if (!raw) return {}
   try {
-    const stored = window.localStorage.getItem(STUDIO_DRAFTS_KEY)
-    const parsed = stored ? JSON.parse(stored) : {}
+    const parsed = JSON.parse(raw) as unknown
     if (!isRecord(parsed)) return {}
-    const drafts: StudioDraftStore = {}
-    for (const kind of studioKinds) {
-      const draft = normalizeStudioDraftRecord(parsed[kind], kind)
-      if (draft) drafts[kind] = draft
-    }
-    return drafts
+    return normalizeStudioDraftStore(parsed)
   } catch {
     return {}
   }
+}
+
+export function serializeStudioDrafts(store: StudioDraftStore): string {
+  return JSON.stringify(normalizeStudioDraftStore(store))
 }
 
 export function normalizeStudioDraftRecord(value: unknown, kind: StudioKind): StudioDraftRecord | null {
@@ -116,7 +119,7 @@ export function publishStudioDraftSummary(store: StudioDraftStore) {
 export function writeStudioDraft(kind: StudioKind, draft: StudioDraftRecord) {
   if (typeof window === "undefined") return summarizeStudioDrafts({})
   const next = { ...readStudioDrafts(), [kind]: draft }
-  window.localStorage.setItem(STUDIO_DRAFTS_KEY, JSON.stringify(next))
+  window.localStorage.setItem(STUDIO_DRAFTS_KEY, serializeStudioDrafts(next))
   publishStudioDraftSummary(next)
   return summarizeStudioDrafts(next)
 }
@@ -125,9 +128,18 @@ export function clearStudioDraft(kind: StudioKind) {
   if (typeof window === "undefined") return summarizeStudioDrafts({})
   const next = { ...readStudioDrafts() }
   delete next[kind]
-  window.localStorage.setItem(STUDIO_DRAFTS_KEY, JSON.stringify(next))
+  window.localStorage.setItem(STUDIO_DRAFTS_KEY, serializeStudioDrafts(next))
   publishStudioDraftSummary(next)
   return summarizeStudioDrafts(next)
+}
+
+function normalizeStudioDraftStore(value: Record<string, unknown>): StudioDraftStore {
+  const drafts: StudioDraftStore = {}
+  for (const kind of studioKinds) {
+    const draft = normalizeStudioDraftRecord(value[kind], kind)
+    if (draft) drafts[kind] = draft
+  }
+  return drafts
 }
 
 function normalizeDraftCells(value: unknown): string[][] {
