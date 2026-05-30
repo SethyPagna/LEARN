@@ -41,10 +41,19 @@ interface ImportCleanupWorkflow {
   messageVerb: string
 }
 
+interface ImportSourceAnalysis {
+  commaRows: number
+  headingRows: number
+  lines: string[]
+  pipeRows: number
+  raw: string
+}
+
 export function shapeImportedLearningContent(input: { raw: string; title?: string; target?: ImportTargetSelection }): ShapedImport {
   const raw = input.raw.trim()
-  const target = input.target && input.target !== "auto" ? input.target : detectImportTarget(raw)
-  const title = cleanTitle(input.title || inferTitle(raw))
+  const analysis = analyzeImportSource(raw)
+  const target = input.target && input.target !== "auto" ? input.target : detectImportTargetFromAnalysis(analysis)
+  const title = cleanTitle(input.title || inferTitle(analysis))
 
   if (target === "sheet") {
     const sheet = importCsvToSheet(raw)
@@ -53,7 +62,7 @@ export function shapeImportedLearningContent(input: { raw: string; title?: strin
       title,
       payload: {
         title,
-        cells: sheet.cells.length > 1 ? sheet.cells : fallbackSheet(raw),
+        cells: sheet.cells.length > 1 ? sheet.cells : fallbackSheet(analysis),
         history: [{ action: "import", at: new Date().toISOString() }],
       },
     }
@@ -65,7 +74,7 @@ export function shapeImportedLearningContent(input: { raw: string; title?: strin
       title,
       payload: {
         title,
-        slides: shapeSlides(raw),
+        slides: shapeSlides(analysis),
         speakerNotes: {},
       },
     }
@@ -100,20 +109,21 @@ export function shapeImportedLearningContent(input: { raw: string; title?: strin
 
 export function previewImportedLearningContent(input: { raw: string; title?: string; target?: ImportTargetSelection }): ImportPreviewSummary {
   const raw = input.raw.trim()
+  const analysis = analyzeImportSource(raw)
   const forcedTarget = input.target && input.target !== "auto"
-  const target = forcedTarget ? input.target as ImportTarget : detectImportTarget(raw)
-  const title = cleanTitle(input.title || inferTitle(raw))
+  const target = forcedTarget ? input.target as ImportTarget : detectImportTargetFromAnalysis(analysis)
+  const title = cleanTitle(input.title || inferTitle(analysis))
   const warnings: string[] = []
 
   if (raw.length < 12) warnings.push("Paste more learning material before importing.")
   if (!forcedTarget && target === "note" && raw.length > 500) warnings.push("Auto-detect chose note; document may fit better for longer material.")
 
-  const itemCount = countImportItems(target, raw)
+  const itemCount = countImportItems(target, analysis)
   return {
     ok: raw.length >= 12,
     target,
     title,
-    confidence: importConfidence({ forcedTarget: Boolean(forcedTarget), itemCount, raw, target }),
+    confidence: importConfidence({ analysis, forcedTarget: Boolean(forcedTarget), itemCount, target }),
     itemCount,
     itemLabel: labelImportItems(target, itemCount),
     destinationView: getImportDestinationView(target),
@@ -166,31 +176,44 @@ export function buildImportFollowupAction(input: {
 }
 
 export function detectImportTarget(raw: string): ImportTarget {
-  const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
-  const commaRows = lines.filter((line) => line.includes(",")).length
-  const pipeRows = lines.filter((line) => line.includes("|")).length
-  const headingRows = lines.filter((line) => /^#{1,3}\s+/.test(line)).length
+  return detectImportTargetFromAnalysis(analyzeImportSource(raw))
+}
 
-  if (lines.length >= 2 && commaRows / lines.length > 0.65) return "sheet"
-  if (lines.length >= 2 && pipeRows / lines.length > 0.5) return "slides"
-  if (headingRows >= 2 || raw.length > 900) return "doc"
+function analyzeImportSource(raw: string): ImportSourceAnalysis {
+  const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+  let commaRows = 0
+  let pipeRows = 0
+  let headingRows = 0
+
+  for (const line of lines) {
+    if (line.includes(",")) commaRows += 1
+    if (line.includes("|")) pipeRows += 1
+    if (/^#{1,3}\s+/.test(line)) headingRows += 1
+  }
+
+  return { commaRows, headingRows, lines, pipeRows, raw }
+}
+
+function detectImportTargetFromAnalysis(analysis: ImportSourceAnalysis): ImportTarget {
+  if (analysis.lines.length >= 2 && analysis.commaRows / analysis.lines.length > 0.65) return "sheet"
+  if (analysis.lines.length >= 2 && analysis.pipeRows / analysis.lines.length > 0.5) return "slides"
+  if (analysis.headingRows >= 2 || analysis.raw.length > 900) return "doc"
   return "note"
 }
 
-function countImportItems(target: ImportTarget, raw: string) {
-  const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
-  if (target === "sheet") return Math.max(1, lines.length)
-  if (target === "slides") return Math.max(1, Math.min(16, lines.length))
-  if (target === "doc") return Math.max(1, lines.filter((line) => /^#{1,3}\s+/.test(line)).length || Math.ceil(raw.length / 500))
-  return Math.max(1, Math.ceil(raw.length / 240))
+function countImportItems(target: ImportTarget, analysis: ImportSourceAnalysis) {
+  if (target === "sheet") return Math.max(1, analysis.lines.length)
+  if (target === "slides") return Math.max(1, Math.min(16, analysis.lines.length))
+  if (target === "doc") return Math.max(1, analysis.headingRows || Math.ceil(analysis.raw.length / 500))
+  return Math.max(1, Math.ceil(analysis.raw.length / 240))
 }
 
-function importConfidence(input: { forcedTarget: boolean; itemCount: number; raw: string; target: ImportTarget }): ImportPreviewSummary["confidence"] {
+function importConfidence(input: { analysis: ImportSourceAnalysis; forcedTarget: boolean; itemCount: number; target: ImportTarget }): ImportPreviewSummary["confidence"] {
   if (input.forcedTarget) return "high"
   if (input.target === "sheet" && input.itemCount >= 2) return "high"
-  if (input.target === "slides" && input.raw.includes("|")) return "high"
-  if (input.target === "doc" && input.raw.includes("##")) return "high"
-  if (input.raw.length < 40) return "low"
+  if (input.target === "slides" && input.analysis.pipeRows > 0) return "high"
+  if (input.target === "doc" && input.analysis.headingRows > 0) return "high"
+  if (input.analysis.raw.length < 40) return "low"
   return "medium"
 }
 
@@ -264,9 +287,8 @@ function shapeDocumentMarkdown(raw: string) {
   ].join("\n")
 }
 
-function shapeSlides(raw: string) {
-  const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
-  const slideLines = lines.length ? lines : ["Imported lesson|Add a concise explanation|AI"]
+function shapeSlides(analysis: ImportSourceAnalysis) {
+  const slideLines = analysis.lines.length ? analysis.lines : ["Imported lesson|Add a concise explanation|AI"]
   return slideLines.slice(0, 16).map((line, index) => {
     const [title, body, accent] = line.includes("|") ? line.split("|") : [line, "Add supporting points, examples, or visual cues.", "Import"]
     return {
@@ -280,10 +302,10 @@ function shapeSlides(raw: string) {
   })
 }
 
-function fallbackSheet(raw: string) {
+function fallbackSheet(analysis: ImportSourceAnalysis) {
   return [
     ["Item", "Detail", "Next step"],
-    ...raw.split(/\r?\n/).map((line, index) => [`${index + 1}`, line.trim(), "Review"]).filter((row) => row[1]),
+    ...analysis.lines.map((line, index) => [`${index + 1}`, line, "Review"]),
   ]
 }
 
@@ -296,8 +318,8 @@ function markdownToHtml(markdown: string) {
   }).join("")
 }
 
-function inferTitle(raw: string) {
-  return raw.split(/\r?\n/).find((line) => line.trim().length > 8)?.trim().slice(0, 72) || "Imported Learning Capture"
+function inferTitle(analysis: ImportSourceAnalysis) {
+  return analysis.lines.find((line) => line.length > 8)?.slice(0, 72) || "Imported Learning Capture"
 }
 
 function cleanTitle(value: string) {
