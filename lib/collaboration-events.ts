@@ -17,6 +17,12 @@ export interface CollaborationEventValidation {
   error?: string
 }
 
+export interface CollaborationEventParseResult {
+  ok: boolean
+  input?: unknown
+  error?: string
+}
+
 const maxPayloadBytes = 16 * 1024
 const allowedPomodoroStatuses = new Set(["start", "pause", "resume", "complete", "reset", "tick"])
 
@@ -56,7 +62,9 @@ function objectPayload(value: unknown) {
 }
 
 export function validateCollaborationEvent(input: unknown): CollaborationEventValidation {
-  const parsed = typeof input === "string" ? safeJson(input) : input
+  const parsedInput = parseCollaborationEventInput(input)
+  if (!parsedInput.ok) return { ok: false, error: parsedInput.error }
+  const parsed = parsedInput.input
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return { ok: false, error: "Message must be a JSON object." }
   if (payloadSize(parsed) > maxPayloadBytes) return { ok: false, error: "Message is too large." }
 
@@ -118,10 +126,11 @@ export function validateCollaborationEvent(input: unknown): CollaborationEventVa
   return { ok: true, event: { type, userId, payload: { summary, ...payload } } }
 }
 
-function safeJson(value: string) {
+export function parseCollaborationEventInput(input: unknown): CollaborationEventParseResult {
+  if (typeof input !== "string") return { ok: true, input }
   try {
-    return JSON.parse(value)
+    return { ok: true, input: JSON.parse(input) as unknown }
   } catch {
-    return null
+    return { ok: false, error: "Message must be valid JSON." }
   }
 }
