@@ -2,7 +2,7 @@
   "name": "learn",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@11.1.1",
+  "packageManager": "pnpm@11.5.0+sha512.dbfcc4f81cf48597afd4bc391ffdf12c11f1a9fb83a395bfa6b0a2d9cc2fd8ffebafdb1ccbd529632153f793904c2615b7f09fe1a345473fd1c35845172a8eb1",
   "scripts": {
     "build": "next build --webpack",
     "cf:audit-cleanup": "tsx ops/scripts/cleanup/cloudflare-learn-resources.ts",
