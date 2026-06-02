@@ -6,7 +6,7 @@ LEARN keeps most implementation, operations, and planning files inside grouped f
 
 - `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `.npmrc`: package manager entry points.
 - `tsconfig.json`, `next-env.d.ts`: TypeScript and Next.js compiler entry points.
-- `next.config.mjs`, `postcss.config.ts`, `open-next.config.ts`: Next.js, PostCSS/Tailwind, and OpenNext build entry points.
+- `next.config.mjs`, `postcss.config.mjs`, `open-next.config.ts`: Next.js, PostCSS/Tailwind, and OpenNext build entry points.
 - `components.json`: shadcn/ui component metadata.
 - `vercel.json`: Vercel project deployment metadata.
 - `.gitignore`, `.dockerignore`: repository and Docker build-context ignore rules.
@@ -27,4 +27,4 @@ LEARN keeps most implementation, operations, and planning files inside grouped f
 
 ## Conversion Policy
 
-Project source and operations code should be TypeScript. JavaScript files are not accepted by `tsconfig.json`. The only tracked JavaScript-family exception is `next.config.mjs`, which remains an ES module for verified Next.js production-build compatibility. Generated browser vendor assets under `public/vendor` are rebuilt from installed packages and ignored.
+Project source and operations code should be TypeScript. JavaScript files are not accepted by `tsconfig.json`. The only tracked JavaScript-family exceptions are `next.config.mjs` and `postcss.config.mjs`, which remain ES modules for verified Next.js and Tailwind production-build compatibility. Generated browser vendor assets under `public/vendor` are rebuilt from installed packages and ignored.

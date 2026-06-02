@@ -16,7 +16,7 @@ const allowedRootFiles = new Set([
   "package.json",
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
-  "postcss.config.ts",
+  "postcss.config.mjs",
   "tsconfig.json",
   "vercel.json",
 ])
@@ -46,6 +46,7 @@ const allowedDocsDirectories = new Set([
 
 const allowedJavaScriptFiles = new Set([
   "next.config.mjs",
+  "postcss.config.mjs",
 ])
 
 function listTrackedFiles() {
@@ -135,5 +136,15 @@ test("Docker build context ignores generated workspace output", () => {
     "public/vendor",
   ]) {
     assert.equal(dockerIgnoreEntries.has(entry), true, `${entry} should stay out of Docker context`)
+  }
+})
+
+test("Tailwind global styles explicitly scan project source files", () => {
+  for (const stylesheetPath of ["app/globals.css", "styles/globals.css"]) {
+    const stylesheet = fs.readFileSync(stylesheetPath, "utf8")
+
+    assert.match(stylesheet, /@import\s+['"]tailwindcss['"]/)
+    assert.match(stylesheet, /@source\s+['"]\.\.\/\*\*\/\*\.\{ts,tsx\}['"]/)
+    assert.match(stylesheet, /@tailwind\s+utilities/)
   }
 })
