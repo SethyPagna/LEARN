@@ -324,6 +324,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-06-02: Strengthened the live Worker smoke check with route-specific content markers for the intro, login, dashboard, Studio, Social, Practice, and AI Tutor pages.
 - 2026-06-02: Added unauthenticated health-endpoint protection to the live Cloudflare smoke check so admin-only runtime details stay blocked while public pages remain available.
 - 2026-06-02: Extended the live Cloudflare smoke check to validate JSON content type and required response keys for session and protected health API routes.
+- 2026-06-02: Added live-response leak and error-page guards to the Cloudflare smoke check for common provider/API token prefixes and rendered Next.js/server error output.
 
 ## Implementation Slices
 
