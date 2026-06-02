@@ -148,3 +148,15 @@ test("Tailwind global styles explicitly scan project source files", () => {
     assert.match(stylesheet, /@tailwind\s+utilities/)
   }
 })
+
+test("production builds verify generated Tailwind utilities", () => {
+  const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8")) as {
+    scripts?: Record<string, string>
+  }
+  const checkScript = fs.readFileSync("ops/scripts/test/check-built-css.ts", "utf8")
+
+  assert.equal(packageJson.scripts?.postbuild, "tsx ops/scripts/test/check-built-css.ts")
+  assert.match(checkScript, /display:flex/)
+  assert.match(checkScript, /display:grid/)
+  assert.match(checkScript, /@apply/)
+})

@@ -11,6 +11,7 @@
     "dev": "next dev",
     "lint": "tsc --noEmit",
     "prebuild": "tsx ops/scripts/assets/sync-browser-assets.ts",
+    "postbuild": "tsx ops/scripts/test/check-built-css.ts",
     "predev": "tsx ops/scripts/assets/sync-browser-assets.ts",
     "sync:assets": "tsx ops/scripts/assets/sync-browser-assets.ts",
     "start": "next start",
