@@ -180,6 +180,9 @@ test("Cloudflare smoke script verifies live routes and CSS", () => {
   assert.match(smokeScript, /Admin access required/)
   assert.match(smokeScript, /databaseConfigured/)
   assert.match(smokeScript, /application\/json/)
+  assert.match(smokeScript, /UNSAFE_RESPONSE_PATTERNS/)
+  assert.match(smokeScript, /cf\(\?:ut\|k\)/)
+  assert.match(smokeScript, /Application error/)
 })
 
 test("Cloudflare deploy workflow smokes the live Worker after deploy", () => {

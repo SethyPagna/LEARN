@@ -5,6 +5,15 @@ const REQUIRED_CSS_SNIPPETS = [
   "display:grid",
   "min-height:100vh",
 ]
+const UNSAFE_RESPONSE_PATTERNS: UnsafeResponsePattern[] = [
+  { label: "Cloudflare API token", pattern: /\bcf(?:ut|k)_[A-Za-z0-9]{20,}\b/ },
+  { label: "Vercel token", pattern: /\bvck_[A-Za-z0-9]{20,}\b/ },
+  { label: "Groq API key", pattern: /\bgsk_[A-Za-z0-9]{20,}\b/ },
+  { label: "Cerebras API key", pattern: /\bcsk-[A-Za-z0-9]{20,}\b/ },
+  { label: "Google AI API key", pattern: /\bAIza[0-9A-Za-z_-]{20,}\b/ },
+  { label: "Next.js application error", pattern: /Application error/i },
+  { label: "server error text", pattern: /Internal Server Error/i },
+]
 const ROUTES_TO_CHECK: RouteExpectation[] = [
   {
     markers: ["LEARN", "Vault to practice", "View workflow"],
@@ -60,6 +69,11 @@ interface RouteExpectation {
   path: string
 }
 
+interface UnsafeResponsePattern {
+  label: string
+  pattern: RegExp
+}
+
 function fail(message: string): never {
   console.error(`Cloudflare smoke check failed: ${message}`)
   process.exit(1)
@@ -113,6 +127,13 @@ function parseJsonObject(routePath: string, body: string): Record<string, unknow
   fail(`${routePath} did not return a JSON object`)
 }
 
+function checkUnsafeOutput(routePath: string, body: string) {
+  const match = UNSAFE_RESPONSE_PATTERNS.find((entry) => entry.pattern.test(body))
+  if (match) {
+    fail(`${routePath} leaked ${match.label}`)
+  }
+}
+
 async function checkRoutes(baseUrl: string) {
   for (const route of ROUTES_TO_CHECK) {
     const result = await fetchText(absoluteUrl(baseUrl, route.path))
@@ -120,6 +141,8 @@ async function checkRoutes(baseUrl: string) {
     if (result.status !== expectedStatus) {
       fail(`${route.path} returned ${result.status}; expected ${expectedStatus}`)
     }
+    checkUnsafeOutput(route.path, result.body)
+
     if (expectedStatus === 200 && route.path !== "/api/auth/session" && result.body.trim().length < 100) {
       fail(`${route.path} returned an unexpectedly small response`)
     }
