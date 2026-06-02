@@ -37,6 +37,11 @@ const ROUTES_TO_CHECK: RouteExpectation[] = [
   {
     path: "/api/auth/session",
   },
+  {
+    expectedStatus: 403,
+    markers: ["Admin access required"],
+    path: "/api/integrations/health",
+  },
 ]
 
 interface FetchTextResult {
@@ -47,6 +52,7 @@ interface FetchTextResult {
 }
 
 interface RouteExpectation {
+  expectedStatus?: number
   markers?: string[]
   path: string
 }
@@ -94,10 +100,11 @@ function absoluteUrl(baseUrl: string, routeOrPath: string) {
 async function checkRoutes(baseUrl: string) {
   for (const route of ROUTES_TO_CHECK) {
     const result = await fetchText(absoluteUrl(baseUrl, route.path))
-    if (result.status !== 200) {
-      fail(`${route.path} returned ${result.status}`)
+    const expectedStatus = route.expectedStatus || 200
+    if (result.status !== expectedStatus) {
+      fail(`${route.path} returned ${result.status}; expected ${expectedStatus}`)
     }
-    if (route.path !== "/api/auth/session" && result.body.trim().length < 100) {
+    if (expectedStatus === 200 && route.path !== "/api/auth/session" && result.body.trim().length < 100) {
       fail(`${route.path} returned an unexpectedly small response`)
     }
 

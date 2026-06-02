@@ -174,6 +174,9 @@ test("Cloudflare smoke script verifies live routes and CSS", () => {
   assert.match(smokeScript, /RouteExpectation/)
   assert.match(smokeScript, /All projects/)
   assert.match(smokeScript, /Quiz bank/)
+  assert.match(smokeScript, /expectedStatus/)
+  assert.match(smokeScript, /\/api\/integrations\/health/)
+  assert.match(smokeScript, /Admin access required/)
 })
 
 test("Cloudflare deploy workflow smokes the live Worker after deploy", () => {
