@@ -35,10 +35,12 @@ const ROUTES_TO_CHECK: RouteExpectation[] = [
     path: "/ai",
   },
   {
+    expectedJsonKeys: ["databaseConfigured", "user"],
     path: "/api/auth/session",
   },
   {
     expectedStatus: 403,
+    expectedJsonKeys: ["error"],
     markers: ["Admin access required"],
     path: "/api/integrations/health",
   },
@@ -52,6 +54,7 @@ interface FetchTextResult {
 }
 
 interface RouteExpectation {
+  expectedJsonKeys?: string[]
   expectedStatus?: number
   markers?: string[]
   path: string
@@ -97,6 +100,19 @@ function absoluteUrl(baseUrl: string, routeOrPath: string) {
   return new URL(routeOrPath, baseUrl).toString()
 }
 
+function parseJsonObject(routePath: string, body: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(body) as unknown
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>
+    }
+  } catch {
+    // The caller reports a route-specific failure below.
+  }
+
+  fail(`${routePath} did not return a JSON object`)
+}
+
 async function checkRoutes(baseUrl: string) {
   for (const route of ROUTES_TO_CHECK) {
     const result = await fetchText(absoluteUrl(baseUrl, route.path))
@@ -111,6 +127,18 @@ async function checkRoutes(baseUrl: string) {
     const missingMarkers = (route.markers || []).filter((marker) => !result.body.includes(marker))
     if (missingMarkers.length > 0) {
       fail(`${route.path} is missing expected content: ${missingMarkers.join(", ")}`)
+    }
+
+    if (route.expectedJsonKeys) {
+      if (!result.contentType.includes("application/json")) {
+        fail(`${route.path} returned ${result.contentType || "no content type"} instead of JSON`)
+      }
+
+      const jsonObject = parseJsonObject(route.path, result.body)
+      const missingKeys = route.expectedJsonKeys.filter((key) => !(key in jsonObject))
+      if (missingKeys.length > 0) {
+        fail(`${route.path} JSON is missing ${missingKeys.join(", ")}`)
+      }
     }
   }
 }
