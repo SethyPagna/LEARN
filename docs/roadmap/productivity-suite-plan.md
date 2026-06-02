@@ -317,6 +317,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-31: Continued AI Tutor cleanup by shortening result, gateway, and import helper copy while keeping the grouped task/context/output controls intact.
 - 2026-05-31: Continued Settings and Progress cleanup by shortening section help, compacting empty copy, and replacing a non-ASCII route-chip separator with an ASCII-safe divider.
 - 2026-05-31: Continued project-structure cleanup by adding local development logs to workspace cleanup and Docker ignores, while documenting why root source folders stay in place until a dedicated `src` routing migration.
+- 2026-06-02: Fixed the live Cloudflare raw-render regression by moving PostCSS/Tailwind config to a runtime `.mjs` file, explicitly registering Tailwind source scanning, and adding a favicon fallback for the Worker.
 
 ## Implementation Slices
 
