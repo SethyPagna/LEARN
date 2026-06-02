@@ -5,15 +5,38 @@ const REQUIRED_CSS_SNIPPETS = [
   "display:grid",
   "min-height:100vh",
 ]
-const ROUTES_TO_CHECK = [
-  "/",
-  "/login",
-  "/dashboard",
-  "/studio",
-  "/social",
-  "/practice",
-  "/ai",
-  "/api/auth/session",
+const ROUTES_TO_CHECK: RouteExpectation[] = [
+  {
+    markers: ["LEARN", "Vault to practice", "View workflow"],
+    path: "/",
+  },
+  {
+    markers: ["Workspace access", "Sign in", "Request access"],
+    path: "/login",
+  },
+  {
+    markers: ["Dashboard", "Route", "AI suggestion"],
+    path: "/dashboard",
+  },
+  {
+    markers: ["Studio", "All projects", "Templates"],
+    path: "/studio",
+  },
+  {
+    markers: ["Social", "Friends", "Find people"],
+    path: "/social",
+  },
+  {
+    markers: ["Practice", "Quiz bank", "Games"],
+    path: "/practice",
+  },
+  {
+    markers: ["AI tutor", "Task", "Gateway"],
+    path: "/ai",
+  },
+  {
+    path: "/api/auth/session",
+  },
 ]
 
 interface FetchTextResult {
@@ -21,6 +44,11 @@ interface FetchTextResult {
   contentType: string
   status: number
   url: string
+}
+
+interface RouteExpectation {
+  markers?: string[]
+  path: string
 }
 
 function fail(message: string): never {
@@ -65,12 +93,17 @@ function absoluteUrl(baseUrl: string, routeOrPath: string) {
 
 async function checkRoutes(baseUrl: string) {
   for (const route of ROUTES_TO_CHECK) {
-    const result = await fetchText(absoluteUrl(baseUrl, route))
+    const result = await fetchText(absoluteUrl(baseUrl, route.path))
     if (result.status !== 200) {
-      fail(`${route} returned ${result.status}`)
+      fail(`${route.path} returned ${result.status}`)
     }
-    if (route !== "/api/auth/session" && result.body.trim().length < 100) {
-      fail(`${route} returned an unexpectedly small response`)
+    if (route.path !== "/api/auth/session" && result.body.trim().length < 100) {
+      fail(`${route.path} returned an unexpectedly small response`)
+    }
+
+    const missingMarkers = (route.markers || []).filter((marker) => !result.body.includes(marker))
+    if (missingMarkers.length > 0) {
+      fail(`${route.path} is missing expected content: ${missingMarkers.join(", ")}`)
     }
   }
 }
