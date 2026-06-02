@@ -45,3 +45,14 @@ jobs:
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Smoke live Worker
+        run: |
+          for attempt in 1 2 3; do
+            if corepack pnpm smoke:cloudflare; then
+              exit 0
+            fi
+            echo "Live smoke attempt ${attempt} failed; waiting for Worker propagation..."
+            sleep 15
+          done
+          corepack pnpm smoke:cloudflare

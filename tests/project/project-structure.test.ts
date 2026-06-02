@@ -172,3 +172,14 @@ test("Cloudflare smoke script verifies live routes and CSS", () => {
   assert.match(smokeScript, /display:flex/)
   assert.match(smokeScript, /favicon\.ico/)
 })
+
+test("Cloudflare deploy workflow smokes the live Worker after deploy", () => {
+  const workflowText = fs.readFileSync(".github/workflows/deploy-cloudflare.yml", "utf8")
+  const deployIndex = workflowText.indexOf("corepack pnpm deploy:cloudflare")
+  const smokeIndex = workflowText.indexOf("corepack pnpm smoke:cloudflare")
+
+  assert.notEqual(deployIndex, -1)
+  assert.notEqual(smokeIndex, -1)
+  assert.equal(smokeIndex > deployIndex, true)
+  assert.match(workflowText, /Live smoke attempt/)
+})
