@@ -319,6 +319,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-05-31: Continued project-structure cleanup by adding local development logs to workspace cleanup and Docker ignores, while documenting why root source folders stay in place until a dedicated `src` routing migration.
 - 2026-06-02: Fixed the live Cloudflare raw-render regression by moving PostCSS/Tailwind config to a runtime `.mjs` file, explicitly registering Tailwind source scanning, and adding a favicon fallback for the Worker.
 - 2026-06-02: Added a production CSS guard that runs after every build and fails if Tailwind utilities are missing or raw `@apply` reaches generated CSS.
+- 2026-06-02: Added a live Cloudflare smoke check for route status, deployed Tailwind CSS utilities, and favicon delivery so the Worker can be verified after every deploy.
 
 ## Implementation Slices
 
