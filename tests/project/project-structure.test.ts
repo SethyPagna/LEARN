@@ -160,3 +160,15 @@ test("production builds verify generated Tailwind utilities", () => {
   assert.match(checkScript, /display:grid/)
   assert.match(checkScript, /@apply/)
 })
+
+test("Cloudflare smoke script verifies live routes and CSS", () => {
+  const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8")) as {
+    scripts?: Record<string, string>
+  }
+  const smokeScript = fs.readFileSync("ops/scripts/test/smoke-cloudflare.ts", "utf8")
+
+  assert.equal(packageJson.scripts?.["smoke:cloudflare"], "tsx ops/scripts/test/smoke-cloudflare.ts")
+  assert.match(smokeScript, /learn\.learn-app\.workers\.dev/)
+  assert.match(smokeScript, /display:flex/)
+  assert.match(smokeScript, /favicon\.ico/)
+})
