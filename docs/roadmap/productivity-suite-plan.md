@@ -323,6 +323,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - 2026-06-02: Wired the live Cloudflare smoke check into the GitHub deploy workflow after Worker deployment, with short retries for propagation before a deploy is considered healthy.
 - 2026-06-02: Strengthened the live Worker smoke check with route-specific content markers for the intro, login, dashboard, Studio, Social, Practice, and AI Tutor pages.
 - 2026-06-02: Added unauthenticated health-endpoint protection to the live Cloudflare smoke check so admin-only runtime details stay blocked while public pages remain available.
+- 2026-06-02: Extended the live Cloudflare smoke check to validate JSON content type and required response keys for session and protected health API routes.
 
 ## Implementation Slices
 
