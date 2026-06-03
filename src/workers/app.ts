@@ -6,10 +6,11 @@ import {
   StudyBattleDurableObject,
   StudyRoomDurableObject,
   MatchmakingDO,
+  GameRoomDO,
   type RealtimeEnv,
 } from "./realtime"
 
-export { MatchmakingDO, PresenceDurableObject, StudyBattleDurableObject, StudyRoomDurableObject }
+export { GameRoomDO, MatchmakingDO, PresenceDurableObject, StudyBattleDurableObject, StudyRoomDurableObject }
 
 interface OpenNextHandler {
   fetch(request: Request, env: unknown, ctx: ExecutionContext): Promise<Response> | Response
