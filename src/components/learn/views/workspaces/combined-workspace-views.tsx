@@ -665,7 +665,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
                 })}
               </div>
             ) : null}
-            <details className="group/find rounded-md border border-border bg-card" open={!connections.length || Boolean(query.trim())}>
+            <details className="group/find rounded-md border border-border bg-card" open={Boolean(query.trim())}>
               <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-semibold text-foreground">
                 <span>{connections.length ? "Find more people" : "Find people"}</span>
                 <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/find:rotate-180" />
