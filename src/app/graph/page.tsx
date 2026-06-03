@@ -1,5 +1,5 @@
-import { LearnShell } from "@/components/learn/learn-shell"
+import { redirect } from "next/navigation"
 
 export default function GraphPage() {
-  return <LearnShell initialView="graph" />
+  redirect("/studio")
 }
