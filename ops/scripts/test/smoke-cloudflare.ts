@@ -43,7 +43,7 @@ const ROUTES_TO_CHECK: RouteExpectation[] = [
     path: "/social",
   },
   {
-    markers: ["Practice", "Quiz bank", "Games"],
+    markers: ["Practice", "Sets", "Games"],
     path: "/practice",
   },
   {
