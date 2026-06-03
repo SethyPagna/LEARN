@@ -2,7 +2,7 @@
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "learn",
   "account_id": "d105a82bc26b6913575355352c2d1bb1",
-  "main": "../../workers/app.ts",
+  "main": "../../src/workers/app.ts",
   "compatibility_date": "2026-05-13",
   "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
   "assets": {
@@ -14,7 +14,7 @@
       "binding": "LEARN_DB",
       "database_name": "learn-db",
       "database_id": "3eeb04af-c283-48c0-9469-82b64392fa79",
-      "migrations_dir": "../../migrations"
+      "migrations_dir": "../../ops/migrations"
     }
   ],
   "r2_buckets": [
@@ -27,16 +27,50 @@
       "bucket_name": "learn-next-cache"
     }
   ],
-  "services": [
-    {
-      "binding": "LEARN_REALTIME",
-      "service": "learn-realtime"
-    }
-  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "STUDY_ROOM_DO",
+        "class_name": "StudyRoomDurableObject"
+      },
+      {
+        "name": "STUDY_BATTLE_DO",
+        "class_name": "StudyBattleDurableObject"
+      },
+      {
+        "name": "PRESENCE_DO",
+        "class_name": "PresenceDurableObject"
+      }
+    ]
+  },
   "migrations": [
     {
       "tag": "v2_move_realtime_to_service_worker",
       "deleted_classes": [
+        "StudyRoomDurableObject",
+        "StudyBattleDurableObject",
+        "PresenceDurableObject"
+      ]
+    },
+    {
+      "tag": "v3_move_realtime_into_app_worker",
+      "new_sqlite_classes": [
+        "StudyRoomDurableObject",
+        "StudyBattleDurableObject",
+        "PresenceDurableObject"
+      ]
+    },
+    {
+      "tag": "v4_restore_realtime_service_worker",
+      "deleted_classes": [
+        "StudyRoomDurableObject",
+        "StudyBattleDurableObject",
+        "PresenceDurableObject"
+      ]
+    },
+    {
+      "tag": "v5_restore_realtime_to_main_worker",
+      "new_sqlite_classes": [
         "StudyRoomDurableObject",
         "StudyBattleDurableObject",
         "PresenceDurableObject"

@@ -5,6 +5,13 @@ const REQUIRED_CSS_SNIPPETS = [
   "display:grid",
   "min-height:100vh",
 ]
+const REQUIRED_RESPONSE_HEADERS: RequiredResponseHeader[] = [
+  { includes: "DENY", name: "x-frame-options" },
+  { includes: "nosniff", name: "x-content-type-options" },
+  { includes: "frame-ancestors 'none'", name: "content-security-policy" },
+  { includes: "object-src 'none'", name: "content-security-policy" },
+  { includes: "upgrade-insecure-requests", name: "content-security-policy" },
+]
 const UNSAFE_RESPONSE_PATTERNS: UnsafeResponsePattern[] = [
   { label: "Cloudflare API token", pattern: /\bcf(?:ut|k)_[A-Za-z0-9]{20,}\b/ },
   { label: "Vercel token", pattern: /\bvck_[A-Za-z0-9]{20,}\b/ },
@@ -58,8 +65,14 @@ const ROUTES_TO_CHECK: RouteExpectation[] = [
 interface FetchTextResult {
   body: string
   contentType: string
+  headers: Headers
   status: number
   url: string
+}
+
+interface RequiredResponseHeader {
+  includes: string
+  name: string
 }
 
 interface RouteExpectation {
@@ -97,6 +110,7 @@ async function fetchText(url: string): Promise<FetchTextResult> {
     return {
       body,
       contentType: response.headers.get("content-type") || "",
+      headers: response.headers,
       status: response.status,
       url,
     }
@@ -134,6 +148,15 @@ function checkUnsafeOutput(routePath: string, body: string) {
   }
 }
 
+function checkRequiredHeaders(routePath: string, headers: Headers) {
+  for (const requiredHeader of REQUIRED_RESPONSE_HEADERS) {
+    const headerValue = headers.get(requiredHeader.name) || ""
+    if (!headerValue.includes(requiredHeader.includes)) {
+      fail(`${routePath} missing ${requiredHeader.name}: ${requiredHeader.includes}`)
+    }
+  }
+}
+
 async function checkRoutes(baseUrl: string) {
   for (const route of ROUTES_TO_CHECK) {
     const result = await fetchText(absoluteUrl(baseUrl, route.path))
@@ -141,6 +164,7 @@ async function checkRoutes(baseUrl: string) {
     if (result.status !== expectedStatus) {
       fail(`${route.path} returned ${result.status}; expected ${expectedStatus}`)
     }
+    checkRequiredHeaders(route.path, result.headers)
     checkUnsafeOutput(route.path, result.body)
 
     if (expectedStatus === 200 && route.path !== "/api/auth/session" && result.body.trim().length < 100) {

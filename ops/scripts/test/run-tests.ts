@@ -7,7 +7,7 @@ const EXCLUDED_DIRS = new Set(["node_modules", ".next", ".open-next", ".wrangler
 
 function listTestFiles(rootDir: string): string[] {
   const testFiles: string[] = []
-  const pendingDirs = [path.resolve(rootDir, "tests")]
+  const pendingDirs = [path.resolve(rootDir, "src", "tests")]
 
   while (pendingDirs.length) {
     const currentDir = pendingDirs.pop()
@@ -35,7 +35,7 @@ const rootDir = path.resolve(__dirname, "../../..")
 const testFiles = listTestFiles(rootDir)
 
 if (!testFiles.length) {
-  console.error("No test files found under tests.")
+  console.error("No test files found under src/tests.")
   process.exit(1)
 }
 

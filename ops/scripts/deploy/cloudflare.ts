@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process"
 import path from "node:path"
 
 const workspaceRoot = process.cwd()
-const localBinPath = path.join(workspaceRoot, "run", "bin")
+const localBinPath = path.join(workspaceRoot, "ops", "run", "bin")
 const deploymentPath = [localBinPath, process.env.PATH].filter(Boolean).join(path.delimiter)
 
 interface RunOptions {
@@ -29,6 +29,7 @@ run("opennextjs-cloudflare", ["build"], {
     SKIP_WRANGLER_CONFIG_CHECK: "yes",
   },
 })
+run("tsx", ["ops/scripts/deploy/patch-opennext-worker.ts"])
 run("wrangler", ["deploy", "--config", "ops/cloudflare/wrangler.app-deploy.jsonc"], {
   env: { OPEN_NEXT_DEPLOY: "true" },
 })

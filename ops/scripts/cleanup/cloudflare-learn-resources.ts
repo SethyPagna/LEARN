@@ -3,7 +3,7 @@ import {
   type CloudflareCleanupDecision,
   type CloudflareResourceKind,
   type CloudflareResourceLike,
-} from "../../../lib/cloudflare-cleanup"
+} from "../../../src/lib/cloudflare-cleanup"
 
 interface CloudflareListResponse {
   success?: boolean

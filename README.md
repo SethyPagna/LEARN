@@ -29,7 +29,7 @@ Never commit real Cloudflare, AI, Vercel, or tunnel secrets. If a token was past
 ```powershell
 corepack pnpm install --frozen-lockfile
 copy ops\env\dev.vars.example .dev.vars
-run\setup-first-time.bat
+ops\run\setup-first-time.bat
 ```
 
 When `wrangler d1 create learn-db` prints the database id, paste that id into `ops\cloudflare\wrangler.jsonc` at `d1_databases[0].database_id` and set `CLOUDFLARE_D1_DATABASE_ID` in ignored local, GitHub, Vercel, or Docker env.
@@ -37,8 +37,8 @@ When `wrangler d1 create learn-db` prints the database id, paste that id into `o
 Set production secrets with Wrangler or the Cloudflare dashboard:
 
 ```powershell
-run\bin\pnpm.cmd exec wrangler secret put SESSION_SECRET
-run\bin\pnpm.cmd exec wrangler secret put CLOUDFLARE_AI_GATEWAY_TOKEN
+ops\run\bin\pnpm.cmd exec wrangler secret put SESSION_SECRET
+ops\run\bin\pnpm.cmd exec wrangler secret put CLOUDFLARE_AI_GATEWAY_TOKEN
 ```
 
 For Vercel and Docker, also set:
@@ -55,7 +55,7 @@ For Vercel and Docker, also set:
 Run the app locally with OpenNext's Cloudflare binding integration:
 
 ```powershell
-run\start-local.bat
+ops\run\start-local.bat
 ```
 
 This applies local D1 migrations and starts Next dev with D1/R2 bindings available through OpenNext's Cloudflare integration.
@@ -65,7 +65,7 @@ This applies local D1 migrations and starts Next dev with D1/R2 bindings availab
 Cloudflare Workers:
 
 ```powershell
-run\deploy-cloudflare.bat
+ops\run\deploy-cloudflare.bat
 ```
 
 The Worker name is `learn`, so the default Workers URL is `https://learn.<account-workers-subdomain>.workers.dev`. Cloudflare's workers.dev subdomain is account-level; changing it from `learn-learning-app` to `learn`, `learning`, or `learn-learning` changes workers.dev URLs for other Workers in the same account too. Use a custom domain for a LEARN-only hostname change.
@@ -73,7 +73,7 @@ The Worker name is `learn`, so the default Workers URL is `https://learn.<accoun
 Vercel project `learn`:
 
 ```powershell
-run\deploy-vercel.bat
+ops\run\deploy-vercel.bat
 ```
 
 Docker/domain self-deploy:
@@ -125,10 +125,10 @@ corepack pnpm lint
 corepack pnpm build
 ```
 
-On Windows, `run\bin\pnpm.cmd <script>` is the preferred local wrapper for repo scripts. It uses the pinned pnpm toolchain directly and avoids npm reading pnpm-only project config.
+On Windows, `ops\run\bin\pnpm.cmd <script>` is the preferred local wrapper for repo scripts. It uses the pinned pnpm toolchain directly and avoids npm reading pnpm-only project config.
 
 The test suite covers auth helpers, learning personalization, AI provider resolution and encrypted provider primitives, Cloudflare D1 API configuration, R2 object key isolation, upload validation, editor history, CSV sheet import/export, and localization fallback.
 
 ## Repository Layout
 
-Most app code lives in `app`, `components`, `lib`, `workers`, `styles`, and `types`. Operations files live under `ops`, command wrappers under `run`, and planning or architecture notes under `docs`. See `docs/architecture/root-files.md` before moving root config files; several are intentionally kept at root because Next.js, pnpm, Vercel, Wrangler, Docker, or shadcn auto-discover them there.
+Most app code lives under `src/app`, `src/components`, `src/lib`, `src/workers`, and `src/tests`. Operations files live under `ops`, command wrappers under `ops/run`, migrations under `ops/migrations`, and planning or architecture notes under `ops/docs`. See `ops/docs/architecture/root-files.md` before moving root config files; several are intentionally kept at root because Next.js, pnpm, Vercel, Wrangler, Docker, or shadcn auto-discover them there.

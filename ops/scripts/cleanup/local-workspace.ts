@@ -1,6 +1,6 @@
 import fs from "node:fs"
 import path from "node:path"
-import { buildWorkspaceCleanupPlan } from "../../../lib/workspace-cleanup"
+import { buildWorkspaceCleanupPlan } from "../../../src/lib/workspace-cleanup"
 
 const APPLY_FLAG = "--apply"
 
