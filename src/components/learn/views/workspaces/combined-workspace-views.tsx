@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ComponentType } from "react"
-import { BookOpen, Bot, ChevronDown, Clock, Gamepad2, Info, Mail, MessageSquare, MoreHorizontal, PhoneCall, Play, Plus, Radio, Repeat2, Search, Send, Sparkles, Swords, Target, Trash2, Users, UsersRound } from "lucide-react"
+import { BookOpen, Bot, ChevronDown, Clock, Gamepad2, Info, Mail, MessageSquare, MoreHorizontal, PhoneCall, Play, Plus, Radio, Repeat2, Search, Send, SlidersHorizontal, Sparkles, Swords, Target, Trash2, Users, UsersRound } from "lucide-react"
 import type { DashboardData, LearningSpace, Quiz, StudyBattle, StudyRoom, User, View } from "../../types"
 import type { WorkspaceOptions } from "../../preferences"
 import { api } from "../../api"
@@ -590,6 +590,25 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search people, chats, groups, or paste an email" className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-foreground outline-none" />
           </label>
           <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
+            <details className="group relative shrink-0">
+              <summary className="inline-flex h-10 cursor-pointer list-none items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden" title="Filter social search">
+                <SlidersHorizontal className="h-4 w-4" />
+                <span className="hidden sm:inline">Filter</span>
+              </summary>
+              <div className="absolute right-0 top-11 z-40 grid w-52 gap-1 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-lg">
+                {scopeTabs.map((scope) => (
+                  <button
+                    key={scope.id}
+                    onClick={() => setSearchScope(scope.id)}
+                    className={`flex h-9 items-center justify-between gap-2 rounded-md px-2 text-sm font-semibold transition ${searchScope === scope.id ? "bg-primary text-primary-foreground" : "hover:bg-accent hover:text-accent-foreground"}`}
+                    type="button"
+                  >
+                    <span>{scope.label}</span>
+                    <span className={`rounded px-1.5 py-0.5 text-[0.65rem] ${searchScope === scope.id ? "bg-primary-foreground/20 text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{scope.count}</span>
+                  </button>
+                ))}
+              </div>
+            </details>
             <button onClick={runSearchCommand} disabled={Boolean(commandAction)} className="inline-flex h-10 shrink-0 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60" title={searchCommand.detail} type="button">
               <Sparkles className="h-4 w-4" />
               <span>{searchCommand.label}</span>
@@ -599,19 +618,6 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
               <Repeat2 className="h-4 w-4" />
             </button>
           </div>
-        </div>
-        <div className="flex gap-1.5 overflow-x-auto">
-          {scopeTabs.map((scope) => (
-            <button
-              key={scope.id}
-              onClick={() => setSearchScope(scope.id)}
-              className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-md border px-3 text-xs font-semibold transition ${searchScope === scope.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
-              type="button"
-            >
-              {scope.label}
-              <span className={`rounded px-1.5 py-0.5 text-[0.65rem] ${searchScope === scope.id ? "bg-primary-foreground/20 text-primary-foreground" : "bg-background text-foreground"}`}>{scope.count}</span>
-            </button>
-          ))}
         </div>
       </div>
       <div className="grid gap-3 p-3 lg:p-4">
