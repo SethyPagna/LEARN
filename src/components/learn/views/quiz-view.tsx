@@ -59,6 +59,17 @@ export function QuizView({
     markedQuestionIds,
     missedQuestionIds: attemptSummary?.missedQuestionIds || retryQuestionIds,
   }), [answeredQuestionIds, attemptSummary?.missedQuestionIds, markedQuestionIds, questionFilter, retryQuestionIds, visibleQuestions])
+  const questionFilterCounts = useMemo(() => new Map(questionFilters.map((filter) => [
+    filter.id,
+    filter.id === "all"
+      ? visibleQuestions.length
+      : filterPracticeQuestions(visibleQuestions, {
+        filter: filter.id,
+        answeredQuestionIds,
+        markedQuestionIds,
+        missedQuestionIds: attemptSummary?.missedQuestionIds || retryQuestionIds,
+      }).length,
+  ])), [answeredQuestionIds, attemptSummary?.missedQuestionIds, markedQuestionIds, retryQuestionIds, visibleQuestions])
 
   useEffect(() => {
     if (!selected) return
@@ -293,22 +304,29 @@ export function QuizView({
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[300px_1fr]">
-      <Panel className="p-3">
+    <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)]">
+      <Panel className="p-3 xl:sticky xl:top-3 xl:max-h-[calc(100vh-6rem)] xl:overflow-auto">
         <details open>
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground xl:hidden">
-            Quiz bank
+            Sets
             <ChevronDown className="h-4 w-4" />
           </summary>
           <div className="mt-2 xl:mt-0">
+            <div className="mb-2 hidden items-center justify-between gap-2 xl:flex">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Sets</p>
+              <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold text-secondary-foreground">{visibleQuizBank.length}</span>
+            </div>
             {visibleQuizBank.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setSelectedQuizId(item.id)}
-                className={`mb-2 w-full rounded-md p-3 text-left ${selected === item.id ? "bg-primary text-primary-foreground" : "bg-muted text-foreground hover:bg-accent hover:text-accent-foreground"}`}
+                className={`mb-2 flex w-full items-center justify-between gap-2 rounded-md p-2.5 text-left ${selected === item.id ? "bg-primary text-primary-foreground" : "bg-muted text-foreground hover:bg-accent hover:text-accent-foreground"}`}
               >
-                <p className="font-semibold">{item.title}</p>
-                <p className="mt-1 text-sm opacity-70">{item.question_count || 0} questions</p>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold">{item.title}</span>
+                  <span className="mt-0.5 block text-xs opacity-70">{item.topic || "Practice"}</span>
+                </span>
+                <span className="shrink-0 rounded bg-background/80 px-1.5 py-0.5 text-[0.68rem] font-bold text-foreground">{item.question_count || 0}</span>
               </button>
             ))}
             {!visibleQuizBank.length ? <EmptyState title="No practice sets" body="Generate one from Studio or Tutor." /> : null}
@@ -336,8 +354,10 @@ export function QuizView({
               </div>
               <div className="flex flex-wrap gap-2 lg:justify-end">
                 <ModeStatusChip label={modeSummary.activeGroup.label} value={modeSummary.activeModeLabel} />
-                <PracticeMenu label="Mode" icon={Sparkles}>
-                  <PracticeMenuAction icon={Sparkles} label={`Next: ${practiceModeLabel(modeSummary.recommendedNextMode)}`} onClick={() => setPracticeMode(modeSummary.recommendedNextMode)} meta={modeSummary.caption} />
+                <ModeStatusChip label="Filter" value={`${questionFilters.find((filter) => filter.id === questionFilter)?.label || "All"} ${questionFilterCounts.get(questionFilter) ?? filteredQuestions.length}`} />
+                <PracticeMenu label="Setup" icon={ListFilter}>
+                  <PracticeMenuSection title="Mode" />
+                  <PracticeMenuAction icon={Sparkles} label={`Recommended: ${practiceModeLabel(modeSummary.recommendedNextMode)}`} onClick={() => setPracticeMode(modeSummary.recommendedNextMode)} meta={modeSummary.caption} />
                   {practiceModeGroups.map((group) => (
                     <div key={group.id} className="grid gap-1">
                       <p className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground first:pt-0">{group.label}</p>
@@ -346,23 +366,14 @@ export function QuizView({
                       ))}
                     </div>
                   ))}
-                </PracticeMenu>
-                <PracticeMenu label="Filters" icon={ListFilter}>
+                  <PracticeMenuSection title="Questions" />
                   {questionFilters.map((filter) => {
-                    const count = filter.id === "all"
-                      ? visibleQuestions.length
-                      : filterPracticeQuestions(visibleQuestions, {
-                        filter: filter.id,
-                        answeredQuestionIds,
-                        markedQuestionIds,
-                        missedQuestionIds: attemptSummary?.missedQuestionIds || retryQuestionIds,
-                      }).length
+                    const count = questionFilterCounts.get(filter.id) ?? 0
                     return (
                       <PracticeMenuAction key={filter.id} active={questionFilter === filter.id} icon={ListFilter} label={filter.label} onClick={() => setQuestionFilter(filter.id)} meta={`${count} question${count === 1 ? "" : "s"}`} />
                     )
                   })}
-                </PracticeMenu>
-                <PracticeMenu label="Set" icon={MoreHorizontal}>
+                  <PracticeMenuSection title="Set" />
                   <PracticeMenuAction icon={Trash2} label="Archive set" onClick={archiveCurrentQuiz} meta="Hide from active practice" />
                 </PracticeMenu>
                 <ControlButton onClick={submit} active size="compact" disabled={runActionById.get("submit")?.disabled}>
@@ -595,6 +606,14 @@ function PracticeMenu({
         {children}
       </div>
     </details>
+  )
+}
+
+function PracticeMenuSection({ title }: { title: string }) {
+  return (
+    <p className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground first:pt-0">
+      {title}
+    </p>
   )
 }
 
