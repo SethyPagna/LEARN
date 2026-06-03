@@ -167,7 +167,7 @@ test("Cloudflare smoke script verifies live routes and CSS", () => {
   assert.match(smokeScript, /favicon\.ico/)
   assert.match(smokeScript, /RouteExpectation/)
   assert.match(smokeScript, /All projects/)
-  assert.match(smokeScript, /Quiz bank/)
+  assert.match(smokeScript, /Sets/)
   assert.match(smokeScript, /expectedStatus/)
   assert.match(smokeScript, /expectedJsonKeys/)
   assert.match(smokeScript, /\/api\/integrations\/health/)
