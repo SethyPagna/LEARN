@@ -1,5 +1,5 @@
-import { LearnShell } from "@/components/learn/learn-shell"
+import { redirect } from "next/navigation"
 
 export default function VaultPage() {
-  return <LearnShell initialView="vault" />
+  redirect("/studio")
 }
