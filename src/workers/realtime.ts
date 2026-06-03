@@ -155,7 +155,7 @@ export class StudyRoomDurableObject extends RealtimeLearningObject {}
 export class StudyBattleDurableObject extends RealtimeLearningObject {}
 export class PresenceDurableObject extends RealtimeLearningObject {}
 
-export class MatchmakingDO extends DurableObject<RealtimeEnv> {
+class LegacyCompatibilityDurableObject extends DurableObject<RealtimeEnv> {
   async fetch() {
     return Response.json({
       ok: true,
@@ -164,14 +164,11 @@ export class MatchmakingDO extends DurableObject<RealtimeEnv> {
   }
 }
 
-export class GameRoomDO extends DurableObject<RealtimeEnv> {
-  async fetch() {
-    return Response.json({
-      ok: true,
-      status: "retained-for-existing-cloudflare-durable-objects",
-    })
-  }
-}
+export class MatchmakingDO extends LegacyCompatibilityDurableObject {}
+export class GameRoomDO extends LegacyCompatibilityDurableObject {}
+export class PresenceDO extends LegacyCompatibilityDurableObject {}
+export class StudyRoomDO extends LegacyCompatibilityDurableObject {}
+export class StudyBattleDO extends LegacyCompatibilityDurableObject {}
 
 export function routeRealtimeRequest(request: Request, env: RealtimeEnv) {
   const url = new URL(request.url)

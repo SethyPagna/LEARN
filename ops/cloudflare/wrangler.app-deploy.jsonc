@@ -46,7 +46,7 @@
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["MatchmakingDO", "GameRoomDO"]
+      "new_sqlite_classes": ["MatchmakingDO", "GameRoomDO", "PresenceDO", "StudyRoomDO", "StudyBattleDO"]
     },
     {
       "tag": "v2_realtime_main_worker_classes",
