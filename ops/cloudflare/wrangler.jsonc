@@ -45,6 +45,10 @@
   },
   "migrations": [
     {
+      "tag": "v1",
+      "new_sqlite_classes": ["MatchmakingDO"]
+    },
+    {
       "tag": "v2_realtime_main_worker_classes",
       "new_sqlite_classes": [
         "StudyRoomDurableObject",

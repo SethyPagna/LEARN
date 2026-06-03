@@ -155,6 +155,15 @@ export class StudyRoomDurableObject extends RealtimeLearningObject {}
 export class StudyBattleDurableObject extends RealtimeLearningObject {}
 export class PresenceDurableObject extends RealtimeLearningObject {}
 
+export class MatchmakingDO extends DurableObject<RealtimeEnv> {
+  async fetch() {
+    return Response.json({
+      ok: true,
+      status: "retained-for-existing-cloudflare-durable-objects",
+    })
+  }
+}
+
 export function routeRealtimeRequest(request: Request, env: RealtimeEnv) {
   const url = new URL(request.url)
   const [kind, ...idParts] = url.pathname.replace(/^\/+/, "").split("/")
