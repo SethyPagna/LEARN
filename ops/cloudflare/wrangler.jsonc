@@ -45,31 +45,7 @@
   },
   "migrations": [
     {
-      "tag": "v2_move_realtime_to_service_worker",
-      "deleted_classes": [
-        "StudyRoomDurableObject",
-        "StudyBattleDurableObject",
-        "PresenceDurableObject"
-      ]
-    },
-    {
-      "tag": "v3_move_realtime_into_app_worker",
-      "new_sqlite_classes": [
-        "StudyRoomDurableObject",
-        "StudyBattleDurableObject",
-        "PresenceDurableObject"
-      ]
-    },
-    {
-      "tag": "v4_restore_realtime_service_worker",
-      "deleted_classes": [
-        "StudyRoomDurableObject",
-        "StudyBattleDurableObject",
-        "PresenceDurableObject"
-      ]
-    },
-    {
-      "tag": "v5_restore_realtime_to_main_worker",
+      "tag": "v2_realtime_main_worker_classes",
       "new_sqlite_classes": [
         "StudyRoomDurableObject",
         "StudyBattleDurableObject",
