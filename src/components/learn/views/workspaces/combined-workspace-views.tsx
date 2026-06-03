@@ -619,88 +619,90 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
           <section className="grid gap-3 rounded-lg border border-border bg-background p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-foreground">People</h3>
-              <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{peoplePage.total} available</span>
+              <div className="flex flex-wrap gap-1.5">
+                <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{connectionPage.total} friends</span>
+                <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{peoplePage.total} available</span>
+              </div>
             </div>
-            <div className="grid gap-2">
-                  {connectableMembers.map((member) => {
-                    const targetId = String(member.id || "")
-                    const actions = buildConnectionActions({
-                      busyAction: connectionAction?.targetId === targetId ? connectionAction.action : null,
-                      busyTargetId: connectionAction?.targetId,
-                      targetId,
-                    })
-                    const friendAction = actions.find((action) => action.id === "friend")
-                    const followAction = actions.find((action) => action.id === "follow")
-                    return (
-                      <div key={member.id || member.email} className="grid gap-2 rounded-md border border-border bg-card p-2 sm:grid-cols-[1fr_auto] sm:items-center">
+            {connections.length ? (
+              <div className="grid gap-2 md:grid-cols-2">
+                {connectionPage.items.map((connection) => {
+                  const targetUserId = String(connection.target_user_id || connection.targetUserId || "")
+                  const label = connection.name || connection.username || targetUserId || "Connection"
+                  const type = String(connection.connection_type || connection.connectionType || "follow")
+                  const quickActions = buildSocialContactQuickActions(connection)
+                  const removeAction = buildConnectionActions({
+                    busyAction: connectionAction?.targetId === targetUserId ? connectionAction.action : null,
+                    busyTargetId: connectionAction?.targetId,
+                    connected: true,
+                    targetId: targetUserId,
+                  }).find((action) => action.id === "remove")
+                  return (
+                    <div key={`${targetUserId}-${type}`} className="grid gap-2 rounded-md border border-border bg-card p-2">
+                      <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-foreground">{member.name || member.email || "Learner"}</p>
-                          <p className="truncate text-xs text-muted-foreground">{member.email || member.role || "Workspace member"}</p>
+                          <p className="truncate text-sm font-semibold text-foreground">{label}</p>
+                          <p className="truncate text-xs text-muted-foreground">{type} - {connection.status || "accepted"}</p>
                         </div>
-                        <div className="flex gap-1">
-                          <button onClick={() => void connect(member, "friend")} disabled={friendAction?.disabled} className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60">{friendAction?.busy ? friendAction.busyLabel : friendAction?.label || "Add"}</button>
-                          <button onClick={() => void connect(member, "follow")} disabled={followAction?.disabled} className="rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs font-semibold text-secondary-foreground disabled:cursor-not-allowed disabled:opacity-60">{followAction?.busy ? followAction.busyLabel : followAction?.label || "Follow"}</button>
-                        </div>
+                        <button onClick={() => void removeConnection(connection)} disabled={removeAction?.disabled} className="inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-md border border-border px-2 text-xs font-semibold text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60" aria-label={`Remove ${label}`}>
+                          <Trash2 className="h-4 w-4" />
+                          {removeAction?.busy ? removeAction.busyLabel : ""}
+                        </button>
                       </div>
-                    )
-                  })}
-                  {!connectableMembers.length ? (
-                    <div className="grid gap-2 rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground sm:grid-cols-[1fr_auto] sm:items-center">
-                      <span>{peoplePage.emptyAction === "invite" ? "No matching learner yet." : "Search members or invite a new learner."}</span>
-                      <button onClick={() => setInviteEmail(queryLooksLikeEmail ? query.trim() : inviteEmail)} disabled={!queryLooksLikeEmail} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50" title={queryLooksLikeEmail ? "Invite this email" : "Paste an email in search first"} type="button">
-                        <Mail className="h-3.5 w-3.5" />
-                        {queryLooksLikeEmail ? "Invite" : "Paste email"}
-                      </button>
+                      <div className="grid grid-cols-3 gap-1">
+                        {quickActions.map((action) => (
+                          <SocialContactQuickActionButton key={action.id} action={action} onClick={() => openContactAction(action)} />
+                        ))}
+                      </div>
                     </div>
-                  ) : null}
+                  )
+                })}
+              </div>
+            ) : null}
+            <details className="group/find rounded-md border border-border bg-card" open={!connections.length || Boolean(query.trim())}>
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-semibold text-foreground">
+                <span>{connections.length ? "Find more people" : "Find people"}</span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/find:rotate-180" />
+              </summary>
+              <div className="grid gap-2 border-t border-border p-2">
+                {connectableMembers.map((member) => {
+                  const targetId = String(member.id || "")
+                  const actions = buildConnectionActions({
+                    busyAction: connectionAction?.targetId === targetId ? connectionAction.action : null,
+                    busyTargetId: connectionAction?.targetId,
+                    targetId,
+                  })
+                  const friendAction = actions.find((action) => action.id === "friend")
+                  const followAction = actions.find((action) => action.id === "follow")
+                  return (
+                    <div key={member.id || member.email} className="grid gap-2 rounded-md border border-border bg-background p-2 sm:grid-cols-[1fr_auto] sm:items-center">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">{member.name || member.email || "Learner"}</p>
+                        <p className="truncate text-xs text-muted-foreground">{member.email || member.role || "Workspace member"}</p>
+                      </div>
+                      <div className="flex gap-1">
+                        <button onClick={() => void connect(member, "friend")} disabled={friendAction?.disabled} className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60">{friendAction?.busy ? friendAction.busyLabel : friendAction?.label || "Add"}</button>
+                        <button onClick={() => void connect(member, "follow")} disabled={followAction?.disabled} className="rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs font-semibold text-secondary-foreground disabled:cursor-not-allowed disabled:opacity-60">{followAction?.busy ? followAction.busyLabel : followAction?.label || "Follow"}</button>
+                      </div>
+                    </div>
+                  )
+                })}
+                {!connectableMembers.length ? (
+                  <div className="grid gap-2 rounded-md border border-dashed border-border bg-background p-3 text-sm text-muted-foreground sm:grid-cols-[1fr_auto] sm:items-center">
+                    <span>{peoplePage.emptyAction === "invite" ? "No matching learner yet." : "Search members or invite a new learner."}</span>
+                    <button onClick={() => setInviteEmail(queryLooksLikeEmail ? query.trim() : inviteEmail)} disabled={!queryLooksLikeEmail} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50" title={queryLooksLikeEmail ? "Invite this email" : "Paste an email in search first"} type="button">
+                      <Mail className="h-3.5 w-3.5" />
+                      {queryLooksLikeEmail ? "Invite" : "Paste email"}
+                    </button>
+                  </div>
+                ) : null}
                 {peoplePage.hiddenCount ? (
                   <button onClick={() => setPeopleLimit((limit) => limit + 5)} className="h-9 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
                     Show more
                   </button>
                 ) : null}
-            </div>
-          </section>
-        ) : null}
-
-        {showPeople && connections.length ? (
-          <section className="grid gap-3 rounded-lg border border-border bg-background p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-foreground">Friends</h3>
-              <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{connectionPage.total} connected</span>
-            </div>
-            <div className="grid gap-2 md:grid-cols-2">
-              {connectionPage.items.map((connection) => {
-                const targetUserId = String(connection.target_user_id || connection.targetUserId || "")
-                const label = connection.name || connection.username || targetUserId || "Connection"
-                const type = String(connection.connection_type || connection.connectionType || "follow")
-                const quickActions = buildSocialContactQuickActions(connection)
-                const removeAction = buildConnectionActions({
-                  busyAction: connectionAction?.targetId === targetUserId ? connectionAction.action : null,
-                  busyTargetId: connectionAction?.targetId,
-                  connected: true,
-                  targetId: targetUserId,
-                }).find((action) => action.id === "remove")
-                return (
-                  <div key={`${targetUserId}-${type}`} className="grid gap-2 rounded-md border border-border bg-card p-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-foreground">{label}</p>
-                        <p className="truncate text-xs text-muted-foreground">{type} - {connection.status || "accepted"}</p>
-                      </div>
-                      <button onClick={() => void removeConnection(connection)} disabled={removeAction?.disabled} className="inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-md border border-border px-2 text-xs font-semibold text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60" aria-label={`Remove ${label}`}>
-                        <Trash2 className="h-4 w-4" />
-                        {removeAction?.busy ? removeAction.busyLabel : ""}
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-3 gap-1">
-                      {quickActions.map((action) => (
-                        <SocialContactQuickActionButton key={action.id} action={action} onClick={() => openContactAction(action)} />
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+              </div>
+            </details>
           </section>
         ) : null}
 
