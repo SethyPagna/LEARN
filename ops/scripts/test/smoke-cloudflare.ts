@@ -35,7 +35,7 @@ const ROUTES_TO_CHECK: RouteExpectation[] = [
     path: "/dashboard",
   },
   {
-    markers: ["Studio", "All projects", "Templates"],
+    markers: ["Studio", "Projects", "Designs"],
     path: "/studio",
   },
   {
