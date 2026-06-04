@@ -65,7 +65,7 @@ const studioKindDisplayMeta: Record<StudioKind, StudioProjectDisplayMeta> = {
 }
 
 const studioProjectFilterOptions: StudioProjectFilterOption[] = [
-  { description: "Show every Studio project and reusable design", label: "All templates", value: "all" },
+  { description: "Show every Studio project and reusable design", label: "All designs", value: "all" },
   { description: "Quick captures, journals, and study pages", label: "Notes", value: "notes" },
   { description: "A4, Letter, guides, reports, and handouts", label: "Docs", value: "docs" },
   { description: "Trackers, tables, CSV imports, and worksheets", label: "Sheets", value: "sheets" },
@@ -122,7 +122,7 @@ export function buildStudioProjectBrowserSummary({
       { label: "Visible", value: String(projectCount) },
       { label: "Designs", value: String(templateCount) },
       { label: "Drafts", value: String(draftCount) },
-      { label: "Format", value: filterLabel === "All projects" || filterLabel === "All templates" ? formatLabel : filterLabel },
+      { label: "Format", value: filterLabel === "All projects" || filterLabel === "All designs" ? formatLabel : filterLabel },
     ],
   }
 }
