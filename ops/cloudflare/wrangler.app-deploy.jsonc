@@ -46,6 +46,14 @@
   "migrations": [
     {
       "tag": "v4_delete_study_battle_durable_object"
+    },
+    {
+      "tag": "v5_restore_learn_realtime_classes",
+      "new_sqlite_classes": [
+        "StudyRoomDurableObject",
+        "StudyBattleDurableObject",
+        "PresenceDurableObject"
+      ]
     }
   ],
   "observability": {
