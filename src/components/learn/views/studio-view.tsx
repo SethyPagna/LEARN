@@ -2104,7 +2104,7 @@ function StudioProjectBrowser({
                       <div className="my-1 h-px bg-border" />
                       <MenuAction disabled={!selectedProjects.length} icon={Download} label="Download selected" meta="Download each selected project" onClick={() => selectedProjects.forEach((item) => onDownload(item))} />
                       <MenuAction disabled={!selectedProjects.length} icon={Copy} label="Duplicate selected" meta="Create editable copies" onClick={() => selectedProjects.forEach((item) => onDuplicate(item))} />
-                      <MenuAction disabled={!selectedProjects.length} destructive icon={Archive} label="Archive selected" meta="Move selected projects out of recents" onClick={() => selectedProjects.forEach((item) => onArchive(item))} />
+                      <MenuAction disabled={!selectedProjects.length} danger icon={Archive} label="Archive selected" meta="Move selected projects out of recents" onClick={() => selectedProjects.forEach((item) => onArchive(item))} />
                     </ActionMenu>
                     <button onClick={() => setBrowserStep("formats")} className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground" type="button"><Plus className="h-4 w-4" /> New project</button>
                   </div>
@@ -2152,7 +2152,7 @@ function StudioProjectBrowser({
                             <MenuAction icon={FilePlus2} label="Duplicate" onClick={() => onDuplicate(item)} />
                             <MenuAction icon={Download} label="Download" onClick={() => onDownload(item)} />
                             <MenuAction icon={Share2} label="Export" onClick={() => onExport(item)} />
-                            <MenuAction destructive icon={Archive} label="Archive" onClick={() => onArchive(item)} />
+                            <MenuAction danger icon={Archive} label="Archive" onClick={() => onArchive(item)} />
                           </ActionMenu>
                         </div>
                       </div>
