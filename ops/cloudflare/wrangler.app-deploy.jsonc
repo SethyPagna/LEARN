@@ -51,8 +51,7 @@
       "tag": "v5_restore_learn_realtime_classes",
       "new_sqlite_classes": [
         "StudyRoomDurableObject",
-        "StudyBattleDurableObject",
-        "PresenceDurableObject"
+        "StudyBattleDurableObject"
       ]
     }
   ],
