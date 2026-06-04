@@ -2056,8 +2056,8 @@ function StudioProjectBrowser({
     templateCount: templateChoices.length,
   })
   const browserSteps: Array<{ id: StudioProjectBrowserStep; label: string; count: number }> = [
-    { id: "projects", label: "Projects", count: recentItems.length },
-    { id: "templates", label: "Templates", count: templateShelf.length },
+    { id: "projects", label: "Recent", count: recentItems.length },
+    { id: "templates", label: "Designs", count: templateShelf.length },
     { id: "formats", label: "Formats", count: formatGroups.reduce((total, group) => total + group.formats.length, 0) },
   ]
   const visibleBrowserSteps = browserStep === "formats" ? browserSteps : browserSteps.filter((step) => step.id !== "formats")
@@ -2113,7 +2113,7 @@ function StudioProjectBrowser({
                   {templateFilterOptions.map((option) => {
                     const Icon = option.value === "all" ? LayoutPanelLeft : studioKindIcons[option.value]
                     const count = option.value === "all" ? items.length : browserState.counts[option.value]
-                    return <MenuAction key={option.value} active={projectKindFilter === option.value} icon={Icon} label={option.label} meta={`${count} matching project${count === 1 ? "" : "s"}`} onClick={() => { setBrowserStep("templates"); setProjectKindFilter(option.value); if (option.value !== "all") onSelectKind(option.value) }} />
+                    return <MenuAction key={option.value} active={projectKindFilter === option.value} icon={Icon} label={option.label} meta={`${count} matching project${count === 1 ? "" : "s"} or design${count === 1 ? "" : "s"}`} onClick={() => { setBrowserStep("templates"); setProjectKindFilter(option.value); if (option.value !== "all") onSelectKind(option.value) }} />
                   })}
                 </ActionMenu>
                 <ActionMenu compact label={projectStatusFilter === "all" ? "Status" : projectStatusFilter === "drafts" ? "Drafts" : "Saved"} icon={BookOpen}>
@@ -2161,7 +2161,7 @@ function StudioProjectBrowser({
                       <MenuAction disabled={!selectedProjects.length} icon={Copy} label="Duplicate selected" meta="Create editable copies" onClick={() => selectedProjects.forEach((item) => onDuplicate(item))} />
                       <MenuAction disabled={!selectedProjects.length} danger icon={Archive} label="Archive selected" meta="Move selected projects out of recents" onClick={() => selectedProjects.forEach((item) => onArchive(item))} />
                     </ActionMenu>
-                    <button onClick={() => setBrowserStep("formats")} className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground" type="button"><Plus className="h-4 w-4" /> New project</button>
+                    <button onClick={() => setBrowserStep("formats")} className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground" type="button"><Plus className="h-4 w-4" /> New</button>
                   </div>
                 </div>
                 <div className="mt-4 flex gap-4 overflow-x-auto pb-4">
@@ -2170,7 +2170,7 @@ function StudioProjectBrowser({
                       <Plus className="h-6 w-6" />
                     </span>
                     <span className="mt-3 text-sm font-black text-foreground group-hover:text-accent-foreground">New project</span>
-                    <span className="mt-1 text-xs text-muted-foreground">Choose format after opening</span>
+                    <span className="mt-1 text-xs text-muted-foreground">Pick a size first</span>
                   </button>
                   {recentItems.map((item) => {
                     const Icon = studioKindIcons[item.kind]
@@ -2222,7 +2222,7 @@ function StudioProjectBrowser({
                 {browserStep === "templates" ? (
                 <>
                 <div className="mt-8 flex items-center justify-between gap-3">
-                  <h3 className="text-xl font-bold text-foreground">Start with a design</h3>
+                  <h3 className="text-xl font-bold text-foreground">Designs</h3>
                   <span className="rounded-lg bg-background px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">{templateShelf.length} templates</span>
                 </div>
                 <div className="mt-4 flex gap-4 overflow-x-auto pb-4">
