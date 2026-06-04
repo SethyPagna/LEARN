@@ -2,17 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react"
 import type React from "react"
-import { AtSign, Bell, CheckCircle2, Clock, Gamepad2, Hash, Languages, MessageSquare, MoreHorizontal, Reply, RotateCcw, Send, SlidersHorizontal, Smile, Sparkles, Trophy, XCircle } from "lucide-react"
+import { AtSign, Bell, CheckCircle2, Clock, Gamepad2, Languages, MessageSquare, Mic, MoreHorizontal, Paperclip, Phone, Plus, Reply, RotateCcw, Search, Send, SlidersHorizontal, Smile, Sparkles, Trophy, Video, XCircle } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Quiz } from "../types"
-import { api } from "../api"
+import { api, formatDate } from "../api"
 import { EmptyState, Panel } from "../ui"
 import { buildGameRunActions, evaluateGameChoice, summarizeGameRun, type GameRunActionId } from "@/lib/practice-features"
 import { CHAT_DRAFT_KEY, parseStoredChatDraft, serializeChatDraft, type ChatDraft } from "@/lib/chat-drafts"
 import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatInboxShortcut, type ChatIntent, type ChatQuickPrompt, type ChatThreadActionId, type ChatThreadFilter, type ChatThreadLike } from "@/lib/social-features"
 
 const quizDetailCache = new Map<string, Quiz>()
-type ChatMenuId = "compose" | "tools" | "filters" | `threadActions:${string}`
+type ChatMenuId = "attach" | "compose" | "chatMore" | "tools" | "filters" | `threadActions:${string}`
 type ChatThreadRecord = ChatThreadLike & {
   threadId?: string
   thread_id?: string
@@ -293,6 +293,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const [chatAction, setChatAction] = useState<ChatComposerActionId | null>(null)
   const [threadAction, setThreadAction] = useState<{ action: ChatThreadActionId; threadId: string } | null>(null)
   const [openChatMenu, setOpenChatMenu] = useState<ChatMenuId | null>(null)
+  const [activeThreadKey, setActiveThreadKey] = useState("")
   const quickIntents = [
     { id: "update" as const, label: "Update", body: "Share progress, a note, or what changed." },
     { id: "question" as const, label: "Question", body: "Ask for help and invite replies." },
@@ -305,7 +306,6 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     { id: "saved", label: "Saved" },
   ]
   const activeIntent = quickIntents.find((item) => item.id === intent) || quickIntents[0]
-  const activeFilter = threadFilters.find((item) => item.id === filter) || threadFilters[0]
   const chatSummary = useMemo(() => summarizeChatWorkspace(threads), [threads])
   const composerPlan = useMemo(() => buildChatComposerPlan(chatSummary, body), [body, chatSummary])
   const quickPrompts = useMemo(() => buildChatQuickPrompts({
@@ -323,6 +323,15 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   }), [body, chatAction, composerPlan.nextAction])
   const chatActionById = useMemo(() => new Map(chatActions.map((action) => [action.id, action])), [chatActions])
   const visibleThreads = useMemo(() => filterChatThreads(threads, { query, filter }), [filter, query, threads])
+  const activeThread = useMemo(() => {
+    if (!threads.length) return null
+    return visibleThreads.find((thread) => chatThreadKey(thread) === activeThreadKey)
+      || visibleThreads[0]
+      || threads[0]
+  }, [activeThreadKey, threads, visibleThreads])
+  const activeThreadParsed = parseThreadTitle(activeThread?.title || `${channel} - ${title}`)
+  const activeThreadBody = String(activeThread?.last_message || activeThread?.lastMessage || "No messages yet. Start with one clear question, resource, or win.")
+  const activeThreadId = activeThread ? chatThreadKey(activeThread) : ""
 
   function applyComposerPlan() {
     if (chatActionById.get("use-suggestion")?.disabled) return
@@ -348,6 +357,15 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   function applyInboxShortcut(shortcut: ChatInboxShortcut) {
     setFilter(shortcut.filter)
     setQuery(shortcut.query)
+  }
+
+  function selectThread(thread: ChatThreadRecord) {
+    const parsed = parseThreadTitle(thread.title)
+    const targetId = chatThreadKey(thread)
+    setActiveThreadKey(targetId)
+    setChannel(parsed.channel || "#general")
+    setTitle(parsed.title)
+    setReplyThreadId(targetId || undefined)
   }
 
   async function refresh() {
@@ -471,30 +489,21 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   }
 
   return (
-    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <Panel className="p-3">
+    <div className="grid min-h-[72vh] overflow-hidden rounded-xl border border-border bg-background lg:grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)]" title={options.collaborationPresence ? "Live-ready chats" : "Async chats"}>
+      <Panel className="order-2 flex min-h-[72vh] flex-col rounded-none border-0 p-0 lg:order-2 lg:border-l lg:border-border">
         <div className="mb-3 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <label className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground">
-                <Hash className="h-4 w-4" />
-                <select value={channel} onChange={(event) => setChannel(event.target.value)} className="bg-transparent text-foreground outline-none">
-                  <option value="#general">general</option>
-                  <option value="#study-help">study-help</option>
-                  <option value="#resources">resources</option>
-                  <option value="#wins">wins</option>
-                </select>
-              </label>
-              <input value={title} onChange={(event) => setTitle(event.target.value)} className="min-w-52 flex-1 bg-transparent text-xl font-semibold text-foreground outline-none" />
-            </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <ChatChip label={activeIntent.label} tone="strong" />
-              <ChatChip label={`${chatSummary.total} threads`} />
-              <ChatChip label={`${chatSummary.questions} questions`} />
-              <ChatChip label={`${chatSummary.saved} saved`} />
+          <div className="flex min-w-0 items-center gap-3 border-b border-border px-4 py-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground">
+              <MessageSquare className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <input value={title} onChange={(event) => setTitle(event.target.value)} className="w-full bg-transparent text-lg font-semibold text-foreground outline-none" />
+              <p className="truncate text-xs font-semibold text-muted-foreground">{activeThreadParsed.channel} · {activeIntent.label}</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 border-b border-border px-4 py-3 lg:justify-end">
+            <ToolbarButton label="Video" onClick={() => setDraftStatus("Video call link ready")} icon={Video} />
+            <ToolbarButton label="Call" onClick={() => setDraftStatus("Call link ready")} icon={Phone} />
             <ChatMenu icon={Sparkles} label="Compose" menuId="compose" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
               <ChatMenuSection title="Draft intent">
                 {quickIntents.map((item) => (
@@ -523,16 +532,41 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                 />
               </ChatMenuSection>
             </ChatMenu>
-            <ToolbarButton
-              disabled={chatActionById.get("send")?.disabled}
-              label={chatActionById.get("send")?.busy ? chatActionById.get("send")?.busyLabel || "Sending" : "Send"}
-              onClick={send}
-              icon={Send}
-              primary
-            />
+            <ChatMenu align="right" compact icon={MoreHorizontal} label="More" menuId="chatMore" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
+              <ChatMenuSection title="Conversation">
+                <ChatMenuAction icon={Search} label="Search chat" meta="Filter the inbox by this conversation title." onClick={() => setQuery(activeThreadParsed.title)} />
+                <ChatMenuAction icon={Bell} label="Mute notifications" meta="Prepared for notification settings." onClick={() => setDraftStatus("Notifications muted for this chat")} />
+                <ChatMenuAction icon={Gamepad2} label="Start quiz battle" meta="Jump to Practice for a live challenge." onClick={() => setDraftStatus("Battle prompt ready")} />
+              </ChatMenuSection>
+            </ChatMenu>
           </div>
         </div>
-        <details className="mb-3 rounded-md border border-border bg-background">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.08),transparent_34%),linear-gradient(135deg,hsl(var(--muted)/0.6),hsl(var(--background)))] px-4 py-5">
+          <div className="mx-auto flex max-w-3xl flex-col gap-3">
+            <div className="max-w-[78%] rounded-2xl rounded-tl-sm bg-secondary px-4 py-3 text-sm leading-6 text-secondary-foreground shadow-sm">
+              <p>{activeThreadBody.replace(/^\[[^\]]+\]\s*/, "")}</p>
+              <p className="mt-1 text-right text-[11px] opacity-70">{activeThread?.updated_at ? formatDate(activeThread.updated_at) : "recent"}</p>
+            </div>
+            {body.trim() ? (
+              <div className="ml-auto max-w-[78%] rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-sm leading-6 text-primary-foreground shadow-sm">
+                <p>{body}</p>
+                <p className="mt-1 text-right text-[11px] opacity-75">draft</p>
+              </div>
+            ) : (
+              <div className="mx-auto mt-12 grid grid-cols-2 gap-3 text-center text-sm text-muted-foreground">
+                <button onClick={() => setDraftStatus("Document picker ready")} className="grid h-28 w-32 place-items-center rounded-2xl bg-card shadow-sm hover:bg-accent hover:text-accent-foreground" type="button">
+                  <Paperclip className="h-6 w-6" />
+                  <span>Send document</span>
+                </button>
+                <button onClick={() => setDraftStatus("Contact invite ready")} className="grid h-28 w-32 place-items-center rounded-2xl bg-card shadow-sm hover:bg-accent hover:text-accent-foreground" type="button">
+                  <Plus className="h-6 w-6" />
+                  <span>Add contact</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+        <details className="mx-4 mt-3 rounded-md border border-border bg-background">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
             <span>Starter prompts</span>
             <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{quickPrompts.length}</span>
@@ -555,10 +589,18 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
           ))}
           </div>
         </details>
-        <div className="rounded-md border border-input bg-background p-3">
+        <div className="m-4 mt-3 rounded-full border border-input bg-background px-3 py-2 shadow-sm">
           <textarea value={body} onChange={(event) => setBody(event.target.value)} className="min-h-28 w-full resize-none bg-transparent text-sm leading-6 text-foreground outline-none" placeholder="Message your study group, mention someone, link Studio, or ask a question..." />
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-            <ChatMenu compact icon={MoreHorizontal} label="Tools" menuId="tools" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
+            <div className="flex items-center gap-2">
+            <ChatMenu compact icon={Plus} label="Attach" menuId="attach" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
+              <ChatMenuSection title="Attach">
+                <ChatMenuAction icon={Paperclip} label="Document" meta="Attach a Studio item or file." onClick={() => setDraftStatus("Document attachment ready")} />
+                <ChatMenuAction icon={Gamepad2} label="Quiz battle" meta="Attach a practice challenge." onClick={() => setDraftStatus("Practice attachment ready")} />
+                <ChatMenuAction icon={Clock} label="Event" meta="Attach a study calendar block." onClick={() => setDraftStatus("Event attachment ready")} />
+              </ChatMenuSection>
+            </ChatMenu>
+            <ChatMenu compact icon={Smile} label="Tools" menuId="tools" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
               <ChatMenuSection title="Composer tools">
                 <ChatMenuAction icon={AtSign} label="@mention" meta="Mention a teammate in the draft." onClick={() => useComposerTool("mention")} />
                 <ChatMenuAction icon={Smile} label="Reaction" meta={`Default thread reaction: ${reaction}.`} onClick={() => useComposerTool("reaction")} />
@@ -584,39 +626,51 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                 />
               </ChatMenuSection>
             </ChatMenu>
+            <button onClick={() => setDraftStatus("Voice note ready")} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-2 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+              <Mic className="h-4 w-4" />
+            </button>
+            </div>
             <p className={`rounded-md px-2 py-1 text-xs font-semibold ${draftStatus ? "bg-success/15 text-success" : "text-muted-foreground"}`}>
               {replyThreadId ? "Reply target saved" : draftStatus || "Private-first sharing"}
             </p>
+            <ToolbarButton
+              disabled={chatActionById.get("send")?.disabled}
+              label={chatActionById.get("send")?.busy ? chatActionById.get("send")?.busyLabel || "Sending" : "Send"}
+              onClick={send}
+              icon={Send}
+              primary
+            />
           </div>
         </div>
       </Panel>
-      <Panel className="p-3 xl:sticky xl:top-3 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto">
+      <Panel className="order-1 min-h-[72vh] rounded-none border-0 p-3 lg:order-1 lg:max-h-[72vh] lg:overflow-y-auto">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="font-semibold text-foreground">Recent threads</h3>
+          <h3 className="text-2xl font-semibold text-foreground">Chats</h3>
           <div className="flex items-center gap-2">
-            <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{activeFilter.label}</span>
-            <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{visibleThreads.length}/{threads.length}</span>
+            <button onClick={() => setBody((current) => current || "Can someone help me with ")} className="grid h-9 w-9 place-items-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+              <Plus className="h-4 w-4" />
+            </button>
+            <ChatMenu align="right" compact icon={MoreHorizontal} label="Menu" menuId="filters" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
+              <ChatMenuSection title="Inbox">
+                {threadFilters.map((item) => (
+                  <ChatMenuAction
+                    active={filter === item.id}
+                    key={item.id}
+                    label={item.label}
+                    meta={item.id === "all" ? "Show every recent thread." : `Show only ${item.id}.`}
+                    onClick={() => {
+                      setFilter(item.id)
+                      setOpenChatMenu(null)
+                    }}
+                  />
+                ))}
+              </ChatMenuSection>
+            </ChatMenu>
           </div>
         </div>
-        {options.collaborationPresence ? <p className="mt-1 text-xs text-muted-foreground">Presence hints are enabled for group workflows.</p> : null}
-        <div className="mt-3 flex gap-2">
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search threads" className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-ring" />
-          <ChatMenu align="right" compact icon={SlidersHorizontal} label="Filters" menuId="filters" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
-            <ChatMenuSection title="Thread filters">
-              {threadFilters.map((item) => (
-                <ChatMenuAction
-                  active={filter === item.id}
-                  key={item.id}
-                  label={item.label}
-                  meta={item.id === "all" ? "Show every recent thread." : `Show only ${item.id}.`}
-                  onClick={() => {
-                    setFilter(item.id)
-                    setOpenChatMenu(null)
-                  }}
-                />
-              ))}
-            </ChatMenuSection>
-          </ChatMenu>
+        <div className="mt-4 flex h-11 items-center gap-2 rounded-full bg-muted px-4">
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search or start a new chat" className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
         </div>
         <div className="mt-3 flex gap-2 overflow-x-auto">
           {inboxShortcuts.map((shortcut) => (
@@ -647,6 +701,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             const targetId = chatThreadKey(thread)
             const helpful = Boolean(thread.helpful)
             const saved = Boolean(thread.saved)
+            const selected = Boolean(targetId) && targetId === activeThreadId
             const status = buildChatThreadStatus(thread)
             const threadActions = buildChatThreadActions({
               busyAction: threadAction?.threadId === targetId ? threadAction.action : null,
@@ -656,16 +711,35 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             })
             const menuLabel = saved ? "saved" : helpful ? "helpful" : "react"
             return (
-            <div key={targetId || parsed.title} className="rounded-md border border-border bg-background p-2.5 text-sm">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-medium text-foreground">{parsed.title}</p>
+            <div
+              key={targetId || parsed.title}
+              onClick={() => selectThread(thread)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault()
+                  selectThread(thread)
+                }
+              }}
+              className={`cursor-pointer rounded-xl border p-3 text-sm transition hover:border-primary/40 hover:bg-accent hover:text-accent-foreground ${
+                selected ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background"
+              }`}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="flex items-start gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground">
+                  <MessageSquare className="h-4 w-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="truncate font-semibold text-foreground">{parsed.title}</p>
+                    <span className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold ${chatStatusClasses(status.tone)}`}>{status.label}</span>
+                  </div>
                   <p className="text-xs font-semibold text-muted-foreground">{parsed.channel}</p>
+                  <p className="mt-1 line-clamp-2 text-muted-foreground">{thread.last_message || "No messages yet"}</p>
                 </div>
-                <span className={`rounded-md px-2 py-1 text-[11px] font-semibold ${chatStatusClasses(status.tone)}`}>{status.label}</span>
               </div>
-              <p className="mt-1 line-clamp-2 text-muted-foreground">{thread.last_message || "No messages yet"}</p>
-              <div className="mt-2 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap gap-2 pl-[3.25rem]" onClick={(event) => event.stopPropagation()}>
                 <ChatMenu compact icon={Smile} label={menuLabel} menuId={`threadActions:${targetId || parsed.title}`} openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
                   <ChatMenuSection title="Thread actions">
                     {threadActions.map((item) => (
@@ -709,10 +783,6 @@ function clearChatDraft() {
   window.localStorage.removeItem(CHAT_DRAFT_KEY)
 }
 
-function ChatChip({ label, tone }: { label: string; tone?: "muted" | "strong" }) {
-  return <span className={`rounded-md border px-2 py-1 text-xs font-semibold ${tone === "strong" ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground"}`}>{label}</span>
-}
-
 function chatStatusClasses(tone: "accent" | "muted" | "success" | "warning") {
   if (tone === "success") return "bg-success/15 text-success"
   if (tone === "warning") return "bg-warning/15 text-warning"
@@ -752,7 +822,7 @@ function ChatMenu({
         <span>{label}</span>
       </button>
       {open ? (
-        <div className={`absolute top-[calc(100%+0.4rem)] z-30 w-72 rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-xl ${align === "right" ? "right-0" : "left-0"}`}>
+        <div className={`absolute top-[calc(100%+0.4rem)] z-[120] w-72 rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-xl ${align === "right" ? "right-0" : "left-0"}`}>
           {children}
         </div>
       ) : null}
