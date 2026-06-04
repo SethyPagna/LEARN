@@ -822,7 +822,7 @@ function AiSummaryChip({ detail, label, tone = "neutral", value }: { detail?: st
     <div className={`group relative min-w-0 rounded-md border px-3 py-2 ${statusToneClasses(uiTone)}`} title={detail}>
       <p className="text-[0.66rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
       <p className="mt-0.5 truncate text-sm font-semibold text-foreground">{value}</p>
-      {detail ? <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-30 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{detail}</p> : null}
+      {detail ? <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-[120] hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{detail}</p> : null}
     </div>
   )
 }
@@ -845,6 +845,9 @@ function TutorMenu({
   setOpenMenu: (menuId: TutorMenuId | null) => void
 }) {
   const open = openMenu === menuId
+  const panelPosition = align === "right"
+    ? "left-1/2 top-20 -translate-x-1/2"
+    : "left-4 top-20"
   return (
     <div className="relative inline-block">
       <ControlButton
@@ -859,7 +862,7 @@ function TutorMenu({
         <ChevronDown className="h-3.5 w-3.5 opacity-70" />
       </ControlButton>
       {open ? (
-        <div className={`absolute top-10 z-[80] max-h-[min(34rem,calc(100vh-8rem))] w-[min(42rem,calc(100vw-2rem))] overflow-y-auto ${menuSurfaceClasses()} ${align === "right" ? "right-0" : "left-0"}`}>
+        <div className={`fixed ${panelPosition} z-[140] max-h-[min(34rem,calc(100vh-8rem))] w-[min(46rem,calc(100vw-2rem))] overflow-y-auto ${menuSurfaceClasses()}`}>
           {children}
         </div>
       ) : null}
