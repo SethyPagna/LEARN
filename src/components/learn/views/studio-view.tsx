@@ -2091,7 +2091,7 @@ function StudioProjectBrowser({
   return (
     <div className="grid gap-4">
       <Panel className="overflow-hidden p-0">
-        <div className="min-h-[76vh]">
+        <div>
           <main className="min-w-0 bg-gradient-to-b from-primary/10 via-muted/35 to-muted/35 p-4 lg:p-6">
             <div className="mx-auto max-w-4xl text-center">
               <h2 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">{browserSummary.title}</h2>
@@ -2127,7 +2127,7 @@ function StudioProjectBrowser({
                 </ActionMenu>
               </div>
             </div>
-            <div className="mt-14 grid gap-5">
+            <div className="mt-8 grid gap-5">
               <section className="min-w-0">
                 <div className="mb-5 flex gap-2 overflow-x-auto rounded-2xl border border-border bg-background/75 p-1.5 shadow-sm">
                   {visibleBrowserSteps.map((step) => (

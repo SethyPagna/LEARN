@@ -114,7 +114,7 @@ export function buildStudioProjectBrowserSummary({
 }): StudioProjectBrowserSummary {
   const hasQuery = Boolean(normalizeStudioBrowserQuery(query))
   return {
-    title: hasQuery ? "Search results" : "Projects",
+    title: hasQuery ? "Search results" : "All projects",
     caption: hasQuery
       ? "Matching projects and reusable designs are below."
       : "Open recent work, create a format, or apply a design.",
@@ -184,7 +184,7 @@ export function buildStudioProjectSubtitle(project: Pick<StudioBrowserProject, "
 
 export function buildStudioTemplateSubtitle(template: Pick<StudioBrowserTemplate, "kind" | "style">, fallbackStyle = "") {
   const meta = template.kind ? getStudioProjectDisplayMeta(template.kind) : null
-  return [fallbackStyle || template.style, meta?.format].filter(Boolean).join(" · ")
+  return [fallbackStyle || template.style, meta?.format].filter(Boolean).join(" - ")
 }
 
 export function matchesStudioBrowserQuery(item: StudioBrowserProject | StudioBrowserTemplate, needle: string) {

@@ -40,7 +40,7 @@ test("studio project browser uses project-first display labels", () => {
   assert.equal(getStudioProjectDisplayMeta("notes").badge, "Capture")
   assert.equal(buildStudioProjectSubtitle(projects[2]), "Data - 12 rows")
   assert.equal(buildStudioProjectSubtitle({ kind: "slides" as const, summary: "" }), "Deck - PPT, posters, and lesson slides")
-  assert.equal(buildStudioTemplateSubtitle({ kind: "docs" as const, style: "Editorial" }), "Editorial · A4, Letter, reports, and handouts")
+  assert.equal(buildStudioTemplateSubtitle({ kind: "docs" as const, style: "Editorial" }), "Editorial - A4, Letter, reports, and handouts")
 })
 
 test("studio project browser limits the project drawer shelf", () => {
@@ -115,7 +115,7 @@ test("studio project browser summary keeps the launcher compact", () => {
     templateCount: 2,
   })
 
-  assert.equal(summary.title, "Projects")
+  assert.equal(summary.title, "All projects")
   assert.equal(summary.chips.find((chip) => chip.label === "Format")?.value, "A4 document")
   assert.equal(searched.title, "Search results")
   assert.equal(searched.chips.find((chip) => chip.label === "Format")?.value, "PPT / Slides")
@@ -133,6 +133,7 @@ test("studio project launcher keeps edit tools behind project entry", () => {
   assert.match(launcherSource, /Recent projects/)
   assert.match(launcherSource, /New project/)
   assert.doesNotMatch(launcherSource, /Canvas preview|Use Daily note|<StudioToolRail/)
+  assert.doesNotMatch(launcherSource, /min-h-\[76vh\]/)
 })
 
 test("studio project browser filters template designs by canvas format", () => {
