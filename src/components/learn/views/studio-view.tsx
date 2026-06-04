@@ -49,6 +49,7 @@ import {
   Columns3,
   Copy,
   Download,
+  Edit3,
   FilePlus2,
   FileText,
   Grid2X2,
@@ -1230,6 +1231,56 @@ export function StudioView({
     setStatus(`Copied ${item.title}.`)
   }
 
+  async function shareStudioItem(item: StudioRecordItem) {
+    const url = typeof window === "undefined" ? item.title : `${window.location.origin}/studio?item=${encodeURIComponent(item.kind)}:${encodeURIComponent(item.id)}`
+    await navigator.clipboard?.writeText(url)
+    setStatus(`Copied share link for ${item.title}.`)
+  }
+
+  async function renameStudioItem(item: StudioRecordItem) {
+    const nextTitle = window.prompt("Rename project", item.title)?.trim()
+    if (!nextTitle || nextTitle === item.title) return
+    const source = findStudioItem(item)
+    if (!source) {
+      setStatus("Open the item first, then try renaming again.")
+      return
+    }
+
+    if (item.kind === "notes") {
+      const note = source as Note
+      const response = await api<{ item: Note }>(`/api/notes/${item.id}`, { method: "PUT", body: JSON.stringify({ ...note, title: nextTitle }) })
+      setNotes((current) => current.map((entry) => (entry.id === response.item.id ? response.item : entry)))
+      if (noteDraft?.id === response.item.id) setNoteDraft(response.item)
+      syncActivePaneTab("notes", response.item.id, response.item.title)
+    }
+
+    if (item.kind === "docs") {
+      const doc = source as WorkspaceDocument
+      const response = await api<{ item: WorkspaceDocument }>("/api/docs", { method: "PUT", body: JSON.stringify({ id: item.id, title: nextTitle, content: doc.content || {}, tags: doc.tags || [] }) })
+      setDocs((current) => current.map((entry) => (entry.id === response.item.id ? response.item : entry)))
+      if (docId === response.item.id) setDocTitle(response.item.title)
+      syncActivePaneTab("docs", response.item.id, response.item.title)
+    }
+
+    if (item.kind === "sheets") {
+      const sheet = source as WorkspaceSheet
+      const response = await api<{ item: WorkspaceSheet }>("/api/sheets", { method: "PUT", body: JSON.stringify({ id: item.id, title: nextTitle, cells: cellsFromSheet(sheet), history: [], frozenRows: sheet.frozenRows || 1, filters: sheet.filters || {}, formatting: sheet.formatting || {} }) })
+      setSheets((current) => current.map((entry) => (entry.id === response.item.id ? response.item : entry)))
+      if (sheetId === response.item.id) setSheetTitle(response.item.title)
+      syncActivePaneTab("sheets", response.item.id, response.item.title)
+    }
+
+    if (item.kind === "slides") {
+      const deck = source as WorkspaceDeck
+      const response = await api<{ item: WorkspaceDeck }>("/api/slides", { method: "PUT", body: JSON.stringify({ id: item.id, title: nextTitle, slides: slidesFromDeck(deck), speakerNotes: deck.speakerNotes || {} }) })
+      setDecks((current) => current.map((entry) => (entry.id === response.item.id ? response.item : entry)))
+      if (deckId === response.item.id) setDeckTitle(response.item.title)
+      syncActivePaneTab("slides", response.item.id, response.item.title)
+    }
+
+    setStatus(`Renamed ${item.title} to ${nextTitle}.`)
+  }
+
   async function duplicateStudioItem(item: StudioRecordItem) {
     const title = `${item.title || studioCreateLabels[item.kind]} copy`
     const source = findStudioItem(item)
@@ -1499,7 +1550,9 @@ export function StudioView({
         onExport={(item) => downloadStudioItem(item, true)}
         onOpen={selectItem}
         onQuery={setQuery}
+        onRename={renameStudioItem}
         onSelectKind={selectKind}
+        onShare={shareStudioItem}
         query={query}
       />
     )
@@ -1934,7 +1987,9 @@ function StudioProjectBrowser({
   onExport,
   onOpen,
   onQuery,
+  onRename,
   onSelectKind,
+  onShare,
   query,
 }: {
   activeKind: StudioKind
@@ -1951,7 +2006,9 @@ function StudioProjectBrowser({
   onExport: (item: StudioRecordItem) => void
   onOpen: (item: StudioRecordItem) => void
   onQuery: (value: string) => void
+  onRename: (item: StudioRecordItem) => void
   onSelectKind: (kind: StudioKind) => void
+  onShare: (item: StudioRecordItem) => void
   query: string
 }) {
   const [projectKindFilter, setProjectKindFilter] = useState<StudioProjectKindFilter>("all")
@@ -1960,10 +2017,12 @@ function StudioProjectBrowser({
   const [browserStep, setBrowserStep] = useState<StudioProjectBrowserStep>("projects")
   const [selectedTemplateKey, setSelectedTemplateKey] = useState("")
   const [selectedProjectKeys, setSelectedProjectKeys] = useState<Set<string>>(() => new Set())
-  const formatKind = projectKindFilter === "all" ? getStudioKindForCanvasFormat(canvasFormat, activeKind) : projectKindFilter
-  const compatibleCanvasFormat = getStudioCanvasFormat(canvasFormat.id, formatKind)
-  const selectedCanvasFormat = projectKindFilter === "all" ? canvasFormat : compatibleCanvasFormat
-  const formatGroups = projectKindFilter === "all" ? listAllStudioCanvasFormatGroups() : listStudioCanvasFormatGroups(formatKind)
+  const selectedCanvasFormat = canvasFormat
+  const formatGroups = browserStep === "formats"
+    ? listAllStudioCanvasFormatGroups()
+    : projectKindFilter === "all"
+      ? listAllStudioCanvasFormatGroups()
+      : listStudioCanvasFormatGroups(projectKindFilter)
   const templateLibrary = useMemo<StudioTemplateChoice[]>(() => (
     studioKindOptions.flatMap((option) => studioTemplates[option.kind].map((template) => ({ ...template, kind: option.kind })))
   ), [])
@@ -1999,6 +2058,7 @@ function StudioProjectBrowser({
     { id: "templates", label: "Templates", count: templateShelf.length },
     { id: "formats", label: "Formats", count: formatGroups.reduce((total, group) => total + group.formats.length, 0) },
   ]
+  const visibleBrowserSteps = browserStep === "formats" ? browserSteps : browserSteps.filter((step) => step.id !== "formats")
   function chooseCanvasFormat(format: StudioCanvasFormat) {
     onCanvasFormat(format.id)
     onSelectKind(getStudioKindForCanvasFormat(format, activeKind))
@@ -2047,21 +2107,12 @@ function StudioProjectBrowser({
                 ))}
               </div>
               <div className="mt-3 flex flex-wrap justify-center gap-2">
-                <ActionMenu compact label={projectKindFilter === "all" ? "Templates" : activeTemplateFilter.label} icon={LayoutPanelLeft}>
+                <ActionMenu compact label={projectKindFilter === "all" ? "All designs" : activeTemplateFilter.label} icon={LayoutPanelLeft}>
                   {templateFilterOptions.map((option) => {
                     const Icon = option.value === "all" ? LayoutPanelLeft : studioKindIcons[option.value]
                     const count = option.value === "all" ? items.length : browserState.counts[option.value]
-                    return <MenuAction key={option.value} active={projectKindFilter === option.value} icon={Icon} label={option.label} meta={`${count} matching design${count === 1 ? "" : "s"}`} onClick={() => { setBrowserStep("templates"); setProjectKindFilter(option.value); if (option.value !== "all") onSelectKind(option.value) }} />
+                    return <MenuAction key={option.value} active={projectKindFilter === option.value} icon={Icon} label={option.label} meta={`${count} matching project${count === 1 ? "" : "s"}`} onClick={() => { setBrowserStep("templates"); setProjectKindFilter(option.value); if (option.value !== "all") onSelectKind(option.value) }} />
                   })}
-                </ActionMenu>
-                <ActionMenu compact label="Formats" icon={Grid2X2}>
-                  {formatGroups.map((group) => (
-                    <MenuAction key={group.id} active={group.id === selectedCanvasFormat.group} icon={LayoutPanelLeft} label={group.label} meta={group.description} onClick={() => { setBrowserStep("formats"); if (group.formats[0]) chooseCanvasFormat(group.formats[0]) }} />
-                  ))}
-                  <div className="my-1 h-px bg-border" />
-                  {formatGroups.flatMap((group) => group.formats).map((format) => (
-                    <MenuAction key={format.id} active={format.id === selectedCanvasFormat.id} icon={Grid2X2} label={format.label} meta={format.description} onClick={() => { setBrowserStep("formats"); chooseCanvasFormat(format) }} />
-                  ))}
                 </ActionMenu>
                 <ActionMenu compact label={projectStatusFilter === "all" ? "Status" : projectStatusFilter === "drafts" ? "Drafts" : "Saved"} icon={BookOpen}>
                   <MenuAction active={projectStatusFilter === "all"} icon={BookOpen} label="All projects" meta={`${browserState.projects.length} visible`} onClick={() => { setBrowserStep("projects"); setProjectStatusFilter("all") }} />
@@ -2077,7 +2128,7 @@ function StudioProjectBrowser({
             <div className="mt-14 grid gap-5">
               <section className="min-w-0">
                 <div className="mb-5 flex gap-2 overflow-x-auto rounded-2xl border border-border bg-background/75 p-1.5 shadow-sm">
-                  {browserSteps.map((step) => (
+                  {visibleBrowserSteps.map((step) => (
                     <button
                       key={step.id}
                       onClick={() => setBrowserStep(step.id)}
@@ -2102,6 +2153,8 @@ function StudioProjectBrowser({
                       <MenuAction icon={CheckSquare} label="Select visible" meta={`${recentItems.length} project${recentItems.length === 1 ? "" : "s"}`} onClick={selectEveryVisibleProject} />
                       <MenuAction icon={X} label="Clear selection" onClick={clearProjectSelection} />
                       <div className="my-1 h-px bg-border" />
+                      <MenuAction disabled={selectedProjects.length !== 1} icon={Edit3} label="Rename selected" meta="Available when one project is selected" onClick={() => selectedProjects[0] && onRename(selectedProjects[0])} />
+                      <MenuAction disabled={selectedProjects.length !== 1} icon={Share2} label="Share selected" meta="Copy a share link for one project" onClick={() => selectedProjects[0] && onShare(selectedProjects[0])} />
                       <MenuAction disabled={!selectedProjects.length} icon={Download} label="Download selected" meta="Download each selected project" onClick={() => selectedProjects.forEach((item) => onDownload(item))} />
                       <MenuAction disabled={!selectedProjects.length} icon={Copy} label="Duplicate selected" meta="Create editable copies" onClick={() => selectedProjects.forEach((item) => onDuplicate(item))} />
                       <MenuAction disabled={!selectedProjects.length} danger icon={Archive} label="Archive selected" meta="Move selected projects out of recents" onClick={() => selectedProjects.forEach((item) => onArchive(item))} />
@@ -2148,6 +2201,8 @@ function StudioProjectBrowser({
                         <div className="absolute right-2 top-2 opacity-0 transition group-hover:opacity-100">
                           <ActionMenu compact label="Actions" icon={MoreHorizontal}>
                             <MenuAction icon={ArrowRight} label="Open" onClick={() => onOpen(item)} />
+                            <MenuAction icon={Edit3} label="Rename" onClick={() => onRename(item)} />
+                            <MenuAction icon={Share2} label="Share link" onClick={() => onShare(item)} />
                             <MenuAction icon={Copy} label="Copy title" onClick={() => onCopy(item)} />
                             <MenuAction icon={FilePlus2} label="Duplicate" onClick={() => onDuplicate(item)} />
                             <MenuAction icon={Download} label="Download" onClick={() => onDownload(item)} />
