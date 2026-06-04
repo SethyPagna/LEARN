@@ -61,7 +61,7 @@ const tutorModeIcons: Record<AiTaskKey, React.ComponentType<{ className?: string
 }
 
 const DEFAULT_AI_MESSAGE = "Create a study plan from my recent notes."
-type TutorMenuId = "setup"
+type TutorMenuId = "task" | "filters" | "gateway"
 type AiTutorProviderStatus = AiGatewayProviderStatus & { id?: string }
 type AiTutorProviderCatalogItem = AiGatewayProviderCatalogItem & { id?: string }
 type AiTutorProviderPresetItem = AiGatewayProviderPresetItem & { max_tokens?: number }
@@ -515,10 +515,10 @@ export function AiTutorView({
               {draftStatus ? <StatusPill label={draftStatus} tone="steady" /> : null}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 self-start rounded-lg border border-border bg-background p-1.5 shadow-sm lg:justify-end">
-            <TutorMenu label={`${activeMode.label} setup`} icon={SlidersHorizontal} align="right" menuId="setup" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
+          <div className="relative z-30 flex flex-wrap items-center gap-2 self-start rounded-lg border border-border bg-background p-1.5 shadow-sm lg:justify-end">
+            <TutorMenu label={`Task: ${activeMode.label}`} icon={CheckSquare} align="right" menuId="task" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
               <TutorMenuSection title="Task">
-                <div className="grid gap-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   {visibleAiTutorModeGroups.map((group) => (
                     <div key={group.id} className="grid gap-1 rounded-md border border-border bg-muted/40 p-1.5">
                       <ControlButton
@@ -555,16 +555,18 @@ export function AiTutorView({
                   ))}
                 </div>
               </TutorMenuSection>
+            </TutorMenu>
+            <TutorMenu label="Filters" icon={ListFilter} align="right" menuId="filters" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
               <TutorMenuSection title="Context">
                 <TutorMenuSelect label="Source" value={sourceScope} values={aiTutorSourceScopes} onChange={setSourceScope} />
                 <TutorMenuSelect label="Difficulty" value={difficulty} values={aiTutorDifficulties} onChange={setDifficulty} />
                 <TutorMenuSelect label="Tone" value={tone} values={aiTutorTones} onChange={setTone} />
-                <TutorMenuToggle checked={options.aiIncludeNotes} label="Include recent notes" onChange={(checked) => setOptions({ aiIncludeNotes: checked })} />
-              </TutorMenuSection>
-              <TutorMenuSection title="Output">
                 <TutorMenuSelect label="Length" value={outputLength} values={aiTutorOutputLengths} onChange={chooseOutputLength} />
                 <TutorMenuSelect label="Language" value={language} values={aiTutorLanguages} onChange={setLanguage} />
                 <TutorMenuSelect label="Insert" value={insertTarget} values={availableInsertTargets} onChange={(value) => setInsertTarget(value as StudioInsertTarget)} />
+                <TutorMenuToggle checked={options.aiIncludeNotes} label="Include recent notes" onChange={(checked) => setOptions({ aiIncludeNotes: checked })} />
+              </TutorMenuSection>
+              <TutorMenuSection title="Requirements">
                 <label className="grid gap-1 text-sm text-foreground">
                   <span className="font-semibold">Audience</span>
                   <input value={targetAudience} onChange={(event) => setTargetAudience(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
@@ -574,6 +576,8 @@ export function AiTutorView({
                   <textarea value={requiredOutput} onChange={(event) => setRequiredOutput(event.target.value)} className="min-h-20 rounded-md border border-input bg-background px-2 py-2 text-foreground outline-none focus:border-ring" />
                 </label>
               </TutorMenuSection>
+            </TutorMenu>
+            <TutorMenu label="Gateway" icon={Gauge} align="right" menuId="gateway" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
               <TutorMenuSection title="Gateway">
                 <TutorMenuSelect
                   label="Family"
@@ -855,7 +859,7 @@ function TutorMenu({
         <ChevronDown className="h-3.5 w-3.5 opacity-70" />
       </ControlButton>
       {open ? (
-        <div className={`absolute top-10 z-40 max-h-[min(34rem,calc(100vh-8rem))] w-80 overflow-y-auto ${menuSurfaceClasses()} ${align === "right" ? "right-0" : "left-0"}`}>
+        <div className={`absolute top-10 z-[80] max-h-[min(34rem,calc(100vh-8rem))] w-[min(42rem,calc(100vw-2rem))] overflow-y-auto ${menuSurfaceClasses()} ${align === "right" ? "right-0" : "left-0"}`}>
           {children}
         </div>
       ) : null}
