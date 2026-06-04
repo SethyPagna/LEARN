@@ -300,7 +300,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     { id: "win" as const, label: "Win", body: "Celebrate a milestone or review streak." },
   ]
   const threadFilters: Array<{ id: ChatThreadFilter; label: string }> = [
-    { id: "all", label: "All threads" },
+    { id: "all", label: "All" },
     { id: "questions", label: "Questions" },
     { id: "wins", label: "Wins" },
     { id: "saved", label: "Saved" },
@@ -498,7 +498,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             </span>
             <div className="min-w-0">
               <input value={title} onChange={(event) => setTitle(event.target.value)} className="w-full bg-transparent text-lg font-semibold text-foreground outline-none" />
-              <p className="truncate text-xs font-semibold text-muted-foreground">{activeThreadParsed.channel} · {activeIntent.label}</p>
+              <p className="truncate text-xs font-semibold text-muted-foreground">{activeThreadParsed.channel} - {activeIntent.label}</p>
             </div>
           </div>
           <div className="flex gap-2 border-b border-border px-4 py-3 lg:justify-end">
