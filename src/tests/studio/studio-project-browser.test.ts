@@ -31,7 +31,7 @@ test("studio project browser counts every Studio kind", () => {
 })
 
 test("studio project browser exposes project-first filter labels", () => {
-  assert.deepEqual(listStudioProjectFilterOptions().map((option) => option.label), ["All templates", "Notes", "Docs", "Sheets", "PPT / Slides"])
+  assert.deepEqual(listStudioProjectFilterOptions().map((option) => option.label), ["All designs", "Notes", "Docs", "Sheets", "PPT / Slides"])
   assert.equal(getStudioProjectFilterOption("docs").label, "Docs")
   assert.equal(getStudioProjectFilterOption("all").description, "Show every Studio project and reusable design")
 })
@@ -100,7 +100,7 @@ test("studio project browser can show every project type as one workspace", () =
 test("studio project browser summary keeps the launcher compact", () => {
   const summary = buildStudioProjectBrowserSummary({
     draftCount: 2,
-    filterLabel: "All templates",
+    filterLabel: "All designs",
     formatLabel: "A4 document",
     projectCount: 4,
     query: "",
