@@ -76,6 +76,18 @@ export function listStudioCanvasFormats(kind: StudioKind) {
   return listStudioCanvasFormatGroups(kind).flatMap((group) => group.formats)
 }
 
+export function listAllStudioCanvasFormatGroups() {
+  return studioCanvasFormatGroups
+    .map((group) => ({ ...group, formats: studioCanvasFormats.filter((format) => format.group === group.id) }))
+    .filter((group) => group.formats.length > 0)
+}
+
+export function getStudioKindForCanvasFormat(format: StudioCanvasFormat, preferredKind?: StudioKind) {
+  if (preferredKind && format.supportedKinds.includes(preferredKind)) return preferredKind
+  if (format.group === "presentation" || format.id.includes("presentation") || format.label.toLowerCase().includes("ppt")) return "slides"
+  return format.supportedKinds[0] || "notes"
+}
+
 export function canvasPreviewWidth(format: StudioCanvasFormat) {
   const ratio = format.width / format.height
   if (format.group === "document") return ratio < 0.75 ? 780 : 860
