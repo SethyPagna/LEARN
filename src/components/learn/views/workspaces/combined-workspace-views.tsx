@@ -30,7 +30,6 @@ const practiceTabIcons: Record<PracticeWorkspaceTab, ComponentType<{ className?:
 }
 
 const socialTabIcons: Record<SocialWorkspaceTab, ComponentType<{ className?: string }>> = {
-  home: Sparkles,
   chat: MessageSquare,
   spaces: Users,
   rooms: Radio,
@@ -271,7 +270,6 @@ export function SocialWorkspaceView({ initialView, options, setView, user }: { i
         }}
       />
       <div className="min-w-0">
-        {tab === "home" ? <SocialCommandCenter currentUserId={user?.id} setActiveTab={setTab} setView={setView} /> : null}
         {tab === "chat" ? <ChatView options={options} /> : null}
         {tab === "spaces" ? <SocialLearningView kind="spaces" setView={setView} /> : null}
         {tab === "rooms" ? <SocialLearningView kind="rooms" setView={setView} /> : null}
