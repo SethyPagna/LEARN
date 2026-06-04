@@ -518,41 +518,26 @@ export function AiTutorView({
           <div className="relative z-30 flex flex-wrap items-center gap-2 self-start rounded-lg border border-border bg-background p-1.5 shadow-sm lg:justify-end">
             <TutorMenu label={`Task: ${activeMode.label}`} icon={CheckSquare} align="right" menuId="task" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
               <TutorMenuSection title="Task">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {visibleAiTutorModeGroups.map((group) => (
-                    <div key={group.id} className="grid gap-1 rounded-md border border-border bg-muted/40 p-1.5">
-                      <ControlButton
-                        onClick={() => setModeGroup(group.id)}
-                        active={modeGroup === group.id}
-                        className="flex w-full justify-between"
-                        size="compact"
-                        type="button"
-                      >
-                        {group.label}
-                        <span className="text-[0.66rem] opacity-70">{group.modes.length}</span>
-                      </ControlButton>
-                      {modeGroup === group.id
-                        ? aiTutorModeOptions
-                          .filter((mode) => group.modes.includes(mode.id))
-                          .map((item) => (
-                            <TutorMenuAction
-                              key={`${group.id}-${item.id}`}
-                              active={activeMode.id === item.id}
-                              icon={tutorModeIcons[item.id]}
-                              label={item.label}
-                              meta={item.prompt}
-                              onClick={() => {
-                                setActiveTaskKey(item.id)
-                                setModeGroup(getAiTutorModeGroupForTask(item.id))
-                                setOptions({ aiMode: item.mode as WorkspaceOptions["aiMode"] })
-                                setMessage(item.prompt)
-                                setOpenTutorMenu(null)
-                              }}
-                            />
-                          ))
-                        : null}
-                    </div>
-                  ))}
+                <div className="grid gap-1.5 sm:grid-cols-2">
+                  {aiTutorModeOptions.map((item) => {
+                    const group = visibleAiTutorModeGroups.find((option) => option.modes.includes(item.id))
+                    return (
+                      <TutorMenuAction
+                        key={item.id}
+                        active={activeMode.id === item.id}
+                        icon={tutorModeIcons[item.id]}
+                        label={item.label}
+                        meta={group ? `${group.label} · ${item.prompt}` : item.prompt}
+                        onClick={() => {
+                          setActiveTaskKey(item.id)
+                          setModeGroup(getAiTutorModeGroupForTask(item.id))
+                          setOptions({ aiMode: item.mode as WorkspaceOptions["aiMode"] })
+                          setMessage(item.prompt)
+                          setOpenTutorMenu(null)
+                        }}
+                      />
+                    )
+                  })}
                 </div>
               </TutorMenuSection>
             </TutorMenu>
