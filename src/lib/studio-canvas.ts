@@ -19,9 +19,11 @@ export type StudioCanvasFormat = {
 }
 
 export const studioCanvasFormats: StudioCanvasFormat[] = [
-  { id: "presentation-16-9", label: "Presentation 16:9", group: "presentation", width: 16, height: 9, description: "Wide slides, lessons, and decks", supportedKinds: ["slides"] },
-  { id: "presentation-16-10", label: "Presentation 16:10", group: "presentation", width: 16, height: 10, description: "Modern classroom and laptop decks", supportedKinds: ["slides"] },
-  { id: "presentation-4-3", label: "Presentation 4:3", group: "presentation", width: 4, height: 3, description: "Classic classroom and projector decks", supportedKinds: ["slides"] },
+  { id: "presentation-16-9", label: "PPT wide 16:9", group: "presentation", width: 16, height: 9, description: "Standard PowerPoint, Google Slides, and Canva deck size", supportedKinds: ["slides"] },
+  { id: "presentation-16-10", label: "PPT laptop 16:10", group: "presentation", width: 16, height: 10, description: "Modern classroom, tablet, and laptop presentation decks", supportedKinds: ["slides"] },
+  { id: "presentation-4-3", label: "PPT classic 4:3", group: "presentation", width: 4, height: 3, description: "Classic classroom and older projector decks", supportedKinds: ["slides"] },
+  { id: "ppt-story", label: "PPT story 9:16", group: "presentation", width: 9, height: 16, description: "Vertical lesson reels, mobile explainers, and story decks", supportedKinds: ["slides"] },
+  { id: "ppt-square", label: "PPT square", group: "presentation", width: 1, height: 1, description: "Square carousel decks and social lesson cards", supportedKinds: ["slides"] },
   { id: "presentation-a4", label: "PPT handout A4", group: "presentation", width: 210, height: 297, description: "Printable slide notes and handouts", supportedKinds: ["slides"] },
   { id: "a4", label: "A4 document", group: "document", width: 210, height: 297, description: "Reports, guides, notes, and worksheets", supportedKinds: ["notes", "docs"] },
   { id: "a4-landscape", label: "A4 landscape", group: "document", width: 297, height: 210, description: "Wide worksheets, maps, and comparison pages", supportedKinds: ["notes", "docs", "sheets"] },
