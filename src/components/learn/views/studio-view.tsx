@@ -1272,7 +1272,9 @@ export function StudioView({
 
     if (item.kind === "slides") {
       const deck = source as WorkspaceDeck
-      const response = await api<{ item: WorkspaceDeck }>("/api/slides", { method: "PUT", body: JSON.stringify({ id: item.id, title: nextTitle, slides: slidesFromDeck(deck), speakerNotes: deck.speakerNotes || {} }) })
+      const deckSlides = slidesFromDeck(deck)
+      const speakerNotes = Object.fromEntries(deckSlides.map((slide, index) => [index, slide.speakerNotes || ""]))
+      const response = await api<{ item: WorkspaceDeck }>("/api/slides", { method: "PUT", body: JSON.stringify({ id: item.id, title: nextTitle, slides: deckSlides, speakerNotes }) })
       setDecks((current) => current.map((entry) => (entry.id === response.item.id ? response.item : entry)))
       if (deckId === response.item.id) setDeckTitle(response.item.title)
       syncActivePaneTab("slides", response.item.id, response.item.title)
