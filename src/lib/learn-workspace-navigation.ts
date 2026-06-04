@@ -27,7 +27,7 @@ export function viewFromPracticeWorkspaceTab(tab: PracticeWorkspaceTab): View {
 }
 
 export function socialWorkspaceTabFromView(view: View): SocialWorkspaceTab {
-  if (view === "social") return "home"
+  if (view === "social") return "chat"
   if (view === "chat") return "chat"
   if (view === "spaces") return "spaces"
   if (view === "rooms") return "rooms"
