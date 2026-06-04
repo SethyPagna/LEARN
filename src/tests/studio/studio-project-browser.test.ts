@@ -33,14 +33,14 @@ test("studio project browser counts every Studio kind", () => {
 test("studio project browser exposes project-first filter labels", () => {
   assert.deepEqual(listStudioProjectFilterOptions().map((option) => option.label), ["All designs", "Notes", "Docs", "Sheets", "PPT / Slides"])
   assert.equal(getStudioProjectFilterOption("docs").label, "Docs")
-  assert.equal(getStudioProjectFilterOption("all").description, "Show every Studio project and reusable design")
+  assert.equal(getStudioProjectFilterOption("all").description, "Show every project and reusable design")
 })
 
 test("studio project browser uses project-first display labels", () => {
   assert.equal(getStudioProjectDisplayMeta("notes").badge, "Capture")
   assert.equal(buildStudioProjectSubtitle(projects[2]), "Data - 12 rows")
-  assert.equal(buildStudioProjectSubtitle({ kind: "slides" as const, summary: "" }), "Deck - 16:9 / poster canvas")
-  assert.equal(buildStudioTemplateSubtitle({ kind: "docs" as const, style: "Editorial" }), "Editorial - A4 / Letter page")
+  assert.equal(buildStudioProjectSubtitle({ kind: "slides" as const, summary: "" }), "Deck - PPT, posters, and lesson slides")
+  assert.equal(buildStudioTemplateSubtitle({ kind: "docs" as const, style: "Editorial" }), "Editorial · A4, Letter, reports, and handouts")
 })
 
 test("studio project browser limits the project drawer shelf", () => {
@@ -115,7 +115,7 @@ test("studio project browser summary keeps the launcher compact", () => {
     templateCount: 2,
   })
 
-  assert.equal(summary.title, "All projects")
+  assert.equal(summary.title, "Projects")
   assert.equal(summary.chips.find((chip) => chip.label === "Format")?.value, "A4 document")
   assert.equal(searched.title, "Search results")
   assert.equal(searched.chips.find((chip) => chip.label === "Format")?.value, "PPT / Slides")

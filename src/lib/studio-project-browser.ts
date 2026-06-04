@@ -58,17 +58,17 @@ export type StudioTemplatePreviewMeta = {
 const studioKinds: StudioKind[] = ["notes", "docs", "sheets", "slides"]
 
 const studioKindDisplayMeta: Record<StudioKind, StudioProjectDisplayMeta> = {
-  notes: { badge: "Capture", detail: "quick learning page", format: "A5 / A4 page" },
-  docs: { badge: "Document", detail: "rich guide page", format: "A4 / Letter page" },
-  sheets: { badge: "Data", detail: "grid workspace", format: "worksheet grid" },
-  slides: { badge: "Deck", detail: "presentation canvas", format: "16:9 / poster canvas" },
+  notes: { badge: "Capture", detail: "quick learning page", format: "notes, journals, and study cards" },
+  docs: { badge: "Document", detail: "rich guide page", format: "A4, Letter, reports, and handouts" },
+  sheets: { badge: "Data", detail: "grid workspace", format: "sheets, trackers, and CSV tables" },
+  slides: { badge: "Deck", detail: "presentation canvas", format: "PPT, posters, and lesson slides" },
 }
 
 const studioProjectFilterOptions: StudioProjectFilterOption[] = [
-  { description: "Show every Studio project and reusable design", label: "All designs", value: "all" },
-  { description: "Quick captures, journals, and study pages", label: "Notes", value: "notes" },
+  { description: "Show every project and reusable design", label: "All designs", value: "all" },
+  { description: "Notes, journals, study cards, and quick captures", label: "Notes", value: "notes" },
   { description: "A4, Letter, guides, reports, and handouts", label: "Docs", value: "docs" },
-  { description: "Trackers, tables, CSV imports, and worksheets", label: "Sheets", value: "sheets" },
+  { description: "Tables, trackers, CSV imports, and worksheets", label: "Sheets", value: "sheets" },
   { description: "PPT dimensions, decks, posters, and lesson slides", label: "PPT / Slides", value: "slides" },
 ]
 
@@ -114,10 +114,10 @@ export function buildStudioProjectBrowserSummary({
 }): StudioProjectBrowserSummary {
   const hasQuery = Boolean(normalizeStudioBrowserQuery(query))
   return {
-    title: hasQuery ? "Search results" : "All projects",
+    title: hasQuery ? "Search results" : "Projects",
     caption: hasQuery
-      ? "Matching projects and designs are grouped below."
-      : "Start from a blank canvas, open recent work, or apply a reusable design.",
+      ? "Matching projects and reusable designs are below."
+      : "Open recent work, create a format, or apply a design.",
     chips: [
       { label: "Visible", value: String(projectCount) },
       { label: "Designs", value: String(templateCount) },
@@ -184,7 +184,7 @@ export function buildStudioProjectSubtitle(project: Pick<StudioBrowserProject, "
 
 export function buildStudioTemplateSubtitle(template: Pick<StudioBrowserTemplate, "kind" | "style">, fallbackStyle = "") {
   const meta = template.kind ? getStudioProjectDisplayMeta(template.kind) : null
-  return [fallbackStyle || template.style, meta?.format].filter(Boolean).join(" - ")
+  return [fallbackStyle || template.style, meta?.format].filter(Boolean).join(" · ")
 }
 
 export function matchesStudioBrowserQuery(item: StudioBrowserProject | StudioBrowserTemplate, needle: string) {
