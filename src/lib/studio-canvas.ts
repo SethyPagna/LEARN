@@ -52,6 +52,10 @@ export function getStudioCanvasFormat(id: string | undefined, kind: StudioKind) 
   return studioCanvasFormats.find((format) => format.supportedKinds.includes(kind)) || studioCanvasFormats[0]
 }
 
+export function getAnyStudioCanvasFormat(id: string | undefined) {
+  return studioCanvasFormats.find((format) => format.id === id) || studioCanvasFormats.find((format) => format.id === "a4") || studioCanvasFormats[0]
+}
+
 export function canvasAspectRatio(format: StudioCanvasFormat) {
   return `${format.width} / ${format.height}`
 }

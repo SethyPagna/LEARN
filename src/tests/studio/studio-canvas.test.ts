@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, getStudioKindForCanvasFormat, groupStudioCanvasFormats, listAllStudioCanvasFormatGroups, listStudioCanvasFormatGroups, listStudioCanvasFormats } from "../../lib/studio-canvas"
+import { canvasAspectRatio, canvasPreviewWidth, getAnyStudioCanvasFormat, getStudioCanvasFormat, getStudioKindForCanvasFormat, groupStudioCanvasFormats, listAllStudioCanvasFormatGroups, listStudioCanvasFormatGroups, listStudioCanvasFormats } from "../../lib/studio-canvas"
 
 test("studio canvas formats fall back to a compatible kind", () => {
   assert.equal(getStudioCanvasFormat("presentation-16-9", "slides").label, "Presentation 16:9")
@@ -39,4 +39,6 @@ test("studio launcher exposes all format families and infers PPT projects", () =
   const a4 = formats.find((format) => format.id === "a4")
   assert.ok(a4)
   assert.equal(getStudioKindForCanvasFormat(a4, "docs"), "docs")
+  assert.equal(getAnyStudioCanvasFormat("presentation-16-9").group, "presentation")
+  assert.equal(getAnyStudioCanvasFormat("missing").id, "a4")
 })

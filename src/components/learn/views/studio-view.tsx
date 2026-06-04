@@ -132,7 +132,7 @@ import { getStudioKindOption, getStudioViewModeOption, studioEmptyTabLabels, stu
 import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, blankNoteTitle, blankRichText, blankSheetCells, blankSheetFingerprint, blankSheetTitle, ensureSheetCells, parseDeckSlides, parseSheetCells, studioCreateLabels, studioDraftSummary, studioFallbackTitle, studioNoItemSummary } from "@/lib/studio-defaults"
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
-import { canvasAspectRatio, canvasPreviewWidth, getStudioCanvasFormat, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
+import { canvasAspectRatio, canvasPreviewWidth, getAnyStudioCanvasFormat, getStudioCanvasFormat, getStudioKindForCanvasFormat, listAllStudioCanvasFormatGroups, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
 import { buildStudioProjectBrowserHeader, buildStudioProjectBrowserState, buildStudioProjectBrowserSummary, buildStudioProjectSubtitle, buildStudioTemplateSubtitle, filterStudioProjectsByDraftStatus, getStudioProjectDisplayMeta, getStudioProjectFilterOption, listStudioProjectFilterOptions, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, type StudioProjectKindFilter, type StudioProjectStatusFilter } from "@/lib/studio-project-browser"
 import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
@@ -964,9 +964,15 @@ export function StudioView({
     }
   }
 
-  async function createActive() {
+  async function createActive(targetKind: StudioKind = kind) {
     setStudioMode("editor")
-    if (kind === "notes") {
+    if (targetKind !== kind) {
+      setKind(targetKind)
+      updateActivePaneKind(targetKind)
+    }
+    const nextFormat = getStudioCanvasFormat(canvasFormatId, targetKind)
+    if (nextFormat.id !== canvasFormatId) setCanvasFormatId(nextFormat.id)
+    if (targetKind === "notes") {
       const response = await api<{ item: Note }>("/api/notes", {
         method: "POST",
         body: JSON.stringify({ title: blankNoteTitle, content: blankRichText, template: "blank" }),
@@ -976,13 +982,13 @@ export function StudioView({
       updateActivePaneKind("notes", response.item.id, response.item.title)
       return
     }
-    if (kind === "docs") {
+    if (targetKind === "docs") {
       setDocId("")
       setDocTitle(blankDocTitle)
       setDocHistory(createHistoryState(docTemplates[options.docsTemplate]))
       return
     }
-    if (kind === "sheets") {
+    if (targetKind === "sheets") {
       setSheetId("")
       setSheetTitle(blankSheetTitle)
       setCells(blankSheetCells)
@@ -1480,12 +1486,17 @@ export function StudioView({
     return (
       <StudioProjectBrowser
         activeKind={kind}
-        canvasFormat={canvasFormat}
+        canvasFormat={getAnyStudioCanvasFormat(canvasFormatId)}
         dirtyBadges={dirtyBadges}
         items={allItems}
+        onArchive={archiveStudioItem}
         onApplyTemplate={applyTemplateForKind}
         onCanvasFormat={setCanvasFormatId}
+        onCopy={copyStudioItem}
         onCreate={createActive}
+        onDownload={downloadStudioItem}
+        onDuplicate={duplicateStudioItem}
+        onExport={(item) => downloadStudioItem(item, true)}
         onOpen={selectItem}
         onQuery={setQuery}
         onSelectKind={selectKind}
@@ -1913,9 +1924,14 @@ function StudioProjectBrowser({
   canvasFormat,
   dirtyBadges,
   items,
+  onArchive,
   onApplyTemplate,
   onCanvasFormat,
+  onCopy,
   onCreate,
+  onDownload,
+  onDuplicate,
+  onExport,
   onOpen,
   onQuery,
   onSelectKind,
@@ -1925,9 +1941,14 @@ function StudioProjectBrowser({
   canvasFormat: StudioCanvasFormat
   dirtyBadges: StudioDirtyBadge[]
   items: StudioListItem[]
+  onArchive: (item: StudioRecordItem) => void
   onApplyTemplate: (kind: StudioKind, template: StudioTemplate) => void
   onCanvasFormat: (id: string) => void
-  onCreate: () => void
+  onCopy: (item: StudioRecordItem) => void
+  onCreate: (kind?: StudioKind) => void
+  onDownload: (item: StudioRecordItem) => void
+  onDuplicate: (item: StudioRecordItem) => void
+  onExport: (item: StudioRecordItem) => void
   onOpen: (item: StudioRecordItem) => void
   onQuery: (value: string) => void
   onSelectKind: (kind: StudioKind) => void
@@ -1938,24 +1959,28 @@ function StudioProjectBrowser({
   const [projectStatusFilter, setProjectStatusFilter] = useState<StudioProjectStatusFilter>("all")
   const [browserStep, setBrowserStep] = useState<StudioProjectBrowserStep>("projects")
   const [selectedTemplateKey, setSelectedTemplateKey] = useState("")
-  const formatKind = projectKindFilter === "all" ? activeKind : projectKindFilter
+  const [selectedProjectKeys, setSelectedProjectKeys] = useState<Set<string>>(() => new Set())
+  const formatKind = projectKindFilter === "all" ? getStudioKindForCanvasFormat(canvasFormat, activeKind) : projectKindFilter
   const compatibleCanvasFormat = getStudioCanvasFormat(canvasFormat.id, formatKind)
-  const formatGroups = listStudioCanvasFormatGroups(formatKind)
+  const selectedCanvasFormat = projectKindFilter === "all" ? canvasFormat : compatibleCanvasFormat
+  const formatGroups = projectKindFilter === "all" ? listAllStudioCanvasFormatGroups() : listStudioCanvasFormatGroups(formatKind)
   const templateLibrary = useMemo<StudioTemplateChoice[]>(() => (
     studioKindOptions.flatMap((option) => studioTemplates[option.kind].map((template) => ({ ...template, kind: option.kind })))
   ), [])
   const browserState = useMemo(() => buildStudioProjectBrowserState({
-    formatGroup: compatibleCanvasFormat.group,
+    formatGroup: selectedCanvasFormat.group,
     kindFilter: projectKindFilter,
     items,
     query,
     templates: templateLibrary,
-  }), [compatibleCanvasFormat.group, items, projectKindFilter, query, templateLibrary])
+  }), [items, projectKindFilter, query, selectedCanvasFormat.group, templateLibrary])
   const dirtyKindSet = useMemo(() => new Set(dirtyBadges.map((badge) => badge.kind)), [dirtyBadges])
   const filteredProjects = useMemo(() => filterStudioProjectsByDraftStatus(browserState.projects, dirtyKindSet, projectStatusFilter), [browserState.projects, dirtyKindSet, projectStatusFilter])
   const draftProjectCount = useMemo(() => filterStudioProjectsByDraftStatus(browserState.projects, dirtyKindSet, "drafts").length, [browserState.projects, dirtyKindSet])
   const savedProjectCount = useMemo(() => filterStudioProjectsByDraftStatus(browserState.projects, dirtyKindSet, "saved").length, [browserState.projects, dirtyKindSet])
   const recentItems = selectStudioProjectShelf(sortStudioProjectsByModified(filteredProjects, projectSort))
+  const recentProjectKeys = useMemo(() => recentItems.map((item) => `${item.kind}:${item.id}`), [recentItems])
+  const selectedProjects = useMemo(() => recentItems.filter((item) => selectedProjectKeys.has(`${item.kind}:${item.id}`)), [recentItems, selectedProjectKeys])
   const templateChoices = browserState.templates
   const templateShelf = selectStudioTemplateShelf(templateChoices)
   const selectedTemplate = templateChoices.find((template) => `${template.kind}:${template.label}` === selectedTemplateKey) || selectStudioBrowserTemplate(templateChoices, "")
@@ -1964,7 +1989,7 @@ function StudioProjectBrowser({
   const browserSummary = buildStudioProjectBrowserSummary({
     draftCount: draftProjectCount,
     filterLabel: projectKindFilter === "all" ? "All projects" : activeTemplateFilter.label,
-    formatLabel: compatibleCanvasFormat.label,
+    formatLabel: selectedCanvasFormat.label,
     projectCount: filteredProjects.length,
     query,
     templateCount: templateChoices.length,
@@ -1974,6 +1999,33 @@ function StudioProjectBrowser({
     { id: "templates", label: "Templates", count: templateShelf.length },
     { id: "formats", label: "Formats", count: formatGroups.reduce((total, group) => total + group.formats.length, 0) },
   ]
+  function chooseCanvasFormat(format: StudioCanvasFormat) {
+    onCanvasFormat(format.id)
+    onSelectKind(getStudioKindForCanvasFormat(format, activeKind))
+  }
+
+  function createFromSelectedFormat() {
+    onCreate(getStudioKindForCanvasFormat(selectedCanvasFormat, activeKind))
+  }
+
+  function toggleProjectSelection(item: StudioRecordItem, checked: boolean) {
+    const key = `${item.kind}:${item.id}`
+    setSelectedProjectKeys((current) => {
+      const next = new Set(current)
+      if (checked) next.add(key)
+      else next.delete(key)
+      return next
+    })
+  }
+
+  function selectEveryVisibleProject() {
+    setSelectedProjectKeys(new Set(recentProjectKeys))
+  }
+
+  function clearProjectSelection() {
+    setSelectedProjectKeys(new Set())
+  }
+
   return (
     <div className="grid gap-4">
       <Panel className="overflow-hidden p-0">
@@ -2004,11 +2056,11 @@ function StudioProjectBrowser({
                 </ActionMenu>
                 <ActionMenu compact label="Formats" icon={Grid2X2}>
                   {formatGroups.map((group) => (
-                    <MenuAction key={group.id} active={group.id === compatibleCanvasFormat.group} icon={LayoutPanelLeft} label={group.label} meta={group.description} onClick={() => { setBrowserStep("formats"); onCanvasFormat(group.formats[0]?.id || compatibleCanvasFormat.id) }} />
+                    <MenuAction key={group.id} active={group.id === selectedCanvasFormat.group} icon={LayoutPanelLeft} label={group.label} meta={group.description} onClick={() => { setBrowserStep("formats"); if (group.formats[0]) chooseCanvasFormat(group.formats[0]) }} />
                   ))}
                   <div className="my-1 h-px bg-border" />
                   {formatGroups.flatMap((group) => group.formats).map((format) => (
-                    <MenuAction key={format.id} active={format.id === compatibleCanvasFormat.id} icon={Grid2X2} label={format.label} meta={format.description} onClick={() => { setBrowserStep("formats"); onCanvasFormat(format.id) }} />
+                    <MenuAction key={format.id} active={format.id === selectedCanvasFormat.id} icon={Grid2X2} label={format.label} meta={format.description} onClick={() => { setBrowserStep("formats"); chooseCanvasFormat(format) }} />
                   ))}
                 </ActionMenu>
                 <ActionMenu compact label={projectStatusFilter === "all" ? "Status" : projectStatusFilter === "drafts" ? "Drafts" : "Saved"} icon={BookOpen}>
@@ -2046,11 +2098,19 @@ function StudioProjectBrowser({
                   <div className="flex items-center gap-2">
                     <span className="rounded-lg bg-background px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">{recentItems.length} shown</span>
                     {dirtyBadges.length ? <span className="rounded-lg bg-warning/15 px-2.5 py-1.5 text-xs font-semibold text-warning-foreground">{dirtyBadges.reduce((total, badge) => total + badge.count, 0)} drafts</span> : null}
-                    <button onClick={onCreate} className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground" type="button"><Plus className="h-4 w-4" /> Create</button>
+                    <ActionMenu compact label={selectedProjects.length ? `${selectedProjects.length} selected` : "Select"} icon={CheckSquare}>
+                      <MenuAction icon={CheckSquare} label="Select visible" meta={`${recentItems.length} project${recentItems.length === 1 ? "" : "s"}`} onClick={selectEveryVisibleProject} />
+                      <MenuAction icon={X} label="Clear selection" onClick={clearProjectSelection} />
+                      <div className="my-1 h-px bg-border" />
+                      <MenuAction disabled={!selectedProjects.length} icon={Download} label="Download selected" meta="Download each selected project" onClick={() => selectedProjects.forEach((item) => onDownload(item))} />
+                      <MenuAction disabled={!selectedProjects.length} icon={Copy} label="Duplicate selected" meta="Create editable copies" onClick={() => selectedProjects.forEach((item) => onDuplicate(item))} />
+                      <MenuAction disabled={!selectedProjects.length} destructive icon={Archive} label="Archive selected" meta="Move selected projects out of recents" onClick={() => selectedProjects.forEach((item) => onArchive(item))} />
+                    </ActionMenu>
+                    <button onClick={() => setBrowserStep("formats")} className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground" type="button"><Plus className="h-4 w-4" /> New project</button>
                   </div>
                 </div>
                 <div className="mt-4 flex gap-4 overflow-x-auto pb-4">
-                  <button onClick={onCreate} className="group flex h-[10.5rem] w-48 shrink-0 flex-col items-center justify-center rounded-xl border border-dashed border-primary/50 bg-background/75 text-center shadow-sm transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground" type="button">
+                  <button onClick={() => setBrowserStep("formats")} className="group flex h-[10.5rem] w-48 shrink-0 flex-col items-center justify-center rounded-xl border border-dashed border-primary/50 bg-background/75 text-center shadow-sm transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground" type="button">
                     <span className="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-sm">
                       <Plus className="h-6 w-6" />
                     </span>
@@ -2060,9 +2120,12 @@ function StudioProjectBrowser({
                   {recentItems.map((item) => {
                     const Icon = studioKindIcons[item.kind]
                     const meta = getStudioProjectDisplayMeta(item.kind)
+                    const projectKey = `${item.kind}:${item.id}`
+                    const selected = selectedProjectKeys.has(projectKey)
                     return (
-                      <button key={`${item.kind}_${item.id}`} onClick={() => onOpen(item)} className="group w-48 shrink-0 text-left" type="button">
-                        <span className={`relative block h-32 overflow-hidden rounded-xl border border-border ${studioKindStyles[item.kind].icon} p-4 shadow-sm transition group-hover:-translate-y-0.5 group-hover:border-primary group-hover:shadow-lg`}>
+                      <div key={`${item.kind}_${item.id}`} className="group relative w-48 shrink-0 text-left">
+                        <button onClick={() => onOpen(item)} className="block w-full text-left" type="button">
+                        <span className={`relative block h-32 overflow-hidden rounded-xl border ${selected ? "border-primary ring-2 ring-primary/25" : "border-border"} ${studioKindStyles[item.kind].icon} p-4 shadow-sm transition group-hover:-translate-y-0.5 group-hover:border-primary group-hover:shadow-lg`}>
                           <Icon className="h-6 w-6" />
                           <span className="absolute bottom-4 left-4 right-4 space-y-2">
                             <span className="block h-2 w-20 rounded-full bg-background/80" />
@@ -2078,7 +2141,21 @@ function StudioProjectBrowser({
                             {item.updated_at ? `Edited ${formatDate(item.updated_at)}` : buildStudioProjectSubtitle(item)}
                           </span>
                         </span>
-                      </button>
+                        </button>
+                        <label className={`absolute left-2 top-2 grid h-7 w-7 cursor-pointer place-items-center rounded-lg bg-background/90 text-foreground shadow-sm ring-1 ring-border transition group-hover:opacity-100 ${selected ? "opacity-100" : "opacity-0"}`}>
+                          <input checked={selected} onChange={(event) => toggleProjectSelection(item, event.target.checked)} className="h-4 w-4 accent-primary" aria-label={`Select ${item.title}`} type="checkbox" />
+                        </label>
+                        <div className="absolute right-2 top-2 opacity-0 transition group-hover:opacity-100">
+                          <ActionMenu compact label="Actions" icon={MoreHorizontal}>
+                            <MenuAction icon={ArrowRight} label="Open" onClick={() => onOpen(item)} />
+                            <MenuAction icon={Copy} label="Copy title" onClick={() => onCopy(item)} />
+                            <MenuAction icon={FilePlus2} label="Duplicate" onClick={() => onDuplicate(item)} />
+                            <MenuAction icon={Download} label="Download" onClick={() => onDownload(item)} />
+                            <MenuAction icon={Share2} label="Export" onClick={() => onExport(item)} />
+                            <MenuAction destructive icon={Archive} label="Archive" onClick={() => onArchive(item)} />
+                          </ActionMenu>
+                        </div>
+                      </div>
                     )
                   })}
                 </div>
@@ -2128,7 +2205,10 @@ function StudioProjectBrowser({
                 <>
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-xl font-bold text-foreground">Choose a format</h3>
-                  <span className="rounded-lg bg-background px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">{compatibleCanvasFormat.label}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-lg bg-background px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">{selectedCanvasFormat.label}</span>
+                    <button onClick={createFromSelectedFormat} className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground" type="button"><Plus className="h-4 w-4" /> Create</button>
+                  </div>
                 </div>
                 <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {formatGroups.map((group) => (
@@ -2142,9 +2222,9 @@ function StudioProjectBrowser({
                       </div>
                       <div className="grid gap-2">
                         {group.formats.map((format) => {
-                          const active = format.id === compatibleCanvasFormat.id
+                          const active = format.id === selectedCanvasFormat.id
                           return (
-                            <button key={format.id} onClick={() => onCanvasFormat(format.id)} className={`group rounded-xl border p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground ${active ? "border-primary bg-primary/10" : "border-border bg-card"}`} type="button">
+                            <button key={format.id} onClick={() => chooseCanvasFormat(format)} className={`group rounded-xl border p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground ${active ? "border-primary bg-primary/10" : "border-border bg-card"}`} type="button">
                               <span className="flex items-center justify-between gap-3">
                                 <span className="truncate text-sm font-bold text-foreground group-hover:text-accent-foreground">{format.label}</span>
                                 <span className={`rounded px-1.5 py-0.5 text-[0.65rem] font-bold ${active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{active ? "Active" : `${format.width}:${format.height}`}</span>
