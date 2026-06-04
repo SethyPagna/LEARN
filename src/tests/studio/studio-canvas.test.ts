@@ -4,7 +4,7 @@ import test from "node:test"
 import { canvasAspectRatio, canvasPreviewWidth, getAnyStudioCanvasFormat, getStudioCanvasFormat, getStudioKindForCanvasFormat, groupStudioCanvasFormats, listAllStudioCanvasFormatGroups, listStudioCanvasFormatGroups, listStudioCanvasFormats } from "../../lib/studio-canvas"
 
 test("studio canvas formats fall back to a compatible kind", () => {
-  assert.equal(getStudioCanvasFormat("presentation-16-9", "slides").label, "Presentation 16:9")
+  assert.equal(getStudioCanvasFormat("presentation-16-9", "slides").label, "PPT wide 16:9")
   assert.equal(getStudioCanvasFormat("presentation-16-9", "docs").label, "A4 document")
   assert.equal(getStudioCanvasFormat("missing", "notes").label, "A4 document")
 })
