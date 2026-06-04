@@ -335,12 +335,11 @@ test("studio navigation options keep unified routes and inspector labels stable"
 test("combined workspace navigation keeps practice and social route mappings stable", () => {
   assert.deepEqual(practiceWorkspaceTabs.map((tab) => tab.id), ["quizzes", "games"])
   assert.equal(viewFromPracticeWorkspaceTab("games"), "games")
-  assert.deepEqual(socialWorkspaceTabs.map((tab) => tab.id), ["home", "chat", "spaces", "rooms", "battles"])
-  assert.deepEqual(socialWorkspaceTabs.map((tab) => tab.label), ["Friends", "Chats", "Groups", "Calls", "Games"])
+  assert.deepEqual(socialWorkspaceTabs.map((tab) => tab.id), ["chat", "spaces", "rooms", "battles"])
+  assert.deepEqual(socialWorkspaceTabs.map((tab) => tab.label), ["Chats", "Groups", "Calls", "Games"])
   assert.equal(socialWorkspaceTabFromView("social"), "chat")
   assert.equal(socialWorkspaceTabFromView("rooms"), "rooms")
-  assert.equal(socialWorkspaceTabFromView("dashboard"), "home")
-  assert.equal(viewFromSocialWorkspaceTab("home"), "social")
+  assert.equal(socialWorkspaceTabFromView("dashboard"), "chat")
   assert.equal(viewFromSocialWorkspaceTab("battles"), "battles")
 })
 
