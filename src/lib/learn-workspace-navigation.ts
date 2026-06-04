@@ -1,7 +1,7 @@
 import type { View } from "@/components/learn/types"
 
 export type PracticeWorkspaceTab = "quizzes" | "games"
-export type SocialWorkspaceTab = "home" | "chat" | "spaces" | "rooms" | "battles"
+export type SocialWorkspaceTab = "chat" | "spaces" | "rooms" | "battles"
 
 export type WorkspaceTabOption<T extends string> = {
   caption?: string
@@ -15,11 +15,10 @@ export const practiceWorkspaceTabs: Array<WorkspaceTabOption<PracticeWorkspaceTa
 ]
 
 export const socialWorkspaceTabs: Array<WorkspaceTabOption<SocialWorkspaceTab>> = [
-  { id: "home", label: "Friends", caption: "Find and add people" },
-  { id: "chat", label: "Chats", caption: "Messages" },
-  { id: "spaces", label: "Groups", caption: "Study groups" },
-  { id: "rooms", label: "Calls", caption: "Voice, video, and focus" },
-  { id: "battles", label: "Games", caption: "Quiz games" },
+  { id: "chat", label: "Chats", caption: "Search, message, invite, and share" },
+  { id: "spaces", label: "Groups", caption: "Group chats and shared study spaces" },
+  { id: "rooms", label: "Calls", caption: "Voice, video, and focus rooms" },
+  { id: "battles", label: "Games", caption: "Quiz battles and mini games" },
 ]
 
 export function viewFromPracticeWorkspaceTab(tab: PracticeWorkspaceTab): View {
@@ -32,10 +31,9 @@ export function socialWorkspaceTabFromView(view: View): SocialWorkspaceTab {
   if (view === "spaces") return "spaces"
   if (view === "rooms") return "rooms"
   if (view === "battles") return "battles"
-  return "home"
+  return "chat"
 }
 
 export function viewFromSocialWorkspaceTab(tab: SocialWorkspaceTab): View {
-  if (tab === "home") return "social"
   return tab
 }
