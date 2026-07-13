@@ -157,8 +157,9 @@ export async function decryptProviderSecret(value: string, masterKey = process.e
 }
 
 export function normalizeProviderConfigInput(input: ProviderConfigInput): NormalizedProviderConfigInput {
-  const metadata = getProviderMetadata(trim(input.provider)) || getProviderMetadata("cloudflare")
-  if (!metadata) throw new Error("Choose a supported AI provider.")
+  const requestedProvider = trim(input.provider)
+  const metadata = getProviderMetadata(requestedProvider)
+  if (!metadata) throw new Error(`"${requestedProvider || "(none)"}" isn't a supported AI provider.`)
   const defaults = safeProviderDefaults[metadata.provider]
   const requestedType = trim(input.providerType) as NormalizedProviderConfigInput["providerType"]
   const providerType = metadata.supportedTypes.includes(requestedType) ? requestedType : metadata.type

@@ -42,6 +42,7 @@ export type CloudflareBindings = {
   STUDY_ROOM_DO?: DurableObjectNamespaceLike
   STUDY_BATTLE_DO?: DurableObjectNamespaceLike
   PRESENCE_DO?: DurableObjectNamespaceLike
+  CHAT_DO?: DurableObjectNamespaceLike
   APP_ID?: string
   APP_BASE_URL?: string
   AI_PROVIDER_DEFAULT?: string

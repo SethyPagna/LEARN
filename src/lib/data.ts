@@ -511,6 +511,9 @@ export async function listCalendarEvents(user: User) {
 export async function saveCalendarEvent(user: User, input: Record<string, unknown>) {
   await ensureDatabase()
   const id = String(input.id || createId("event"))
+  const startsAt = String(input.startsAt || input.starts_at || new Date().toISOString())
+  const startsAtMs = Date.parse(startsAt)
+  const defaultEndsAt = new Date((Number.isFinite(startsAtMs) ? startsAtMs : Date.now()) + 45 * 60 * 1000).toISOString()
   await query(
     `INSERT INTO calendar_events (id, workspace_id, owner_user_id, title, event_type, starts_at, ends_at, timezone, notes, linked_note_id, updated_at)
      VALUES ($1, 'workspace_demo', $2, $3, $4, $5, $6, $7, $8, $9, now())
@@ -528,8 +531,8 @@ export async function saveCalendarEvent(user: User, input: Record<string, unknow
       user.id,
       String(input.title || "Study block").trim(),
       String(input.eventType || input.event_type || "study"),
-      String(input.startsAt || input.starts_at || new Date().toISOString()),
-      String(input.endsAt || input.ends_at || new Date(Date.now() + 45 * 60 * 1000).toISOString()),
+      startsAt,
+      String(input.endsAt || input.ends_at || defaultEndsAt),
       String(input.timezone || "UTC"),
       String(input.notes || ""),
       input.linkedNoteId || input.linked_note_id || null,
@@ -711,7 +714,8 @@ export async function saveEditorDocument(user: User, input: Record<string, unkno
     changeSummary: input.id ? "Updated document" : "Created document",
   })
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "editor_document", entityId: id })
-  return (await query("SELECT * FROM editor_documents WHERE id = $1 LIMIT 1", [id])).rows[0]
+  const savedDoc = (await query("SELECT * FROM editor_documents WHERE id = $1 LIMIT 1", [id])).rows[0]
+  return savedDoc ? { ...savedDoc, content: parseJsonObject(savedDoc.content), tags: parseJsonArray(savedDoc.tags) } : savedDoc
 }
 
 export async function archiveEditorDocument(user: User, id: string) {
@@ -786,7 +790,8 @@ export async function saveSheet(user: User, input: Record<string, unknown>) {
     changeSummary: input.id ? "Updated sheet" : "Created sheet",
   })
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "sheet", entityId: id })
-  return (await query("SELECT * FROM sheet_documents WHERE id = $1 LIMIT 1", [id])).rows[0]
+  const savedSheet = (await query("SELECT * FROM sheet_documents WHERE id = $1 LIMIT 1", [id])).rows[0]
+  return savedSheet ? normalizeJsonRow(savedSheet, ["cells", "history"]) : savedSheet
 }
 
 export async function archiveSheet(user: User, id: string) {
@@ -861,7 +866,8 @@ export async function saveSlideDeck(user: User, input: Record<string, unknown>) 
     changeSummary: input.id ? "Updated slide deck" : "Created slide deck",
   })
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "slide_deck", entityId: id })
-  return (await query("SELECT * FROM slide_decks WHERE id = $1 LIMIT 1", [id])).rows[0]
+  const savedDeck = (await query("SELECT * FROM slide_decks WHERE id = $1 LIMIT 1", [id])).rows[0]
+  return savedDeck ? { ...savedDeck, slides: parseJsonArray(savedDeck.slides), speaker_notes: parseJsonObject(savedDeck.speaker_notes) } : savedDeck
 }
 
 export async function archiveSlideDeck(user: User, id: string) {
@@ -1970,7 +1976,8 @@ export async function saveMicroLesson(user: User, input: Record<string, unknown>
     visibility,
   })
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "micro_lesson", entityId: id })
-  return (await query("SELECT * FROM micro_lessons WHERE id = $1 LIMIT 1", [id])).rows[0]
+  const savedLesson = (await query("SELECT * FROM micro_lessons WHERE id = $1 LIMIT 1", [id])).rows[0]
+  return savedLesson ? { ...savedLesson, topic_tags: parseJsonArray(savedLesson.topic_tags), choices: parseJsonArray(savedLesson.choices) } : savedLesson
 }
 
 export async function recordFeedInteraction(user: User, input: Record<string, unknown>) {
@@ -2094,7 +2101,8 @@ export async function saveLearningSpace(user: User, input: Record<string, unknow
     [id, user.id],
   )
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "learning_space", entityId: id })
-  return (await query("SELECT * FROM learning_spaces WHERE id = $1 LIMIT 1", [id])).rows[0]
+  const savedSpace = (await query("SELECT * FROM learning_spaces WHERE id = $1 LIMIT 1", [id])).rows[0]
+  return savedSpace ? ({ ...savedSpace, topic_tags: parseJsonArray(savedSpace.topic_tags), settings: parseJsonObject(savedSpace.settings) } as Record<string, unknown>) : savedSpace
 }
 
 export async function deleteLearningSpace(user: User, id: string) {
@@ -2144,7 +2152,8 @@ export async function saveStudyRoom(user: User, input: Record<string, unknown>) 
     ],
   )
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "study_room", entityId: id })
-  return (await query("SELECT * FROM study_rooms WHERE id = $1 LIMIT 1", [id])).rows[0]
+  const savedRoom = (await query("SELECT * FROM study_rooms WHERE id = $1 LIMIT 1", [id])).rows[0]
+  return savedRoom ? ({ ...savedRoom, presence: parseJsonArray(savedRoom.presence) } as Record<string, unknown>) : savedRoom
 }
 
 export async function deleteStudyRoom(user: User, id: string) {
@@ -2196,7 +2205,8 @@ export async function saveStudyBattle(user: User, input: Record<string, unknown>
     ],
   )
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "study_battle", entityId: id })
-  return (await query("SELECT * FROM study_battles WHERE id = $1 LIMIT 1", [id])).rows[0]
+  const savedBattle = (await query("SELECT * FROM study_battles WHERE id = $1 LIMIT 1", [id])).rows[0]
+  return savedBattle ? { ...savedBattle, question_set: parseJsonArray(savedBattle.question_set), leaderboard: parseJsonArray(savedBattle.leaderboard) } : savedBattle
 }
 
 export async function deleteStudyBattle(user: User, id: string) {
