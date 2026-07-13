@@ -1,9 +1,12 @@
-export const realtimeKinds = ["rooms", "battles", "presence"] as const
-export const collaborationEventTypes = ["presence", "pomodoro", "battle-answer", "editor-change", "snapshot"] as const
+export const realtimeKinds = ["rooms", "battles", "presence", "chat"] as const
+export const collaborationEventTypes = ["presence", "pomodoro", "battle-answer", "editor-change", "snapshot", "chat-message", "typing", "call-signal"] as const
 
 export type RealtimeKind = typeof realtimeKinds[number]
 export type CollaborationEventType = typeof collaborationEventTypes[number]
-export type CollaborationSessionType = "editor" | "room" | "battle" | "presence"
+export type CollaborationSessionType = "editor" | "room" | "battle" | "presence" | "chat"
+
+export const callSignalKinds = ["offer", "answer", "ice-candidate", "hangup", "decline", "busy"] as const
+export type CallSignalKind = typeof callSignalKinds[number]
 
 export interface CollaborationEventPayload {
   type: CollaborationEventType
@@ -23,7 +26,10 @@ export interface CollaborationEventParseResult {
   error?: string
 }
 
-const maxPayloadBytes = 16 * 1024
+// WebRTC SDP blobs (especially for video, with many codec lines) can run a few
+// KB; the default cap is generous for the small structured events but call
+// signaling gets its own higher ceiling below.
+const maxPayloadBytes = 48 * 1024
 const allowedPomodoroStatuses = new Set(["start", "pause", "resume", "complete", "reset", "tick"])
 
 export function isRealtimeKind(value: string): value is RealtimeKind {
@@ -33,6 +39,7 @@ export function isRealtimeKind(value: string): value is RealtimeKind {
 export function sessionTypeForRealtimeKind(kind: RealtimeKind): CollaborationSessionType {
   if (kind === "rooms") return "room"
   if (kind === "battles") return "battle"
+  if (kind === "chat") return "chat"
   return "presence"
 }
 
@@ -42,7 +49,7 @@ export function collaborationSessionId(kind: RealtimeKind, channelId: string) {
 }
 
 export function shouldPersistCollaborationEvent(type: CollaborationEventType) {
-  return type !== "presence"
+  return type !== "presence" && type !== "typing" && type !== "chat-message" && type !== "call-signal"
 }
 
 function payloadSize(value: unknown) {
@@ -120,6 +127,49 @@ export function validateCollaborationEvent(input: unknown): CollaborationEventVa
         },
       },
     }
+  }
+
+  if (type === "chat-message") {
+    const threadId = cleanString(record.threadId || record.thread_id || payload.threadId || payload.thread_id, 120)
+    const messageId = cleanString(record.messageId || record.message_id || payload.messageId || payload.message_id, 120)
+    const body = cleanString(record.body || payload.body, 4000)
+    if (!threadId || !messageId) return { ok: false, error: "Chat messages require a thread and message id." }
+    return {
+      ok: true,
+      event: {
+        type,
+        userId,
+        payload: {
+          threadId,
+          messageId,
+          body,
+          createdAt: cleanString(record.createdAt || record.created_at || payload.createdAt || payload.created_at, 40),
+        },
+      },
+    }
+  }
+
+  if (type === "typing") {
+    const threadId = cleanString(record.threadId || record.thread_id || payload.threadId || payload.thread_id, 120)
+    if (!threadId) return { ok: false, error: "Typing events require a thread id." }
+    const isTyping = record.isTyping ?? record.is_typing ?? payload.isTyping ?? payload.is_typing
+    return { ok: true, event: { type, userId, payload: { threadId, isTyping: isTyping !== false } } }
+  }
+
+  if (type === "call-signal") {
+    const callId = cleanString(record.callId || record.call_id || payload.callId || payload.call_id, 80)
+    const kind = cleanString(record.kind || payload.kind, 24) as CallSignalKind
+    if (!callId) return { ok: false, error: "Call signals require a call id." }
+    if (!(callSignalKinds as readonly string[]).includes(kind)) return { ok: false, error: "Unsupported call signal kind." }
+
+    const video = Boolean(record.video ?? payload.video ?? false)
+    const sdp = typeof (record.sdp ?? payload.sdp) === "string" ? cleanString(record.sdp ?? payload.sdp, 12000) : undefined
+    const candidate = typeof (record.candidate ?? payload.candidate) === "string" ? cleanString(record.candidate ?? payload.candidate, 4000) : undefined
+
+    if ((kind === "offer" || kind === "answer") && !sdp) return { ok: false, error: "Offer/answer signals require an sdp payload." }
+    if (kind === "ice-candidate" && candidate === undefined) return { ok: false, error: "ICE candidate signals require a candidate payload." }
+
+    return { ok: true, event: { type, userId, payload: { callId, kind, video, sdp, candidate } } }
   }
 
   const summary = cleanString(record.summary || payload.summary, 500)

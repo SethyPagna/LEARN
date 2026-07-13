@@ -1,7 +1,12 @@
 import { DurableObject } from "cloudflare:workers"
-
-type RealtimeChannelKind = "rooms" | "battles" | "presence"
-type RealtimeEventType = "presence" | "pomodoro" | "battle-answer" | "editor-change" | "snapshot"
+import {
+  collaborationSessionId as sharedCollaborationSessionId,
+  sessionTypeForRealtimeKind,
+  shouldPersistCollaborationEvent,
+  validateCollaborationEvent,
+  type CollaborationEventPayload,
+  type RealtimeKind,
+} from "../lib/collaboration-events"
 
 interface D1Binding {
   prepare(sql: string): {
@@ -16,33 +21,21 @@ export interface RealtimeEnv {
   STUDY_ROOM_DO?: DurableObjectNamespace
   STUDY_BATTLE_DO?: DurableObjectNamespace
   PRESENCE_DO?: DurableObjectNamespace
+  CHAT_DO?: DurableObjectNamespace
 }
 
-interface RealtimeEvent {
-  channel?: {
-    kind: RealtimeChannelKind | string
-    id: string
-  }
-  payload: Record<string, unknown>
-  type: RealtimeEventType
-  userId?: string
-}
-
-interface RealtimeValidation {
-  error?: string
-  event?: RealtimeEvent
-  ok: boolean
+type RealtimeEvent = CollaborationEventPayload & {
+  channel?: { kind: RealtimeKind | string; id: string }
 }
 
 const CHANNELS = {
   rooms: "STUDY_ROOM_DO",
   battles: "STUDY_BATTLE_DO",
   presence: "PRESENCE_DO",
+  chat: "CHAT_DO",
 } as const
 
-const EVENT_TYPES = new Set<RealtimeEventType>(["presence", "pomodoro", "battle-answer", "editor-change", "snapshot"])
-const POMODORO_STATUSES = new Set(["start", "pause", "resume", "complete", "reset", "tick"])
-const MAX_PAYLOAD_BYTES = 16 * 1024
+const MAX_PAYLOAD_BYTES = 48 * 1024
 
 class RealtimeLearningObject extends DurableObject<RealtimeEnv> {
   ctx: DurableObjectState
@@ -58,6 +51,21 @@ class RealtimeLearningObject extends DurableObject<RealtimeEnv> {
     if (request.method === "DELETE") {
       await this.ctx.storage.deleteAll()
       this.broadcast({ type: "reset", receivedAt: new Date().toISOString() })
+      return Response.json({ ok: true })
+    }
+
+    if (request.method === "POST") {
+      // Server-to-server push: used to fan out a message that a Next.js API route
+      // already validated and persisted (e.g. a chat message), without requiring
+      // the sender to hold an open WebSocket to this object themselves.
+      const body = await request.json().catch(() => null)
+      const validation = validateCollaborationEvent(body)
+      if (!validation.ok || !validation.event) {
+        return Response.json({ error: validation.error || "Invalid broadcast payload." }, { status: 400 })
+      }
+      const context = channelContextFromRequest(request)
+      const payload = { ...validation.event, channel: context } satisfies RealtimeEvent
+      this.broadcast({ ...payload, receivedAt: new Date().toISOString() })
       return Response.json({ ok: true })
     }
 
@@ -91,12 +99,14 @@ class RealtimeLearningObject extends DurableObject<RealtimeEnv> {
       ...validation.event,
       channel: {
         kind: attachment.kind || "presence",
-        id: attachment.channelId || "global",
+        id: attachment.id || "global",
       },
     } as RealtimeEvent & { channel: { kind: string; id: string } }
 
-    await this.ctx.storage.put(eventKey, payload)
-    await this.persistUsefulEvent(payload, eventKey)
+    if (shouldPersistCollaborationEvent(payload.type)) {
+      await this.ctx.storage.put(eventKey, payload)
+      await this.persistUsefulEvent(payload, eventKey)
+    }
     this.broadcast({ ...payload, receivedAt: new Date().toISOString() })
   }
 
@@ -120,11 +130,12 @@ class RealtimeLearningObject extends DurableObject<RealtimeEnv> {
   }
 
   async persistUsefulEvent(event: RealtimeEvent & { channel: { kind: string; id: string } }, eventKey: string) {
-    if (!this.env.LEARN_DB || event.type === "presence") return
+    if (!this.env.LEARN_DB || !shouldPersistCollaborationEvent(event.type)) return
 
     try {
-      const sessionId = collaborationSessionId(event.channel.kind, event.channel.id)
-      const sessionType = sessionTypeForKind(event.channel.kind)
+      const kind = event.channel.kind as RealtimeKind
+      const sessionId = sharedCollaborationSessionId(kind, event.channel.id)
+      const sessionType = sessionTypeForRealtimeKind(kind)
       const storedPayload = JSON.stringify({
         ...event.payload,
         channel: event.channel,
@@ -154,6 +165,7 @@ class RealtimeLearningObject extends DurableObject<RealtimeEnv> {
 export class StudyRoomDurableObject extends RealtimeLearningObject {}
 export class StudyBattleDurableObject extends RealtimeLearningObject {}
 export class PresenceDurableObject extends RealtimeLearningObject {}
+export class ChatDurableObject extends RealtimeLearningObject {}
 
 class LegacyCompatibilityDurableObject extends DurableObject<RealtimeEnv> {
   async fetch() {
@@ -193,121 +205,22 @@ export default {
   fetch: routeRealtimeRequest,
 }
 
-function validateRealtimeMessage(message: string | ArrayBuffer): RealtimeValidation {
-  if (typeof message !== "string") return { ok: false, error: "Message must be JSON text." }
-
-  const parsed = safeJson(message)
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return { ok: false, error: "Message must be a JSON object." }
-  if (payloadSize(parsed) > MAX_PAYLOAD_BYTES) return { ok: false, error: "Message is too large." }
-
-  const type = cleanString(readField(parsed, "type"), 48)
-  if (!isRealtimeEventType(type)) return { ok: false, error: "Unsupported realtime event type." }
-
-  const payload = objectPayload(readField(parsed, "payload"))
-  const userId = cleanString(readField(parsed, "userId") || readField(parsed, "user_id"), 120) || undefined
-
-  if (type === "presence") {
-    const count = Number(readField(parsed, "count") ?? payload.count)
-    if (!Number.isFinite(count) || count < 0) return { ok: false, error: "Presence events require a non-negative count." }
-    return { ok: true, event: { type, userId, payload: { count: Math.floor(count) } } }
+function validateRealtimeMessage(message: string | ArrayBuffer) {
+  if (typeof message !== "string") return { ok: false as const, error: "Message must be JSON text." }
+  if (new TextEncoder().encode(message).byteLength > MAX_PAYLOAD_BYTES) {
+    return { ok: false as const, error: "Message is too large." }
   }
-
-  if (type === "pomodoro") {
-    const status = cleanString(readField(parsed, "status") || payload.status, 32)
-    if (!POMODORO_STATUSES.has(status)) return { ok: false, error: "Pomodoro events require a valid status." }
-    return {
-      ok: true,
-      event: {
-        type,
-        userId,
-        payload: {
-          status,
-          minutes: Math.max(0, Math.min(240, Math.round(Number(readField(parsed, "minutes") ?? payload.minutes ?? 25)))),
-        },
-      },
-    }
-  }
-
-  if (type === "battle-answer") {
-    const questionId = cleanString(readField(parsed, "questionId") || readField(parsed, "question_id") || payload.questionId || payload.question_id)
-    const answerId = cleanString(readField(parsed, "answerId") || readField(parsed, "answer_id") || readField(parsed, "selectedAnswerId") || readField(parsed, "selected_answer_id") || payload.answerId || payload.answer_id)
-    if (!questionId || !answerId) return { ok: false, error: "Battle answers require question and answer ids." }
-    return { ok: true, event: { type, userId, payload: { questionId, answerId } } }
-  }
-
-  if (type === "editor-change") {
-    const contentItemId = cleanString(readField(parsed, "contentItemId") || readField(parsed, "content_item_id") || payload.contentItemId || payload.content_item_id, 120)
-    const operation = cleanString(readField(parsed, "operation") || payload.operation, 80)
-    if (!contentItemId || !operation) return { ok: false, error: "Editor changes require a content item and operation." }
-    return {
-      ok: true,
-      event: {
-        type,
-        userId,
-        payload: {
-          contentItemId,
-          operation,
-          clientMutationId: cleanString(readField(parsed, "clientMutationId") || readField(parsed, "client_mutation_id") || payload.clientMutationId || payload.client_mutation_id, 120),
-        },
-      },
-    }
-  }
-
-  const summary = cleanString(readField(parsed, "summary") || payload.summary, 500)
-  return { ok: true, event: { type, userId, payload: { summary, ...payload } } }
+  return validateCollaborationEvent(message)
 }
 
 function channelContextFromRequest(request: Request) {
   const [kind, ...idParts] = new URL(request.url).pathname.replace(/^\/+/, "").split("/")
   return {
     kind: isRealtimeChannelKind(kind) ? kind : "presence",
-    channelId: decodeURIComponent(idParts.join("/") || "global"),
+    id: decodeURIComponent(idParts.join("/") || "global"),
   }
 }
 
-function collaborationSessionId(kind: string, channelId: string) {
-  const safeChannel = String(channelId || "channel").replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 96) || "channel"
-  return `collab_${kind}_${safeChannel}`
-}
-
-function sessionTypeForKind(kind: string) {
-  if (kind === "rooms") return "room"
-  if (kind === "battles") return "battle"
-  return "presence"
-}
-
-function payloadSize(value: unknown) {
-  try {
-    return new TextEncoder().encode(JSON.stringify(value)).byteLength
-  } catch {
-    return Number.POSITIVE_INFINITY
-  }
-}
-
-function cleanString(value: unknown, maxLength = 160) {
-  return typeof value === "string" ? value.trim().slice(0, maxLength) : ""
-}
-
-function objectPayload(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
-}
-
-function readField(source: unknown, key: string) {
-  return source && typeof source === "object" && key in source ? (source as Record<string, unknown>)[key] : undefined
-}
-
-function isRealtimeChannelKind(value: string): value is RealtimeChannelKind {
-  return value === "rooms" || value === "battles" || value === "presence"
-}
-
-function isRealtimeEventType(value: string): value is RealtimeEventType {
-  return EVENT_TYPES.has(value as RealtimeEventType)
-}
-
-function safeJson(value: string) {
-  try {
-    return JSON.parse(value)
-  } catch {
-    return null
-  }
+function isRealtimeChannelKind(value: string): value is keyof typeof CHANNELS {
+  return value === "rooms" || value === "battles" || value === "presence" || value === "chat"
 }

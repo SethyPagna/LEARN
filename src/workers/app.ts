@@ -1,6 +1,8 @@
 // @ts-ignore OpenNext generates this module before Wrangler bundles the Worker.
 import { default as openNextHandler } from "../../.open-next/worker.js"
+import { isAuthorizedForChatChannel } from "../lib/chat-channel"
 import {
+  ChatDurableObject,
   PresenceDurableObject,
   routeRealtimeRequest,
   StudyBattleDurableObject,
@@ -14,6 +16,7 @@ import {
 } from "./realtime"
 
 export {
+  ChatDurableObject,
   GameRoomDO,
   MatchmakingDO,
   PresenceDO,
@@ -28,7 +31,7 @@ interface OpenNextHandler {
   fetch(request: Request, env: unknown, ctx: ExecutionContext): Promise<Response> | Response
 }
 
-const REALTIME_ROUTE = /^\/api\/realtime\/(rooms|battles|presence)\/([^/]+)$/
+const REALTIME_ROUTE = /^\/api\/realtime\/(rooms|battles|presence|chat)\/([^/]+)$/
 const WEBSOCKET_HEADERS = [
   "connection",
   "sec-websocket-accept",
@@ -62,9 +65,11 @@ function sessionRequest(request: Request) {
   })
 }
 
-async function isAuthenticated(request: Request, env: AppWorkerEnv, ctx: ExecutionContext) {
+async function resolveSessionUser(request: Request, env: AppWorkerEnv, ctx: ExecutionContext) {
   const response = await handler.fetch(sessionRequest(request), env, ctx)
-  return response.ok
+  if (!response.ok) return null
+  const body = await response.json().catch(() => null) as { user?: { id?: string } | null } | null
+  return body?.user?.id ? body.user : null
 }
 
 export default {
@@ -72,10 +77,17 @@ export default {
     if (request.headers.get("upgrade") === "websocket") {
       const match = new URL(request.url).pathname.match(REALTIME_ROUTE)
       if (!match) return new Response("Unsupported websocket route.", { status: 404 })
-      if (!(await isAuthenticated(request, env, ctx))) return new Response("Please sign in to continue.", { status: 401 })
+
+      const user = await resolveSessionUser(request, env, ctx)
+      if (!user?.id) return new Response("Please sign in to continue.", { status: 401 })
 
       const [, kind, id] = match
-      return routeRealtimeRequest(realtimeServiceRequest(request, kind, id), env)
+      const channelId = decodeURIComponent(id)
+      if (kind === "chat" && !isAuthorizedForChatChannel(channelId, user.id)) {
+        return new Response("You're not a participant in this conversation.", { status: 403 })
+      }
+
+      return routeRealtimeRequest(realtimeServiceRequest(request, kind, channelId), env)
     }
 
     return handler.fetch(request, env, ctx)
