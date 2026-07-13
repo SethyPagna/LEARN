@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server"
-import { fail, isApiResponse, isPlainRecord, ok, readJsonObject, requireApiUser } from "@/lib/api"
+import { fail, isApiResponse, isPlainRecord, ok, readJsonObject, requireApiUser, withApiErrorBoundary } from "@/lib/api"
 import { recordQuizAttempt } from "@/lib/data"
 
 interface QuizAttemptAnswerInput {
@@ -24,7 +24,7 @@ function normalizeAttemptAnswers(value: unknown): QuizAttemptAnswerInput[] {
   return value.map(normalizeAttemptAnswer).filter((answer): answer is QuizAttemptAnswerInput => Boolean(answer))
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
 
@@ -34,4 +34,4 @@ export async function POST(request: NextRequest) {
   const durationSeconds = Math.max(0, Math.round(Number(body.durationSeconds || body.duration_seconds || 0)))
   if (!quizId || answers.length === 0) return fail("Quiz id and answers are required.")
   return ok(await recordQuizAttempt(user, { quizId, answers, durationSeconds }))
-}
+})

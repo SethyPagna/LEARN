@@ -1,17 +1,17 @@
 import type { NextRequest } from "next/server"
-import { fail, isApiResponse, ok, readJsonObject, requireApiUser } from "@/lib/api"
+import { fail, isApiResponse, ok, readJsonObject, requireApiUser, withApiErrorBoundary } from "@/lib/api"
 import { deleteNote, getNote, restoreNote, saveNote } from "@/lib/data"
 
-export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const GET = withApiErrorBoundary(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
   const { id } = await context.params
   const item = await getNote(id)
   if (!item) return fail("Note not found.", 404)
   return ok({ item })
-}
+})
 
-export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const PUT = withApiErrorBoundary(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
   const { id } = await context.params
@@ -25,21 +25,21 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     template: String(body.template || "blank"),
   })
   return ok({ item })
-}
+})
 
-export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const DELETE = withApiErrorBoundary(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
   const { id } = await context.params
   await deleteNote(user, id)
   return ok({ success: true })
-}
+})
 
-export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const PATCH = withApiErrorBoundary(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
   const { id } = await context.params
   const body = await readJsonObject(request)
   if (body.action === "restore") return ok({ item: await restoreNote(user, id) })
   return fail("Unsupported note action.", 400)
-}
+})

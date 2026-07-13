@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/data"
 import { getMediaAsset, getMediaObject } from "@/lib/storage"
+import { withApiErrorBoundary } from "@/lib/api"
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withApiErrorBoundary(async (_request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -20,4 +21,4 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   headers.set("content-disposition", `attachment; filename="${asset.filename.replace(/"/g, "")}"`)
   headers.set("x-content-type-options", "nosniff")
   return new Response(object.body, { headers })
-}
+})

@@ -1,15 +1,15 @@
 import type { NextRequest } from "next/server"
-import { fail, isApiResponse, ok, readJsonObject, requireApiUser } from "@/lib/api"
+import { fail, isApiResponse, ok, readJsonObject, requireApiUser, withApiErrorBoundary } from "@/lib/api"
 import { listNotes, normalizeArchiveStatus, saveNote } from "@/lib/data"
 
-export async function GET(request: NextRequest) {
+export const GET = withApiErrorBoundary(async (request: NextRequest) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
   const status = normalizeArchiveStatus(new URL(request.url).searchParams.get("status"))
   return ok({ items: await listNotes(status) })
-}
+})
 
-export async function POST(request: NextRequest) {
+export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
 
@@ -23,4 +23,4 @@ export async function POST(request: NextRequest) {
     template: String(body.template || "blank"),
   })
   return ok({ item })
-}
+})

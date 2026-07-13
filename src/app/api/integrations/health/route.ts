@@ -4,8 +4,9 @@ import { getCloudflareBindings } from "@/lib/cloudflare"
 import { getDatabaseRuntimeMode, isDatabaseConfigured, query } from "@/lib/db"
 import { isR2Configured } from "@/lib/storage"
 import { resolveConfiguredProvider } from "@/lib/ai/providers"
+import { withApiErrorBoundary } from "@/lib/api"
 
-export async function GET() {
+export const GET = withApiErrorBoundary(async () => {
   const user = await getCurrentUser()
   if (!user || user.role !== "admin") {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 })
@@ -37,4 +38,4 @@ export async function GET() {
       configured: Boolean(resolveConfiguredProvider()),
     },
   })
-}
+})

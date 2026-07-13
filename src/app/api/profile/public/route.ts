@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server"
-import { fail, ok } from "@/lib/api"
+import { fail, ok, withApiErrorBoundary } from "@/lib/api"
 import { getPublicProfile } from "@/lib/data"
 
-export async function GET(request: NextRequest) {
+export const GET = withApiErrorBoundary(async (request: NextRequest) => {
   const username = request.nextUrl.searchParams.get("username") || "admin"
   const viewer = request.nextUrl.searchParams.get("viewer") === "connections" ? "connections" : "public"
 
@@ -13,4 +13,4 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return fail(error instanceof Error ? error.message : "Failed to load public profile.", 500)
   }
-}
+})

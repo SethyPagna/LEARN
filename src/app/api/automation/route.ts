@@ -1,9 +1,9 @@
 import type { NextRequest } from "next/server"
-import { isApiResponse, ok, requireApiUser } from "@/lib/api"
+import { isApiResponse, ok, requireApiUser, withApiErrorBoundary } from "@/lib/api"
 import { automationJobs } from "@/lib/automation"
 import { promptLibrary } from "@/lib/ai/prompt-library"
 
-export async function GET(request: NextRequest) {
+export const GET = withApiErrorBoundary(async (request: NextRequest) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
 
@@ -15,4 +15,4 @@ export async function GET(request: NextRequest) {
       outputContract: prompt.outputContract,
     })),
   })
-}
+})

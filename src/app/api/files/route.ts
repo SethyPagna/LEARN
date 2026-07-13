@@ -2,15 +2,16 @@ import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/data"
 import { deleteMediaAsset, listMediaAssets, uploadMediaAsset } from "@/lib/storage"
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
+import { withApiErrorBoundary } from "@/lib/api"
 
-export async function GET() {
+export const GET = withApiErrorBoundary(async () => {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   return NextResponse.json({ files: await listMediaAssets(user) })
-}
+})
 
-export async function POST(request: Request) {
+export const POST = withApiErrorBoundary(async (request: Request) => {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -39,9 +40,9 @@ export async function POST(request: Request) {
   if (asset instanceof NextResponse) return asset
 
   return NextResponse.json({ file: asset }, { status: 201 })
-}
+})
 
-export async function DELETE(request: Request) {
+export const DELETE = withApiErrorBoundary(async (request: Request) => {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -50,4 +51,4 @@ export async function DELETE(request: Request) {
 
   const deleted = await deleteMediaAsset(id, user)
   return NextResponse.json({ deleted })
-}
+})

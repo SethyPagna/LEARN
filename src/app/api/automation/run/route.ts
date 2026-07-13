@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
-import { isPlainRecord, readJsonObject } from "@/lib/api"
+import { isPlainRecord, readJsonObject, withApiErrorBoundary } from "@/lib/api"
 import { getCurrentUser } from "@/lib/data"
 import { query } from "@/lib/db"
 import { getAutomationJob } from "@/lib/automation"
 import { createId } from "@/lib/schema"
 
-export async function POST(request: Request) {
+export const POST = withApiErrorBoundary(async (request: Request) => {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -29,4 +29,4 @@ export async function POST(request: Request) {
   )
 
   return NextResponse.json({ run: { id: runId, jobKey: job.key, ...output } }, { status: 202 })
-}
+})

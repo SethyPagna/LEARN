@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server"
-import { fail, isApiResponse, ok, readJsonObject, requireApiUser } from "@/lib/api"
+import { fail, isApiResponse, ok, readJsonObject, requireApiUser, withApiErrorBoundary } from "@/lib/api"
 import { createPracticeReviewItems, createPracticeReviewItemsFromSession, listReviewSchedule, recordReviewResult } from "@/lib/data"
 
-export async function GET(request: NextRequest) {
+export const GET = withApiErrorBoundary(async (request: NextRequest) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
 
@@ -11,9 +11,9 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return fail(error instanceof Error ? error.message : "Failed to load reviews.", 500)
   }
-}
+})
 
-export async function POST(request: NextRequest) {
+export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
   const body = await readJsonObject(request)
@@ -39,4 +39,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return fail(error instanceof Error ? error.message : "Failed to record review.", 500)
   }
-}
+})

@@ -2,10 +2,10 @@ import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 import { authenticateUser, createUserSession, SESSION_COOKIE } from "@/lib/data"
 import { isDatabaseConfigured } from "@/lib/db"
-import { fail, readJsonObject } from "@/lib/api"
+import { fail, readJsonObject, withApiErrorBoundary } from "@/lib/api"
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
 
-export async function POST(request: NextRequest) {
+export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   if (!isDatabaseConfigured()) {
     return fail("Cloudflare D1 is not configured. Set LEARN_DB binding or Cloudflare D1 API credentials.", 503)
   }
@@ -41,4 +41,4 @@ export async function POST(request: NextRequest) {
     path: "/",
   })
   return response
-}
+})

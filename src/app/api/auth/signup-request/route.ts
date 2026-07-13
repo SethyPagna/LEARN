@@ -1,12 +1,12 @@
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
-import { fail, readJsonObject } from "@/lib/api"
+import { fail, readJsonObject, withApiErrorBoundary } from "@/lib/api"
 import { normalizeAccessRequest } from "@/lib/auth-entry"
 import { isDatabaseConfigured } from "@/lib/db"
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
 import { createId, ensureDatabase, logAudit } from "@/lib/schema"
 
-export async function POST(request: NextRequest) {
+export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   if (!isDatabaseConfigured()) {
     return fail("Cloudflare D1 is not configured. Access requests need the LEARN database.", 503)
   }
@@ -40,4 +40,4 @@ export async function POST(request: NextRequest) {
     id: requestId,
     message: "Access request saved. An admin can review it from audit activity.",
   })
-}
+})

@@ -1,14 +1,14 @@
 import type { NextRequest } from "next/server"
-import { fail, isApiResponse, isPlainRecord, ok, readJsonObject, requireApiUser } from "@/lib/api"
+import { fail, isApiResponse, isPlainRecord, ok, readJsonObject, requireApiUser, withApiErrorBoundary } from "@/lib/api"
 import { updateProfile } from "@/lib/data"
 
-export async function GET(request: NextRequest) {
+export const GET = withApiErrorBoundary(async (request: NextRequest) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
   return ok({ user })
-}
+})
 
-export async function PUT(request: NextRequest) {
+export const PUT = withApiErrorBoundary(async (request: NextRequest) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
   const body = await readJsonObject(request)
@@ -22,4 +22,4 @@ export async function PUT(request: NextRequest) {
   })
   if (!updated) return fail("Profile updated, but the session could not be refreshed.", 500)
   return ok({ user: updated })
-}
+})

@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server"
-import { fail, isApiResponse, requireApiUser } from "@/lib/api"
+import { fail, isApiResponse, requireApiUser, withApiErrorBoundary } from "@/lib/api"
 import { getCloudflareBindings, type DurableObjectNamespaceLike } from "@/lib/cloudflare"
 import { isRealtimeKind } from "@/lib/collaboration-events"
 
@@ -26,10 +26,10 @@ async function forwardRealtime(request: NextRequest, context: { params: Promise<
   return namespace.get(objectId).fetch(request)
 }
 
-export async function GET(request: NextRequest, context: { params: Promise<{ kind: string; id: string }> }) {
+export const GET = withApiErrorBoundary(async (request: NextRequest, context: { params: Promise<{ kind: string; id: string }> }) => {
   return forwardRealtime(request, context)
-}
+})
 
-export async function DELETE(request: NextRequest, context: { params: Promise<{ kind: string; id: string }> }) {
+export const DELETE = withApiErrorBoundary(async (request: NextRequest, context: { params: Promise<{ kind: string; id: string }> }) => {
   return forwardRealtime(request, context)
-}
+})

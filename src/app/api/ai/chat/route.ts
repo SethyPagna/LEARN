@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server"
-import { fail, isApiResponse, ok, readJsonObject, requireApiUser } from "@/lib/api"
+import { fail, isApiResponse, ok, readJsonObject, requireApiUser, withApiErrorBoundary } from "@/lib/api"
 import { askTutor, type TutorMode } from "@/lib/ai/tutor"
 import { saveAiTurn } from "@/lib/data"
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
@@ -11,7 +11,7 @@ function cleanText(value: unknown, maxLength: number) {
   return String(value || "").replace(controlCharacterPattern, "").trim().slice(0, maxLength)
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
 
@@ -53,4 +53,4 @@ export async function POST(request: NextRequest) {
     await saveAiTurn({ user, prompt: message, response: text, status: "error" })
     return fail(text, 502)
   }
-}
+})

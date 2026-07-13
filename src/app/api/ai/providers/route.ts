@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server"
-import { fail, isApiResponse, ok, readJsonObject, requireApiUser } from "@/lib/api"
+import { fail, isApiResponse, ok, readJsonObject, requireApiUser, withApiErrorBoundary } from "@/lib/api"
 import {
   sanitizeAiGatewayProviderCatalog,
   sanitizeAiGatewayProviderPresets,
@@ -58,7 +58,7 @@ function providerInputFromBody(body: Record<string, unknown>): ProviderConfigInp
   }
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withApiErrorBoundary(async (request: NextRequest) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
   if (user.role !== "admin") {
@@ -75,9 +75,9 @@ export async function GET(request: NextRequest) {
     catalog: listProviderMetadata(),
     presets: listProviderPresets(),
   })
-}
+})
 
-export async function POST(request: NextRequest) {
+export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
   const body = await readJsonObject(request)
@@ -87,9 +87,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return fail(error instanceof Error ? error.message : "Unable to save AI provider.", user.role === "admin" ? 400 : 403)
   }
-}
+})
 
-export async function PUT(request: NextRequest) {
+export const PUT = withApiErrorBoundary(async (request: NextRequest) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
   const body = await readJsonObject(request)
@@ -98,9 +98,9 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     return fail(error instanceof Error ? error.message : "Unable to update AI provider.", user.role === "admin" ? 400 : 403)
   }
-}
+})
 
-export async function DELETE(request: NextRequest) {
+export const DELETE = withApiErrorBoundary(async (request: NextRequest) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
   try {
@@ -109,4 +109,4 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     return fail(error instanceof Error ? error.message : "Unable to delete AI provider.", user.role === "admin" ? 400 : 403)
   }
-}
+})

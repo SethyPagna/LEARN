@@ -1,11 +1,11 @@
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
-import { fail, ok, readJsonObject } from "@/lib/api"
+import { fail, ok, readJsonObject, withApiErrorBoundary } from "@/lib/api"
 import { normalizeInviteAcceptance } from "@/lib/auth-entry"
 import { acceptWorkspaceInvite, createUserSession, getWorkspaceInviteByToken, SESSION_COOKIE } from "@/lib/data"
 import { isDatabaseConfigured } from "@/lib/db"
 
-export async function GET(request: NextRequest) {
+export const GET = withApiErrorBoundary(async (request: NextRequest) => {
   if (!isDatabaseConfigured()) return fail("Cloudflare D1 is not configured. Invites need the LEARN database.", 503)
   const token = request.nextUrl.searchParams.get("token") || ""
   if (token.trim().length < 8) return fail("Invite link is missing or invalid.", 400)
@@ -21,9 +21,9 @@ export async function GET(request: NextRequest) {
       status: invite.status,
     },
   })
-}
+})
 
-export async function POST(request: NextRequest) {
+export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   if (!isDatabaseConfigured()) return fail("Cloudflare D1 is not configured. Invites need the LEARN database.", 503)
 
   const body = await readJsonObject(request)
@@ -49,4 +49,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return fail(error instanceof Error ? error.message : "Unable to accept invite.", 400)
   }
-}
+})

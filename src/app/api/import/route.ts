@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { readJsonObject } from "@/lib/api"
+import { readJsonObject, withApiErrorBoundary } from "@/lib/api"
 import { getCurrentUser, saveEditorDocument, saveNote, saveSheet, saveSlideDeck } from "@/lib/data"
 import { importTargetOptions, shapeImportedLearningContent, type ImportTargetSelection } from "@/lib/import-gateway"
 
@@ -8,7 +8,7 @@ function normalizeImportTarget(value: unknown): ImportTargetSelection {
   return importTargetOptions.includes(target as ImportTargetSelection) ? target as ImportTargetSelection : "auto"
 }
 
-export async function POST(request: Request) {
+export const POST = withApiErrorBoundary(async (request: Request) => {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -46,4 +46,4 @@ export async function POST(request: Request) {
   }
   const note = await saveNote(user, notePayload)
   return NextResponse.json({ target: shaped.target, note, item: note }, { status: 201 })
-}
+})
