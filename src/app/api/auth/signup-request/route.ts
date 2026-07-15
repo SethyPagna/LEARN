@@ -7,7 +7,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
 import { createId, ensureDatabase, logAudit } from "@/lib/schema"
 
 export const POST = withApiErrorBoundary(async (request: NextRequest) => {
-  if (!isDatabaseConfigured()) {
+  if (!(await isDatabaseConfigured())) {
     return fail("Cloudflare D1 is not configured. Access requests need the LEARN database.", 503)
   }
 

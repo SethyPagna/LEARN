@@ -3,6 +3,7 @@ import { fail, isApiResponse, requireApiUser, withApiErrorBoundary } from "@/lib
 import { getCloudflareBindings, type DurableObjectNamespaceLike } from "@/lib/cloudflare"
 import { isAuthorizedForChatChannel } from "@/lib/chat-channel"
 import { isRealtimeKind } from "@/lib/collaboration-events"
+import { query } from "@/lib/db"
 
 function namespaceFor(kind: string, env: Awaited<ReturnType<typeof getCloudflareBindings>>): DurableObjectNamespaceLike | null {
   if (kind === "rooms") return env?.STUDY_ROOM_DO || null
@@ -12,6 +13,15 @@ function namespaceFor(kind: string, env: Awaited<ReturnType<typeof getCloudflare
   return null
 }
 
+async function isGroupMember(groupId: string, userId: string) {
+  try {
+    const result = await query("SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2 LIMIT 1", [groupId, userId])
+    return Boolean(result.rows[0])
+  } catch {
+    return false
+  }
+}
+
 async function forwardRealtime(request: NextRequest, context: { params: Promise<{ kind: string; id: string }> }) {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
@@ -19,7 +29,7 @@ async function forwardRealtime(request: NextRequest, context: { params: Promise<
   const { kind, id } = await context.params
   if (!isRealtimeKind(kind)) return fail("Unsupported realtime channel.", 404)
   if (!id.trim()) return fail("Realtime channel id is required.")
-  if (kind === "chat" && !isAuthorizedForChatChannel(id, user.id)) return fail("You're not a participant in this conversation.", 403)
+  if (kind === "chat" && !(await isAuthorizedForChatChannel(id, user.id, isGroupMember))) return fail("You're not a participant in this conversation.", 403)
 
   const env = await getCloudflareBindings()
   const namespace = namespaceFor(kind, env)

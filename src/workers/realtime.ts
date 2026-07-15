@@ -12,6 +12,7 @@ interface D1Binding {
   prepare(sql: string): {
     bind(...values: unknown[]): {
       run(): Promise<unknown>
+      first<T = unknown>(): Promise<T | null>
     }
   }
 }

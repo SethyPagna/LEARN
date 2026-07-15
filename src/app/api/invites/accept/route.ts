@@ -6,7 +6,7 @@ import { acceptWorkspaceInvite, createUserSession, getWorkspaceInviteByToken, SE
 import { isDatabaseConfigured } from "@/lib/db"
 
 export const GET = withApiErrorBoundary(async (request: NextRequest) => {
-  if (!isDatabaseConfigured()) return fail("Cloudflare D1 is not configured. Invites need the LEARN database.", 503)
+  if (!(await isDatabaseConfigured())) return fail("Cloudflare D1 is not configured. Invites need the LEARN database.", 503)
   const token = request.nextUrl.searchParams.get("token") || ""
   if (token.trim().length < 8) return fail("Invite link is missing or invalid.", 400)
 
@@ -24,7 +24,7 @@ export const GET = withApiErrorBoundary(async (request: NextRequest) => {
 })
 
 export const POST = withApiErrorBoundary(async (request: NextRequest) => {
-  if (!isDatabaseConfigured()) return fail("Cloudflare D1 is not configured. Invites need the LEARN database.", 503)
+  if (!(await isDatabaseConfigured())) return fail("Cloudflare D1 is not configured. Invites need the LEARN database.", 503)
 
   const body = await readJsonObject(request)
   const validation = normalizeInviteAcceptance(body)

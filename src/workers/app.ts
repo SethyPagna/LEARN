@@ -72,6 +72,18 @@ async function resolveSessionUser(request: Request, env: AppWorkerEnv, ctx: Exec
   return body?.user?.id ? body.user : null
 }
 
+async function isGroupMember(env: AppWorkerEnv, groupId: string, userId: string) {
+  if (!env.LEARN_DB) return false
+  try {
+    const row = await env.LEARN_DB.prepare("SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ? LIMIT 1")
+      .bind(groupId, userId)
+      .first()
+    return Boolean(row)
+  } catch {
+    return false
+  }
+}
+
 export default {
   async fetch(request: Request, env: AppWorkerEnv, ctx: ExecutionContext) {
     if (request.headers.get("upgrade") === "websocket") {
@@ -83,7 +95,7 @@ export default {
 
       const [, kind, id] = match
       const channelId = decodeURIComponent(id)
-      if (kind === "chat" && !isAuthorizedForChatChannel(channelId, user.id)) {
+      if (kind === "chat" && !(await isAuthorizedForChatChannel(channelId, user.id, (groupId, userId) => isGroupMember(env, groupId, userId)))) {
         return new Response("You're not a participant in this conversation.", { status: 403 })
       }
 

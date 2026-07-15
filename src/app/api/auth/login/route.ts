@@ -6,7 +6,7 @@ import { fail, readJsonObject, withApiErrorBoundary } from "@/lib/api"
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
 
 export const POST = withApiErrorBoundary(async (request: NextRequest) => {
-  if (!isDatabaseConfigured()) {
+  if (!(await isDatabaseConfigured())) {
     return fail("Cloudflare D1 is not configured. Set LEARN_DB binding or Cloudflare D1 API credentials.", 503)
   }
 
