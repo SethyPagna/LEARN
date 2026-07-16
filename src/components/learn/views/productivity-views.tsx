@@ -1,14 +1,15 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type React from "react"
-import { AtSign, Bell, CheckCircle2, Clock, Gamepad2, Languages, MessageSquare, Mic, MoreHorizontal, Paperclip, Phone, Plus, Reply, RotateCcw, Search, Send, SlidersHorizontal, Smile, Sparkles, Trophy, Video, XCircle } from "lucide-react"
+import { AtSign, Bell, CheckCircle2, Clock, Gamepad2, Languages, MessageSquare, Mic, MicOff, MoreHorizontal, Paperclip, Phone, PhoneOff, Plus, Reply, RotateCcw, Search, Send, SlidersHorizontal, Smile, Sparkles, Trophy, Users, Video, VideoOff, XCircle } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Quiz } from "../types"
 import { api, formatDate } from "../api"
 import { EmptyState, Panel } from "../ui"
 import { buildGameRunActions, evaluateGameChoice, summarizeGameRun, type GameRunActionId } from "@/lib/practice-features"
 import { CHAT_DRAFT_KEY, parseStoredChatDraft, serializeChatDraft, type ChatDraft } from "@/lib/chat-drafts"
+import { groupChatChannelId } from "@/lib/chat-channel"
 import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatInboxShortcut, type ChatIntent, type ChatQuickPrompt, type ChatThreadActionId, type ChatThreadFilter, type ChatThreadLike } from "@/lib/social-features"
 
 const quizDetailCache = new Map<string, Quiz>()
@@ -16,6 +17,30 @@ type ChatMenuId = "attach" | "compose" | "chatMore" | "tools" | "filters" | `thr
 type ChatThreadRecord = ChatThreadLike & {
   threadId?: string
   thread_id?: string
+  group_id?: string | null
+}
+type ChatMessageRecord = {
+  id: string
+  thread_id: string
+  user_id: string
+  body: string
+  created_at: string
+}
+type GroupRecord = {
+  id: string
+  name: string
+  description?: string
+  member_count?: number
+  is_member?: boolean
+}
+type CallStatus = "outgoing" | "incoming" | "connected"
+type ActiveCall = {
+  callId: string
+  peerUserId: string
+  video: boolean
+  status: CallStatus
+  muted: boolean
+  cameraOff: boolean
 }
 
 export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: WorkspaceOptions }) {
@@ -333,6 +358,441 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const activeThreadBody = String(activeThread?.last_message || activeThread?.lastMessage || "No messages yet. Start with one clear question, resource, or win.")
   const activeThreadId = activeThread ? chatThreadKey(activeThread) : ""
 
+  // --- Groups: which group this conversation posts into, and live/message state ---
+  const [groups, setGroups] = useState<GroupRecord[]>([])
+  const [groupId, setGroupId] = useState<string>("")
+  const [messages, setMessages] = useState<ChatMessageRecord[]>([])
+  const [remoteTyping, setRemoteTyping] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState("")
+  const socketRef = useRef<WebSocket | null>(null)
+  const typingClearRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const typingStopRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastTypingSentRef = useRef(0)
+  const myGroups = useMemo(() => groups.filter((group) => group.is_member), [groups])
+  const activeGroup = useMemo(() => myGroups.find((group) => group.id === groupId) || myGroups[0] || null, [groupId, myGroups])
+
+  useEffect(() => {
+    api<{ user?: { id?: string } }>("/api/auth/session").then((response) => {
+      if (response.user?.id) setCurrentUserId(response.user.id)
+    }).catch(() => undefined)
+  }, [])
+
+  async function refreshGroups() {
+    try {
+      const response = await api<{ items: GroupRecord[] }>("/api/groups")
+      setGroups(response.items)
+    } catch {
+      // Groups are optional context for the composer; a failed fetch just means no group picker yet.
+    }
+  }
+
+  useEffect(() => {
+    refreshGroups().catch(() => undefined)
+  }, [])
+
+  useEffect(() => {
+    if (!activeGroup && myGroups.length) setGroupId(myGroups[0].id)
+  }, [activeGroup, myGroups])
+
+  async function createGroup(name: string) {
+    if (!name.trim()) return
+    try {
+      const response = await api<{ item: GroupRecord }>("/api/groups", { method: "POST", body: JSON.stringify({ name: name.trim() }) })
+      await refreshGroups()
+      setGroupId(response.item.id)
+      setDraftStatus(`Created "${name.trim()}"`)
+    } catch (error) {
+      setDraftStatus(error instanceof Error ? error.message : "Unable to create group.")
+    }
+  }
+
+  async function joinGroupById(id: string) {
+    try {
+      await api(`/api/groups/${id}/join`, { method: "POST" })
+      await refreshGroups()
+      setGroupId(id)
+      setDraftStatus("Joined group")
+    } catch (error) {
+      setDraftStatus(error instanceof Error ? error.message : "Unable to join group.")
+    }
+  }
+
+  // --- Message history for the active thread ---
+  async function refreshMessages(threadId: string) {
+    if (!threadId) {
+      setMessages([])
+      return
+    }
+    try {
+      const response = await api<{ items: ChatMessageRecord[] }>(`/api/chat?threadId=${encodeURIComponent(threadId)}`)
+      setMessages(response.items)
+    } catch {
+      setMessages([])
+    }
+  }
+
+  useEffect(() => {
+    refreshMessages(activeThreadId).catch(() => undefined)
+  }, [activeThreadId])
+
+  // --- Realtime: live messages + typing over the active group's channel ---
+  const groupChannelId = activeGroup ? groupChatChannelId(activeGroup.id) : null
+
+  useEffect(() => {
+    if (!groupChannelId || typeof window === "undefined") return
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
+    const socket = new WebSocket(`${protocol}//${window.location.host}/api/realtime/chat/${encodeURIComponent(groupChannelId)}`)
+    socketRef.current = socket
+
+    socket.onmessage = (event) => {
+      let parsed: { type?: string; userId?: string; payload?: Record<string, unknown> } | null = null
+      try {
+        parsed = JSON.parse(event.data)
+      } catch {
+        return
+      }
+      if (!parsed || parsed.userId === currentUserId) return
+
+      if (parsed.type === "chat-message") {
+        const payload = parsed.payload || {}
+        const threadId = String(payload.threadId || "")
+        setMessages((current) => {
+          if (threadId !== activeThreadId) return current
+          if (current.some((m) => m.id === payload.messageId)) return current
+          return [...current, {
+            id: String(payload.messageId || `remote-${Date.now()}`),
+            thread_id: threadId,
+            user_id: String(parsed?.userId || ""),
+            body: String(payload.body || ""),
+            created_at: String(payload.createdAt || new Date().toISOString()),
+          }]
+        })
+        refresh().catch(() => undefined)
+        setRemoteTyping(false)
+        return
+      }
+
+      if (parsed.type === "typing") {
+        const payload = parsed.payload || {}
+        setRemoteTyping(payload.isTyping !== false)
+        if (typingClearRef.current) clearTimeout(typingClearRef.current)
+        typingClearRef.current = setTimeout(clearRemoteTyping, 4000)
+        return
+      }
+
+      if (parsed.type === "call-signal") {
+        handleCallSignal(parsed.payload || {}, parsed.userId)
+      }
+    }
+
+    function clearRemoteTyping() {
+      setRemoteTyping(false)
+    }
+
+    return () => {
+      socket.close()
+      if (socketRef.current === socket) socketRef.current = null
+      setRemoteTyping(false)
+      endCall(false, "")
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupChannelId, currentUserId, activeThreadId])
+
+  function sendTypingSignal(isTyping: boolean) {
+    const socket = socketRef.current
+    if (!socket || socket.readyState !== WebSocket.OPEN || !groupChannelId || !currentUserId) return
+    socket.send(JSON.stringify({ type: "typing", userId: currentUserId, payload: { threadId: groupChannelId, isTyping } }))
+  }
+
+  function stopTypingSignal() {
+    sendTypingSignal(false)
+  }
+
+  function handleDraftActivity(value: string) {
+    if (!groupChannelId) return
+    if (!value.trim()) {
+      sendTypingSignal(false)
+      if (typingStopRef.current) clearTimeout(typingStopRef.current)
+      return
+    }
+    const now = Date.now()
+    if (now - lastTypingSentRef.current > 2000) {
+      lastTypingSentRef.current = now
+      sendTypingSignal(true)
+    }
+    if (typingStopRef.current) clearTimeout(typingStopRef.current)
+    typingStopRef.current = setTimeout(stopTypingSignal, 3000)
+  }
+
+  // --- WebRTC calling: 1:1 within the active group's channel ---
+  const [activeCall, setActiveCall] = useState<ActiveCall | null>(null)
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null)
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null)
+  const [callElapsed, setCallElapsed] = useState(0)
+  const activeCallRef = useRef<ActiveCall | null>(null)
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
+  const localStreamRef = useRef<MediaStream | null>(null)
+  const pendingIceCandidatesRef = useRef<RTCIceCandidateInit[]>([])
+  const incomingOfferRef = useRef<{ callId: string; sdp: string; video: boolean; peerUserId: string } | null>(null)
+  const callTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const localVideoRef = useRef<HTMLVideoElement | null>(null)
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null)
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null)
+  const iceServers = useMemo<RTCIceServer[]>(() => [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+  ], [])
+
+  useEffect(() => {
+    activeCallRef.current = activeCall
+  }, [activeCall])
+
+  useEffect(() => {
+    if (localVideoRef.current) localVideoRef.current.srcObject = localStream
+  }, [localStream])
+
+  useEffect(() => {
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream
+    if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream
+  }, [remoteStream])
+
+  useEffect(() => {
+    if (activeCall?.status !== "connected") {
+      setCallElapsed(0)
+      return
+    }
+    const startedAt = Date.now()
+    const interval = setInterval(() => setCallElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000)
+    return () => clearInterval(interval)
+  }, [activeCall?.status, activeCall?.callId])
+
+  useEffect(() => {
+    return () => {
+      localStreamRef.current?.getTracks().forEach((track) => track.stop())
+      peerConnectionRef.current?.close()
+    }
+  }, [])
+
+  function sendCallSignal(payload: { callId: string; kind: string; video?: boolean; sdp?: string; candidate?: string }) {
+    const socket = socketRef.current
+    if (!socket || socket.readyState !== WebSocket.OPEN || !currentUserId) return false
+    socket.send(JSON.stringify({ type: "call-signal", userId: currentUserId, payload }))
+    return true
+  }
+
+  function createPeerConnection(callId: string) {
+    const pc = new RTCPeerConnection({ iceServers })
+    pc.onicecandidate = (event) => {
+      if (event.candidate) sendCallSignal({ callId, kind: "ice-candidate", candidate: JSON.stringify(event.candidate.toJSON()) })
+    }
+    pc.ontrack = (event) => {
+      setRemoteStream((current) => {
+        const stream = current || new MediaStream()
+        if (!stream.getTracks().some((track) => track.id === event.track.id)) stream.addTrack(event.track)
+        return stream
+      })
+    }
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === "failed" || pc.connectionState === "disconnected" || pc.connectionState === "closed") {
+        if (activeCallRef.current?.callId === callId) endCall(pc.connectionState !== "closed", "Call disconnected.")
+      }
+    }
+    peerConnectionRef.current = pc
+    return pc
+  }
+
+  async function attachLocalMedia(video: boolean) {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video })
+    localStreamRef.current = stream
+    setLocalStream(stream)
+    return stream
+  }
+
+  async function startCall(video: boolean) {
+    if (activeCallRef.current || !groupChannelId || !currentUserId) {
+      setDraftStatus("Open a group chat to start a call.")
+      return
+    }
+    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
+      setDraftStatus("Connecting — try the call again in a moment.")
+      return
+    }
+    const callId = crypto.randomUUID()
+    try {
+      const stream = await attachLocalMedia(video)
+      const pc = createPeerConnection(callId)
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream))
+      setActiveCall({ callId, peerUserId: "", video, status: "outgoing", muted: false, cameraOff: false })
+      const offer = await pc.createOffer()
+      await pc.setLocalDescription(offer)
+      sendCallSignal({ callId, kind: "offer", video, sdp: offer.sdp })
+      if (callTimeoutRef.current) clearTimeout(callTimeoutRef.current)
+      callTimeoutRef.current = setTimeout(handleNoAnswerTimeout, 30000)
+      setDraftStatus(video ? "Calling the group with video…" : "Calling the group…")
+    } catch {
+      setDraftStatus("Couldn't access your camera/microphone — check permissions.")
+      cleanupMedia()
+      setActiveCall(null)
+    }
+
+    function handleNoAnswerTimeout() {
+      if (activeCallRef.current?.callId === callId && activeCallRef.current.status === "outgoing") {
+        sendCallSignal({ callId, kind: "hangup" })
+        endCall(false, "No answer.")
+      }
+    }
+  }
+
+  async function handleCallSignal(payload: Record<string, unknown>, fromUserId: string | undefined) {
+    const callId = String(payload.callId || "")
+    const kind = String(payload.kind || "")
+    if (!callId || !kind || !fromUserId) return
+
+    if (kind === "offer") {
+      if (activeCallRef.current) {
+        sendCallSignal({ callId, kind: "busy" })
+        return
+      }
+      incomingOfferRef.current = { callId, sdp: String(payload.sdp || ""), video: Boolean(payload.video), peerUserId: fromUserId }
+      setActiveCall({ callId, peerUserId: fromUserId, video: Boolean(payload.video), status: "incoming", muted: false, cameraOff: false })
+      setDraftStatus(`Incoming ${payload.video ? "video" : "voice"} call…`)
+      return
+    }
+
+    if (activeCallRef.current?.callId !== callId) return
+
+    if (kind === "answer") {
+      const pc = peerConnectionRef.current
+      if (!pc) return
+      await pc.setRemoteDescription({ type: "answer", sdp: String(payload.sdp || "") })
+      await flushPendingIceCandidates()
+      if (callTimeoutRef.current) clearTimeout(callTimeoutRef.current)
+      setActiveCall((current) => (current ? { ...current, peerUserId: fromUserId, status: "connected" } : current))
+      setDraftStatus("Call connected.")
+      return
+    }
+
+    if (kind === "ice-candidate") {
+      const raw = String(payload.candidate || "")
+      if (!raw) return
+      let candidate: RTCIceCandidateInit | null = null
+      try {
+        candidate = JSON.parse(raw)
+      } catch {
+        return
+      }
+      const pc = peerConnectionRef.current
+      if (pc && pc.remoteDescription) {
+        try {
+          await pc.addIceCandidate(candidate || undefined)
+        } catch {
+          // Ignore late/duplicate candidates.
+        }
+      } else if (candidate) {
+        pendingIceCandidatesRef.current.push(candidate)
+      }
+      return
+    }
+
+    if (kind === "hangup" || kind === "decline" || kind === "busy") {
+      endCall(false, kind === "busy" ? "They're on another call." : kind === "decline" ? "Call declined." : "Call ended.")
+    }
+  }
+
+  async function flushPendingIceCandidates() {
+    const pc = peerConnectionRef.current
+    if (!pc) return
+    const queued = pendingIceCandidatesRef.current
+    pendingIceCandidatesRef.current = []
+    for (const candidate of queued) {
+      try {
+        await pc.addIceCandidate(candidate)
+      } catch {
+        // Ignore candidates that no longer apply.
+      }
+    }
+  }
+
+  async function acceptIncomingCall() {
+    const offer = incomingOfferRef.current
+    const call = activeCallRef.current
+    if (!offer || !call || call.status !== "incoming") return
+    try {
+      const stream = await attachLocalMedia(offer.video)
+      const pc = createPeerConnection(offer.callId)
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream))
+      await pc.setRemoteDescription({ type: "offer", sdp: offer.sdp })
+      await flushPendingIceCandidates()
+      const answer = await pc.createAnswer()
+      await pc.setLocalDescription(answer)
+      sendCallSignal({ callId: offer.callId, kind: "answer", sdp: answer.sdp })
+      setActiveCall((current) => (current ? { ...current, status: "connected" } : current))
+      setDraftStatus("Call connected.")
+    } catch {
+      sendCallSignal({ callId: offer.callId, kind: "hangup" })
+      setDraftStatus("Couldn't access your camera/microphone — check permissions.")
+      cleanupMedia()
+      setActiveCall(null)
+      incomingOfferRef.current = null
+    }
+  }
+
+  function declineIncomingCall() {
+    const call = activeCallRef.current
+    if (!call || call.status !== "incoming") return
+    sendCallSignal({ callId: call.callId, kind: "decline" })
+    incomingOfferRef.current = null
+    setActiveCall(null)
+    setDraftStatus("Call declined.")
+  }
+
+  function cleanupMedia() {
+    localStreamRef.current?.getTracks().forEach((track) => track.stop())
+    localStreamRef.current = null
+    setLocalStream(null)
+    setRemoteStream(null)
+    peerConnectionRef.current?.close()
+    peerConnectionRef.current = null
+    pendingIceCandidatesRef.current = []
+  }
+
+  function endCall(notifyPeer: boolean, reason: string) {
+    const call = activeCallRef.current
+    if (!call) return
+    if (notifyPeer) sendCallSignal({ callId: call.callId, kind: "hangup" })
+    if (callTimeoutRef.current) {
+      clearTimeout(callTimeoutRef.current)
+      callTimeoutRef.current = null
+    }
+    incomingOfferRef.current = null
+    cleanupMedia()
+    setActiveCall(null)
+    setCallElapsed(0)
+    if (reason) setDraftStatus(reason)
+  }
+
+  function toggleCallMute() {
+    const stream = localStreamRef.current
+    if (!stream) return
+    const nextMuted = !activeCallRef.current?.muted
+    stream.getAudioTracks().forEach((track) => { track.enabled = !nextMuted })
+    setActiveCall((current) => (current ? { ...current, muted: nextMuted } : current))
+  }
+
+  function toggleCallCamera() {
+    const stream = localStreamRef.current
+    if (!stream || !activeCallRef.current?.video) return
+    const nextOff = !activeCallRef.current?.cameraOff
+    stream.getVideoTracks().forEach((track) => { track.enabled = !nextOff })
+    setActiveCall((current) => (current ? { ...current, cameraOff: nextOff } : current))
+  }
+
+  function formatCallDuration(totalSeconds: number) {
+    const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0")
+    const seconds = (totalSeconds % 60).toString().padStart(2, "0")
+    return `${minutes}:${seconds}`
+  }
+
   function applyComposerPlan() {
     if (chatActionById.get("use-suggestion")?.disabled) return
     setChatAction("use-suggestion")
@@ -399,12 +859,16 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     if (chatActionById.get("send")?.disabled) return
     setChatAction("send")
     try {
-      await api("/api/chat", { method: "POST", body: JSON.stringify(buildChatDraftPayload({ body, channel, title, intent, threadId: replyThreadId })) })
+      const payload = { ...buildChatDraftPayload({ body, channel, title, intent, threadId: replyThreadId }), groupId: activeGroup?.id }
+      await api("/api/chat", { method: "POST", body: JSON.stringify(payload) })
       setBody("")
       setReplyThreadId(undefined)
       clearChatDraft()
       setDraftStatus("Sent")
+      if (typingStopRef.current) clearTimeout(typingStopRef.current)
+      sendTypingSignal(false)
       await refresh()
+      await refreshMessages(activeThreadId)
     } catch (error) {
       setDraftStatus(error instanceof Error ? error.message : "Unable to send this message.")
     } finally {
@@ -498,12 +962,40 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             </span>
             <div className="min-w-0">
               <input value={title} onChange={(event) => setTitle(event.target.value)} className="w-full bg-transparent text-lg font-semibold text-foreground outline-none" />
-              <p className="truncate text-xs font-semibold text-muted-foreground">{activeThreadParsed.channel} - {activeIntent.label}</p>
+              <p className="truncate text-xs font-semibold text-muted-foreground">
+                {activeThreadParsed.channel} - {activeIntent.label}
+                {remoteTyping ? <span className="ml-2 text-primary">typing…</span> : null}
+              </p>
             </div>
           </div>
           <div className="flex gap-2 border-b border-border px-4 py-3 lg:justify-end">
-            <ToolbarButton label="Video" onClick={() => setDraftStatus("Video call link ready")} icon={Video} />
-            <ToolbarButton label="Call" onClick={() => setDraftStatus("Call link ready")} icon={Phone} />
+            <ChatMenu icon={Users} label={activeGroup ? activeGroup.name : "Group"} menuId="tools" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
+              <ChatMenuSection title="Chat as this group">
+                {myGroups.length ? myGroups.map((group) => (
+                  <ChatMenuAction
+                    active={groupId === group.id}
+                    key={group.id}
+                    label={group.name}
+                    meta={`${group.member_count ?? 1} member${group.member_count === 1 ? "" : "s"} - live chat + calls`}
+                    onClick={() => { setGroupId(group.id); setOpenChatMenu(null) }}
+                  />
+                )) : (
+                  <p className="px-2 py-2 text-xs text-muted-foreground">Not in any group yet — join one below or create one.</p>
+                )}
+              </ChatMenuSection>
+              <ChatMenuSection title="Other groups">
+                {groups.filter((group) => !group.is_member).map((group) => (
+                  <ChatMenuAction key={group.id} label={group.name} meta="Join to chat live with this group" onClick={() => joinGroupById(group.id)} />
+                ))}
+                <ChatMenuAction icon={Plus} label="New group" meta="Create a study group you can invite others to." onClick={() => {
+                  const name = window.prompt("Group name")
+                  if (name) createGroup(name)
+                  setOpenChatMenu(null)
+                }} />
+              </ChatMenuSection>
+            </ChatMenu>
+            <ToolbarButton label="Video" onClick={() => startCall(true)} icon={Video} />
+            <ToolbarButton label="Call" onClick={() => startCall(false)} icon={Phone} />
             <ChatMenu icon={Sparkles} label="Compose" menuId="compose" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
               <ChatMenuSection title="Draft intent">
                 {quickIntents.map((item) => (
@@ -543,16 +1035,30 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.08),transparent_34%),linear-gradient(135deg,hsl(var(--muted)/0.6),hsl(var(--background)))] px-4 py-5">
           <div className="mx-auto flex max-w-3xl flex-col gap-3">
-            <div className="max-w-[78%] rounded-2xl rounded-tl-sm bg-secondary px-4 py-3 text-sm leading-6 text-secondary-foreground shadow-sm">
-              <p>{activeThreadBody.replace(/^\[[^\]]+\]\s*/, "")}</p>
-              <p className="mt-1 text-right text-[11px] opacity-70">{activeThread?.updated_at ? formatDate(activeThread.updated_at) : "recent"}</p>
-            </div>
+            {messages.length ? messages.map((message) => (
+              <div
+                key={message.id}
+                className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${
+                  message.user_id === currentUserId
+                    ? "ml-auto rounded-tr-sm bg-primary text-primary-foreground"
+                    : "rounded-tl-sm bg-secondary text-secondary-foreground"
+                }`}
+              >
+                <p>{message.body.replace(/^\[[^\]]+\]\s*/, "")}</p>
+                <p className="mt-1 text-right text-[11px] opacity-70">{formatDate(message.created_at)}</p>
+              </div>
+            )) : (
+              <div className="max-w-[78%] rounded-2xl rounded-tl-sm bg-secondary px-4 py-3 text-sm leading-6 text-secondary-foreground shadow-sm">
+                <p>{activeThreadBody.replace(/^\[[^\]]+\]\s*/, "")}</p>
+                <p className="mt-1 text-right text-[11px] opacity-70">{activeThread?.updated_at ? formatDate(activeThread.updated_at) : "recent"}</p>
+              </div>
+            )}
             {body.trim() ? (
               <div className="ml-auto max-w-[78%] rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-sm leading-6 text-primary-foreground shadow-sm">
                 <p>{body}</p>
                 <p className="mt-1 text-right text-[11px] opacity-75">draft</p>
               </div>
-            ) : (
+            ) : !messages.length ? (
               <div className="mx-auto mt-12 grid grid-cols-2 gap-3 text-center text-sm text-muted-foreground">
                 <button onClick={() => setDraftStatus("Document picker ready")} className="grid h-28 w-32 place-items-center rounded-2xl bg-card shadow-sm hover:bg-accent hover:text-accent-foreground" type="button">
                   <Paperclip className="h-6 w-6" />
@@ -563,7 +1069,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                   <span>Add contact</span>
                 </button>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
         <details className="mx-4 mt-3 rounded-md border border-border bg-background">
@@ -590,7 +1096,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
           </div>
         </details>
         <div className="m-4 mt-3 rounded-full border border-input bg-background px-3 py-2 shadow-sm">
-          <textarea value={body} onChange={(event) => setBody(event.target.value)} className="min-h-28 w-full resize-none bg-transparent text-sm leading-6 text-foreground outline-none" placeholder="Message your study group, mention someone, link Studio, or ask a question..." />
+          <textarea value={body} onChange={(event) => { setBody(event.target.value); handleDraftActivity(event.target.value) }} className="min-h-28 w-full resize-none bg-transparent text-sm leading-6 text-foreground outline-none" placeholder="Message your study group, mention someone, link Studio, or ask a question..." />
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
             <div className="flex items-center gap-2">
             <ChatMenu compact icon={Plus} label="Attach" menuId="attach" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
@@ -764,6 +1270,55 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
           {!visibleThreads.length ? <EmptyState title="No matching threads" body="Send a message or change the search/filter to see more collaboration history." /> : null}
         </div>
       </Panel>
+      {activeCall ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4">
+          <div className="relative flex w-full max-w-lg flex-col items-center overflow-hidden rounded-2xl border border-border bg-popover p-6 text-center text-popover-foreground shadow-2xl">
+            {activeCall.video && activeCall.status === "connected" ? (
+              <div className="relative mb-4 aspect-video w-full overflow-hidden rounded-xl bg-black">
+                <video ref={remoteVideoRef} autoPlay playsInline className="h-full w-full object-cover" />
+                <video ref={localVideoRef} autoPlay playsInline muted className="absolute bottom-3 right-3 h-24 w-32 rounded-lg border border-white/30 object-cover" />
+              </div>
+            ) : (
+              <div className="mb-2 grid h-20 w-20 place-items-center rounded-full bg-secondary text-2xl font-black text-muted-foreground ring-1 ring-border">
+                {activeGroup?.name?.slice(0, 2).toUpperCase() || "??"}
+              </div>
+            )}
+            <audio ref={remoteAudioRef} autoPlay className="hidden" />
+
+            <h3 className="mt-2 text-2xl font-semibold">{activeGroup?.name || "Group call"}</h3>
+            <p className="mt-1 text-muted-foreground">
+              {activeCall.status === "outgoing" && (activeCall.video ? "Calling with video…" : "Calling…")}
+              {activeCall.status === "incoming" && (activeCall.video ? "Incoming video call…" : "Incoming voice call…")}
+              {activeCall.status === "connected" && formatCallDuration(callElapsed)}
+            </p>
+
+            {activeCall.status === "incoming" ? (
+              <div className="mt-6 flex items-center gap-4">
+                <button onClick={declineIncomingCall} className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-lg transition hover:opacity-90" type="button" aria-label="Decline call">
+                  <PhoneOff className="h-6 w-6" />
+                </button>
+                <button onClick={acceptIncomingCall} className="flex h-14 w-14 items-center justify-center rounded-full bg-green-600 text-white shadow-lg transition hover:opacity-90" type="button" aria-label="Accept call">
+                  {activeCall.video ? <Video className="h-6 w-6" /> : <Phone className="h-6 w-6" />}
+                </button>
+              </div>
+            ) : (
+              <div className="mt-6 flex items-center gap-3">
+                <button onClick={toggleCallMute} className={`flex h-12 w-12 items-center justify-center rounded-full transition ${activeCall.muted ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground hover:bg-accent"}`} type="button" aria-label={activeCall.muted ? "Unmute microphone" : "Mute microphone"}>
+                  {activeCall.muted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                </button>
+                {activeCall.video ? (
+                  <button onClick={toggleCallCamera} className={`flex h-12 w-12 items-center justify-center rounded-full transition ${activeCall.cameraOff ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground hover:bg-accent"}`} type="button" aria-label={activeCall.cameraOff ? "Turn camera on" : "Turn camera off"}>
+                    {activeCall.cameraOff ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
+                  </button>
+                ) : null}
+                <button onClick={() => endCall(true, "Call ended.")} className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-lg transition hover:opacity-90" type="button" aria-label="End call">
+                  <PhoneOff className="h-6 w-6" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

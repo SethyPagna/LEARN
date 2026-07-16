@@ -1027,13 +1027,33 @@ export async function listGroups(user: User) {
   await ensureDatabase()
   const result = await query(
     `SELECT g.*,
-       (SELECT count(*) FROM group_members gm WHERE gm.group_id = g.id) AS member_count
+       (SELECT count(*) FROM group_members gm WHERE gm.group_id = g.id) AS member_count,
+       EXISTS(SELECT 1 FROM group_members gm2 WHERE gm2.group_id = g.id AND gm2.user_id = $1) AS is_member
      FROM workspace_groups g
      ORDER BY g.updated_at DESC
      LIMIT 80`,
     [user.id],
   )
-  return result.rows
+  return result.rows.map((row) => ({ ...row, is_member: Boolean(row.is_member) }))
+}
+
+export async function joinGroup(user: User, groupId: string) {
+  await ensureDatabase()
+  const group = await query("SELECT id FROM workspace_groups WHERE id = $1 LIMIT 1", [groupId])
+  if (!group.rows[0]) throw new Error("Group not found.")
+  await query(
+    `INSERT INTO group_members (group_id, user_id) VALUES ($1, $2) ON CONFLICT (group_id, user_id) DO NOTHING`,
+    [groupId, user.id],
+  )
+  await logAudit({ userId: user.id, action: "join", entity: "workspace_group", entityId: groupId })
+  return (await query("SELECT * FROM workspace_groups WHERE id = $1 LIMIT 1", [groupId])).rows[0]
+}
+
+export async function leaveGroup(user: User, groupId: string) {
+  await ensureDatabase()
+  await query("DELETE FROM group_members WHERE group_id = $1 AND user_id = $2", [groupId, user.id])
+  await logAudit({ userId: user.id, action: "leave", entity: "workspace_group", entityId: groupId })
+  return { groupId, left: true }
 }
 
 export async function saveGroup(user: User, input: Record<string, unknown>) {
