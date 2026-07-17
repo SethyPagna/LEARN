@@ -1254,6 +1254,48 @@ export async function listQuizzes() {
   return result.rows
 }
 
+export async function saveQuiz(user: User, input: Record<string, unknown>) {
+  await ensureDatabase()
+  const title = String(input.title || "").trim()
+  if (!title) throw new Error("A quiz title is required.")
+  const rawQuestions = Array.isArray(input.questions) ? input.questions : []
+  if (!rawQuestions.length) throw new Error("A quiz needs at least one question.")
+
+  const id = String(input.id || createId("quiz"))
+  const topic = String(input.topic || "General").trim() || "General"
+  await query(
+    `INSERT INTO quizzes (id, workspace_id, title, topic, description, source)
+     VALUES ($1, 'workspace_demo', $2, $3, $4, $5)
+     ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, topic = EXCLUDED.topic, description = EXCLUDED.description`,
+    [id, title, topic, String(input.description || ""), String(input.source || "manual")],
+  )
+
+  if (input.id) await query("DELETE FROM quiz_questions WHERE quiz_id = $1", [id])
+
+  for (const raw of rawQuestions as Record<string, unknown>[]) {
+    const question = String(raw.question || "").trim()
+    const choices = Array.isArray(raw.choices) ? raw.choices : []
+    const correctAnswerId = String(raw.correct_answer_id || raw.correctAnswerId || "")
+    if (!question || choices.length < 2 || !correctAnswerId) continue
+    await query(
+      `INSERT INTO quiz_questions (id, quiz_id, question, choices, correct_answer_id, topic, explanation)
+       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)`,
+      [
+        createId("qq"),
+        id,
+        question,
+        JSON.stringify(choices),
+        correctAnswerId,
+        String(raw.topic || topic),
+        String(raw.explanation || ""),
+      ],
+    )
+  }
+
+  await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "quiz", entityId: id })
+  return getQuiz(id)
+}
+
 export async function getQuiz(id: string) {
   await ensureDatabase()
   const [quiz, questions] = await Promise.all([
