@@ -9,7 +9,7 @@ import { api, formatDate } from "../api"
 import { EmptyState, Panel } from "../ui"
 import { buildGameRunActions, evaluateGameChoice, summarizeGameRun, type GameRunActionId } from "@/lib/practice-features"
 import { CHAT_DRAFT_KEY, parseStoredChatDraft, serializeChatDraft, type ChatDraft } from "@/lib/chat-drafts"
-import { groupChatChannelId } from "@/lib/chat-channel"
+import { dmChatChannelId, groupChatChannelId } from "@/lib/chat-channel"
 import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatInboxShortcut, type ChatIntent, type ChatQuickPrompt, type ChatThreadActionId, type ChatThreadFilter, type ChatThreadLike } from "@/lib/social-features"
 
 const quizDetailCache = new Map<string, Quiz>()
@@ -18,6 +18,9 @@ type ChatThreadRecord = ChatThreadLike & {
   threadId?: string
   thread_id?: string
   group_id?: string | null
+  target_user_id?: string | null
+  dm_peer_id?: string | null
+  dm_peer_name?: string | null
 }
 type ChatMessageRecord = {
   id: string
@@ -32,6 +35,12 @@ type GroupRecord = {
   description?: string
   member_count?: number
   is_member?: boolean
+}
+type ConnectionRecord = {
+  target_user_id: string
+  username: string
+  name: string
+  avatar_url?: string
 }
 type CallStatus = "outgoing" | "incoming" | "connected"
 type ActiveCall = {
@@ -386,13 +395,22 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     }
   }
 
+  // --- Direct messages: 1:1 with a connection, mutually exclusive with the group selection above ---
+  const [connections, setConnections] = useState<ConnectionRecord[]>([])
+  const [dmTargetUserId, setDmTargetUserId] = useState("")
+  const activeDmTarget = useMemo(() => connections.find((c) => c.target_user_id === dmTargetUserId) || null, [connections, dmTargetUserId])
+
+  useEffect(() => {
+    api<{ items: ConnectionRecord[] }>("/api/connections").then((response) => setConnections(response.items)).catch(() => undefined)
+  }, [])
+
   useEffect(() => {
     refreshGroups().catch(() => undefined)
   }, [])
 
   useEffect(() => {
-    if (!activeGroup && myGroups.length) setGroupId(myGroups[0].id)
-  }, [activeGroup, myGroups])
+    if (!activeGroup && !dmTargetUserId && myGroups.length) setGroupId(myGroups[0].id)
+  }, [activeGroup, myGroups, dmTargetUserId])
 
   async function createGroup(name: string) {
     if (!name.trim()) return
@@ -417,6 +435,29 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     }
   }
 
+  function startDirectMessage(targetUserId: string) {
+    setDmTargetUserId(targetUserId)
+    setGroupId("")
+    setOpenChatMenu(null)
+  }
+
+  function switchToGroup(id: string) {
+    setGroupId(id)
+    setDmTargetUserId("")
+    setOpenChatMenu(null)
+  }
+
+  useEffect(() => {
+    if (dmTargetUserId) {
+      const match = threads.find((thread) => thread.dm_peer_id === dmTargetUserId)
+      setActiveThreadKey(match ? chatThreadKey(match) : "")
+    } else if (groupId) {
+      const match = threads.find((thread) => thread.group_id === groupId)
+      setActiveThreadKey(match ? chatThreadKey(match) : "")
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dmTargetUserId, groupId, threads])
+
   // --- Message history for the active thread ---
   async function refreshMessages(threadId: string) {
     if (!threadId) {
@@ -435,8 +476,8 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     refreshMessages(activeThreadId).catch(() => undefined)
   }, [activeThreadId])
 
-  // --- Realtime: live messages + typing over the active group's channel ---
-  const groupChannelId = activeGroup ? groupChatChannelId(activeGroup.id) : null
+  // --- Realtime: live messages + typing over the active group's or DM's channel ---
+  const groupChannelId = activeGroup ? groupChatChannelId(activeGroup.id) : (activeDmTarget && currentUserId ? dmChatChannelId(currentUserId, activeDmTarget.target_user_id) : null)
 
   useEffect(() => {
     if (!groupChannelId || typeof window === "undefined") return
@@ -859,7 +900,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     if (chatActionById.get("send")?.disabled) return
     setChatAction("send")
     try {
-      const payload = { ...buildChatDraftPayload({ body, channel, title, intent, threadId: replyThreadId }), groupId: activeGroup?.id }
+      const payload = { ...buildChatDraftPayload({ body, channel, title, intent, threadId: replyThreadId }), groupId: activeGroup?.id, targetUserId: activeDmTarget?.target_user_id }
       await api("/api/chat", { method: "POST", body: JSON.stringify(payload) })
       setBody("")
       setReplyThreadId(undefined)
@@ -963,21 +1004,21 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             <div className="min-w-0">
               <input value={title} onChange={(event) => setTitle(event.target.value)} className="w-full bg-transparent text-lg font-semibold text-foreground outline-none" />
               <p className="truncate text-xs font-semibold text-muted-foreground">
-                {activeThreadParsed.channel} - {activeIntent.label}
+                {activeDmTarget ? `Direct message with ${activeDmTarget.name}` : `${activeThreadParsed.channel} - ${activeIntent.label}`}
                 {remoteTyping ? <span className="ml-2 text-primary">typing…</span> : null}
               </p>
             </div>
           </div>
           <div className="flex gap-2 border-b border-border px-4 py-3 lg:justify-end">
-            <ChatMenu icon={Users} label={activeGroup ? activeGroup.name : "Group"} menuId="tools" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
+            <ChatMenu icon={Users} label={activeDmTarget ? activeDmTarget.name : activeGroup ? activeGroup.name : "Group"} menuId="tools" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
               <ChatMenuSection title="Chat as this group">
                 {myGroups.length ? myGroups.map((group) => (
                   <ChatMenuAction
-                    active={groupId === group.id}
+                    active={!activeDmTarget && groupId === group.id}
                     key={group.id}
                     label={group.name}
                     meta={`${group.member_count ?? 1} member${group.member_count === 1 ? "" : "s"} - live chat + calls`}
-                    onClick={() => { setGroupId(group.id); setOpenChatMenu(null) }}
+                    onClick={() => switchToGroup(group.id)}
                   />
                 )) : (
                   <p className="px-2 py-2 text-xs text-muted-foreground">Not in any group yet — join one below or create one.</p>
@@ -992,6 +1033,19 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                   if (name) createGroup(name)
                   setOpenChatMenu(null)
                 }} />
+              </ChatMenuSection>
+              <ChatMenuSection title="Direct messages">
+                {connections.length ? connections.map((connection) => (
+                  <ChatMenuAction
+                    active={dmTargetUserId === connection.target_user_id}
+                    key={connection.target_user_id}
+                    label={connection.name}
+                    meta={`@${connection.username} - live chat + calls`}
+                    onClick={() => startDirectMessage(connection.target_user_id)}
+                  />
+                )) : (
+                  <p className="px-2 py-2 text-xs text-muted-foreground">No connections yet — connect with someone from their profile to message them directly.</p>
+                )}
               </ChatMenuSection>
             </ChatMenu>
             <ToolbarButton label="Video" onClick={() => startCall(true)} icon={Video} />
@@ -1280,12 +1334,12 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               </div>
             ) : (
               <div className="mb-2 grid h-20 w-20 place-items-center rounded-full bg-secondary text-2xl font-black text-muted-foreground ring-1 ring-border">
-                {activeGroup?.name?.slice(0, 2).toUpperCase() || "??"}
+                {(activeDmTarget?.name || activeGroup?.name)?.slice(0, 2).toUpperCase() || "??"}
               </div>
             )}
             <audio ref={remoteAudioRef} autoPlay className="hidden" />
 
-            <h3 className="mt-2 text-2xl font-semibold">{activeGroup?.name || "Group call"}</h3>
+            <h3 className="mt-2 text-2xl font-semibold">{activeDmTarget?.name || activeGroup?.name || "Call"}</h3>
             <p className="mt-1 text-muted-foreground">
               {activeCall.status === "outgoing" && (activeCall.video ? "Calling with video…" : "Calling…")}
               {activeCall.status === "incoming" && (activeCall.video ? "Incoming video call…" : "Incoming voice call…")}

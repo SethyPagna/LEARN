@@ -1082,9 +1082,16 @@ export async function listChatThreads(user: User) {
   await ensureDatabase()
   const result = await query(
     `SELECT t.*,
-       (SELECT body FROM chat_messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1) AS last_message
+       (SELECT body FROM chat_messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1) AS last_message,
+       CASE WHEN t.target_user_id IS NOT NULL THEN
+         (SELECT name FROM users WHERE id = (CASE WHEN t.created_by_user_id = $1 THEN t.target_user_id ELSE t.created_by_user_id END))
+       END AS dm_peer_name,
+       CASE WHEN t.target_user_id IS NOT NULL THEN
+         (CASE WHEN t.created_by_user_id = $1 THEN t.target_user_id ELSE t.created_by_user_id END)
+       END AS dm_peer_id
      FROM chat_threads t
      WHERE t.created_by_user_id = $1
+        OR t.target_user_id = $1
         OR t.group_id IN (SELECT group_id FROM group_members WHERE user_id = $1)
      ORDER BY t.updated_at DESC
      LIMIT 80`,
@@ -1097,7 +1104,7 @@ async function isChatThreadParticipant(user: User, threadId: string) {
   const result = await query(
     `SELECT 1 FROM chat_threads t
      WHERE t.id = $1
-       AND (t.created_by_user_id = $2 OR t.group_id IN (SELECT group_id FROM group_members WHERE user_id = $2))
+       AND (t.created_by_user_id = $2 OR t.target_user_id = $2 OR t.group_id IN (SELECT group_id FROM group_members WHERE user_id = $2))
      LIMIT 1`,
     [threadId, user.id],
   )
@@ -1117,7 +1124,7 @@ export async function listChatMessages(user: User, threadId: string) {
 export async function postChatMessage(user: User, input: Record<string, unknown>) {
   await ensureDatabase()
   const providedThreadId = String(input.threadId || input.thread_id || "").trim()
-  const threadId = providedThreadId || createId("thread")
+  let threadId = providedThreadId
 
   if (providedThreadId) {
     const existing = await query("SELECT id FROM chat_threads WHERE id = $1 LIMIT 1", [providedThreadId])
@@ -1128,16 +1135,31 @@ export async function postChatMessage(user: User, input: Record<string, unknown>
 
   const title = String(input.title || "Study chat").trim()
   const groupId = (input.groupId || input.group_id || null) as string | null
+  const requestedTargetUserId = String(input.targetUserId || input.target_user_id || "").trim() || null
   if (groupId) {
     const membership = await query("SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2 LIMIT 1", [groupId, user.id])
     if (!membership.rows[0]) throw new Error("You're not a member of that group.")
   }
+  if (requestedTargetUserId && requestedTargetUserId === user.id) throw new Error("You can't message yourself.")
+
+  // Reuse an existing DM thread between these two people instead of creating a new one every time.
+  if (!threadId && requestedTargetUserId && !groupId) {
+    const existingDm = await query(
+      `SELECT id FROM chat_threads
+       WHERE group_id IS NULL
+         AND ((created_by_user_id = $1 AND target_user_id = $2) OR (created_by_user_id = $2 AND target_user_id = $1))
+       LIMIT 1`,
+      [user.id, requestedTargetUserId],
+    )
+    threadId = existingDm.rows[0]?.id as string | undefined || ""
+  }
+  if (!threadId) threadId = createId("thread")
 
   await query(
-    `INSERT INTO chat_threads (id, workspace_id, group_id, title, created_by_user_id, updated_at)
-     VALUES ($1, 'workspace_demo', $2, $3, $4, now())
+    `INSERT INTO chat_threads (id, workspace_id, group_id, target_user_id, title, created_by_user_id, updated_at)
+     VALUES ($1, 'workspace_demo', $2, $3, $4, $5, now())
      ON CONFLICT (id) DO UPDATE SET updated_at = now()`,
-    [threadId, groupId, title, user.id],
+    [threadId, groupId, requestedTargetUserId, title, user.id],
   )
   const messageId = createId("chatmsg")
   const body = String(input.body || "").trim()
@@ -1151,11 +1173,14 @@ export async function postChatMessage(user: User, input: Record<string, unknown>
   const savedMessageRow = (await query("SELECT * FROM chat_messages WHERE id = $1 LIMIT 1", [messageId])).rows[0]
   const item = savedMessageRow ? { ...savedMessageRow, metadata: parseJsonObject(savedMessageRow.metadata) } : { id: messageId, thread_id: threadId, user_id: user.id, body }
 
-  // The thread may have belonged to a group already (a reply) even if this call didn't pass groupId itself.
-  const threadRow = (await query("SELECT group_id FROM chat_threads WHERE id = $1 LIMIT 1", [threadId])).rows[0]
+  // The thread may already have belonged to a group or DM even if this call didn't pass that itself (a reply).
+  const threadRow = (await query("SELECT group_id, target_user_id, created_by_user_id FROM chat_threads WHERE id = $1 LIMIT 1", [threadId])).rows[0]
   const resolvedGroupId = (threadRow?.group_id as string | null | undefined) || null
+  const resolvedTargetUserId = threadRow?.target_user_id
+    ? ((threadRow.created_by_user_id === user.id ? threadRow.target_user_id : threadRow.created_by_user_id) as string)
+    : null
 
-  return { threadId, messageId, item, groupId: resolvedGroupId }
+  return { threadId, messageId, item, groupId: resolvedGroupId, targetUserId: resolvedTargetUserId }
 }
 
 export async function listGameAttempts(user: User) {

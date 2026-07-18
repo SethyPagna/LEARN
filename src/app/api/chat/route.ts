@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server"
 import { fail, isApiResponse, ok, readJsonObject, requireApiUser, withApiErrorBoundary } from "@/lib/api"
-import { groupChatChannelId } from "@/lib/chat-channel"
+import { dmChatChannelId, groupChatChannelId } from "@/lib/chat-channel"
 import { listChatMessages, listChatThreads, postChatMessage } from "@/lib/data"
 import { broadcastRealtimeEvent } from "@/lib/realtime-broadcast"
 
@@ -20,10 +20,15 @@ export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   const result = await postChatMessage(user, body)
 
   // Fire-and-forget: push the message live to anyone else currently viewing this
-  // group's chat. The REST write above is already durable, so a failed broadcast
+  // conversation. The REST write above is already durable, so a failed broadcast
   // never loses data — the recipient just sees it on their next reload instead.
-  if (result.groupId) {
-    void broadcastRealtimeEvent("chat", groupChatChannelId(result.groupId), {
+  const channelId = result.groupId
+    ? groupChatChannelId(result.groupId)
+    : result.targetUserId
+      ? dmChatChannelId(user.id, result.targetUserId)
+      : null
+  if (channelId) {
+    void broadcastRealtimeEvent("chat", channelId, {
       type: "chat-message",
       userId: user.id,
       payload: {
