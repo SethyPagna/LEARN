@@ -617,6 +617,9 @@ export function StudioView({
   }, [selectedNote?.id])
 
   useEffect(() => {
+    const deepLink = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("item")
+    const [deepLinkKind, deepLinkId] = deepLink ? deepLink.split(":") : [undefined, undefined]
+
     Promise.all([
       api<{ items: WorkspaceDocument[] }>("/api/docs"),
       api<{ items: WorkspaceSheet[] }>("/api/sheets"),
@@ -624,11 +627,27 @@ export function StudioView({
     ])
       .then(([docsResponse, sheetsResponse, decksResponse]) => {
         setDocs(docsResponse.items)
-        setDocId(docsResponse.items[0]?.id || "")
         setSheets(sheetsResponse.items)
-        setSheetId(sheetsResponse.items[0]?.id || "")
         setDecks(decksResponse.items)
-        setDeckId(decksResponse.items[0]?.id || "")
+
+        if (deepLinkKind === "docs" && docsResponse.items.some((item) => item.id === deepLinkId)) {
+          setDocId(deepLinkId!)
+          setKind("docs")
+          setStudioMode("editor")
+        } else if (deepLinkKind === "sheets" && sheetsResponse.items.some((item) => item.id === deepLinkId)) {
+          setSheetId(deepLinkId!)
+          setKind("sheets")
+          setStudioMode("editor")
+        } else if (deepLinkKind === "slides" && decksResponse.items.some((item) => item.id === deepLinkId)) {
+          setDeckId(deepLinkId!)
+          setKind("slides")
+          setStudioMode("editor")
+        } else {
+          setDocId(docsResponse.items[0]?.id || "")
+          setSheetId(sheetsResponse.items[0]?.id || "")
+          setDeckId(decksResponse.items[0]?.id || "")
+        }
+
         draftReady.current = true
         notifyDraftSummary()
         setStatus("")
