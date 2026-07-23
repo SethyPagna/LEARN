@@ -271,6 +271,16 @@ export async function getMediaAsset(id: string, user: User) {
   return result.rows[0] ? normalizeAsset(result.rows[0]) : null
 }
 
+/**
+ * Unscoped by owner — only call this after a separate check (e.g.
+ * isFileSharedWithUserViaChat) has already established the requester is
+ * allowed to see this specific file.
+ */
+export async function getMediaAssetById(id: string) {
+  const result = await query("SELECT * FROM media_assets WHERE id = $1 LIMIT 1", [id])
+  return result.rows[0] ? normalizeAsset(result.rows[0]) : null
+}
+
 export async function getMediaObject(asset: MediaAsset) {
   const binding = await getR2Bucket()
   if (binding) return binding.get(asset.object_key)

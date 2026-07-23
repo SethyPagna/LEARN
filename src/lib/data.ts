@@ -1111,6 +1111,25 @@ async function isChatThreadParticipant(user: User, threadId: string) {
   return Boolean(result.rows[0])
 }
 
+/**
+ * A file uploaded and attached to a chat message should be viewable by
+ * whoever the message was actually sent to, not just its uploader — chat
+ * attachments otherwise 404 for the very people they were shared with.
+ * This only grants read access to the file's bytes; it does not make the
+ * recipient the file's owner (they still can't delete or re-attach it).
+ */
+export async function isFileSharedWithUserViaChat(fileId: string, user: User) {
+  const result = await query(
+    `SELECT 1 FROM chat_messages m
+     JOIN chat_threads t ON t.id = m.thread_id
+     WHERE json_extract(m.metadata, '$.attachment.fileId') = $1
+       AND (t.created_by_user_id = $2 OR t.target_user_id = $2 OR t.group_id IN (SELECT group_id FROM group_members WHERE user_id = $2))
+     LIMIT 1`,
+    [fileId, user.id],
+  )
+  return Boolean(result.rows[0])
+}
+
 export async function listChatMessages(user: User, threadId: string) {
   await ensureDatabase()
   if (!(await isChatThreadParticipant(user, threadId))) throw new Error("You don't have access to this conversation.")

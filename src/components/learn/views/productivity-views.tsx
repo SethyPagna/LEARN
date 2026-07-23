@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import type React from "react"
-import { AtSign, Bell, CheckCircle2, Clock, Gamepad2, Languages, MessageSquare, Mic, MicOff, MoreHorizontal, Paperclip, Phone, PhoneOff, Plus, Reply, RotateCcw, Search, Send, SlidersHorizontal, Smile, Sparkles, Trophy, Users, Video, VideoOff, XCircle } from "lucide-react"
+import { AtSign, Bell, CheckCircle2, Circle, Clock, Download, Gamepad2, Image as ImageIcon, Languages, MessageSquare, Mic, MicOff, MoreHorizontal, Paperclip, Phone, PhoneOff, Plus, Reply, RotateCcw, Search, Send, SlidersHorizontal, Smile, Sparkles, Trophy, Users, Video, VideoOff, XCircle } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Quiz } from "../types"
 import { api, formatDate } from "../api"
@@ -28,6 +28,7 @@ type ChatMessageRecord = {
   user_id: string
   body: string
   created_at: string
+  metadata?: { attachment?: { fileId: string; filename: string; contentType: string } }
 }
 type GroupRecord = {
   id: string
@@ -500,12 +501,14 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
         setMessages((current) => {
           if (threadId !== activeThreadId) return current
           if (current.some((m) => m.id === payload.messageId)) return current
+          const attachment = payload.attachment as { fileId?: string; filename?: string; contentType?: string } | undefined
           return [...current, {
             id: String(payload.messageId || `remote-${Date.now()}`),
             thread_id: threadId,
             user_id: String(parsed?.userId || ""),
             body: String(payload.body || ""),
             created_at: String(payload.createdAt || new Date().toISOString()),
+            metadata: attachment?.fileId ? { attachment: { fileId: attachment.fileId, filename: attachment.filename || "file", contentType: attachment.contentType || "application/octet-stream" } } : undefined,
           }]
         })
         refresh().catch(() => undefined)
@@ -579,6 +582,12 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null)
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null)
+  const [isRecordingCall, setIsRecordingCall] = useState(false)
+  const recordingCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const recordedChunksRef = useRef<Blob[]>([])
+  const recordingAudioContextRef = useRef<AudioContext | null>(null)
+  const recordingAnimationFrameRef = useRef<number | null>(null)
   const iceServers = useMemo<RTCIceServer[]>(() => [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
@@ -805,11 +814,95 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
       clearTimeout(callTimeoutRef.current)
       callTimeoutRef.current = null
     }
+    if (isRecordingCall) stopRecordingCall()
     incomingOfferRef.current = null
     cleanupMedia()
     setActiveCall(null)
     setCallElapsed(0)
     if (reason) setDraftStatus(reason)
+  }
+
+  function startRecordingCall() {
+    if (!localStreamRef.current || mediaRecorderRef.current) return
+    try {
+      const audioContext = new AudioContext()
+      const destination = audioContext.createMediaStreamDestination()
+      if (localStreamRef.current.getAudioTracks().length) {
+        audioContext.createMediaStreamSource(new MediaStream(localStreamRef.current.getAudioTracks())).connect(destination)
+      }
+      if (remoteStream?.getAudioTracks().length) {
+        audioContext.createMediaStreamSource(new MediaStream(remoteStream.getAudioTracks())).connect(destination)
+      }
+      recordingAudioContextRef.current = audioContext
+
+      let recordingStream: MediaStream
+      if (activeCall?.video) {
+        const canvas = document.createElement("canvas")
+        canvas.width = 960
+        canvas.height = 540
+        recordingCanvasRef.current = canvas
+        const ctx = canvas.getContext("2d")
+        const drawFrame = () => {
+          if (!ctx) return
+          ctx.fillStyle = "#000"
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+          if (remoteVideoRef.current && remoteVideoRef.current.readyState >= 2) {
+            ctx.drawImage(remoteVideoRef.current, 0, 0, canvas.width, canvas.height)
+          }
+          if (localVideoRef.current && localVideoRef.current.readyState >= 2) {
+            ctx.drawImage(localVideoRef.current, canvas.width - 200, canvas.height - 130, 190, 120)
+          }
+          recordingAnimationFrameRef.current = requestAnimationFrame(drawFrame)
+        }
+        drawFrame()
+        recordingStream = canvas.captureStream(30)
+        destination.stream.getAudioTracks().forEach((track) => recordingStream.addTrack(track))
+      } else {
+        recordingStream = destination.stream
+      }
+
+      const mimeType = ["video/webm;codecs=vp8,opus", "video/webm", "audio/webm"].find((type) => MediaRecorder.isTypeSupported(type)) || ""
+      const recorder = new MediaRecorder(recordingStream, mimeType ? { mimeType } : undefined)
+      recordedChunksRef.current = []
+      recorder.ondataavailable = (event) => {
+        if (event.data.size) recordedChunksRef.current.push(event.data)
+      }
+      recorder.onstop = () => {
+        const blob = new Blob(recordedChunksRef.current, { type: recorder.mimeType || "video/webm" })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement("a")
+        link.href = url
+        link.download = `call-recording-${Date.now()}.webm`
+        link.click()
+        URL.revokeObjectURL(url)
+        recordedChunksRef.current = []
+      }
+      recorder.start(1000)
+      mediaRecorderRef.current = recorder
+      setIsRecordingCall(true)
+      setDraftStatus("Recording started")
+    } catch {
+      setDraftStatus("Couldn't start recording on this device/browser.")
+    }
+  }
+
+  function stopRecordingCall() {
+    mediaRecorderRef.current?.stop()
+    mediaRecorderRef.current = null
+    if (recordingAnimationFrameRef.current) {
+      cancelAnimationFrame(recordingAnimationFrameRef.current)
+      recordingAnimationFrameRef.current = null
+    }
+    recordingCanvasRef.current = null
+    recordingAudioContextRef.current?.close().catch(() => undefined)
+    recordingAudioContextRef.current = null
+    setIsRecordingCall(false)
+    setDraftStatus("Recording saved")
+  }
+
+  function toggleCallRecording() {
+    if (isRecordingCall) stopRecordingCall()
+    else startRecordingCall()
   }
 
   function toggleCallMute() {
@@ -914,6 +1007,66 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
       setDraftStatus(error instanceof Error ? error.message : "Unable to send this message.")
     } finally {
       setChatAction(null)
+    }
+  }
+
+  function exportConversation() {
+    if (!messages.length) {
+      setDraftStatus("Nothing to export yet — this conversation has no messages.")
+      return
+    }
+    const label = activeDmTarget ? `DM with ${activeDmTarget.name}` : activeGroup ? activeGroup.name : "LEARN conversation"
+    const lines = [
+      `${label}`,
+      `Exported ${new Date().toISOString()}`,
+      "",
+      ...messages.map((message) => {
+        const who = message.user_id === currentUserId ? "You" : (activeDmTarget?.name || "Them")
+        const attachmentNote = message.metadata?.attachment ? ` [attachment: ${message.metadata.attachment.filename}]` : ""
+        return `[${formatDate(message.created_at)}] ${who}: ${message.body}${attachmentNote}`
+      }),
+    ]
+    const blob = new Blob([lines.join("\n")], { type: "text/plain" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `${label.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.txt`
+    link.click()
+    URL.revokeObjectURL(url)
+    setDraftStatus("Conversation downloaded")
+  }
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [pendingAttachKind, setPendingAttachKind] = useState<"document" | "photo">("document")
+
+  function openAttachPicker(kind: "document" | "photo") {
+    setPendingAttachKind(kind)
+    setOpenChatMenu(null)
+    fileInputRef.current?.click()
+  }
+
+  async function sendAttachment(file: File) {
+    setDraftStatus("Uploading...")
+    try {
+      const form = new FormData()
+      form.append("file", file)
+      form.append("source", "chat")
+      const uploadResponse = await api<{ file: { id: string; filename: string; content_type: string } }>("/api/files", { method: "POST", body: form })
+      const attachment = { fileId: uploadResponse.file.id, filename: uploadResponse.file.filename, contentType: uploadResponse.file.content_type }
+      const payload = {
+        body: attachment.contentType.startsWith("image/") ? "Shared a photo" : `Shared a file: ${attachment.filename}`,
+        title,
+        groupId: activeGroup?.id,
+        targetUserId: activeDmTarget?.target_user_id,
+        threadId: replyThreadId,
+        metadata: { attachment },
+      }
+      await api("/api/chat", { method: "POST", body: JSON.stringify(payload) })
+      setDraftStatus("Sent")
+      await refresh()
+      await refreshMessages(activeThreadId)
+    } catch (error) {
+      setDraftStatus(error instanceof Error ? error.message : "Unable to send that attachment.")
     }
   }
 
@@ -1050,6 +1203,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             </ChatMenu>
             <ToolbarButton label="Video" onClick={() => startCall(true)} icon={Video} />
             <ToolbarButton label="Call" onClick={() => startCall(false)} icon={Phone} />
+            <ToolbarButton label="Download" onClick={exportConversation} icon={Download} />
             <ChatMenu icon={Sparkles} label="Compose" menuId="compose" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
               <ChatMenuSection title="Draft intent">
                 {quickIntents.map((item) => (
@@ -1098,6 +1252,17 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                     : "rounded-tl-sm bg-secondary text-secondary-foreground"
                 }`}
               >
+                {message.metadata?.attachment ? (
+                  message.metadata.attachment.contentType.startsWith("image/") ? (
+                    <a href={`/api/files/${message.metadata.attachment.fileId}/download`} target="_blank" rel="noreferrer">
+                      <img src={`/api/files/${message.metadata.attachment.fileId}/download`} alt={message.metadata.attachment.filename} className="mb-1.5 max-h-64 w-full rounded-xl object-cover" />
+                    </a>
+                  ) : (
+                    <a href={`/api/files/${message.metadata.attachment.fileId}/download`} target="_blank" rel="noreferrer" className="mb-1.5 flex items-center gap-2 rounded-xl bg-black/10 px-3 py-2 text-xs font-semibold underline">
+                      <Paperclip className="h-3.5 w-3.5 shrink-0" /> {message.metadata.attachment.filename}
+                    </a>
+                  )
+                ) : null}
                 <p>{message.body.replace(/^\[[^\]]+\]\s*/, "")}</p>
                 <p className="mt-1 text-right text-[11px] opacity-70">{formatDate(message.created_at)}</p>
               </div>
@@ -1150,12 +1315,24 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
           </div>
         </details>
         <div className="m-4 mt-3 rounded-full border border-input bg-background px-3 py-2 shadow-sm">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={pendingAttachKind === "photo" ? "image/*" : undefined}
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              if (file) sendAttachment(file)
+              event.target.value = ""
+            }}
+          />
           <textarea value={body} onChange={(event) => { setBody(event.target.value); handleDraftActivity(event.target.value) }} className="min-h-28 w-full resize-none bg-transparent text-sm leading-6 text-foreground outline-none" placeholder="Message your study group, mention someone, link Studio, or ask a question..." />
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
             <div className="flex items-center gap-2">
             <ChatMenu compact icon={Plus} label="Attach" menuId="attach" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
               <ChatMenuSection title="Attach">
-                <ChatMenuAction icon={Paperclip} label="Document" meta="Attach a Studio item or file." onClick={() => setDraftStatus("Document attachment ready")} />
+                <ChatMenuAction icon={Paperclip} label="Document" meta="Upload a file from your device." onClick={() => openAttachPicker("document")} />
+                <ChatMenuAction icon={ImageIcon} label="Photo" meta="Upload and share a picture." onClick={() => openAttachPicker("photo")} />
                 <ChatMenuAction icon={Gamepad2} label="Quiz battle" meta="Attach a practice challenge." onClick={() => setDraftStatus("Practice attachment ready")} />
                 <ChatMenuAction icon={Clock} label="Event" meta="Attach a study calendar block." onClick={() => setDraftStatus("Event attachment ready")} />
               </ChatMenuSection>
@@ -1363,6 +1540,11 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                 {activeCall.video ? (
                   <button onClick={toggleCallCamera} className={`flex h-12 w-12 items-center justify-center rounded-full transition ${activeCall.cameraOff ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground hover:bg-accent"}`} type="button" aria-label={activeCall.cameraOff ? "Turn camera on" : "Turn camera off"}>
                     {activeCall.cameraOff ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
+                  </button>
+                ) : null}
+                {activeCall.status === "connected" ? (
+                  <button onClick={toggleCallRecording} className={`flex h-12 w-12 items-center justify-center rounded-full transition ${isRecordingCall ? "bg-destructive text-destructive-foreground" : "bg-secondary text-foreground hover:bg-accent"}`} type="button" aria-label={isRecordingCall ? "Stop recording" : "Start recording"}>
+                    <Circle className={`h-5 w-5 ${isRecordingCall ? "animate-pulse fill-current" : ""}`} />
                   </button>
                 ) : null}
                 <button onClick={() => endCall(true, "Call ended.")} className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-lg transition hover:opacity-90" type="button" aria-label="End call">

@@ -61,7 +61,26 @@ test("collaboration event validation normalizes useful realtime events", () => {
   assert.deepEqual(validateCollaborationEvent({ type: "chat-message", threadId: "dm_a__b", messageId: "msg_1", body: "hey", userId: "user_1" }).event, {
     type: "chat-message",
     userId: "user_1",
-    payload: { threadId: "dm_a__b", messageId: "msg_1", body: "hey", createdAt: "" },
+    payload: { threadId: "dm_a__b", messageId: "msg_1", body: "hey", createdAt: "", attachment: undefined },
+  })
+
+  assert.deepEqual(validateCollaborationEvent({
+    type: "chat-message",
+    threadId: "dm_a__b",
+    messageId: "msg_2",
+    body: "Shared a photo",
+    userId: "user_1",
+    attachment: { fileId: "asset_1", filename: "photo.png", contentType: "image/png" },
+  }).event, {
+    type: "chat-message",
+    userId: "user_1",
+    payload: {
+      threadId: "dm_a__b",
+      messageId: "msg_2",
+      body: "Shared a photo",
+      createdAt: "",
+      attachment: { fileId: "asset_1", filename: "photo.png", contentType: "image/png" },
+    },
   })
 
   assert.deepEqual(validateCollaborationEvent({ type: "typing", threadId: "dm_a__b", isTyping: true, userId: "user_1" }).event, {

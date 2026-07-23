@@ -134,6 +134,14 @@ export function validateCollaborationEvent(input: unknown): CollaborationEventVa
     const messageId = cleanString(record.messageId || record.message_id || payload.messageId || payload.message_id, 120)
     const body = cleanString(record.body || payload.body, 4000)
     if (!threadId || !messageId) return { ok: false, error: "Chat messages require a thread and message id." }
+    const rawAttachment = (record.attachment || payload.attachment) as Record<string, unknown> | undefined
+    const attachment = rawAttachment && typeof rawAttachment === "object"
+      ? {
+          fileId: cleanString(rawAttachment.fileId || rawAttachment.file_id, 120),
+          filename: cleanString(rawAttachment.filename, 200),
+          contentType: cleanString(rawAttachment.contentType || rawAttachment.content_type, 120),
+        }
+      : undefined
     return {
       ok: true,
       event: {
@@ -144,6 +152,7 @@ export function validateCollaborationEvent(input: unknown): CollaborationEventVa
           messageId,
           body,
           createdAt: cleanString(record.createdAt || record.created_at || payload.createdAt || payload.created_at, 40),
+          attachment: attachment?.fileId ? attachment : undefined,
         },
       },
     }

@@ -28,14 +28,17 @@ export const POST = withApiErrorBoundary(async (request: NextRequest) => {
       ? dmChatChannelId(user.id, result.targetUserId)
       : null
   if (channelId) {
+    const savedItem = result.item as Record<string, unknown>
+    const metadata = savedItem?.metadata as { attachment?: Record<string, unknown> } | undefined
     void broadcastRealtimeEvent("chat", channelId, {
       type: "chat-message",
       userId: user.id,
       payload: {
         threadId: result.threadId,
         messageId: result.messageId,
-        body: String((result.item as Record<string, unknown>)?.body || ""),
-        createdAt: String((result.item as Record<string, unknown>)?.created_at || new Date().toISOString()),
+        body: String(savedItem?.body || ""),
+        createdAt: String(savedItem?.created_at || new Date().toISOString()),
+        attachment: metadata?.attachment,
       },
     })
   }

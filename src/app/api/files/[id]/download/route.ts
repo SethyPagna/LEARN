@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
-import { getCurrentUser } from "@/lib/data"
-import { getMediaAsset, getMediaObject } from "@/lib/storage"
+import { getCurrentUser, isFileSharedWithUserViaChat } from "@/lib/data"
+import { getMediaAsset, getMediaAssetById, getMediaObject } from "@/lib/storage"
 import { withApiErrorBoundary } from "@/lib/api"
 
 export const GET = withApiErrorBoundary(async (_request: Request, { params }: { params: Promise<{ id: string }> }) => {
@@ -8,7 +8,10 @@ export const GET = withApiErrorBoundary(async (_request: Request, { params }: { 
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { id } = await params
-  const asset = await getMediaAsset(id, user)
+  let asset = await getMediaAsset(id, user)
+  if (!asset && (await isFileSharedWithUserViaChat(id, user))) {
+    asset = await getMediaAssetById(id)
+  }
   if (!asset) return NextResponse.json({ error: "File not found" }, { status: 404 })
 
   const object = await getMediaObject(asset)
