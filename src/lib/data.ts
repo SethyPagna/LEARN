@@ -20,6 +20,21 @@ import {
 } from "./learning-ecosystem"
 import { buildGamePracticeSessionDraft, buildQuizPracticeSessionDraft, buildReviewCardsFromPracticeItems, type PracticeSessionDraft, type PracticeSessionQuestion } from "./practice-sessions"
 import { createId, ensureDatabase, logAudit } from "./schema"
+import {
+  createLiveSession as createLiveSessionState,
+  findParticipant,
+  generateJoinCode,
+  normalizeJoinCode,
+  normalizeLiveQuestion,
+  parseSession,
+  reduceSession,
+  serializeSession,
+  summarizeResults,
+  type LiveEffect,
+  type LiveEvent,
+  type LiveQuizQuestion,
+  type LiveQuizSession,
+} from "./live/quiz-session"
 import { buildMultiRowInsert, chunkRowsForInsert } from "./sql-batch"
 import {
   canUseContentRole,
@@ -2142,6 +2157,319 @@ export async function recordQuizAttempt(user: User, input: {
   )
   await logAudit({ userId: user.id, action: "complete", entity: "quiz_attempt", entityId: attemptId })
   return { attemptId, practiceSessionId, score, total: input.answers.length, durationSeconds }
+}
+
+// ---------------------------------------------------------------------------
+// Live quizzes (Kahoot-style sessions)
+// ---------------------------------------------------------------------------
+//
+// This layer is deliberately thin: it loads a session, hands one event to the
+// pure reducer in `./live/quiz-session`, and persists what the reducer
+// returned. Every rule about who may do what, when an answer is late, and what
+// an answer is worth lives in that file and is unit-tested there. Nothing here
+// re-decides any of it — if a rule needs to change, it changes in one place.
+
+const LIVE_SESSION_NOT_FOUND = "That join code does not match a live quiz."
+const LIVE_JOIN_CODE_ATTEMPTS = 8
+
+/**
+ * The participant identity for a signed-in player.
+ *
+ * Derived from the user id rather than accepted from the client: a caller who
+ * could choose `participantId` could answer as somebody else, and joining twice
+ * from two devices would otherwise create two players with the same name.
+ */
+export function liveParticipantId(userId: string) {
+  return `lp_${userId}`
+}
+
+function timestampIso(valueMs: number) {
+  return new Date(Number.isFinite(valueMs) && valueMs > 0 ? valueMs : Date.now()).toISOString()
+}
+
+function isJoinCodeCollision(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error)
+  return /unique/i.test(message) && /code/i.test(message)
+}
+
+/**
+ * Maps stored quiz questions onto the live shape, dropping any row the reducer
+ * could not score (no prompt, fewer than two choices, or a correct choice that
+ * is not in the list). A session built from a partly broken quiz still runs.
+ */
+export function toLiveQuizQuestions(questions: unknown): LiveQuizQuestion[] {
+  if (!Array.isArray(questions)) return []
+  return questions.flatMap((question) => {
+    const normalized = normalizeLiveQuestion(question)
+    return normalized ? [normalized] : []
+  })
+}
+
+async function loadLiveSessionRecord(codeInput: unknown) {
+  const found = await getLiveSessionByCode(codeInput)
+  if (!found) throw new Error(LIVE_SESSION_NOT_FOUND)
+  return found
+}
+
+/**
+ * Writes the reducer's output back: the JSON state plus the columns the listing
+ * queries filter on, then the roster and any answers that were not already
+ * stored. `before` is what makes the answer write a diff rather than a rewrite,
+ * so a re-reduce of the same state cannot re-insert rows.
+ */
+async function persistLiveSession(input: {
+  id: string
+  before: LiveQuizSession
+  after: LiveQuizSession
+  effects: LiveEffect[]
+}) {
+  const { id, before, after, effects } = input
+  const stateJson = serializeSession(after)
+  if (effects.some((effect) => effect.type === "finalize")) {
+    await query(
+      `UPDATE live_quiz_sessions
+       SET phase = $1, question_index = $2, state_json = $3, updated_at = datetime('now'), finished_at = COALESCE(finished_at, datetime('now'))
+       WHERE id = $4`,
+      [after.phase, after.questionIndex, stateJson, id],
+    )
+  } else {
+    await query(
+      `UPDATE live_quiz_sessions
+       SET phase = $1, question_index = $2, state_json = $3, updated_at = datetime('now')
+       WHERE id = $4`,
+      [after.phase, after.questionIndex, stateJson, id],
+    )
+  }
+
+  await insertRows(
+    "live_quiz_participants",
+    ["id", "session_id", "user_id", "name", "score", "joined_at"],
+    after.participants.map((participant) => [
+      participant.id,
+      id,
+      participant.id.replace(/^lp_/, "") || null,
+      participant.name,
+      participant.score,
+      new Date(participant.joinedAt).toISOString(),
+    ]),
+    [],
+    "ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, score = EXCLUDED.score",
+  )
+
+  const alreadyStored = new Set(
+    before.participants.flatMap((participant) => participant.answers.map((answer) => `${participant.id}:${answer.questionId}`)),
+  )
+  const newAnswers = after.participants.flatMap((participant) =>
+    participant.answers
+      .filter((answer) => !alreadyStored.has(`${participant.id}:${answer.questionId}`))
+      .map((answer) => [
+        `lqa_${participant.id}_${answer.questionId}`,
+        id,
+        answer.questionId,
+        participant.id,
+        answer.choiceId,
+        answer.correct ? 1 : 0,
+        answer.points,
+        timestampIso(answer.at),
+      ]),
+  )
+  await insertRows(
+    "live_quiz_answers",
+    ["id", "session_id", "question_id", "participant_id", "choice_id", "correct", "points", "answered_at"],
+    newAnswers,
+    [],
+    "ON CONFLICT (participant_id, question_id) DO NOTHING",
+  )
+}
+
+export async function createLiveSession(user: User, input: { quizId: string; title?: string }) {
+  await ensureDatabase()
+  const quiz = await getQuiz(String(input.quizId || "").trim())
+  if (!quiz) throw new Error("Quiz not found")
+
+  const questions = toLiveQuizQuestions(quiz.questions)
+  if (!questions.length) throw new Error("That quiz has no questions a live session could ask yet.")
+
+  const createdAt = Date.now()
+  // `getQuiz` returns the row spread with its questions, so the scalar columns
+  // are present but not visible to the type checker.
+  const quizRecord = quiz as unknown as Record<string, unknown>
+  const quizId = String(quizRecord.id)
+  const quizTitle = String(input.title || "").trim() || String(quizRecord.title || "Live quiz")
+
+  // Minting a code is a write-then-check, not a check-then-write: the UNIQUE
+  // index on `code` is the arbiter, so two hosts creating a session at the same
+  // instant cannot both be handed the same code.
+  for (let attempt = 0; attempt < LIVE_JOIN_CODE_ATTEMPTS; attempt += 1) {
+    const code = generateJoinCode()
+    const id = createId("live")
+    const session = createLiveSessionState({
+      code,
+      quizId,
+      quizTitle,
+      hostUserId: user.id,
+      questions,
+      createdAt,
+    })
+    try {
+      await query(
+        `INSERT INTO live_quiz_sessions (id, code, quiz_id, quiz_title, host_user_id, phase, question_index, state_json)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [id, code, quizId, quizTitle, user.id, session.phase, session.questionIndex, serializeSession(session)],
+      )
+    } catch (error) {
+      if (isJoinCodeCollision(error)) continue
+      throw error
+    }
+
+    await logAudit({ userId: user.id, action: "create", entity: "live_quiz_session", entityId: id })
+    return { id, code, session }
+  }
+
+  throw new Error("Could not allocate a join code just now. Please try again.")
+}
+
+export async function getLiveSessionByCode(codeInput: unknown) {
+  await ensureDatabase()
+  const code = normalizeJoinCode(codeInput)
+  if (!code) return null
+
+  const result = await query("SELECT * FROM live_quiz_sessions WHERE code = $1 LIMIT 1", [code])
+  const row = result.rows[0]
+  if (!row) return null
+  const session = parseSession(row.state_json)
+  if (!session) return null
+  return { id: String(row.id), code, row, session }
+}
+
+/** Recent sessions the caller hosts, or has played in. */
+export async function listLiveSessions(user: User, limit = 20) {
+  await ensureDatabase()
+  const columns = "s.id, s.code, s.quiz_id, s.quiz_title, s.phase, s.question_index, s.created_at, s.updated_at, s.finished_at"
+  const [hosted, joined] = await Promise.all([
+    query(
+      `SELECT ${columns} FROM live_quiz_sessions s WHERE s.host_user_id = $1 ORDER BY s.created_at DESC LIMIT $2`,
+      [user.id, limit],
+    ),
+    query(
+      `SELECT ${columns} FROM live_quiz_sessions s
+       JOIN live_quiz_participants p ON p.session_id = s.id
+       WHERE p.user_id = $1 ORDER BY s.created_at DESC LIMIT $2`,
+      [user.id, limit],
+    ),
+  ])
+  return { hosted: hosted.rows, joined: joined.rows }
+}
+
+/**
+ * Applies one event to the stored session and persists the result.
+ *
+ * Returns `{ accepted: false, session }` when the reducer refuses — a late
+ * answer, a second answer, a non-host `start` — without touching the database.
+ * Callers turn that into a 409/403 with a message; the point is that a refused
+ * event is never a partial write.
+ */
+async function applyLiveEvent(input: {
+  code: unknown
+  event: LiveEvent
+  nowMs: number
+}): Promise<{ accepted: boolean; id: string; session: LiveQuizSession; effects: LiveEffect[] }> {
+  const found = await loadLiveSessionRecord(input.code)
+  const result = reduceSession(found.session, input.event, input.nowMs)
+  if (!result.effects.length) {
+    return { accepted: false, id: found.id, session: found.session, effects: [] }
+  }
+  await persistLiveSession({ id: found.id, before: found.session, after: result.session, effects: result.effects })
+  return { accepted: true, id: found.id, session: result.session, effects: result.effects }
+}
+
+export async function joinLiveSession(user: User, codeInput: unknown) {
+  const nowMs = Date.now()
+  const participantId = liveParticipantId(user.id)
+  const result = await applyLiveEvent({
+    code: codeInput,
+    nowMs,
+    event: { type: "join", actorId: user.id, participantId, name: user.name || user.username || "Player" },
+  })
+  if (result.accepted) return { joined: true, id: result.id, session: result.session }
+
+  // A refusal is not always an error. Re-joining when already on the roster is
+  // what a page refresh looks like, and it must not cost the player their place
+  // (or their view of the standings once the game is over). Only somebody who
+  // never joined is actually turned away.
+  if (findParticipant(result.session, participantId)) {
+    return { joined: false, id: result.id, session: result.session }
+  }
+  if (result.session.phase === "finished") throw new Error("That live quiz has already finished.")
+  throw new Error("That live quiz is full.")
+}
+
+export async function submitLiveAnswer(user: User, codeInput: unknown, input: { questionId: string; choiceId: string; atMs?: number }) {
+  // `atMs` is taken from the server clock, never from the client body: the
+  // speed bonus is the whole point of the score, and a client-supplied
+  // timestamp would let any player claim an instant answer.
+  const nowMs = Date.now()
+  const result = await applyLiveEvent({
+    code: codeInput,
+    nowMs,
+    event: {
+      type: "answer",
+      actorId: user.id,
+      participantId: liveParticipantId(user.id),
+      questionId: String(input.questionId || "").trim(),
+      choiceId: String(input.choiceId || "").trim(),
+      atMs: nowMs,
+    },
+  })
+  if (!result.accepted) return { accepted: false, id: result.id, session: result.session }
+
+  const participant = findParticipant(result.session, liveParticipantId(user.id))
+  const answer = participant?.answers[participant.answers.length - 1]
+  return { accepted: true, id: result.id, session: result.session, correct: answer?.correct ?? false, points: answer?.points ?? 0 }
+}
+
+export async function advanceLiveSession(user: User, codeInput: unknown, action: "start" | "reveal" | "next" | "close") {
+  const found = await loadLiveSessionRecord(codeInput)
+  if (found.session.hostUserId !== user.id) throw new Error("Only the host can control this live quiz.")
+  if (!["start", "reveal", "next", "close"].includes(action)) throw new Error("Unsupported live quiz action.")
+
+  const nowMs = Date.now()
+  const result = await applyLiveEvent({ code: codeInput, nowMs, event: { type: action, actorId: user.id } })
+  return { accepted: result.accepted, id: result.id, session: result.session }
+}
+
+/** The saved results record for a finished (or still running) session. */
+export async function listLiveSessionResults(user: User, sessionId: string) {
+  await ensureDatabase()
+  const sessions = await query(
+    `SELECT s.*, p.id AS participant_id
+     FROM live_quiz_sessions s
+     LEFT JOIN live_quiz_participants p ON p.session_id = s.id AND p.user_id = $2
+     WHERE s.id = $1 LIMIT 1`,
+    [sessionId, user.id],
+  )
+  const row = sessions.rows[0]
+  if (!row) return null
+
+  // Only the host and the people who played may read a session's results.
+  const isParticipant = Boolean(row.participant_id)
+  if (String(row.host_user_id) !== user.id && !isParticipant) return null
+
+  const [participants, answers] = await Promise.all([
+    query("SELECT * FROM live_quiz_participants WHERE session_id = $1 ORDER BY joined_at ASC", [sessionId]),
+    query("SELECT * FROM live_quiz_answers WHERE session_id = $1 ORDER BY answered_at ASC", [sessionId]),
+  ])
+  const session = parseSession(row.state_json)
+  return {
+    sessionId,
+    code: String(row.code),
+    hostUserId: String(row.host_user_id),
+    phase: String(row.phase),
+    finishedAt: row.finished_at ? String(row.finished_at) : null,
+    participants: participants.rows,
+    answers: answers.rows,
+    summary: session ? summarizeResults(session) : null,
+  }
 }
 
 export async function listAdminData() {

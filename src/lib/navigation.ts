@@ -48,7 +48,13 @@ export const studioViews = ["studio", "notes", "docs", "sheets", "slides"] as co
  */
 export const studioAliasViews = ["notes", "docs", "sheets", "slides", "canvas"] as const satisfies readonly View[]
 export const learnAliasViews = ["vault", "feed", "discover", "graph", "progress"] as const satisfies readonly View[]
-export const practiceViews = ["practice", "quizzes", "games", "reviews"] as const satisfies readonly View[]
+/**
+ * `live` joins `quizzes`/`games`/`reviews` as an alias of Practice for the same
+ * reason `canvas` is an alias of Studio: the sidebar is capped at eight primary
+ * items (see navigation.test.ts), so a new destination is reached through its
+ * group's launcher entry and its own route (`/live`).
+ */
+export const practiceViews = ["practice", "quizzes", "live", "games", "reviews"] as const satisfies readonly View[]
 export const socialViews = ["social", "chat", "spaces", "rooms", "battles"] as const satisfies readonly View[]
 export const manageAliasViews = ["profile", "admin"] as const satisfies readonly View[]
 
@@ -67,6 +73,7 @@ export const viewRoutes: Record<View, string> = {
   games: "/games",
   graph: "/graph",
   learn: "/learn",
+  live: "/live",
   notes: "/notes",
   practice: "/practice",
   profile: "/profile",
@@ -98,6 +105,7 @@ export const viewLabelKeys: Record<View, keyof Vocabulary> = {
   games: "games",
   graph: "graph",
   learn: "learn",
+  live: "liveQuiz",
   notes: "notes",
   practice: "practice",
   profile: "profile",
@@ -139,7 +147,7 @@ export const navigationGroups: readonly LearnNavigationGroup[] = [
   {
     label: "Practice",
     caption: "Quizzes, games, retries, and reviews",
-    items: [{ view: "practice", labelKey: "practice", iconKey: "practice", aliases: ["quizzes", "games", "reviews"] }],
+    items: [{ view: "practice", labelKey: "practice", iconKey: "practice", aliases: ["quizzes", "live", "games", "reviews"] }],
   },
   {
     label: "Social",
@@ -159,6 +167,7 @@ export const launcherCommands: readonly LauncherCommandConfig[] = [
   { label: "Open files", detail: "Uploads, media, and imports", view: "files", iconKey: "studio", keywords: ["file", "upload", "download", "media", "import"] },
   { label: "Start reviews", detail: "Open practice and review loops", view: "practice", iconKey: "practice", keywords: ["review", "recall", "flashcard", "practice"] },
   { label: "Practice now", detail: "Quizzes and games", view: "practice", iconKey: "practice", keywords: ["quiz", "game", "practice", "test"] },
+  { label: "Host a live quiz", detail: "Join code, lobby, timer, and live standings", view: "live", iconKey: "practice", keywords: ["live", "quiz", "kahoot", "host", "join", "code", "lobby", "game"] },
   { label: "Ask AI tutor", detail: "Prompt, rewrite, quiz, plan", view: "ai", iconKey: "ai", keywords: ["ai", "tutor", "prompt", "rewrite", "plan"] },
   { label: "Plan calendar", detail: "Study blocks and due dates", view: "calendar", iconKey: "calendar", keywords: ["calendar", "time", "schedule", "plan"] },
   { label: "Open profile", detail: "Identity, public artifacts, and privacy", view: "profile", iconKey: "settings", keywords: ["profile", "identity", "privacy", "public"] },

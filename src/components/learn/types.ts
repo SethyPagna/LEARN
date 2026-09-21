@@ -12,6 +12,7 @@ export type View =
   | "sheets"
   | "slides"
   | "quizzes"
+  | "live"
   | "practice"
   | "games"
   | "ai"

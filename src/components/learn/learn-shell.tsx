@@ -12,6 +12,7 @@ import { FilesView } from "./views/files-view"
 import { AdminView, CalendarView, ProgressView, SettingsView } from "./views/secondary-views"
 import { useWorkspacePreferences } from "./preferences"
 import { FeedView, GraphView, ProfileView, VaultView } from "./views/ecosystem-views"
+import { LiveQuizView } from "./views/live-quiz-view"
 import { StudioView } from "./views/studio-view"
 import { PracticeWorkspaceView, SocialWorkspaceView } from "./views/workspaces/combined-workspace-views"
 import { PRACTICE_DRAFT_EVENT, readPracticeDrafts, summarizePracticeDrafts, type PracticeDraftSummary } from "@/lib/practice-drafts"
@@ -207,6 +208,7 @@ export function LearnShell({
             {view === "progress" ? <ProgressView dashboard={dashboard} quizzes={quizzes} setView={chooseView} /> : null}
             {view === "calendar" ? <CalendarView options={preferences.options} /> : null}
             {view === "canvas" ? <CanvasEditorView /> : null}
+            {view === "live" ? <LiveQuizView quizzes={quizzes} user={user} /> : null}
             {studioViews.includes(view as (typeof studioViews)[number]) ? <StudioView initialKind={getStudioKind(view)} notes={filteredNotes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} onDraftSummary={setStudioDraftSummary} /> : null}
             {practiceViews.includes(view as (typeof practiceViews)[number]) ? <PracticeWorkspaceView initialView={view} quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={preferences.options} setView={chooseView} /> : null}
             {view === "ai" ? <AiTutorView notes={notes} options={preferences.options} setNotes={setNotes} setOptions={preferences.setOptions} setView={chooseView} /> : null}
