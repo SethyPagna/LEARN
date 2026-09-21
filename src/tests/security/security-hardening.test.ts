@@ -197,18 +197,54 @@ function listApiRouteFiles(dir: string): string[] {
   return found
 }
 
+/**
+ * The shared factory that `docs`, `sheets` and `slides` build their handlers
+ * from. `requireApiUser` now lives in there rather than in those three files,
+ * so a route is only guarded if this module is guarded — see the assertion at
+ * the bottom of this section.
+ */
+const RESOURCE_ROUTE_FACTORY = path.join(PROJECT_ROOT, "src", "lib", "api", "resource-route.ts")
+
+/** A route file whose handlers are built by the shared factory. */
+function usesResourceRouteFactory(source: string) {
+  return /from\s+["']@\/lib\/api\/resource-route["']/.test(source)
+}
+
+/**
+ * Does this route file export a state-changing handler?
+ *
+ * The destructured form matters: the factory routes are written as
+ * `export const { GET, POST, PUT, DELETE, PATCH } = createResourceRoute(...)`,
+ * which the plain `export const POST` pattern does not match. Without this
+ * branch those three files would be skipped as "not a mutation route" and the
+ * check below would pass vacuously for exactly the files it exists to cover.
+ */
+function exportsMutation(source: string) {
+  if (/\bexport const (POST|PUT|PATCH|DELETE)\b/.test(source)) return true
+  const destructured = /export const \{([^}]*)\}/.exec(source)
+  return Boolean(destructured && /\b(POST|PUT|PATCH|DELETE)\b/.test(destructured[1]))
+}
+
+/**
+ * A route is guarded if it authenticates itself, or if it delegates its
+ * handlers to the factory. The second arm is not a loophole: the test after
+ * this one asserts the factory still carries the guard.
+ */
+function isGuarded(source: string) {
+  return source.includes("requireApiUser") || usesResourceRouteFactory(source)
+}
+
 test("every mutation route uses requireApiUser or is a documented public exception", () => {
   const apiRoot = path.join(PROJECT_ROOT, "src", "app", "api")
   const offenders: string[] = []
 
   for (const filePath of listApiRouteFiles(apiRoot)) {
     const source = fs.readFileSync(filePath, "utf8")
-    const exportsMutation = /\bexport const (POST|PUT|PATCH|DELETE)\b/.test(source)
-    if (!exportsMutation) continue
+    if (!exportsMutation(source)) continue
 
     const route = `/${path.relative(apiRoot, filePath).split(path.sep).slice(0, -1).join("/")}`
     if (PUBLIC_MUTATION_ROUTES.has(route)) continue
-    if (source.includes("requireApiUser")) continue
+    if (isGuarded(source)) continue
 
     offenders.push(route)
   }
@@ -219,6 +255,51 @@ test("every mutation route uses requireApiUser or is a documented public excepti
     "these mutation routes authenticate without requireApiUser(), so they skip the hasTrustedOrigin() CSRF check",
   )
 })
+
+test("the routes that delegate to the factory are still inspected, and stay guarded there", () => {
+  const apiRoot = path.join(PROJECT_ROOT, "src", "app", "api")
+
+  for (const relative of ["docs", "sheets", "slides"]) {
+    const source = fs.readFileSync(path.join(apiRoot, relative, "route.ts"), "utf8")
+
+    // If either of these regresses the route drops out of the loop above and
+    // the invariant silently stops covering it.
+    assert.equal(exportsMutation(source), true, `${relative} must still be detected as a mutation route`)
+    assert.equal(usesResourceRouteFactory(source), true, `${relative} must use the shared factory`)
+    assert.equal(isGuarded(source), true, `${relative} must count as guarded`)
+
+    // The literal really is gone, so it is the factory arm — not a leftover
+    // local guard — that keeps this route covered. If a future edit puts the
+    // literal back, this tells you the OR is no longer being exercised.
+    assert.equal(
+      source.includes("requireApiUser"),
+      false,
+      `${relative}'s auth guard now lives in the factory; this assertion keeps that visible`,
+    )
+  }
+})
+
+test("the shared factory enforces the guard its routes delegate to", () => {
+  const source = fs.readFileSync(RESOURCE_ROUTE_FACTORY, "utf8")
+
+  assert.match(source, /requireApiUser\(/, "the factory must authenticate the caller")
+  assert.match(source, /isApiResponse\(/, "the factory must return the auth failure response as-is")
+  assert.match(source, /withApiErrorBoundary\(/, "the factory must wrap its handlers")
+
+  // Counting, not just matching: one wrapper on one handler would satisfy
+  // `assert.match` while leaving the other four handlers unprotected.
+  assert.equal(
+    (source.match(/withApiErrorBoundary\(/g) || []).length,
+    5,
+    "all five handlers must be wrapped in the error boundary",
+  )
+  assert.equal(
+    (source.match(/requireApiUser\(/g) || []).length,
+    5,
+    "all five handlers must authenticate before doing anything else",
+  )
+})
+
 
 test("the previously unguarded mutation routes now use requireApiUser", () => {
   const apiRoot = path.join(PROJECT_ROOT, "src", "app", "api")
