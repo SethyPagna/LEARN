@@ -51,6 +51,16 @@ async function checkDurableRateLimit(keyHash: string, limit: number, windowMs: n
     const hasActiveWindow = Number.isFinite(resetAtMs) && resetAtMs > now
     const resetAt = hasActiveWindow ? row?.reset_at || fallbackResetAt : fallbackResetAt
     const resetTime = hasActiveWindow ? resetAtMs : now + windowMs
+
+    // Already over the limit for an active window: the answer cannot change
+    // until the window resets, so there is nothing to record. Returning here
+    // stops an abusive client from forcing a database *write* on every single
+    // request — which is precisely when D1's per-database query serialisation
+    // hurts most. The count stays pinned at the value that tripped the limit.
+    if (hasActiveWindow && Number(row?.count || 0) >= limit) {
+      return { allowed: false, limit, remaining: 0, resetAt: resetTime }
+    }
+
     const nextCount = row && hasActiveWindow ? Number(row.count || 0) + 1 : 1
 
     await query(

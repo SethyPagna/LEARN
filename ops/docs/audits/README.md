@@ -45,8 +45,8 @@ Current state on branch `cleanup/stage-1` (commit `b2da5f87`):
 | Check | Result |
 | --- | --- |
 | `tsc --noEmit` | ✅ PASS (exit 0) |
-| Test suite | ✅ **418/418 pass**, 50 files |
-| Route-handler coverage | ✅ **13 tests over 3 handlers** (`quizzes`, `quizzes/attempts`, `ai/transcribe`) — was 0 |
+| Test suite | ✅ **429/429 pass**, 51 files |
+| Route-handler coverage | ✅ **28 tests over 6 handlers** (`quizzes`, `quizzes/attempts`, `auth/login`, `auth/logout`, `auth/signup-request`, `ai/transcribe`) — was 0 |
 | `next build --webpack` | ✅ Compiled in 14.6min · TypeScript passed · **78/78** static pages generated · `BUILD_ID` written · `.next/server/app/api/ai/transcribe/route.js` present |
 | `pnpm-lock.yaml` | ✅ Repaired — importer block matches `package.json` (44 entries) |
 
@@ -54,7 +54,7 @@ Current state on branch `cleanup/stage-1` (commit `b2da5f87`):
 
 1. **`next build` completes compile, typecheck and static generation, then aborts in the final "Collecting build traces" step.** Confirmed twice on a *clean* `.next` (`.next` moved aside first, so nothing stale was involved): it dies deleting `.next/export-detail.json` because the sandbox's delete guard has a 50-deletions-per-turn budget (`SAFE_DELETE_BULK_CONFIRM_REQUIRED`). Nothing about the failure touches application code — `BUILD_ID`, the route bundles, and all 78 static pages are written. Only the post-trace packaging step is unverified. **`next build` also needs `ESBUILD_BINARY_PATH` set** to `node_modules/.pnpm/@esbuild+win32-x64@0.28.0/.../esbuild.exe`, or it fails immediately with `Host version "0.28.0" does not match binary version "0.25.4"`.
 2. **`node_modules` is still not fully repaired and cannot be here.** A complete `pnpm install` must delete thousands of files; the same guard blocks it, and pnpm also calls the blacklisted `wmic.exe`. The interrupted run left ~1,766 empty package dirs and ~478 `.ignored_*` staging dirs under `node_modules/.pnpm`. Everything on the build path was repaired by hand — notably the `wrangler` peer dependency that `@opennextjs/cloudflare` imports at runtime from `next.config.mjs`. **Run `pnpm install` in a normal terminal first.**
-3. **The green test suite still does not cover `lib/data.ts` or `workers/` directly.** Route-handler coverage now exists for 3 of 50 handlers, and those tests exercise `data.ts` transitively through the real code path — but `data.ts` has no tests of its own, and the realtime/WebRTC Durable Objects have none. Treat "tests pass" as *not* evidence of safety for those paths.
+3. **The green test suite still does not cover `lib/data.ts` or `workers/` directly.** Route-handler coverage now exists for 6 of 50 handlers, and those tests exercise `data.ts` transitively through the real code path — but `data.ts` has no tests of its own, and the realtime/WebRTC Durable Objects have none. Treat "tests pass" as *not* evidence of safety for those paths.
 4. **`pnpm audit` could not be run**, so the security report's Item 20 reflects the absence of monitoring rather than a confirmed vulnerability.
 
 ## Housekeeping changes made by this audit
@@ -153,7 +153,50 @@ about the wiring, which is where the bugs are.
 | --- | --- | --- |
 | `api/quizzes-route.test.ts` | 5 | Auth, CSRF, validation, statement batching, parameter binding |
 | `api/quiz-loop.test.ts` | 3 | **The create → play → learn loop, end to end** |
+| `api/auth-routes.test.ts` | 11 | Login/logout/access-request, and the auth hardening properties |
 | `api/transcribe-route.test.ts` | 9 | Fail-closed config, content-type/size caps, provider error surfacing |
+
+`auth-routes.test.ts` is written as security assertions rather than happy-path
+descriptions. It answers four questions that were previously unverifiable:
+
+- **Can an attacker distinguish "no such user" from "wrong password"?** No — the
+  two 401 bodies are asserted byte-identical.
+- **Is the raw session token ever persisted?** No — the stored value is asserted to
+  be a 64-char SHA-256 hex digest that differs from the cookie value, and the same
+  check applies to logout's `DELETE`.
+- **Does the rate limiter actually stop a spraying loop?** Yes — the 9th attempt is
+  a 429 with a `retry-after`. This test only means something because the bucket
+  store is stateful; with a stateless fake the limiter's read-modify-write never
+  increments and the test passes vacuously. See `installRateLimitStore`.
+- **Is the cookie set with the attributes that make XSS theft hard?** Yes —
+  `HttpOnly`, `SameSite=lax`, `Path=/`, and a ~14-day expiry.
+
+Mutation checks confirm these are load-bearing, not descriptive: flipping `201`→`200`
+in `quizzes/route.ts`, and raising the login limit from `8` to `100`, each turn exactly
+one test red.
+
+### Finding: the durable rate limiter was writing on every blocked request
+
+Found while writing the auth tests. `checkDurableRateLimit` is a read-modify-write
+(one `SELECT`, one `INSERT`) against `rate_limit_buckets`, and it incremented the
+count on **every** request — including requests it had already decided to reject. An
+attacker hammering `/api/auth/login` therefore forced a database write per request,
+which is exactly when D1's per-database query serialisation hurts most.
+
+Now the count is pinned once it reaches the limit: the answer cannot change until the
+window resets, so there is nothing to record. Blocked requests do zero writes.
+
+Measured cost of the limiter on a rejected login, pinned by a test so it stays
+visible: **2 of the 3 D1 statements** are the limiter (the third is the credential
+lookup). This is paid by every rate-limited route — login, signup, `ai/chat`,
+`ai/transcribe`.
+
+**Not fixed, deliberately:** the remaining cost could be halved by collapsing the
+read-modify-write into one atomic `INSERT … ON CONFLICT … RETURNING`. That needs
+`db.ts` to route `RETURNING` statements through `.all()` instead of `.run()`, because
+`.run()` discards returned rows. The saving is ~10ms on requests that either already
+take seconds (the AI calls) or are rare (login), and the change lands in a security
+control. Recorded rather than done — the trade is not obviously worth it.
 
 **The loop test is the important one.** AI Council Session 2's highest-confidence
 finding was that nobody had ever demonstrated the app's core thesis closing — that

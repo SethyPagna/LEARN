@@ -216,6 +216,34 @@ export async function primeDatabase(stub: DatabaseStub) {
   stub.reset()
 }
 
+/**
+ * A stateful fake of `rate_limit_buckets`.
+ *
+ * The durable rate limiter is a read-modify-write pair against the database:
+ * it SELECTs the current count, then INSERTs count+1. A stateless fake always
+ * answers "no row", so the counter is recomputed as 1 on every call and the
+ * limiter never trips — the test would then assert that rate limiting works
+ * while proving the opposite.
+ *
+ * Any test that expects a 429 needs this, or it is testing a fake that cannot
+ * fail.
+ */
+export function installRateLimitStore(stub: DatabaseStub) {
+  const buckets = new Map<string, { count: number; reset_at: string }>()
+
+  stub.on(/INSERT INTO rate_limit_buckets/, (_sql, params) => {
+    buckets.set(String(params[0]), { count: Number(params[1]), reset_at: String(params[2]) })
+    return { rowCount: 1 }
+  })
+
+  stub.on(/FROM rate_limit_buckets/, (_sql, params) => {
+    const row = buckets.get(String(params[0]))
+    return { rows: row ? [row] : [] }
+  })
+
+  return buckets
+}
+
 export interface RequestOptions {
   method?: string
   body?: unknown
