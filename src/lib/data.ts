@@ -624,14 +624,6 @@ export async function updatePreferences(user: User, preferences: Record<string, 
   return nextPreferences
 }
 
-export async function listAuditLogs(user: User) {
-  await ensureDatabase()
-  const result = user.role === "admin"
-    ? await query("SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 120")
-    : await query("SELECT * FROM audit_logs WHERE user_id = $1 ORDER BY created_at DESC LIMIT 80", [user.id])
-  return result.rows.map((row) => ({ ...row, details: parseJsonObject(row.details) }))
-}
-
 export async function listCalendarEvents(user: User) {
   await ensureDatabase()
   const result = await query(
@@ -2221,72 +2213,6 @@ async function refreshFeedRankCache(userId: string, topicKey: string, selected: 
       ],
     )
   }
-}
-
-export async function listMicroLessons(user: User) {
-  await ensureDatabase()
-  await seedMicroLessons(user)
-  const result = await query("SELECT * FROM micro_lessons ORDER BY updated_at DESC LIMIT 100")
-  return result.rows.map((row) => ({
-    ...row,
-    topic_tags: parseJsonArray(row.topic_tags),
-    choices: parseJsonArray(row.choices),
-  }))
-}
-
-export async function saveMicroLesson(user: User, input: Record<string, unknown>) {
-  await ensureDatabase()
-  const id = String(input.id || createId("lesson"))
-  await assertOwnership(user, "micro_lessons", input.id, "creator_user_id")
-  await query(
-    `INSERT INTO micro_lessons (
-       id, creator_user_id, title, summary, duration_seconds, topic_tags, question, choices,
-       correct_choice_id, explanation, visibility, status, updated_at
-     )
-     VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8::jsonb, $9, $10, $11, $12, now())
-     ON CONFLICT (id) DO UPDATE
-     SET title = EXCLUDED.title,
-         summary = EXCLUDED.summary,
-         duration_seconds = EXCLUDED.duration_seconds,
-         topic_tags = EXCLUDED.topic_tags,
-         question = EXCLUDED.question,
-         choices = EXCLUDED.choices,
-         correct_choice_id = EXCLUDED.correct_choice_id,
-         explanation = EXCLUDED.explanation,
-         visibility = EXCLUDED.visibility,
-         status = EXCLUDED.status,
-         updated_at = now()`,
-    [
-      id,
-      user.id,
-      String(input.title || "Untitled micro-lesson").trim(),
-      String(input.summary || ""),
-      Number(input.durationSeconds || input.duration_seconds || 90),
-      JSON.stringify(Array.isArray(input.topicTags) ? input.topicTags : input.topic_tags || []),
-      String(input.question || ""),
-      JSON.stringify(Array.isArray(input.choices) ? input.choices : []),
-      String(input.correctChoiceId || input.correct_choice_id || ""),
-      String(input.explanation || ""),
-      String(input.visibility || "public"),
-      String(input.status || "published"),
-    ],
-  )
-  const title = String(input.title || "Untitled micro-lesson").trim()
-  const summary = String(input.summary || "")
-  const visibility = String(input.visibility || "public")
-  await upsertContentItemForSource({
-    workspaceId: DEFAULT_WORKSPACE_ID,
-    ownerUserId: user.id,
-    itemType: "micro_lesson",
-    sourceTable: "micro_lessons",
-    sourceId: id,
-    title,
-    summary,
-    visibility,
-  })
-  await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "micro_lesson", entityId: id })
-  const savedLesson = (await query("SELECT * FROM micro_lessons WHERE id = $1 LIMIT 1", [id])).rows[0]
-  return savedLesson ? { ...savedLesson, topic_tags: parseJsonArray(savedLesson.topic_tags), choices: parseJsonArray(savedLesson.choices) } : savedLesson
 }
 
 export async function recordFeedInteraction(user: User, input: Record<string, unknown>) {

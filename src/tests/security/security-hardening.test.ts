@@ -220,10 +220,12 @@ test("every mutation route uses requireApiUser or is a documented public excepti
   )
 })
 
-test("the four previously unguarded mutation routes now use requireApiUser", () => {
+test("the previously unguarded mutation routes now use requireApiUser", () => {
   const apiRoot = path.join(PROJECT_ROOT, "src", "app", "api")
 
-  for (const relative of ["automation/run", "import", "files"]) {
+  // `automation/run` was in this list until it was deleted for being a
+  // non-functional stub with no caller; the remaining routes still carry the fix.
+  for (const relative of ["import", "files"]) {
     const source = fs.readFileSync(path.join(apiRoot, relative, "route.ts"), "utf8")
     assert.match(source, /requireApiUser/, `${relative} should use requireApiUser`)
 

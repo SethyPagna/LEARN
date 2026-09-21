@@ -2,12 +2,28 @@
 
 import type { ReactNode } from "react"
 import { useEffect, useMemo, useState } from "react"
-import { CheckCircle2, FlaskConical, KeyRound, MoreHorizontal, Plus, Save, Trash2, Wand2 } from "lucide-react"
+import { Activity, CheckCircle2, FlaskConical, KeyRound, MoreHorizontal, Plus, Save, Trash2, Wand2 } from "lucide-react"
 import { api } from "../api"
 import { Panel } from "../ui"
 import { buildProviderAdminSummaryChips, type ProviderAdminSection, type ProviderAdminSummaryChip } from "@/lib/ai/provider-admin-ui"
 
 type ProviderType = "chat" | "embed" | "gateway"
+
+interface IntegrationHealth {
+  runtime: string
+  database: { configured: boolean }
+  storage: { configured: boolean }
+  ai: { provider: string | null; configured: boolean }
+  encryption: { providerSecretKeyConfigured: boolean; requiredInProduction: boolean }
+}
+
+interface ReadinessItem {
+  id: string
+  label: string
+  detail: string
+  ready: boolean
+  critical: boolean
+}
 
 interface ProviderPreset {
   id: string
@@ -102,6 +118,8 @@ export function ProviderAdminPanel() {
   const [form, setForm] = useState<ProviderForm>(blankForm)
   const [activeSection, setActiveSection] = useState<ProviderAdminSection>("providers")
   const [status, setStatus] = useState("Loading provider console...")
+  const [health, setHealth] = useState<IntegrationHealth | null>(null)
+  const [healthStatus, setHealthStatus] = useState("Loading runtime readiness...")
 
   async function refresh() {
     const response = await api<{ items: ProviderConfig[]; presets: ProviderPreset[]; summary: ProviderSummary }>("/api/ai/providers")
@@ -115,7 +133,51 @@ export function ProviderAdminPanel() {
     refresh().catch((error) => setStatus(error instanceof Error ? error.message : "Unable to load providers."))
   }, [])
 
+  // Runtime readiness comes from the admin-only health route, so a non-admin
+  // sees the 403 message here instead of an empty panel.
+  useEffect(() => {
+    api<IntegrationHealth>("/api/integrations/health")
+      .then((response) => {
+        setHealth(response)
+        setHealthStatus("")
+      })
+      .catch((error) => setHealthStatus(error instanceof Error ? error.message : "Unable to read runtime readiness."))
+  }, [])
+
   const selectedPreset = useMemo(() => presets.find((preset) => preset.provider === form.provider), [form.provider, presets])
+  const readinessItems = useMemo<ReadinessItem[]>(() => {
+    if (!health) return []
+    return [
+      {
+        id: "database",
+        label: "Database",
+        detail: health.runtime,
+        ready: health.database.configured,
+        critical: true,
+      },
+      {
+        id: "storage",
+        label: "Storage",
+        detail: "Cloudflare R2 file storage",
+        ready: health.storage.configured,
+        critical: false,
+      },
+      {
+        id: "ai",
+        label: "AI provider",
+        detail: health.ai.provider || "No provider resolved",
+        ready: health.ai.configured,
+        critical: false,
+      },
+      {
+        id: "encryption",
+        label: "Encryption key",
+        detail: health.encryption.requiredInProduction ? "Required before production provider secrets" : "Optional",
+        ready: health.encryption.providerSecretKeyConfigured,
+        critical: true,
+      },
+    ]
+  }, [health])
   const summaryChips = useMemo(() => buildProviderAdminSummaryChips(summary), [summary])
   const primarySummaryChips = summaryChips.filter((chip) => chip.priority === "primary")
   const secondarySummaryChips = summaryChips.filter((chip) => chip.priority === "secondary")
@@ -232,6 +294,26 @@ export function ProviderAdminPanel() {
           </div>
         </details>
         <p className="mt-3 text-sm text-muted-foreground">{status}</p>
+      </Panel>
+
+      <Panel className="p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Activity className="h-4 w-4 text-primary" />
+          <h4 className="font-semibold text-foreground">Runtime readiness</h4>
+          {health ? <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{health.runtime}</span> : null}
+        </div>
+        {readinessItems.length ? (
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {readinessItems.map((item) => (
+              <div key={item.id} className={`rounded-md border p-3 ${item.ready ? "border-success/30 bg-success/10" : item.critical ? "border-warning/35 bg-warning/10" : "border-border bg-background"}`}>
+                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{item.label}</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">{item.ready ? "Ready" : "Not configured"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {healthStatus ? <p className="mt-3 text-sm text-muted-foreground">{healthStatus}</p> : null}
       </Panel>
 
       {activeSection === "providers" ? (

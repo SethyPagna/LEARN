@@ -38,6 +38,7 @@ import type {
   KnowledgeNode,
   LearningSpace,
   MicroLesson,
+  Note,
   PublicProfile,
   ReviewItem,
   StudyBattle,
@@ -45,7 +46,7 @@ import type {
   User,
   View,
 } from "../types"
-import { EmptyState, Panel, StatusMessage } from "../ui"
+import { EmptyState, Panel, StatusMessage, StatusPill } from "../ui"
 import { buildFeedActionPlan, buildFeedSummaryChips, buildKnowledgeGraphActionPlan, buildKnowledgeGraphSummaryChips, buildReviewActionPlan, buildReviewRatingActions, buildReviewSummaryChips, buildVaultBlockPalette, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession, type FeedSummaryChip, type KnowledgeGraphSummaryChip, type ReviewRating, type VaultBlockPaletteGroup, type VaultBlockType } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, buildProfileSummaryChips, type ProfilePlanTarget, type ProfileSummaryChip } from "@/lib/profile-features"
 import { createSocialDraft, parseStoredSocialDraftStore, socialDraftStorageKey, type SocialDraft, type SocialDraftStore, type SocialKind } from "@/lib/social-drafts"
@@ -63,9 +64,12 @@ type ReviewPayload = {
   remainingDueCount: number
 }
 
-export function VaultView({ setView }: { setView: (view: View) => void }) {
+export function VaultView({ notes = [], setView }: { notes?: Note[]; setView: (view: View) => void }) {
   const { data, status } = useResource<VaultGraphPayload>("/api/vault/graph")
   const [blockType, setBlockType] = useState<VaultBlockType>("text")
+  const [blockNoteId, setBlockNoteId] = useState("")
+  const [blockContent, setBlockContent] = useState("")
+  const [blockStatus, setBlockStatus] = useState("")
 
   const topNodes = data?.nodes.slice(0, 5) ?? []
   const graphSummary = useMemo(() => summarizeKnowledgeGraph(data?.nodes ?? [], data?.edges ?? []), [data?.edges, data?.nodes])
@@ -73,6 +77,27 @@ export function VaultView({ setView }: { setView: (view: View) => void }) {
   const paletteGroups = useMemo(() => buildVaultBlockPalette(blockType), [blockType])
   const primaryPaletteGroups = paletteGroups.filter((group) => group.priority === "primary")
   const secondaryPaletteGroups = paletteGroups.filter((group) => group.priority === "secondary")
+  const targetNoteId = blockNoteId || notes[0]?.id || ""
+  const targetNoteTitle = notes.find((note) => note.id === targetNoteId)?.title || "No note selected"
+
+  async function saveVaultBlock() {
+    if (!targetNoteId) {
+      setBlockStatus("Create a note first, then the palette can save blocks into it.")
+      return
+    }
+    setBlockStatus("Saving block...")
+    try {
+      await api("/api/vault/blocks", {
+        method: "POST",
+        body: JSON.stringify({ noteId: targetNoteId, blockType, content: { text: blockContent } }),
+      })
+      setBlockContent("")
+      setBlockStatus(`Saved a ${blockType} block to "${targetNoteTitle}".`)
+    } catch (error) {
+      setBlockStatus(error instanceof Error ? error.message : "Unable to save the block.")
+    }
+  }
+
   return (
     <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
       <section className="rounded-lg border border-border bg-[radial-gradient(circle_at_20%_20%,hsl(var(--primary)/0.18),transparent_34%),hsl(var(--card))] p-5 text-card-foreground">
@@ -114,6 +139,38 @@ export function VaultView({ setView }: { setView: (view: View) => void }) {
               <VaultPaletteGroup key={group.id} activeBlock={blockType} group={group} onSelect={setBlockType} />
             ))}
           </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-end gap-2 rounded-md border border-border bg-background p-3">
+          <label className="block min-w-44">
+            <span className="text-xs font-semibold uppercase text-muted-foreground">Save block to</span>
+            <select
+              value={targetNoteId}
+              onChange={(event) => setBlockNoteId(event.target.value)}
+              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none"
+            >
+              {notes.map((note) => <option key={note.id} value={note.id}>{note.title}</option>)}
+            </select>
+          </label>
+          <label className="block min-w-52 grow">
+            <span className="text-xs font-semibold uppercase text-muted-foreground">Block content</span>
+            <input
+              value={blockContent}
+              onChange={(event) => setBlockContent(event.target.value)}
+              placeholder={`Write the ${blockType} block`}
+              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={saveVaultBlock}
+            disabled={!targetNoteId}
+            className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+          >
+            <Save className="h-4 w-4" />
+            Save block
+          </button>
+          {blockStatus ? <StatusPill label={blockStatus} tone={blockStatus.startsWith("Saved") ? "steady" : "neutral"} /> : null}
+          {!notes.length ? <p className="text-xs text-muted-foreground">Blocks attach to a note, so create one in Studio first.</p> : null}
         </div>
         <details className="mt-3 rounded-md border border-border bg-background">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">

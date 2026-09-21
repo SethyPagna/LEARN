@@ -89,7 +89,3 @@ export const automationJobs: AutomationJob[] = [
     description: "Recommends safe provider priority, timeout, cooldown, and request-limit adjustments for learning tasks.",
   },
 ]
-
-export function getAutomationJob(key: string) {
-  return automationJobs.find((job) => job.key === key) ?? null
-}

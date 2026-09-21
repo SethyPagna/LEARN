@@ -28,6 +28,7 @@ const adminPanelTabIcons: Record<AdminPanelTab, typeof Gauge> = {
   users: Users,
   providers: Bot,
   audit: ShieldCheck,
+  moderation: AlertTriangle,
   automation: Sparkles,
 }
 
@@ -1279,6 +1280,7 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
         </div>
       ) : null}
       {tab === "audit" ? <AdminList title="Audit" items={audit} emptyLabel="No audit rows match this search." query={query} /> : null}
+      {tab === "moderation" ? <AdminModerationQueue query={query} /> : null}
       {tab === "automation" ? (
         <div className="grid gap-4 xl:grid-cols-2">
           <AdminList title="Automation jobs" items={jobs} emptyLabel="No automation jobs match this search." query={query} accent={jobs.length ? "good" : "neutral"} />
@@ -1530,6 +1532,115 @@ function AdminAccessRequests({
           </p>
         ) : null}
       </div>
+    </Panel>
+  )
+}
+
+interface AdminModerationItem {
+  id: string
+  reporter_user_id?: string
+  target_type?: string
+  target_id?: string
+  reason?: string
+  status?: string
+  notes?: string
+  created_at?: string
+}
+
+const closedModerationStatuses = new Set(["resolved", "dismissed"])
+
+function AdminModerationQueue({ query }: { query: string }) {
+  const [items, setItems] = useState<AdminModerationItem[]>([])
+  const [status, setStatus] = useState("Loading moderation queue...")
+  const [pendingId, setPendingId] = useState("")
+  const visibleItems = filterAdminList(items, query, ["reason", "target_type", "target_id", "status", "notes"])
+
+  async function refresh() {
+    try {
+      const response = await api<{ items: AdminModerationItem[] }>("/api/moderation")
+      setItems(response.items)
+      setStatus(response.items.length ? "" : "Nothing is waiting for moderation.")
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to load the moderation queue.")
+    }
+  }
+
+  useEffect(() => {
+    refresh()
+  }, [])
+
+  async function decide(item: AdminModerationItem, nextStatus: "resolved" | "dismissed") {
+    setPendingId(item.id)
+    setStatus(`Marking ${item.id} ${nextStatus}...`)
+    try {
+      await api("/api/moderation", {
+        method: "POST",
+        body: JSON.stringify({
+          id: item.id,
+          targetType: item.target_type,
+          targetId: item.target_id,
+          reason: item.reason,
+          notes: item.notes,
+          status: nextStatus,
+        }),
+      })
+      await refresh()
+      setStatus(`Marked ${item.id} ${nextStatus}.`)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to update the moderation item.")
+    } finally {
+      setPendingId("")
+    }
+  }
+
+  return (
+    <Panel className="p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-semibold text-foreground">Moderation queue</p>
+          <p className="mt-1 text-sm text-muted-foreground">Review flagged content and close it out without leaving the admin panel.</p>
+          {query ? <p className="mt-1 text-xs text-muted-foreground">Filtered by "{query}"</p> : null}
+        </div>
+        <SharedStatusPill label={String(visibleItems.length)} tone={visibleItems.length ? "watch" : "steady"} />
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        {visibleItems.map((item) => (
+          <article key={item.id} className="rounded-md border border-border bg-background p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-foreground">{item.reason || "Needs review"}</p>
+                <p className="mt-1 truncate text-xs text-muted-foreground">
+                  {item.target_type || "feed"} - {item.target_id || "unknown target"}
+                </p>
+              </div>
+              <SharedStatusPill label={item.status || "open"} tone={closedModerationStatuses.has(item.status || "") ? "steady" : "watch"} />
+            </div>
+            <p className="mt-3 line-clamp-3 text-sm leading-6 text-muted-foreground">{item.notes || "No reviewer notes yet."}</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Reported by {item.reporter_user_id || "unknown"} {item.created_at ? `| ${formatDate(item.created_at)}` : ""}
+            </p>
+            {closedModerationStatuses.has(item.status || "") ? null : (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <ControlButton type="button" onClick={() => decide(item, "resolved")} active size="compact" disabled={pendingId === item.id}>
+                  <Check className="h-4 w-4" />
+                  Resolve
+                </ControlButton>
+                <ControlButton type="button" onClick={() => decide(item, "dismissed")} size="compact" disabled={pendingId === item.id}>
+                  <X className="h-4 w-4" />
+                  Dismiss
+                </ControlButton>
+              </div>
+            )}
+          </article>
+        ))}
+        {!visibleItems.length ? (
+          <p className="rounded-md border border-dashed border-border bg-background p-4 text-sm text-muted-foreground lg:col-span-2">
+            {status || "No moderation items match this search."}
+          </p>
+        ) : null}
+      </div>
+      {visibleItems.length && status ? <p className="mt-3 text-sm text-muted-foreground">{status}</p> : null}
     </Panel>
   )
 }
