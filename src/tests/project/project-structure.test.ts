@@ -39,6 +39,9 @@ const allowedDocsDirectories = new Set([
 const allowedJavaScriptFiles = new Set([
   "next.config.mjs",
   "postcss.config.mjs",
+  // A service worker must be served verbatim from the origin root and cannot be
+  // bundled, hashed, or compiled from TypeScript like the rest of the app.
+  "public/sw.js",
 ])
 
 function listTrackedFiles() {

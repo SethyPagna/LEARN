@@ -1,7 +1,8 @@
 import React from "react"
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { ThemeProvider } from '@/components/theme-provider'
+import { PwaRegister } from '@/components/pwa-register'
 import './globals.css'
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" })
@@ -24,6 +25,21 @@ export const metadata: Metadata = {
     ],
     apple: '/apple-icon.png',
   },
+  // Installed-app chrome: LEARN runs standalone once added to the home screen.
+  appleWebApp: {
+    capable: true,
+    title: 'LEARN',
+    statusBarStyle: 'black-translucent',
+  },
+}
+
+export const viewport: Viewport = {
+  // Matches the app's page backgrounds (src/app/page.tsx) so the browser and
+  // installed-app chrome do not flash a mismatched colour.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f6faf7' },
+    { media: '(prefers-color-scheme: dark)', color: '#040506' },
+  ],
 }
 
 export default function RootLayout({
@@ -42,6 +58,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           {children}
         </ThemeProvider>
+        <PwaRegister />
       </body>
     </html>
   )
