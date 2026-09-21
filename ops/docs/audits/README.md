@@ -11,6 +11,7 @@ names; re-run after any structural change.
 | 2026-09-21 | [AI Council — Session 2](./2026-09-21-ai-council-next-investment.md) | `ai-council` | Where the next unit of effort goes — verdict: *narrow the order, not the ambition*. **Executed** — see [Route-handler test harness](#route-handler-test-harness--executed) |
 | 2026-09-21 | [AI Council — Session 3 (takeover)](./2026-09-21-ai-council-takeover.md) | `ai-council` | How to finish: debloat, optimise, integrate. Verdict: *close the seams, add no new surface*. **#1 step executed** — six consumer-less routes closed |
 | 2026-09-21 | [AI Council — Session 4 (maturity)](./2026-09-21-ai-council-maturity.md) | `ai-council` | Making it mature/foolproof: calendar interop + alarms, installable PWA, voice everywhere, and the notes read/write leaks. Verdict: *trust before capability*. **Executed** |
+| 2026-09-22 | [AI Council — Session 5 (verification)](./2026-09-22-ai-council-verification.md) | `ai-council` | Verification pass over the goal delivery (canvas, AI formatting, DOCX/XLSX, sharing, live quiz, chat games). Verdict: *the logic is proven, the runtime is not — run the build*. |
 
 **Revision audited:** `5f06f9e1` (`main`) — cleanup work is on branch `cleanup/stage-1`
 
@@ -333,3 +334,30 @@ proven non-vacuous (removing a guard turns them red).
   there is no reachable D1 to count `content_items` against its source tables.
 - No recurrence (`RRULE`), no push notifications (only `VALARM`), and no 192×192 / 512×512 PNG icons
   (the manifest falls back to the SVG).
+
+## Session 5 — goal delivery (canvas, AI formatting, export, sharing, live play) — executed
+
+Branch `cleanup/stage-1`. Nine commits, each with mutation-proven tests. Driven by AI Council
+Session 5 ([`2026-09-22-ai-council-verification.md`](./2026-09-22-ai-council-verification.md)).
+
+| Commit | Change |
+| --- | --- |
+| `eb029b1` | **Design canvas** — pure engine (908 lines, zero imports): move/resize/rotate, rotation-aware resize, snapping, dense z-order, grouping, align/distribute, rotated hit-testing, bounded undo/redo, versioned open format; editor with pointer drag, 8 handles, marquee, layers panel, keyboard map, autosave + draft; `/api/canvas` reuses the resource factory. |
+| `e851ce4` | **Themed AI formatting** — normalizes any AI reply into 11 typed blocks with strict sanitization (HTML stripped, `javascript:`/`data:image/svg+xml` rejected, size caps); themed renderer wired into the AI panel. |
+| `3ee39f1` | **DOCX + XLSX export** via a dependency-free ZIP (STORE) writer with correct CRC-32 + WordprocessingML/SpreadsheetML builders. |
+| `dba0961` | **Revocable share links** (viewer/editor, expiry) and the previously-unused permission model enforced on the write path, so a viewer cannot edit. |
+| `d244733` | **Kahoot-style live quiz** — pure session engine (phases, join codes, timer, speed-bonus scoring, deterministic leaderboard, results), tables (migration `0015`), host/player routes and screens. |
+| `1d73247` | **Multiplayer games from chat** — the inert "Quiz battle" stub replaced; join from a thread card; result posted back idempotently; three modes (`race`, `survival`, `streak`). |
+| `e8507fd` | **Debloat** — the two scanner-proven duplicates consolidated; 90 symbols de-exported; the unused export removed. |
+| `557881d` | **DOCX/XLSX import** — a ZIP reader (STORE + DEFLATE via `DecompressionStream`, CRC-validated, ZIP64 rejected) plus tolerant OOXML importers, closing the round-trip. |
+| `578b203` | **Rendered share page** (`/share/[token]`), one shared Share panel (canvas + quiz), quiz mirroring into `content_items`, role-aware answer key, and AI blocks droppable onto the canvas. |
+| `8a90065` | **Status fix** — the root `loading.tsx` boundary removed so `notFound()` can set a real 404 (measured live: `/share/<bad token>` 200 → 404). |
+
+**Verified at `8a90065`:** `tsc --noEmit` exit 0 · **828/828 tests** (75 files; 534 at goal entry) ·
+duplication scanner **0 groups** · `unusedExports 0`, `orphanFiles 0` · 54 route handlers.
+
+**What the council flagged as still true:** every test stubs the database at the `globalThis.fetch`
+boundary, so the *runtime* is unverified — no build, no browser, no D1 this session. That is the top
+remaining risk and the #1 next step. Also recorded but not fixed: two sub-12-line duplicate type
+declarations with divergent shapes (`QuizChoice`, `DashboardWeakTopic`), 243 internal-only exports,
+and no PDF engine (print only).
