@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Sidebar, MobileMenu, Topbar, titleForView } from "./app-nav"
 import { api } from "./api"
+import { PlaceGuide } from "./place-guide"
 import type { AdminData, AutomationData, DashboardData, Note, Quiz, User, View } from "./types"
 import { StatusMessage } from "./ui"
 import { AiTutorView } from "./views/ai-view"
@@ -179,6 +180,7 @@ export function LearnShell({
             setDensity={preferences.setDensity}
             setLocale={preferences.setLocale}
             setTheme={preferences.setTheme}
+            setView={chooseView}
             text={preferences.text}
             view={view}
             user={user}
@@ -220,6 +222,7 @@ export function LearnShell({
           </div>
         </section>
       </div>
+      <PlaceGuide setView={chooseView} />
     </main>
   )
 }

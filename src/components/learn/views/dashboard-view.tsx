@@ -26,6 +26,7 @@ import type React from "react"
 import { buildDashboardCommandPlan, buildDashboardEmptyStates, buildDashboardMetricTiles, buildDashboardQuickActionGroups, buildDashboardRecentWork, buildDashboardRouteActions, buildDashboardWeakTopicCards, type DashboardCommandTarget, type DashboardQuickActionIcon, type DashboardRecentWorkItem } from "@/lib/dashboard-features"
 import { normalizeOnboardingPreferences, normalizeOnboardingStudioKind, normalizeOnboardingWorkflow, onboardingStudioKindOptions, onboardingTargetView, onboardingWorkflowOptions, shouldShowOnboarding, type OnboardingStudioKind, type OnboardingWorkflow } from "@/lib/onboarding-features"
 import { api } from "../api"
+import { openPlaceGuide } from "../place-guide"
 import type { WorkspaceOptions } from "../preferences"
 import type { DashboardData, Note, Quiz, User, View } from "../types"
 import { Panel, StatusPill } from "../ui"
@@ -234,6 +235,22 @@ export function DashboardView({
                   </button>
                 )
               })}
+              <button
+                type="button"
+                onClick={openPlaceGuide}
+                className="rounded-md border border-dashed border-border p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground"
+                title="A one-sentence guide to every place in LEARN"
+              >
+                <span className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
+                    <Compass className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-foreground">New here? What&apos;s where</span>
+                    <span className="mt-1 block text-xs text-muted-foreground">Every place in LEARN in one sentence.</span>
+                  </span>
+                </span>
+              </button>
             </div>
           </details>
         </Panel>

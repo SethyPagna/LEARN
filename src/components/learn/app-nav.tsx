@@ -44,12 +44,15 @@ import {
   practiceViews,
   studioViews,
   viewLabelKeys,
+  type LauncherCommandAction,
   type LauncherCommandConfig,
   type LearnNavigationItem,
   type NavigationIconKey,
 } from "@/lib/navigation"
 import type { PracticeDraftSummary } from "@/lib/practice-drafts"
 import type { StudioDraftSummary } from "@/lib/studio-drafts"
+import { CreateMenu, openCreateMenu } from "./create-menu"
+import { openPlaceGuide } from "./place-guide"
 import type { View, User } from "./types"
 
 type Text = typeof baseVocabulary
@@ -68,6 +71,16 @@ const navIconMap: Record<NavigationIconKey, React.ComponentType<{ className?: st
 
 function keywordsForNavItem(item: LearnNavigationItem, text: Text) {
   return [item.view, String(text[item.labelKey]), ...(item.aliases ?? []), getNavigationItemDetail(item)]
+}
+
+/**
+ * Commands that open a surface rather than navigate. The launcher only knows
+ * views, so these two entries name an action and are handed to the components
+ * that own the Create menu and the guide.
+ */
+const launcherActions: Record<LauncherCommandAction, () => void> = {
+  "create-menu": openCreateMenu,
+  "place-guide": openPlaceGuide,
 }
 
 export function titleForView(view: View, text: Text) {
@@ -111,6 +124,7 @@ export function Sidebar({
   return (
     <aside className={`fixed inset-y-0 left-0 z-30 hidden border-r border-border bg-sidebar py-4 text-sidebar-foreground lg:flex lg:flex-col ${compact ? "w-[84px] px-2" : "w-[272px] px-3"}`}>
       <Brand compact={compact} text={text} />
+      <CreateMenu variant={compact ? "rail" : "sidebar"} setView={setView} />
       <LauncherSearch compact={compact} query={query} setQuery={setQuery} setView={setView} text={text} />
       <div className={`min-h-0 flex-1 overflow-y-auto ${compact ? "pr-0" : "pr-1"}`}>
         <Navigation density={density} text={text} view={view} setView={setView} studioDraftSummary={studioDraftSummary} practiceDraftSummary={practiceDraftSummary} />
@@ -168,10 +182,16 @@ function LauncherSearch({
   const visibleCommands = needle ? commandResults : commandCandidates.slice(0, 4)
   const hasResults = navResults.length > 0 || visibleCommands.length > 0
   const showPanel = focused && (needle.length > 0 || visibleCommands.length > 0)
-  const firstView = visibleCommands[0]?.value.view ?? navResults[0]?.value.view
 
   function choose(nextView: View) {
     setView(nextView)
+    setQuery("")
+    setFocused(false)
+  }
+
+  function chooseCommand(command: LauncherCommandConfig) {
+    if (command.action) launcherActions[command.action]()
+    else setView(command.view)
     setQuery("")
     setFocused(false)
   }
@@ -182,10 +202,15 @@ function LauncherSearch({
       setFocused(false)
       return
     }
-    if (event.key === "Enter" && firstView) {
-      event.preventDefault()
-      choose(firstView)
-    }
+    if (event.key !== "Enter") return
+    // The highlighted command wins, then the top navigation match, exactly as
+    // the panel reads top to bottom.
+    const command = visibleCommands[0]?.value
+    const nextView = navResults[0]?.value.view
+    if (command) chooseCommand(command)
+    else if (nextView) choose(nextView)
+    else return
+    event.preventDefault()
   }
 
   const resultsPanel = (
@@ -205,7 +230,7 @@ function LauncherSearch({
           {visibleCommands.length ? (
             <LauncherGroup label={needle ? "Actions" : "Quick actions"}>
               {visibleCommands.map((item) => (
-                <LauncherItem key={item.label} icon={navIconMap[item.value.iconKey]} label={item.label} detail={item.detail} onClick={() => choose(item.value.view)} />
+                <LauncherItem key={item.label} icon={navIconMap[item.value.iconKey]} label={item.label} detail={item.detail} onClick={() => chooseCommand(item.value)} />
               ))}
             </LauncherGroup>
           ) : null}
@@ -318,6 +343,7 @@ export function Topbar({
   setLocale,
   setMenuOpen,
   setTheme,
+  setView,
   text,
   user,
   view,
@@ -333,6 +359,7 @@ export function Topbar({
   setLocale: (locale: SupportedLocale) => void
   setMenuOpen: (open: boolean) => void
   setTheme: (theme: string) => void
+  setView: (view: View) => void
   text: Text
   user: User | null
   view: View
@@ -369,6 +396,7 @@ export function Topbar({
         </div>
       </div>
       <div className="flex items-center gap-1.5">
+        <CreateMenu variant="header" setView={setView} />
         <button
           onClick={() => setDensity(density === "compact" ? "comfortable" : "compact")}
           className="hidden h-9 w-9 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground sm:flex"

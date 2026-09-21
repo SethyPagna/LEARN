@@ -24,7 +24,20 @@ export interface LearnNavigationGroup {
   label: string
 }
 
+/**
+ * A launcher entry that opens a surface instead of navigating to a view.
+ *
+ * The launcher lives in the sidebar and can only reach a `View`, but two
+ * entries need to open something that is not a destination: the single Create
+ * control and the "What's where" guide. Rather than inventing two views (and two
+ * more nouns) for them, an entry may name an action; the launcher dispatches it
+ * and `app-nav.tsx` performs it. `view` stays required so every entry still has
+ * a sane fallback and keeps the existing search ranking intact.
+ */
+export type LauncherCommandAction = "create-menu" | "place-guide"
+
 export interface LauncherCommandConfig {
+  action?: LauncherCommandAction
   detail: string
   iconKey: NavigationIconKey
   keywords: readonly string[]
@@ -162,6 +175,7 @@ export const navigationGroups: readonly LearnNavigationGroup[] = [
 ] as const
 
 export const launcherCommands: readonly LauncherCommandConfig[] = [
+  { label: "Create something new", detail: "Pick from every artifact type and see what each one is", view: "studio", iconKey: "studio", action: "create-menu", keywords: ["create", "new", "make", "start", "note", "doc", "sheet", "deck", "slide", "canvas", "quiz", "live", "artifact"] },
   { label: "Create in Studio", detail: "New note, doc, sheet, or slide", view: "studio", iconKey: "studio", keywords: ["new", "create", "note", "doc", "sheet", "slide", "studio"] },
   { label: "Open design canvas", detail: "Free-form layout with snapping, layers, and groups", view: "canvas", iconKey: "studio", keywords: ["canvas", "design", "layout", "drag", "layer", "z-order", "rotate", "snap"] },
   { label: "Open files", detail: "Uploads, media, and imports", view: "files", iconKey: "studio", keywords: ["file", "upload", "download", "media", "import"] },
@@ -173,6 +187,7 @@ export const launcherCommands: readonly LauncherCommandConfig[] = [
   { label: "Open profile", detail: "Identity, public artifacts, and privacy", view: "profile", iconKey: "settings", keywords: ["profile", "identity", "privacy", "public"] },
   { label: "Admin controls", detail: "Providers, users, audit, and health", view: "admin", iconKey: "settings", keywords: ["admin", "provider", "audit", "health", "secret"] },
   { label: "Tune settings", detail: "Theme, language, density, accessibility", view: "settings", iconKey: "settings", keywords: ["settings", "theme", "language", "accessibility", "density"] },
+  { label: "What can LEARN do?", detail: "One sentence on every place in the app", view: "dashboard", iconKey: "workspaces", action: "place-guide", keywords: ["guide", "help", "what", "where", "explain", "tour", "learn", "place", "understand", "confused", "start"] },
 ] as const
 
 export const navigationItems = navigationGroups.flatMap((group) => group.items)
