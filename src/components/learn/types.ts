@@ -105,6 +105,8 @@ export interface CalendarEvent {
   ends_at: string
   timezone: string
   notes?: string
+  /** Alarm lead in minutes for the exported ICS. `0` is an explicit "no alarm". */
+  reminder_minutes?: number | null
 }
 
 export interface WorkspaceDocument {

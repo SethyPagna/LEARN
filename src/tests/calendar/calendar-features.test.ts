@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, buildCalendarSummaryChips, calendarDurationPresets, calendarEventDurationMinutes, calendarEventTypeOptions, filterCalendarAgenda, formatCalendarDuration, labelCalendarEventType, normalizeCalendarEventType, summarizeCalendarAgenda } from "../../lib/calendar-features"
+import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, buildCalendarSummaryChips, calendarDurationPresets, calendarEventDurationMinutes, calendarEventTypeOptions, calendarReminderOptions, filterCalendarAgenda, formatCalendarDuration, labelCalendarEventType, normalizeCalendarEventType, summarizeCalendarAgenda } from "../../lib/calendar-features"
 
 const events = [
   event("study_today", "study", "2026-05-16T02:00:00.000Z", "2026-05-16T02:45:00.000Z"),
@@ -51,6 +51,16 @@ test("calendar event options and normalizers keep form values safe", () => {
   assert.equal(normalizeCalendarEventType("unknown"), "study")
   assert.equal(labelCalendarEventType("deadline"), "Deadline")
   assert.equal(labelCalendarEventType("custom"), "custom")
+})
+
+test("calendar reminder options keep None distinct from a missing choice", () => {
+  // 0 is a real selection ("None") that suppresses the VALARM in the exported
+  // ICS, while a null column means the user never chose and the feed falls back
+  // to the app-wide default lead. If 0 stopped being offered, or started to
+  // mean "unset", every event the user deliberately silenced would alarm again.
+  assert.deepEqual(calendarReminderOptions.map((option) => option.value), [0, 5, 10, 15, 30, 60])
+  assert.equal(calendarReminderOptions[0].label, "None")
+  assert.equal(calendarReminderOptions.some((option) => option.value < 0), false)
 })
 
 test("calendar duration helpers handle readable time labels", () => {

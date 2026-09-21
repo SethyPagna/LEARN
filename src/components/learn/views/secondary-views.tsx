@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, Bot, CalendarDays, CalendarPlus, Camera, Check, ChevronRight, Clock, Copy, FileText, Filter, Gauge, Languages, Link as LinkIcon, Lock, Palette, Repeat2, Save, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserPlus, UserRound, Users, X } from "lucide-react"
+import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, Bot, CalendarDays, CalendarPlus, Camera, Check, ChevronRight, Clock, Copy, Download, FileText, Filter, Gauge, Languages, Link as LinkIcon, Lock, Palette, Repeat2, Save, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserPlus, UserRound, Users, X } from "lucide-react"
 import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
-import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, buildCalendarSummaryChips, calendarDurationPresets, calendarEventTypeOptions, filterCalendarAgenda, formatCalendarDuration, labelCalendarEventType, normalizeCalendarEventType, summarizeCalendarAgenda, type CalendarAgendaFilter, type CalendarEventType } from "@/lib/calendar-features"
+import { DEFAULT_ALARM_LEAD_MINUTES } from "@/lib/calendar/ics"
+import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, buildCalendarSummaryChips, calendarDurationPresets, calendarEventTypeOptions, calendarReminderOptions, filterCalendarAgenda, formatCalendarDuration, labelCalendarEventType, normalizeCalendarEventType, summarizeCalendarAgenda, type CalendarAgendaFilter, type CalendarEventType } from "@/lib/calendar-features"
 import { buildProgressCommandPlan, summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
 import { buildSettingsControlPlan, buildSettingsSummaryChips, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
 import { adminPanelTabOptions, buildAdminOperationalPlan, buildAdminSummaryChips, filterAdminList, summarizeAdminOperations, type AdminAccessRequest, type AdminPanelTab, type AdminSummaryChip } from "@/lib/admin-features"
@@ -258,9 +259,11 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
   const [startsAt, setStartsAt] = useState("")
   const [durationMinutes, setDurationMinutes] = useState(options.calendarDefaultMinutes)
   const [notes, setNotes] = useState("")
+  const [reminderMinutes, setReminderMinutes] = useState(DEFAULT_ALARM_LEAD_MINUTES)
+  const [feedUrl, setFeedUrl] = useState("")
   const [status, setStatus] = useState("")
   const [agendaFilter, setAgendaFilter] = useState<CalendarAgendaFilter>("upcoming")
-  const [calendarActionBusy, setCalendarActionBusy] = useState<"save" | "complete" | "duplicate" | "delete" | null>(null)
+  const [calendarActionBusy, setCalendarActionBusy] = useState<"save" | "complete" | "duplicate" | "delete" | "feed" | null>(null)
   const selected = events.find((event) => event.id === selectedId)
   const agendaSummary = useMemo(() => summarizeCalendarAgenda(events), [events])
   const calendarSummaryChips = useMemo(() => buildCalendarSummaryChips(agendaSummary), [agendaSummary])
@@ -309,6 +312,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
     setStartsAt(toLocalInputValue(start))
     setDurationMinutes(Math.max(5, Math.round((end.getTime() - start.getTime()) / 60000)))
     setNotes(selected.notes || "")
+    setReminderMinutes(calendarReminderFromRecord(selected))
   }, [selected?.id])
 
   async function createEvent() {
@@ -319,6 +323,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
     setStartsAt(toLocalInputValue(new Date(Date.now() + options.calendarLeadMinutes * 60 * 1000)))
     setDurationMinutes(options.calendarDefaultMinutes)
     setNotes("")
+    setReminderMinutes(DEFAULT_ALARM_LEAD_MINUTES)
     setStatus("Drafting a new time block.")
   }
 
@@ -336,6 +341,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
     setStartsAt(toLocalInputValue(start))
     setDurationMinutes(options.calendarDefaultMinutes)
     setNotes("")
+    setReminderMinutes(DEFAULT_ALARM_LEAD_MINUTES)
     setStatus(`Drafting ${formatCalendarDayLabel(selectedDayKey)} at ${start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}.`)
   }
 
@@ -364,6 +370,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
           endsAt: endDate.toISOString(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           notes,
+          reminderMinutes,
         }),
       })
       setSelectedId(response.item.id)
@@ -398,6 +405,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
           endsAt: new Date(startDate.getTime() + durationMinutes * 60 * 1000).toISOString(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           notes,
+          reminderMinutes,
         }),
       })
       setEventType(nextType)
@@ -422,6 +430,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
         setStartsAt(toLocalInputValue(new Date(Date.now() + options.calendarLeadMinutes * 60 * 1000)))
         setDurationMinutes(options.calendarDefaultMinutes)
         setNotes("")
+        setReminderMinutes(DEFAULT_ALARM_LEAD_MINUTES)
       }
       setStatus("Time block deleted.")
       await refresh()
@@ -440,7 +449,33 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
     setStartsAt(toLocalInputValue(suggestion.startsAt))
     setDurationMinutes(suggestion.durationMinutes)
     setNotes(suggestion.reason)
+    setReminderMinutes(DEFAULT_ALARM_LEAD_MINUTES)
     setStatus("Suggestion loaded as a draft.")
+  }
+
+  /**
+   * Ask the server for the caller's subscription URL, minting the token on the
+   * first call. The URL is shown rather than opened: the point is to paste it
+   * into a calendar app, so it has to be visible and copyable.
+   */
+  async function loadFeedUrl() {
+    if (calendarBusy) return
+    setCalendarActionBusy("feed")
+    try {
+      const response = await api<{ url: string }>("/api/calendar/feed", { method: "POST" })
+      setFeedUrl(response.url)
+      await navigator.clipboard?.writeText(response.url).catch(() => undefined)
+      setStatus("Subscription link ready and copied. Add it to your calendar app's 'From URL' option.")
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to create a calendar subscription link.")
+    } finally {
+      setCalendarActionBusy(null)
+    }
+  }
+
+  async function copyFeedUrl() {
+    await navigator.clipboard?.writeText(feedUrl).catch(() => undefined)
+    setStatus("Subscription link copied.")
   }
 
   function shiftVisibleMonth(delta: number) {
@@ -498,6 +533,12 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
             </select>
           </label>
           <DateTimeField label="Starts at" value={startsAt} onChange={setStartsAt} />
+          <label className="block rounded-lg bg-muted p-4">
+            <span className="text-xs font-semibold uppercase text-muted-foreground">Reminder</span>
+            <select value={String(reminderMinutes)} onChange={(event) => setReminderMinutes(Number(event.target.value))} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none">
+              {reminderOptionList(reminderMinutes).map((option) => <option key={option.value} value={String(option.value)}>{option.label}</option>)}
+            </select>
+          </label>
           <NumberField label="Duration minutes" value={durationMinutes} min={5} step={5} onChange={(value) => setDurationMinutes(value || options.calendarDefaultMinutes)} />
           <div className="flex flex-wrap gap-2">
             {calendarDurationPresets.map((minutes) => (
@@ -516,6 +557,31 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
           <CalendarAction label={calendarActionBusy === "save" ? "Saving" : "Save"} icon={Save} onClick={() => saveEvent()} primary disabled={calendarBusy} />
           <CalendarAction label={calendarActionBusy === "complete" ? "Updating" : eventType === "completed" ? "Reopen" : "Complete"} icon={Check} onClick={toggleComplete} disabled={calendarBusy} />
           <CalendarAction label={calendarActionBusy === "duplicate" ? "Duplicating" : "Duplicate"} icon={Copy} onClick={duplicateEvent} disabled={calendarBusy} />
+        </div>
+        <div className="mt-3 rounded-lg border border-border bg-background p-3">
+          <p className="text-xs font-semibold uppercase text-muted-foreground">Subscribe in your calendar app</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <ControlButton onClick={loadFeedUrl} disabled={calendarBusy} size="compact">
+              <LinkIcon className="h-3.5 w-3.5" />
+              {calendarActionBusy === "feed" ? "Preparing link" : "Get subscription link"}
+            </ControlButton>
+            <ControlButton onClick={() => window.location.assign("/api/calendar/ics")} size="compact">
+              <Download className="h-3.5 w-3.5" />
+              Download .ics
+            </ControlButton>
+          </div>
+          {feedUrl ? (
+            <div className="mt-2 flex items-center gap-2">
+              <input readOnly value={feedUrl} onFocus={(event) => event.target.select()} aria-label="Calendar subscription URL" className="h-9 min-w-0 flex-1 rounded-md border border-input bg-muted px-3 text-xs text-muted-foreground outline-none" />
+              <ControlButton onClick={() => copyFeedUrl()} size="compact" aria-label="Copy subscription URL">
+                <Copy className="h-3.5 w-3.5" />
+              </ControlButton>
+            </div>
+          ) : null}
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+            Add the link once in your phone or desktop calendar under &quot;Add calendar from URL&quot; and it keeps itself up to date.
+            Each event&apos;s own reminder becomes the alarm, so reminders arrive even when Learn is closed.
+          </p>
         </div>
         {status ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
       </Panel>
@@ -688,6 +754,36 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
 
 function compareCalendarEvents(first: CalendarEvent, second: CalendarEvent) {
   return Date.parse(first.starts_at) - Date.parse(second.starts_at)
+}
+
+/**
+ * The saved reminder as a form value.
+ *
+ * `null` (a row saved before the reminder column existed, or written by the API
+ * without one) shows the default lead rather than "None": the feed would give
+ * such an event a default alarm anyway, so showing "None" would misreport what
+ * the user's calendar is actually going to do.
+ */
+function calendarReminderFromRecord(event: CalendarEvent) {
+  const value = event.reminder_minutes
+  if (value === null || value === undefined) return DEFAULT_ALARM_LEAD_MINUTES
+  const minutes = Number(value)
+  return Number.isFinite(minutes) && minutes >= 0 ? Math.floor(minutes) : DEFAULT_ALARM_LEAD_MINUTES
+}
+
+/**
+ * The option list plus the current value if it is not one of them.
+ *
+ * The select is the only place the saved lead is visible, and a `<select>` whose
+ * `value` matches no `<option>` silently renders the first entry — so a value
+ * written through the API (say 7) would display as "None" and be overwritten
+ * with 0 on the next save. Carrying the odd value into the list keeps the
+ * control honest.
+ */
+function reminderOptionList(current: number) {
+  if (calendarReminderOptions.some((option) => option.value === current)) return calendarReminderOptions
+  return [...calendarReminderOptions, { value: current, label: `${current} minutes before` }]
+    .sort((first, second) => first.value - second.value)
 }
 
 function calendarEventDurationFromRecord(event: CalendarEvent) {

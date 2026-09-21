@@ -44,3 +44,4 @@ next-env.d.ts
 # local assistant/tooling metadata
 .agents/
 .workbuddy-ai/
+.zcode/

@@ -1,4 +1,5 @@
 import { cookies } from "next/headers"
+import crypto from "node:crypto"
 import { buildProviderAdminSummary, decryptProviderSecret, encryptProviderSecret, maskProviderSecret, normalizeProviderConfigInput, type ProviderConfigInput, type SerializedProviderConfig } from "./ai/provider-admin"
 import type { AiProviderKey } from "./ai/providers"
 import { createSessionToken, hashPassword, hashSessionToken, verifyPassword } from "./auth"
@@ -638,7 +639,63 @@ export async function listCalendarEvents(user: User) {
      LIMIT 120`,
     [user.id, user.role],
   )
-  return result.rows
+  return result.rows.map(normalizeCalendarEventRow)
+}
+
+/**
+ * One user's own events, with no admin widening.
+ *
+ * `listCalendarEvents` deliberately hands an admin *every* event so the month
+ * and agenda views can moderate across the workspace. An ICS feed cannot do
+ * that: its URL is a bearer credential that gets pasted into chat, forwarded,
+ * and stored on a calendar vendor's servers, so the read behind it must be
+ * unable to resolve to anybody else's rows even for an admin. The exported
+ * calendar is the user's own schedule and nothing more.
+ */
+export async function listOwnerCalendarEvents(userId: string) {
+  await ensureDatabase()
+  const result = await query(
+    `SELECT * FROM calendar_events
+     WHERE owner_user_id = $1
+     ORDER BY starts_at ASC
+     LIMIT 500`,
+    [userId],
+  )
+  return result.rows.map(normalizeCalendarEventRow)
+}
+
+/**
+ * `null` means the user never picked a reminder; `0` means they picked "None".
+ *
+ * Those are different states in the exported ICS (default alarm vs no alarm),
+ * so `0` has to survive storage — which is why callers read this with `??` and
+ * not `||`. Anything unparseable or negative is dropped to `null` rather than
+ * stored, so the ICS builder never has to guess at junk. The upper bound is a
+ * week: large enough for any plausible reminder, small enough that a hostile
+ * value cannot become a nonsense `-PT…M` in someone's calendar.
+ */
+function normalizeReminderMinutes(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null
+  const minutes = Number(value)
+  if (!Number.isFinite(minutes) || minutes < 0) return null
+  return Math.min(Math.floor(minutes), 10080)
+}
+
+/**
+ * Coerce `reminder_minutes` on the way out of the database.
+ *
+ * A row written before this column existed has no value at all, and D1 reports
+ * that as `null` — which must stay "unset" rather than collapsing to `0` and
+ * silently suppressing that event's alarm in the export.
+ */
+function normalizeCalendarEventRow<T extends Record<string, unknown> | undefined>(row: T): T {
+  if (!row) return row
+  const value = row.reminder_minutes
+  if (value === null || value === undefined || value === "") {
+    return { ...row, reminder_minutes: null }
+  }
+  const minutes = Number(value)
+  return { ...row, reminder_minutes: Number.isFinite(minutes) ? minutes : null }
 }
 
 export async function saveCalendarEvent(user: User, input: Record<string, unknown>) {
@@ -647,10 +704,11 @@ export async function saveCalendarEvent(user: User, input: Record<string, unknow
   const startsAt = String(input.startsAt || input.starts_at || new Date().toISOString())
   const startsAtMs = Date.parse(startsAt)
   const defaultEndsAt = new Date((Number.isFinite(startsAtMs) ? startsAtMs : Date.now()) + 45 * 60 * 1000).toISOString()
+  const reminderMinutes = normalizeReminderMinutes(input.reminderMinutes ?? input.reminder_minutes)
   await assertOwnership(user, "calendar_events", input.id, "owner_user_id")
   await query(
-    `INSERT INTO calendar_events (id, workspace_id, owner_user_id, title, event_type, starts_at, ends_at, timezone, notes, linked_note_id, updated_at)
-     VALUES ($1, 'workspace_demo', $2, $3, $4, $5, $6, $7, $8, $9, now())
+    `INSERT INTO calendar_events (id, workspace_id, owner_user_id, title, event_type, starts_at, ends_at, timezone, notes, linked_note_id, reminder_minutes, updated_at)
+     VALUES ($1, 'workspace_demo', $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
      ON CONFLICT (id) DO UPDATE
      SET title = EXCLUDED.title,
          event_type = EXCLUDED.event_type,
@@ -659,6 +717,7 @@ export async function saveCalendarEvent(user: User, input: Record<string, unknow
          timezone = EXCLUDED.timezone,
          notes = EXCLUDED.notes,
          linked_note_id = EXCLUDED.linked_note_id,
+         reminder_minutes = EXCLUDED.reminder_minutes,
          updated_at = now()`,
     [
       id,
@@ -670,10 +729,59 @@ export async function saveCalendarEvent(user: User, input: Record<string, unknow
       String(input.timezone || "UTC"),
       String(input.notes || ""),
       input.linkedNoteId || input.linked_note_id || null,
+      reminderMinutes,
     ],
   )
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "calendar_event", entityId: id })
-  return (await query("SELECT * FROM calendar_events WHERE id = $1 LIMIT 1", [id])).rows[0]
+  return normalizeCalendarEventRow((await query("SELECT * FROM calendar_events WHERE id = $1 LIMIT 1", [id])).rows[0])
+}
+
+/**
+ * The caller's subscription token, minted on first use.
+ *
+ * Two v4 UUIDs with their dashes stripped give 64 hex characters. Not because
+ * 122 bits of v4 entropy is insufficient on its own, but because the token is
+ * the only thing between a stranger and a calendar: doubling the length costs
+ * nothing and puts it well clear of anything a scanner would enumerate. It is
+ * deliberately not a session token — this one never expires, so it is stored
+ * separately from `user_sessions` and revoked by clearing the column rather
+ * than by a logout.
+ *
+ * Read-then-write rather than a single upsert: two concurrent requests can mint
+ * two tokens and the later write wins, leaving the first URL dead. That is a
+ * cheap failure (re-copy the link) and the alternative is a race-prone
+ * transaction for a value the user fetches once.
+ */
+export async function getOrCreateCalendarFeedToken(user: User) {
+  await ensureDatabase()
+  const existing = await query("SELECT calendar_feed_token FROM users WHERE id = $1 LIMIT 1", [user.id])
+  const current = existing.rows[0]?.calendar_feed_token
+  if (typeof current === "string" && current.trim()) return current.trim()
+
+  const token = `${crypto.randomUUID().replace(/-/g, "")}${crypto.randomUUID().replace(/-/g, "")}`
+  await query("UPDATE users SET calendar_feed_token = $1, updated_at = now() WHERE id = $2", [token, user.id])
+  await logAudit({ userId: user.id, action: "create", entity: "calendar_feed", entityId: user.id })
+  return token
+}
+
+/**
+ * Resolve a subscription token to its owner, or `null`.
+ *
+ * The comparison happens inside SQLite as an indexed exact-match lookup rather
+ * than in JavaScript as `stored === supplied`. A byte-by-byte `===` on a secret
+ * short-circuits at the first differing byte, so its running time leaks how many
+ * leading characters a guess got right — enough to recover a token one
+ * character at a time given enough requests. A B-tree lookup does not compare
+ * in a guess-order-dependent way, and it never loads every user to find one.
+ */
+export async function getUserByCalendarFeedToken(token: unknown) {
+  await ensureDatabase()
+  const value = typeof token === "string" ? token.trim() : ""
+  if (!value) return null
+
+  const result = await query("SELECT * FROM users WHERE calendar_feed_token = $1 LIMIT 1", [value])
+  const row = result.rows[0]
+  return row ? normalizeUser(row) : null
 }
 
 export async function deleteCalendarEvent(user: User, id: string) {

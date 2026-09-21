@@ -11,6 +11,21 @@ export const calendarEventTypeOptions: Array<{ value: CalendarEventType; label: 
 
 export const calendarDurationPresets = [15, 30, 45, 60, 90] as const
 
+/**
+ * Per-event reminder leads, in minutes. `0` is "None" and is a real choice, not
+ * a missing one: it is stored as `0` and suppresses the VALARM in the exported
+ * ICS, whereas a `null` column means the user never picked and the feed falls
+ * back to the app-wide default lead.
+ */
+export const calendarReminderOptions: Array<{ value: number; label: string }> = [
+  { value: 0, label: "None" },
+  { value: 5, label: "5 minutes before" },
+  { value: 10, label: "10 minutes before" },
+  { value: 15, label: "15 minutes before" },
+  { value: 30, label: "30 minutes before" },
+  { value: 60, label: "1 hour before" },
+]
+
 export interface CalendarEventLike {
   id: string
   event_type: string
