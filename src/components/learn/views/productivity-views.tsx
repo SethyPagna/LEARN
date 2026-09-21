@@ -9,6 +9,9 @@ import { api, formatDate } from "../api"
 import { EmptyState, Panel } from "../ui"
 import { VoiceInput } from "../voice-input"
 import { buildGameRunActions, evaluateGameChoice, summarizeGameRun, type GameRunActionId } from "@/lib/practice-features"
+import { parseLiveGameInvite, parseLiveGameResult } from "@/lib/live/game-invite"
+import { LiveGameCard, LiveGameResultCard } from "./live-game-cards"
+import { LiveGameLauncher } from "./live-game-launcher"
 import { CHAT_DRAFT_KEY, parseStoredChatDraft, serializeChatDraft, type ChatDraft } from "@/lib/chat-drafts"
 import { dmChatChannelId, groupChatChannelId } from "@/lib/chat-channel"
 import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatInboxShortcut, type ChatIntent, type ChatQuickPrompt, type ChatThreadActionId, type ChatThreadFilter, type ChatThreadLike } from "@/lib/social-features"
@@ -29,7 +32,17 @@ type ChatMessageRecord = {
   user_id: string
   body: string
   created_at: string
-  metadata?: { attachment?: { fileId: string; filename: string; contentType: string } }
+  /**
+   * The message's machine-readable descriptor. `attachment` is an uploaded
+   * file; `kind: "live-game"` is a launched game and `"live-game-result"` is a
+   * finished one — both read back through `@/lib/live/game-invite`, which
+   * returns `null` for anything it does not recognise.
+   */
+  metadata?: {
+    attachment?: { fileId: string; filename: string; contentType: string }
+    kind?: string
+    [key: string]: unknown
+  }
 }
 type GroupRecord = {
   id: string
@@ -330,6 +343,9 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const [threadAction, setThreadAction] = useState<{ action: ChatThreadActionId; threadId: string } | null>(null)
   const [openChatMenu, setOpenChatMenu] = useState<ChatMenuId | null>(null)
   const [activeThreadKey, setActiveThreadKey] = useState("")
+  // The "Start a live game" composer flow: which mode, on which quiz. The
+  // launcher owns the choices; this only owns whether it is open.
+  const [liveGameOpen, setLiveGameOpen] = useState(false)
   const quickIntents = [
     { id: "update" as const, label: "Update", body: "Share progress, a note, or what changed." },
     { id: "question" as const, label: "Question", body: "Ask for help and invite replies." },
@@ -1237,14 +1253,33 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               <ChatMenuSection title="Conversation">
                 <ChatMenuAction icon={Search} label="Search chat" meta="Filter the inbox by this conversation title." onClick={() => setQuery(activeThreadParsed.title)} />
                 <ChatMenuAction icon={Bell} label="Mute notifications" meta="Prepared for notification settings." onClick={() => setDraftStatus("Notifications muted for this chat")} />
-                <ChatMenuAction icon={Gamepad2} label="Start quiz battle" meta="Jump to Practice for a live challenge." onClick={() => setDraftStatus("Battle prompt ready")} />
+                <ChatMenuAction icon={Gamepad2} label="Start a live game" meta="Post a game into this conversation." onClick={() => { setLiveGameOpen(true); setOpenChatMenu(null) }} />
               </ChatMenuSection>
             </ChatMenu>
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.08),transparent_34%),linear-gradient(135deg,hsl(var(--muted)/0.6),hsl(var(--background)))] px-4 py-5">
           <div className="mx-auto flex max-w-3xl flex-col gap-3">
-            {messages.length ? messages.map((message) => (
+            {messages.length ? messages.map((message) => {
+              // A launched game and a finished game are ordinary messages with a
+              // descriptor in `metadata`; they render as cards instead of a
+              // bubble. Both parsers return `null` for anything else, so an
+              // attachment, a plain message, and a message written by a build
+              // that did not know about games all fall through to the bubble.
+              const invite = parseLiveGameInvite(message.metadata)
+              const result = parseLiveGameResult(message.metadata)
+              if (invite || result) {
+                return (
+                  <div key={message.id} className="w-full max-w-sm">
+                    {invite ? (
+                      <LiveGameCard invite={invite} createdAt={message.created_at} alignRight={message.user_id === currentUserId} />
+                    ) : result ? (
+                      <LiveGameResultCard result={result} createdAt={message.created_at} threadId={activeThreadId} alignRight={message.user_id === currentUserId} />
+                    ) : null}
+                  </div>
+                )
+              }
+              return (
               <div
                 key={message.id}
                 className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${
@@ -1267,7 +1302,8 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                 <p>{message.body.replace(/^\[[^\]]+\]\s*/, "")}</p>
                 <p className="mt-1 text-right text-[11px] opacity-70">{formatDate(message.created_at)}</p>
               </div>
-            )) : (
+              )
+            }) : (
               <div className="max-w-[78%] rounded-2xl rounded-tl-sm bg-secondary px-4 py-3 text-sm leading-6 text-secondary-foreground shadow-sm">
                 <p>{activeThreadBody.replace(/^\[[^\]]+\]\s*/, "")}</p>
                 <p className="mt-1 text-right text-[11px] opacity-70">{activeThread?.updated_at ? formatDate(activeThread.updated_at) : "recent"}</p>
@@ -1315,6 +1351,22 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
           ))}
           </div>
         </details>
+        {liveGameOpen ? (
+          <div className="mx-4 mt-3">
+            <LiveGameLauncher
+              threadId={activeThreadId}
+              groupId={activeGroup?.id}
+              targetUserId={activeDmTarget?.target_user_id}
+              onClose={() => setLiveGameOpen(false)}
+              onLaunched={async (code, threadId) => {
+                setLiveGameOpen(false)
+                setDraftStatus(`Live game ${code} posted`)
+                await refresh()
+                await refreshMessages(threadId || activeThreadId)
+              }}
+            />
+          </div>
+        ) : null}
         <div className="m-4 mt-3 rounded-full border border-input bg-background px-3 py-2 shadow-sm">
           <input
             ref={fileInputRef}
@@ -1334,7 +1386,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               <ChatMenuSection title="Attach">
                 <ChatMenuAction icon={Paperclip} label="Document" meta="Upload a file from your device." onClick={() => openAttachPicker("document")} />
                 <ChatMenuAction icon={ImageIcon} label="Photo" meta="Upload and share a picture." onClick={() => openAttachPicker("photo")} />
-                <ChatMenuAction icon={Gamepad2} label="Quiz battle" meta="Attach a practice challenge." onClick={() => setDraftStatus("Practice attachment ready")} />
+                <ChatMenuAction icon={Gamepad2} label="Start a live game" meta="Race, survival, or streak — post it into this chat." onClick={() => { setLiveGameOpen(true); setOpenChatMenu(null) }} />
                 <ChatMenuAction icon={Clock} label="Event" meta="Attach a study calendar block." onClick={() => setDraftStatus("Event attachment ready")} />
               </ChatMenuSection>
             </ChatMenu>

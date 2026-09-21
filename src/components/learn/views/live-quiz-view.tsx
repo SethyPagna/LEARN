@@ -20,12 +20,16 @@ import { api } from "../api"
 import { ControlButton, EmptyState, Panel, StatusPill } from "../ui"
 import {
   JOIN_CODE_LENGTH,
+  LIVE_QUIZ_MODES,
+  LIVE_QUIZ_MODE_LABELS,
   answerWindowOpen,
   currentQuestion,
   findParticipant,
   leaderboard,
   normalizeJoinCode,
   remainingMs,
+  streakMultiplier,
+  type LiveQuizMode,
   type LiveQuizParticipant,
   type LiveQuizSession,
   type LiveResultsSummary,
@@ -117,6 +121,20 @@ function choiceColumns(count: number) {
   return count <= 4 ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"
 }
 
+/**
+ * The join code in `?code=`, if the player arrived from a game card in a chat
+ * thread.
+ *
+ * Read from the URL rather than passed as a prop: a card links to the existing
+ * `/live` route (`/live?code=ABC234`), and this view is mounted by the shell
+ * without knowing why it was opened. Guarded for the server render, where there
+ * is no `window` and therefore no query to honour.
+ */
+function joinCodeFromUrl(): string {
+  if (typeof window === "undefined") return ""
+  return normalizeJoinCode(new URLSearchParams(window.location.search).get("code")) || ""
+}
+
 function phaseLabel(session: LiveQuizSession, viewer: LiveItem["viewer"]) {
   if (session.phase === "lobby") return "Lobby"
   if (session.phase === "finished") return "Finished"
@@ -127,7 +145,10 @@ function phaseLabel(session: LiveQuizSession, viewer: LiveItem["viewer"]) {
 export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | null }) {
   const [mode, setMode] = useState<"choose" | "host" | "play">("choose")
   const [selectedQuizId, setSelectedQuizId] = useState("")
-  const [joinInput, setJoinInput] = useState("")
+  const [selectedGameMode, setSelectedGameMode] = useState<LiveQuizMode>("race")
+  // Pre-filled from `?code=`, so a card in a thread drops the player into the
+  // lobby without a retype.
+  const [joinInput, setJoinInput] = useState(() => joinCodeFromUrl())
   const [item, setItem] = useState<LiveItem | null>(null)
   const [status, setStatus] = useState("")
   const [busy, setBusy] = useState("")
@@ -234,7 +255,7 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
     try {
       const response = await api<{ item: { id: string; code: string; session: LiveQuizSession } }>("/api/live-sessions", {
         method: "POST",
-        body: JSON.stringify({ quizId: selectedQuiz.id, title: selectedQuiz.title }),
+        body: JSON.stringify({ quizId: selectedQuiz.id, title: selectedQuiz.title, mode: selectedGameMode }),
       })
       setItem({
         id: response.item.id,
@@ -253,8 +274,8 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
     }
   }
 
-  async function joinSession() {
-    const code = normalizeJoinCode(joinInput)
+  async function joinSession(codeOverride?: string) {
+    const code = normalizeJoinCode(codeOverride ?? joinInput)
     if (!code) {
       setStatus(`Enter the ${JOIN_CODE_LENGTH}-character code shown on the host screen.`)
       return
@@ -292,6 +313,25 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
     setJoinInput("")
   }
 
+  /**
+   * Arriving from a game card: `/live?code=ABC234` joins straight away instead
+   * of asking the player to retype a code they already have.
+   *
+   * One attempt only. A failed join — a stale code, a finished game — leaves
+   * the form usable and the message on screen rather than retrying in a loop,
+   * and the ref keeps it from firing again when `item` changes for other
+   * reasons.
+   */
+  const autoJoinAttemptedRef = useRef(false)
+  useEffect(() => {
+    if (autoJoinAttemptedRef.current || item) return
+    const code = joinCodeFromUrl()
+    if (!code) return
+    autoJoinAttemptedRef.current = true
+    if (user) void joinSession(code)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item, user])
+
   const session = item?.session ?? null
   const question = session ? currentQuestion(session) : null
   const viewer = item?.viewer ?? { isHost: false, isParticipant: false, participantId: "" }
@@ -299,6 +339,9 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
   const windowOpen = session ? answerWindowOpen(session, now + clockOffsetMs) : false
   const me = session ? findParticipant(session, viewer.participantId) : null
   const answered = Boolean(me && question && me.answers.some((entry) => entry.questionId === question.id))
+  // `survival`: out is out. The reducer refuses their answer anyway, so this is
+  // the screen agreeing with the rule rather than a second enforcement of it.
+  const eliminated = Boolean(me?.eliminated)
   const ranked = session ? leaderboard(session) : []
 
   // ---------------------------------------------------------------------------
@@ -343,6 +386,20 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
                     ))}
                   </select>
                 </label>
+                <label className="grid gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Game mode
+                  <select
+                    value={selectedGameMode}
+                    onChange={(event) => setSelectedGameMode(event.target.value as LiveQuizMode)}
+                    className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-normal tracking-normal text-foreground"
+                  >
+                    {LIVE_QUIZ_MODES.map((candidate) => (
+                      <option key={candidate} value={candidate}>
+                        {LIVE_QUIZ_MODE_LABELS[candidate]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <ControlButton onClick={createSession} disabled={busy === "create"} className="h-11 w-full">
                   {busy === "create" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                   Create session
@@ -378,7 +435,7 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
                 aria-label="Join code"
                 className="live-code h-14 w-full rounded-xl border border-border bg-background px-4 text-center text-2xl font-semibold uppercase text-foreground"
               />
-              <ControlButton onClick={joinSession} disabled={busy === "join"} className="h-11 w-full">
+              <ControlButton onClick={() => void joinSession()} disabled={busy === "join"} className="h-11 w-full">
                 {busy === "join" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radio className="h-4 w-4" />}
                 {user ? "Join game" : "Sign in to join"}
               </ControlButton>
@@ -400,6 +457,7 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <StatusPill label={LIVE_QUIZ_MODE_LABELS[session.mode]} tone="steady" />
                 <StatusPill label={session.code} tone="primary" />
                 <ControlButton size="compact" onClick={() => void navigator.clipboard?.writeText(session.code).then(() => setCopyLabel("Copied"), () => setCopyLabel("Copy failed"))}>
                   <Copy className="h-3.5 w-3.5" /> {copyLabel}
@@ -509,6 +567,9 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
               </div>
               <div className="flex items-center gap-2">
                 {me ? <StatusPill label={`${me.score} pts`} tone="steady" /> : null}
+                {me && session.mode === "streak" ? <StatusPill label={`${streakMultiplier(me)}x streak`} tone="primary" /> : null}
+                {eliminated ? <StatusPill label="Out" tone="watch" /> : null}
+                <StatusPill label={LIVE_QUIZ_MODE_LABELS[session.mode]} />
                 <StatusPill label={session.code} />
               </div>
             </div>
@@ -517,7 +578,7 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
           {!viewer.isParticipant ? (
             <Panel className="live-panel p-4 sm:p-5">
               <EmptyState title="You are watching only" body="Join with the code on the host screen to answer questions." />
-              <ControlButton className="mt-3" onClick={joinSession} disabled={busy === "join"}>
+              <ControlButton className="mt-3" onClick={() => void joinSession()} disabled={busy === "join"}>
                 <Radio className="h-4 w-4" /> Join this game
               </ControlButton>
             </Panel>
@@ -551,8 +612,8 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
                 <div className={`grid gap-2.5 ${choiceColumns(question.choices.length)}`}>
                   {question.choices.map((choice, index) => {
                     const style = CHOICE_STYLES[index % CHOICE_STYLES.length]
-                    const picked = feedback?.questionId === question.id && feedback.choiceId === choice.id
-                    const locked = answered || !windowOpen
+                        const picked = feedback?.questionId === question.id && feedback.choiceId === choice.id
+                        const locked = answered || !windowOpen || eliminated
                     return (
                       <button
                         key={choice.id}
@@ -592,7 +653,14 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
                 </>
               ) : null}
 
-              {session.phase === "question" && (answered || !windowOpen) ? (
+              {eliminated ? (
+                <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                  <XCircle className="h-4 w-4" /> You are out — one wrong answer ends your game in Survival. Watch the rest
+                  play out.
+                </p>
+              ) : null}
+
+              {session.phase === "question" && !eliminated && (answered || !windowOpen) ? (
                 <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
                   {answered ? <CheckCircle2 className="h-4 w-4" /> : <Hourglass className="h-4 w-4" />}
                   {answered ? "Answer locked in. Waiting for the host." : "Time is up for this question."}

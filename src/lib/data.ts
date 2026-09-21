@@ -25,6 +25,7 @@ import {
   findParticipant,
   generateJoinCode,
   normalizeJoinCode,
+  normalizeLiveMode,
   normalizeLiveQuestion,
   parseSession,
   reduceSession,
@@ -32,9 +33,16 @@ import {
   summarizeResults,
   type LiveEffect,
   type LiveEvent,
+  type LiveQuizMode,
   type LiveQuizQuestion,
   type LiveQuizSession,
 } from "./live/quiz-session"
+import {
+  buildLiveGameInvite,
+  buildLiveGameResult,
+  liveGameInviteBody,
+  liveGameResultBody,
+} from "./live/game-invite"
 import { buildMultiRowInsert, chunkRowsForInsert } from "./sql-batch"
 import {
   canUseContentRole,
@@ -2282,7 +2290,7 @@ async function persistLiveSession(input: {
   )
 }
 
-export async function createLiveSession(user: User, input: { quizId: string; title?: string }) {
+export async function createLiveSession(user: User, input: { quizId: string; title?: string; mode?: unknown }) {
   await ensureDatabase()
   const quiz = await getQuiz(String(input.quizId || "").trim())
   if (!quiz) throw new Error("Quiz not found")
@@ -2296,6 +2304,10 @@ export async function createLiveSession(user: User, input: { quizId: string; tit
   const quizRecord = quiz as unknown as Record<string, unknown>
   const quizId = String(quizRecord.id)
   const quizTitle = String(input.title || "").trim() || String(quizRecord.title || "Live quiz")
+  // Normalised here, at the one place a session is born: an unrecognised mode
+  // from a request body becomes `race` rather than an error the host has to
+  // understand, and the reducer can then trust the field.
+  const mode: LiveQuizMode = normalizeLiveMode(input.mode)
 
   // Minting a code is a write-then-check, not a check-then-write: the UNIQUE
   // index on `code` is the arbiter, so two hosts creating a session at the same
@@ -2308,6 +2320,7 @@ export async function createLiveSession(user: User, input: { quizId: string; tit
       quizId,
       quizTitle,
       hostUserId: user.id,
+      mode,
       questions,
       createdAt,
     })
@@ -2327,6 +2340,117 @@ export async function createLiveSession(user: User, input: { quizId: string; tit
   }
 
   throw new Error("Could not allocate a join code just now. Please try again.")
+}
+
+// ---------------------------------------------------------------------------
+// Live games launched from a chat thread
+// ---------------------------------------------------------------------------
+
+const LIVE_RESULT_MESSAGE_ID_PREFIX = "chatmsg_liveresult_"
+
+/**
+ * Records which conversation a game belongs to.
+ *
+ * The thread id lives *inside* `state_json`, not in a new column: it is part of
+ * the session's own state (the finish path reads it back through `parseSession`
+ * like everything else), and adding it to the JSON keeps a feature that is
+ * entirely about one round of play from needing a migration.
+ */
+async function attachLiveSessionThread(id: string, session: LiveQuizSession, threadId: string): Promise<LiveQuizSession> {
+  const withThread: LiveQuizSession = { ...session, threadId }
+  await query("UPDATE live_quiz_sessions SET state_json = $1 WHERE id = $2", [serializeSession(withThread), id])
+  return withThread
+}
+
+/**
+ * Posts the ranked result of a finished game back into the thread it was
+ * launched from — one ordinary chat message.
+ *
+ * Idempotent by primary key: the message id is derived from the join code and
+ * the insert is `ON CONFLICT (id) DO NOTHING`. The reducer already guarantees a
+ * single `finalize` per session (it refuses `next`/`close` once finished), but
+ * two requests can both load a *still-running* session and both reduce it to
+ * `finished`; that race is settled here, by the database, the same way the join
+ * code's UNIQUE index settles a collision.
+ */
+async function recordLiveGameResultMessage(session: LiveQuizSession, finishedAtMs: number) {
+  if (!session.threadId) return null
+
+  const summary = summarizeResults(session, finishedAtMs)
+  const result = buildLiveGameResult({
+    code: session.code,
+    mode: session.mode,
+    quizId: session.quizId,
+    quizTitle: session.quizTitle,
+    participants: summary.participants,
+  })
+  const messageId = `${LIVE_RESULT_MESSAGE_ID_PREFIX}${session.code}`
+  const written = await query(
+    `INSERT INTO chat_messages (id, thread_id, user_id, body, metadata)
+     VALUES ($1, $2, $3, $4, $5::jsonb)
+     ON CONFLICT (id) DO NOTHING`,
+    [messageId, session.threadId, session.hostUserId, liveGameResultBody(result), JSON.stringify(result)],
+  )
+  // The message is attributed to the host, who started the game, so the thread
+  // reads as one person reporting a result rather than as a system notice.
+  if (written.rowCount > 0) {
+    await logAudit({ userId: session.hostUserId, action: "create", entity: "chat_message", entityId: messageId })
+  }
+  // `rowCount` is 0 when the row already existed: idempotency working, not a
+  // failure. Still returned, because "was this the first write?" is the only
+  // interesting thing about this call.
+  return { messageId, inserted: written.rowCount > 0 }
+}
+
+/**
+ * Starts a live game *from* a conversation: create the session, post the invite
+ * message, and remember the thread on the session so the finish path can report
+ * the result back into the same place.
+ *
+ * One caller-facing call rather than three, because the three writes have to
+ * agree — the message carries the code, the session carries the thread — and a
+ * client doing them separately could leave a game that can never record its
+ * result. `postChatMessage` is still the writer of the message: this is
+ * orchestration over the existing path, not a second message path.
+ */
+export async function launchLiveGameInChat(user: User, input: {
+  quizId: string
+  title?: string
+  mode?: unknown
+  threadId?: string
+  groupId?: string
+  targetUserId?: string
+}) {
+  await ensureDatabase()
+  const threadId = String(input.threadId || "").trim()
+  const targetUserId = String(input.targetUserId || "").trim()
+  const groupId = String(input.groupId || "").trim()
+  if (!threadId && !groupId && !targetUserId) {
+    throw new Error("A live game needs a conversation to be launched into.")
+  }
+  // Checked before anything is created, so a caller naming somebody else's
+  // thread is refused outright instead of leaving a session behind with no
+  // message in it. `postChatMessage` checks again, for the paths it owns.
+  if (threadId && !(await isChatThreadParticipant(user, threadId))) {
+    throw new Error("You don't have access to this conversation.")
+  }
+
+  const created = await createLiveSession(user, { quizId: input.quizId, title: input.title, mode: input.mode })
+  const invite = buildLiveGameInvite({
+    code: created.code,
+    mode: created.session.mode,
+    quizId: created.session.quizId,
+    quizTitle: created.session.quizTitle,
+  })
+  const posted = await postChatMessage(user, {
+    ...(threadId ? { threadId } : {}),
+    ...(groupId ? { groupId } : {}),
+    ...(targetUserId ? { targetUserId } : {}),
+    body: liveGameInviteBody(invite),
+    metadata: invite,
+  })
+  const session = await attachLiveSessionThread(created.id, created.session, posted.threadId)
+  return { id: created.id, code: created.code, session, threadId: posted.threadId, messageId: posted.messageId }
 }
 
 export async function getLiveSessionByCode(codeInput: unknown) {
@@ -2368,6 +2492,20 @@ export async function listLiveSessions(user: User, limit = 20) {
  * answer, a second answer, a non-host `start` — without touching the database.
  * Callers turn that into a 409/403 with a message; the point is that a refused
  * event is never a partial write.
+ *
+ * This is also where a finished game is written back into the chat thread it
+ * was launched from. Doing it here rather than in the host's browser is the
+ * whole reason the session remembers its `threadId`:
+ *
+ * - **Exactly once, by construction.** The reducer rejects `next`/`close` once
+ *   the phase is `finished`, so only the one event that *transitions* into
+ *   `finished` carries a `finalize` effect — a host polling the state, or
+ *   pressing End twice, cannot produce a second result message.
+ * - **Independent of the host's tab.** The record lands even if the host closed
+ *   the laptop on the last question, and every client sees the same message.
+ * - **Ordered before the response.** The message exists by the time the host is
+ *   told the game is over, so the thread cannot be read in a state where the
+ *   game finished and left no trace.
  */
 async function applyLiveEvent(input: {
   code: unknown
@@ -2380,6 +2518,9 @@ async function applyLiveEvent(input: {
     return { accepted: false, id: found.id, session: found.session, effects: [] }
   }
   await persistLiveSession({ id: found.id, before: found.session, after: result.session, effects: result.effects })
+  if (result.effects.some((effect) => effect.type === "finalize")) {
+    await recordLiveGameResultMessage(result.session, input.nowMs)
+  }
   return { accepted: true, id: found.id, session: result.session, effects: result.effects }
 }
 

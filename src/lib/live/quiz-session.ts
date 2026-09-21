@@ -32,6 +32,46 @@ export const JOIN_CODE_LENGTH = 6
 
 export type LiveQuizPhase = "lobby" | "question" | "reveal" | "finished"
 
+/**
+ * How a session decides who wins. The mode is the *only* difference between
+ * three games that share a lobby, a join code, a timer, and a transport — which
+ * is why it lives here as one field that the reducer branches on, instead of a
+ * second engine with its own bugs.
+ *
+ * - `race`     — everyone answers every question; base points plus a speed
+ *                bonus. The default, and the shape the feature shipped with.
+ * - `survival` — one wrong answer eliminates you. Eliminated players stop
+ *                scoring and stop being able to answer, and the game ends the
+ *                moment at most one player is left standing.
+ * - `streak`   — consecutive correct answers build a multiplier (×1 → ×1.5 →
+ *                ×2 → ×2.5 → ×3, capped); one wrong answer resets it. Final
+ *                scores rank by total.
+ */
+export type LiveQuizMode = "race" | "survival" | "streak"
+
+export const LIVE_QUIZ_MODES = ["race", "survival", "streak"] as const
+
+export const DEFAULT_LIVE_QUIZ_MODE: LiveQuizMode = "race"
+
+export const LIVE_QUIZ_MODE_LABELS: Record<LiveQuizMode, string> = {
+  race: "Race",
+  survival: "Survival",
+  streak: "Streak",
+}
+
+/**
+ * Reads a mode from arbitrary input, defaulting to `race`.
+ *
+ * Never throws and never fails: a stored session, a request body, or a chat
+ * metadata blob written by an older build must still produce a playable game,
+ * and "the mode is unknown" is not a reason to refuse to run a quiz.
+ */
+export function normalizeLiveMode(value: unknown): LiveQuizMode {
+  return typeof value === "string" && (LIVE_QUIZ_MODES as readonly string[]).includes(value)
+    ? (value as LiveQuizMode)
+    : DEFAULT_LIVE_QUIZ_MODE
+}
+
 export interface LiveQuizChoice {
   id: string
   text: string
@@ -71,6 +111,13 @@ export interface LiveQuizParticipant {
   joinedAt: number
   score: number
   answers: LiveQuizAnswer[]
+  /**
+   * `survival` only: a wrong answer sets this, and an eliminated participant is
+   * refused an answer for the rest of the game and can no longer score. It is
+   * absent in the other modes (and in sessions written before modes existed),
+   * so every reader must treat a missing value as "not eliminated".
+   */
+  eliminated?: boolean
 }
 
 export interface LiveQuizSession {
@@ -78,6 +125,18 @@ export interface LiveQuizSession {
   quizId: string
   quizTitle: string
   hostUserId: string
+  /**
+   * The game's rules. Travels with the session so a rehydrated session is
+   * scored the same way it was started; missing means `race`.
+   */
+  mode: LiveQuizMode
+  /**
+   * The chat thread the game was launched from, when it was launched from one.
+   * The reducer never reads it — it is here because the *finish* path needs to
+   * know where to record the result, and the session is the only durable thing
+   * that survives between the launch and the final question.
+   */
+  threadId?: string
   phase: LiveQuizPhase
   /** Index into `questions`; meaningless in `lobby`, frozen once `finished`. */
   questionIndex: number
@@ -137,6 +196,15 @@ export const DEFAULT_QUESTION_POINTS = 1000
 export const MAX_POINTS_MULTIPLIER = 1.5
 /** Fraction of the base awarded as a bonus for answering instantly. */
 export const SPEED_BONUS_FRACTION = 0.5
+/**
+ * `streak` mode's multiplier ceiling. Multipliers are held in *halves* (an
+ * integer numerator over 2) so that ×1.5 is `3/2` and the whole scoring path
+ * stays in integer arithmetic — a floating-point multiplier would make
+ * "the same inputs always score the same" true only up to rounding.
+ */
+export const MAX_STREAK_MULTIPLIER = 3
+const STREAK_MULTIPLIER_HALVES_BASE = 2
+const STREAK_MULTIPLIER_HALVES_MAX = MAX_STREAK_MULTIPLIER * 2
 const MAX_NAME_LENGTH = 40
 const MAX_PARTICIPANTS = 200
 
@@ -188,14 +256,19 @@ export function createLiveSession(input: {
   quizId: string
   quizTitle: string
   hostUserId: string
+  mode?: LiveQuizMode | unknown
+  threadId?: string | unknown
   questions: LiveQuizQuestion[]
   createdAt: number
 }): LiveQuizSession {
+  const threadId = typeof input.threadId === "string" ? input.threadId.trim() : ""
   return {
     code: normalizeJoinCode(input.code) || input.code,
     quizId: input.quizId,
     quizTitle: input.quizTitle,
     hostUserId: input.hostUserId,
+    mode: normalizeLiveMode(input.mode),
+    ...(threadId ? { threadId } : {}),
     phase: "lobby",
     questionIndex: 0,
     questionStartedAt: 0,
@@ -284,6 +357,53 @@ export function scoreAnswer(input: {
   return { correct: true, points, elapsedMs }
 }
 
+/**
+ * How many correct answers a participant has in a row, counting backwards from
+ * their most recent one.
+ *
+ * Derived rather than stored. A stored counter would need its own reset rule
+ * and its own slot in the serialised state, and it could disagree with the
+ * answers it is supposed to summarise; the trailing run cannot.
+ */
+export function currentStreak(participant: LiveQuizParticipant): number {
+  let streak = 0
+  for (let index = participant.answers.length - 1; index >= 0; index -= 1) {
+    if (!participant.answers[index].correct) break
+    streak += 1
+  }
+  return streak
+}
+
+/**
+ * The `streak` multiplier as an integer number of halves, from the streak the
+ * participant had *before* this answer: 2/2 (×1) for the first correct answer,
+ * then ×1.5, ×2, ×2.5, and ×3 from the fourth consecutive correct answer on.
+ */
+export function streakMultiplierHalves(priorStreak: number): number {
+  const streak = Math.max(0, Math.trunc(Number(priorStreak) || 0))
+  return Math.min(STREAK_MULTIPLIER_HALVES_MAX, STREAK_MULTIPLIER_HALVES_BASE + streak)
+}
+
+/** The same value as a readable multiplier, for a screen that wants to show it. */
+export function streakMultiplier(participant: LiveQuizParticipant): number {
+  return streakMultiplierHalves(currentStreak(participant)) / 2
+}
+
+/**
+ * A correct answer's points under `streak` rules: the ordinary base-plus-speed
+ * score, scaled by the multiplier the run so far has earned. Integer-only —
+ * `floor(points * halves / 2)` — so ×1.5 of 1000 is exactly 1500 and of 999 is
+ * 1498, and never a float that could round differently on another machine.
+ */
+function streakPoints(participant: LiveQuizParticipant, basePoints: number): number {
+  return Math.floor((basePoints * streakMultiplierHalves(currentStreak(participant))) / 2)
+}
+
+/** The participants still playing: everyone, unless `survival` has removed some. */
+export function activeParticipants(session: LiveQuizSession): LiveQuizParticipant[] {
+  return session.participants.filter((participant) => participant.eliminated !== true)
+}
+
 // ---------------------------------------------------------------------------
 // Read models
 // ---------------------------------------------------------------------------
@@ -313,9 +433,21 @@ function speedForRanking(participant: LiveQuizParticipant): number {
  * order** (`joinedAt`), then to **id**. Every comparator is total, so the
  * order does not depend on the order the rows came back from the database in —
  * which matters, because that order is not stable across a sharded read.
+ *
+ * `survival` adds one rule ahead of all of those: a player still standing beats
+ * a player who is out, whatever the points say. That is what "last one standing
+ * wins" means, and without it the winner of a game everybody else lost would
+ * rank below the players who were eliminated with 0 points but answered
+ * slightly faster on the way out.
  */
 export function leaderboard(session: LiveQuizSession): LiveQuizParticipant[] {
   return [...session.participants].sort((left, right) => {
+    if (session.mode === "survival") {
+      const leftOut = left.eliminated === true
+      const rightOut = right.eliminated === true
+      if (leftOut !== rightOut) return leftOut ? 1 : -1
+    }
+
     const scoreDelta = right.score - left.score
     if (scoreDelta !== 0) return scoreDelta
 
@@ -355,6 +487,8 @@ export interface LiveResultsSummary {
   quizId: string
   quizTitle: string
   hostUserId: string
+  /** The rules the session was played under, so a saved record says how it was won. */
+  mode: LiveQuizMode
   version: number
   createdAt: number
   finishedAt?: number
@@ -410,6 +544,7 @@ export function summarizeResults(session: LiveQuizSession, finishedAt?: number):
     quizId: session.quizId,
     quizTitle: session.quizTitle,
     hostUserId: session.hostUserId,
+    mode: session.mode,
     version: session.version,
     createdAt: session.createdAt,
     ...(finishedAt === undefined ? {} : { finishedAt }),
@@ -430,6 +565,23 @@ export function summarizeResults(session: LiveQuizSession, finishedAt?: number):
 
 function broadcast(reason: string): LiveEffect[] {
   return [{ type: "broadcast", reason }, { type: "persist", reason }]
+}
+
+/**
+ * `survival` is over the moment at most one player is still standing.
+ *
+ * Checked after the roster shrinks (an elimination, or a player leaving) rather
+ * than at the end of a question: "last one standing wins" is the whole mode, so
+ * carrying on to ask the remaining questions of a player who has already won
+ * would be a different game. A session with nobody in it is not "over" — it is
+ * empty, and it stays in its current phase waiting for a first join.
+ */
+function survivalIsOver(session: LiveQuizSession): boolean {
+  return session.mode === "survival" && session.participants.length > 0 && activeParticipants(session).length <= 1
+}
+
+function finishEffects(reason: string): LiveEffect[] {
+  return [...broadcast(reason), { type: "finalize", reason }]
 }
 
 /**
@@ -471,13 +623,12 @@ export function reduceSession(session: LiveQuizSession, event: LiveEvent, nowMs:
       if (session.phase === "finished") return reject
       const participant = findParticipant(session, event.participantId)
       if (!participant) return reject
-      return {
-        session: {
-          ...session,
-          participants: session.participants.filter((candidate) => candidate.id !== event.participantId),
-        },
-        effects: broadcast("leave"),
+      const without = { ...session, participants: session.participants.filter((candidate) => candidate.id !== event.participantId) }
+      // A survival game whose last rival walks out has found its winner.
+      if (survivalIsOver(without)) {
+        return { session: { ...without, phase: "finished", questionStartedAt: 0 }, effects: finishEffects("leave") }
       }
+      return { session: without, effects: broadcast("leave") }
     }
 
     case "start": {
@@ -498,6 +649,10 @@ export function reduceSession(session: LiveQuizSession, event: LiveEvent, nowMs:
       if (!question.choices.some((choice) => choice.id === event.choiceId)) return reject
       const participant = findParticipant(session, event.participantId)
       if (!participant) return reject
+      // `survival`: elimination is permanent, so an eliminated player is refused
+      // rather than scored zero — a refused answer must not become a free
+      // "already answered" mark that hides the fact they are out.
+      if (session.mode === "survival" && participant.eliminated === true) return reject
       // One answer per participant per question, enforced here rather than by
       // the table: a retried request must not score twice.
       if (hasAnswered(session, event.participantId, question.id)) return reject
@@ -508,29 +663,40 @@ export function reduceSession(session: LiveQuizSession, event: LiveEvent, nowMs:
         choiceId: event.choiceId,
         atMs: event.atMs,
       })
+      // The three modes differ in exactly one place: what a correct answer is
+      // worth, and whether a wrong one ends your game. `race` is the identity
+      // transform on both, which is how "race is unchanged" stays true by
+      // construction rather than by inspection.
+      const points = session.mode === "streak" && scored.correct ? streakPoints(participant, scored.points) : scored.points
+      const eliminated = session.mode === "survival" && !scored.correct
       const answer: LiveQuizAnswer = {
         questionId: question.id,
         choiceId: event.choiceId,
         at: event.atMs,
         elapsedMs: scored.elapsedMs,
         correct: scored.correct,
-        points: scored.points,
+        points,
       }
-      return {
-        session: {
-          ...session,
-          participants: session.participants.map((candidate) =>
-            candidate.id === participant.id
-              ? {
-                  ...candidate,
-                  score: candidate.score + scored.points,
-                  answers: [...candidate.answers, answer],
-                }
-              : candidate,
-          ),
-        },
-        effects: broadcast("answer"),
+      const next: LiveQuizSession = {
+        ...session,
+        participants: session.participants.map((candidate) => {
+          if (candidate.id !== participant.id) return candidate
+          const isOut = candidate.eliminated === true || eliminated
+          return {
+            ...candidate,
+            score: candidate.score + points,
+            answers: [...candidate.answers, answer],
+            ...(isOut ? { eliminated: true } : {}),
+          }
+        }),
       }
+      if (survivalIsOver(next)) {
+        return {
+          session: { ...next, phase: "finished", questionStartedAt: 0 },
+          effects: finishEffects("survival-last-standing"),
+        }
+      }
+      return { session: next, effects: broadcast("answer") }
     }
 
     case "reveal": {
@@ -658,6 +824,10 @@ function parseParticipant(value: unknown): LiveQuizParticipant | null {
     joinedAt: asNumber(record.joinedAt),
     score,
     answers,
+    // Written only when true, so a `race` session's serialised shape is
+    // byte-for-byte what it was before modes existed — which is what lets an
+    // old row round-trip through this parser unchanged.
+    ...(record.eliminated === true ? { eliminated: true } : {}),
   }
 }
 
@@ -709,11 +879,16 @@ export function parseSession(input: unknown): LiveQuizSession | null {
 
   const questionIndex = Math.min(Math.max(0, Math.trunc(asNumber(record.questionIndex))), Math.max(0, questions.length - 1))
 
+  const threadId = asString(record.threadId).trim()
+
   return {
     code,
     quizId,
     quizTitle: asString(record.quizTitle, "Live quiz"),
     hostUserId,
+    // An absent or unrecognised mode is a pre-modes session: it plays as `race`.
+    mode: normalizeLiveMode(record.mode),
+    ...(threadId ? { threadId } : {}),
     phase,
     questionIndex,
     questionStartedAt: Math.max(0, asNumber(record.questionStartedAt)),
