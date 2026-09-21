@@ -1,0 +1,226 @@
+/**
+ * Route-handler test harness.
+ *
+ * The 49 handlers under `src/app/api` had zero coverage because there was no
+ * way to run one: every handler reaches `lib/data.ts`, which reaches
+ * `lib/db.ts`, which needs a Cloudflare D1 binding or D1 API credentials.
+ *
+ * This harness supplies the credentials and then intercepts `globalThis.fetch`
+ * at the D1 HTTP boundary. That boundary is the narrowest seam available and
+ * it requires no production change at all — the real `query()`, the real
+ * `normalizeD1Sql()`, the real statement routing and response parsing all run
+ * unmodified. Only the network is fake.
+ *
+ * What the harness gives a test:
+ *   - `statements`  every SQL statement the handler issued, with its params
+ *   - `on(pattern)` a canned response for statements matching a regexp
+ *   - `request()`   an authenticated `NextRequest` with a session cookie
+ *
+ * What it deliberately does NOT do: mock `lib/data.ts`. If a test needs a
+ * module mocked, the seam is in the wrong place.
+ */
+
+import { NextRequest } from "next/server"
+
+export interface RecordedStatement {
+  sql: string
+  params: unknown[]
+}
+
+export interface CannedResult {
+  rows?: unknown[]
+  rowCount?: number
+}
+
+interface Responder {
+  pattern: RegExp
+  respond: (sql: string, params: unknown[]) => CannedResult
+}
+
+export interface DatabaseStub {
+  /** Every statement the D1 API was asked to run, in order. */
+  readonly statements: RecordedStatement[]
+  /** SQL text only, for readable assertions. */
+  readonly sqlLog: string[]
+  /** Register a canned response for every statement whose SQL matches. */
+  on(pattern: RegExp, respond: CannedResult | ((sql: string, params: unknown[]) => CannedResult)): void
+  /** Statements whose SQL matches the pattern. */
+  matching(pattern: RegExp): RecordedStatement[]
+  /** Statements whose SQL matches the pattern and that were not reads. */
+  writesMatching(pattern: RegExp): RecordedStatement[]
+  reset(): void
+  restore(): void
+}
+
+const D1_ENV_KEYS = ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_D1_DATABASE_ID", "CLOUDFLARE_API_TOKEN"] as const
+const D1_HOST = "api.cloudflare.com"
+const D1_PATH = "/client/v4/accounts/"
+
+function d1ApiResponse(result: CannedResult, isRead: boolean) {
+  const rows = result.rows ?? []
+  const changes = result.rowCount ?? (isRead ? rows.length : 0)
+  return {
+    success: true,
+    errors: [],
+    result: [{ success: true, results: rows, meta: { changes } }],
+  }
+}
+
+function isReadStatement(sql: string) {
+  const firstWord = sql.trim().split(/\s+/, 1)[0]?.toLowerCase()
+  return firstWord === "select" || firstWord === "with" || firstWord === "pragma"
+}
+
+export function installDatabaseStub(): DatabaseStub {
+  const statements: RecordedStatement[] = []
+  const responders: Responder[] = []
+  const savedEnv = new Map<string, string | undefined>()
+  const originalFetch = globalThis.fetch
+
+  for (const key of D1_ENV_KEYS) {
+    savedEnv.set(key, process.env[key])
+    process.env[key] = key === "CLOUDFLARE_D1_DATABASE_ID" ? "learn-test-db" : `learn-test-${key.toLowerCase()}`
+  }
+
+  const stub: DatabaseStub = {
+    statements,
+    get sqlLog() {
+      return statements.map((statement) => statement.sql)
+    },
+    on(pattern, respond) {
+      responders.unshift({
+        pattern,
+        respond: typeof respond === "function" ? respond : () => respond,
+      })
+    },
+    matching(pattern) {
+      return statements.filter((statement) => pattern.test(statement.sql))
+    },
+    writesMatching(pattern) {
+      return statements.filter(
+        (statement) => pattern.test(statement.sql) && !isReadStatement(statement.sql),
+      )
+    },
+    reset() {
+      statements.length = 0
+      responders.length = 0
+    },
+    restore() {
+      globalThis.fetch = originalFetch
+      for (const [key, value] of savedEnv) {
+        if (value === undefined) delete process.env[key]
+        else process.env[key] = value
+      }
+    },
+  }
+
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
+
+    if (!url.includes(D1_HOST) || !url.includes(D1_PATH)) {
+      throw new Error(
+        `Route test made an unexpected network call to ${url}. ` +
+          "Every outbound call in a handler test must be stubbed explicitly.",
+      )
+    }
+
+    const body = JSON.parse(String(init?.body ?? "{}")) as { sql?: string; params?: unknown[] }
+    const sql = String(body.sql ?? "")
+    const params = body.params ?? []
+    statements.push({ sql, params })
+
+    const isRead = isReadStatement(sql)
+    let canned: CannedResult = { rows: [], rowCount: 0 }
+    for (const responder of responders) {
+      if (responder.pattern.test(sql)) {
+        canned = responder.respond(sql, params)
+        break
+      }
+    }
+
+    return new Response(JSON.stringify(d1ApiResponse(canned, isRead)), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    })
+  }) as typeof fetch
+
+  return stub
+}
+
+/**
+ * The user row every stubbed session lookup returns. `session_last_seen_at` is
+ * deliberately recent so `getCurrentUserFromToken` skips its throttled
+ * `UPDATE` and the statement log stays about the handler, not about auth.
+ */
+export const TEST_USER_ROW = {
+  id: "user_test",
+  username: "test_learner",
+  email: "test@learn.local",
+  name: "Test Learner",
+  avatar_url: "",
+  bio: "",
+  profile_visibility: "private",
+  role: "learner",
+  preferences: "{}",
+  streak_current: 3,
+  streak_longest: 9,
+  streak_freezes_available: 1,
+  xp_total: 420,
+  session_last_seen_at: new Date().toISOString().replace("T", " ").slice(0, 19),
+}
+
+export const TEST_SESSION_TOKEN = "test-session-token"
+
+/** Teach the stub to resolve the session cookie to `TEST_USER_ROW`. */
+export function stubSessionLookup(stub: DatabaseStub) {
+  stub.on(/FROM user_sessions/, { rows: [TEST_USER_ROW] })
+}
+
+/**
+ * Run the one-time starter-data seed, then clear the statement log.
+ *
+ * `ensureDatabase()` seeds demo notes, quizzes and workspaces the first time it
+ * is called in a process. Without this, whichever test happens to run first
+ * sees the seed statements mixed in with the handler's own, and assertions on
+ * statement counts become order-dependent. Priming first makes every test
+ * measure exactly the handler under test.
+ */
+export async function primeDatabase(stub: DatabaseStub) {
+  const { ensureDatabase } = await import("../../lib/schema")
+  await ensureDatabase()
+  stub.reset()
+}
+
+export interface RequestOptions {
+  method?: string
+  body?: unknown
+  token?: string | null
+  headers?: Record<string, string>
+}
+
+/**
+ * An authenticated request aimed at a handler. Defaults to same-origin so the
+ * CSRF check in `requireApiUser` passes; pass `origin` to test it failing.
+ */
+export function request(path: string, options: RequestOptions = {}) {
+  const method = options.method ?? "GET"
+  const headers = new Headers(options.headers)
+  headers.set("host", "learn.local")
+  if (!headers.has("origin")) headers.set("origin", "https://learn.local")
+
+  const token = options.token === undefined ? TEST_SESSION_TOKEN : options.token
+  if (token) headers.set("cookie", `learn_session=${token}`)
+
+  let body: string | undefined
+  if (options.body !== undefined) {
+    headers.set("content-type", "application/json")
+    body = JSON.stringify(options.body)
+  }
+
+  return new NextRequest(`https://learn.local${path}`, { method, headers, body })
+}
+
+/** Read a JSON response body with a typed-ish shape. */
+export async function readJson<T = Record<string, unknown>>(response: Response): Promise<T> {
+  return (await response.json()) as T
+}
