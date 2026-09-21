@@ -707,7 +707,9 @@ export function StudioView({
   useEffect(() => {
     if (!options.notesAutosave || kind !== "notes" || !noteDraft?.id) return
     const timeout = window.setTimeout(() => {
-      saveActive(true).catch(() => undefined)
+      // saveActive() now reports its own failures via `status`; the old
+      // `.catch(() => undefined)` here is what made autosave failures invisible.
+      void saveActive(true)
     }, 1800)
     return () => window.clearTimeout(timeout)
   }, [options.notesAutosave, kind, noteDraft?.id, noteDraft?.title, noteHistory.present])
@@ -1019,7 +1021,7 @@ export function StudioView({
     setSlides(blankDeckSlides)
   }
 
-  async function saveActive(silent = false) {
+  async function saveActive(silent = false): Promise<boolean> {
     setSaving(true)
     try {
       if (kind === "notes" && noteDraft) {
@@ -1074,6 +1076,20 @@ export function StudioView({
 
       setLastSaved(new Date().toLocaleTimeString())
       if (!silent) setStatus("Saved.")
+      return true
+    } catch (error) {
+      // Never fail silently here. The local draft is deliberately NOT cleared on
+      // this path, so the user's work is still safe on the device — but they have
+      // to be told the server copy is behind, otherwise the stale "last saved"
+      // timestamp reads as success. Applies to both the manual Save button and
+      // the 1.8s notes autosave.
+      const detail = error instanceof Error ? error.message : "unknown error"
+      setStatus(
+        silent
+          ? `Autosave failed (${detail}). Changes are kept as a local draft — press Save to retry.`
+          : `Save failed: ${detail}`,
+      )
+      return false
     } finally {
       setSaving(false)
     }

@@ -19,11 +19,62 @@ import {
 } from "./learning-ecosystem"
 import { buildGamePracticeSessionDraft, buildQuizPracticeSessionDraft, buildReviewCardsFromPracticeItems, type PracticeSessionDraft, type PracticeSessionQuestion } from "./practice-sessions"
 import { createId, ensureDatabase, logAudit } from "./schema"
+import { buildMultiRowInsert, chunkRowsForInsert } from "./sql-batch"
 import { normalizeConnectionInput, normalizeSocialActionInput, normalizeSocialTargetType } from "./sharing"
 import { blankDeckTitle, blankDocTitle, blankSheetTitle } from "./studio-defaults"
 
 export const SESSION_COOKIE = "learn_session"
 const DEFAULT_WORKSPACE_ID = "workspace_demo"
+
+/**
+ * How stale `user_sessions.last_seen_at` is allowed to get before an
+ * authenticated request refreshes it.
+ *
+ * This runs on *every* authenticated API request (123 `requireApiUser` call
+ * sites), and the value is only ever read coarsely as "when was this session
+ * last active". Touching it on every request cost one D1 write per call for
+ * sub-second precision nobody consumes.
+ */
+const SESSION_TOUCH_INTERVAL_MS = 5 * 60 * 1000
+
+/**
+ * Parse a timestamp produced by SQLite/D1 (`datetime('now')` →
+ * `"2026-09-21 06:45:10"`, always UTC) or by `Date#toISOString()`
+ * (`"2026-09-21T06:45:10.000Z"`).
+ *
+ * `Date.parse` treats a bare `"YYYY-MM-DD HH:MM:SS"` as *local* time, which
+ * would skew the comparison by the host's UTC offset. Normalise to explicit
+ * UTC before parsing.
+ */
+function parseTimestampMs(value: unknown) {
+  const text = typeof value === "string" ? value.trim() : ""
+  if (!text) return Number.NaN
+  const iso = text.replace(" ", "T")
+  const utc = /(?:Z|[+-]\d{2}:?\d{2})$/.test(iso) ? iso : `${iso}Z`
+  return Date.parse(utc)
+}
+
+/**
+ * Write related rows in as few statements as D1 permits.
+ *
+ * Replaces the per-row `for (… ) { await query(INSERT …) }` pattern, which cost
+ * one round trip per row. D1 serves a database strictly one query at a time, so
+ * those round trips serialise: a 20-question quiz was 20 sequential waits.
+ * `chunkRowsForInsert` keeps each statement inside D1's 100-bound-parameter
+ * ceiling (see `sql-batch.ts`), so long lists still collapse to a handful of
+ * statements rather than one per row.
+ */
+async function insertRows(
+  table: string,
+  columns: string[],
+  rows: unknown[][],
+  jsonColumns: string[] = [],
+) {
+  for (const chunk of chunkRowsForInsert(rows, columns.length)) {
+    const statement = buildMultiRowInsert({ table, columns, rows: chunk, jsonColumns })
+    if (statement) await query(statement.sql, statement.values)
+  }
+}
 
 export interface User {
   id: string
@@ -185,18 +236,27 @@ export async function getCurrentUserFromToken(token?: string) {
   const value = token?.trim()
   if (!value) return null
 
+  // Hash once: this used to run twice per request (once for the lookup, once
+  // for the touch), and this path executes on every authenticated API call.
+  const tokenHash = await hashSessionToken(value)
   const result = await query(
-    `SELECT u.*
+    `SELECT u.*, s.last_seen_at AS session_last_seen_at
      FROM user_sessions s
      JOIN users u ON u.id = s.user_id
      WHERE s.token_hash = $1 AND s.expires_at > now()
      LIMIT 1`,
-    [await hashSessionToken(value)],
+    [tokenHash],
   )
-  if (!result.rows[0]) return null
+  const row = result.rows[0]
+  if (!row) return null
 
-  await query("UPDATE user_sessions SET last_seen_at = now() WHERE token_hash = $1", [await hashSessionToken(value)])
-  return normalizeUser(result.rows[0])
+  const lastSeenAt = parseTimestampMs(row.session_last_seen_at)
+  const isStale = Number.isNaN(lastSeenAt) || Date.now() - lastSeenAt > SESSION_TOUCH_INTERVAL_MS
+  if (isStale) {
+    await query("UPDATE user_sessions SET last_seen_at = now() WHERE token_hash = $1", [tokenHash])
+  }
+
+  return normalizeUser(row)
 }
 
 export async function getCurrentUser() {
@@ -477,7 +537,19 @@ export async function updateProfile(user: User, input: {
     [nextName, nextEmail, nextAvatarUrl, nextBio, nextProfileVisibility, JSON.stringify(preferences), user.id],
   )
   await logAudit({ userId: user.id, action: "update", entity: "profile", entityId: user.id })
-  return getCurrentUserFromToken((await cookies()).get(SESSION_COOKIE)?.value)
+  // Rebuild from the values we just wrote instead of re-reading the session.
+  // The caller already authenticated `user` via requireApiUser, so going back
+  // through getCurrentUserFromToken() would spend another token hash + SELECT
+  // (plus a possible last_seen_at write) to recover data we already hold.
+  return {
+    ...user,
+    name: nextName,
+    email: nextEmail,
+    avatarUrl: nextAvatarUrl,
+    bio: nextBio,
+    profileVisibility: nextProfileVisibility,
+    preferences,
+  } satisfies User
 }
 
 export async function updatePreferences(user: User, preferences: Record<string, unknown>) {
@@ -1228,28 +1300,27 @@ async function insertPracticeSession(user: User, draft: PracticeSessionDraft, so
       JSON.stringify(draft.metadata),
     ],
   )
-  for (const item of draft.items) {
-    await query(
-      `INSERT INTO practice_session_items (
-         id, session_id, question_id, review_item_id, content_item_id,
-         prompt, answer, user_answer, correct, elapsed_ms, metadata
-       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)`,
-      [
-        createId("practiceitem"),
-        sessionId,
-        item.questionId || null,
-        item.reviewItemId || null,
-        item.contentItemId || null,
-        item.prompt,
-        item.answer,
-        item.userAnswer,
-        item.correct ? 1 : 0,
-        item.elapsedMs,
-        JSON.stringify(item.metadata),
-      ],
-    )
-  }
+  await insertRows(
+    "practice_session_items",
+    [
+      "id", "session_id", "question_id", "review_item_id", "content_item_id",
+      "prompt", "answer", "user_answer", "correct", "elapsed_ms", "metadata",
+    ],
+    draft.items.map((item) => [
+      createId("practiceitem"),
+      sessionId,
+      item.questionId || null,
+      item.reviewItemId || null,
+      item.contentItemId || null,
+      item.prompt,
+      item.answer,
+      item.userAnswer,
+      item.correct ? 1 : 0,
+      item.elapsedMs,
+      JSON.stringify(item.metadata),
+    ]),
+    ["metadata"],
+  )
   return sessionId
 }
 
@@ -1316,25 +1387,27 @@ export async function saveQuiz(user: User, input: Record<string, unknown>) {
 
   if (input.id) await query("DELETE FROM quiz_questions WHERE quiz_id = $1", [id])
 
-  for (const raw of rawQuestions as Record<string, unknown>[]) {
+  const questionRows = (rawQuestions as Record<string, unknown>[]).flatMap((raw) => {
     const question = String(raw.question || "").trim()
     const choices = Array.isArray(raw.choices) ? raw.choices : []
     const correctAnswerId = String(raw.correct_answer_id || raw.correctAnswerId || "")
-    if (!question || choices.length < 2 || !correctAnswerId) continue
-    await query(
-      `INSERT INTO quiz_questions (id, quiz_id, question, choices, correct_answer_id, topic, explanation)
-       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)`,
-      [
-        createId("qq"),
-        id,
-        question,
-        JSON.stringify(choices),
-        correctAnswerId,
-        String(raw.topic || topic),
-        String(raw.explanation || ""),
-      ],
-    )
-  }
+    if (!question || choices.length < 2 || !correctAnswerId) return []
+    return [[
+      createId("qq"),
+      id,
+      question,
+      JSON.stringify(choices),
+      correctAnswerId,
+      String(raw.topic || topic),
+      String(raw.explanation || ""),
+    ]]
+  })
+  await insertRows(
+    "quiz_questions",
+    ["id", "quiz_id", "question", "choices", "correct_answer_id", "topic", "explanation"],
+    questionRows,
+    ["choices"],
+  )
 
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "quiz", entityId: id })
   return getQuiz(id)
@@ -1404,13 +1477,18 @@ export async function recordQuizAttempt(user: User, input: {
     "INSERT INTO quiz_attempts (id, quiz_id, user_id, score, total, duration_seconds) VALUES ($1, $2, $3, $4, $5, $6)",
     [attemptId, input.quizId, user.id, score, input.answers.length, durationSeconds],
   )
-  for (const answer of normalizedAnswers) {
-    await query(
-      `INSERT INTO quiz_attempt_answers (id, attempt_id, question_id, topic, selected_answer_id, correct)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [createId("answer"), attemptId, answer.questionId, answer.topic, answer.selectedAnswerId, answer.correct ? 1 : 0],
-    )
-  }
+  await insertRows(
+    "quiz_attempt_answers",
+    ["id", "attempt_id", "question_id", "topic", "selected_answer_id", "correct"],
+    normalizedAnswers.map((answer) => [
+      createId("answer"),
+      attemptId,
+      answer.questionId,
+      answer.topic,
+      answer.selectedAnswerId,
+      answer.correct ? 1 : 0,
+    ]),
+  )
   await logAudit({ userId: user.id, action: "complete", entity: "quiz_attempt", entityId: attemptId })
   return { attemptId, practiceSessionId, score, total: input.answers.length, durationSeconds }
 }
