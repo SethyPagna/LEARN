@@ -275,8 +275,9 @@ Branch `cleanup/stage-1`, `main` untouched at `5f06f9e1`. Baseline entering the 
 | `49f468a` | **fix:** close the write-IDOR on quiz upserts. `saveQuiz`'s `ON CONFLICT (id) DO UPDATE` and `archiveQuiz` took the row id from the request body with no ownership filter, so any signed-in user could rewrite another user's quiz — and the `DELETE FROM quiz_questions` that follows then wiped its questions. Migration `0013` adds `quizzes.created_by_user_id`; both paths now call the existing `assertOwnership` helper (seeded, owner-less quizzes stay shared-editable). +7 tests. |
 | `c2b01ae` | **refactor:** wire or remove the six routes nothing consumed. Deleted `/api/audit`, `/api/automation/run`, `/api/micro-lessons`; wired `/api/integrations/health` (admin Providers panel), `/api/vault/blocks` (Vault block palette), `/api/moderation` (new Admin Moderation tab). New invariant test `project/route-wiring.test.ts` keeps the consumer-less count at 0. 50 → 47 routes. +3 tests. |
 | `d010335` | **refactor:** debloat + optimise. Removed 18 unused exports (15 reported, 3 cascaded). `insertRows()` now forwards an optional `onConflict`; six serial seed loops collapsed to multi-row statements. +6 tests. |
+| `feaacf0` | **refactor:** collapse the near-identical `docs`/`sheets`/`slides` route files onto one tested factory (`lib/api/resource-route.ts`; 41 → 9 lines each), with 25 route tests written *first* as the safety net, and the security invariant strengthened to assert the factory itself enforces `requireApiUser`. +27 tests. |
 
-**Verified at `d010335`:** `tsc --noEmit` exit 0 · **445/445 tests** (54 files) · analyzer `unusedExports 15 → 0`, `orphanFiles 0`.
+**Verified at `feaacf0`:** `tsc --noEmit` exit 0 · **472/472 tests** (54 files, up from 436 at session start) · route handlers 50 → 47 · consumer-less routes **0** · analyzer `unusedExports 15 → 0`, `orphanFiles 0`.
 
 **Static-analysis false positives ruled out (negative findings):**
 
