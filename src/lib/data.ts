@@ -113,15 +113,28 @@ function assertOwnerRow(user: User, row: Record<string, unknown> | undefined) {
  * convention already used by every `delete*` function in this file. Note that
  * this means an admin can rewrite any user's private note — consistent with the
  * existing convention, but worth a deliberate decision rather than an accident.
+ *
+ * Returns the row it already read (`undefined` when there is none), so a caller
+ * that is *updating an existing row* rather than upserting can turn "no row"
+ * into its own rejection without paying for a second `SELECT`. Upsert callers
+ * ignore the return value: for them an absent row is the create path, which is
+ * why this function deliberately does not throw on a missing row by itself.
  */
-async function assertOwnership(user: User, table: string, id: unknown, ownerColumn: string) {
+async function assertOwnership(
+  user: User,
+  table: string,
+  id: unknown,
+  ownerColumn: string,
+): Promise<Record<string, unknown> | undefined> {
   const rowId = id == null ? "" : String(id).trim()
-  if (!rowId) return
+  if (!rowId) return undefined
   const result = await query(
     `SELECT ${ownerColumn} AS owner_id FROM ${table} WHERE id = $1 LIMIT 1`,
     [rowId],
   )
-  assertOwnerRow(user, result.rows[0])
+  const row = result.rows[0]
+  assertOwnerRow(user, row)
+  return row
 }
 
 /**
@@ -558,8 +571,26 @@ export async function saveNote(user: User, input: Partial<NoteRecord> & { title:
   return getNote(user, id)
 }
 
+/**
+ * Archive and restore are the write half of the notes IDOR.
+ *
+ * The `UPDATE`s below carry no owner predicate, so the guard has to run before
+ * them or any signed-in user can archive (or quietly un-archive) somebody else's
+ * note by id. Notes use `assertOwnership` here rather than the
+ * `AND (owner_user_id = $2 OR $3 = 'admin')` predicate the sibling resources put
+ * in their own `UPDATE`: this is the predicate `saveNote` already applies to
+ * this same table, and scoping in TypeScript rather than in SQL means the two
+ * paths cannot drift apart.
+ *
+ * Unlike an upsert, a missing note is not a create path — there is nothing to
+ * archive. `assertOwnership` returns the row it read so that case is rejected
+ * *before* the `UPDATE` is issued, rather than running a statement that matches
+ * no rows and reporting success.
+ */
 export async function deleteNote(user: User, id: string) {
   await ensureDatabase()
+  const note = await assertOwnership(user, "notes", id, "owner_user_id")
+  if (!note) throw new Error("Note not found.")
   await query("UPDATE notes SET archived_at = now(), updated_at = now() WHERE id = $1", [id])
   await archiveContentItemForSource("notes", id)
   await logAudit({ userId: user.id, action: "delete", entity: "note", entityId: id })
@@ -567,6 +598,8 @@ export async function deleteNote(user: User, id: string) {
 
 export async function restoreNote(user: User, id: string) {
   await ensureDatabase()
+  const note = await assertOwnership(user, "notes", id, "owner_user_id")
+  if (!note) throw new Error("Note not found.")
   await query("UPDATE notes SET archived_at = NULL, updated_at = now() WHERE id = $1", [id])
   await restoreContentItemForSource("notes", id)
   await logAudit({ userId: user.id, action: "restore", entity: "note", entityId: id })
