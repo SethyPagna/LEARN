@@ -1,3 +1,5 @@
+import type { FsrsState } from "@/lib/learning-ecosystem"
+
 export type View =
   | "dashboard"
   | "learn"
@@ -59,7 +61,7 @@ export interface Note {
   tags?: string[]
 }
 
-export interface QuizChoice {
+interface QuizChoice {
   id: string
   text: string
 }
@@ -186,7 +188,7 @@ export interface SlideObject {
   src?: string
   style?: Record<string, unknown>
 }
-export interface AiPromptField {
+interface AiPromptField {
   id: string
   label: string
   required?: boolean
@@ -245,13 +247,13 @@ export interface StudioLayoutState {
   density: "compact" | "comfortable"
 }
 
-export interface DashboardWeakTopic {
+interface DashboardWeakTopic {
   topic: string
   accuracy: number
   attempts: number
 }
 
-export interface DashboardSnapshot {
+interface DashboardSnapshot {
   goalCompletion?: number
   todayStudyMinutes?: number
   weakTopics?: DashboardWeakTopic[]
@@ -260,14 +262,14 @@ export interface DashboardSnapshot {
   [key: string]: unknown
 }
 
-export interface DashboardChat {
+interface DashboardChat {
   id: string
   title: string
   updated_at?: string
   updatedAt?: string
 }
 
-export interface DashboardQuizAttempt {
+interface DashboardQuizAttempt {
   id: string
   quiz_title?: string
   title?: string
@@ -277,7 +279,7 @@ export interface DashboardQuizAttempt {
   createdAt?: string
 }
 
-export interface DashboardFile {
+interface DashboardFile {
   id: string
   filename: string
   content_type?: string
@@ -286,7 +288,7 @@ export interface DashboardFile {
   createdAt?: string
 }
 
-export interface DashboardGoal {
+interface DashboardGoal {
   title: string
   completed: boolean
 }
@@ -301,7 +303,7 @@ export interface DashboardData {
   files?: DashboardFile[]
 }
 
-export interface AdminUserRecord {
+interface AdminUserRecord {
   id: string
   username?: string
   email?: string
@@ -310,7 +312,7 @@ export interface AdminUserRecord {
   created_at?: string
 }
 
-export interface AdminProviderRecord {
+interface AdminProviderRecord {
   id?: string
   name?: string
   provider?: string
@@ -325,7 +327,7 @@ export interface AdminProviderRecord {
   [key: string]: unknown
 }
 
-export interface AdminAuditRecord {
+interface AdminAuditRecord {
   id?: string
   action?: string
   entity?: string
@@ -342,7 +344,7 @@ export interface AdminData {
   counters?: Record<string, number>
 }
 
-export interface AutomationJobRecord {
+interface AutomationJobRecord {
   key: string
   label: string
   cadence?: string
@@ -351,7 +353,7 @@ export interface AutomationJobRecord {
   description?: string
 }
 
-export interface AutomationPromptRecord {
+interface AutomationPromptRecord {
   key: string
   title?: string
   label?: string
@@ -381,13 +383,6 @@ export interface KnowledgeEdge {
   targetId: string
   type: "link" | "prerequisite" | "related" | "extends" | "contradicts"
   strength: number
-}
-
-export interface FsrsState {
-  difficulty: number
-  stability: number
-  retrievability: number
-  dueAt: string
 }
 
 export interface ReviewItem extends FsrsState {

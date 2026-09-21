@@ -51,58 +51,58 @@ export type ThemedHeadingLevel = 1 | 2 | 3 | 4
 export type ThemedTableAlign = "left" | "center" | "right"
 export type ThemedCalloutTone = "info" | "warn" | "success"
 
-export interface ThemedHeadingBlock {
+interface ThemedHeadingBlock {
   type: "heading"
   level: ThemedHeadingLevel
   text: string
 }
 
-export interface ThemedParagraphBlock {
+interface ThemedParagraphBlock {
   type: "paragraph"
   text: string
 }
 
-export interface ThemedListBlock {
+interface ThemedListBlock {
   type: "list"
   ordered: boolean
   items: string[]
 }
 
-export interface ThemedTableBlock {
+interface ThemedTableBlock {
   type: "table"
   headers: string[]
   rows: string[][]
   align?: ThemedTableAlign[]
 }
 
-export interface ThemedCodeBlock {
+interface ThemedCodeBlock {
   type: "code"
   language: string
   code: string
 }
 
-export interface ThemedQuoteBlock {
+interface ThemedQuoteBlock {
   type: "quote"
   text: string
 }
 
-export interface ThemedDividerBlock {
+interface ThemedDividerBlock {
   type: "divider"
 }
 
-export interface ThemedImageBlock {
+interface ThemedImageBlock {
   type: "image"
   url: string
   alt: string
 }
 
-export interface ThemedCalloutBlock {
+interface ThemedCalloutBlock {
   type: "callout"
   tone: ThemedCalloutTone
   text: string
 }
 
-export interface QuizChoice {
+interface QuizChoice {
   id: string
   text: string
 }
@@ -114,7 +114,7 @@ export interface QuizQuestion {
   explanation?: string
 }
 
-export interface ThemedQuizBlock {
+interface ThemedQuizBlock {
   type: "quiz"
   title: string
   questions: QuizQuestion[]
@@ -125,7 +125,7 @@ export interface ThemedSlide {
   bullets: string[]
 }
 
-export interface ThemedSlideOutlineBlock {
+interface ThemedSlideOutlineBlock {
   type: "slideOutline"
   title: string
   slides: ThemedSlide[]
@@ -144,7 +144,6 @@ export type ThemedBlock =
   | ThemedQuizBlock
   | ThemedSlideOutlineBlock
 
-export type ThemedBlockType = ThemedBlock["type"]
 export type ResponseSourceFormat = "json" | "markdown" | "text"
 
 export interface FormatAiResponseInput {
@@ -156,7 +155,7 @@ export interface FormatAiResponseInput {
   now?: Date
 }
 
-export interface FormatAiResponseResult {
+interface FormatAiResponseResult {
   blocks: ThemedBlock[]
   warnings: string[]
   sourceFormat: ResponseSourceFormat

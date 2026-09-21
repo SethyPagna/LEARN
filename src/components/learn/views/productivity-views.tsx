@@ -6,7 +6,7 @@ import { AtSign, Bell, CheckCircle2, Circle, Clock, Download, Gamepad2, Image as
 import type { WorkspaceOptions } from "../preferences"
 import type { Quiz } from "../types"
 import { api, formatDate } from "../api"
-import { EmptyState, Panel } from "../ui"
+import { EmptyState, Panel, type ViewMenuProps } from "../ui"
 import { VoiceInput } from "../voice-input"
 import { buildGameRunActions, evaluateGameChoice, summarizeGameRun, type GameRunActionId } from "@/lib/practice-features"
 import { parseLiveGameInvite, parseLiveGameResult } from "@/lib/live/game-invite"
@@ -1649,16 +1649,7 @@ function ChatMenu({
   menuId,
   openMenu,
   setOpenMenu,
-}: {
-  align?: "left" | "right"
-  children: React.ReactNode
-  compact?: boolean
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  menuId: ChatMenuId
-  openMenu: ChatMenuId | null
-  setOpenMenu: (menuId: ChatMenuId | null) => void
-}) {
+}: ViewMenuProps<ChatMenuId>) {
   const open = openMenu === menuId
   return (
     <div className="relative">

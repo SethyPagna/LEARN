@@ -46,7 +46,7 @@ import type {
   User,
   View,
 } from "../types"
-import { EmptyState, Panel, StatusMessage, StatusPill } from "../ui"
+import { EmptyState, Panel, StatusMessage, StatusPill, type ViewMenuProps } from "../ui"
 import { VoiceInput } from "../voice-input"
 import { buildFeedActionPlan, buildFeedSummaryChips, buildKnowledgeGraphActionPlan, buildKnowledgeGraphSummaryChips, buildReviewActionPlan, buildReviewRatingActions, buildReviewSummaryChips, buildVaultBlockPalette, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession, type FeedSummaryChip, type KnowledgeGraphSummaryChip, type ReviewRating, type VaultBlockPaletteGroup, type VaultBlockType } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, buildProfileSummaryChips, type ProfilePlanTarget, type ProfileSummaryChip } from "@/lib/profile-features"
@@ -1453,16 +1453,7 @@ function SocialMenu({
   menuId,
   openMenu,
   setOpenMenu,
-}: {
-  align?: "left" | "right"
-  children: React.ReactNode
-  compact?: boolean
-  icon: ComponentType<{ className?: string }>
-  label: string
-  menuId: "filters" | "actions"
-  openMenu: "filters" | "actions" | null
-  setOpenMenu: (menuId: "filters" | "actions" | null) => void
-}) {
+}: ViewMenuProps<"filters" | "actions">) {
   const open = openMenu === menuId
   return (
     <div className="relative inline-block">

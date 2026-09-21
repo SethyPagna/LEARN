@@ -1,5 +1,25 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react"
+import type { ButtonHTMLAttributes, ComponentType, ReactNode } from "react"
 import { controlButtonClasses, statusToneClasses, type UiControlSize, type UiTone } from "@/lib/design-system"
+
+/**
+ * Shared dropdown-menu contract for the learn views.
+ *
+ * `SocialMenu` (ecosystem-views) and `ChatMenu` (productivity-views) are two
+ * deliberately different menus — a compact record filter and a chat composer
+ * action — but callers pass them the same props. The contract lives here so a
+ * new prop (or a widened id union) reaches both menus at once instead of
+ * drifting into two copies again.
+ */
+export interface ViewMenuProps<Id extends string> {
+  align?: "left" | "right"
+  children: ReactNode
+  compact?: boolean
+  icon: ComponentType<{ className?: string }>
+  label: string
+  menuId: Id
+  openMenu: Id | null
+  setOpenMenu: (menuId: Id | null) => void
+}
 
 export function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <section className={`rounded-lg border border-border bg-card text-card-foreground shadow-sm ${className}`}>{children}</section>
