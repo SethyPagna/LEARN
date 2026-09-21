@@ -6,7 +6,7 @@ export const GET = withApiErrorBoundary(async (request: NextRequest) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
   const status = normalizeArchiveStatus(new URL(request.url).searchParams.get("status"))
-  return ok({ items: await listNotes(status) })
+  return ok({ items: await listNotes(user, status) })
 })
 
 export const POST = withApiErrorBoundary(async (request: NextRequest) => {

@@ -1364,9 +1364,6 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                 />
               </ChatMenuSection>
             </ChatMenu>
-            <button onClick={() => setDraftStatus("Voice note ready")} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-2 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-              <Mic className="h-4 w-4" />
-            </button>
             <VoiceInput
               label="Dictate message"
               prompt={activeDmTarget ? `Direct message with ${activeDmTarget.name}` : activeGroup ? `${activeGroup.name} study group chat` : `${activeThreadParsed.channel} - ${title}`}

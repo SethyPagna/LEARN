@@ -379,8 +379,10 @@ export async function getDashboardData(user: User) {
           WHERE nt.note_id = n.id
         ), '[]') AS tags
        FROM notes n
+       WHERE n.owner_user_id = $1 OR $2 = 'admin'
        ORDER BY n.updated_at DESC
        LIMIT 8`,
+      [user.id, user.role],
     ),
     query<{ title: string; completed: boolean }>(
       "SELECT title, completed FROM learning_goals WHERE user_id = $1 ORDER BY created_at DESC",
@@ -460,7 +462,7 @@ export function normalizeArchiveStatus(value?: string | null): ArchiveListStatus
   return value === "archived" || value === "all" ? value : "active"
 }
 
-export async function listNotes(status: ArchiveListStatus = "active") {
+export async function listNotes(user: User, status: ArchiveListStatus = "active") {
   await ensureDatabase()
   const archiveClause = archivedWhereClause("n")[status]
   const result = await query<NoteRecord>(
@@ -472,15 +474,19 @@ export async function listNotes(status: ArchiveListStatus = "active") {
         WHERE nt.note_id = n.id
       ), '[]') AS tags
      FROM notes n
-     WHERE ${archiveClause}
+     WHERE ${archiveClause} AND (n.owner_user_id = $1 OR $2 = 'admin')
      ORDER BY n.favorite DESC, n.updated_at DESC`,
+    [user.id, user.role],
   )
   return result.rows.map(normalizeNote)
 }
 
-export async function getNote(id: string) {
+export async function getNote(user: User, id: string) {
   await ensureDatabase()
-  const result = await query<NoteRecord>("SELECT * FROM notes WHERE id = $1 AND archived_at IS NULL LIMIT 1", [id])
+  const result = await query<NoteRecord>(
+    "SELECT * FROM notes WHERE id = $1 AND archived_at IS NULL AND (owner_user_id = $2 OR $3 = 'admin') LIMIT 1",
+    [id, user.id, user.role],
+  )
   return result.rows[0] ? normalizeNote(result.rows[0]) : null
 }
 
@@ -488,7 +494,7 @@ export async function saveNote(user: User, input: Partial<NoteRecord> & { title:
   await ensureDatabase()
   const id = input.id || createId("note")
   const workspaceId = "workspace_demo"
-  const existing = input.id ? await getNote(input.id) : null
+  const existing = input.id ? await getNote(user, input.id) : null
   await assertOwnership(user, "notes", input.id, "owner_user_id")
   await query(
     `INSERT INTO notes (id, workspace_id, owner_user_id, title, icon, content, favorite, template, updated_at)
@@ -549,7 +555,7 @@ export async function saveNote(user: User, input: Partial<NoteRecord> & { title:
     changeSummary: existing ? "Updated note" : "Created note",
   })
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "note", entityId: id })
-  return getNote(id)
+  return getNote(user, id)
 }
 
 export async function deleteNote(user: User, id: string) {
@@ -564,7 +570,7 @@ export async function restoreNote(user: User, id: string) {
   await query("UPDATE notes SET archived_at = NULL, updated_at = now() WHERE id = $1", [id])
   await restoreContentItemForSource("notes", id)
   await logAudit({ userId: user.id, action: "restore", entity: "note", entityId: id })
-  return getNote(id)
+  return getNote(user, id)
 }
 
 export async function listNoteVersions(user: User, noteId: string) {
@@ -1942,7 +1948,7 @@ async function seedKnowledgeGraphForUser(user: User) {
   const existing = await query("SELECT count(*) AS count FROM knowledge_nodes WHERE user_id = $1", [user.id])
   if (Number(existing.rows[0]?.count || 0) > 0) return
 
-  const notes = (await listNotes()).slice(0, 5)
+  const notes = (await listNotes(user)).slice(0, 5)
   await insertRows(
     "knowledge_nodes",
     [
@@ -1992,7 +1998,7 @@ async function seedReviewItemsForUser(user: User) {
   const existing = await query("SELECT count(*) AS count FROM review_items WHERE user_id = $1", [user.id])
   if (Number(existing.rows[0]?.count || 0) > 0) return
 
-  const notes = (await listNotes()).slice(0, 6)
+  const notes = (await listNotes(user)).slice(0, 6)
   await insertRows(
     "review_items",
     [
