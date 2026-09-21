@@ -76,6 +76,69 @@ async function insertRows(
   }
 }
 
+const OWNERSHIP_ERROR = "You can only change items you own."
+
+function assertOwnerRow(user: User, row: Record<string, unknown> | undefined) {
+  if (!row) return
+  const ownerId = row.owner_id == null ? "" : String(row.owner_id)
+  if (ownerId && ownerId !== user.id && user.role !== "admin") {
+    throw new Error(OWNERSHIP_ERROR)
+  }
+}
+
+/**
+ * Reject a write that targets a row owned by somebody else.
+ *
+ * Every `INSERT … ON CONFLICT (id) DO UPDATE` in this file takes the row id
+ * straight from the request body, and the update branch is not filtered by
+ * owner. That makes an unscoped upsert a **write IDOR**: supplying another
+ * user's id rewrites their row, and the `owner_user_id` in the `VALUES` clause
+ * does not help, because on conflict the row already exists and the update
+ * branch never touches the owner column.
+ *
+ * Call this before every upsert whose id can come from the client. It costs one
+ * `SELECT` on the update path and nothing on the create path, because a
+ * generated id never matches an existing row.
+ *
+ * `table` and `ownerColumn` are module-level constants, never request input.
+ * They are interpolated into the SQL text, so they must stay that way.
+ *
+ * `user.role === "admin"` is allowed through, matching the `OR $n = 'admin'`
+ * convention already used by every `delete*` function in this file. Note that
+ * this means an admin can rewrite any user's private note — consistent with the
+ * existing convention, but worth a deliberate decision rather than an accident.
+ */
+async function assertOwnership(user: User, table: string, id: unknown, ownerColumn: string) {
+  const rowId = id == null ? "" : String(id).trim()
+  if (!rowId) return
+  const result = await query(
+    `SELECT ${ownerColumn} AS owner_id FROM ${table} WHERE id = $1 LIMIT 1`,
+    [rowId],
+  )
+  assertOwnerRow(user, result.rows[0])
+}
+
+/**
+ * `note_blocks` has no owner column of its own — it inherits ownership from its
+ * parent note. Both the block id and the parent note id need checking: a caller
+ * could otherwise pass their own `noteId` alongside somebody else's block id and
+ * slip past a parent-only check.
+ */
+async function assertNoteBlockOwnership(user: User, blockId: unknown, noteId: unknown) {
+  await assertOwnership(user, "notes", noteId, "owner_user_id")
+  const rowId = blockId == null ? "" : String(blockId).trim()
+  if (!rowId) return
+  const result = await query(
+    `SELECT n.owner_user_id AS owner_id
+     FROM note_blocks b
+     JOIN notes n ON n.id = b.note_id
+     WHERE b.id = $1
+     LIMIT 1`,
+    [rowId],
+  )
+  assertOwnerRow(user, result.rows[0])
+}
+
 export interface User {
   id: string
   username: string
@@ -420,6 +483,7 @@ export async function saveNote(user: User, input: Partial<NoteRecord> & { title:
   const id = input.id || createId("note")
   const workspaceId = "workspace_demo"
   const existing = input.id ? await getNote(input.id) : null
+  await assertOwnership(user, "notes", input.id, "owner_user_id")
   await query(
     `INSERT INTO notes (id, workspace_id, owner_user_id, title, icon, content, favorite, template, updated_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())
@@ -586,6 +650,7 @@ export async function saveCalendarEvent(user: User, input: Record<string, unknow
   const startsAt = String(input.startsAt || input.starts_at || new Date().toISOString())
   const startsAtMs = Date.parse(startsAt)
   const defaultEndsAt = new Date((Number.isFinite(startsAtMs) ? startsAtMs : Date.now()) + 45 * 60 * 1000).toISOString()
+  await assertOwnership(user, "calendar_events", input.id, "owner_user_id")
   await query(
     `INSERT INTO calendar_events (id, workspace_id, owner_user_id, title, event_type, starts_at, ends_at, timezone, notes, linked_note_id, updated_at)
      VALUES ($1, 'workspace_demo', $2, $3, $4, $5, $6, $7, $8, $9, now())
@@ -746,6 +811,7 @@ export async function listEditorDocuments(user: User, documentType = "doc", stat
 export async function saveEditorDocument(user: User, input: Record<string, unknown>, documentType = "doc") {
   await ensureDatabase()
   const id = String(input.id || createId(documentType === "doc" ? "doc" : "page"))
+  await assertOwnership(user, "editor_documents", input.id, "owner_user_id")
   await query(
     `INSERT INTO editor_documents (id, workspace_id, owner_user_id, title, document_type, content, tags, updated_at)
      VALUES ($1, 'workspace_demo', $2, $3, $4, $5::jsonb, $6::jsonb, now())
@@ -823,6 +889,7 @@ export async function listSheets(user: User, status: ArchiveListStatus = "active
 export async function saveSheet(user: User, input: Record<string, unknown>) {
   await ensureDatabase()
   const id = String(input.id || createId("sheet"))
+  await assertOwnership(user, "sheet_documents", input.id, "owner_user_id")
   await query(
     `INSERT INTO sheet_documents (id, workspace_id, owner_user_id, title, cells, history, updated_at)
      VALUES ($1, 'workspace_demo', $2, $3, $4::jsonb, $5::jsonb, now())
@@ -898,6 +965,7 @@ export async function listSlideDecks(user: User, status: ArchiveListStatus = "ac
 export async function saveSlideDeck(user: User, input: Record<string, unknown>) {
   await ensureDatabase()
   const id = String(input.id || createId("deck"))
+  await assertOwnership(user, "slide_decks", input.id, "owner_user_id")
   await query(
     `INSERT INTO slide_decks (id, workspace_id, owner_user_id, title, slides, speaker_notes, updated_at)
      VALUES ($1, 'workspace_demo', $2, $3, $4::jsonb, $5::jsonb, now())
@@ -1131,6 +1199,7 @@ export async function leaveGroup(user: User, groupId: string) {
 export async function saveGroup(user: User, input: Record<string, unknown>) {
   await ensureDatabase()
   const id = String(input.id || createId("group"))
+  await assertOwnership(user, "workspace_groups", input.id, "created_by_user_id")
   await query(
     `INSERT INTO workspace_groups (id, workspace_id, name, description, created_by_user_id, updated_at)
      VALUES ($1, 'workspace_demo', $2, $3, $4, now())
@@ -1378,11 +1447,18 @@ export async function saveQuiz(user: User, input: Record<string, unknown>) {
 
   const id = String(input.id || createId("quiz"))
   const topic = String(input.topic || "General").trim() || "General"
+  await assertOwnership(user, "quizzes", input.id, "created_by_user_id")
+  // `created_by_user_id` is last in the column list on purpose: the fake quiz
+  // store in `tests/api/quiz-loop.test.ts` parses these params positionally, and
+  // appending keeps its first five mapping to the same columns.
+  //
+  // It is also deliberately absent from the `DO UPDATE SET` clause: an existing
+  // quiz keeps the owner it was created with, so an update cannot reassign it.
   await query(
-    `INSERT INTO quizzes (id, workspace_id, title, topic, description, source)
-     VALUES ($1, 'workspace_demo', $2, $3, $4, $5)
+    `INSERT INTO quizzes (id, workspace_id, title, topic, description, source, created_by_user_id)
+     VALUES ($1, 'workspace_demo', $2, $3, $4, $5, $6)
      ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, topic = EXCLUDED.topic, description = EXCLUDED.description`,
-    [id, title, topic, String(input.description || ""), String(input.source || "manual")],
+    [id, title, topic, String(input.description || ""), String(input.source || "manual"), user.id],
   )
 
   if (input.id) await query("DELETE FROM quiz_questions WHERE quiz_id = $1", [id])
@@ -1427,6 +1503,7 @@ export async function archiveQuiz(user: User, id: string) {
   await ensureDatabase()
   const existing = await query("SELECT id FROM quizzes WHERE id = $1 AND archived_at IS NULL LIMIT 1", [id])
   if (!existing.rows[0]) return false
+  await assertOwnership(user, "quizzes", id, "created_by_user_id")
   await query("UPDATE quizzes SET archived_at = datetime('now') WHERE id = $1", [id])
   await logAudit({ userId: user.id, action: "archive", entity: "quiz", entityId: id })
   return true
@@ -1915,6 +1992,7 @@ export async function saveVaultBlock(user: User, input: Record<string, unknown>)
   const blockType = String(input.blockType || input.block_type || "text")
   const content = typeof input.content === "object" && input.content ? input.content : { text: String(input.content || "") }
   const id = String(input.id || createId("block"))
+  await assertNoteBlockOwnership(user, input.id, noteId)
   await query(
     `INSERT INTO note_blocks (id, note_id, block_type, content, sort_order)
      VALUES ($1, $2, $3, $4::jsonb, $5)
@@ -2159,6 +2237,7 @@ export async function listMicroLessons(user: User) {
 export async function saveMicroLesson(user: User, input: Record<string, unknown>) {
   await ensureDatabase()
   const id = String(input.id || createId("lesson"))
+  await assertOwnership(user, "micro_lessons", input.id, "creator_user_id")
   await query(
     `INSERT INTO micro_lessons (
        id, creator_user_id, title, summary, duration_seconds, topic_tags, question, choices,
@@ -2306,6 +2385,7 @@ export async function listLearningSpaces(user: User) {
 export async function saveLearningSpace(user: User, input: Record<string, unknown>) {
   await ensureDatabase()
   const id = String(input.id || createId("space"))
+  await assertOwnership(user, "learning_spaces", input.id, "owner_user_id")
   await query(
     `INSERT INTO learning_spaces (id, workspace_id, owner_user_id, name, description, visibility, topic_tags, settings, updated_at)
      VALUES ($1, 'workspace_demo', $2, $3, $4, $5, $6::jsonb, $7::jsonb, now())
@@ -2358,6 +2438,7 @@ export async function listStudyRooms(user: User) {
 export async function saveStudyRoom(user: User, input: Record<string, unknown>) {
   await ensureDatabase()
   const id = String(input.id || createId("room"))
+  await assertOwnership(user, "study_rooms", input.id, "owner_user_id")
   await query(
     `INSERT INTO study_rooms (id, space_id, owner_user_id, name, mode, pomodoro_minutes, break_minutes, status, presence, updated_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, now())
@@ -2407,6 +2488,7 @@ export async function listStudyBattles(user: User) {
 export async function saveStudyBattle(user: User, input: Record<string, unknown>) {
   await ensureDatabase()
   const id = String(input.id || createId("battle"))
+  await assertOwnership(user, "study_battles", input.id, "owner_user_id")
   await query(
     `INSERT INTO study_battles (id, room_id, owner_user_id, title, topic, mode, status, question_set, leaderboard, started_at, ended_at, updated_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11, now())
@@ -2575,6 +2657,7 @@ export async function listModerationItems(user: User) {
 export async function saveModerationItem(user: User, input: Record<string, unknown>) {
   await ensureDatabase()
   const id = String(input.id || createId("mod"))
+  await assertOwnership(user, "moderation_items", input.id, "reporter_user_id")
   await query(
     `INSERT INTO moderation_items (id, reporter_user_id, target_type, target_id, reason, status, notes, updated_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, now())
