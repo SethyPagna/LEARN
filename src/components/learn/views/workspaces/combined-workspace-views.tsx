@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ComponentType } from "react"
-import { BookOpen, Bot, ChevronDown, Clock, Gamepad2, Info, Mail, MessageSquare, MoreHorizontal, PhoneCall, Play, Plus, Radio, Repeat2, Search, Send, SlidersHorizontal, Sparkles, Swords, Target, Trash2, Users, UsersRound } from "lucide-react"
+import { BookOpen, ChevronDown, Clock, Gamepad2, Info, Mail, MessageSquare, MoreHorizontal, PhoneCall, Play, Plus, Radio, Repeat2, Search, Send, SlidersHorizontal, Sparkles, Swords, Target, Trash2, Users, UsersRound } from "lucide-react"
 import type { DashboardData, LearningSpace, Quiz, StudyBattle, StudyRoom, User, View } from "../../types"
 import type { WorkspaceOptions } from "../../preferences"
 import { api } from "../../api"
@@ -9,7 +9,6 @@ import { Panel } from "../../ui"
 import { SocialLearningView } from "../ecosystem-views"
 import { ChatView, GamesView } from "../productivity-views"
 import { QuizView } from "../quiz-view"
-import { buildLearnRoutePlan } from "@/lib/learn-route-features"
 import { AI_TUTOR_LAUNCH_KEY, buildPracticeAiTutorLaunch } from "@/lib/ai/tutor-workflow"
 import {
   practiceWorkspaceTabs,
@@ -96,26 +95,6 @@ type SocialThreadRecord = ChatThreadLike & {
 
 type PracticeGuideStep = "start" | "live" | "setup" | "drafts"
 type PracticeSetupStep = "arena" | "styles" | "modes" | "actions"
-
-export function LearnWorkspaceView({
-  dashboard,
-  quizzes,
-  setView,
-}: {
-  dashboard: DashboardData | null
-  quizzes: Quiz[]
-  setView: (view: View) => void
-}) {
-  return (
-    <WorkspaceFrame
-      eyebrow="Learn workspace"
-      title="Learn"
-      body="Shape the next learning path without duplicating Dashboard, Reviews, or Calendar."
-    >
-      <LearnRoute dashboard={dashboard} quizzes={quizzes} setView={setView} />
-    </WorkspaceFrame>
-  )
-}
 
 export function PracticeWorkspaceView({
   initialView,
@@ -939,80 +918,6 @@ function WorkspaceFrame<T extends string>({
   )
 }
 
-function LearnRoute({ dashboard, quizzes, setView }: { dashboard: DashboardData | null; quizzes: Quiz[]; setView: (view: View) => void }) {
-  const focus = dashboard?.snapshot?.recommendedFocus ?? []
-  const weakTopics = dashboard?.snapshot?.weakTopics ?? []
-  const routePlan = useMemo(() => buildLearnRoutePlan({
-    goalCompletion: dashboard?.snapshot?.goalCompletion ?? 0,
-    quizCount: quizzes.length,
-    recommendedFocus: focus,
-    weakTopics,
-  }), [dashboard?.snapshot?.goalCompletion, focus, quizzes.length, weakTopics])
-  const actionIcons = useMemo(() => ({
-    create: Sparkles,
-    tutor: Bot,
-    practice: BookOpen,
-  }), [])
-
-  return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
-      <Panel className="p-4">
-        <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Recommended route</p>
-            <h3 className="mt-1 text-2xl font-semibold text-foreground">{routePlan.headline}</h3>
-          </div>
-          <button onClick={() => setView(routePlan.primaryAction.view)} className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
-            Start: {routePlan.primaryAction.title}
-          </button>
-        </div>
-        <div className="grid gap-2 md:grid-cols-4">
-          {routePlan.actions.map((action) => {
-            const Icon = actionIcons[action.id]
-            return (
-              <button key={action.title} onClick={() => setView(action.view)} className="group relative rounded-md border border-border bg-background p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground" title={action.body}>
-                <div className="flex items-start justify-between gap-3">
-                  <Icon className="h-6 w-6 text-success" />
-                  <MoreHorizontal className="h-4 w-4 text-muted-foreground group-hover:text-accent-foreground" />
-                </div>
-                <h3 className="mt-3 font-semibold text-foreground group-hover:text-accent-foreground">{action.title}</h3>
-                <span className="mt-2 inline-flex rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold uppercase text-secondary-foreground group-hover:bg-background/80">Open</span>
-                <p className="pointer-events-none absolute left-3 right-3 top-[calc(100%+0.35rem)] z-50 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{action.body}</p>
-              </button>
-            )
-          })}
-        </div>
-      </Panel>
-      <Panel className="p-4">
-        <h3 className="font-semibold text-foreground">Route signal</h3>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          {routePlan.signals.map((signal) => <MiniMetric key={signal.label} label={signal.label} value={signal.value} />)}
-        </div>
-        <details className="group/why mt-3 rounded-md border border-border bg-background">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-            <span>Why this route</span>
-            <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/why:rotate-180" />
-          </summary>
-          <div className="border-t border-border px-3 py-2 text-sm leading-6 text-muted-foreground">{routePlan.primaryAction.body}</div>
-        </details>
-      </Panel>
-      <Panel className="p-4 xl:col-span-2">
-        <details className="group/loop">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
-            <span>Learning loop</span>
-            <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/loop:rotate-180" />
-          </summary>
-          <div className="mt-3 grid gap-3 md:grid-cols-3">
-            <PatternCard icon={Sparkles} title="Capture" body="Save work in Studio." />
-            <PatternCard icon={Repeat2} title="Practice" body="Quiz, retry, review." />
-            <PatternCard icon={MessageSquare} title="Reflect" body="Share when useful." />
-          </div>
-        </details>
-      </Panel>
-    </div>
-  )
-}
-
 function InfoMenu({ body, title }: { body: string; title: string }) {
   return (
     <details className="group/info relative">
@@ -1407,24 +1312,4 @@ function formatCompactDuration(totalSeconds: number) {
   const seconds = totalSeconds % 60
   return `${minutes}:${String(seconds).padStart(2, "0")}`
 }
-
-function MiniMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border border-border bg-background p-3">
-      <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
-      <p className="mt-1 text-xl font-semibold text-foreground">{value}</p>
-    </div>
-  )
-}
-
-function PatternCard({ body, icon: Icon, title }: { body: string; icon: ComponentType<{ className?: string }>; title: string }) {
-  return (
-    <div className="group relative flex items-center gap-3 rounded-md border border-border bg-background p-4">
-      <Icon className="h-6 w-6 text-success" />
-      <p className="font-semibold text-foreground">{title}</p>
-      <p className="pointer-events-none absolute left-3 right-3 top-[calc(100%+0.35rem)] z-50 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{body}</p>
-    </div>
-  )
-}
-
 

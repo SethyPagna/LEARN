@@ -97,10 +97,6 @@ export async function getDatabaseRuntimeMode(): Promise<CloudflareRuntimeMode> {
   })
 }
 
-export async function getDatabaseDialect() {
-  return "d1" as const
-}
-
 export async function isDatabaseConfigured() {
   return Boolean((await getD1Database()) || getD1ApiConfig(await getMergedEnv()))
 }
@@ -178,15 +174,3 @@ export async function query<T = QueryResultRow>(
   return queryD1Api<T>(text, values)
 }
 
-function splitSqlStatements(sql: string) {
-  return sql
-    .split(";")
-    .map((statement) => statement.trim())
-    .filter(Boolean)
-}
-
-export async function exec(sql: string) {
-  for (const statement of splitSqlStatements(sql)) {
-    await query(statement)
-  }
-}

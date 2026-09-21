@@ -43,7 +43,6 @@ export interface NavigationTarget {
 export const studioViews = ["studio", "notes", "docs", "sheets", "slides"] as const satisfies readonly View[]
 export const studioAliasViews = ["notes", "docs", "sheets", "slides"] as const satisfies readonly View[]
 export const learnAliasViews = ["vault", "feed", "discover", "graph", "progress"] as const satisfies readonly View[]
-export const learnWorkspaceViews = [] as const satisfies readonly View[]
 export const practiceViews = ["practice", "quizzes", "games", "reviews"] as const satisfies readonly View[]
 export const socialViews = ["social", "chat", "spaces", "rooms", "battles"] as const satisfies readonly View[]
 export const manageAliasViews = ["profile", "admin"] as const satisfies readonly View[]

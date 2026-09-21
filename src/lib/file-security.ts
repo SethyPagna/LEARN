@@ -1,5 +1,4 @@
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024
-export const UPLOAD_HELP_TEXT = "Images, video, audio, PDFs, Office files, CSV, Markdown, and plain text. Max 100 MB."
 
 const BLOCKED_EXTENSIONS = new Set([
   "apk",

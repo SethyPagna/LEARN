@@ -12,10 +12,10 @@ import { AdminView, CalendarView, ProgressView, SettingsView } from "./views/sec
 import { useWorkspacePreferences } from "./preferences"
 import { FeedView, GraphView, ProfileView, VaultView } from "./views/ecosystem-views"
 import { StudioView } from "./views/studio-view"
-import { LearnWorkspaceView, PracticeWorkspaceView, SocialWorkspaceView } from "./views/workspaces/combined-workspace-views"
+import { PracticeWorkspaceView, SocialWorkspaceView } from "./views/workspaces/combined-workspace-views"
 import { PRACTICE_DRAFT_EVENT, readPracticeDrafts, summarizePracticeDrafts, type PracticeDraftSummary } from "@/lib/practice-drafts"
 import { readStudioDrafts, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, type StudioDraftSummary } from "@/lib/studio-drafts"
-import { getStudioKind, learnWorkspaceViews, practiceViews, socialViews, studioViews, viewFromPath, viewRoutes } from "@/lib/navigation"
+import { getStudioKind, practiceViews, socialViews, studioViews, viewFromPath, viewRoutes } from "@/lib/navigation"
 
 export function LearnShell({
   initialView = "dashboard",
@@ -200,7 +200,6 @@ export function LearnShell({
           <div className={preferences.density === "compact" ? "p-3 lg:p-4" : "p-4 lg:p-6"}>
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
             {view === "dashboard" ? <DashboardView dashboard={dashboard} forceOnboarding={forceOnboarding} notes={notes} quizzes={quizzes} options={preferences.options} practiceDraftSummary={practiceDraftSummary} setView={chooseView} studioDraftSummary={studioDraftSummary} user={user} /> : null}
-            {learnWorkspaceViews.includes(view as (typeof learnWorkspaceViews)[number]) ? <LearnWorkspaceView dashboard={dashboard} quizzes={quizzes} setView={chooseView} /> : null}
             {view === "vault" ? <VaultView setView={chooseView} /> : null}
             {view === "feed" || view === "discover" ? <FeedView setView={chooseView} /> : null}
             {view === "graph" ? <GraphView setView={chooseView} /> : null}
