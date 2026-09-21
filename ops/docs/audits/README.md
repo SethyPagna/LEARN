@@ -9,6 +9,7 @@ names; re-run after any structural change.
 | 2026-09-21 | [Security Audit (20-point)](./2026-09-21-security-audit.md) | `security-*-hardening` (×3) | 14 PASS / 4 PARTIAL / 2 FAIL — all 3 immediate items fixed in `582d149` |
 | 2026-09-21 | [AI Council](./2026-09-21-ai-council.md) | `ai-council` | Scope & sequencing decision — 5 advisors + cross-critique + Chairman verdict |
 | 2026-09-21 | [AI Council — Session 2](./2026-09-21-ai-council-next-investment.md) | `ai-council` | Where the next unit of effort goes — verdict: *narrow the order, not the ambition*. **Executed** — see [Route-handler test harness](#route-handler-test-harness--executed) |
+| 2026-09-21 | [AI Council — Session 3 (takeover)](./2026-09-21-ai-council-takeover.md) | `ai-council` | How to finish: debloat, optimise, integrate. Verdict: *close the seams, add no new surface*. **#1 step executed** — six consumer-less routes closed |
 
 **Revision audited:** `5f06f9e1` (`main`) — cleanup work is on branch `cleanup/stage-1`
 
@@ -265,3 +266,29 @@ Recorded because these were requested capabilities, and an audit that only repor
 | Group calling, call recording | Implemented (`getUserMedia` + `MediaRecorder`) — and was **broken in production** by the `Permissions-Policy` header bug. |
 | Vault / Studio editors, quiz + practice, multiplayer activities, realtime chat, calendar | Implemented; see the code-quality audit's negative findings for the verified-in-use list. |
 
+## Session 3 — AutoCoder takeover — executed
+
+Branch `cleanup/stage-1`, `main` untouched at `5f06f9e1`. Baseline entering the session: `45638de`.
+
+| Commit | Change |
+| --- | --- |
+| `49f468a` | **fix:** close the write-IDOR on quiz upserts. `saveQuiz`'s `ON CONFLICT (id) DO UPDATE` and `archiveQuiz` took the row id from the request body with no ownership filter, so any signed-in user could rewrite another user's quiz — and the `DELETE FROM quiz_questions` that follows then wiped its questions. Migration `0013` adds `quizzes.created_by_user_id`; both paths now call the existing `assertOwnership` helper (seeded, owner-less quizzes stay shared-editable). +7 tests. |
+| `c2b01ae` | **refactor:** wire or remove the six routes nothing consumed. Deleted `/api/audit`, `/api/automation/run`, `/api/micro-lessons`; wired `/api/integrations/health` (admin Providers panel), `/api/vault/blocks` (Vault block palette), `/api/moderation` (new Admin Moderation tab). New invariant test `project/route-wiring.test.ts` keeps the consumer-less count at 0. 50 → 47 routes. +3 tests. |
+| `d010335` | **refactor:** debloat + optimise. Removed 18 unused exports (15 reported, 3 cascaded). `insertRows()` now forwards an optional `onConflict`; six serial seed loops collapsed to multi-row statements. +6 tests. |
+
+**Verified at `d010335`:** `tsc --noEmit` exit 0 · **445/445 tests** (54 files) · analyzer `unusedExports 15 → 0`, `orphanFiles 0`.
+
+**Static-analysis false positives ruled out (negative findings):**
+
+- The 10 "unused dependencies" are build/type tooling (`typescript`, `tsx`, `wrangler`, `postcss`, `@tailwindcss/postcss`, `@types/*`) plus `react-dom` and `@tiptap/pm` (runtime/peer) — not dead.
+- The 3 "import cycles" are all `i18n/vocabulary.ts` ⇄ `i18n/packs/*.ts`: a type-only (`import type`) back-reference plus a dynamic `import()`. Erased at compile time — harmless.
+- 279 `internalOnlyExports` remain (exported, used only within their own module). De-exporting is cosmetic churn with no behavioural payoff; deliberately not swept.
+
+**Deferred decisions (surfaced, not silently deleted):**
+
+1. **The content registry is write-only.** `content_items` / `content_versions` / `shared_access` / `content_attachments` are written by six save paths and read by nothing; `content_search` has zero writers and zero readers. Decision required: **wire one real read path (a Library/Discover view) or stop writing the write-only half.** Not done here — extending a zero-reader subsystem adds surface without a verified outcome.
+2. **Parked modules** `learn-route-features.ts`, `cloudflare-cleanup.ts`, `workspace-cleanup.ts`, `content-search.ts`. The first and last are reached only by tests (intent unknown); the middle two are used by `ops/scripts/` cleanup tooling. Kept — their fate is an owner decision, and deleting them deletes passing tests.
+3. **`/api/notes/[id]/versions`** stays consumer-less; it is the sole allowlisted entry in the route-wiring test (no UI restores a version yet).
+4. **No real end-to-end run.** Every test stubs D1 at the `globalThis.fetch` boundary; `smoke:cloudflare` exists but was not run in this environment. "Tests pass" is not evidence the app runs.
+
+**Not started:** Stage 2 consolidation (duplicate CRUD route triplets), Stage 4 structural refactor (`studio-view.tsx` at 4,041 lines — deliberately deferred behind a verification net), Stage 5 schema cleanup, and handler coverage beyond 7 of 47.
