@@ -99,6 +99,7 @@ import { api, formatDate } from "../api"
 import type { Note, SlideObject, StudioDirtyBadge, StudioKind, StudioLayoutState, StudioPane, StudioTab, WorkspaceDeck, WorkspaceDocument, WorkspaceSheet } from "../types"
 import type { WorkspaceOptions } from "../preferences"
 import { EmptyState, Panel } from "../ui"
+import { VoiceInput } from "../voice-input"
 import {
   addColumn,
   addRow,
@@ -3630,6 +3631,15 @@ function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: {
         zoom={zoom}
         placement="top"
       />
+      {editor && !pageLocked ? (
+        <div className="flex flex-wrap items-center gap-2 border-b border-border bg-card px-2 py-1.5 sm:px-3">
+          <VoiceInput
+            label="Dictate into document"
+            prompt={placeholder}
+            onTranscript={(text) => editor.chain().focus().insertContent(`${text} `).run()}
+          />
+        </div>
+      ) : null}
       <div className="overflow-auto bg-muted/35 p-2 sm:p-3">
         <div
           className="mx-auto"
