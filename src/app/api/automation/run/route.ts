@@ -1,13 +1,15 @@
-import { NextResponse } from "next/server"
-import { isPlainRecord, readJsonObject, withApiErrorBoundary } from "@/lib/api"
-import { getCurrentUser } from "@/lib/data"
+import { NextResponse, type NextRequest } from "next/server"
+import { isApiResponse, isPlainRecord, readJsonObject, requireApiUser, withApiErrorBoundary } from "@/lib/api"
 import { query } from "@/lib/db"
 import { getAutomationJob } from "@/lib/automation"
 import { createId } from "@/lib/schema"
 
-export const POST = withApiErrorBoundary(async (request: Request) => {
-  const user = await getCurrentUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+export const POST = withApiErrorBoundary(async (request: NextRequest) => {
+  // requireApiUser() rather than getCurrentUser(): this is a mutation, and
+  // requireApiUser applies the hasTrustedOrigin() cross-origin check that a bare
+  // session lookup skips.
+  const user = await requireApiUser(request)
+  if (isApiResponse(user)) return user
 
   const body = await readJsonObject(request)
   const jobKey = String(body.jobKey || "").trim()

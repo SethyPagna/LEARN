@@ -24,11 +24,26 @@ const securityHeaders = [
   },
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
   { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()' },
+  {
+    key: 'Permissions-Policy',
+    // camera and microphone must stay `(self)`. The app calls
+    // navigator.mediaDevices.getUserMedia({ audio: true, video }) for group
+    // calling and call recording (views/productivity-views.tsx:655). An empty
+    // allowlist `camera=()` / `microphone=()` makes the browser reject that
+    // request *before* any permission prompt, so the feature fails with
+    // "Couldn't access your camera/microphone" every time. The remaining
+    // directives are genuinely unused and stay denied.
+    value: 'camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), interest-cohort=()',
+  },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Permitted-Cross-Domain-Policies', value: 'none' },
+  // Deliberately without `includeSubDomains` or `preload`: this header would
+  // otherwise apply to sibling subdomains of whatever host the app is served
+  // from, and preload is a hard-to-reverse commitment. Enable them only after
+  // confirming every subdomain is HTTPS-only.
+  { key: 'Strict-Transport-Security', value: 'max-age=63072000' },
 ]
 
 /** @type {import('next').NextConfig} */
