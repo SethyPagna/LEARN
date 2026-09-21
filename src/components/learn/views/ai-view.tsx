@@ -5,9 +5,11 @@ import { Bot, Brain, CheckCircle2, CheckSquare, ChevronDown, FileText, Gauge, In
 import type { WorkspaceOptions } from "../preferences"
 import type { Note, StudioInsertTarget, View } from "../types"
 import { api } from "../api"
+import { AiBlockRenderer } from "../ai-block-renderer"
 import { ControlButton, Panel, StatusPill } from "../ui"
 import { VoiceInput } from "../voice-input"
 import { menuSurfaceClasses, statusToneClasses, toneTextClasses, type UiTone } from "@/lib/design-system"
+import { formatAiResponse } from "@/lib/ai/format-response"
 import { buildAiGatewayReadiness, type AiGatewayProviderCatalogItem, type AiGatewayProviderPresetItem, type AiGatewayProviderStatus } from "@/lib/ai/gateway-readiness"
 import { buildGuidedPrompt, listInsertActions, normalizeStudioInsertTarget, promptContracts, studioInsertTargets, type GuidedPromptResult } from "@/lib/ai/prompt-builder"
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
@@ -120,6 +122,9 @@ export function AiTutorView({
 
   const activeMode = useMemo(() => getAiTutorModeOption(activeTaskKey), [activeTaskKey])
   const recentContext = useMemo(() => notes.slice(0, 5).map((note) => `${note.title}: ${note.content}`).join("\n\n"), [notes])
+  // Additive: the reply stays rendered raw below; this is a themed, structured
+  // preview of the same text so markdown/JSON answers never read as raw text.
+  const formattedReply = useMemo(() => (reply.trim() ? formatAiResponse({ reply }) : null), [reply])
   const uploadedContext = useMemo(() => (importText || lastImportText).trim(), [importText, lastImportText])
   const sourceContext = useMemo(() => buildAiTutorSourceContext({
     message,
@@ -647,6 +652,19 @@ export function AiTutorView({
             </div>
             {actionStatus ? <p className="mb-3 rounded-md bg-background px-3 py-2 text-xs font-semibold text-muted-foreground">{actionStatus}</p> : null}
             <div className="whitespace-pre-wrap leading-7 text-foreground">{reply}</div>
+            {formattedReply && formattedReply.blocks.length ? (
+              <details className="mt-3 rounded-md border border-border bg-background p-3" open>
+                <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Formatted · {formattedReply.sourceFormat}
+                </summary>
+                <AiBlockRenderer blocks={formattedReply.blocks} className="mt-3" />
+                {formattedReply.warnings.length ? (
+                  <ul className="mt-3 grid gap-1 text-xs leading-5 text-muted-foreground">
+                    {formattedReply.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+                  </ul>
+                ) : null}
+              </details>
+            ) : null}
           </div>
         ) : null}
       </Panel>
