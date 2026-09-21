@@ -1,0 +1,2460 @@
+{
+  "generatedAt": "2026-09-21T23:42:33.669Z",
+  "baseUrl": "http://localhost:3111",
+  "routes": [
+    "/dashboard",
+    "/canvas",
+    "/notes",
+    "/practice",
+    "/social",
+    "/calendar",
+    "/settings",
+    "/ai",
+    "/live"
+  ],
+  "viewports": [
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "laptop",
+      "width": 1440,
+      "height": 900
+    }
+  ],
+  "limits": {
+    "hitAreaMinimum": 24,
+    "hitAreaAdvisory": 44
+  },
+  "summary": {
+    "checks": 18,
+    "overflow": 0,
+    "maxMaskedOverflow": 766,
+    "clipped": 85,
+    "unreachable": 250,
+    "scrollable": 44,
+    "offscreen": 294,
+    "targetsBelow24": 14,
+    "targetsBelow44": 629,
+    "handlesMeasured": 18,
+    "handlesBelow24": 0,
+    "consoleErrors": 0,
+    "failedChecks": 13
+  },
+  "results": [
+    {
+      "route": "/dashboard",
+      "viewport": "phone",
+      "overflow": 0,
+      "maskedOverflow": 425,
+      "offenders": {
+        "total": 96,
+        "scrollable": 12,
+        "unreachable": 84,
+        "clipped": 20,
+        "scrollableSamples": [
+          {
+            "el": "details.relative.min-w-[170px].snap-start.rounde",
+            "inside": "div.dashboard-rail.mt-3.flex.snap-x.gap-2.ov"
+          },
+          {
+            "el": "summary.flex.min-h-11.cursor-pointer.list-none.i",
+            "inside": "div.dashboard-rail.mt-3.flex.snap-x.gap-2.ov"
+          },
+          {
+            "el": "span",
+            "inside": "div.dashboard-rail.mt-3.flex.snap-x.gap-2.ov"
+          },
+          {
+            "el": "span.rounded-full.bg-secondary.px-2.py-0.5.te",
+            "inside": "div.dashboard-rail.mt-3.flex.snap-x.gap-2.ov"
+          }
+        ],
+        "clippedSamples": [
+          {
+            "el": "span",
+            "side": "right",
+            "left": 398,
+            "right": 448,
+            "width": 50,
+            "overshoot": 58,
+            "text": "Signals"
+          },
+          {
+            "el": "span.rounded-full.bg-secondary.px-2.py-0.5.te",
+            "side": "right",
+            "left": 460,
+            "right": 484,
+            "width": 24,
+            "overshoot": 94,
+            "text": "3"
+          },
+          {
+            "el": "p.truncate.text-xs.font-semibold.uppercase",
+            "side": "right",
+            "left": 403,
+            "right": 468,
+            "width": 64,
+            "overshoot": 78,
+            "text": "Reviews"
+          },
+          {
+            "el": "p.text-2xl.font-semibold.leading-none.text",
+            "side": "right",
+            "left": 403,
+            "right": 468,
+            "width": 64,
+            "overshoot": 78,
+            "text": "0"
+          },
+          {
+            "el": "p.truncate.text-xs.font-semibold.uppercase",
+            "side": "right",
+            "left": 561,
+            "right": 617,
+            "width": 55,
+            "overshoot": 227,
+            "text": "Drafts"
+          },
+          {
+            "el": "p.text-2xl.font-semibold.leading-none.text",
+            "side": "right",
+            "left": 561,
+            "right": 617,
+            "width": 55,
+            "overshoot": 227,
+            "text": "1"
+          }
+        ]
+      },
+      "targets": {
+        "below44": 20,
+        "below24": 1,
+        "unmeasurable": 0,
+        "samples": [
+          {
+            "el": "button.flex.h-9.w-9.items-center.justify-center",
+            "text": "",
+            "label": "Toggle menu",
+            "visual": [
+              19,
+              36
+            ],
+            "hitAtLeast": 0,
+            "measurable": true,
+            "subMinimum": true
+          },
+          {
+            "el": "a.absolute.left-4.top-4.z-[80].-translate-",
+            "text": "Skip to content",
+            "label": "",
+            "visual": [
+              135,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.items-center.gap-1.5.rounded-md",
+            "text": "Create",
+            "label": "",
+            "visual": [
+              101,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.items-center.justify-center",
+            "text": "",
+            "label": "Toggle theme",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.rounded-md.list-none.items-",
+            "text": "",
+            "label": "Language",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.rounded-md.relative.list-no",
+            "text": "2",
+            "label": "Notifications",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "handles": {
+        "count": 0,
+        "measurable": 0,
+        "below24": 0,
+        "atLeast": [],
+        "samples": []
+      },
+      "heading": "Dashboard",
+      "bodyText": 610,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "failures": [
+        "20 clipped element(s)",
+        "1 target(s) below 24x24"
+      ]
+    },
+    {
+      "route": "/canvas",
+      "viewport": "phone",
+      "overflow": 0,
+      "maskedOverflow": 766,
+      "offenders": {
+        "total": 51,
+        "scrollable": 0,
+        "unreachable": 51,
+        "clipped": 22,
+        "scrollableSamples": [],
+        "clippedSamples": [
+          {
+            "el": "button.canvas-tool.capitalize",
+            "side": "right",
+            "left": 415,
+            "right": 464,
+            "width": 49,
+            "overshoot": 74,
+            "text": "left"
+          },
+          {
+            "el": "button.canvas-tool.capitalize",
+            "side": "right",
+            "left": 472,
+            "right": 537,
+            "width": 65,
+            "overshoot": 147,
+            "text": "center"
+          },
+          {
+            "el": "button.canvas-tool.capitalize",
+            "side": "right",
+            "left": 545,
+            "right": 602,
+            "width": 56,
+            "overshoot": 212,
+            "text": "right"
+          },
+          {
+            "el": "button.canvas-tool.capitalize",
+            "side": "right",
+            "left": 610,
+            "right": 656,
+            "width": 46,
+            "overshoot": 266,
+            "text": "top"
+          },
+          {
+            "el": "button.canvas-tool.capitalize",
+            "side": "right",
+            "left": 664,
+            "right": 729,
+            "width": 65,
+            "overshoot": 339,
+            "text": "middle"
+          },
+          {
+            "el": "button.canvas-tool.capitalize",
+            "side": "right",
+            "left": 737,
+            "right": 806,
+            "width": 69,
+            "overshoot": 416,
+            "text": "bottom"
+          }
+        ]
+      },
+      "targets": {
+        "below44": 42,
+        "below24": 0,
+        "unmeasurable": 1,
+        "samples": [
+          {
+            "el": "a.absolute.left-4.top-4.z-[80].-translate-",
+            "text": "Skip to content",
+            "label": "",
+            "visual": [
+              135,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.items-center.justify-center",
+            "text": "",
+            "label": "Toggle menu",
+            "visual": [
+              25,
+              36
+            ],
+            "hitAtLeast": 24,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.items-center.gap-1.5.rounded-md",
+            "text": "Create",
+            "label": "",
+            "visual": [
+              101,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.items-center.justify-center",
+            "text": "",
+            "label": "Toggle theme",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.rounded-md.list-none.items-",
+            "text": "",
+            "label": "Language",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.rounded-md.relative.list-no",
+            "text": "2",
+            "label": "Notifications",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "handles": {
+        "count": 9,
+        "measurable": 3,
+        "below24": 0,
+        "atLeast": [
+          0,
+          32,
+          0,
+          0,
+          0,
+          0,
+          0,
+          32,
+          32
+        ],
+        "samples": [
+          {
+            "handle": "rotate",
+            "visual": [
+              14,
+              14
+            ],
+            "hitAtLeast": 0,
+            "measurable": false,
+            "subMinimum": false
+          },
+          {
+            "handle": "nw",
+            "visual": [
+              10,
+              10
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "handle": "n",
+            "visual": [
+              10,
+              10
+            ],
+            "hitAtLeast": 0,
+            "measurable": false,
+            "subMinimum": false
+          },
+          {
+            "handle": "ne",
+            "visual": [
+              10,
+              10
+            ],
+            "hitAtLeast": 0,
+            "measurable": false,
+            "subMinimum": false
+          },
+          {
+            "handle": "e",
+            "visual": [
+              10,
+              10
+            ],
+            "hitAtLeast": 0,
+            "measurable": false,
+            "subMinimum": false
+          },
+          {
+            "handle": "se",
+            "visual": [
+              10,
+              10
+            ],
+            "hitAtLeast": 0,
+            "measurable": false,
+            "subMinimum": false
+          },
+          {
+            "handle": "s",
+            "visual": [
+              10,
+              10
+            ],
+            "hitAtLeast": 0,
+            "measurable": false,
+            "subMinimum": false
+          },
+          {
+            "handle": "sw",
+            "visual": [
+              10,
+              10
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "handle": "w",
+            "visual": [
+              10,
+              10
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "heading": "Canvas",
+      "bodyText": 716,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "failures": [
+        "22 clipped element(s)"
+      ]
+    },
+    {
+      "route": "/notes",
+      "viewport": "phone",
+      "overflow": 0,
+      "maskedOverflow": 90,
+      "offenders": {
+        "total": 32,
+        "scrollable": 32,
+        "unreachable": 0,
+        "clipped": 0,
+        "scrollableSamples": [
+          {
+            "el": "div.group.relative.w-48.shrink-0.text-left",
+            "inside": "div.mt-4.flex.gap-4.overflow-x-auto.pb-4"
+          },
+          {
+            "el": "button.block.w-full.text-left",
+            "inside": "div.mt-4.flex.gap-4.overflow-x-auto.pb-4"
+          },
+          {
+            "el": "span.relative.block.h-32.overflow-hidden.roun",
+            "inside": "div.mt-4.flex.gap-4.overflow-x-auto.pb-4"
+          },
+          {
+            "el": "span.absolute.bottom-4.left-4.right-4.space-y",
+            "inside": "div.mt-4.flex.gap-4.overflow-x-auto.pb-4"
+          }
+        ],
+        "clippedSamples": []
+      },
+      "targets": {
+        "below44": 44,
+        "below24": 0,
+        "unmeasurable": 0,
+        "samples": [
+          {
+            "el": "a.absolute.left-4.top-4.z-[80].-translate-",
+            "text": "Skip to content",
+            "label": "",
+            "visual": [
+              135,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.items-center.justify-center",
+            "text": "",
+            "label": "Toggle menu",
+            "visual": [
+              28,
+              36
+            ],
+            "hitAtLeast": 24,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.items-center.gap-1.5.rounded-md",
+            "text": "Create",
+            "label": "",
+            "visual": [
+              101,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.items-center.justify-center",
+            "text": "",
+            "label": "Toggle theme",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.rounded-md.list-none.items-",
+            "text": "",
+            "label": "Language",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.rounded-md.relative.list-no",
+            "text": "2",
+            "label": "Notifications",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "handles": {
+        "count": 0,
+        "measurable": 0,
+        "below24": 0,
+        "atLeast": [],
+        "samples": []
+      },
+      "heading": "Notes",
+      "bodyText": 430,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "failures": []
+    },
+    {
+      "route": "/practice",
+      "viewport": "phone",
+      "overflow": 0,
+      "maskedOverflow": 96,
+      "offenders": {
+        "total": 0,
+        "scrollable": 0,
+        "unreachable": 0,
+        "clipped": 0,
+        "scrollableSamples": [],
+        "clippedSamples": []
+      },
+      "targets": {
+        "below44": 47,
+        "below24": 1,
+        "unmeasurable": 1,
+        "samples": [
+          {
+            "el": "button.flex.h-9.w-9.items-center.justify-center",
+            "text": "",
+            "label": "Toggle menu",
+            "visual": [
+              19,
+              36
+            ],
+            "hitAtLeast": 0,
+            "measurable": true,
+            "subMinimum": true
+          },
+          {
+            "el": "a.absolute.left-4.top-4.z-[80].-translate-",
+            "text": "Skip to content",
+            "label": "",
+            "visual": [
+              135,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.items-center.gap-1.5.rounded-md",
+            "text": "Create",
+            "label": "",
+            "visual": [
+              101,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.items-center.justify-center",
+            "text": "",
+            "label": "Toggle theme",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.rounded-md.list-none.items-",
+            "text": "",
+            "label": "Language",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.rounded-md.relative.list-no",
+            "text": "2",
+            "label": "Notifications",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "handles": {
+        "count": 0,
+        "measurable": 0,
+        "below24": 0,
+        "atLeast": [],
+        "samples": []
+      },
+      "heading": "Practice",
+      "bodyText": 1464,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "failures": [
+        "1 target(s) below 24x24"
+      ]
+    },
+    {
+      "route": "/social",
+      "viewport": "phone",
+      "overflow": 0,
+      "maskedOverflow": 267,
+      "offenders": {
+        "total": 51,
+        "scrollable": 0,
+        "unreachable": 51,
+        "clipped": 19,
+        "scrollableSamples": [],
+        "clippedSamples": [
+          {
+            "el": "span",
+            "side": "right",
+            "left": 343,
+            "right": 409,
+            "width": 66,
+            "overshoot": 19,
+            "text": "Download"
+          },
+          {
+            "el": "span",
+            "side": "right",
+            "left": 467,
+            "right": 530,
+            "width": 63,
+            "overshoot": 140,
+            "text": "Compose"
+          },
+          {
+            "el": "span",
+            "side": "right",
+            "left": 584,
+            "right": 619,
+            "width": 34,
+            "overshoot": 229,
+            "text": "More"
+          },
+          {
+            "el": "p",
+            "side": "right",
+            "left": 45,
+            "right": 480,
+            "width": 435,
+            "overshoot": 90,
+            "text": "No messages yet. Start with on"
+          },
+          {
+            "el": "p.mt-1.text-right.text-[11px].opacity-70",
+            "side": "right",
+            "left": 45,
+            "right": 480,
+            "width": 435,
+            "overshoot": 90,
+            "text": "recent"
+          },
+          {
+            "el": "span",
+            "side": "right",
+            "left": 359,
+            "right": 437,
+            "width": 78,
+            "overshoot": 47,
+            "text": "Add contact"
+          }
+        ]
+      },
+      "targets": {
+        "below44": 30,
+        "below24": 0,
+        "unmeasurable": 0,
+        "samples": [
+          {
+            "el": "a.absolute.left-4.top-4.z-[80].-translate-",
+            "text": "Skip to content",
+            "label": "",
+            "visual": [
+              135,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.items-center.justify-center",
+            "text": "",
+            "label": "Toggle menu",
+            "visual": [
+              27,
+              36
+            ],
+            "hitAtLeast": 24,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.items-center.gap-1.5.rounded-md",
+            "text": "Create",
+            "label": "",
+            "visual": [
+              101,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.items-center.justify-center",
+            "text": "",
+            "label": "Toggle theme",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.rounded-md.list-none.items-",
+            "text": "",
+            "label": "Language",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.rounded-md.relative.list-no",
+            "text": "2",
+            "label": "Notifications",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "handles": {
+        "count": 0,
+        "measurable": 0,
+        "below24": 0,
+        "atLeast": [],
+        "samples": []
+      },
+      "heading": "Social",
+      "bodyText": 460,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "failures": [
+        "19 clipped element(s)"
+      ]
+    },
+    {
+      "route": "/calendar",
+      "viewport": "phone",
+      "overflow": 0,
+      "maskedOverflow": 32,
+      "offenders": {
+        "total": 0,
+        "scrollable": 0,
+        "unreachable": 0,
+        "clipped": 0,
+        "scrollableSamples": [],
+        "clippedSamples": []
+      },
+      "targets": {
+        "below44": 76,
+        "below24": 2,
+        "unmeasurable": 0,
+        "samples": [
+          {
+            "el": "button.flex.h-9.w-9.items-center.justify-center",
+            "text": "",
+            "label": "Toggle menu",
+            "visual": [
+              22,
+              36
+            ],
+            "hitAtLeast": 0,
+            "measurable": true,
+            "subMinimum": true
+          },
+          {
+            "el": "summary.flex.cursor-pointer.list-none.items-cent",
+            "text": "Planning details",
+            "label": "",
+            "visual": [
+              314,
+              20
+            ],
+            "hitAtLeast": 0,
+            "measurable": true,
+            "subMinimum": true
+          },
+          {
+            "el": "a.absolute.left-4.top-4.z-[80].-translate-",
+            "text": "Skip to content",
+            "label": "",
+            "visual": [
+              135,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.items-center.gap-1.5.rounded-md",
+            "text": "Create",
+            "label": "",
+            "visual": [
+              101,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.items-center.justify-center",
+            "text": "",
+            "label": "Toggle theme",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.rounded-md.list-none.items-",
+            "text": "",
+            "label": "Language",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "handles": {
+        "count": 0,
+        "measurable": 0,
+        "below24": 0,
+        "atLeast": [],
+        "samples": []
+      },
+      "heading": "Calendar",
+      "bodyText": 1300,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "failures": [
+        "2 target(s) below 24x24"
+      ]
+    },
+    {
+      "route": "/settings",
+      "viewport": "phone",
+      "overflow": 0,
+      "maskedOverflow": 358,
+      "offenders": {
+        "total": 51,
+        "scrollable": 0,
+        "unreachable": 51,
+        "clipped": 20,
+        "scrollableSamples": [],
+        "clippedSamples": [
+          {
+            "el": "h2.text-2xl.font-semibold.text-foreground",
+            "side": "right",
+            "left": 89,
+            "right": 590,
+            "width": 501,
+            "overshoot": 200,
+            "text": "Settings"
+          },
+          {
+            "el": "span.inline-flex.items-center.rounded-md.bord",
+            "side": "right",
+            "left": 382,
+            "right": 486,
+            "width": 104,
+            "overshoot": 96,
+            "text": "Workflow: 3/4"
+          },
+          {
+            "el": "span.inline-flex.items-center.rounded-md.bord",
+            "side": "right",
+            "left": 494,
+            "right": 590,
+            "width": 96,
+            "overshoot": 200,
+            "text": "profile saved"
+          },
+          {
+            "el": "span.min-w-0.flex-1.truncate.font-semibold",
+            "side": "right",
+            "left": 426,
+            "right": 468,
+            "width": 42,
+            "overshoot": 78,
+            "text": "Learning"
+          },
+          {
+            "el": "span.rounded-md.bg-background/80.px-2.py-0.5.",
+            "side": "right",
+            "left": 476,
+            "right": 558,
+            "width": 82,
+            "overshoot": 168,
+            "text": "3/4 workflow"
+          },
+          {
+            "el": "span.min-w-0.flex-1.truncate.font-semibold",
+            "side": "right",
+            "left": 616,
+            "right": 659,
+            "width": 43,
+            "overshoot": 269,
+            "text": "Privacy"
+          }
+        ]
+      },
+      "targets": {
+        "below44": 15,
+        "below24": 2,
+        "unmeasurable": 0,
+        "samples": [
+          {
+            "el": "button.flex.h-9.w-9.items-center.justify-center",
+            "text": "",
+            "label": "Toggle menu",
+            "visual": [
+              23,
+              36
+            ],
+            "hitAtLeast": 0,
+            "measurable": true,
+            "subMinimum": true
+          },
+          {
+            "el": "summary.flex.cursor-pointer.list-none.items-cent",
+            "text": "Signals5Confirm profile ",
+            "label": "",
+            "visual": [
+              684,
+              20
+            ],
+            "hitAtLeast": 0,
+            "measurable": true,
+            "subMinimum": true
+          },
+          {
+            "el": "a.absolute.left-4.top-4.z-[80].-translate-",
+            "text": "Skip to content",
+            "label": "",
+            "visual": [
+              135,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.items-center.gap-1.5.rounded-md",
+            "text": "Create",
+            "label": "",
+            "visual": [
+              101,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.items-center.justify-center",
+            "text": "",
+            "label": "Toggle theme",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.rounded-md.list-none.items-",
+            "text": "",
+            "label": "Language",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "handles": {
+        "count": 0,
+        "measurable": 0,
+        "below24": 0,
+        "atLeast": [],
+        "samples": []
+      },
+      "heading": "Settings",
+      "bodyText": 415,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "failures": [
+        "20 clipped element(s)",
+        "2 target(s) below 24x24"
+      ]
+    },
+    {
+      "route": "/ai",
+      "viewport": "phone",
+      "overflow": 0,
+      "maskedOverflow": 22,
+      "offenders": {
+        "total": 0,
+        "scrollable": 0,
+        "unreachable": 0,
+        "clipped": 0,
+        "scrollableSamples": [],
+        "clippedSamples": []
+      },
+      "targets": {
+        "below44": 20,
+        "below24": 0,
+        "unmeasurable": 2,
+        "samples": [
+          {
+            "el": "a.absolute.left-4.top-4.z-[80].-translate-",
+            "text": "Skip to content",
+            "label": "",
+            "visual": [
+              135,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.items-center.justify-center",
+            "text": "",
+            "label": "Toggle menu",
+            "visual": [
+              24,
+              36
+            ],
+            "hitAtLeast": 24,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.items-center.gap-1.5.rounded-md",
+            "text": "Create",
+            "label": "",
+            "visual": [
+              101,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.items-center.justify-center",
+            "text": "",
+            "label": "Toggle theme",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.rounded-md.list-none.items-",
+            "text": "",
+            "label": "Language",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.rounded-md.relative.list-no",
+            "text": "2",
+            "label": "Notifications",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "handles": {
+        "count": 0,
+        "measurable": 0,
+        "below24": 0,
+        "atLeast": [],
+        "samples": []
+      },
+      "heading": "AI tutor",
+      "bodyText": 415,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "failures": []
+    },
+    {
+      "route": "/live",
+      "viewport": "phone",
+      "overflow": 0,
+      "maskedOverflow": 96,
+      "offenders": {
+        "total": 0,
+        "scrollable": 0,
+        "unreachable": 0,
+        "clipped": 0,
+        "scrollableSamples": [],
+        "clippedSamples": []
+      },
+      "targets": {
+        "below44": 47,
+        "below24": 1,
+        "unmeasurable": 1,
+        "samples": [
+          {
+            "el": "button.flex.h-9.w-9.items-center.justify-center",
+            "text": "",
+            "label": "Toggle menu",
+            "visual": [
+              19,
+              36
+            ],
+            "hitAtLeast": 0,
+            "measurable": true,
+            "subMinimum": true
+          },
+          {
+            "el": "a.absolute.left-4.top-4.z-[80].-translate-",
+            "text": "Skip to content",
+            "label": "",
+            "visual": [
+              135,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.items-center.gap-1.5.rounded-md",
+            "text": "Create",
+            "label": "",
+            "visual": [
+              101,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.items-center.justify-center",
+            "text": "",
+            "label": "Toggle theme",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.rounded-md.list-none.items-",
+            "text": "",
+            "label": "Language",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-9.w-9.rounded-md.relative.list-no",
+            "text": "2",
+            "label": "Notifications",
+            "visual": [
+              36,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "handles": {
+        "count": 0,
+        "measurable": 0,
+        "below24": 0,
+        "atLeast": [],
+        "samples": []
+      },
+      "heading": "Live quiz",
+      "bodyText": 2016,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "failures": [
+        "1 target(s) below 24x24"
+      ]
+    },
+    {
+      "route": "/dashboard",
+      "viewport": "laptop",
+      "overflow": 0,
+      "maskedOverflow": 70,
+      "offenders": {
+        "total": 0,
+        "scrollable": 0,
+        "unreachable": 0,
+        "clipped": 0,
+        "scrollableSamples": [],
+        "clippedSamples": []
+      },
+      "targets": {
+        "below44": 19,
+        "below24": 0,
+        "unmeasurable": 0,
+        "samples": [
+          {
+            "el": "a.absolute.left-4.top-4.z-[80].-translate-",
+            "text": "Skip to content",
+            "label": "",
+            "visual": [
+              135,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Comfortable spacing",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Toggle theme",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.rounded-xl.list-none.item",
+            "text": "",
+            "label": "Language",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.rounded-xl.relative.list-",
+            "text": "2",
+            "label": "Notifications",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Sign out",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "handles": {
+        "count": 0,
+        "measurable": 0,
+        "below24": 0,
+        "atLeast": [],
+        "samples": []
+      },
+      "heading": "Dashboard",
+      "bodyText": 662,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "failures": []
+    },
+    {
+      "route": "/canvas",
+      "viewport": "laptop",
+      "overflow": -15,
+      "maskedOverflow": 162,
+      "offenders": {
+        "total": 13,
+        "scrollable": 0,
+        "unreachable": 13,
+        "clipped": 4,
+        "scrollableSamples": [],
+        "clippedSamples": [
+          {
+            "el": "span.rounded-full.bg-muted.px-2.py-0.5.text-x",
+            "side": "right",
+            "left": 1550,
+            "right": 1571,
+            "width": 21,
+            "overshoot": 131,
+            "text": "1"
+          },
+          {
+            "el": "p.font-semibold.text-foreground",
+            "side": "right",
+            "left": 1303,
+            "right": 1559,
+            "width": 256,
+            "overshoot": 119,
+            "text": "Open format"
+          },
+          {
+            "el": "p.mt-1",
+            "side": "right",
+            "left": 1303,
+            "right": 1559,
+            "width": 256,
+            "overshoot": 119,
+            "text": "“Download JSON” writes the ver"
+          },
+          {
+            "el": "p.mt-1",
+            "side": "right",
+            "left": 1303,
+            "right": 1559,
+            "width": 256,
+            "overshoot": 119,
+            "text": "Geometry, ordering and history"
+          }
+        ]
+      },
+      "targets": {
+        "below44": 41,
+        "below24": 1,
+        "unmeasurable": 0,
+        "samples": [
+          {
+            "el": "button.min-w-0.flex-1.truncate.px-1.text-left.t",
+            "text": "/icon.svg",
+            "label": "",
+            "visual": [
+              94,
+              20
+            ],
+            "hitAtLeast": 0,
+            "measurable": true,
+            "subMinimum": true
+          },
+          {
+            "el": "a.absolute.left-4.top-4.z-[80].-translate-",
+            "text": "Skip to content",
+            "label": "",
+            "visual": [
+              135,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Comfortable spacing",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Toggle theme",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.rounded-xl.list-none.item",
+            "text": "",
+            "label": "Language",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.rounded-xl.relative.list-",
+            "text": "2",
+            "label": "Notifications",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "handles": {
+        "count": 9,
+        "measurable": 9,
+        "below24": 0,
+        "atLeast": [
+          24,
+          24,
+          24,
+          24,
+          24,
+          24,
+          24,
+          24,
+          24
+        ],
+        "samples": [
+          {
+            "handle": "rotate",
+            "visual": [
+              14,
+              14
+            ],
+            "hitAtLeast": 24,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "handle": "nw",
+            "visual": [
+              10,
+              10
+            ],
+            "hitAtLeast": 24,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "handle": "n",
+            "visual": [
+              10,
+              10
+            ],
+            "hitAtLeast": 24,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "handle": "ne",
+            "visual": [
+              10,
+              10
+            ],
+            "hitAtLeast": 24,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "handle": "e",
+            "visual": [
+              10,
+              10
+            ],
+            "hitAtLeast": 24,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "handle": "se",
+            "visual": [
+              10,
+              10
+            ],
+            "hitAtLeast": 24,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "handle": "s",
+            "visual": [
+              10,
+              10
+            ],
+            "hitAtLeast": 24,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "handle": "sw",
+            "visual": [
+              10,
+              10
+            ],
+            "hitAtLeast": 24,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "handle": "w",
+            "visual": [
+              10,
+              10
+            ],
+            "hitAtLeast": 24,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "heading": "Canvas",
+      "bodyText": 771,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "failures": [
+        "4 clipped element(s)",
+        "1 target(s) below 24x24"
+      ]
+    },
+    {
+      "route": "/notes",
+      "viewport": "laptop",
+      "overflow": 0,
+      "maskedOverflow": 90,
+      "offenders": {
+        "total": 0,
+        "scrollable": 0,
+        "unreachable": 0,
+        "clipped": 0,
+        "scrollableSamples": [],
+        "clippedSamples": []
+      },
+      "targets": {
+        "below44": 43,
+        "below24": 0,
+        "unmeasurable": 0,
+        "samples": [
+          {
+            "el": "a.absolute.left-4.top-4.z-[80].-translate-",
+            "text": "Skip to content",
+            "label": "",
+            "visual": [
+              135,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Comfortable spacing",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Toggle theme",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.rounded-xl.list-none.item",
+            "text": "",
+            "label": "Language",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.rounded-xl.relative.list-",
+            "text": "2",
+            "label": "Notifications",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Sign out",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "handles": {
+        "count": 0,
+        "measurable": 0,
+        "below24": 0,
+        "atLeast": [],
+        "samples": []
+      },
+      "heading": "Notes",
+      "bodyText": 486,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "failures": []
+    },
+    {
+      "route": "/practice",
+      "viewport": "laptop",
+      "overflow": -15,
+      "maskedOverflow": 96,
+      "offenders": {
+        "total": 0,
+        "scrollable": 0,
+        "unreachable": 0,
+        "clipped": 0,
+        "scrollableSamples": [],
+        "clippedSamples": []
+      },
+      "targets": {
+        "below44": 45,
+        "below24": 1,
+        "unmeasurable": 0,
+        "samples": [
+          {
+            "el": "summary.flex.cursor-pointer.list-none.items-cent",
+            "text": "Timer, draft, and target",
+            "label": "",
+            "visual": [
+              705,
+              20
+            ],
+            "hitAtLeast": 0,
+            "measurable": true,
+            "subMinimum": true
+          },
+          {
+            "el": "a.absolute.left-4.top-4.z-[80].-translate-",
+            "text": "Skip to content",
+            "label": "",
+            "visual": [
+              135,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Comfortable spacing",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Toggle theme",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.rounded-xl.list-none.item",
+            "text": "",
+            "label": "Language",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.rounded-xl.relative.list-",
+            "text": "2",
+            "label": "Notifications",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "handles": {
+        "count": 0,
+        "measurable": 0,
+        "below24": 0,
+        "atLeast": [],
+        "samples": []
+      },
+      "heading": "Practice",
+      "bodyText": 1505,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "failures": [
+        "1 target(s) below 24x24"
+      ]
+    },
+    {
+      "route": "/social",
+      "viewport": "laptop",
+      "overflow": 0,
+      "maskedOverflow": 70,
+      "offenders": {
+        "total": 0,
+        "scrollable": 0,
+        "unreachable": 0,
+        "clipped": 0,
+        "scrollableSamples": [],
+        "clippedSamples": []
+      },
+      "targets": {
+        "below44": 29,
+        "below24": 0,
+        "unmeasurable": 0,
+        "samples": [
+          {
+            "el": "a.absolute.left-4.top-4.z-[80].-translate-",
+            "text": "Skip to content",
+            "label": "",
+            "visual": [
+              135,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Comfortable spacing",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Toggle theme",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.rounded-xl.list-none.item",
+            "text": "",
+            "label": "Language",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.rounded-xl.relative.list-",
+            "text": "2",
+            "label": "Notifications",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Sign out",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "handles": {
+        "count": 0,
+        "measurable": 0,
+        "below24": 0,
+        "atLeast": [],
+        "samples": []
+      },
+      "heading": "Social",
+      "bodyText": 515,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "failures": []
+    },
+    {
+      "route": "/calendar",
+      "viewport": "laptop",
+      "overflow": -15,
+      "maskedOverflow": 70,
+      "offenders": {
+        "total": 0,
+        "scrollable": 0,
+        "unreachable": 0,
+        "clipped": 0,
+        "scrollableSamples": [],
+        "clippedSamples": []
+      },
+      "targets": {
+        "below44": 33,
+        "below24": 1,
+        "unmeasurable": 0,
+        "samples": [
+          {
+            "el": "summary.flex.cursor-pointer.list-none.items-cent",
+            "text": "Planning details",
+            "label": "",
+            "visual": [
+              308,
+              20
+            ],
+            "hitAtLeast": 0,
+            "measurable": true,
+            "subMinimum": true
+          },
+          {
+            "el": "a.absolute.left-4.top-4.z-[80].-translate-",
+            "text": "Skip to content",
+            "label": "",
+            "visual": [
+              135,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Comfortable spacing",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Toggle theme",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.rounded-xl.list-none.item",
+            "text": "",
+            "label": "Language",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.rounded-xl.relative.list-",
+            "text": "2",
+            "label": "Notifications",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "handles": {
+        "count": 0,
+        "measurable": 0,
+        "below24": 0,
+        "atLeast": [],
+        "samples": []
+      },
+      "heading": "Calendar",
+      "bodyText": 1353,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "failures": [
+        "1 target(s) below 24x24"
+      ]
+    },
+    {
+      "route": "/settings",
+      "viewport": "laptop",
+      "overflow": -15,
+      "maskedOverflow": 70,
+      "offenders": {
+        "total": 0,
+        "scrollable": 0,
+        "unreachable": 0,
+        "clipped": 0,
+        "scrollableSamples": [],
+        "clippedSamples": []
+      },
+      "targets": {
+        "below44": 14,
+        "below24": 1,
+        "unmeasurable": 0,
+        "samples": [
+          {
+            "el": "summary.flex.cursor-pointer.list-none.items-cent",
+            "text": "Signals5Confirm profile ",
+            "label": "",
+            "visual": [
+              1257,
+              20
+            ],
+            "hitAtLeast": 0,
+            "measurable": true,
+            "subMinimum": true
+          },
+          {
+            "el": "a.absolute.left-4.top-4.z-[80].-translate-",
+            "text": "Skip to content",
+            "label": "",
+            "visual": [
+              135,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Comfortable spacing",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Toggle theme",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.rounded-xl.list-none.item",
+            "text": "",
+            "label": "Language",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.rounded-xl.relative.list-",
+            "text": "2",
+            "label": "Notifications",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "handles": {
+        "count": 0,
+        "measurable": 0,
+        "below24": 0,
+        "atLeast": [],
+        "samples": []
+      },
+      "heading": "Settings",
+      "bodyText": 468,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "failures": [
+        "1 target(s) below 24x24"
+      ]
+    },
+    {
+      "route": "/ai",
+      "viewport": "laptop",
+      "overflow": 0,
+      "maskedOverflow": 70,
+      "offenders": {
+        "total": 0,
+        "scrollable": 0,
+        "unreachable": 0,
+        "clipped": 0,
+        "scrollableSamples": [],
+        "clippedSamples": []
+      },
+      "targets": {
+        "below44": 19,
+        "below24": 2,
+        "unmeasurable": 0,
+        "samples": [
+          {
+            "el": "summary.cursor-pointer.font-semibold.text-foregr",
+            "text": "Prompt preview",
+            "label": "",
+            "visual": [
+              928,
+              20
+            ],
+            "hitAtLeast": 0,
+            "measurable": true,
+            "subMinimum": true
+          },
+          {
+            "el": "summary.cursor-pointer.text-sm.font-semibold.tex",
+            "text": "Provider details",
+            "label": "",
+            "visual": [
+              268,
+              20
+            ],
+            "hitAtLeast": 0,
+            "measurable": true,
+            "subMinimum": true
+          },
+          {
+            "el": "a.absolute.left-4.top-4.z-[80].-translate-",
+            "text": "Skip to content",
+            "label": "",
+            "visual": [
+              135,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Comfortable spacing",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Toggle theme",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.rounded-xl.list-none.item",
+            "text": "",
+            "label": "Language",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "handles": {
+        "count": 0,
+        "measurable": 0,
+        "below24": 0,
+        "atLeast": [],
+        "samples": []
+      },
+      "heading": "AI tutor",
+      "bodyText": 468,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "failures": [
+        "2 target(s) below 24x24"
+      ]
+    },
+    {
+      "route": "/live",
+      "viewport": "laptop",
+      "overflow": -15,
+      "maskedOverflow": 96,
+      "offenders": {
+        "total": 0,
+        "scrollable": 0,
+        "unreachable": 0,
+        "clipped": 0,
+        "scrollableSamples": [],
+        "clippedSamples": []
+      },
+      "targets": {
+        "below44": 45,
+        "below24": 1,
+        "unmeasurable": 0,
+        "samples": [
+          {
+            "el": "summary.flex.cursor-pointer.list-none.items-cent",
+            "text": "Timer, draft, and target",
+            "label": "",
+            "visual": [
+              705,
+              20
+            ],
+            "hitAtLeast": 0,
+            "measurable": true,
+            "subMinimum": true
+          },
+          {
+            "el": "a.absolute.left-4.top-4.z-[80].-translate-",
+            "text": "Skip to content",
+            "label": "",
+            "visual": [
+              135,
+              36
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Comfortable spacing",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.items-center.justify-cent",
+            "text": "",
+            "label": "Toggle theme",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.rounded-xl.list-none.item",
+            "text": "",
+            "label": "Language",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          },
+          {
+            "el": "button.flex.h-10.w-10.rounded-xl.relative.list-",
+            "text": "2",
+            "label": "Notifications",
+            "visual": [
+              40,
+              40
+            ],
+            "hitAtLeast": 32,
+            "measurable": true,
+            "subMinimum": false
+          }
+        ]
+      },
+      "handles": {
+        "count": 0,
+        "measurable": 0,
+        "below24": 0,
+        "atLeast": [],
+        "samples": []
+      },
+      "heading": "Live quiz",
+      "bodyText": 2056,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "failures": [
+        "1 target(s) below 24x24"
+      ]
+    }
+  ]
+}

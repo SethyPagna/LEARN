@@ -181,6 +181,45 @@ const CANVAS_PRESET_CSS = `
   background: var(--card);
   box-shadow: 0 0 0 1.5px var(--primary), 0 2px 6px rgba(15, 23, 42, 0.25);
 }
+/**
+ * The dot stays 10px so the selection chrome stays quiet, but the *hit area* is
+ * the 24px box below: a transparent ::after centred on the dot, which the
+ * engine's hit test (target.closest("[data-resize-handle]")) resolves to this
+ * same button because a pseudo-element belongs to its originating element.
+ * Geometry, drag maths and the painted dot are untouched — only the surface a
+ * finger or pointer has to find gets bigger. Coarse pointers get 32px, and
+ * touch-action: none so a drag is not swallowed by the sheet's scrolling.
+ */
+.learn-canvas-soft .canvas-handle::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: transparent;
+}
+/**
+ * The rotate handle hangs 28px above the top edge, so on a coarse pointer its
+ * enlarged box would lose the strip nearest the "n" resize handle — whichever
+ * handle is painted last wins the overlap. Rotate is painted first, so it goes
+ * on top: the dot a finger aims at is the dot that receives the gesture, and the
+ * engine's own hit test (closest on data-resize-handle) sees no change.
+ */
+.learn-canvas-soft [data-rotate-handle] {
+  z-index: 1;
+}
+@media (pointer: coarse) {
+  .learn-canvas-soft .canvas-handle {
+    touch-action: none;
+  }
+  .learn-canvas-soft .canvas-handle::after {
+    width: 32px;
+    height: 32px;
+  }
+}
 .learn-canvas-soft .canvas-layer {
   border: 0;
   border-radius: var(--canvas-radius-sm);

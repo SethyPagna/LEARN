@@ -361,3 +361,57 @@ boundary, so the *runtime* is unverified — no build, no browser, no D1 this se
 remaining risk and the #1 next step. Also recorded but not fixed: two sub-12-line duplicate type
 declarations with divergent shapes (`QuizChoice`, `DashboardWeakTopic`), 243 internal-only exports,
 and no PDF engine (print only).
+
+## Browser UX audit — repeatable (`pnpm audit:ux`)
+
+The gap above is partly closed: `ops/scripts/test/browser-ux-audit.mjs` drives a real Chrome over the
+DevTools Protocol (`ops/scripts/test/lib/cdp.mjs`; Node's built-in `WebSocket` + `fetch`, so there is
+nothing to install) across **9 routes × 2 viewports** — 390×844 phone with touch emulation, 1440×900
+laptop — while logged in, and it is usable as a check rather than a report.
+
+```bash
+node node_modules/next/dist/bin/next dev --port 3111          # app
+chrome --headless=new --remote-debugging-port=9222 --user-data-dir=<temp> about:blank
+pnpm audit:ux                                                 # → ops/docs/audits/browser-ux-audit.json
+```
+
+Neither dependency is started for you: with no app on `:3111` or no browser on `:9222` the script
+exits **2** and prints the command to run. Otherwise it exits **1** if any route has document-level
+overflow, a console error, a missing heading, canvas handles under 24×24, or clipped content, and
+**0** when clean.
+
+| What it measures | How, so the number means something |
+| --- | --- |
+| Horizontal overflow | `documentElement.scrollWidth - innerWidth`, plus the largest `overflow-x: hidden` ancestor overflow — the amount a route can hide while still reading 0 |
+| Past the right edge | Only counted if the element is *visible* (`checkVisibility`, which drops closed dropdowns and off-canvas drawers), then split by whether an ancestor is a real `overflow-x: auto\|scroll` strip that can reach it. Reported as `scrollable`; only the remaining `clipped` elements fail, deduped to the deepest leaf so one unreachable chip is one finding |
+| Touch targets | The **hit area**, not the painted box. A box that already reaches 24×24 *is* the target; a smaller one is probed with `elementFromPoint`, so transparent padding or a pseudo-element hit box counts exactly as a finger finds it. Under 24×24 fails (WCAG 2.2 SC 2.5.8); under 44×44 is advisory. Canvas handles are measured after selecting an element through the layer row, since they only exist then |
+
+**Measured on branch `cleanup/stage-1`.** The canvas resize/rotate handles were 10×10 px hit targets.
+They keep the 10 px dot and gain a transparent `::after` hit box (24 px, 32 px under
+`@media (pointer: coarse)`, with `touch-action: none`, and `z-index: 1` on the rotate handle so its
+enlarged box is not stolen by the `n` resize handle 28 px below). Guarded by
+`src/tests/ux/touch-targets.test.ts`, which reads the CSS back and turns red at 12 px
+(mutation-checked).
+
+| | Canvas handles under 24×24 | Non-handle targets under 24×24 |
+| --- | --- | --- |
+| Before | **12/12** measured (9 laptop + 3 phone on-screen; the other 6 phone handles were unmeasurable off-screen) | 14 |
+| After | **0/12** | 14 (unchanged — this change touched only the handles) |
+
+Measured hit areas afterwards: `laptop` all 9 handles `visual 10x10 → hit 24px`; `phone` (coarse
+pointer) the 3 on-screen handles `visual 10x10 → hit 32px`.
+
+The 14 remaining sub-24 targets are real and untouched: the sidebar `Toggle menu` button (19–23 px
+wide × 36 px tall, on five routes) and twelve 20 px-tall `<summary>` disclosure rows
+(`Planning details`, `Prompt preview`, `Provider details`, `Timer, draft, and target`, …) that are
+wide but only 20 px high.
+
+**Still failing, and not fixed here:** the audit reports **13 of 18 checks failed**, all on
+pre-existing, genuinely clipped content — `phone /dashboard` (stat cards), `phone /canvas` (the
+align-tool row, +74 px to +416 px past the edge), `laptop /canvas` (the Layers panel and its
+description card, +119…+131 px), `phone /social` (chat actions), `phone /settings` (the tab strip) —
+85 clipped leaves in total, plus 44 off-screen elements that are *scrollable* and therefore fine.
+No route has document-level overflow and no route logs a console error; the clipping is invisible to
+the old headline number only because the shell sets `overflow-x: hidden`, which hides up to 766 px of
+overflow on `phone /canvas`. Re-laying-out those views is out of scope here.
+

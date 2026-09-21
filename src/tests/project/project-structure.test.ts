@@ -42,6 +42,12 @@ const allowedJavaScriptFiles = new Set([
   // A service worker must be served verbatim from the origin root and cannot be
   // bundled, hashed, or compiled from TypeScript like the rest of the app.
   "public/sw.js",
+  // `pnpm audit:ux` drives an already-running Chrome over the DevTools Protocol
+  // using nothing but Node's built-in WebSocket and fetch. It runs as
+  // `node <file>` with no build step, so it stays .mjs on purpose — see the
+  // wiring assertions in src/tests/ux/touch-targets.test.ts.
+  "ops/scripts/test/browser-ux-audit.mjs",
+  "ops/scripts/test/lib/cdp.mjs",
 ])
 
 function listTrackedFiles() {
