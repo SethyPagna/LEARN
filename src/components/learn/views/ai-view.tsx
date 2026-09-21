@@ -6,6 +6,7 @@ import type { WorkspaceOptions } from "../preferences"
 import type { Note, StudioInsertTarget, View } from "../types"
 import { api } from "../api"
 import { ControlButton, Panel, StatusPill } from "../ui"
+import { VoiceInput } from "../voice-input"
 import { menuSurfaceClasses, statusToneClasses, toneTextClasses, type UiTone } from "@/lib/design-system"
 import { buildAiGatewayReadiness, type AiGatewayProviderCatalogItem, type AiGatewayProviderPresetItem, type AiGatewayProviderStatus } from "@/lib/ai/gateway-readiness"
 import { buildGuidedPrompt, listInsertActions, normalizeStudioInsertTarget, promptContracts, studioInsertTargets, type GuidedPromptResult } from "@/lib/ai/prompt-builder"
@@ -601,6 +602,12 @@ export function AiTutorView({
           Prompt
           <textarea value={message} onChange={(event) => setMessage(event.target.value)} className="min-h-44 w-full rounded-md border border-input bg-background p-4 font-normal text-foreground outline-none focus:border-ring" />
         </label>
+        <VoiceInput
+          className="mt-2"
+          label="Dictate prompt"
+          prompt={workflowSummary.nextAction}
+          onTranscript={(text) => setMessage((current) => (current.trim() ? `${current.trimEnd()}\n\n${text}` : text))}
+        />
 
         <details className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm">
           <summary className="cursor-pointer font-semibold text-foreground">Prompt preview {promptBuild.ok ? "" : `- ${promptBuild.missing.length} missing`}</summary>

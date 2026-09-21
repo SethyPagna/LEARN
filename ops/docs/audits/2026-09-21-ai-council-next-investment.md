@@ -186,3 +186,74 @@ Responses re-presented as **A–E** (mapping hidden).
 **Resolving the Skeptic vs. the Expansionist.** They disagree about whether to add voice transcription now. **The Skeptic is right for this user at this moment** — not because voice is unimportant (the Expansionist's argument that it collapses creation cost is the strongest strategic point in the session), but because it is queued behind a cheaper, prior question. Sequence, not scope, is the disagreement: verify first, then voice as the *first* new feature, because it is the one that makes the create→play loop cheap enough to actually test with real users.
 
 **What the council could not settle.** Whether the six-product surface is correct. The Outsider's question — what do you do on day one that you cannot do anywhere else — has no answer in the codebase, and no amount of testing will produce one. That is a product decision and it belongs to the user, not the council.
+
+---
+
+# Outcome — the #1 step, executed
+
+**Date:** 2026-09-21 · **Commit:** `b2da5f87` · **Result: the kill criterion did not fire.**
+
+## The 1-hour decision, answered
+
+> *Can `query()` be stubbed without modifying production code?*
+
+**Yes. Not one line of production code changed.**
+
+The Executor's kill criterion was explicit: if making `query()` stubbable required
+changing production code, stop and treat the data-layer shape as the blocker. It did
+not. The seam turned out to be narrower than anyone proposed — `globalThis.fetch` at
+the D1 HTTP boundary. The harness supplies D1 credentials via environment variables
+and intercepts the outbound request, so the real `query()`, the real
+`normalizeD1Sql()`, the real statement routing and response parsing all execute
+unmodified.
+
+**This is the session's most consequential result.** The First-Principles Engineer
+named change-safety as the binding constraint on every item of the roadmap; the
+Skeptic said a consolidation bug would ship green. Both were right, and both are now
+answered: the 49 handlers are verifiable, and a reusable harness makes the other 46
+cheap. Stage 2 and Stage 4 are no longer blocked.
+
+## The highest-confidence finding, closed
+
+The convergence all five advisors circled — *nobody has demonstrated that
+create → play → learn actually closes* — is now an executable assertion.
+
+`src/tests/api/quiz-loop.test.ts` runs `POST /api/quizzes` and
+`POST /api/quizzes/attempts` against a **stateful** fake of the quiz tables, so the
+attempt genuinely reads back the quiz the create step wrote. It asserts that playing a
+quiz writes a `practice_sessions` row whose metadata carries the originating quiz id
+and title — the artifact-becomes-activity link the Expansionist called the moat — plus
+a correctly scored attempt, batched answer rows, and an audit trail on both sides of
+the loop.
+
+The loop closes. It closed before this test existed, and now there is evidence.
+
+## What the advisors got right, and where they were wrong
+
+| Advisor | Called it | Verdict |
+| --- | --- | --- |
+| **Skeptic** | "Zero tests touch the product surface; a refactor bug ships green" | **Right, and the more urgent of the two.** This was the blocker. |
+| **Executor** | "One test with a pre-committed kill criterion, and the answer is worth more than the other 383" | **Right.** It took well under the estimated hour, and the kill criterion made it unfalsifiable-into-a-waste-of-time. |
+| **First-Principles** | "The binding constraint is the ability to change things safely" | **Right.** Now unblocked. |
+| **Expansionist** | "Voice collapses creation cost; it is the highest-leverage missing piece" | **Right on strategy, and the council sequenced it correctly.** Voice is now built — see below. |
+| **Outsider** | "I cannot tell you what this app is for" | **Still unresolved, and still the biggest question.** No test can answer it. |
+
+The Skeptic's failure mode #3 — *"nothing is actually shipped; `pnpm install` is broken
+and `main` has not moved"* — **remains true**. That is now the most important
+outstanding item, and it is a release decision, not an engineering one.
+
+## Voice transcription, built
+
+The council ruled that voice becomes the first *new* feature after verification. It
+was built in the same session: `src/lib/ai/transcription.ts`, `POST /api/ai/transcribe`,
+and `VoiceInput`, wired into the AI prompt composer. Provider is Workers AI Whisper at
+$0.000513/audio-minute. See the [README](./README.md#voice-transcription--executed) for
+the design decisions, including why the Web Speech API was rejected and why
+`CLOUDFLARE_AI_GATEWAY_URL` is deliberately ignored.
+
+## Still open
+
+1. **`pnpm install` must be run in a real terminal.** `node_modules` cannot be repaired in this environment. Nothing is deployable until it is.
+2. **`main` has not moved.** All work is on `cleanup/stage-1`.
+3. **Coverage is 3 of 50 handlers.** The harness makes the rest cheap; the highest-value next ones are the auth routes and `content_items`.
+4. **The Outsider's question.** What does a user do on day one that they cannot do anywhere else? Still unanswered, still a product decision.

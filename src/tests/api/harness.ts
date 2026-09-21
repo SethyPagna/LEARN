@@ -42,8 +42,12 @@ export interface DatabaseStub {
   readonly statements: RecordedStatement[]
   /** SQL text only, for readable assertions. */
   readonly sqlLog: string[]
+  /** Every non-database outbound request (provider calls, uploads, …). */
+  readonly httpRequests: { url: string; init?: RequestInit }[]
   /** Register a canned response for every statement whose SQL matches. */
   on(pattern: RegExp, respond: CannedResult | ((sql: string, params: unknown[]) => CannedResult)): void
+  /** Register a canned response for a non-database outbound request. */
+  onHttp(pattern: RegExp, handler: (url: string, init?: RequestInit) => Response | Promise<Response>): void
   /** Statements whose SQL matches the pattern. */
   matching(pattern: RegExp): RecordedStatement[]
   /** Statements whose SQL matches the pattern and that were not reads. */
@@ -53,8 +57,17 @@ export interface DatabaseStub {
 }
 
 const D1_ENV_KEYS = ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_D1_DATABASE_ID", "CLOUDFLARE_API_TOKEN"] as const
-const D1_HOST = "api.cloudflare.com"
-const D1_PATH = "/client/v4/accounts/"
+
+/**
+ * Must match the D1 query endpoint *specifically*.
+ *
+ * An earlier version of this file keyed on `api.cloudflare.com` +
+ * `/client/v4/accounts/`, which also matches Workers AI
+ * (`/accounts/{id}/ai/run/{model}`) — so every provider call was silently
+ * swallowed as a database query and came back as an empty row set. The path
+ * below is the only thing that distinguishes them.
+ */
+const D1_URL_PATTERN = /\/d1\/database\/[^/]+\/query$/
 
 function d1ApiResponse(result: CannedResult, isRead: boolean) {
   const rows = result.rows ?? []
@@ -74,6 +87,8 @@ function isReadStatement(sql: string) {
 export function installDatabaseStub(): DatabaseStub {
   const statements: RecordedStatement[] = []
   const responders: Responder[] = []
+  const httpStubs: { pattern: RegExp; handler: (url: string, init?: RequestInit) => Response | Promise<Response> }[] = []
+  const httpRequests: { url: string; init?: RequestInit }[] = []
   const savedEnv = new Map<string, string | undefined>()
   const originalFetch = globalThis.fetch
 
@@ -84,6 +99,7 @@ export function installDatabaseStub(): DatabaseStub {
 
   const stub: DatabaseStub = {
     statements,
+    httpRequests,
     get sqlLog() {
       return statements.map((statement) => statement.sql)
     },
@@ -92,6 +108,9 @@ export function installDatabaseStub(): DatabaseStub {
         pattern,
         respond: typeof respond === "function" ? respond : () => respond,
       })
+    },
+    onHttp(pattern, handler) {
+      httpStubs.unshift({ pattern, handler })
     },
     matching(pattern) {
       return statements.filter((statement) => pattern.test(statement.sql))
@@ -104,6 +123,7 @@ export function installDatabaseStub(): DatabaseStub {
     reset() {
       statements.length = 0
       responders.length = 0
+      httpRequests.length = 0
     },
     restore() {
       globalThis.fetch = originalFetch
@@ -117,31 +137,36 @@ export function installDatabaseStub(): DatabaseStub {
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
 
-    if (!url.includes(D1_HOST) || !url.includes(D1_PATH)) {
-      throw new Error(
-        `Route test made an unexpected network call to ${url}. ` +
-          "Every outbound call in a handler test must be stubbed explicitly.",
-      )
-    }
+    if (D1_URL_PATTERN.test(url)) {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { sql?: string; params?: unknown[] }
+      const sql = String(body.sql ?? "")
+      const params = body.params ?? []
+      statements.push({ sql, params })
 
-    const body = JSON.parse(String(init?.body ?? "{}")) as { sql?: string; params?: unknown[] }
-    const sql = String(body.sql ?? "")
-    const params = body.params ?? []
-    statements.push({ sql, params })
-
-    const isRead = isReadStatement(sql)
-    let canned: CannedResult = { rows: [], rowCount: 0 }
-    for (const responder of responders) {
-      if (responder.pattern.test(sql)) {
-        canned = responder.respond(sql, params)
-        break
+      const isRead = isReadStatement(sql)
+      let canned: CannedResult = { rows: [], rowCount: 0 }
+      for (const responder of responders) {
+        if (responder.pattern.test(sql)) {
+          canned = responder.respond(sql, params)
+          break
+        }
       }
+
+      return new Response(JSON.stringify(d1ApiResponse(canned, isRead)), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })
     }
 
-    return new Response(JSON.stringify(d1ApiResponse(canned, isRead)), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    })
+    httpRequests.push({ url, init })
+    for (const httpStub of httpStubs) {
+      if (httpStub.pattern.test(url)) return httpStub.handler(url, init)
+    }
+
+    throw new Error(
+      `Route test made an unexpected network call to ${url}. ` +
+        "Every outbound call in a handler test must be stubbed explicitly.",
+    )
   }) as typeof fetch
 
   return stub
@@ -194,13 +219,18 @@ export async function primeDatabase(stub: DatabaseStub) {
 export interface RequestOptions {
   method?: string
   body?: unknown
+  /** Raw request body for non-JSON routes (audio uploads, file posts). */
+  rawBody?: Uint8Array | string
+  /** Content type for `rawBody`; defaults to `application/octet-stream`. */
+  contentType?: string
   token?: string | null
   headers?: Record<string, string>
 }
 
 /**
  * An authenticated request aimed at a handler. Defaults to same-origin so the
- * CSRF check in `requireApiUser` passes; pass `origin` to test it failing.
+ * CSRF check in `requireApiUser` passes; pass an `origin` header to test it
+ * failing.
  */
 export function request(path: string, options: RequestOptions = {}) {
   const method = options.method ?? "GET"
@@ -211,8 +241,11 @@ export function request(path: string, options: RequestOptions = {}) {
   const token = options.token === undefined ? TEST_SESSION_TOKEN : options.token
   if (token) headers.set("cookie", `learn_session=${token}`)
 
-  let body: string | undefined
-  if (options.body !== undefined) {
+  let body: BodyInit | undefined
+  if (options.rawBody !== undefined) {
+    headers.set("content-type", options.contentType ?? "application/octet-stream")
+    body = options.rawBody as BodyInit
+  } else if (options.body !== undefined) {
     headers.set("content-type", "application/json")
     body = JSON.stringify(options.body)
   }
