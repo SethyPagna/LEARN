@@ -101,6 +101,11 @@ function installQuizStore(stub: DatabaseStub) {
     rows: questions.get(String(params[0])) ?? [],
   }))
 
+  // `saveQuiz` also mirrors the quiz into `content_items` so a share link can be
+  // minted for it; the upsert reads its own row back, so the loop needs an
+  // answer here for the create step to return.
+  stub.on(/SELECT \* FROM content_items/, { rows: [{ id: "content_quiz_1" }] })
+
   return { quizzes, questions }
 }
 

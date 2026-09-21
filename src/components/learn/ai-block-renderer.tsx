@@ -2,6 +2,7 @@
 
 import { AlertTriangle, CheckCircle2, GripVertical, Info } from "lucide-react"
 import { isSafeUrl, type QuizQuestion, type ThemedBlock, type ThemedCalloutTone, type ThemedTableAlign } from "@/lib/ai/format-response"
+import { setBlockDragPayload } from "@/lib/studio/block-drop"
 
 /**
  * Themed renderer for `format-response` blocks.
@@ -198,6 +199,16 @@ export function aiBlockId(block: ThemedBlock, index: number): string {
   return `ai-block-${index}-${block.type}`
 }
 
+/**
+ * Every drag out of this renderer carries the block itself plus its index, read
+ * back by a drop target through `@/lib/studio/block-drop`. Setting it on both
+ * the grip and (when `draggable`) the block surface means whichever the pointer
+ * grabbed starts a drag a canvas can accept.
+ */
+function startBlockDrag(event: React.DragEvent<HTMLElement>, block: ThemedBlock, index: number) {
+  setBlockDragPayload(event.dataTransfer, block, index)
+}
+
 export function AiBlockRenderer({ blocks, className, draggable = false, onBlockDragStart }: AiBlockRendererProps) {
   if (!blocks.length) return null
 
@@ -215,7 +226,10 @@ export function AiBlockRenderer({ blocks, className, draggable = false, onBlockD
             data-block-index={index}
             data-draggable={draggable ? "true" : "false"}
             draggable={draggable || undefined}
-            onDragStart={onBlockDragStart ? () => onBlockDragStart(blockId, index) : undefined}
+            onDragStart={(event) => {
+              startBlockDrag(event, block, index)
+              onBlockDragStart?.(blockId, index)
+            }}
           >
             <span
               className="learn-block__handle"
@@ -223,6 +237,7 @@ export function AiBlockRenderer({ blocks, className, draggable = false, onBlockD
               draggable
               aria-hidden="true"
               title="Drag block"
+              onDragStart={(event) => startBlockDrag(event, block, index)}
             >
               <GripVertical className="h-3.5 w-3.5" />
             </span>

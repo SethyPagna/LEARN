@@ -60,6 +60,20 @@ const QUESTION_ROWS = [
   },
 ]
 
+/**
+ * The registry mirror a saved quiz now writes.
+ *
+ * `saveQuiz` upserts a `content_items` row so the quiz can be shared, permission
+ * checked and listed like every other resource. The upsert reads the row back
+ * (its `ON CONFLICT` branch needs the id), so a save that succeeds needs an
+ * answer here — and `stub.matching(/INSERT INTO content_items/)` is how the test
+ * below proves the mirror was actually written rather than merely tolerated.
+ */
+function stubContentItemMirror(stub: ReturnType<typeof installDatabaseStub>) {
+  stub.on(/INSERT INTO content_items/, { rowCount: 1 })
+  stub.on(/SELECT \* FROM content_items/, { rows: [{ id: "content_quiz_1", title: QUIZ_ROW.title }] })
+}
+
 function createBody() {
   return {
     title: "Photosynthesis",
@@ -89,6 +103,7 @@ test("POST /api/quizzes persists the quiz, batches its questions, and returns it
     stub.on(/INSERT INTO audit_logs/, { rowCount: 1 })
     stub.on(/SELECT \* FROM quizzes/, { rows: [QUIZ_ROW] })
     stub.on(/SELECT \* FROM quiz_questions/, { rows: QUESTION_ROWS })
+    stubContentItemMirror(stub)
 
     const { POST } = await import("../../app/api/quizzes/route")
     const response = await POST(request("/api/quizzes", { method: "POST", body: createBody() }))
@@ -116,6 +131,15 @@ test("POST /api/quizzes persists the quiz, batches its questions, and returns it
     const auditInserts = stub.matching(/INSERT INTO audit_logs/)
     assert.equal(auditInserts.length, 1)
     assert.ok(auditInserts[0].params.includes("quiz"))
+
+    // The registry mirror is what makes the quiz shareable, so it is asserted
+    // here rather than left implicit: without this row a share link cannot be
+    // minted for a quiz at all (`createShareLink` needs the content item).
+    const mirrorInserts = stub.writesMatching(/INSERT INTO content_items/)
+    assert.equal(mirrorInserts.length, 1, "a saved quiz must be mirrored into content_items")
+    assert.ok(mirrorInserts[0].params.includes("quiz"), "the mirror's item_type must be 'quiz'")
+    assert.ok(mirrorInserts[0].params.includes("quizzes"), "the mirror must name the quizzes source table")
+    assert.ok(mirrorInserts[0].params.includes(TEST_USER_ROW.id), "the mirror belongs to the quiz's creator")
   } finally {
     stub.restore()
   }
@@ -131,6 +155,7 @@ test("the handler runs through the real SQL normaliser and the real session look
     stub.on(/INSERT INTO audit_logs/, { rowCount: 1 })
     stub.on(/SELECT \* FROM quizzes/, { rows: [QUIZ_ROW] })
     stub.on(/SELECT \* FROM quiz_questions/, { rows: QUESTION_ROWS })
+    stubContentItemMirror(stub)
 
     const { POST } = await import("../../app/api/quizzes/route")
     await POST(request("/api/quizzes", { method: "POST", body: createBody() }))
@@ -275,6 +300,7 @@ test("POST /api/quizzes with the caller's own quiz id updates it and stamps the 
     stub.on(/INSERT INTO audit_logs/, { rowCount: 1 })
     stub.on(/SELECT \* FROM quizzes/, { rows: [QUIZ_ROW] })
     stub.on(/SELECT \* FROM quiz_questions/, { rows: QUESTION_ROWS })
+    stubContentItemMirror(stub)
 
     const { POST } = await import("../../app/api/quizzes/route")
     const response = await POST(
@@ -315,6 +341,7 @@ test("POST /api/quizzes with an unknown id is allowed: there is no owner to prot
     stub.on(/INSERT INTO audit_logs/, { rowCount: 1 })
     stub.on(/SELECT \* FROM quizzes/, { rows: [QUIZ_ROW] })
     stub.on(/SELECT \* FROM quiz_questions/, { rows: QUESTION_ROWS })
+    stubContentItemMirror(stub)
 
     const { POST } = await import("../../app/api/quizzes/route")
     const response = await POST(
@@ -341,6 +368,7 @@ test("POST /api/quizzes with an ownerless quiz id is allowed: the seeded bank st
     stub.on(/INSERT INTO audit_logs/, { rowCount: 1 })
     stub.on(/SELECT \* FROM quizzes/, { rows: [QUIZ_ROW] })
     stub.on(/SELECT \* FROM quiz_questions/, { rows: QUESTION_ROWS })
+    stubContentItemMirror(stub)
 
     const { POST } = await import("../../app/api/quizzes/route")
     const response = await POST(

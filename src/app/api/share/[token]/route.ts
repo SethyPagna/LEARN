@@ -20,7 +20,9 @@
  *     control) invalidates every copy of the URL immediately.
  *
  * The payload is the underlying record in the same shape the owning route
- * returns, and it is read-only: nothing here accepts a write.
+ * returns, narrowed by the grant: a `viewer` link on a quiz carries its
+ * questions but not the answer key. It is read-only — nothing here accepts a
+ * write.
  */
 
 import type { NextRequest } from "next/server"
@@ -47,7 +49,7 @@ export const GET = withApiErrorBoundary(
       return fail("This share link is not valid.", 404)
     }
 
-    const payload = await readSharedContentPayload(resolved.item.source_table, resolved.item.source_id)
+    const payload = await readSharedContentPayload(resolved.item.source_table, resolved.item.source_id, resolved.grant.role)
     if (!payload) return fail("This share link is not valid.", 404)
 
     return ok({

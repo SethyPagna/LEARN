@@ -5,6 +5,7 @@ import { CheckCircle2, ChevronDown, Clock, Flag, Info, ListFilter, MoreHorizonta
 import type { WorkspaceOptions } from "../preferences"
 import type { PracticeAttemptSummary, PracticeMode, Quiz, QuizAttemptResult } from "../types"
 import { api } from "../api"
+import { SharePanel } from "../share-panel"
 import { ControlButton, EmptyState, Panel, StatusPill } from "../ui"
 import { menuSurfaceClasses, toneTextClasses } from "@/lib/design-system"
 import { clearPracticeDraft, hasPracticeDraftContent, readPracticeDraft, writePracticeDraft } from "@/lib/practice-drafts"
@@ -382,6 +383,10 @@ export function QuizView({
                 </ControlButton>
               </div>
             </div>
+            {/* The same owner-only link control the design canvas uses: a quiz
+                is shareable because `saveQuiz` mirrors it into `content_items`,
+                and a viewer link never carries the answer key. */}
+            <SharePanel className="mt-3" sourceTable="quizzes" sourceId={quiz.id} />
             <PracticeProgressBar
               elapsedSeconds={elapsedSeconds}
               onClearDraft={discardDraft}

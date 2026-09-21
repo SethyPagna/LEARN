@@ -15,7 +15,7 @@
  * the canvas follows the learner's chosen accent instead of a new colour).
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react"
 import {
   AlertTriangle,
   ArrowDownToLine,
@@ -38,11 +38,9 @@ import {
   Lock,
   Magnet,
   Maximize2,
-  PenLine,
   RotateCw,
   Rows3,
   Save,
-  Share2,
   Square,
   Trash2,
   Type,
@@ -54,6 +52,7 @@ import {
 } from "lucide-react"
 
 import { api } from "../api"
+import { SharePanel } from "../share-panel"
 import { Panel } from "../ui"
 import {
   addElement,
@@ -92,6 +91,8 @@ import {
   type SnapGuide,
 } from "@/lib/studio/canvas-engine"
 import { clearCanvasDraft, readCanvasDraft, shouldRestoreCanvasDraft, writeCanvasDraft } from "@/lib/studio/canvas-draft"
+import { safeColor, safeNumber, sanitizeImageUrl } from "@/lib/studio/canvas-styles"
+import { blockToElement, hasBlockDragPayload, readBlockDragPayload } from "@/lib/studio/block-drop"
 
 const GRID_SIZE = 8
 const SNAP_THRESHOLD = 6
@@ -104,36 +105,6 @@ const MAX_ZOOM = 4
  * `content_items` id behind it, which is why the API accepts both.
  */
 const CANVAS_SOURCE_TABLE = "editor_documents"
-
-interface ShareLink {
-  id: string
-  token: string
-  role: "viewer" | "editor"
-  expiresAt: string | null
-  active: boolean
-}
-
-/**
- * The share link itself: the public `/api/share/[token]` route, which resolves
- * the token to this design's read-only record with no session at all. Built from
- * the current origin so a copied link works wherever the app is deployed.
- */
-function shareLinkUrl(token: string) {
-  const origin = typeof window === "undefined" ? "" : window.location.origin
-  return `${origin}/api/share/${token}`
-}
-
-function shareRoleLabel(role: ShareLink["role"]) {
-  return role === "editor" ? "Can edit" : "View only"
-}
-
-function shareExpiryLabel(link: ShareLink) {
-  if (!link.expiresAt) return "No expiry"
-  const expiresAt = new Date(link.expiresAt)
-  if (Number.isNaN(expiresAt.getTime())) return "No expiry"
-  const formatted = expiresAt.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
-  return link.active ? `Expires ${formatted}` : `Expired ${formatted}`
-}
 
 /**
  * The Takram soft-tech preset, scoped to this component.
@@ -225,43 +196,12 @@ const CANVAS_PRESET_CSS = `
 `
 
 // ---------------------------------------------------------------------------
-// Sanitizers — nothing from the stored document reaches the DOM unvalidated
+// Sanitizers — the shared validators, so the share preview refuses exactly what
+// this editor refuses (`@/lib/studio/canvas-styles`)
 // ---------------------------------------------------------------------------
-
-const COLOR_PATTERN = /^(#[0-9a-f]{3,8}|(?:rgb|hsl|oklch|oklab|color-mix)\([^)]{0,120}\)|[a-z]{3,20})$/i
-
-function safeColor(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined
-  const trimmed = value.trim()
-  return trimmed.length <= 120 && COLOR_PATTERN.test(trimmed) ? trimmed : undefined
-}
-
-function safeNumber(value: unknown, min: number, max: number): number | undefined {
-  if (typeof value !== "number" || !Number.isFinite(value)) return undefined
-  return Math.min(max, Math.max(min, value))
-}
 
 function safeEnum<T extends string>(value: unknown, allowed: readonly T[]): T | undefined {
   return typeof value === "string" && (allowed as readonly string[]).includes(value) ? (value as T) : undefined
-}
-
-/**
- * Only same-origin, `data:image/*` and absolute http(s) URLs are accepted. The
- * app's CSP additionally restricts `img-src` to `'self' data: blob:`, so a
- * remote image shows its placeholder until the policy allows it — the URL is
- * still preserved in the document rather than silently dropped.
- */
-function sanitizeImageUrl(raw: string): string | null {
-  const value = raw.trim()
-  if (!value || value.length > 2048) return null
-  if (/^data:image\/(?:png|jpe?g|gif|webp|avif);base64,[a-z0-9+/=]+$/i.test(value)) return value
-  try {
-    const url = new URL(value, typeof window === "undefined" ? "https://learn.local" : window.location.origin)
-    if (url.protocol !== "http:" && url.protocol !== "https:") return null
-    return url.toString()
-  } catch {
-    return null
-  }
 }
 
 function embedHost(raw: string): string | null {
@@ -425,11 +365,6 @@ export function CanvasEditorView() {
   const [renameId, setRenameId] = useState("")
   const [renameValue, setRenameValue] = useState("")
   const [layerDrag, setLayerDrag] = useState<LayerDragState | null>(null)
-  const [shareOpen, setShareOpen] = useState(false)
-  const [shareLinks, setShareLinks] = useState<ShareLink[]>([])
-  const [shareRole, setShareRole] = useState<ShareLink["role"]>("viewer")
-  const [shareBusy, setShareBusy] = useState("")
-  const [shareStatus, setShareStatus] = useState("")
 
   const doc = liveDoc ?? history.present
   const selection = useMemo(() => doc.elements.filter((element) => selectedIds.includes(element.id)), [doc.elements, selectedIds])
@@ -677,6 +612,62 @@ export function CanvasEditorView() {
   }
 
   // -------------------------------------------------------------------------
+  // Drops — an AI-formatted block dragged in from `ai-block-renderer.tsx`
+  // -------------------------------------------------------------------------
+
+  /**
+   * Only a drag carrying a block is a drop candidate, so the canvas does not
+   * swallow the layer-panel drags that share this stage. `dragover` has to
+   * `preventDefault()` for `drop` to fire at all, and it can only ask about the
+   * drag's types — the payload itself stays unreadable until the drop.
+   */
+  function onStageDragOver(event: ReactDragEvent<HTMLDivElement>) {
+    if (!hasBlockDragPayload(event.dataTransfer)) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = "copy"
+  }
+
+  /**
+   * Place the dragged block at the pointer, as one undoable step.
+   *
+   * The conversion, the position and the snapping are all engine calls, so what
+   * lands here is the same document a pointer gesture would produce: nothing is
+   * written twice and `commit` records exactly one history entry — and, having
+   * no drag gesture to end, the new element is selected immediately.
+   */
+  function onStageDrop(event: ReactDragEvent<HTMLDivElement>) {
+    if (!hasBlockDragPayload(event.dataTransfer)) return
+    // Stops the browser's default of navigating to the dragged data.
+    event.preventDefault()
+    const dropped = readBlockDragPayload(event.dataTransfer)
+    if (!dropped) {
+      setStatus("That drag did not carry a usable block.")
+      return
+    }
+    const point = toCanvasPoint(event)
+    const element = blockToElement(dropped.block, point, dropped.index)
+    if (!element) {
+      setStatus("That block cannot be placed on the canvas.")
+      return
+    }
+
+    let next = addElement(doc, element)
+    const snap = snapEnabled
+      ? computeSnapGuides(next, element.id, {
+          threshold: SNAP_THRESHOLD,
+          grid: GRID_SIZE,
+          gridSnap: gridEnabled,
+          ignoreIds: [element.id],
+        })
+      : { guides: [], dx: 0, dy: 0 }
+    if (snap.dx || snap.dy) next = moveElements(next, [element.id], snap.dx, snap.dy)
+
+    commit(next)
+    setSelectedIds([element.id])
+    setStatus("")
+  }
+
+  // -------------------------------------------------------------------------
   // Commands
   // -------------------------------------------------------------------------
 
@@ -763,89 +754,6 @@ export function CanvasEditorView() {
 
   function toggleGrid() {
     setGridEnabled((current) => !current)
-  }
-
-  // -------------------------------------------------------------------------
-  // Share links
-  // -------------------------------------------------------------------------
-
-  /**
-   * A share link is a `public_link` grant on this canvas's content item, and the
-   * token in the URL *is* the grant. Only the owner can mint, list or revoke one
-   * — the API answers 400 "Only the owner of an item can manage its share links."
-   * otherwise, so this panel simply surfaces whatever it says.
-   *
-   * A link grants a read: `/api/share/[token]` serves the stored design to
-   * whoever holds the URL. The "Can edit" role is recorded on the grant and
-   * shown here, but writing still needs a signed-in collaborator holding an
-   * editor grant of their own — a forwarded URL is never a write credential.
-   */
-  async function loadShareLinks() {
-    if (!recordId) {
-      setShareLinks([])
-      return
-    }
-    setShareBusy("list")
-    try {
-      const response = await api<{ links: ShareLink[] }>(
-        `/api/share?sourceTable=${CANVAS_SOURCE_TABLE}&sourceId=${encodeURIComponent(recordId)}`,
-      )
-      setShareLinks(response.links || [])
-      setShareStatus("")
-    } catch (error) {
-      setShareStatus(error instanceof Error ? error.message : "Unable to load share links.")
-    } finally {
-      setShareBusy("")
-    }
-  }
-
-  function toggleShare() {
-    const next = !shareOpen
-    setShareOpen(next)
-    if (next) void loadShareLinks()
-  }
-
-  async function copyShareLink(link: ShareLink) {
-    const url = shareLinkUrl(link.token)
-    try {
-      await navigator.clipboard.writeText(url)
-      setShareStatus(`Copied the ${shareRoleLabel(link.role).toLowerCase()} link.`)
-    } catch {
-      // Clipboard access needs a secure context; showing the URL is the fallback
-      // that still lets the link be selected by hand.
-      setShareStatus(`Copy was blocked. The link is ${url}`)
-    }
-  }
-
-  async function createShareLink() {
-    if (!recordId) return
-    setShareBusy("create")
-    try {
-      const response = await api<{ link: ShareLink }>("/api/share", {
-        method: "POST",
-        body: JSON.stringify({ sourceTable: CANVAS_SOURCE_TABLE, sourceId: recordId, role: shareRole }),
-      })
-      setShareLinks((current) => [response.link, ...current])
-      setShareStatus("")
-      await copyShareLink(response.link)
-    } catch (error) {
-      setShareStatus(error instanceof Error ? error.message : "Unable to create a share link.")
-    } finally {
-      setShareBusy("")
-    }
-  }
-
-  async function revokeShareLink(id: string) {
-    setShareBusy(id)
-    try {
-      await api(`/api/share?id=${encodeURIComponent(id)}`, { method: "DELETE" })
-      setShareLinks((current) => current.filter((link) => link.id !== id))
-      setShareStatus("Link revoked. Every copy of it now answers 404.")
-    } catch (error) {
-      setShareStatus(error instanceof Error ? error.message : "Unable to revoke that link.")
-    } finally {
-      setShareBusy("")
-    }
   }
 
   function downloadJson() {
@@ -983,10 +891,6 @@ export function CanvasEditorView() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" data-active={shareOpen} onClick={toggleShare} className="canvas-tool" title="Share this design">
-              <Share2 className="h-4 w-4" />
-              Share
-            </button>
             <button type="button" onClick={downloadJson} className="canvas-tool">
               <Download className="h-4 w-4" />
               Download JSON
@@ -999,6 +903,14 @@ export function CanvasEditorView() {
             </button>
           </div>
         </div>
+
+        <SharePanel
+          className="mb-3"
+          sourceTable={CANVAS_SOURCE_TABLE}
+          sourceId={recordId}
+          triggerClassName="canvas-tool"
+          requiresSourceMessage="This design is not saved yet. A share link points at a stored canvas, so it can be created once the first edit is saved."
+        />
 
         <div className="canvas-toolbar mb-3">
           <button type="button" onClick={() => insertElement("text", "New text")} className="canvas-tool">
@@ -1109,77 +1021,6 @@ export function CanvasEditorView() {
           </button>
         </div>
 
-        {shareOpen ? (
-          <div className="mb-3 space-y-3 rounded-[12px] bg-muted p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">New share link</span>
-              {(["viewer", "editor"] as const).map((role) => (
-                <button
-                  key={role}
-                  type="button"
-                  data-active={shareRole === role}
-                  onClick={() => setShareRole(role)}
-                  className="canvas-tool"
-                  title={role === "editor" ? "Records edit intent on the link" : "Read-only link"}
-                >
-                  {role === "editor" ? <PenLine className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  {shareRoleLabel(role)}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => void createShareLink()}
-                disabled={!recordId || shareBusy === "create"}
-                className="canvas-tool"
-              >
-                {shareBusy === "create" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
-                Create link
-              </button>
-            </div>
-
-            {!recordId ? (
-              <p className="text-xs text-muted-foreground">
-                This design is not saved yet. A share link points at a stored canvas, so it can be created once the first edit is saved.
-              </p>
-            ) : null}
-
-            {shareLinks.length ? (
-              <ul className="space-y-1.5">
-                {shareLinks.map((link) => (
-                  <li key={link.id} className="flex flex-wrap items-center gap-2 rounded-[10px] bg-card p-2">
-                    <span className="rounded-full bg-secondary px-2 py-0.5 text-[0.7rem] font-semibold text-secondary-foreground">
-                      {shareRoleLabel(link.role)}
-                    </span>
-                    <code className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{shareLinkUrl(link.token)}</code>
-                    <span className={`text-[0.7rem] ${link.active ? "text-muted-foreground" : "text-destructive"}`}>{shareExpiryLabel(link)}</span>
-                    <button type="button" onClick={() => void copyShareLink(link)} className="canvas-tool">
-                      <Copy className="h-3.5 w-3.5" />
-                      Copy
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void revokeShareLink(link.id)}
-                      disabled={shareBusy === link.id}
-                      className="canvas-tool"
-                      title="Revoke this link"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Revoke
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : recordId && shareBusy !== "list" ? (
-              <p className="text-xs text-muted-foreground">No share links yet.</p>
-            ) : null}
-
-            {shareStatus ? <p className="text-xs text-muted-foreground">{shareStatus}</p> : null}
-            <p className="text-xs text-muted-foreground">
-              Anyone with a link can read this design through it — no account needed. Revoking a link revokes every copy of it.
-            </p>
-          </div>
-        ) : null}
-
         {insertOpen ? (
           <div className="mb-3 flex flex-wrap items-center gap-2 rounded-[12px] bg-muted p-3">
             <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{insertKind === "image" ? "Image URL" : "Embed URL"}</span>
@@ -1213,6 +1054,8 @@ export function CanvasEditorView() {
             onPointerMove={onStagePointerMove}
             onPointerUp={endGesture}
             onPointerCancel={endGesture}
+            onDragOver={onStageDragOver}
+            onDrop={onStageDrop}
             className="relative touch-none select-none shadow-sm"
             style={{
               width: doc.width,
@@ -1291,7 +1134,7 @@ export function CanvasEditorView() {
 
         <p className="mt-3 text-xs text-muted-foreground">
           Drag to move, handles to resize (rotated resize keeps the opposite edge fixed), the top handle to rotate — hold Shift while rotating to snap to 15°.
-          Arrows nudge, Shift+Arrows nudge 10px, [ / ] reorder, Cmd/Ctrl+Z undoes.
+          Arrows nudge, Shift+Arrows nudge 10px, [ / ] reorder, Cmd/Ctrl+Z undoes. Drop a formatted AI block here to place it on the canvas.
         </p>
       </Panel>
 

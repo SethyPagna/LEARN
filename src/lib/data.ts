@@ -1009,7 +1009,12 @@ export interface ShareLinkSummary {
 }
 
 export interface ResolvedShareToken {
-  grant: SharedAccessLike & { id: string }
+  /**
+   * A share link can only ever carry a link role — `createShareLink` refuses
+   * anything but `viewer`/`editor` — so the resolved grant says so, and a caller
+   * cannot hand a wider role to something that narrows a payload by it.
+   */
+  grant: SharedAccessLike & { id: string; role: ShareLinkRole }
   item: Record<string, unknown>
 }
 
@@ -1370,23 +1375,61 @@ export async function resolveShareToken(token: unknown): Promise<ResolvedShareTo
  * Column names come from the schema, so this is a pass-through of stored values;
  * the JSON columns are parsed exactly the way the saver for each resource parses
  * them, so a caller sees the same shape it would through the owning route.
+ *
+ * `role` reaches the loaders so a payload can be narrowed for the grant it is
+ * being served under — today only a quiz does that, withholding its answer key
+ * from a `viewer` link.
  */
-const SHAREABLE_SOURCE_TABLES = new Map<string, (row: Record<string, unknown>) => Record<string, unknown>>([
+type ShareableSourceLoader = (
+  row: Record<string, unknown>,
+  role: ShareLinkRole,
+) => Record<string, unknown> | Promise<Record<string, unknown>>
+
+const SHAREABLE_SOURCE_TABLES = new Map<string, ShareableSourceLoader>([
   ["notes", (row) => row],
   ["editor_documents", (row) => ({ ...row, content: parseJsonObject(row.content), tags: parseJsonArray(row.tags) })],
   ["sheet_documents", (row) => normalizeJsonRow(row, ["cells", "history"])],
   ["slide_decks", (row) => ({ ...row, slides: parseJsonArray(row.slides), speaker_notes: parseJsonObject(row.speaker_notes) })],
+  [
+    "quizzes",
+    async (row, role) => {
+      // A quiz's questions live in their own table, so this is the one reader
+      // that has to fetch more than the row it was handed. It returns the same
+      // shape `getQuiz` does, which is what the owning route answers with.
+      const questions = await query("SELECT * FROM quiz_questions WHERE quiz_id = $1 ORDER BY id ASC", [normalizeId(row.id)])
+      return {
+        ...row,
+        questions: questions.rows.map(normalizeQuizQuestion).map((question) => sharedQuizQuestion(question, role)),
+      }
+    },
+  ],
 ])
 
-export async function readSharedContentPayload(sourceTable: unknown, sourceId: unknown) {
+/**
+ * One question, as a shared payload may carry it.
+ *
+ * A `viewer` link must not hand out the answer key: the questions are what the
+ * reader is meant to answer, and `correct_answer_id` is the one field that makes
+ * a share link a cheat sheet. The `editor` role keeps it, because that holder is
+ * the one who would fix a wrong key.
+ */
+function sharedQuizQuestion(question: QuizQuestionRecord, role: ShareLinkRole) {
+  if (role === "editor") return question
+  const { correct_answer_id: _withheld, ...rest } = question
+  return rest
+}
+
+export async function readSharedContentPayload(sourceTable: unknown, sourceId: unknown, role: ShareLinkRole = "viewer") {
   await ensureDatabase()
   const table = normalizeId(sourceTable)
   const id = normalizeId(sourceId)
-  const normalize = SHAREABLE_SOURCE_TABLES.get(table)
-  if (!normalize || !id) return null
+  const load = SHAREABLE_SOURCE_TABLES.get(table)
+  if (!load || !id) return null
   const result = await query(`SELECT * FROM ${table} WHERE id = $1 LIMIT 1`, [id])
   const row = result.rows[0]
-  return row ? normalize(row) : null
+  // `role` defaults to the narrowest answer payload: a caller that forgets to
+  // pass it withholds the quiz key rather than leaking it.
+  return row ? await load(row, role) : null
 }
 
 export async function listEditorDocuments(user: User, documentType = "doc", status: ArchiveListStatus = "active") {
@@ -2082,6 +2125,20 @@ export async function saveQuiz(user: User, input: Record<string, unknown>) {
     ["choices"],
   )
 
+  // The registry mirror. `content_items` is what share links, permissions and
+  // search are addressed by, so a saved quiz appears there the way a note, doc,
+  // sheet or deck does — `item_type` has admitted 'quiz' since the registry was
+  // created, and without this row a quiz could never be shared.
+  await upsertContentItemForSource({
+    workspaceId: DEFAULT_WORKSPACE_ID,
+    ownerUserId: user.id,
+    itemType: "quiz",
+    sourceTable: "quizzes",
+    sourceId: id,
+    title,
+    summary: String(input.description || "") || `${questionRows.length} questions`,
+  })
+
   await logAudit({ userId: user.id, action: input.id ? "update" : "create", entity: "quiz", entityId: id })
   return getQuiz(id)
 }
@@ -2102,6 +2159,11 @@ export async function archiveQuiz(user: User, id: string) {
   if (!existing.rows[0]) return false
   await assertOwnership(user, "quizzes", id, "created_by_user_id")
   await query("UPDATE quizzes SET archived_at = datetime('now') WHERE id = $1", [id])
+  // The registry row is what a share link is granted on, and archiving kills
+  // links (`resolveContentRoleForToken` refuses an archived item) — so the
+  // mirror has to move with the quiz, exactly as notes, docs, sheets and decks
+  // already do in their own archive paths.
+  await archiveContentItemForSource("quizzes", id)
   await logAudit({ userId: user.id, action: "archive", entity: "quiz", entityId: id })
   return true
 }
