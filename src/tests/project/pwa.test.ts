@@ -314,7 +314,6 @@ test("offline page is self-contained with no remote assets", () => {
 test("error boundaries and route surfaces exist with the required markers", () => {
   const errorSource = readApp("error.tsx")
   const globalErrorSource = readApp("global-error.tsx")
-  const loadingSource = readApp("loading.tsx")
   const notFoundSource = readApp("not-found.tsx")
 
   assert.match(errorSource, /^"use client"/)
@@ -327,9 +326,88 @@ test("error boundaries and route surfaces exist with the required markers", () =
   assert.match(globalErrorSource, /reset/)
   assert.equal(/@\/components/.test(globalErrorSource), false, "global-error must not pull in the app shell")
 
-  assert.match(loadingSource, /animate-pulse/)
-
   assert.match(notFoundSource, /href="\/"/)
+})
+
+// ---------------------------------------------------------------------------
+// No loading boundary above a notFound()
+//
+// `loading.tsx` is not just a skeleton: it wraps everything below it in a
+// Suspense boundary. Next.js flushes that boundary's fallback shell as soon as
+// the route starts streaming, which commits the status line before the page
+// body resolves — so a `notFound()` thrown later by the page can only swap the
+// body, never the status code. A `loading.tsx` at the app root therefore puts
+// the whole tree in that state: an invalid token answers `200 OK` with the 404
+// page as its body, which tells crawlers and clients the link is fine.
+//
+// This was not theoretical. The root `src/app/loading.tsx` added with the PWA
+// work did exactly that, and it was bisected directly: with the file present
+// `GET /share/<invalid-token>` returned 200, with it removed the same request
+// returned 404.
+//
+// The affordance was not worth the cost. Every top-level page is already a
+// client shell (`<LearnShell … />`) that renders immediately, so a global
+// skeleton bought almost nothing. Correct status codes win: do not re-add a
+// root `src/app/loading.tsx`, and only add one inside a leaf segment that
+// renders async content, never calls `notFound()`, and has no such page
+// beneath it — the invariant the tests below enforce.
+// ---------------------------------------------------------------------------
+
+function walkApp(dir: string): string[] {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) return walkApp(entryPath)
+    return entry.isFile() ? [entryPath] : []
+  })
+}
+
+/** Every `page.tsx` under `src/app` that rejects a request with `notFound()`. */
+function pagesCallingNotFound(): string[] {
+  return walkApp(APP_ROOT).filter(
+    (file) => path.basename(file) === "page.tsx" && /notFound\(\)/.test(fs.readFileSync(file, "utf8")),
+  )
+}
+
+/**
+ * Every `loading.tsx` in a route segment at or above `pagePath`, up to and
+ * including the app root — the boundaries that can swallow its 404 status.
+ */
+function loadingBoundariesAbove(pagePath: string): string[] {
+  const found: string[] = []
+  let dir = path.dirname(pagePath)
+
+  for (;;) {
+    const candidate = path.join(dir, "loading.tsx")
+    if (fs.existsSync(candidate)) found.push(path.relative(APP_ROOT, candidate).split(path.sep).join("/"))
+    if (dir === APP_ROOT) break
+    dir = path.dirname(dir)
+  }
+
+  return found
+}
+
+test("no root loading boundary exists", () => {
+  assert.equal(
+    fs.existsSync(path.join(APP_ROOT, "loading.tsx")),
+    false,
+    "src/app/loading.tsx must not exist: a root loading boundary makes notFound() unable to set the HTTP status",
+  )
+})
+
+test("every notFound() page has no loading boundary above it", () => {
+  const pages = pagesCallingNotFound().map((file) => path.relative(APP_ROOT, file).split(path.sep).join("/"))
+
+  // The guard is only meaningful while something still relies on notFound()
+  // setting the status; this keeps it from passing vacuously if that changes.
+  assert.equal(pages.includes("share/[token]/page.tsx"), true, "share/[token]/page.tsx must keep rejecting with notFound()")
+
+  const offenders = pages.flatMap((page) => loadingBoundariesAbove(path.join(APP_ROOT, page)).map((boundary) => `${boundary} -> ${page}`))
+
+  assert.deepEqual(
+    offenders,
+    [],
+    "a loading boundary above a notFound() page returns 200 for what should be a 404",
+  )
 })
 
 test("root layout registers the service worker and PWA metadata", () => {
