@@ -61,41 +61,6 @@ export function getAiTutorModeGroupForTask(taskId: string): AiTutorModeGroupId {
   return aiTutorModeGroups.find((group) => group.id !== "all" && group.modes.includes(taskId as AiTaskKey))?.id ?? "all"
 }
 
-export interface AiTutorWorkflowSummary {
-  status: AiPromptReadinessStatus
-  statusLabel: string
-  taskLabel: string
-  promptLabel: string
-  providerLabel: string
-  insertLabel: string
-  contextLabel: string
-  tokenLabel: string
-  nextAction: string
-  overview: Array<{
-    id: "task" | "context" | "output" | "gateway"
-    label: string
-    value: string
-    detail: string
-    tone: "good" | "watch" | "blocked" | "neutral"
-  }>
-  cards: Array<{
-    id: "task" | "prompt" | "provider" | "insert" | "context" | "draft"
-    label: string
-    value: string
-    detail: string
-    tone: "good" | "watch" | "blocked" | "neutral"
-  }>
-}
-
-export type AiTutorPrimaryActionKind = "run" | "prompt" | "import" | "gateway"
-
-export interface AiTutorPrimaryActionPlan {
-  action: AiTutorPrimaryActionKind
-  label: string
-  disabled: boolean
-  statusMessage: string
-}
-
 export interface AiTutorLaunchPreset {
   activeTaskKey: AiTaskKey
   insertTarget: StudioInsertTarget
@@ -104,14 +69,6 @@ export interface AiTutorLaunchPreset {
   outputLength: string
   sourceScope: string
   status: string
-}
-
-export interface AiTutorUploadedSourceSummary {
-  attached: boolean
-  badgeCount: number
-  label: string
-  detail: string
-  source: "pasted" | "saved" | "empty"
 }
 
 export function buildAiTutorSourceContext(input: {

@@ -110,6 +110,58 @@ test("buildMultiRowInsert appends an optional conflict clause", () => {
   assert.equal(built.sql, "INSERT INTO tags (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING")
 })
 
+test("buildMultiRowInsert keeps jsonb casts on a batched upsert", () => {
+  // The exact shape `seedKnowledgeGraphForUser` emits: 13 columns, one JSON
+  // column, and the conflict clause of the per-row statement it replaced. The
+  // D1 HTTP boundary strips `::jsonb` in `normalizeD1Sql`, so this is the only
+  // place the cast can be observed — losing it here would silently change how
+  // the JSON column is stored on the binding path.
+  const columns = [
+    "id", "user_id", "workspace_id", "source_type", "source_id", "title", "summary", "mastery",
+    "visibility", "position_x", "position_y", "position_z", "metadata",
+  ]
+  const built = buildMultiRowInsert({
+    table: "knowledge_nodes",
+    columns,
+    rows: [
+      ["node_a", "user_1", "workspace_demo", "note", "a", "A", "", 0.35, "private", 120, 0, 0, "{}"],
+      ["node_b", "user_1", "workspace_demo", "note", "b", "B", "", 0.47, "connections", 64, 84, 0, "{}"],
+    ],
+    jsonColumns: ["metadata"],
+    onConflict: "ON CONFLICT (id) DO NOTHING",
+  })
+
+  assert.ok(built)
+  assert.equal(built.sql, `INSERT INTO knowledge_nodes (${columns.join(", ")}) VALUES (${[
+    "$1", "$2", "$3", "$4", "$5", "$6", "$7", "$8", "$9", "$10", "$11", "$12", "$13::jsonb",
+  ].join(", ")}), (${[
+    "$14", "$15", "$16", "$17", "$18", "$19", "$20", "$21", "$22", "$23", "$24", "$25", "$26::jsonb",
+  ].join(", ")}) ON CONFLICT (id) DO NOTHING`)
+  assert.equal(built.values.length, 26)
+  assert.equal(built.values[12], "{}")
+  assert.equal(built.values[25], "{}")
+})
+
+test("buildMultiRowInsert keeps a DO UPDATE clause on a batched upsert", () => {
+  const built = buildMultiRowInsert({
+    table: "feed_rank_cache",
+    columns: ["id", "user_id", "lesson_id", "topic_key", "reason", "rank_score", "topic_tags", "expires_at"],
+    rows: [
+      ["c1", "u1", "l1", "study", "preferred", 0.9, "[]", "2026-09-21T07:00:00.000Z"],
+      ["c2", "u1", "l2", "study", "serendipity", 0.8, "[]", "2026-09-21T07:00:00.000Z"],
+    ],
+    jsonColumns: ["topic_tags"],
+    onConflict: `ON CONFLICT (user_id, lesson_id, topic_key) DO UPDATE
+     SET reason = EXCLUDED.reason,
+         rank_score = EXCLUDED.rank_score`,
+  })
+
+  assert.ok(built)
+  assert.match(built.sql, /VALUES \(\$1, \$2, \$3, \$4, \$5, \$6, \$7::jsonb, \$8\), \(\$9, \$10, \$11, \$12, \$13, \$14, \$15::jsonb, \$16\)/)
+  assert.match(built.sql, /ON CONFLICT \(user_id, lesson_id, topic_key\) DO UPDATE/)
+  assert.match(built.sql, /rank_score = EXCLUDED\.rank_score/)
+})
+
 test("buildMultiRowInsert returns null rather than emitting a tuple-less INSERT", () => {
   assert.equal(buildMultiRowInsert({ table: "quiz_questions", columns: ["id"], rows: [] }), null)
 })

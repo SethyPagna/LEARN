@@ -157,22 +157,12 @@ export interface WorkspaceDeck {
 }
 
 export type StudioKind = "notes" | "docs" | "sheets" | "slides"
-export type StudioAction = "new" | "save" | "undo" | "redo" | "copy" | "duplicate" | "archive" | "download" | "export"
-export type StudioExportFormat = "markdown" | "text" | "csv" | "json" | "outline"
-export type StudioDraftStatus = "saved" | "dirty" | "local-draft" | "saving" | "conflict"
 export interface StudioDirtyBadge {
   kind: StudioKind
   count: number
   latestAt?: string
 }
-export type StudioPaneAction = "split-right" | "split-down" | "close" | "close-others" | "duplicate" | "pin" | "reset"
 export type StudioInsertTarget = "note-block" | "doc-section" | "sheet-rows" | "slide-outline" | "quiz" | "flashcards" | "review-cards" | "ai-note"
-export interface RichDocumentContent {
-  blocks?: unknown
-  html?: string
-  markdown?: string
-  plainText?: string
-}
 export interface SheetMetadata {
   columnWidths?: number[]
   rowHeights?: number[]
@@ -220,21 +210,6 @@ export interface PracticeAttemptSummary {
   missedQuestionIds: string[]
   nextAction: "retry" | "review" | "save-to-studio" | "rest"
 }
-export type StudioCommand =
-  | StudioAction
-  | "open"
-  | "format"
-  | "insert"
-  | "data"
-  | "review"
-  | "share"
-  | "split-right"
-  | "split-down"
-  | "close-pane"
-  | "close-others"
-  | "pin-pane"
-  | "ask-ai"
-
 export interface StudioTab {
   id: string
   kind: StudioKind
@@ -264,24 +239,6 @@ export interface StudioLayoutState {
   groups: StudioPaneGroup[]
   inspectorOpen: boolean
   density: "compact" | "comfortable"
-}
-
-export interface StudioContextTarget {
-  type: "record" | "editor" | "cell" | "slide" | "pane"
-  kind?: StudioKind
-  id?: string
-  rowIndex?: number
-  columnIndex?: number
-  paneId?: string
-}
-
-export interface StudioItem {
-  id: string
-  kind: StudioKind
-  title: string
-  updated_at?: string
-  favorite?: boolean
-  summary?: string
 }
 
 export interface DashboardWeakTopic {
@@ -404,18 +361,6 @@ export interface AutomationData {
   prompts?: AutomationPromptRecord[]
 }
 
-export interface WorkspaceState {
-  user: User | null
-  notes: Note[]
-  quizzes: Quiz[]
-  dashboard: DashboardData | null
-  adminData: AdminData | null
-  automationData: AutomationData | null
-}
-
-export type VaultMode = "vault" | "graph" | "reviews"
-export type FeedMode = "discover" | "following" | "circles"
-
 export interface KnowledgeNode {
   id: string
   title: string
@@ -516,12 +461,4 @@ export interface PublicProfile {
   }
   metrics: Record<string, number>
   artifacts: KnowledgeNode[]
-}
-
-export interface SocialAction {
-  id: string
-  target_type: string
-  target_id: string
-  action_type: string
-  body?: string
 }

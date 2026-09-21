@@ -63,15 +63,20 @@ function parseTimestampMs(value: unknown) {
  * `chunkRowsForInsert` keeps each statement inside D1's 100-bound-parameter
  * ceiling (see `sql-batch.ts`), so long lists still collapse to a handful of
  * statements rather than one per row.
+ *
+ * `onConflict` is the trailing clause of the original per-row statement, e.g.
+ * `ON CONFLICT (id) DO NOTHING`. It is appended to *every* chunk, so a chunked
+ * upsert behaves exactly like the per-row form it replaced.
  */
 async function insertRows(
   table: string,
   columns: string[],
   rows: unknown[][],
   jsonColumns: string[] = [],
+  onConflict?: string,
 ) {
   for (const chunk of chunkRowsForInsert(rows, columns.length)) {
-    const statement = buildMultiRowInsert({ table, columns, rows: chunk, jsonColumns })
+    const statement = buildMultiRowInsert({ table, columns, rows: chunk, jsonColumns, onConflict })
     if (statement) await query(statement.sql, statement.values)
   }
 }
@@ -1830,38 +1835,48 @@ async function seedKnowledgeGraphForUser(user: User) {
   if (Number(existing.rows[0]?.count || 0) > 0) return
 
   const notes = (await listNotes()).slice(0, 5)
-  for (const [index, note] of notes.entries()) {
-    await query(
-      `INSERT INTO knowledge_nodes (
-         id, user_id, workspace_id, source_type, source_id, title, summary, mastery, visibility,
-         position_x, position_y, position_z, metadata
-       )
-       VALUES ($1, $2, 'workspace_demo', 'note', $3, $4, $5, $6, $7, $8, $9, 0, $10::jsonb)
-       ON CONFLICT (id) DO NOTHING`,
-      [
-        `node_${note.id}`,
-        user.id,
-        note.id,
-        note.title,
-        note.content.slice(0, 220),
-        Math.min(0.9, 0.35 + index * 0.12),
-        note.favorite ? "connections" : "private",
-        Math.cos(index) * 120,
-        Math.sin(index) * 90,
-        JSON.stringify({ icon: note.icon, tags: note.tags || [] }),
-      ],
-    )
-  }
+  await insertRows(
+    "knowledge_nodes",
+    [
+      "id", "user_id", "workspace_id", "source_type", "source_id", "title", "summary", "mastery",
+      "visibility", "position_x", "position_y", "position_z", "metadata",
+    ],
+    notes.map((note, index) => [
+      `node_${note.id}`,
+      user.id,
+      "workspace_demo",
+      "note",
+      note.id,
+      note.title,
+      note.content.slice(0, 220),
+      Math.min(0.9, 0.35 + index * 0.12),
+      note.favorite ? "connections" : "private",
+      Math.cos(index) * 120,
+      Math.sin(index) * 90,
+      0,
+      JSON.stringify({ icon: note.icon, tags: note.tags || [] }),
+    ]),
+    ["metadata"],
+    "ON CONFLICT (id) DO NOTHING",
+  )
 
   if (notes.length >= 2) {
-    for (let index = 1; index < notes.length; index += 1) {
-      await query(
-        `INSERT INTO knowledge_edges (id, user_id, workspace_id, source_node_id, target_node_id, edge_type, strength, created_by)
-         VALUES ($1, $2, 'workspace_demo', $3, $4, 'related', $5, 'ai-suggested')
-         ON CONFLICT (source_node_id, target_node_id, edge_type) DO NOTHING`,
-        [createId("edge"), user.id, `node_${notes[index - 1].id}`, `node_${notes[index].id}`, Math.max(0.35, 0.8 - index * 0.08)],
-      )
-    }
+    await insertRows(
+      "knowledge_edges",
+      ["id", "user_id", "workspace_id", "source_node_id", "target_node_id", "edge_type", "strength", "created_by"],
+      notes.slice(1).map((note, index) => [
+        createId("edge"),
+        user.id,
+        "workspace_demo",
+        `node_${notes[index].id}`,
+        `node_${note.id}`,
+        "related",
+        Math.max(0.35, 0.8 - (index + 1) * 0.08),
+        "ai-suggested",
+      ]),
+      [],
+      "ON CONFLICT (source_node_id, target_node_id, edge_type) DO NOTHING",
+    )
   }
 }
 
@@ -1870,28 +1885,29 @@ async function seedReviewItemsForUser(user: User) {
   if (Number(existing.rows[0]?.count || 0) > 0) return
 
   const notes = (await listNotes()).slice(0, 6)
-  for (const [index, note] of notes.entries()) {
-    await query(
-      `INSERT INTO review_items (
-         id, user_id, source_type, source_id, title, prompt, answer, difficulty, stability, retrievability, due_at, metadata
-       )
-       VALUES ($1, $2, 'note', $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)
-       ON CONFLICT (user_id, source_type, source_id) DO NOTHING`,
-      [
-        createId("review"),
-        user.id,
-        note.id,
-        note.title,
-        `Explain the central idea in "${note.title}".`,
-        note.content.slice(0, 500),
-        0.45 + index * 0.04,
-        2 + index,
-        0.9 - index * 0.08,
-        new Date(Date.now() - index * 60 * 60 * 1000).toISOString(),
-        JSON.stringify({ icon: note.icon, reviewableBlock: true }),
-      ],
-    )
-  }
+  await insertRows(
+    "review_items",
+    [
+      "id", "user_id", "source_type", "source_id", "title", "prompt", "answer", "difficulty",
+      "stability", "retrievability", "due_at", "metadata",
+    ],
+    notes.map((note, index) => [
+      createId("review"),
+      user.id,
+      "note",
+      note.id,
+      note.title,
+      `Explain the central idea in "${note.title}".`,
+      note.content.slice(0, 500),
+      0.45 + index * 0.04,
+      2 + index,
+      0.9 - index * 0.08,
+      new Date(Date.now() - index * 60 * 60 * 1000).toISOString(),
+      JSON.stringify({ icon: note.icon, reviewableBlock: true }),
+    ]),
+    ["metadata"],
+    "ON CONFLICT (user_id, source_type, source_id) DO NOTHING",
+  )
 }
 
 async function seedMicroLessons(user: User) {
@@ -1940,26 +1956,27 @@ async function seedMicroLessons(user: User) {
     },
   ]
 
-  for (const lesson of lessons) {
-    await query(
-      `INSERT INTO micro_lessons (
-         id, creator_user_id, title, summary, duration_seconds, topic_tags, question, choices, correct_choice_id, explanation
-       )
-       VALUES ($1, $2, $3, $4, 90, $5::jsonb, $6, $7::jsonb, $8, $9)
-       ON CONFLICT (id) DO NOTHING`,
-      [
-        lesson.id,
-        user.id,
-        lesson.title,
-        lesson.summary,
-        JSON.stringify(lesson.tags),
-        lesson.question,
-        JSON.stringify(lesson.choices),
-        lesson.correct,
-        "Save the lesson to your Vault and connect it to one note.",
-      ],
-    )
-  }
+  await insertRows(
+    "micro_lessons",
+    [
+      "id", "creator_user_id", "title", "summary", "duration_seconds", "topic_tags", "question",
+      "choices", "correct_choice_id", "explanation",
+    ],
+    lessons.map((lesson) => [
+      lesson.id,
+      user.id,
+      lesson.title,
+      lesson.summary,
+      90,
+      JSON.stringify(lesson.tags),
+      lesson.question,
+      JSON.stringify(lesson.choices),
+      lesson.correct,
+      "Save the lesson to your Vault and connect it to one note.",
+    ]),
+    ["topic_tags", "choices"],
+    "ON CONFLICT (id) DO NOTHING",
+  )
 }
 
 export async function getVaultGraph(user: User) {
@@ -2035,6 +2052,12 @@ export async function createPracticeReviewItems(user: User, input: Record<string
   const dueAt = new Date().toISOString()
   const created = []
 
+  // Deliberately left as a per-row loop rather than folded into `insertRows`.
+  // The conflict target is `(user_id, source_type, source_id)`, and `sourceId`
+  // comes straight from the request body with no de-duplication, so two cards
+  // in one call can collide on it. A multi-row upsert makes the winner among
+  // colliding rows engine-defined; the sequential form is unambiguously
+  // last-wins. Collapsing this would be a behaviour change, not an optimisation.
   for (const card of cards) {
     if (!card || typeof card !== "object") continue
     const record = card as Record<string, unknown>
@@ -2191,28 +2214,27 @@ export async function listFeed(user: User, topics: string[] = []) {
 async function refreshFeedRankCache(userId: string, topicKey: string, selected: ReturnType<typeof selectCachedFeedLessons>, now: Date) {
   await query("DELETE FROM feed_rank_cache WHERE user_id = $1 AND topic_key = $2", [userId, topicKey])
   const entries = buildFeedRankCacheEntries({ userId, selected, topicKey, now })
-  for (const entry of entries) {
-    await query(
-      `INSERT INTO feed_rank_cache (id, user_id, lesson_id, topic_key, reason, rank_score, topic_tags, expires_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)
-       ON CONFLICT (user_id, lesson_id, topic_key) DO UPDATE
-       SET reason = EXCLUDED.reason,
-           rank_score = EXCLUDED.rank_score,
-           topic_tags = EXCLUDED.topic_tags,
-           expires_at = EXCLUDED.expires_at,
-           created_at = datetime('now')`,
-      [
-        entry.id,
-        entry.userId,
-        entry.lessonId,
-        entry.topicKey,
-        entry.reason,
-        entry.rankScore,
-        JSON.stringify(entry.topicTags),
-        entry.expiresAt,
-      ],
-    )
-  }
+  await insertRows(
+    "feed_rank_cache",
+    ["id", "user_id", "lesson_id", "topic_key", "reason", "rank_score", "topic_tags", "expires_at"],
+    entries.map((entry) => [
+      entry.id,
+      entry.userId,
+      entry.lessonId,
+      entry.topicKey,
+      entry.reason,
+      entry.rankScore,
+      JSON.stringify(entry.topicTags),
+      entry.expiresAt,
+    ]),
+    ["topic_tags"],
+    `ON CONFLICT (user_id, lesson_id, topic_key) DO UPDATE
+     SET reason = EXCLUDED.reason,
+         rank_score = EXCLUDED.rank_score,
+         topic_tags = EXCLUDED.topic_tags,
+         expires_at = EXCLUDED.expires_at,
+         created_at = datetime('now')`,
+  )
 }
 
 export async function recordFeedInteraction(user: User, input: Record<string, unknown>) {
@@ -2251,12 +2273,13 @@ export async function listAchievements(user: User) {
     ["ach_graph_seed", "Graph Seed", "Create your first knowledge edge.", "network", 30],
     ["ach_feed_answer", "Curiosity Spark", "Answer a feed lesson question.", "sparkles", 15],
   ]
-  for (const [id, name, description, icon, xp] of seeded) {
-    await query(
-      "INSERT INTO achievements (id, name, description, icon, xp_reward, criteria) VALUES ($1, $2, $3, $4, $5, $6::jsonb) ON CONFLICT (id) DO NOTHING",
-      [id, name, description, icon, xp, JSON.stringify({ seeded: true })],
-    )
-  }
+  await insertRows(
+    "achievements",
+    ["id", "name", "description", "icon", "xp_reward", "criteria"],
+    seeded.map(([id, name, description, icon, xp]) => [id, name, description, icon, xp, JSON.stringify({ seeded: true })]),
+    ["criteria"],
+    "ON CONFLICT (id) DO NOTHING",
+  )
   return listAchievements(user)
 }
 
