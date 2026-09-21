@@ -30,6 +30,7 @@ const allowedRootDirectories = new Set([
 
 const allowedDocsDirectories = new Set([
   "architecture",
+  "audits",
   "operations",
   "roadmap",
   "superpowers",
