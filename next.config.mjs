@@ -77,5 +77,18 @@ const nextConfig = {
 export default nextConfig
 
 if (!process.env.VERCEL) {
-  initOpenNextCloudflareForDev()
+  // Local dev must read the same D1 store the migration script writes to.
+  //
+  // This repo keeps its wrangler config under ops/cloudflare/, not at the repo
+  // root. With no `configPath` the OpenNext dev proxy finds no wrangler.jsonc
+  // and provides no D1 binding at all, so every database route answers
+  // "Cloudflare D1 is not configured". `persist.path` then has to line up with
+  // `pnpm db:migrate:local`'s `--persist-to` root plus wrangler's own `v3`
+  // suffix; if the two disagree, dev reads a different (empty) SQLite file and
+  // every query fails with "no such table: users".
+  // src/tests/project/local-d1-store.test.ts keeps these two in sync.
+  initOpenNextCloudflareForDev({
+    configPath: "ops/cloudflare/wrangler.jsonc",
+    persist: { path: ".wrangler/state/v3" },
+  })
 }

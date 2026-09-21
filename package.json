@@ -17,7 +17,7 @@
     "smoke:cloudflare": "tsx ops/scripts/test/smoke-cloudflare.ts",
     "start": "next start",
     "test": "tsx ops/scripts/test/run-tests.ts",
-    "db:migrate:local": "wrangler d1 migrations apply learn-db --local --config ops/cloudflare/wrangler.jsonc",
+    "db:migrate:local": "wrangler d1 migrations apply learn-db --local --config ops/cloudflare/wrangler.jsonc --persist-to .wrangler/state",
     "db:migrate:remote": "wrangler d1 migrations apply learn-db --remote --config ops/cloudflare/wrangler.jsonc",
     "preview:cloudflare": "tsx ops/scripts/deploy/preview-cloudflare.ts",
     "deploy:cloudflare": "tsx ops/scripts/deploy/cloudflare.ts",
