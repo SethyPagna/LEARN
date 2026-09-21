@@ -278,11 +278,18 @@ These looked like dead code and are **not**. Recorded so nobody re-litigates the
 - **Proof:** Green typecheck, tests, build at `5f06f9e1`.
 - **Why first:** Every risk rating below assumes a working test suite. Without it, "Safe" is a guess.
 
-### Stage 1 — Zero-risk mechanical removal
-- **Change:** Delete 17 unused deps (+ `components.json`), `D1_SCHEMA_SQL`, the 4 orphan components, `ReviewsView`, the dead helpers (`getDatabaseDialect`, `exec`, `UPLOAD_HELP_TEXT`, `getEnabledAutomationJobs`), and the dead `LearnRoute` branch (§5.1).
-- **Impact:** ~1,100 lines, 4 files, 17 dependencies.
-- **Proof:** Typecheck + tests + build green. Bundle size should drop measurably.
-- **Rollback:** Single `git revert`.
+### Stage 1 — Zero-risk mechanical removal ✅ **EXECUTED**
+
+**Branch:** `cleanup/stage-1` · **Commits:** `c402d6c` (audits) → `7e951fb` (cleanup) · `main` untouched at `5f06f9e1`
+
+- **Change:** 16 unused `@radix-ui/*` packages; `class-variance-authority`, `clsx`, `tailwind-merge`; `components.json`; `D1_SCHEMA_SQL`; the 4 orphan components; `ReviewsView` + `reviewRatingClassName`; the dead `LearnRoute` branch (§5.1); `src/lib/utils.ts`; and the dead helpers (`getDatabaseDialect`, `exec`, `splitSqlStatements`, `UPLOAD_HELP_TEXT`, `getEnabledAutomationJobs`).
+- **Actual impact:** **−1,196 lines across 15 files, −19 dependencies (63 → 44)**, 6 files deleted. Tracker went from 314 → 308 files.
+- **Verified:** `tsc --noEmit` exit 0 · **358/358 tests pass** · 0 files missing from disk.
+- **Analyzer delta:** unused exports 24 → 16, orphan files 4 → 1, unused deps 27 → 10.
+- **Two cascades the static analysis alone would have missed, both found by re-running the analyzer after each step:** `src/lib/utils.ts` (`cn`) was reachable *only* from the four deleted components; and `MiniMetric` / `PatternCard` / the `Bot` icon were used *only* by `LearnRoute`. **Re-run the analyzer after every deletion stage — dead code is a graph, not a list.**
+- **⚠️ Required follow-up:** `pnpm-lock.yaml` still lists the 19 removed packages. `pnpm install --frozen-lockfile` **will fail in CI** until the lockfile is regenerated. Run `pnpm install` (which is required anyway to repair `node_modules`) — that syncs the lockfile automatically. The lockfile could not be regenerated here because the sandbox blocks pnpm's store cleanup.
+- **Deliberately NOT deleted:** `src/lib/learn-route-features.ts` + its 2 tests in `learning.test.ts`. The module's only app consumer was the dead `LearnRoute`, so it is now orphaned — but deleting it means deleting passing tests, which is a decision about intent (re-wire vs. remove), not a mechanical cleanup. **Decide this one explicitly.** Same reasoning applies to `cloudflare-cleanup.ts`, `workspace-cleanup.ts`, and `content-search.ts` (Category 7).
+- **Rollback:** `git branch -D cleanup/stage-1` (nothing was merged), or `git revert 7e951fb`.
 
 ### Stage 2 — Consolidation (behaviour-preserving)
 - **Change:** Route factories (§2.1), `withApiErrorBoundary` fallback (§2.3), `storage-record.ts` (§2.2), and the shared UI/form/tone/html helpers (§2.4).

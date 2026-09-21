@@ -51,3 +51,21 @@ To keep the structural guard test green, these were updated:
 - `.gitignore` — added `.workbuddy-ai/` (follows the existing `.agents/` convention for local tooling metadata)
 - `.dockerignore` — added `.workbuddy-ai`
 - `src/tests/project/project-structure.test.ts` — registered `audits` as an allowed docs topic
+
+## Stage 1 cleanup — executed
+
+On branch **`cleanup/stage-1`** (commit `7e951fb`), `main` untouched:
+
+| | Before | After |
+| --- | --- | --- |
+| Lines removed | — | **−1,196** across 15 files |
+| Dependencies | 63 | **44** (−19) |
+| Tracked files | 314 | 308 |
+| Unused exports | 24 | 16 |
+| Orphan files | 4 | 1 |
+
+Verified: `tsc --noEmit` exit 0, **358/358 tests pass**, 0 files missing from disk.
+
+**⚠️ Before CI will pass:** `pnpm-lock.yaml` still lists the removed packages. Run `pnpm install` (needed anyway to repair `node_modules`) to sync it — **not** `--frozen-lockfile`.
+
+**Left for an explicit decision** (deleting them means deleting passing tests): `src/lib/learn-route-features.ts`, `src/lib/cloudflare-cleanup.ts`, `src/lib/workspace-cleanup.ts`, `src/lib/content-search.ts`.
