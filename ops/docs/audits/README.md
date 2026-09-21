@@ -6,7 +6,7 @@ names; re-run after any structural change.
 | Date | Report | Skill used | Scope |
 | --- | --- | --- | --- |
 | 2026-09-21 | [Code Quality & Maintainability Audit](./2026-09-21-code-quality-audit.md) | `code-quality-audit` | Dead code, duplication, complexity, legacy, redundant IO, tech debt — 37 findings, ~2,900 lines removable |
-| 2026-09-21 | [Security Audit (20-point)](./2026-09-21-security-audit.md) | `security-*-hardening` (×3) | 12 PASS / 6 PARTIAL / 2 FAIL |
+| 2026-09-21 | [Security Audit (20-point)](./2026-09-21-security-audit.md) | `security-*-hardening` (×3) | 14 PASS / 4 PARTIAL / 2 FAIL — all 3 immediate items fixed in `582d149` |
 | 2026-09-21 | [AI Council](./2026-09-21-ai-council.md) | `ai-council` | Scope & sequencing decision — 5 advisors + cross-critique + Chairman verdict |
 
 **Revision audited:** `5f06f9e1` (`main`) — cleanup work is on branch `cleanup/stage-1`
@@ -40,7 +40,7 @@ Current state on branch `cleanup/stage-1` (commit `9fd87a4c`):
 | Check | Result |
 | --- | --- |
 | `tsc --noEmit` | ✅ PASS (exit 0) |
-| Test suite | ✅ **370/370 pass**, 45 files, ~14s |
+| Test suite | ✅ **383/383 pass**, 46 files, ~15s |
 | `next build --webpack` | ✅ **Compiled successfully in 14.4min** · TypeScript passed · 77/77 static pages generated · `BUILD_ID` written |
 | `pnpm-lock.yaml` | ✅ Repaired — importer block matches `package.json` (44 entries) |
 
@@ -94,4 +94,31 @@ On branch **`cleanup/stage-1`** (commit `9fd87a4c`):
 New: `src/lib/sql-batch.ts` (+12 tests). Multi-row `INSERT`s are chunked to **D1's documented 100-bound-parameter ceiling**, verified against Cloudflare's docs — chunking is mandatory, not an optimisation.
 
 Verified: `tsc --noEmit` exit 0, **370/370 tests pass**.
+
+## Security remediation — the three immediate items — executed
+
+On branch **`cleanup/stage-1`** (commit `582d149`):
+
+| Item | Was | Now |
+| --- | --- | --- |
+| 5 — fallback encryption key | AES key derived from the literal `"learn-local-development-key"` when no master key was set — silently, in production | Throws in production with an actionable message; development keeps the fallback. Status surfaced in `/api/integrations/health` |
+| 6 — CSRF on mutation routes | 4 mutation routes used a bare `getCurrentUser()`, skipping `hasTrustedOrigin()` | All use `requireApiUser()`; an invariant test enforces this for every future route |
+| 18.3 — `Permissions-Policy` | `camera=()` / `microphone=()` **broke group calling and call recording** — `getUserMedia` is rejected before any permission prompt | `camera=(self), microphone=(self)` |
+| 19 — HSTS | Absent | `max-age=63072000`, deliberately without `includeSubDomains`/`preload` (see the report) |
+
+New: `src/tests/security/security-hardening.test.ts` (+13 tests). Two are invariant guards rather than descriptions of current behaviour: every mutation route must use `requireApiUser` or appear in a capped public allowlist, and the header assertions import `next.config.mjs` and check the real header objects.
+
+Verified: `tsc --noEmit` exit 0, **383/383 tests pass**.
+
+**Still outstanding:** rotate any provider secrets that were encrypted while the fallback may have been active (a provider-side action, not code); `'unsafe-eval'` in the production CSP (needs a browser check this environment cannot run); Items 10, 12, 20.
+
+## Known feature gaps found while auditing
+
+Recorded because these were requested capabilities, and an audit that only reports on what exists will not tell you what is missing.
+
+| Requested | Reality |
+| --- | --- |
+| **Voice transcription throughout the app** | **Not implemented at all.** Zero matches across `src/` for `SpeechRecognition`, Whisper, `/audio/transcriptions`, or any dictation path. The only thing resembling it is a Studio template's placeholder HTML ("Audio recap" with an empty transcript heading). The `Permissions-Policy` fix above unblocks *calling*; it does not provide transcription. |
+| Group calling, call recording | Implemented (`getUserMedia` + `MediaRecorder`) — and was **broken in production** by the header bug above. |
+| Vault / Studio editors, quiz + practice, multiplayer activities, realtime chat, calendar | Implemented; see the code-quality audit's negative findings for the verified-in-use list. |
 
