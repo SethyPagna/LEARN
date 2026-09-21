@@ -10,6 +10,7 @@ names; re-run after any structural change.
 | 2026-09-21 | [AI Council](./2026-09-21-ai-council.md) | `ai-council` | Scope & sequencing decision — 5 advisors + cross-critique + Chairman verdict |
 | 2026-09-21 | [AI Council — Session 2](./2026-09-21-ai-council-next-investment.md) | `ai-council` | Where the next unit of effort goes — verdict: *narrow the order, not the ambition*. **Executed** — see [Route-handler test harness](#route-handler-test-harness--executed) |
 | 2026-09-21 | [AI Council — Session 3 (takeover)](./2026-09-21-ai-council-takeover.md) | `ai-council` | How to finish: debloat, optimise, integrate. Verdict: *close the seams, add no new surface*. **#1 step executed** — six consumer-less routes closed |
+| 2026-09-21 | [AI Council — Session 4 (maturity)](./2026-09-21-ai-council-maturity.md) | `ai-council` | Making it mature/foolproof: calendar interop + alarms, installable PWA, voice everywhere, and the notes read/write leaks. Verdict: *trust before capability*. **Executed** |
 
 **Revision audited:** `5f06f9e1` (`main`) — cleanup work is on branch `cleanup/stage-1`
 
@@ -293,3 +294,42 @@ Branch `cleanup/stage-1`, `main` untouched at `5f06f9e1`. Baseline entering the 
 4. **No real end-to-end run.** Every test stubs D1 at the `globalThis.fetch` boundary; `smoke:cloudflare` exists but was not run in this environment. "Tests pass" is not evidence the app runs.
 
 **Not started:** Stage 2 consolidation (duplicate CRUD route triplets), Stage 4 structural refactor (`studio-view.tsx` at 4,041 lines — deliberately deferred behind a verification net), Stage 5 schema cleanup, and handler coverage beyond 7 of 47.
+
+## Session 4 — maturity pass (calendar interop, PWA, voice, notes privacy) — executed
+
+Branch `cleanup/stage-1`, `main` untouched. Entry baseline `abc8614`. Driven by AI Council Session 4
+([`2026-09-21-ai-council-maturity.md`](./2026-09-21-ai-council-maturity.md)): *"make it trustworthy and
+installable before it is more capable."*
+
+| Commit | Change |
+| --- | --- |
+| `612219d` | **feat:** real calendar export. `src/lib/calendar/ics.ts` — a pure RFC 5545 serialiser (UTC `Z` stamps, escaping, 75-octet folding, a `VALARM` per event) — plus an authenticated `GET /api/calendar/ics`, a **tokenised public subscription feed** (`?token=`), `POST /api/calendar/feed` to mint the copy-pasteable URL, and a reminder selector in the Calendar view. Migration `0014` adds `users.calendar_feed_token` + `calendar_events.reminder_minutes`. The UTC conversion reuses `parseTimestampMs`, so D1's `"YYYY-MM-DD HH:MM:SS"` is read as UTC, not local. +34 tests. |
+| `6563f93` | **feat:** installable PWA + honest surfaces. `app/manifest.ts`, `public/sw.js`, `public/offline.html`, a registration component, and `error.tsx` / `global-error.tsx` / `loading.tsx` / `not-found.tsx`. **The service worker never caches `/api/`** (explicit bail-out, proven by a `node:vm` behavioural test) and also refuses to cache rendered navigations, since app HTML is per-user SSR. +13 tests. |
+| `6288af3` | **feat:** dictation in the chat composer and the Vault block field — voice coverage is now all four intended surfaces — plus removal of an inert mic stub, pinned by a wiring guard. +5 tests. |
+| `ca542b4` | **fix (security):** `listNotes`, `getNote` and a `getDashboardData` branch returned **every** user's notes to any signed-in user. Reads are now owner-scoped; every other `list*`/`get*` was classified (shared-by-design surfaces — quizzes, micro-lessons, achievements, groups, tags — correctly left alone). +5 tests. |
+| `89da16f` | **fix (security):** `deleteNote` / `restoreNote` were a write-IDOR — `UPDATE notes WHERE id = $1` with no owner predicate, so any user could archive another's note. Both now guard with `assertOwnership`. +5 tests. |
+
+**Verified at `89da16f`:** `tsc --noEmit` exit 0 · **534/534 tests** (59 files; 436 at the start of
+session 3) · dead-code analyzer `unusedExports 0`, `orphanFiles 0` · 49 route handlers.
+
+**Two security findings worth naming:**
+
+1. **Notes were world-readable.** `listNotes`/`getNote` had no owner predicate while every write path
+   did — so the "personal vault" was readable by every signed-in user. The worst reach was indirect:
+   the per-user knowledge-graph and review seeds called `listNotes()` unscoped, copying one user's note
+   titles *and content* into the next user's seeded rows.
+2. **Notes were world-archivable.** `deleteNote`/`restoreNote` had no ownership check at all.
+
+Both are the same defect class (a missing predicate), and both are now covered by tests that were
+proven non-vacuous (removing a guard turns them red).
+
+**Deliberately NOT changed (recorded decisions, not oversights):**
+
+- `getPublicProfile` returns bio/metrics without enforcing `profile_visibility` — a visibility-model
+  product decision, not a missing owner filter.
+- `listAdminData` has no internal role check; it is safe only because `/api/admin` gates on
+  `role !== 'admin'` — an inconsistency with `listModerationItems`, which checks internally.
+- The content registry remains **write-only** (see session 3). It could not even be *measured* here:
+  there is no reachable D1 to count `content_items` against its source tables.
+- No recurrence (`RRULE`), no push notifications (only `VALARM`), and no 192×192 / 512×512 PNG icons
+  (the manifest falls back to the SVG).
