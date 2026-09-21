@@ -1,14 +1,16 @@
 /**
- * `html-blocks` — turn a Studio document body (TipTap HTML) into themed blocks.
+ * `html-blocks` — convert between a Studio document body (TipTap HTML) and
+ * themed blocks, in both directions.
  *
  * The DOCX builder speaks `ThemedBlock[]`; a document is stored as HTML. Rather
  * than duplicate the document model, this module converts one into the other so
- * both AI replies and documents reach the same writer.
+ * both AI replies and documents reach the same writer — and so an imported
+ * `.docx` can be handed back to the editor as HTML.
  *
- * It is a *pragmatic* reader, not a spec-compliant HTML parser: a tolerant
- * open/close tag stack, entity decoding, and a mapping from block elements to
- * blocks. Structure that has no block equivalent degrades rather than
- * disappearing:
+ * `blocksFromDocumentHtml` is a *pragmatic* reader, not a spec-compliant HTML
+ * parser: a tolerant open/close tag stack, entity decoding, and a mapping from
+ * block elements to blocks. Structure that has no block equivalent degrades
+ * rather than disappearing:
  *
  *   - containers (`div`, `section`, `figure`, ...) are transparent — their
  *     children are promoted,
@@ -16,9 +18,19 @@
  *   - an inline image becomes `[Image: alt]` inside the surrounding text,
  *   - a `<table>` without `<th>` cells has no header row (and says so).
  *
+ * Caps keep a hostile or accidental megabyte of HTML from producing an unbounded
+ * set of blocks, and an imported document is capped the same way.
+ *
+ * `blocksToDocumentHtml` is the writer for that same vocabulary, and it is
+ * intentionally the inverse only of what the reader understands: headings,
+ * paragraphs, lists, tables, code, quotes, dividers and images survive a
+ * round-trip through it, while the blocks with no document element of their own
+ * (callout, quiz, slide outline) are written in the same readable, labelled form
+ * the DOCX writer uses. One vocabulary, two serializers, no second model.
+ *
  * Nothing here is trusted: the output is plain text carried in block objects,
- * and the OOXML writers escape every value on the way out. Caps keep a hostile
- * or accidental megabyte of HTML from producing an unbounded file.
+ * and every serializer escapes what it writes — the OOXML writers escape on the
+ * way into XML, `blocksToDocumentHtml` escapes on the way into HTML.
  */
 
 import { isSafeUrl, type ThemedBlock, type ThemedHeadingLevel } from "@/lib/ai/format-response"
@@ -369,4 +381,99 @@ function normalizeInlineText(value: unknown): string {
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim()
+}
+
+// ---------------------------------------------------------------------------
+// Blocks -> document HTML
+// ---------------------------------------------------------------------------
+
+/**
+ * Serialize blocks as the HTML a rich-text document editor holds.
+ *
+ * The output is a themed skeleton of plain semantic elements — `h1`-`h4`, `p`,
+ * `ul`/`ol`, `table`, `pre`, `blockquote`, `hr`, `img` — with no class names, no
+ * styles and no scripts, which is what TipTap's schema round-trips without a
+ * normalizer. Newlines inside a text value become `<br>`, exactly as they are
+ * breaks rather than new paragraphs in OOXML.
+ *
+ * Text is escaped here, on the way into markup; the block values are plain text
+ * and nothing else.
+ */
+export function blocksToDocumentHtml(blocks: ThemedBlock[]): string {
+  return (Array.isArray(blocks) ? blocks : []).map(blockToDocumentHtml).filter(Boolean).join("")
+}
+
+function blockToDocumentHtml(block: ThemedBlock): string {
+  switch (block.type) {
+    case "heading":
+      return `<h${clampHeadingLevel(block.level)}>${inlineHtml(block.text)}</h${clampHeadingLevel(block.level)}>`
+    case "paragraph":
+      return `<p>${inlineHtml(block.text)}</p>`
+    case "list": {
+      const tag = block.ordered ? "ol" : "ul"
+      const items = block.items.map((item) => `<li>${inlineHtml(item)}</li>`).join("")
+      return `<${tag}>${items}</${tag}>`
+    }
+    case "table": {
+      const head = block.headers.length
+        ? `<thead><tr>${block.headers.map((header) => `<th>${inlineHtml(header)}</th>`).join("")}</tr></thead>`
+        : ""
+      const body = block.rows.map((row) => `<tr>${row.map((cell) => `<td>${inlineHtml(cell)}</td>`).join("")}</tr>`).join("")
+      return `<table>${head}<tbody>${body}</tbody></table>`
+    }
+    case "code": {
+      const language = block.language ? ` class="language-${escapeHtmlText(block.language)}"` : ""
+      return `<pre><code${language}>${escapeHtmlText(block.code)}</code></pre>`
+    }
+    case "quote":
+      return `<blockquote><p>${inlineHtml(block.text)}</p></blockquote>`
+    case "divider":
+      return "<hr>"
+    case "image":
+      if (!isSafeUrl(block.url)) return block.alt ? `<p>${inlineHtml(block.alt)}</p>` : ""
+      return `<img src="${escapeHtmlText(block.url)}" alt="${escapeHtmlText(block.alt)}">`
+    case "callout":
+      // No callout element exists in the document schema, so the tone is carried
+      // as the same bracketed prefix the plain-text and DOCX writers use.
+      return `<p>[${block.tone.toUpperCase()}] ${inlineHtml(block.text)}</p>`
+    case "quiz": {
+      const parts: string[] = block.title ? [`<h2>${inlineHtml(block.title)}</h2>`] : []
+      block.questions.forEach((question, index) => {
+        parts.push(`<p>${index + 1}. ${inlineHtml(question.question)}</p>`)
+        if (question.choices.length) {
+          parts.push(`<ul>${question.choices.map((choice) => `<li>${inlineHtml(`${choice.id}. ${choice.text}`)}</li>`).join("")}</ul>`)
+        }
+        if (question.answerId) parts.push(`<p>Answer: ${inlineHtml(question.answerId)}</p>`)
+        if (question.explanation) parts.push(`<p>${inlineHtml(question.explanation)}</p>`)
+      })
+      return parts.join("")
+    }
+    case "slideOutline": {
+      const parts: string[] = block.title ? [`<h1>${inlineHtml(block.title)}</h1>`] : []
+      block.slides.forEach((slide, index) => {
+        parts.push(`<h2>${inlineHtml(`Slide ${index + 1}: ${slide.title}`)}</h2>`)
+        if (slide.bullets.length) parts.push(`<ul>${slide.bullets.map((bullet) => `<li>${inlineHtml(bullet)}</li>`).join("")}</ul>`)
+      })
+      return parts.join("")
+    }
+    default:
+      return ""
+  }
+}
+
+function clampHeadingLevel(level: number): ThemedHeadingLevel {
+  return Math.min(4, Math.max(1, Math.floor(level) || 1)) as ThemedHeadingLevel
+}
+
+/** Text inside an element: escaped, with a literal newline as a hard break. */
+function inlineHtml(value: string): string {
+  return escapeHtmlText(value).replace(/\r\n?/g, "\n").replace(/\n/g, "<br>")
+}
+
+function escapeHtmlText(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
 }

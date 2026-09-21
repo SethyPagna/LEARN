@@ -6,12 +6,12 @@
  * module is the only place that knows both those payloads and the builders, so
  * the editor component stays a caller: one import, one function per format.
  *
- * What it deliberately does *not* do:
+ * The return direction lives in `./studio-import`, which reads `buildDocx` and
+ * `buildXlsx` output back into the same two payloads. Together they are the
+ * round-trip the Brief asks for: what this module writes, that one reads.
  *
- *   - **No importer.** `.docx` and `.xlsx` are one-way here. Reading them back
- *     needs a real parser (XML part discovery, style resolution, cell
- *     references); the Brief's "re-import a deck/sheet" claim is out of scope
- *     for this change, and nothing in this file pretends otherwise.
+ * What this module deliberately does *not* do:
+ *
  *   - **No PDF.** PDF remains the browser print path; this module adds no
  *     third layout engine.
  *   - **No network.** Nothing is fetched: images inside a document become

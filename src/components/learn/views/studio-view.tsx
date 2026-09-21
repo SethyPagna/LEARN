@@ -141,9 +141,15 @@ import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type Studio
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 import { HEADING_STYLE_KEY, STUDIO_LAYOUT_KEY, parseStoredHeadingStyles, parseStoredStudioLayout, type HeadingStyleLevel, type HeadingStylePreset } from "@/lib/studio-preferences"
 import { DOCX_MIME, XLSX_MIME, documentHtmlToDocx, sheetCellsToXlsx } from "@/lib/export/studio-export"
+import { studioDocumentFromDocxFile, studioSheetFromXlsxFile } from "@/lib/export/studio-import"
+import { StudioImportFile } from "../studio-import-file"
 
 const DRAFT_TAB_TITLE_PATTERN = /^New (Note|Doc|Sheet|Deck)$/i
 const NUMBERED_EMPTY_TAB_PATTERN = /^\d+\s+(Notes|Docs|Sheets|Slides)$/i
+
+/** What the file pickers accept: both the extension and the registered MIME type. */
+const DOCX_ACCEPT = ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+const XLSX_ACCEPT = ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 const studioKindIcons: Record<StudioKind, React.ComponentType<{ className?: string }>> = {
   notes: FileText,
@@ -2936,6 +2942,9 @@ function StudioCanvas({
 }) {
   const [selectedObjectId, setSelectedObjectId] = useState("")
   const [slideZoom, setSlideZoom] = useState(86)
+  // The one line of feedback the file importers need; the editors themselves are
+  // unchanged, so nothing else has to know an import happened.
+  const [importNote, setImportNote] = useState("")
   const activeSlide = activeKind === "slides" ? slides[selectedSlideIndex] || slides[0] : undefined
   useEffect(() => {
     if (activeKind !== "slides") {
@@ -2958,7 +2967,24 @@ function StudioCanvas({
   }
 
   if (activeKind === "docs") {
-    return <RichTextEditor canvasFormat={canvasFormat} value={docHistory.present} onChange={(value) => onSetDocHistory(pushHistory(docHistory, value))} large placeholder="Draft headings, checklists, explanations, citations, tables, and practice tasks..." />
+    return (
+      <div className="grid gap-3">
+        <StudioImportFile
+          accept={DOCX_ACCEPT}
+          label="Import DOCX"
+          note={importNote}
+          onFile={async (file) => {
+            const imported = await studioDocumentFromDocxFile(file)
+            // An empty import must not blank the open document.
+            if (!imported.blocks.length) return `No content found in ${file.name}.`
+            onSetDocHistory((current) => pushHistory(current, imported.html))
+            return `Imported ${imported.blocks.length} block${imported.blocks.length === 1 ? "" : "s"}${imported.title ? ` from "${imported.title}"` : ""}.`
+          }}
+          onNote={setImportNote}
+        />
+        <RichTextEditor canvasFormat={canvasFormat} value={docHistory.present} onChange={(value) => onSetDocHistory(pushHistory(docHistory, value))} large placeholder="Draft headings, checklists, explanations, citations, tables, and practice tasks..." />
+      </div>
+    )
   }
 
   if (activeKind === "sheets") {
@@ -3013,7 +3039,7 @@ function StudioCanvas({
         </div>
         <details className="rounded-md border border-border bg-background p-2">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            <span className="flex items-center gap-2"><UploadCloud className="h-3.5 w-3.5" /> CSV import</span>
+            <span className="flex items-center gap-2"><UploadCloud className="h-3.5 w-3.5" /> CSV or XLSX import</span>
             <ChevronDown className="h-3.5 w-3.5" />
           </summary>
           <textarea
@@ -3025,6 +3051,21 @@ function StudioCanvas({
             placeholder="Paste CSV here, then leave the field to import rows into the grid."
             className="mt-2 h-16 w-full rounded-md border border-input bg-background p-3 text-sm outline-none focus:border-ring"
           />
+          <div className="mt-2">
+            <StudioImportFile
+              accept={XLSX_ACCEPT}
+              label="Import XLSX"
+              note={importNote}
+              onFile={async (file) => {
+                const imported = await studioSheetFromXlsxFile(file)
+                // An empty workbook must not wipe the grid the user is editing.
+                if (!imported.cells.length) return `No cells found in ${file.name}.`
+                onSetCells(imported.cells)
+                return `Imported ${imported.rowCount} row${imported.rowCount === 1 ? "" : "s"} x ${imported.columnCount} columns${imported.title ? ` from "${imported.title}"` : ""}.`
+              }}
+              onNote={setImportNote}
+            />
+          </div>
         </details>
         <div className="overflow-auto rounded-md border border-border">
           <table className="min-w-full border-collapse text-sm">
