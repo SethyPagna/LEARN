@@ -738,7 +738,7 @@ export function AiTutorView({
               placeholder="Optional title"
               className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground outline-none focus:border-ring"
             />
-            <select value={importTarget} onChange={(event) => {
+            <select value={importTarget} aria-label="Import destination" onChange={(event) => {
               setImportTarget(normalizeImportTargetSelection(event.target.value))
               clearSavedImportContext()
             }} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground">

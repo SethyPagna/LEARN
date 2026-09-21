@@ -153,7 +153,19 @@ export function LearnShell({
   }
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-background text-foreground">
+    <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
+      {/* WCAG 2.4.1 (bypass blocks): the sidebar and topbar repeat on every view,
+          so the first focusable element in the shell is a link that jumps past
+          them. It sits just above the viewport until it is focused and only then
+          slides into view, which keeps it invisible to sighted users without
+          hiding it from the keyboard (no `sr-only`, so it is a real target the
+          moment it receives focus). */}
+      <a
+        href="#learn-main-content"
+        className="absolute left-4 top-4 z-[80] -translate-y-[200%] rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground focus:translate-y-0 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        Skip to content
+      </a>
       <div className="min-h-screen lg:block">
         <Sidebar
           density={preferences.density}
@@ -201,7 +213,11 @@ export function LearnShell({
             studioDraftSummary={studioDraftSummary}
             practiceDraftSummary={practiceDraftSummary}
           />
-          <div className={preferences.density === "compact" ? "p-3 lg:p-4" : "p-4 lg:p-6"}>
+          <main
+            id="learn-main-content"
+            tabIndex={-1}
+            className={`${preferences.density === "compact" ? "p-3 lg:p-4" : "p-4 lg:p-6"} focus:outline-none`}
+          >
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
             {view === "dashboard" ? <DashboardView dashboard={dashboard} forceOnboarding={forceOnboarding} notes={notes} quizzes={quizzes} options={preferences.options} practiceDraftSummary={practiceDraftSummary} setView={chooseView} studioDraftSummary={studioDraftSummary} user={user} /> : null}
             {view === "vault" ? <VaultView setView={chooseView} notes={notes} /> : null}
@@ -219,10 +235,10 @@ export function LearnShell({
             {view === "profile" ? <ProfileView user={user} setView={chooseView} /> : null}
             {view === "settings" ? <SettingsView user={user} automationData={automationData} locale={preferences.locale} options={preferences.options} setLocale={preferences.setLocale} setOptions={preferences.setOptions} /> : null}
             {view === "admin" ? <AdminView user={user} adminData={adminData} automationData={automationData} options={preferences.options} /> : null}
-          </div>
+          </main>
         </section>
       </div>
       <PlaceGuide setView={chooseView} />
-    </main>
+    </div>
   )
 }

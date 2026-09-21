@@ -173,7 +173,7 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
               Upload
             </button>
           </div>
-          <input ref={inputRef} type="file" className="hidden" onChange={(event) => upload(event.target.files?.[0])} />
+          <input ref={inputRef} type="file" aria-label="Upload files" className="hidden" onChange={(event) => upload(event.target.files?.[0])} />
         </div>
         <label className="mb-3 flex h-10 items-center gap-2 rounded-md border border-input bg-background px-3 focus-within:ring-2 focus-within:ring-primary/25">
           <Search className="h-4 w-4 text-muted-foreground" />
@@ -278,7 +278,7 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
         {selectedFile ? (
           <div className="mt-3">
             {options.filePreview && selectedFile.content_type.startsWith("image/") ? (
-              <img src={`/api/files/${selectedFile.id}/download`} alt="" className="aspect-video w-full rounded-md object-cover" />
+              <img src={`/api/files/${selectedFile.id}/download`} alt="" loading="lazy" decoding="async" className="aspect-video w-full rounded-md object-cover" />
             ) : (
               <div className="flex aspect-video w-full items-center justify-center rounded-md bg-muted">
                 <FileKindIcon kind={classifyUploadContentType(selectedFile.content_type)} className="h-8 w-8 text-success" />
@@ -325,7 +325,7 @@ function FileCard({ file, selected, preview, onSelect }: { file: MediaFile; sele
   return (
     <button onClick={onSelect} className={`rounded-lg border p-3 text-left text-sm ${selected ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-muted"}`}>
       {preview && file.content_type.startsWith("image/") ? (
-        <img src={`/api/files/${file.id}/download`} alt="" className="mb-3 aspect-video w-full rounded-md object-cover" />
+        <img src={`/api/files/${file.id}/download`} alt="" loading="lazy" decoding="async" className="mb-3 aspect-video w-full rounded-md object-cover" />
       ) : (
         <div className="mb-3 flex aspect-video items-center justify-center rounded-md bg-muted">
           <FileKindIcon kind={kind} className="h-7 w-7 text-success" />

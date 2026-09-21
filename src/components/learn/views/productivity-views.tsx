@@ -1172,7 +1172,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               <MessageSquare className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <input value={title} onChange={(event) => setTitle(event.target.value)} className="w-full bg-transparent text-lg font-semibold text-foreground outline-none" />
+              <input value={title} onChange={(event) => setTitle(event.target.value)} aria-label="Conversation title" className="w-full bg-transparent text-lg font-semibold text-foreground outline-none" />
               <p className="truncate text-xs font-semibold text-muted-foreground">
                 {activeDmTarget ? `Direct message with ${activeDmTarget.name}` : `${activeThreadParsed.channel} - ${activeIntent.label}`}
                 {remoteTyping ? <span className="ml-2 text-primary">typing…</span> : null}
@@ -1291,7 +1291,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                 {message.metadata?.attachment ? (
                   message.metadata.attachment.contentType.startsWith("image/") ? (
                     <a href={`/api/files/${message.metadata.attachment.fileId}/download`} target="_blank" rel="noreferrer">
-                      <img src={`/api/files/${message.metadata.attachment.fileId}/download`} alt={message.metadata.attachment.filename} className="mb-1.5 max-h-64 w-full rounded-xl object-cover" />
+                      <img src={`/api/files/${message.metadata.attachment.fileId}/download`} alt={message.metadata.attachment.filename} loading="lazy" decoding="async" className="mb-1.5 max-h-64 w-full rounded-xl object-cover" />
                     </a>
                   ) : (
                     <a href={`/api/files/${message.metadata.attachment.fileId}/download`} target="_blank" rel="noreferrer" className="mb-1.5 flex items-center gap-2 rounded-xl bg-black/10 px-3 py-2 text-xs font-semibold underline">
@@ -1371,6 +1371,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
           <input
             ref={fileInputRef}
             type="file"
+            aria-label="Attach a file"
             accept={pendingAttachKind === "photo" ? "image/*" : undefined}
             className="hidden"
             onChange={(event) => {
@@ -1443,7 +1444,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-2xl font-semibold text-foreground">Chats</h3>
           <div className="flex items-center gap-2">
-            <button onClick={() => setBody((current) => current || "Can someone help me with ")} className="grid h-9 w-9 place-items-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+            <button onClick={() => setBody((current) => current || "Can someone help me with ")} aria-label="Start a new message" className="grid h-9 w-9 place-items-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
               <Plus className="h-4 w-4" />
             </button>
             <ChatMenu align="right" compact icon={MoreHorizontal} label="Menu" menuId="filters" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>

@@ -1180,6 +1180,7 @@ export function CanvasEditorView() {
               {renameId === element.id ? (
                 <input
                   autoFocus
+                  aria-label="Layer name"
                   value={renameValue}
                   onChange={(event) => setRenameValue(event.target.value)}
                   onKeyDown={(event) => {
@@ -1426,7 +1427,7 @@ function CanvasElementView({ element }: { element: CanvasElement }) {
         imageUrl ? (
           // The URL is scheme-checked; the app CSP still restricts img-src to
           // 'self' data: blob:, so a remote URL may show as a broken image.
-          <img src={imageUrl} alt={layerLabel(element)} className="h-full w-full object-cover" style={{ borderRadius: 12 }} />
+          <img src={imageUrl} alt={layerLabel(element)} loading="lazy" decoding="async" className="h-full w-full object-cover" style={{ borderRadius: 12 }} />
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-xs text-muted-foreground">
             <ImageIcon className="h-5 w-5" />

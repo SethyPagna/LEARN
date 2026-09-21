@@ -1158,7 +1158,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       <input value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="email@example.com" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none" />
                     </label>
-                    <select value={inviteRole} onChange={(event) => setInviteRole(normalizeSocialInviteRole(event.target.value))} className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none">
+                    <select value={inviteRole} aria-label="Invite role" onChange={(event) => setInviteRole(normalizeSocialInviteRole(event.target.value))} className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none">
                       {socialInviteRoleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                     </select>
                   </div>
@@ -1543,7 +1543,7 @@ export function ProfileView({ setView, user }: { setView?: (view: View) => void;
       <Panel className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-md bg-primary text-xl font-semibold text-primary-foreground">
-            {profileAvatarUrl ? <img src={profileAvatarUrl} alt="" className="h-full w-full object-cover" /> : (profile?.name || user?.name || "L").slice(0, 1)}
+            {profileAvatarUrl ? <img src={profileAvatarUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" /> : (profile?.name || user?.name || "L").slice(0, 1)}
           </div>
           <span className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">{profilePlan.privacyLabel}</span>
         </div>

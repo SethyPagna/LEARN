@@ -1686,7 +1686,7 @@ export function StudioView({
               placeholder="Optional title"
               className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground outline-none focus:border-ring"
             />
-            <select value={importTarget} onChange={(event) => setImportTarget(normalizeImportTargetSelection(event.target.value))} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground">
+            <select value={importTarget} aria-label="Import destination" onChange={(event) => setImportTarget(normalizeImportTargetSelection(event.target.value))} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground">
               {importTargetOptions.map((target) => <option key={target} value={target}>{labelImportTarget(target)}</option>)}
             </select>
             <button onClick={organizeImport} disabled={importing} className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-60" type="button">
@@ -3078,6 +3078,7 @@ function StudioCanvas({
                         <td className={`border border-border p-0 ${rowIndex === 0 ? "bg-secondary" : "bg-background"}`}>
                           <input
                             value={cell}
+                            aria-label={`Spreadsheet cell ${rowIndex + 1}:${cellIndex + 1}`}
                             onFocus={() => onSetSelectedCell({ row: rowIndex, column: cellIndex })}
                             onChange={(event) => updateCell(rowIndex, cellIndex, event.target.value)}
                             className={`h-10 min-w-36 bg-transparent px-2 outline-none focus:bg-accent focus:text-accent-foreground ${selectedCell.row === rowIndex && selectedCell.column === cellIndex ? "ring-2 ring-inset ring-primary" : ""}`}
@@ -3260,9 +3261,9 @@ function StudioCanvas({
           </div>
         {selectedSlide && !(selectedSlide.objects?.length) ? (
           <div className="relative z-10 flex h-full flex-col">
-            <input value={selectedSlide.accent || ""} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, accent: event.target.value } : item))} readOnly={selectedSlide.locked} className="mb-3 w-full bg-transparent text-xs font-semibold uppercase tracking-[0.16em] outline-none read-only:opacity-60" style={{ color: selectedPalette.accent }} />
-            <input value={selectedSlide.title} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, title: event.target.value } : item))} readOnly={selectedSlide.locked} className="w-full bg-transparent text-4xl font-semibold leading-tight outline-none read-only:opacity-60" style={{ color: selectedPalette.foreground }} />
-            <textarea value={selectedSlide.body} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, body: event.target.value } : item))} readOnly={selectedSlide.locked} className="mt-5 min-h-32 flex-1 resize-none bg-transparent text-lg leading-8 outline-none read-only:opacity-60" style={{ color: selectedPalette.foreground }} />
+            <input value={selectedSlide.accent || ""} aria-label="Slide accent label" onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, accent: event.target.value } : item))} readOnly={selectedSlide.locked} className="mb-3 w-full bg-transparent text-xs font-semibold uppercase tracking-[0.16em] outline-none read-only:opacity-60" style={{ color: selectedPalette.accent }} />
+            <input value={selectedSlide.title} aria-label="Slide title" onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, title: event.target.value } : item))} readOnly={selectedSlide.locked} className="w-full bg-transparent text-4xl font-semibold leading-tight outline-none read-only:opacity-60" style={{ color: selectedPalette.foreground }} />
+            <textarea value={selectedSlide.body} aria-label="Slide body" onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, body: event.target.value } : item))} readOnly={selectedSlide.locked} className="mt-5 min-h-32 flex-1 resize-none bg-transparent text-lg leading-8 outline-none read-only:opacity-60" style={{ color: selectedPalette.foreground }} />
           </div>
         ) : null}
         {selectedSlide?.objects?.map((object) => (
@@ -3502,7 +3503,7 @@ function SlideCanvasObject({
     return (
       <SlideObjectContextMenu onAlign={onAlign} onDelete={onDelete} onDuplicate={onDuplicate} onNudge={onNudge} onReorder={onReorder} onResize={onResize}>
         <button {...sharedProps} className={`${sharedProps.className} text-xs`}>
-          {object.src ? <img src={object.src} alt={object.text || "Slide image"} className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center p-2 text-center">{object.text || "Image"}</span>}
+          {object.src ? <img src={object.src} alt={object.text || "Slide image"} loading="lazy" decoding="async" className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center p-2 text-center">{object.text || "Image"}</span>}
         </button>
       </SlideObjectContextMenu>
     )
@@ -3841,13 +3842,13 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
         <MenuAction icon={Paintbrush} label="Update H3 from selection" onClick={() => saveHeadingStyle(3)} />
         <MenuAction icon={RotateCcw} label="Reset saved headings" onClick={resetHeadingStyles} />
       </ActionMenu>
-      <select defaultValue="" onChange={(event) => event.target.value ? run((item) => item.chain().focus().setFontFamily(event.target.value).run()) : undefined} className="h-9 min-w-28 rounded-md border border-input bg-background px-2 text-sm font-semibold text-foreground">
+      <select defaultValue="" aria-label="Font family" onChange={(event) => event.target.value ? run((item) => item.chain().focus().setFontFamily(event.target.value).run()) : undefined} className="h-9 min-w-28 rounded-md border border-input bg-background px-2 text-sm font-semibold text-foreground">
         <option value="" disabled>Font</option>
         {studioFontOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
       <div className="flex h-9 items-center rounded-md border border-input bg-background">
         <button onClick={() => run((item) => item.chain().focus().setMark("textStyle", { fontSize: "10pt" }).run())} className="grid h-8 w-8 place-items-center text-foreground hover:bg-accent hover:text-accent-foreground" type="button" title="Smaller text"><Minus className="h-4 w-4" /></button>
-        <select defaultValue="" onChange={(event) => event.target.value ? run((item) => item.chain().focus().setMark("textStyle", { fontSize: event.target.value }).run()) : undefined} className="h-8 w-16 border-x border-border bg-transparent px-1 text-center text-sm font-semibold text-foreground">
+        <select defaultValue="" aria-label="Font size" onChange={(event) => event.target.value ? run((item) => item.chain().focus().setMark("textStyle", { fontSize: event.target.value }).run()) : undefined} className="h-8 w-16 border-x border-border bg-transparent px-1 text-center text-sm font-semibold text-foreground">
           <option value="" disabled>Size</option>
           {studioFontSizeOptions.map((option) => <option key={option.value} value={option.value}>{option.label.replace("pt", "")}</option>)}
         </select>

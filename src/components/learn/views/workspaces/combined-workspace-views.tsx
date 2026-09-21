@@ -772,7 +772,7 @@ function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { current
           </summary>
           <div className="grid gap-2 border-t border-border p-3 sm:grid-cols-[1fr_120px_auto] sm:items-center">
                 <span className="truncate rounded-md border border-input bg-card px-3 py-2 text-sm font-semibold text-foreground">{pendingInviteEmail}</span>
-                <select value={inviteRole} onChange={(event) => setInviteRole(normalizeSocialInviteRole(event.target.value))} className="h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground outline-none">
+                <select value={inviteRole} aria-label="Invite role" onChange={(event) => setInviteRole(normalizeSocialInviteRole(event.target.value))} className="h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground outline-none">
                   {socialInviteRoleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
                 <button onClick={() => void createInvite()} disabled={inviteAction?.disabled} className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50" title={inviteStatus}>

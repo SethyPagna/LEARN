@@ -348,7 +348,7 @@ function CanvasPreviewElement({ element }: { element: CanvasElement }) {
       {element.type === "image" ? (
         imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- remote sources are not known at build time
-          <img src={imageUrl} alt={label || "Shared image"} className="h-full w-full object-cover" />
+          <img src={imageUrl} alt={label || "Shared image"} loading="lazy" decoding="async" className="h-full w-full object-cover" />
         ) : (
           <span className="text-xs text-muted-foreground">Image</span>
         )

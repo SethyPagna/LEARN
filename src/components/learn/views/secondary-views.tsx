@@ -1091,7 +1091,7 @@ export function SettingsView({
               <span className="text-xs font-semibold uppercase text-muted-foreground">Avatar</span>
               <div className="mt-3 flex items-center gap-3">
                 <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-primary text-2xl font-semibold text-primary-foreground">
-                  {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : (name || user?.username || "L").slice(0, 1)}
+                  {avatarUrl ? <img src={avatarUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" /> : (name || user?.username || "L").slice(0, 1)}
                 </div>
                 <div className="min-w-0 flex-1">
                   <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground">
