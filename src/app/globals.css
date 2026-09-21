@@ -20,9 +20,11 @@
   --muted-foreground: oklch(0.43 0.025 260);
   --accent: oklch(0.92 0.045 180);
   --accent-foreground: oklch(0.18 0.035 200);
-  --destructive: oklch(0.55 0.22 25);
+  /* WCAG AA: 0.55 measured a hairline 4.50:1 as text on --muted, which rounds to a fail. */
+  --destructive: oklch(0.53 0.22 25);
   --destructive-foreground: oklch(0.98 0 0);
-  --success: oklch(0.55 0.14 155);
+  /* WCAG AA: white-on-success and success-as-text both need a deeper green. 0.55 measured 4.27:1. */
+  --success: oklch(0.49 0.14 155);
   --success-foreground: oklch(0.98 0 0);
   --warning: oklch(0.82 0.16 82);
   --warning-foreground: oklch(0.16 0.03 70);
@@ -60,8 +62,13 @@
   --muted-foreground: oklch(0.82 0.012 255);
   --accent: oklch(0.32 0.055 185);
   --accent-foreground: oklch(0.96 0.008 255);
-  --destructive: oklch(0.58 0.19 25);
-  --destructive-foreground: oklch(0.99 0 0);
+  /* WCAG AA on dark surfaces: the light-theme `--success` reads at 3.7:1 as text and
+     `--destructive` at 4.3:1 on cards, so both flip to a light fill with a dark
+     foreground here — the pattern `--primary` and `--warning` already follow. */
+  --success: oklch(0.72 0.15 155);
+  --success-foreground: oklch(0.16 0.03 155);
+  --destructive: oklch(0.66 0.19 25);
+  --destructive-foreground: oklch(0.15 0.03 25);
   --warning: oklch(0.78 0.16 82);
   --warning-foreground: oklch(0.1 0.02 70);
   --border: oklch(0.36 0.028 255);
