@@ -47,6 +47,7 @@ import type {
   View,
 } from "../types"
 import { EmptyState, Panel, StatusMessage, StatusPill } from "../ui"
+import { VoiceInput } from "../voice-input"
 import { buildFeedActionPlan, buildFeedSummaryChips, buildKnowledgeGraphActionPlan, buildKnowledgeGraphSummaryChips, buildReviewActionPlan, buildReviewRatingActions, buildReviewSummaryChips, buildVaultBlockPalette, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession, type FeedSummaryChip, type KnowledgeGraphSummaryChip, type ReviewRating, type VaultBlockPaletteGroup, type VaultBlockType } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, buildProfileSummaryChips, type ProfilePlanTarget, type ProfileSummaryChip } from "@/lib/profile-features"
 import { createSocialDraft, parseStoredSocialDraftStore, socialDraftStorageKey, type SocialDraft, type SocialDraftStore, type SocialKind } from "@/lib/social-drafts"
@@ -160,6 +161,11 @@ export function VaultView({ notes = [], setView }: { notes?: Note[]; setView: (v
               className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none"
             />
           </label>
+          <VoiceInput
+            label="Dictate block"
+            prompt={`Vault ${blockType} block for ${targetNoteTitle}`}
+            onTranscript={(text) => setBlockContent((current) => (current && !/\s$/.test(current) ? `${current} ${text}` : `${current}${text}`))}
+          />
           <button
             type="button"
             onClick={saveVaultBlock}

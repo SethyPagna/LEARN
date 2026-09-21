@@ -7,6 +7,7 @@ import type { WorkspaceOptions } from "../preferences"
 import type { Quiz } from "../types"
 import { api, formatDate } from "../api"
 import { EmptyState, Panel } from "../ui"
+import { VoiceInput } from "../voice-input"
 import { buildGameRunActions, evaluateGameChoice, summarizeGameRun, type GameRunActionId } from "@/lib/practice-features"
 import { CHAT_DRAFT_KEY, parseStoredChatDraft, serializeChatDraft, type ChatDraft } from "@/lib/chat-drafts"
 import { dmChatChannelId, groupChatChannelId } from "@/lib/chat-channel"
@@ -1366,6 +1367,15 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             <button onClick={() => setDraftStatus("Voice note ready")} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-2 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
               <Mic className="h-4 w-4" />
             </button>
+            <VoiceInput
+              label="Dictate message"
+              prompt={activeDmTarget ? `Direct message with ${activeDmTarget.name}` : activeGroup ? `${activeGroup.name} study group chat` : `${activeThreadParsed.channel} - ${title}`}
+              onTranscript={(text) => {
+                const next = body && !/\s$/.test(body) ? `${body} ${text}` : `${body}${text}`
+                setBody(next)
+                handleDraftActivity(next)
+              }}
+            />
             </div>
             <p className={`rounded-md px-2 py-1 text-xs font-semibold ${draftStatus ? "bg-success/15 text-success" : "text-muted-foreground"}`}>
               {replyThreadId ? "Reply target saved" : draftStatus || "Private-first sharing"}
