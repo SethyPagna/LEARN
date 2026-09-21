@@ -41,7 +41,12 @@ export interface NavigationTarget {
 }
 
 export const studioViews = ["studio", "notes", "docs", "sheets", "slides"] as const satisfies readonly View[]
-export const studioAliasViews = ["notes", "docs", "sheets", "slides"] as const satisfies readonly View[]
+/**
+ * `canvas` is an alias of Studio rather than a ninth sidebar destination: the
+ * sidebar is capped at eight primary items (see navigation.test.ts), and the
+ * design canvas is reached from Studio's launcher entry and `/canvas`.
+ */
+export const studioAliasViews = ["notes", "docs", "sheets", "slides", "canvas"] as const satisfies readonly View[]
 export const learnAliasViews = ["vault", "feed", "discover", "graph", "progress"] as const satisfies readonly View[]
 export const practiceViews = ["practice", "quizzes", "games", "reviews"] as const satisfies readonly View[]
 export const socialViews = ["social", "chat", "spaces", "rooms", "battles"] as const satisfies readonly View[]
@@ -52,6 +57,7 @@ export const viewRoutes: Record<View, string> = {
   ai: "/ai",
   battles: "/battles",
   calendar: "/calendar",
+  canvas: "/canvas",
   chat: "/chat",
   dashboard: "/dashboard",
   discover: "/discover",
@@ -82,6 +88,7 @@ export const viewLabelKeys: Record<View, keyof Vocabulary> = {
   ai: "aiTutor",
   battles: "battles",
   calendar: "calendar",
+  canvas: "canvas",
   chat: "chat",
   dashboard: "dashboard",
   discover: "discover",
@@ -148,6 +155,7 @@ export const navigationGroups: readonly LearnNavigationGroup[] = [
 
 export const launcherCommands: readonly LauncherCommandConfig[] = [
   { label: "Create in Studio", detail: "New note, doc, sheet, or slide", view: "studio", iconKey: "studio", keywords: ["new", "create", "note", "doc", "sheet", "slide", "studio"] },
+  { label: "Open design canvas", detail: "Free-form layout with snapping, layers, and groups", view: "canvas", iconKey: "studio", keywords: ["canvas", "design", "layout", "drag", "layer", "z-order", "rotate", "snap"] },
   { label: "Open files", detail: "Uploads, media, and imports", view: "files", iconKey: "studio", keywords: ["file", "upload", "download", "media", "import"] },
   { label: "Start reviews", detail: "Open practice and review loops", view: "practice", iconKey: "practice", keywords: ["review", "recall", "flashcard", "practice"] },
   { label: "Practice now", detail: "Quizzes and games", view: "practice", iconKey: "practice", keywords: ["quiz", "game", "practice", "test"] },

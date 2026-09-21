@@ -6,6 +6,7 @@ import { api } from "./api"
 import type { AdminData, AutomationData, DashboardData, Note, Quiz, User, View } from "./types"
 import { StatusMessage } from "./ui"
 import { AiTutorView } from "./views/ai-view"
+import { CanvasEditorView } from "./views/canvas-editor"
 import { DashboardView } from "./views/dashboard-view"
 import { FilesView } from "./views/files-view"
 import { AdminView, CalendarView, ProgressView, SettingsView } from "./views/secondary-views"
@@ -205,6 +206,7 @@ export function LearnShell({
             {view === "graph" ? <GraphView setView={chooseView} /> : null}
             {view === "progress" ? <ProgressView dashboard={dashboard} quizzes={quizzes} setView={chooseView} /> : null}
             {view === "calendar" ? <CalendarView options={preferences.options} /> : null}
+            {view === "canvas" ? <CanvasEditorView /> : null}
             {studioViews.includes(view as (typeof studioViews)[number]) ? <StudioView initialKind={getStudioKind(view)} notes={filteredNotes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} onDraftSummary={setStudioDraftSummary} /> : null}
             {practiceViews.includes(view as (typeof practiceViews)[number]) ? <PracticeWorkspaceView initialView={view} quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={preferences.options} setView={chooseView} /> : null}
             {view === "ai" ? <AiTutorView notes={notes} options={preferences.options} setNotes={setNotes} setOptions={preferences.setOptions} setView={chooseView} /> : null}

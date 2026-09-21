@@ -6,6 +6,7 @@ export type View =
   | "graph"
   | "reviews"
   | "studio"
+  | "canvas"
   | "notes"
   | "docs"
   | "sheets"
