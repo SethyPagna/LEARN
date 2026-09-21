@@ -47,12 +47,12 @@ Current state on branch `cleanup/stage-1` (commit `b2da5f87`):
 | `tsc --noEmit` | ✅ PASS (exit 0) |
 | Test suite | ✅ **418/418 pass**, 50 files |
 | Route-handler coverage | ✅ **13 tests over 3 handlers** (`quizzes`, `quizzes/attempts`, `ai/transcribe`) — was 0 |
-| `next build --webpack` | ✅ Compiled successfully · TypeScript passed · 77/77 static pages generated |
+| `next build --webpack` | ✅ Compiled in 14.6min · TypeScript passed · **78/78** static pages generated · `BUILD_ID` written · `.next/server/app/api/ai/transcribe/route.js` present |
 | `pnpm-lock.yaml` | ✅ Repaired — importer block matches `package.json` (44 entries) |
 
 ## Known caveats
 
-1. **`next build` completed compile, typecheck and static generation, then aborted in the final "Collecting build traces" step.** `next build` tried to delete a temp file and the sandbox's delete guard refused (`SAFE_DELETE_BULK_CONFIRM_REQUIRED`, a 50-deletions-per-turn budget). Nothing about the failure touches application code, and the artefacts Next writes on success are present. Only the post-trace packaging step is unverified.
+1. **`next build` completes compile, typecheck and static generation, then aborts in the final "Collecting build traces" step.** Confirmed twice on a *clean* `.next` (`.next` moved aside first, so nothing stale was involved): it dies deleting `.next/export-detail.json` because the sandbox's delete guard has a 50-deletions-per-turn budget (`SAFE_DELETE_BULK_CONFIRM_REQUIRED`). Nothing about the failure touches application code — `BUILD_ID`, the route bundles, and all 78 static pages are written. Only the post-trace packaging step is unverified. **`next build` also needs `ESBUILD_BINARY_PATH` set** to `node_modules/.pnpm/@esbuild+win32-x64@0.28.0/.../esbuild.exe`, or it fails immediately with `Host version "0.28.0" does not match binary version "0.25.4"`.
 2. **`node_modules` is still not fully repaired and cannot be here.** A complete `pnpm install` must delete thousands of files; the same guard blocks it, and pnpm also calls the blacklisted `wmic.exe`. The interrupted run left ~1,766 empty package dirs and ~478 `.ignored_*` staging dirs under `node_modules/.pnpm`. Everything on the build path was repaired by hand — notably the `wrangler` peer dependency that `@opennextjs/cloudflare` imports at runtime from `next.config.mjs`. **Run `pnpm install` in a normal terminal first.**
 3. **The green test suite still does not cover `lib/data.ts` or `workers/` directly.** Route-handler coverage now exists for 3 of 50 handlers, and those tests exercise `data.ts` transitively through the real code path — but `data.ts` has no tests of its own, and the realtime/WebRTC Durable Objects have none. Treat "tests pass" as *not* evidence of safety for those paths.
 4. **`pnpm audit` could not be run**, so the security report's Item 20 reflects the absence of monitoring rather than a confirmed vulnerability.
