@@ -21,7 +21,17 @@ import {
 import { buildGamePracticeSessionDraft, buildQuizPracticeSessionDraft, buildReviewCardsFromPracticeItems, type PracticeSessionDraft, type PracticeSessionQuestion } from "./practice-sessions"
 import { createId, ensureDatabase, logAudit } from "./schema"
 import { buildMultiRowInsert, chunkRowsForInsert } from "./sql-batch"
-import { normalizeConnectionInput, normalizeSocialActionInput, normalizeSocialTargetType } from "./sharing"
+import {
+  canUseContentRole,
+  isGrantActive,
+  normalizeConnectionInput,
+  normalizeSocialActionInput,
+  normalizeSocialTargetType,
+  resolveContentPermission,
+  type ContentItemLike,
+  type PermissionRole,
+  type SharedAccessLike,
+} from "./sharing"
 import { blankDeckTitle, blankDocTitle, blankSheetTitle } from "./studio-defaults"
 
 export const SESSION_COOKIE = "learn_session"
@@ -939,6 +949,423 @@ export async function attachMediaToContentSource(sourceTable: string, sourceId: 
   return true
 }
 
+// ---------------------------------------------------------------------------
+// Sharing — grants, share links, and the write-side role check
+// ---------------------------------------------------------------------------
+
+/**
+ * The roles a share link may grant.
+ *
+ * Deliberately narrower than `PermissionRole`. A link is a bearer credential
+ * that anyone holding the URL can forward, so it can never mint `owner` (which
+ * would let the holder manage the item's other grants) and there is no
+ * `commenter` surface in the product yet.
+ */
+export const SHARE_LINK_ROLES = ["viewer", "editor"] as const
+export type ShareLinkRole = typeof SHARE_LINK_ROLES[number]
+
+export interface ShareLinkInput {
+  /** The registry id, when the caller has it. */
+  contentItemId?: string | null
+  /** Otherwise the source pair the registry mirrors. */
+  sourceTable?: string | null
+  sourceId?: string | null
+  role: ShareLinkRole
+  /** ISO-8601, or null for a link that never expires. */
+  expiresAt?: string | null
+}
+
+export interface ShareLinkSummary {
+  id: string
+  /** The bearer credential itself: `shared_access.grantee_id`. */
+  token: string
+  role: ShareLinkRole
+  expiresAt: string | null
+  /** False once `expires_at` has passed; the row is kept so it can be revoked. */
+  active: boolean
+}
+
+export interface ResolvedShareToken {
+  grant: SharedAccessLike & { id: string }
+  item: Record<string, unknown>
+}
+
+const SHARE_NOT_FOUND_ERROR = "Content item not found."
+const SHARE_OWNER_ERROR = "Only the owner of an item can manage its share links."
+
+/** `""` for anything absent, so every id comparison below is on trimmed strings. */
+function normalizeId(value: unknown) {
+  return value == null ? "" : String(value).trim()
+}
+
+/**
+ * Reject a share-management call from anyone but the item's owner (or an admin,
+ * matching the convention every `delete*` function in this file follows).
+ */
+function assertContentItemOwner(user: User, item: Record<string, unknown> | null | undefined) {
+  if (!item) throw new Error(SHARE_NOT_FOUND_ERROR)
+  const ownerId = normalizeId(item.owner_user_id)
+  if (ownerId !== user.id && user.role !== "admin") throw new Error(SHARE_OWNER_ERROR)
+  return item
+}
+
+/**
+ * The permission model reads only these four fields off `content_items`; D1
+ * hands every column back untyped, so narrow them once here instead of at each
+ * call site.
+ */
+function toContentItemLike(row: Record<string, unknown> | null | undefined): ContentItemLike | null {
+  if (!row) return null
+  const id = normalizeId(row.id)
+  if (!id) return null
+  return {
+    id,
+    owner_user_id: normalizeId(row.owner_user_id),
+    visibility: row.visibility == null ? null : String(row.visibility),
+    archived_at: row.archived_at == null ? null : String(row.archived_at),
+  }
+}
+
+export async function getContentItemById(id: unknown) {
+  await ensureDatabase()
+  const itemId = normalizeId(id)
+  if (!itemId) return null
+  const result = await query("SELECT * FROM content_items WHERE id = $1 LIMIT 1", [itemId])
+  return result.rows[0] || null
+}
+
+export async function getContentItemForSource(sourceTable: unknown, sourceId: unknown) {
+  await ensureDatabase()
+  const table = normalizeId(sourceTable)
+  const id = normalizeId(sourceId)
+  if (!table || !id) return null
+  const result = await query("SELECT * FROM content_items WHERE source_table = $1 AND source_id = $2 LIMIT 1", [table, id])
+  return result.rows[0] || null
+}
+
+export async function listGrantsForContentItem(contentItemId: unknown): Promise<SharedAccessLike[]> {
+  await ensureDatabase()
+  const id = normalizeId(contentItemId)
+  if (!id) return []
+  const result = await query("SELECT * FROM shared_access WHERE content_item_id = $1", [id])
+  return result.rows.map((row) => ({
+    content_item_id: normalizeId(row.content_item_id),
+    grantee_type: normalizeId(row.grantee_type) as SharedAccessLike["grantee_type"],
+    grantee_id: row.grantee_id == null ? null : String(row.grantee_id),
+    role: normalizeId(row.role) as SharedAccessLike["role"],
+    expires_at: row.expires_at == null ? null : String(row.expires_at),
+  }))
+}
+
+export interface ViewerContext {
+  groupIds: string[]
+  spaceIds: string[]
+}
+
+/**
+ * The two membership sets `resolveContentPermission` matches `group` and `space`
+ * grants against, read once per viewer instead of per grant.
+ */
+export async function resolveViewerContext(user: Pick<User, "id">): Promise<ViewerContext> {
+  await ensureDatabase()
+  const groups = await query("SELECT group_id FROM group_members WHERE user_id = $1", [user.id])
+  const spaces = await query("SELECT space_id FROM learning_space_members WHERE user_id = $1", [user.id])
+  return {
+    groupIds: groups.rows.map((row) => normalizeId(row.group_id)).filter(Boolean),
+    spaceIds: spaces.rows.map((row) => normalizeId(row.space_id)).filter(Boolean),
+  }
+}
+
+/**
+ * No user can have the empty id, so the anonymous viewer matches no `user`
+ * grant and resolves through public visibility alone.
+ */
+const ANONYMOUS_VIEWER_ID = ""
+
+/**
+ * The caller's role on one content item — the single entry point to
+ * `resolveContentPermission` for this app.
+ *
+ * `public_link` grants are deliberately **excluded** from the set handed to the
+ * model. Every row of that kind is readable by anyone who can guess an item id,
+ * so honouring one without presenting the token it carries would turn an "edit"
+ * link into "any signed-in user may edit this item". A link grant is only ever
+ * honoured through `resolveShareToken`, which has the token, or through
+ * `resolveContentRoleForToken` below.
+ *
+ * Pass `null` for a visitor with no session.
+ */
+export async function resolveContentRole(
+  user: User | null,
+  contentItem: Record<string, unknown> | null | undefined,
+): Promise<PermissionRole> {
+  const item = toContentItemLike(contentItem)
+  if (!item) return "none"
+  if (user && (user.role === "admin" || item.owner_user_id === user.id)) return "owner"
+
+  const grants = (await listGrantsForContentItem(item.id)).filter((grant) => grant.grantee_type !== "public_link")
+  const memberships = user ? await resolveViewerContext(user) : { groupIds: [], spaceIds: [] }
+
+  return resolveContentPermission({
+    user: { id: user?.id || ANONYMOUS_VIEWER_ID, role: user?.role },
+    contentItem: item,
+    grants,
+    groupIds: memberships.groupIds,
+    spaceIds: memberships.spaceIds,
+  })
+}
+
+/**
+ * The role a *presented token* confers, which is the one case where a
+ * `public_link` grant counts.
+ */
+export function resolveContentRoleForToken(resolved: ResolvedShareToken): PermissionRole {
+  const item = toContentItemLike(resolved.item)
+  if (!item || item.archived_at) return "none"
+  return resolved.grant.role
+}
+
+/**
+ * The write guard for the resources whose rows are mirrored into
+ * `content_items`: editor documents (including canvases and pages), sheets and
+ * slide decks.
+ *
+ * Replaces the bare `assertOwnership` in those savers only. `assertOwnership`
+ * says "the caller owns this row, or is an admin"; this says the same *plus*
+ * "or holds an editor/owner grant on the content item that mirrors it". A
+ * viewer, commenter or unshared stranger is refused exactly as before.
+ *
+ * Returns the user id the `content_items` mirror must keep as its owner. Without
+ * that, a granted editor saving the item would rewrite the mirror's
+ * `owner_user_id` to themselves (`upsertContentItemForSource` takes the owner
+ * from its caller) and the real owner would silently lose the ability to manage
+ * the item's share links. Owner and admin saves are unaffected: the owner gets
+ * their own id back, and an admin save now preserves the row's owner instead of
+ * taking it over.
+ *
+ * The `SELECT` below is character-for-character the one `assertOwnership`
+ * issues, on purpose: the owner path still costs one read and the SQL patterns
+ * every existing guard test matches on stay valid. Module-level constants only —
+ * `table` is interpolated.
+ */
+async function assertContentWriteRole(user: User, table: string, id: unknown): Promise<string> {
+  const rowId = normalizeId(id)
+  if (!rowId) return user.id // create path: the id is generated below, nothing to guard
+
+  const result = await query(`SELECT owner_user_id AS owner_id FROM ${table} WHERE id = $1 LIMIT 1`, [rowId])
+  const row = result.rows[0]
+  if (!row) return user.id // no such row: an upsert here is a create, as before
+
+  const ownerId = normalizeId(row.owner_id)
+  if (!ownerId || ownerId === user.id || user.role === "admin") return ownerId || user.id
+
+  const contentItem = await getContentItemForSource(table, rowId)
+  const role = await resolveContentRole(user, contentItem)
+  if (!canUseContentRole(role, "editor")) throw new Error(OWNERSHIP_ERROR)
+  return ownerId
+}
+
+/**
+ * The role a share link may carry, narrowed for display. Anything that is not
+ * exactly `editor` reads as `viewer`, so an unexpected value in the table can
+ * never be presented as broader access than it is.
+ */
+function shareLinkRoleOf(value: unknown): ShareLinkRole {
+  return normalizeId(value) === "editor" ? "editor" : "viewer"
+}
+
+function shareLinkSummaryOf(row: Record<string, unknown>, now: Date): ShareLinkSummary {
+  const role = shareLinkRoleOf(row.role)
+  const grant: SharedAccessLike = {
+    content_item_id: normalizeId(row.content_item_id),
+    grantee_type: "public_link",
+    grantee_id: row.grantee_id == null ? null : String(row.grantee_id),
+    role,
+    expires_at: row.expires_at == null ? null : String(row.expires_at),
+  }
+  return {
+    id: normalizeId(row.id),
+    token: grant.grantee_id || "",
+    role,
+    expiresAt: grant.expires_at ?? null,
+    active: isGrantActive(grant, now),
+  }
+}
+
+/**
+ * Expiry normalisation.
+ *
+ * Stored as an ISO-8601 UTC string, never in D1's `datetime('now')` shape
+ * ("2026-09-22 06:45:10"): `isGrantActive` parses with `Date.parse`, which reads
+ * that bare form as *local* time and would silently shift the deadline by the
+ * host's UTC offset.
+ */
+function normalizeShareExpiry(value: unknown): string | null {
+  if (value === null || value === undefined || value === "") return null
+  const parsed = typeof value === "number" ? value : Date.parse(String(value))
+  if (!Number.isFinite(parsed)) throw new Error("A share link expiry must be a real date.")
+  return new Date(parsed).toISOString()
+}
+
+async function requireOwnedContentItem(user: User, input: ShareLinkInput) {
+  const item = normalizeId(input.contentItemId)
+    ? await getContentItemById(input.contentItemId)
+    : await getContentItemForSource(input.sourceTable, input.sourceId)
+  return assertContentItemOwner(user, item)
+}
+
+/**
+ * Mint a `public_link` grant on an item the caller owns.
+ *
+ * There is no token column in `shared_access` — the schema predates this feature
+ * and needs no change for it: a link is a `grantee_type = 'public_link'` row
+ * whose `grantee_id` *is* the token. The row is the grant, so listing, expiring
+ * and revoking a link are all plain `shared_access` operations, and revoking is
+ * one `DELETE` that cannot leave a dangling credential behind.
+ *
+ * The token is 64 hex characters of CSPRNG output, minted the same way
+ * `getOrCreateCalendarFeedToken` does it, and is looked up by exact match in
+ * SQLite rather than compared in JavaScript (see `getUserByCalendarFeedToken`
+ * for why a short-circuiting `===` on a secret is the wrong comparison).
+ */
+export async function createShareLink(user: User, input: ShareLinkInput): Promise<ShareLinkSummary> {
+  await ensureDatabase()
+  if (input.role !== "viewer" && input.role !== "editor") {
+    throw new Error("A share link can grant view or edit access only.")
+  }
+
+  const item = await requireOwnedContentItem(user, input)
+  const contentItemId = normalizeId(item.id)
+  const expiresAt = normalizeShareExpiry(input.expiresAt)
+  const token = `${crypto.randomUUID().replace(/-/g, "")}${crypto.randomUUID().replace(/-/g, "")}`
+  const id = createId("share")
+
+  await query(
+    `INSERT INTO shared_access (id, content_item_id, grantee_type, grantee_id, role, created_by_user_id, expires_at)
+     VALUES ($1, $2, 'public_link', $3, $4, $5, $6)`,
+    [id, contentItemId, token, input.role, user.id, expiresAt],
+  )
+  await logAudit({
+    userId: user.id,
+    action: "create",
+    entity: "share_link",
+    entityId: id,
+    details: { contentItemId, role: input.role, expiresAt },
+  })
+
+  return { id, token, role: input.role, expiresAt, active: true }
+}
+
+/**
+ * Every link on one item, owner (or admin) only.
+ *
+ * This is the one place tokens are returned in bulk, and it is reached only by
+ * the item's owner — the person who could mint an equivalent link anyway.
+ */
+export async function listShareLinks(user: User, contentItemId: unknown): Promise<ShareLinkSummary[]> {
+  await ensureDatabase()
+  const item = assertContentItemOwner(user, await getContentItemById(contentItemId))
+  const result = await query(
+    `SELECT * FROM shared_access
+     WHERE content_item_id = $1 AND grantee_type = 'public_link'
+     ORDER BY created_at DESC`,
+    [normalizeId(item.id)],
+  )
+  const now = new Date()
+  return result.rows.map((row) => shareLinkSummaryOf(row, now))
+}
+
+/**
+ * Revoke one link. Owner (or admin) only — the grant is followed back to its
+ * content item and ownership is checked there, so a grant id from somebody
+ * else's item revokes nothing.
+ */
+export async function revokeShareLink(user: User, grantId: unknown) {
+  await ensureDatabase()
+  const id = normalizeId(grantId)
+  if (!id) throw new Error("A share link id is required.")
+
+  const existing = await query(
+    "SELECT * FROM shared_access WHERE id = $1 AND grantee_type = 'public_link' LIMIT 1",
+    [id],
+  )
+  const row = existing.rows[0]
+  if (!row) throw new Error("Share link not found.")
+
+  assertContentItemOwner(user, await getContentItemById(row.content_item_id))
+  await query("DELETE FROM shared_access WHERE id = $1 AND grantee_type = 'public_link'", [id])
+  await logAudit({ userId: user.id, action: "delete", entity: "share_link", entityId: id })
+  return { id }
+}
+
+/**
+ * Resolve a presented token to its live grant and content item, or `null`.
+ *
+ * Unknown, revoked, expired and dangling all collapse to the same `null` so a
+ * caller can only answer 404 and cannot learn which of them it was. Archiving is
+ * a separate question the caller asks — `resolveContentRoleForToken` treats an
+ * archived item as no access at all, matching the model's own rule.
+ */
+export async function resolveShareToken(token: unknown): Promise<ResolvedShareToken | null> {
+  await ensureDatabase()
+  const value = normalizeId(token)
+  if (!value) return null
+
+  const result = await query(
+    "SELECT * FROM shared_access WHERE grantee_type = 'public_link' AND grantee_id = $1 LIMIT 1",
+    [value],
+  )
+  const row = result.rows[0]
+  if (!row) return null
+
+  const summary = shareLinkSummaryOf(row, new Date())
+  const contentItemId = normalizeId(row.content_item_id)
+  const grant = {
+    id: summary.id,
+    content_item_id: contentItemId,
+    grantee_type: "public_link" as const,
+    grantee_id: summary.token,
+    role: summary.role,
+    expires_at: summary.expiresAt,
+  }
+  if (!isGrantActive(grant)) return null
+
+  const item = await getContentItemById(contentItemId)
+  if (!item) return null
+
+  return { grant, item }
+}
+
+/**
+ * The record behind a content item, read-only.
+ *
+ * `source_table` is written by `upsertContentItemForSource`, never by a client,
+ * but it is still resolved through a closed map rather than interpolated
+ * directly — a table name in SQL text is only safe while the set of values is
+ * fixed, and a `Map` (not an object literal) cannot be fooled by `"constructor"`.
+ *
+ * Column names come from the schema, so this is a pass-through of stored values;
+ * the JSON columns are parsed exactly the way the saver for each resource parses
+ * them, so a caller sees the same shape it would through the owning route.
+ */
+const SHAREABLE_SOURCE_TABLES = new Map<string, (row: Record<string, unknown>) => Record<string, unknown>>([
+  ["notes", (row) => row],
+  ["editor_documents", (row) => ({ ...row, content: parseJsonObject(row.content), tags: parseJsonArray(row.tags) })],
+  ["sheet_documents", (row) => normalizeJsonRow(row, ["cells", "history"])],
+  ["slide_decks", (row) => ({ ...row, slides: parseJsonArray(row.slides), speaker_notes: parseJsonObject(row.speaker_notes) })],
+])
+
+export async function readSharedContentPayload(sourceTable: unknown, sourceId: unknown) {
+  await ensureDatabase()
+  const table = normalizeId(sourceTable)
+  const id = normalizeId(sourceId)
+  const normalize = SHAREABLE_SOURCE_TABLES.get(table)
+  if (!normalize || !id) return null
+  const result = await query(`SELECT * FROM ${table} WHERE id = $1 LIMIT 1`, [id])
+  const row = result.rows[0]
+  return row ? normalize(row) : null
+}
+
 export async function listEditorDocuments(user: User, documentType = "doc", status: ArchiveListStatus = "active") {
   await ensureDatabase()
   const archiveClause = archivedWhereClause()[status]
@@ -955,7 +1382,10 @@ export async function listEditorDocuments(user: User, documentType = "doc", stat
 export async function saveEditorDocument(user: User, input: Record<string, unknown>, documentType = "doc") {
   await ensureDatabase()
   const id = String(input.id || createId(documentType === "doc" ? "doc" : "page"))
-  await assertOwnership(user, "editor_documents", input.id, "owner_user_id")
+  // Owner, admin, or a holder of an editor/owner grant on this item's content
+  // item. Returns the owner the content mirror must keep, so a granted editor
+  // cannot take the item over. Covers docs, pages and canvases alike.
+  const mirrorOwnerId = await assertContentWriteRole(user, "editor_documents", input.id)
   await query(
     `INSERT INTO editor_documents (id, workspace_id, owner_user_id, title, document_type, content, tags, updated_at)
      VALUES ($1, 'workspace_demo', $2, $3, $4, $5::jsonb, $6::jsonb, now())
@@ -978,7 +1408,7 @@ export async function saveEditorDocument(user: User, input: Record<string, unkno
   const content = input.content || {}
   const contentItem = await upsertContentItemForSource({
     workspaceId: DEFAULT_WORKSPACE_ID,
-    ownerUserId: user.id,
+    ownerUserId: mirrorOwnerId,
     itemType: "doc",
     sourceTable: "editor_documents",
     sourceId: id,
@@ -1033,7 +1463,7 @@ export async function listSheets(user: User, status: ArchiveListStatus = "active
 export async function saveSheet(user: User, input: Record<string, unknown>) {
   await ensureDatabase()
   const id = String(input.id || createId("sheet"))
-  await assertOwnership(user, "sheet_documents", input.id, "owner_user_id")
+  const mirrorOwnerId = await assertContentWriteRole(user, "sheet_documents", input.id)
   await query(
     `INSERT INTO sheet_documents (id, workspace_id, owner_user_id, title, cells, history, updated_at)
      VALUES ($1, 'workspace_demo', $2, $3, $4::jsonb, $5::jsonb, now())
@@ -1055,7 +1485,7 @@ export async function saveSheet(user: User, input: Record<string, unknown>) {
   const cells = Array.isArray(input.cells) ? input.cells : []
   const contentItem = await upsertContentItemForSource({
     workspaceId: DEFAULT_WORKSPACE_ID,
-    ownerUserId: user.id,
+    ownerUserId: mirrorOwnerId,
     itemType: "sheet",
     sourceTable: "sheet_documents",
     sourceId: id,
@@ -1109,7 +1539,7 @@ export async function listSlideDecks(user: User, status: ArchiveListStatus = "ac
 export async function saveSlideDeck(user: User, input: Record<string, unknown>) {
   await ensureDatabase()
   const id = String(input.id || createId("deck"))
-  await assertOwnership(user, "slide_decks", input.id, "owner_user_id")
+  const mirrorOwnerId = await assertContentWriteRole(user, "slide_decks", input.id)
   await query(
     `INSERT INTO slide_decks (id, workspace_id, owner_user_id, title, slides, speaker_notes, updated_at)
      VALUES ($1, 'workspace_demo', $2, $3, $4::jsonb, $5::jsonb, now())
@@ -1132,7 +1562,7 @@ export async function saveSlideDeck(user: User, input: Record<string, unknown>) 
   const speakerNotes = input.speakerNotes || input.speaker_notes || {}
   const contentItem = await upsertContentItemForSource({
     workspaceId: DEFAULT_WORKSPACE_ID,
-    ownerUserId: user.id,
+    ownerUserId: mirrorOwnerId,
     itemType: "slide_deck",
     sourceTable: "slide_decks",
     sourceId: id,

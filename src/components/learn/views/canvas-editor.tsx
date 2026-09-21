@@ -38,9 +38,11 @@ import {
   Lock,
   Magnet,
   Maximize2,
+  PenLine,
   RotateCw,
   Rows3,
   Save,
+  Share2,
   Square,
   Trash2,
   Type,
@@ -95,6 +97,43 @@ const GRID_SIZE = 8
 const SNAP_THRESHOLD = 6
 const MIN_ZOOM = 0.25
 const MAX_ZOOM = 4
+
+/**
+ * Canvases live in `editor_documents`, so this is the source pair the share API
+ * is addressed with. The editor knows the record id it saved, not the
+ * `content_items` id behind it, which is why the API accepts both.
+ */
+const CANVAS_SOURCE_TABLE = "editor_documents"
+
+interface ShareLink {
+  id: string
+  token: string
+  role: "viewer" | "editor"
+  expiresAt: string | null
+  active: boolean
+}
+
+/**
+ * The share link itself: the public `/api/share/[token]` route, which resolves
+ * the token to this design's read-only record with no session at all. Built from
+ * the current origin so a copied link works wherever the app is deployed.
+ */
+function shareLinkUrl(token: string) {
+  const origin = typeof window === "undefined" ? "" : window.location.origin
+  return `${origin}/api/share/${token}`
+}
+
+function shareRoleLabel(role: ShareLink["role"]) {
+  return role === "editor" ? "Can edit" : "View only"
+}
+
+function shareExpiryLabel(link: ShareLink) {
+  if (!link.expiresAt) return "No expiry"
+  const expiresAt = new Date(link.expiresAt)
+  if (Number.isNaN(expiresAt.getTime())) return "No expiry"
+  const formatted = expiresAt.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+  return link.active ? `Expires ${formatted}` : `Expired ${formatted}`
+}
 
 /**
  * The Takram soft-tech preset, scoped to this component.
@@ -386,6 +425,11 @@ export function CanvasEditorView() {
   const [renameId, setRenameId] = useState("")
   const [renameValue, setRenameValue] = useState("")
   const [layerDrag, setLayerDrag] = useState<LayerDragState | null>(null)
+  const [shareOpen, setShareOpen] = useState(false)
+  const [shareLinks, setShareLinks] = useState<ShareLink[]>([])
+  const [shareRole, setShareRole] = useState<ShareLink["role"]>("viewer")
+  const [shareBusy, setShareBusy] = useState("")
+  const [shareStatus, setShareStatus] = useState("")
 
   const doc = liveDoc ?? history.present
   const selection = useMemo(() => doc.elements.filter((element) => selectedIds.includes(element.id)), [doc.elements, selectedIds])
@@ -721,6 +765,89 @@ export function CanvasEditorView() {
     setGridEnabled((current) => !current)
   }
 
+  // -------------------------------------------------------------------------
+  // Share links
+  // -------------------------------------------------------------------------
+
+  /**
+   * A share link is a `public_link` grant on this canvas's content item, and the
+   * token in the URL *is* the grant. Only the owner can mint, list or revoke one
+   * — the API answers 400 "Only the owner of an item can manage its share links."
+   * otherwise, so this panel simply surfaces whatever it says.
+   *
+   * A link grants a read: `/api/share/[token]` serves the stored design to
+   * whoever holds the URL. The "Can edit" role is recorded on the grant and
+   * shown here, but writing still needs a signed-in collaborator holding an
+   * editor grant of their own — a forwarded URL is never a write credential.
+   */
+  async function loadShareLinks() {
+    if (!recordId) {
+      setShareLinks([])
+      return
+    }
+    setShareBusy("list")
+    try {
+      const response = await api<{ links: ShareLink[] }>(
+        `/api/share?sourceTable=${CANVAS_SOURCE_TABLE}&sourceId=${encodeURIComponent(recordId)}`,
+      )
+      setShareLinks(response.links || [])
+      setShareStatus("")
+    } catch (error) {
+      setShareStatus(error instanceof Error ? error.message : "Unable to load share links.")
+    } finally {
+      setShareBusy("")
+    }
+  }
+
+  function toggleShare() {
+    const next = !shareOpen
+    setShareOpen(next)
+    if (next) void loadShareLinks()
+  }
+
+  async function copyShareLink(link: ShareLink) {
+    const url = shareLinkUrl(link.token)
+    try {
+      await navigator.clipboard.writeText(url)
+      setShareStatus(`Copied the ${shareRoleLabel(link.role).toLowerCase()} link.`)
+    } catch {
+      // Clipboard access needs a secure context; showing the URL is the fallback
+      // that still lets the link be selected by hand.
+      setShareStatus(`Copy was blocked. The link is ${url}`)
+    }
+  }
+
+  async function createShareLink() {
+    if (!recordId) return
+    setShareBusy("create")
+    try {
+      const response = await api<{ link: ShareLink }>("/api/share", {
+        method: "POST",
+        body: JSON.stringify({ sourceTable: CANVAS_SOURCE_TABLE, sourceId: recordId, role: shareRole }),
+      })
+      setShareLinks((current) => [response.link, ...current])
+      setShareStatus("")
+      await copyShareLink(response.link)
+    } catch (error) {
+      setShareStatus(error instanceof Error ? error.message : "Unable to create a share link.")
+    } finally {
+      setShareBusy("")
+    }
+  }
+
+  async function revokeShareLink(id: string) {
+    setShareBusy(id)
+    try {
+      await api(`/api/share?id=${encodeURIComponent(id)}`, { method: "DELETE" })
+      setShareLinks((current) => current.filter((link) => link.id !== id))
+      setShareStatus("Link revoked. Every copy of it now answers 404.")
+    } catch (error) {
+      setShareStatus(error instanceof Error ? error.message : "Unable to revoke that link.")
+    } finally {
+      setShareBusy("")
+    }
+  }
+
   function downloadJson() {
     const blob = new Blob([serializeCanvas(doc)], { type: "application/json" })
     const href = URL.createObjectURL(blob)
@@ -856,6 +983,10 @@ export function CanvasEditorView() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <button type="button" data-active={shareOpen} onClick={toggleShare} className="canvas-tool" title="Share this design">
+              <Share2 className="h-4 w-4" />
+              Share
+            </button>
             <button type="button" onClick={downloadJson} className="canvas-tool">
               <Download className="h-4 w-4" />
               Download JSON
@@ -977,6 +1108,77 @@ export function CanvasEditorView() {
             <Maximize2 className="h-4 w-4" />
           </button>
         </div>
+
+        {shareOpen ? (
+          <div className="mb-3 space-y-3 rounded-[12px] bg-muted p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">New share link</span>
+              {(["viewer", "editor"] as const).map((role) => (
+                <button
+                  key={role}
+                  type="button"
+                  data-active={shareRole === role}
+                  onClick={() => setShareRole(role)}
+                  className="canvas-tool"
+                  title={role === "editor" ? "Records edit intent on the link" : "Read-only link"}
+                >
+                  {role === "editor" ? <PenLine className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  {shareRoleLabel(role)}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => void createShareLink()}
+                disabled={!recordId || shareBusy === "create"}
+                className="canvas-tool"
+              >
+                {shareBusy === "create" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+                Create link
+              </button>
+            </div>
+
+            {!recordId ? (
+              <p className="text-xs text-muted-foreground">
+                This design is not saved yet. A share link points at a stored canvas, so it can be created once the first edit is saved.
+              </p>
+            ) : null}
+
+            {shareLinks.length ? (
+              <ul className="space-y-1.5">
+                {shareLinks.map((link) => (
+                  <li key={link.id} className="flex flex-wrap items-center gap-2 rounded-[10px] bg-card p-2">
+                    <span className="rounded-full bg-secondary px-2 py-0.5 text-[0.7rem] font-semibold text-secondary-foreground">
+                      {shareRoleLabel(link.role)}
+                    </span>
+                    <code className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{shareLinkUrl(link.token)}</code>
+                    <span className={`text-[0.7rem] ${link.active ? "text-muted-foreground" : "text-destructive"}`}>{shareExpiryLabel(link)}</span>
+                    <button type="button" onClick={() => void copyShareLink(link)} className="canvas-tool">
+                      <Copy className="h-3.5 w-3.5" />
+                      Copy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void revokeShareLink(link.id)}
+                      disabled={shareBusy === link.id}
+                      className="canvas-tool"
+                      title="Revoke this link"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Revoke
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : recordId && shareBusy !== "list" ? (
+              <p className="text-xs text-muted-foreground">No share links yet.</p>
+            ) : null}
+
+            {shareStatus ? <p className="text-xs text-muted-foreground">{shareStatus}</p> : null}
+            <p className="text-xs text-muted-foreground">
+              Anyone with a link can read this design through it — no account needed. Revoking a link revokes every copy of it.
+            </p>
+          </div>
+        ) : null}
 
         {insertOpen ? (
           <div className="mb-3 flex flex-wrap items-center gap-2 rounded-[12px] bg-muted p-3">
