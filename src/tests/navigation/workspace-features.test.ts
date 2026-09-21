@@ -228,7 +228,10 @@ test("studio record action groups swap manage actions for archived items", () =>
 test("studio share and download options match Canva-style Studio outputs", () => {
   assert.equal(buildStudioShareOptions("slides").some((option) => option.id === "present"), true)
   assert.equal(buildStudioShareOptions("docs").some((option) => option.id === "present"), false)
-  assert.deepEqual(buildStudioDownloadOptions("sheets").map((option) => option.id), ["csv", "text", "json"])
+  // XLSX and DOCX are the standard formats the Brief lists; both are offered
+  // alongside the previous CSV/HTML/plain-text outputs rather than replacing them.
+  assert.deepEqual(buildStudioDownloadOptions("sheets").map((option) => option.id), ["csv", "xlsx", "text", "json"])
+  assert.deepEqual(buildStudioDownloadOptions("docs").map((option) => option.id), ["html", "docx", "markdown", "text"])
   assert.deepEqual(buildStudioDownloadOptions("slides").map((option) => option.id), ["pptx", "outline", "json"])
   assert.equal(recommendedStudioDownloadOption("docs")?.id, "html")
   assert.equal(buildStudioShareOptions("docs").find((option) => option.id === "copy-link")?.badge, "Now")

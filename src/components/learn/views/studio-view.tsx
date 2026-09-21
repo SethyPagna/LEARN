@@ -125,6 +125,7 @@ import {
   recommendedStudioDownloadOption,
   sortSheetByColumn,
   splitStudioPane,
+  type StudioDownloadOption,
   type StudioRecordActionId,
 } from "@/lib/studio-features"
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, replaceTextInHtml, summarizeDocumentHtml, undoHistory, type HistoryState } from "@/lib/workspace-features"
@@ -139,6 +140,7 @@ import { buildStudioProjectBrowserHeader, buildStudioProjectBrowserState, buildS
 import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 import { HEADING_STYLE_KEY, STUDIO_LAYOUT_KEY, parseStoredHeadingStyles, parseStoredStudioLayout, type HeadingStyleLevel, type HeadingStylePreset } from "@/lib/studio-preferences"
+import { DOCX_MIME, XLSX_MIME, documentHtmlToDocx, sheetCellsToXlsx } from "@/lib/export/studio-export"
 
 const DRAFT_TAB_TITLE_PATTERN = /^New (Note|Doc|Sheet|Deck)$/i
 const NUMBERED_EMPTY_TAB_PATTERN = /^\d+\s+(Notes|Docs|Sheets|Slides)$/i
@@ -335,6 +337,16 @@ function importTargetToKind(target: ImportTarget): StudioKind {
 
 function downloadText(filename: string, body: string, type = "text/plain") {
   const blob = new Blob([body], { type })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement("a")
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
+function downloadBytes(filename: string, body: Uint8Array, type: string) {
+  const blob = new Blob([new Uint8Array(body)], { type })
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement("a")
   anchor.href = url
@@ -1480,8 +1492,18 @@ export function StudioView({
     setStatus("Copied to clipboard.")
   }
 
-  async function downloadActive(exportMode = false) {
+  async function downloadActive(exportMode = false, format?: StudioDownloadOption["id"]) {
     const base = fileTitle(activeTitle(), kind)
+    // DOCX and XLSX are built in-process from the same payloads the other
+    // formats use; everything below is the pre-existing download behaviour.
+    if (format === "docx" && kind === "docs") {
+      downloadBytes(`${base}.docx`, documentHtmlToDocx({ title: activeTitle(), html: docHistory.present }), DOCX_MIME)
+      return
+    }
+    if (format === "xlsx" && kind === "sheets") {
+      downloadBytes(`${base}.xlsx`, sheetCellsToXlsx({ title: activeTitle(), cells: ensureSheetCells(cells) }), XLSX_MIME)
+      return
+    }
     if (kind === "sheets") return downloadText(`${base}.csv`, currentPayload("download"), "text/csv")
     if (kind === "slides" && exportMode) return exportPptx(base)
     if (kind === "slides") return downloadText(`${base}.outline.txt`, currentPayload("download"), "text/plain")
@@ -1739,9 +1761,9 @@ export function StudioView({
                     onClosePane={() => setLayout((current) => closeStudioPane(current, pane.id))}
                     onCloseOthers={() => setLayout((current) => closeOtherStudioPanes(current, pane.id))}
                     onCopy={copyActive}
-                    onDownload={() => downloadActive(false)}
+                    onDownload={(format) => downloadActive(false, format)}
                     onDuplicate={duplicateActive}
-                    onExport={() => downloadActive(true)}
+                    onExport={(format) => downloadActive(true, format)}
                     onPinPane={() => setLayout((current) => pinStudioPane(current, pane.id))}
                     onRenamePane={(label) => setLayout((current) => normalizeStudioLayout({ ...current, groups: [{ ...current.groups[0], panes: current.groups[0].panes.map((item) => item.id === pane.id ? { ...item, label } : item) }] }))}
                     onSelectPane={() => activatePane(pane)}
@@ -2703,9 +2725,9 @@ function StudioPaneSurface({
   onClosePane: () => void
   onCloseOthers: () => void
   onCopy: () => void
-  onDownload: () => void
+  onDownload: (format?: StudioDownloadOption["id"]) => void
   onDuplicate: () => void
-  onExport: () => void
+  onExport: (format?: StudioDownloadOption["id"]) => void
   onPinPane: () => void
   onRenamePane: (value: string) => void
   onSelectPane: () => void
@@ -3889,8 +3911,8 @@ function StudioInspector({
   currentTitle: string
   inspectorTab: string
   onCopyLink: () => void
-  onDownload: () => void
-  onExport: () => void
+  onDownload: (format?: StudioDownloadOption["id"]) => void
+  onExport: (format?: StudioDownloadOption["id"]) => void
   onSetInspectorTab: (value: string) => void
   selectedCell: { row: number; column: number }
   selectedSlideIndex: number
@@ -3926,8 +3948,8 @@ function StudioExportInspector({
 }: {
   activeKind: StudioKind
   onCopyLink: () => void
-  onDownload: () => void
-  onExport: () => void
+  onDownload: (format?: StudioDownloadOption["id"]) => void
+  onExport: (format?: StudioDownloadOption["id"]) => void
 }) {
   const shareOptions = buildStudioShareOptions(activeKind)
   const downloadOptions = buildStudioDownloadOptions(activeKind)
@@ -3942,9 +3964,11 @@ function StudioExportInspector({
   } satisfies Record<(typeof shareOptions)[number]["id"], React.ComponentType<{ className?: string }>>
   const downloadIconById = {
     html: FileText,
+    docx: FileText,
     text: FileText,
     markdown: Braces,
     csv: Table2,
+    xlsx: Table2,
     pptx: Presentation,
     outline: List,
     json: Braces,
@@ -4013,7 +4037,7 @@ function StudioExportInspector({
         </div>
         <div className="mt-3 grid gap-2">
           {downloadOptions.map((option) => (
-            <button key={option.id} onClick={option.action === "download" ? onDownload : onExport} className="rounded-md border border-border bg-background p-2 text-left transition hover:border-primary hover:bg-accent" type="button">
+            <button key={option.id} onClick={() => (option.action === "download" ? onDownload : onExport)(option.id)} className="rounded-md border border-border bg-background p-2 text-left transition hover:border-primary hover:bg-accent" type="button">
               <span className="flex items-center justify-between gap-2">
                 <span className="inline-flex min-w-0 items-center gap-2 text-xs font-bold text-foreground">
                   {(() => {
