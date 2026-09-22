@@ -4,7 +4,11 @@
  * Same reasoning as `./docx`: a `.xlsx` is a ZIP of XML parts, so the writer in
  * `./zip` is all the packaging this needs, and `rows.map(cells)` is all the
  * content model. The grid the Studio sheet editor already holds maps one-to-one
- * onto rows and cells, so no intermediate document type is introduced.
+ * onto rows and cells, so no intermediate document type is introduced — except
+ * that blank rows and columns at the *end* of the grid (the editor's unused
+ * canvas around what the user typed) are trimmed away, so a sheet exports its
+ * used range and a hand-authored grid and the same matrix from an AI reply
+ * produce the same file. See `trimUnusedEdges`.
  *
  *     [Content_Types].xml                 part MIME map
  *     _rels/.rels                         package -> workbook
@@ -283,7 +287,29 @@ function plainWidth(value: unknown): number {
 
 function normalizeRows(cells: unknown[][]): unknown[][] {
   const rows = Array.isArray(cells) ? cells.slice(0, MAX_ROWS) : []
-  return rows.map((row) => (Array.isArray(row) ? row.slice(0, MAX_COLUMNS) : [row]))
+  return trimUnusedEdges(rows.map((row) => (Array.isArray(row) ? row.slice(0, MAX_COLUMNS) : [row])))
+}
+
+/**
+ * Drop the blank rows and columns at the *end* of the grid.
+ *
+ * A grid is not a rectangle of content. The Studio sheet editor holds a fixed
+ * 12x6 canvas of empty cells around whatever the user typed, so a hand-authored
+ * three-row sheet still posts a 12x6 grid — while the same matrix produced by an
+ * AI reply arrives exactly as typed. Exporting the padding would give the two
+ * paths different files for the same sheet (a wider dimension, empty columns,
+ * twelve `<row>` elements where three are meant), so the unused tail is trimmed
+ * here and the file reports the used range, the way Excel itself does. Interior
+ * blanks are content — a deliberate gap — and are kept; only the tail goes.
+ */
+function trimUnusedEdges(rows: unknown[][]): unknown[][] {
+  let lastRow = rows.length
+  while (lastRow > 0 && rows[lastRow - 1].every(isBlank)) lastRow -= 1
+  const used = rows.slice(0, lastRow)
+
+  let lastColumn = used.reduce((widest, row) => Math.max(widest, row.length), 0)
+  while (lastColumn > 0 && used.every((row) => isBlank(row[lastColumn - 1]))) lastColumn -= 1
+  return used.map((row) => row.slice(0, lastColumn))
 }
 
 // ---------------------------------------------------------------------------
