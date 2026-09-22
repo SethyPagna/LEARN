@@ -22,7 +22,7 @@
 import type { ThemedBlock } from "@/lib/ai/format-response"
 import { buildDocx } from "@/lib/export/docx"
 import { blocksFromDocumentHtml } from "@/lib/export/html-blocks"
-import { buildPdf } from "@/lib/export/pdf"
+import { buildDeckPdf, buildPdf } from "@/lib/export/pdf"
 import { buildXlsx } from "@/lib/export/xlsx"
 
 /** MIME types for the three formats, as registered with IANA. */
@@ -67,6 +67,53 @@ export function documentHtmlToPdf(input: DocumentExportInput): Uint8Array {
 /** The HTML-to-blocks step on its own, for callers that do not want a file. */
 export function documentHtmlToBlocks(html: string): ThemedBlock[] {
   return blocksFromDocumentHtml(html)
+}
+
+/**
+ * A deck slide as the Studio editor stores it: a title and a body whose lines
+ * are the bullets. Structural, so the editor's slide type can be passed as-is.
+ */
+export interface DeckSlideExportInput {
+  title: string
+  body: string
+}
+
+export interface DeckExportInput {
+  /** Deck title; becomes the PDF's `/Title`. */
+  title: string
+  slides: readonly DeckSlideExportInput[]
+  date?: Date
+}
+
+/**
+ * The bullet lines a slide body carries: one bullet per non-empty line, minus a
+ * leading dash or bullet glyph the editor lets you type but the PDF draws
+ * itself. Numbered lines keep their numbers — that is content, not a marker.
+ */
+function bulletsFromSlideBody(body: string): string[] {
+  return body
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(/^\s*[-*•]\s+/, "").trim())
+    .filter(Boolean)
+}
+
+/**
+ * Deck slides -> landscape 16:9 PDF bytes.
+ *
+ * The same payload the PPTX exporter lays out, rendered by this repository's
+ * own writer onto one landscape page per slide; bullets that do not fit a page
+ * continue on a marked extra page rather than being clipped.
+ */
+export function deckSlidesToPdf(input: DeckExportInput): Uint8Array {
+  return buildDeckPdf({
+    title: input.title,
+    slides: input.slides.map((slide) => ({
+      title: slide.title,
+      bullets: bulletsFromSlideBody(slide.body || ""),
+    })),
+    ...(input.date ? { createdAt: input.date } : {}),
+  })
 }
 
 export interface SheetExportInput {

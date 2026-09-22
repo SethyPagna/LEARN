@@ -6,8 +6,9 @@ import { fileURLToPath } from "node:url"
 import type { ThemedBlock } from "../../lib/ai/format-response"
 import { buildDocx } from "../../lib/export/docx"
 import { blocksFromDocumentHtml } from "../../lib/export/html-blocks"
-import { documentHtmlToDocx, documentHtmlToPdf, sheetCellsToXlsx } from "../../lib/export/studio-export"
+import { documentHtmlToDocx, documentHtmlToPdf, deckSlidesToPdf, sheetCellsToXlsx } from "../../lib/export/studio-export"
 import { buildXlsx, sheetNameOf } from "../../lib/export/xlsx"
+import { buildStudioDownloadOptions } from "../../lib/studio-features"
 import { partNames, partText } from "./zip-reader"
 
 const encoder = new TextEncoder()
@@ -473,7 +474,7 @@ test("Studio offers a PDF and the seam builds it from the document's blocks", ()
   const features = readSource(STUDIO_FEATURES_MODULE)
   const view = readCodeSource(STUDIO_VIEW)
 
-  assert.match(seam, /import \{ buildPdf \} from "@\/lib\/export\/pdf"/, "the seam imports the PDF builder")
+  assert.match(seam, /import \{[^}]*\bbuildPdf\b[^}]*\} from "@\/lib\/export\/pdf"/, "the seam imports the PDF builder")
   assert.match(seam, /export const PDF_MIME = "application\/pdf"/, "the seam declares the PDF MIME type")
   assert.match(seam, /export function documentHtmlToPdf\(/, "the seam exports documentHtmlToPdf")
   assert.match(seam, /blocks: documentHtmlToBlocks\(input\.html\)/, "PDF and DOCX share one blocks call")
@@ -523,4 +524,65 @@ test("the Studio PDF seam produces a real PDF from document HTML", () => {
     date: new Date(Date.UTC(2026, 0, 2, 3, 4, 6)),
   })
   assert.deepEqual(Array.from(bytes), Array.from(again))
+})
+
+/**
+ * The deck's PDF is the other half of the Brief's "PPTX/PDF/image for decks".
+ * The PPTX path is browser-only (see the parity test); this one is plain Node
+ * code, so a deck losing it would be a silent product regression with no
+ * failing test anywhere else. Every link — writer, seam, menu, view — is pinned
+ * here, and the menu is checked at runtime so the assertion cannot be satisfied
+ * by the *document* PDF entry lower down the same file.
+ */
+test("Studio offers PDF for decks and the seam builds it from the slides", () => {
+  const writer = readSource(PDF_MODULE)
+  const seam = readSource(STUDIO_EXPORT_MODULE)
+  const view = readCodeSource(STUDIO_VIEW)
+
+  assert.match(writer, /export function buildDeckPdf\(/, "the PDF writer exports the deck entry point")
+  assert.match(writer, /export const PDF_DECK_PAGE_SIZE = \{ width: 960, height: 540 \}/, "the deck page is a real 16:9 landscape box")
+  assert.match(writer, /export const DECK_CONTINUATION_SUFFIX = " \(cont\.\)"/, "the continuation marker is part of the writer's contract")
+
+  assert.match(seam, /import \{ buildDeckPdf, buildPdf \} from "@\/lib\/export\/pdf"/, "the seam imports the deck builder")
+  assert.match(seam, /export function deckSlidesToPdf\(/, "the seam exports deckSlidesToPdf")
+
+  // The menu offers PDF for decks, alongside the PPTX it already offered.
+  const deckOptions = buildStudioDownloadOptions("slides").map((option) => option.id)
+  assert.ok(deckOptions.includes("pdf"), `the deck menu offers PDF, got ${JSON.stringify(deckOptions)}`)
+  assert.ok(deckOptions.includes("pptx"), `the deck menu keeps PPTX, got ${JSON.stringify(deckOptions)}`)
+
+  assert.match(view, /format === "pdf" && kind === "slides"/, "the PDF branch is scoped to decks")
+  assert.match(view, /downloadBytes\(`\$\{base\}\.pdf`, deckSlidesToPdf\(/, "the deck PDF is downloaded through the existing bytes helper")
+  assert.match(view, /PDF_MIME/, "the deck PDF is served as application/pdf")
+})
+
+test("the Studio deck seam produces a landscape PDF, one page per slide", () => {
+  const bytes = deckSlidesToPdf({
+    title: "Unit 3 deck",
+    slides: [
+      { title: "Identity", body: "AuthN answers who you are.\nAuthZ decides what you may do." },
+      // A body typed with dashes still reads as bullets: the writer draws its own.
+      { title: "Terms", body: "- Session\n- Revocation" },
+    ],
+    date: new Date(Date.UTC(2026, 8, 22, 9, 30, 0)),
+  })
+
+  const text = Buffer.from(bytes).toString("latin1")
+  assert.ok(text.startsWith("%PDF-1.4\n"), "the seam returns a PDF file")
+  assert.ok(text.endsWith("%%EOF\n"), "and ends with the EOF marker")
+  assert.match(text, /\/MediaBox \[0 0 960 540\]/, "the pages are landscape slides")
+  assert.equal(Number(/\/Count (\d+)/.exec(text)?.[1]), 2, "one page per slide")
+  assert.match(text, /\(AuthZ decides what you may do\.\) Tj/, "the body's lines become bullets")
+  assert.match(text, /\(Session\) Tj/, "a typed dash is not doubled into the drawn marker")
+  assert.match(text, /D:20260922093000Z/, "the caller's date reaches the document info")
+
+  const again = deckSlidesToPdf({
+    title: "Unit 3 deck",
+    slides: [
+      { title: "Identity", body: "AuthN answers who you are.\nAuthZ decides what you may do." },
+      { title: "Terms", body: "- Session\n- Revocation" },
+    ],
+    date: new Date(Date.UTC(2026, 8, 22, 9, 30, 0)),
+  })
+  assert.deepEqual(Array.from(bytes), Array.from(again), "the deck PDF joins DOCX, XLSX and PDF as reproducible")
 })

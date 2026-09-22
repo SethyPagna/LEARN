@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import type { ThemedBlock } from "../../lib/ai/format-response"
-import { PDF_DEFAULT_MARGIN, PDF_PAGE_SIZES, buildPdf, measurePdfText, type PdfFontName } from "../../lib/export/pdf"
+import { DECK_CONTINUATION_SUFFIX, PDF_DECK_MARGIN, PDF_DECK_PAGE_SIZE, PDF_DEFAULT_MARGIN, PDF_PAGE_SIZES, buildDeckPdf, buildPdf, measurePdfText, type PdfFontName } from "../../lib/export/pdf"
 
 /**
  * PDF structure guards.
@@ -498,4 +498,182 @@ test("each themed block type maps to something a reader can see", () => {
   assert.match(text, /\(two\) Tj/)
   // A divider is a rule, not text.
   assert.match(text, /0\.6 w [\d.]+ [\d.]+ m [\d.]+ [\d.]+ l S Q/)
+})
+
+// ---------------------------------------------------------------------------
+// Decks: landscape slides, one page per slide, overflow continued
+// ---------------------------------------------------------------------------
+
+/**
+ * A deck is the same file skeleton laid out differently, so it is checked the
+ * same way: the bytes are parsed back and the xref walked, then the geometry and
+ * the pagination are read off the pages themselves.
+ */
+
+/** The page box of every page object, as the reader would see it. */
+function mediaBoxes(parsed: ParsedPdf): Array<{ width: number; height: number }> {
+  return parsed.pageObjects.map((page) => {
+    const match = /\/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]/.exec(page.body)
+    assert.ok(match, `page ${page.objectNumber} has a MediaBox`)
+    return { width: Number(match[1]), height: Number(match[2]) }
+  })
+}
+
+/** A deck that fits: six slides, each with room to spare on one page. */
+const FITTING_DECK = {
+  title: "Unit 3 — Identity, Sessions, and Access",
+  slides: [
+    { title: "Identity, sessions, access", bullets: ["AuthN answers who you are.", "AuthZ decides what you may do.", "A session is how long the answer stays true."] },
+    { title: "Key terms", bullets: ["Authentication", "Authorization", "Session", "Revocation"] },
+    { title: "Worked example", bullets: ["Verify the signature.", "Load the caller's roles.", "Evaluate the policy.", "Log the decision."] },
+    { title: "Where students lose marks", bullets: ["Writing authentication for a permissions question.", "Treating session expiry as a convenience."] },
+    { title: "Check yourself", bullets: ["Which one is the permission check?"] },
+    { title: "Recap", bullets: ["Two questions, two mechanisms.", "Every request asks both."] },
+  ],
+}
+
+test("a deck is a valid file: header, trailer, and every xref offset on its object", () => {
+  const parsed = parsePdf(buildDeckPdf(FITTING_DECK))
+
+  assert.ok(parsed.text.startsWith("%PDF-1.4\n"), "starts with the version header")
+  assert.ok(parsed.text.endsWith("%%EOF\n"), "ends with the EOF marker")
+  assert.match(parsed.text, /\n1 0 obj\n<< \/Type \/Catalog \/Pages 2 0 R >>/)
+  assert.equal(parsed.startxref, parsed.xrefOffset, "startxref is the offset of the xref keyword")
+
+  for (const entry of parsed.entries.slice(1)) {
+    assert.equal(entry.type, "n", `object ${entry.objectNumber} is in use`)
+    assert.equal(entry.raw.length, 20, `entry ${entry.objectNumber} is 20 bytes`)
+    const at = parsed.text.slice(entry.offset, entry.offset + 40)
+    assert.ok(
+      at.startsWith(`${entry.objectNumber} 0 obj\n`),
+      `xref offset ${entry.offset} must point at "${entry.objectNumber} 0 obj", found ${JSON.stringify(at.slice(0, 20))}`,
+    )
+  }
+  assert.match(parsed.trailer, new RegExp(`^<< /Size ${parsed.size} /Root 1 0 R /Info \\d+ 0 R >>$`))
+})
+
+test("a deck that fits has exactly one landscape page per slide, in slide order", () => {
+  const parsed = parsePdf(buildDeckPdf(FITTING_DECK))
+  const slides = FITTING_DECK.slides
+
+  assert.equal(parsed.pageObjects.length, slides.length, "one page per slide, and no title page")
+  assert.equal(declaredPageCount(parsed), slides.length, "/Count equals the page count")
+
+  for (const box of mediaBoxes(parsed)) {
+    assert.deepEqual(box, { width: PDF_DECK_PAGE_SIZE.width, height: PDF_DECK_PAGE_SIZE.height })
+    assert.ok(box.width > box.height, `a slide must be landscape, got ${box.width}x${box.height}`)
+    assert.equal((box.width / box.height).toFixed(4), (16 / 9).toFixed(4), "the slide box is 16:9")
+  }
+
+  // Slide order is page order: each page's title is the slide's title.
+  parsed.pageObjects.forEach((page, index) => {
+    const stream = parsed.streams.find((item) => item.objectNumber === page.contentsObject)
+    const title = drawnLines(stream!.body).find((line) => line.font === "helvetica-bold" && line.size === 30)
+    assert.equal(title?.text, slides[index].title, `page ${index + 1} leads with slide ${index + 1}'s title`)
+  })
+
+  // The deck's own footer is a slide number, not `Page n of m`.
+  for (const [index, page] of parsed.pageObjects.entries()) {
+    const stream = parsed.streams.find((item) => item.objectNumber === page.contentsObject)!
+    assert.match(stream.body, new RegExp(`\\(${index + 1} / ${slides.length}\\) Tj`), `page ${index + 1} carries its slide number`)
+  }
+  assert.equal(parsed.text.includes("Page 1 of 1"), false, "a deck does not use the document footer")
+
+  const noFooter = parsePdf(buildDeckPdf({ ...FITTING_DECK, footer: false }))
+  assert.equal(noFooter.text.includes(`(1 / ${slides.length}) Tj`), false, "the slide number is optional")
+  assert.equal(noFooter.pageObjects.length, slides.length, "turning the footer off changes no pagination")
+})
+
+test("a slide whose bullets overflow is continued on a marked page, never clipped", () => {
+  const overflow = Array.from({ length: 21 }, (_, index) => `Bullet ${index + 1}: a line that takes one row on the slide.`)
+  const deck = {
+    title: "Long slide",
+    slides: [
+      { title: "Everything at once", bullets: overflow },
+      { title: "Recap", bullets: ["Two questions, two mechanisms."] },
+    ],
+  }
+  const parsed = parsePdf(buildDeckPdf(deck))
+
+  assert.ok(parsed.pageObjects.length > deck.slides.length, `the overflow must add a page, got ${parsed.pageObjects.length} for ${deck.slides.length} slides`)
+  assert.equal(declaredPageCount(parsed), parsed.pageObjects.length)
+
+  // Every bullet survives, exactly once, and in order.
+  const drawn = drawnLines(parsed.text).map((line) => line.text)
+  for (const bullet of overflow) assert.equal(drawn.filter((text) => text === bullet).length, 1, `"${bullet}" is drawn exactly once`)
+  const positions = overflow.map((bullet) => drawn.indexOf(bullet))
+  assert.deepEqual([...positions].sort((left, right) => left - right), positions, "bullets keep their order across the page break")
+
+  // The continuation page is headed with the same title, marked.
+  const continuation = drawn.filter((text) => text.endsWith(DECK_CONTINUATION_SUFFIX))
+  assert.ok(continuation.length >= 1, "the carried page names the slide it continues")
+  assert.ok(continuation.every((text) => text === `Everything at once${DECK_CONTINUATION_SUFFIX}`), `unexpected continuation title: ${JSON.stringify(continuation)}`)
+
+  // The continuation is a page of its own, and the next slide starts fresh.
+  const withContinuation = parsed.pageObjects.filter((page) => {
+    const stream = parsed.streams.find((item) => item.objectNumber === page.contentsObject)!
+    return drawnLines(stream.body).some((line) => line.text === `Everything at once${DECK_CONTINUATION_SUFFIX}`)
+  })
+  assert.equal(withContinuation.length, continuation.length, "each continuation heading is on its own page")
+
+  // Nothing is ever drawn below the bottom margin, except each page's own footer.
+  for (const line of drawnLines(parsed.text)) {
+    if (FOOTER_PATTERN.test(line.text) || /^\d+ \/ \d+$/.test(line.text)) continue
+    assert.ok(line.y >= PDF_DECK_MARGIN - 0.01, `baseline ${line.y} stays above the bottom margin`)
+    const right = PDF_DECK_PAGE_SIZE.width - PDF_DECK_MARGIN
+    assert.ok(
+      line.x + measurePdfText(line.text, line.font, line.size) <= right + 0.01,
+      `line at x=${line.x} ends past the right margin: ${JSON.stringify(line.text)}`,
+    )
+  }
+})
+
+test("deck bullets are escaped and encoded like document text", () => {
+  // The author types an em dash and an accented e; the file carries the CP1252
+  // bytes (0x97, 0xE9) a WinAnsi reader decodes back, as the document path does.
+  const payload = "Escaped (danger) \\ path — café"
+  const carried = `Escaped (danger) \\ path ${EM_DASH} caf\u00e9`
+  const parsed = parsePdf(buildDeckPdf({ title: "Escape", slides: [{ title: "Marks", bullets: [payload] }] }))
+
+  assert.ok(parsed.text.includes("(Escaped \\(danger\\) \\\\ path \u0097 caf\u00e9) Tj"), "the bullet is escaped, not truncated")
+  // The marker is the CP1252 bullet byte, drawn once, at the left margin.
+  const lines = drawnLines(parsed.streams[0].body)
+  const bullet = lines.find((line) => line.text === carried)
+  assert.equal(bullet?.text, carried, "parens, the backslash and the typographic range survive the round trip")
+  const marker = lines.find((line) => line.text === BULLET)
+  assert.ok(marker, "the bullet marker is drawn")
+  assert.equal(marker!.x, PDF_DECK_MARGIN, "the marker hangs at the left margin")
+  assert.ok(bullet!.x > marker!.x, "the text starts to the right of the marker")
+  assert.equal(parsed.bytes.some((byte) => byte > 0xff), false, "every byte is a byte")
+})
+
+test("a slide with no bullets still gets a page, with its title", () => {
+  const parsed = parsePdf(buildDeckPdf({ title: "Sparse", slides: [{ title: "Section break", bullets: [] }, { title: "Next", bullets: [] }] }))
+  assert.equal(parsed.pageObjects.length, 2, "an empty slide is a page, not a skip")
+
+  const first = drawnLines(parsed.streams[0].body)
+  assert.equal(first.find((line) => line.font === "helvetica-bold" && line.size === 30)?.text, "Section break")
+  assert.equal(first.some((line) => line.text === BULLET), false, "no bullet marker without a bullet")
+})
+
+test("an empty deck is still a valid one-page file", () => {
+  const parsed = parsePdf(buildDeckPdf({ title: "Untitled deck", slides: [] }))
+  assert.equal(parsed.pageObjects.length, 1, "a page tree with no kids would not open")
+  assert.equal(declaredPageCount(parsed), 1)
+  assert.match(parsed.text, /\(Untitled deck\) Tj/, "the deck title names the page")
+})
+
+test("the same deck and createdAt produce byte-identical output", () => {
+  const createdAt = new Date(Date.UTC(2026, 8, 22, 9, 30, 0))
+  const first = buildDeckPdf({ ...FITTING_DECK, createdAt })
+  const second = buildDeckPdf({ ...FITTING_DECK, createdAt })
+  assert.deepEqual(Array.from(first), Array.from(second))
+
+  const later = buildDeckPdf({ ...FITTING_DECK, createdAt: new Date(createdAt.getTime() + 5000) })
+  assert.notDeepEqual(Array.from(first), Array.from(later))
+  assert.ok(latin1(later).includes("D:20260922093005Z"), "the deck's date reaches the document info")
+
+  // No createdAt at all: the fixed epoch date keeps two runs identical.
+  assert.deepEqual(Array.from(buildDeckPdf(FITTING_DECK)), Array.from(buildDeckPdf(FITTING_DECK)))
+  assert.match(latin1(first), /\/Title \(Unit 3 \u0097 Identity, Sessions, and Access\)/, "the deck title is the PDF's title")
 })

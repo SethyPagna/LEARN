@@ -28,6 +28,12 @@
  * first byte of its `N 0 obj` line, and `startxref` is the offset of the `xref`
  * keyword itself. Both are asserted byte-for-byte in the test.
  *
+ * `buildPdf` lays out a document; `buildDeckPdf` lays out a deck — landscape
+ * 16:9 pages, one slide per page, with an overflowing slide continued onto
+ * further pages. Both share everything below the layout: the fonts, the width
+ * table, the escaping, the object numbering and the serialiser, so a deck and a
+ * document are the same file shape laid out differently.
+ *
  * Fonts are the three core fonts every reader already has, so nothing is
  * embedded: `Helvetica` for body text, `Helvetica-Bold` for the title and
  * headings, `Courier` for code. Text is laid out against a real width table
@@ -73,6 +79,37 @@ export const PDF_PAGE_SIZES = {
 } as const
 
 export const PDF_DEFAULT_MARGIN = 56
+
+/** A deck slide as this writer sees it: a title and the bullet lines under it. */
+export interface PdfDeckSlide {
+  title: string
+  bullets: string[]
+}
+
+export interface BuildDeckPdfInput {
+  /** Deck title. Becomes the PDF's `/Title`; it is not drawn as its own slide. */
+  title: string
+  slides: PdfDeckSlide[]
+  /** Draw the `i / n` slide number at the foot of every page. Defaults to `true`. */
+  footer?: boolean
+  /** `/CreationDate`, and the only clock this module has. Omit for reproducible bytes. */
+  createdAt?: Date
+}
+
+/**
+ * Landscape slide geometry: 960x540pt is exactly 16:9, the canvas a deck is
+ * authored on, and is two letter pages wide so a projected slide is legible at
+ * the same type sizes a document uses.
+ */
+export const PDF_DECK_PAGE_SIZE = { width: 960, height: 540 } as const
+
+export const PDF_DECK_MARGIN = 64
+
+/**
+ * The marker that heads a page continuing the slide above it. Exported so a
+ * caller — or the test — can recognise a continuation without hard-coding it.
+ */
+export const DECK_CONTINUATION_SUFFIX = " (cont.)"
 
 /**
  * The fixed stand-in for `/CreationDate`. A date that never changes is what
@@ -400,6 +437,26 @@ const HEADING_STYLES: Record<1 | 2 | 3 | 4, { size: number; lineHeight: number; 
   3: { size: 12, lineHeight: 15.5, spaceBefore: 10 },
   4: { size: 10.5, lineHeight: 14, spaceBefore: 9 },
 }
+
+/**
+ * Deck scale. A slide is read from across a room rather than held in the hand,
+ * so the title is several times a heading and the bullets are body-and-a-half,
+ * with a leading wide enough to keep a projected line from crowding the next.
+ */
+const DECK_TITLE_SIZE = 30
+const DECK_TITLE_LINE_HEIGHT = 38
+/** Gap from the accent rule down to the first bullet's baseline. */
+const DECK_TITLE_SPACE_AFTER = 22
+const DECK_ACCENT_RULE_WIDTH = 64
+const DECK_ACCENT_RULE_THICKNESS = 3
+const DECK_BULLET_SIZE = 17
+const DECK_BULLET_LINE_HEIGHT = 25
+/** The bullet marker hangs here; wrapped lines align with the text, not the marker. */
+const DECK_BULLET_INDENT = 26
+const DECK_SLIDE_NUMBER_SIZE = 10
+
+/** The deck's accent tone: the same blue the info callout bar uses. */
+const DECK_ACCENT: Rgb = [0.29, 0.53, 0.9]
 
 /**
  * Layout state. `y` is always the baseline of the next line to draw, and the
@@ -872,6 +929,137 @@ function layoutDocument(options: ResolvedOptions): string[][] {
 }
 
 // ---------------------------------------------------------------------------
+// Deck layout
+// ---------------------------------------------------------------------------
+
+/** A slide as the layout consumes it: sane strings, always at least one page. */
+interface DeckSlide {
+  title: string
+  bullets: string[]
+}
+
+/** One bullet's wrapped lines; `marker` is drawn on the first line only. */
+interface PendingBullet {
+  lines: string[]
+  marker: boolean
+}
+
+function resolveDeckOptions(input: BuildDeckPdfInput): ResolvedOptions {
+  const createdAt = input.createdAt instanceof Date && Number.isFinite(input.createdAt.getTime()) ? input.createdAt : PDF_REPLACEMENT_DATE
+  return {
+    title: typeof input.title === "string" ? input.title.trim() : "",
+    blocks: [],
+    pageWidth: PDF_DECK_PAGE_SIZE.width,
+    pageHeight: PDF_DECK_PAGE_SIZE.height,
+    margin: PDF_DECK_MARGIN,
+    contentWidth: PDF_DECK_PAGE_SIZE.width - PDF_DECK_MARGIN * 2,
+    footer: input.footer !== false,
+    createdAt,
+  }
+}
+
+/**
+ * Slides -> the strings this writer can draw. A deck with no slide at all still
+ * becomes one page titled after the deck: a page tree with no kids is not a
+ * document a reader will open.
+ */
+function resolveDeckSlides(slides: PdfDeckSlide[] | undefined, deckTitle: string): DeckSlide[] {
+  const list = Array.isArray(slides) ? slides : []
+  const resolved = list.map((slide, index) => ({
+    title: typeof slide?.title === "string" && slide.title.trim() ? slide.title.trim() : `Slide ${index + 1}`,
+    bullets: Array.isArray(slide?.bullets)
+      ? slide.bullets.filter((bullet): bullet is string => typeof bullet === "string").map((bullet) => bullet.trim()).filter(Boolean)
+      : [],
+  }))
+  return resolved.length ? resolved : [{ title: deckTitle || "Untitled", bullets: [] }]
+}
+
+/** One wrapped, indented bullet at the deck's body scale. */
+function drawDeckBullet(state: LayoutState, bullet: PendingBullet): void {
+  bullet.lines.forEach((line, lineIndex) => {
+    if (lineIndex === 0 && bullet.marker) drawLineOfText(state, "•", state.margin, "helvetica", DECK_BULLET_SIZE, MUTED)
+    drawLineOfText(state, line, state.margin + DECK_BULLET_INDENT, "helvetica", DECK_BULLET_SIZE, INK)
+    state.y -= DECK_BULLET_LINE_HEIGHT
+  })
+}
+
+/** The slide title in bold, above the short accent rule that marks a deck page. */
+function drawDeckHeading(state: LayoutState, title: string): void {
+  for (const line of wrapProse(title, "helvetica-bold", DECK_TITLE_SIZE, state.contentWidth)) {
+    ensureSpace(state, DECK_TITLE_LINE_HEIGHT)
+    drawLineOfText(state, line, state.margin, "helvetica-bold", DECK_TITLE_SIZE, INK)
+    state.y -= DECK_TITLE_LINE_HEIGHT
+  }
+  state.y += 4
+  drawRule(state, state.margin, state.y, state.margin + DECK_ACCENT_RULE_WIDTH, state.y, DECK_ACCENT_RULE_THICKNESS, DECK_ACCENT)
+  state.y -= DECK_TITLE_SPACE_AFTER
+}
+
+/** `i / n` at the foot of the page: the deck's own footer, not `Page n of m`. */
+function drawDeckSlideNumber(state: LayoutState, label: string, enabled: boolean): void {
+  if (!enabled) return
+  const x = state.pageWidth - state.margin - measurePdfText(label, "helvetica", DECK_SLIDE_NUMBER_SIZE)
+  drawLineOfText(state, label, x, "helvetica", DECK_SLIDE_NUMBER_SIZE, MUTED, state.margin * 0.45)
+}
+
+/**
+ * Lay the deck out one slide per page, in slide order.
+ *
+ * Bullets are queued as wrapped groups rather than as bullets, so a page break
+ * can land between the lines of one long bullet without losing the rest of it.
+ * When a slide runs out of page the remaining lines continue on an extra page
+ * headed `<title> (cont.)` — the text is never clipped and never dropped. A
+ * slide with no bullets is still a page: the title alone is a slide.
+ */
+function layoutDeck(options: ResolvedOptions, slides: DeckSlide[]): string[][] {
+  const state: LayoutState = {
+    pageWidth: options.pageWidth,
+    pageHeight: options.pageHeight,
+    margin: options.margin,
+    contentWidth: options.contentWidth,
+    contentBottom: options.margin,
+    pages: [],
+    page: [],
+    y: 0,
+  }
+
+  slides.forEach((slide, index) => {
+    beginPage(state)
+    drawDeckHeading(state, slide.title)
+
+    const pending: PendingBullet[] = slide.bullets.map((bullet) => ({
+      lines: wrapProse(bullet, "helvetica", DECK_BULLET_SIZE, state.contentWidth - DECK_BULLET_INDENT),
+      marker: true,
+    }))
+
+    while (pending.length) {
+      const bullet = pending[0]
+      const capacity = Math.floor((state.y - state.contentBottom) / DECK_BULLET_LINE_HEIGHT)
+
+      if (capacity >= bullet.lines.length) {
+        drawDeckBullet(state, bullet)
+        pending.shift()
+        continue
+      }
+
+      // What fits is drawn here; the rest is carried to a continuation page. A
+      // fresh page always has room for at least one line, so each pass either
+      // finishes a bullet or starts a page — the loop cannot stall.
+      if (capacity > 0) {
+        drawDeckBullet(state, { lines: bullet.lines.slice(0, capacity), marker: bullet.marker })
+        pending[0] = { lines: bullet.lines.slice(capacity), marker: false }
+      }
+      beginPage(state)
+      drawDeckHeading(state, `${slide.title}${DECK_CONTINUATION_SUFFIX}`)
+    }
+
+    drawDeckSlideNumber(state, `${index + 1} / ${slides.length}`, options.footer)
+  })
+
+  return state.pages
+}
+
+// ---------------------------------------------------------------------------
 // Serialisation
 // ---------------------------------------------------------------------------
 
@@ -980,6 +1168,23 @@ function serialize(options: ResolvedOptions, pageStreams: string[]): Uint8Array 
 export function buildPdf(input: BuildPdfInput): Uint8Array {
   const options = resolveOptions(input)
   const pages = layoutDocument(options)
+  return serialize(
+    options,
+    pages.map((ops) => ops.join("\n")),
+  )
+}
+
+/**
+ * Serialize a deck into a complete PDF file: one landscape 16:9 page per slide,
+ * in slide order, with a slide whose bullets do not fit continued onto further
+ * pages. It shares this module's whole skeleton — the same fonts, width table,
+ * escaping, object numbering and xref construction as `buildPdf`, over the deck
+ * layout instead of the block layout — so there is one PDF writer, not two.
+ */
+export function buildDeckPdf(input: BuildDeckPdfInput): Uint8Array {
+  const options = resolveDeckOptions(input)
+  const slides = resolveDeckSlides(input.slides, options.title)
+  const pages = layoutDeck(options, slides)
   return serialize(
     options,
     pages.map((ops) => ops.join("\n")),

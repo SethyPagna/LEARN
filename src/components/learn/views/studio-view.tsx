@@ -140,7 +140,7 @@ import { buildStudioProjectBrowserHeader, buildStudioProjectBrowserState, buildS
 import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 import { HEADING_STYLE_KEY, STUDIO_LAYOUT_KEY, parseStoredHeadingStyles, parseStoredStudioLayout, type HeadingStyleLevel, type HeadingStylePreset } from "@/lib/studio-preferences"
-import { DOCX_MIME, PDF_MIME, XLSX_MIME, documentHtmlToDocx, documentHtmlToPdf, sheetCellsToXlsx } from "@/lib/export/studio-export"
+import { DOCX_MIME, PDF_MIME, XLSX_MIME, deckSlidesToPdf, documentHtmlToDocx, documentHtmlToPdf, sheetCellsToXlsx } from "@/lib/export/studio-export"
 import { studioDocumentFromDocxFile, studioSheetFromXlsxFile } from "@/lib/export/studio-import"
 import { StudioImportFile } from "../studio-import-file"
 
@@ -1508,6 +1508,11 @@ export function StudioView({
     }
     if (format === "pdf" && kind === "docs") {
       downloadBytes(`${base}.pdf`, documentHtmlToPdf({ title: activeTitle(), html: docHistory.present }), PDF_MIME)
+      return
+    }
+    if (format === "pdf" && kind === "slides") {
+      // The deck's second format, from the same slides the PPTX path lays out.
+      downloadBytes(`${base}.pdf`, deckSlidesToPdf({ title: activeTitle(), slides }), PDF_MIME)
       return
     }
     if (format === "xlsx" && kind === "sheets") {

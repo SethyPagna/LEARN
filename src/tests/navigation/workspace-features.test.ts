@@ -230,10 +230,11 @@ test("studio share and download options match Canva-style Studio outputs", () =>
   assert.equal(buildStudioShareOptions("docs").some((option) => option.id === "present"), false)
   // XLSX, DOCX and PDF are the standard formats the Brief lists; all three are
   // offered alongside the previous CSV/HTML/plain-text outputs rather than
-  // replacing them.
+  // replacing them. The Brief's "PPTX/PDF/image for decks" is pinned here too:
+  // a deck offers both PPTX and PDF (image export is not built yet).
   assert.deepEqual(buildStudioDownloadOptions("sheets").map((option) => option.id), ["csv", "xlsx", "text", "json"])
   assert.deepEqual(buildStudioDownloadOptions("docs").map((option) => option.id), ["html", "pdf", "docx", "markdown", "text"])
-  assert.deepEqual(buildStudioDownloadOptions("slides").map((option) => option.id), ["pptx", "outline", "json"])
+  assert.deepEqual(buildStudioDownloadOptions("slides").map((option) => option.id), ["pptx", "pdf", "outline", "json"])
   assert.equal(recommendedStudioDownloadOption("docs")?.id, "html")
   assert.equal(buildStudioShareOptions("docs").find((option) => option.id === "copy-link")?.badge, "Now")
 })

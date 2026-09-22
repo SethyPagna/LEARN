@@ -206,6 +206,7 @@ export function buildStudioDownloadOptions(kind: StudioKind): StudioDownloadOpti
   if (kind === "slides") {
     return [
       { id: "pptx", label: "PPTX", detail: "Editable Microsoft PowerPoint deck.", bestFor: "Presentation handoff", sizeHint: "Medium", action: "export", suggested: true },
+      { id: "pdf", label: "PDF", detail: "Landscape 16:9 slides as a paged PDF — one slide per page, no print dialog.", bestFor: "Sharing and printing", sizeHint: "Small", action: "download" },
       { id: "outline", label: "Speaker outline", detail: "Slide titles, bullets, and notes in a compact script.", bestFor: "Rehearsal", sizeHint: "Tiny", action: "download" },
       { id: "json", label: "Deck JSON", detail: "Slide objects, layouts, theme, and speaker notes.", bestFor: "Studio backup", sizeHint: "Medium", action: "export" },
     ]
