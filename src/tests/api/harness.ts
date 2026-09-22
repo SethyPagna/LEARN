@@ -251,6 +251,12 @@ export interface RequestOptions {
   rawBody?: Uint8Array | string
   /** Content type for `rawBody`; defaults to `application/octet-stream`. */
   contentType?: string
+  /**
+   * Multipart body for upload routes. Passed through as-is so the runtime sets
+   * its own `content-type` (with the boundary it generated); overriding it here
+   * would produce a body the route cannot parse.
+   */
+  form?: FormData
   token?: string | null
   headers?: Record<string, string>
 }
@@ -273,6 +279,8 @@ export function request(path: string, options: RequestOptions = {}) {
   if (options.rawBody !== undefined) {
     headers.set("content-type", options.contentType ?? "application/octet-stream")
     body = options.rawBody as BodyInit
+  } else if (options.form !== undefined) {
+    body = options.form
   } else if (options.body !== undefined) {
     headers.set("content-type", "application/json")
     body = JSON.stringify(options.body)
