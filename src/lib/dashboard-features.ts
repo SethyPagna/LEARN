@@ -8,7 +8,16 @@ type DashboardQuickActionTarget =
   | "settings"
   | "social"
 
-interface DashboardWeakTopic {
+/**
+ * A weak-topic signal as these dashboard helpers accept it.
+ *
+ * `accuracy` and `attempts` are optional because the helpers tolerate a partial
+ * snapshot and defend with `?? 0` / `?? 100` defaults. This is the canonical
+ * declaration of the name: the component-side snapshot type is a *different*,
+ * stricter shape and is deliberately named separately (see
+ * `DashboardSnapshotWeakTopic` in `src/components/learn/types.ts`).
+ */
+export interface DashboardWeakTopic {
   topic: string
   accuracy?: number
   attempts?: number

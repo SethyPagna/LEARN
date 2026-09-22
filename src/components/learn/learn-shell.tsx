@@ -221,6 +221,11 @@ export function LearnShell({
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
             {view === "dashboard" ? <DashboardView dashboard={dashboard} forceOnboarding={forceOnboarding} notes={notes} quizzes={quizzes} options={preferences.options} practiceDraftSummary={practiceDraftSummary} setView={chooseView} studioDraftSummary={studioDraftSummary} user={user} /> : null}
             {view === "vault" ? <VaultView setView={chooseView} notes={notes} /> : null}
+            {/* `discover` is a documented alias of `feed`, not a second screen: both
+                views render the same FeedView. `/discover` exists as a route (and
+                `viewFromPath` resolves it to the `discover` view), but the catalog
+                deliberately has no separate Discover place, so the shared render is
+                intentional. See src/tests/ux/artifact-catalog.test.ts, which pins it. */}
             {view === "feed" || view === "discover" ? <FeedView setView={chooseView} /> : null}
             {view === "graph" ? <GraphView setView={chooseView} /> : null}
             {view === "progress" ? <ProgressView dashboard={dashboard} quizzes={quizzes} setView={chooseView} /> : null}

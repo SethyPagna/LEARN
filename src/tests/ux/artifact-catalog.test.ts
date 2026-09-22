@@ -1,8 +1,11 @@
 import assert from "node:assert/strict"
+import fs from "node:fs"
+import path from "node:path"
 import test from "node:test"
+import { fileURLToPath } from "node:url"
 
 import { getVocabulary } from "../../lib/i18n/vocabulary"
-import { navigationGroups, viewLabelKeys, viewRoutes } from "../../lib/navigation"
+import { navigationGroups, viewFromPath, viewLabelKeys, viewRoutes } from "../../lib/navigation"
 import {
   ARTIFACT_GROUP_ORDER,
   ARTIFACT_TYPE_IDS,
@@ -20,6 +23,9 @@ import {
   type NavigationGroupLabel,
 } from "../../lib/ux/artifact-catalog"
 import type { View } from "../../components/learn/types"
+
+const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
+const LEARN_SHELL = path.join(PROJECT_ROOT, "src", "components", "learn", "learn-shell.tsx")
 
 const views = Object.keys(viewRoutes) as View[]
 
@@ -124,17 +130,19 @@ test("the helpers agree with the arrays they read", () => {
  * What the app cannot currently explain.
  *
  * `describePlace` is expected to answer for every view, so this test enumerates
- * the views it cannot. Both entries are aliases of a place that *is* in the
- * guide, which is why they are a gap rather than a missing sentence:
+ * the views it cannot. The single entry is an alias of a place that *is* in the
+ * guide, which is why it is a gap rather than a missing sentence:
  *
- * - `learn` has no branch in `learn-shell.tsx` and `/learn` is rewritten to the
- *   dashboard by `viewFromPath`, so there is nowhere distinct to send anyone.
- * - `discover` renders the same `FeedView` as `feed` on its own route, so a
- *   second identical sentence would be filler.
+ * - `discover` resolves to its own view, which renders the same `FeedView` as
+ *   `feed`, so a second identical sentence would be filler.
+ *
+ * `learn` used to be here too. It was never an alias — it was dead code: a
+ * `View` member with no branch in `learn-shell.tsx`, whose route the shell
+ * already rewrote to the dashboard. It was removed rather than described, and
+ * the test below pins both halves of that retirement.
  */
 const VIEWS_WITHOUT_A_PLACE: Partial<Record<View, string>> = {
-  learn: "/learn is rewritten to the dashboard by viewFromPath and no view branch renders it",
-  discover: "/discover renders the same FeedView as /feed, already described as Feed",
+  discover: "/discover resolves to the discover view, which renders the same FeedView as /feed (already described as Feed)",
 }
 
 test("describePlace answers for every view except the pinned aliases", () => {
@@ -159,4 +167,36 @@ test("described places return the place whose route and view match", () => {
     assert.equal(described?.route, place.route)
     assert.equal(described?.oneLine, place.oneLine)
   }
+})
+
+/**
+ * The dead-view retirement and the Feed alias.
+ *
+ * Both halves of the `VIEWS_WITHOUT_A_PLACE` note are pinned here. `learn` must
+ * stay out of the view tables so it cannot quietly return as a `View` member
+ * that no branch renders; `/learn` must keep resolving to the dashboard. And
+ * `/discover` must keep resolving to the (single) feed screen instead of
+ * drifting into a second implementation that the guide would then have to
+ * describe separately.
+ */
+test("the retired learn view stays out of the view tables", () => {
+  assert.equal("learn" in viewRoutes, false, "learn is dead code; it must not have a route of its own")
+  assert.equal("learn" in viewLabelKeys, false, "learn has no sidebar label")
+  assert.equal(views.includes("learn" as View), false, "learn must not be a View")
+  assert.equal(viewFromPath("/learn"), "dashboard", "/learn must keep resolving to the dashboard")
+})
+
+test("discover remains a documented alias of the feed screen", () => {
+  assert.equal(viewFromPath("/discover"), "discover", "/discover must resolve to the discover view")
+
+  const shell = fs.readFileSync(LEARN_SHELL, "utf8")
+  assert.match(
+    shell,
+    /view === "feed" \|\| view === "discover" \? <FeedView/,
+    "feed and discover must keep rendering the one FeedView; the shared render is an intentional alias, not a second screen",
+  )
+  assert.ok(
+    shell.includes("documented alias of `feed`"),
+    "the shared feed/discover render needs a comment saying why it is shared",
+  )
 })

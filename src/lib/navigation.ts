@@ -85,7 +85,6 @@ export const viewRoutes: Record<View, string> = {
   files: "/files",
   games: "/games",
   graph: "/graph",
-  learn: "/learn",
   live: "/live",
   notes: "/notes",
   practice: "/practice",
@@ -117,7 +116,6 @@ export const viewLabelKeys: Record<View, keyof Vocabulary> = {
   files: "files",
   games: "games",
   graph: "graph",
-  learn: "learn",
   live: "liveQuiz",
   notes: "notes",
   practice: "practice",
@@ -137,6 +135,9 @@ export const viewLabelKeys: Record<View, keyof Vocabulary> = {
 
 const pathViewAliases: Record<string, View> = {
   groups: "spaces",
+  // `/learn` was a real route with a `View` member but no view branch ever
+  // rendered it, so the member was removed. The path keeps working by
+  // resolving to the dashboard, exactly as it did before.
   learn: "dashboard",
   reviews: "practice",
 }

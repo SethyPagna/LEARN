@@ -205,10 +205,12 @@ export function findArtifact(id: string): ArtifactType | null {
  * Every place a user can be, in navigation-group order so the guide reads like
  * the sidebar: Home, Learn, Practice, Social, Manage.
  *
- * `learn` and `discover` are deliberately absent: `/learn` resolves to the
- * dashboard and `/discover` renders the same screen as `/feed`, so neither is a
- * distinct destination to explain. See `src/tests/ux/ux-wiring.test.ts`, which
- * pins that gap rather than filling it with a duplicate sentence.
+ * `discover` is deliberately absent: `/discover` resolves to the `discover`
+ * view, which renders the same `FeedView` as `/feed`, so it is not a distinct
+ * destination to explain. (`learn` was a second gap until its dead `View` member
+ * was removed; `/learn` still resolves to the dashboard.) See
+ * `src/tests/ux/artifact-catalog.test.ts`, which pins that gap rather than
+ * filling it with a duplicate sentence.
  */
 export const PLACES = [
   {
@@ -477,7 +479,7 @@ export function findPlace(id: string): PlaceEntry | null {
 
 /**
  * The place entry for a view, or `null` when that view is not a distinct
- * destination (see the `learn`/`discover` note on `PLACES`).
+ * destination (see the `discover` note on `PLACES`).
  */
 export function describePlace(view: View): PlaceEntry | null {
   return PLACES.find((place) => place.view === view) ?? null

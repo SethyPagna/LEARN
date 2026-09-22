@@ -1,8 +1,8 @@
+import type { QuizChoice } from "@/lib/ai/format-response"
 import type { FsrsState } from "@/lib/learning-ecosystem"
 
 export type View =
   | "dashboard"
-  | "learn"
   | "vault"
   | "feed"
   | "graph"
@@ -59,11 +59,6 @@ export interface Note {
   updated_at: string
   archived_at?: string | null
   tags?: string[]
-}
-
-interface QuizChoice {
-  id: string
-  text: string
 }
 
 export interface QuizQuestion {
@@ -247,7 +242,19 @@ export interface StudioLayoutState {
   density: "compact" | "comfortable"
 }
 
-interface DashboardWeakTopic {
+/**
+ * The dashboard snapshot's weak-topic shape, where `accuracy` and `attempts` are
+ * always present because the API computes both (`buildLearningSnapshot`).
+ *
+ * It deliberately differs from the name-sharing `DashboardWeakTopic` in
+ * `@/lib/dashboard-features`, which is a tolerant helper input with optional
+ * fields. The strict shape is load-bearing: it is what makes the snapshot
+ * assignable to `ProgressSnapshotLike`, whose `ProgressWeakTopic.accuracy` is
+ * required. Collapsing the two into one name would either lie about the API
+ * payload or break that assignment, so the component-side type is renamed
+ * instead of merged.
+ */
+interface DashboardSnapshotWeakTopic {
   topic: string
   accuracy: number
   attempts: number
@@ -256,7 +263,7 @@ interface DashboardWeakTopic {
 interface DashboardSnapshot {
   goalCompletion?: number
   todayStudyMinutes?: number
-  weakTopics?: DashboardWeakTopic[]
+  weakTopics?: DashboardSnapshotWeakTopic[]
   recommendedFocus?: string[]
   recentNotes?: Array<{ id?: string; title?: string }>
   [key: string]: unknown

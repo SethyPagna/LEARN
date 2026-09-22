@@ -159,12 +159,27 @@ html.dark[data-learn-accent='amber'] {
   --sidebar-primary: oklch(0.78 0.14 72);
 }
 
+/*
+ * High contrast is theme-aware.
+ *
+ * The text boost is designed against the dark theme's surfaces: a near-white
+ * `--foreground` and a light grey `--muted-foreground` genuinely raise contrast
+ * there. The exact same values on the light theme are a regression — the light
+ * grey measures far below WCAG AA on light surfaces, which made the toggle less
+ * readable than the theme it was turned on in. The text tokens are therefore
+ * scoped to the dark theme, so light mode keeps its AA/AAA-passing `:root` text;
+ * only the chrome tokens (borders, focus ring) are strengthened in both themes.
+ * src/tests/design/contrast.test.ts pins both directions.
+ */
 .learn-high-contrast {
-  --foreground: oklch(0.99 0 0);
-  --muted-foreground: oklch(0.88 0.01 255);
   --border: oklch(0.54 0.03 255);
   --sidebar-border: oklch(0.54 0.03 255);
   --ring: oklch(0.82 0.16 155);
+}
+
+html.dark.learn-high-contrast {
+  --foreground: oklch(0.99 0 0);
+  --muted-foreground: oklch(0.88 0.01 255);
 }
 
 .learn-dyslexia body {

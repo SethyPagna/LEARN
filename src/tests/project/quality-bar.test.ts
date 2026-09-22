@@ -429,3 +429,35 @@ test("the motion-bearing surfaces keep a prefers-reduced-motion fallback", () =>
     )
   }
 })
+
+/**
+ * The type names unified in this change.
+ *
+ * Each was declared twice, in `lib` and in `components`, with shapes that were
+ * free to drift apart (and for `DashboardWeakTopic` already had). A duplicate
+ * type declaration is invisible until the two copies disagree — and by then the
+ * divergence has shipped — so this reads the source and pins one declaration
+ * per name, in the layer that owns it. `DashboardSnapshotWeakTopic` is the
+ * deliberately *renamed* component-side shape, kept honest here too so the
+ * removed name does not come back.
+ */
+const UNIFIED_TYPE_DECLARATIONS: ReadonlyArray<[name: string, canonicalFile: string]> = [
+  ["QuizChoice", "src/lib/ai/format-response.ts"],
+  ["DashboardWeakTopic", "src/lib/dashboard-features.ts"],
+  ["DashboardSnapshotWeakTopic", "src/components/learn/types.ts"],
+]
+
+test("the unified type names are each declared exactly once, in their canonical file", () => {
+  for (const [name, canonicalFile] of UNIFIED_TYPE_DECLARATIONS) {
+    const pattern = new RegExp(String.raw`(?:^|\n)\s*(?:export\s+)?(?:interface|type|class|enum)\s+${name}\b`)
+    const declaringFiles = listSourceFiles(SRC_ROOT)
+      .filter((file) => pattern.test(withoutComments(readSource(file))))
+      .map(relative)
+
+    assert.deepEqual(
+      declaringFiles,
+      [canonicalFile],
+      `${name} must be declared exactly once, in ${canonicalFile}; a second declaration is the duplication this guard exists to stop`,
+    )
+  }
+})

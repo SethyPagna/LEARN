@@ -151,6 +151,53 @@ function token(tokens: Record<string, string>, name: string, theme: string): str
 // container, background the page, muted the tinted well, popover the menus).
 const SURFACE_TOKENS = ["--background", "--card", "--muted", "--popover"] as const
 
+// --- high contrast is theme-aware ------------------------------------------
+
+/**
+ * Every top-level rule that switches the high-contrast setting on, in document
+ * order.
+ *
+ * A rule applies to the light theme unless its selector opts into `.dark`; in
+ * the dark theme every rule applies, with the dark-scoped ones last (their
+ * higher specificity wins, which is the order the browser resolves them in).
+ * The high-contrast setting is a *theme-aware* override: the same token values
+ * cannot be right on both a light and a dark surface, so this guard evaluates
+ * the tokens actually in effect per theme instead of trusting one block.
+ */
+function readHighContrastBlocks(): Array<{ selector: string; dark: boolean; tokens: Record<string, string> }> {
+  const blocks: Array<{ selector: string; dark: boolean; tokens: Record<string, string> }> = []
+  const pattern = /^([^\n{}]*learn-high-contrast[^\n{}]*)\{([\s\S]*?)^\}/gm
+  let match: RegExpExecArray | null
+
+  while ((match = pattern.exec(globalsCss))) {
+    const selector = match[1].trim()
+    const tokens: Record<string, string> = {}
+    for (const line of match[2].split("\n")) {
+      const declaration = /^\s*(--[\w-]+)\s*:\s*([^;]+);/.exec(line)
+      if (declaration) tokens[declaration[1]] = declaration[2].trim()
+    }
+    blocks.push({ selector, dark: selector.includes(".dark"), tokens })
+  }
+
+  return blocks
+}
+
+const highContrastBlocks = readHighContrastBlocks()
+
+/** The tokens in effect for `theme` once the high-contrast rules are applied. */
+function highContrastTokens(theme: string, base: Record<string, string>): Record<string, string> {
+  const effective = { ...base }
+  const applicable = theme === "dark"
+    ? [...highContrastBlocks.filter((block) => !block.dark), ...highContrastBlocks.filter((block) => block.dark)]
+    : highContrastBlocks.filter((block) => !block.dark)
+
+  for (const block of applicable) Object.assign(effective, block.tokens)
+  return effective
+}
+
+// The text tokens whose value decides whether high contrast actually helps.
+const HIGH_CONTRAST_TEXT_TOKENS = ["--foreground", "--muted-foreground"] as const
+
 // --- the conversion itself is trustworthy ----------------------------------
 
 test("contrast math matches the WCAG reference values", () => {
@@ -230,6 +277,56 @@ for (const [theme, tokens] of themes) {
       assert.ok(
         ratio >= WCAG_AAA_NORMAL_TEXT,
         `${theme}: --foreground on ${surface} is ${ratio.toFixed(2)}:1, needs ${WCAG_AAA_NORMAL_TEXT}:1`,
+      )
+    }
+  })
+}
+
+// --- the guard, with high contrast on --------------------------------------
+
+test("the high-contrast text boost is scoped to the dark theme", () => {
+  // The regression this guard exists for: a single unconditional
+  // `.learn-high-contrast` block hard-coded a light grey muted text and a
+  // near-white foreground — a boost on the dark theme, a drop below AA on the
+  // light one. Text tokens therefore may only be overridden from a rule whose
+  // selector opts into `.dark`.
+  const darkScoped = highContrastBlocks.filter((block) => block.dark)
+
+  assert.ok(
+    darkScoped.length >= 1,
+    "the dark high-contrast text boost (html.dark.learn-high-contrast) must exist",
+  )
+
+  for (const block of highContrastBlocks.filter((entry) => !entry.dark)) {
+    for (const name of HIGH_CONTRAST_TEXT_TOKENS) {
+      assert.equal(
+        name in block.tokens,
+        false,
+        `"${block.selector}" overrides ${name} for light mode too; scope that declaration to html.dark, or light text drops below AA`,
+      )
+    }
+  }
+})
+
+for (const [theme, tokens] of themes) {
+  test(`${theme} theme: high contrast keeps muted text at WCAG AA and body text at WCAG AAA`, () => {
+    const effective = highContrastTokens(theme, tokens)
+
+    const muted = parseCssColor(token(effective, "--muted-foreground", `${theme} with high contrast`))
+    for (const surface of SURFACE_TOKENS) {
+      const ratio = contrastRatio(muted, parseCssColor(token(effective, surface, theme)))
+      assert.ok(
+        ratio >= WCAG_AA_NORMAL_TEXT,
+        `${theme} + high contrast: --muted-foreground on ${surface} is ${ratio.toFixed(2)}:1, needs ${WCAG_AA_NORMAL_TEXT}:1`,
+      )
+    }
+
+    const foreground = parseCssColor(token(effective, "--foreground", `${theme} with high contrast`))
+    for (const surface of SURFACE_TOKENS) {
+      const ratio = contrastRatio(foreground, parseCssColor(token(effective, surface, theme)))
+      assert.ok(
+        ratio >= WCAG_AAA_NORMAL_TEXT,
+        `${theme} + high contrast: --foreground on ${surface} is ${ratio.toFixed(2)}:1, needs ${WCAG_AAA_NORMAL_TEXT}:1`,
       )
     }
   })

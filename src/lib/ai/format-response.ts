@@ -102,7 +102,14 @@ interface ThemedCalloutBlock {
   text: string
 }
 
-interface QuizChoice {
+/**
+ * One answer option of a parsed quiz.
+ *
+ * Exported because the React quiz types in `src/components/learn/types.ts`
+ * describe the same option and must not declare a second copy: `components` may
+ * import from `lib`, never the reverse, so the single declaration lives here.
+ */
+export interface QuizChoice {
   id: string
   text: string
 }
