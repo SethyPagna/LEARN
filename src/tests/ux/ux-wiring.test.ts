@@ -38,6 +38,19 @@ const LEARN_SHELL = "src/components/learn/learn-shell.tsx"
 const CREATE_MENU = "src/components/learn/create-menu.tsx"
 const PLACE_GUIDE = "src/components/learn/place-guide.tsx"
 const MENU_KEYBOARD = "src/components/learn/menu-keyboard.ts"
+const DASHBOARD_VIEW = "src/components/learn/views/dashboard-view.tsx"
+
+/**
+ * The source of one top-level component, from its declaration to the next one.
+ * Guards about *where* a control lives need a slice, or they pass on an
+ * affordance that was moved to a different card in the same file.
+ */
+function componentSource(source: string, name: string) {
+  const start = source.indexOf(`function ${name}(`)
+  assert.notEqual(start, -1, `${name} must still be a top-level component in its file`)
+  const end = source.indexOf("\nfunction ", start + 1)
+  return source.slice(start, end === -1 ? source.length : end)
+}
 
 test("the Create control renders one entry per artifact type, in catalog order", () => {
   const markup = renderToStaticMarkup(createElement(CreateMenuPanel, { onChoose: () => {} }))
@@ -127,11 +140,35 @@ test("the launcher offers exactly one create and one guide entry, both keyworded
 })
 
 test("the dashboard offers the guide from its empty setup state", () => {
-  const dashboard = readSource("src/components/learn/views/dashboard-view.tsx")
+  const dashboard = readSource(DASHBOARD_VIEW)
 
   assert.match(dashboard, /import \{ openPlaceGuide \} from "\.\.\/place-guide"/, "the dashboard must be able to open the guide")
   assert.match(dashboard, /onClick=\{openPlaceGuide\}/, "an empty-state card must open the guide")
   assert.match(dashboard, /New here\? What&apos;s where/, "the empty-state card needs a label that says what it does")
+})
+
+/**
+ * The day-one guard.
+ *
+ * The setup-gaps card above only teaches "Vault vs Studio vs Notes vs Docs" to
+ * someone who thinks to expand a collapsed panel; a brand-new user sees the
+ * first-run card and nothing else. That card must carry the same entry point as
+ * the launcher, in the launcher's own words, or the two surfaces drift apart and
+ * the guide goes back to being reachable only by people who already know it.
+ */
+test("the first-run card carries the same guide entry point as the launcher", () => {
+  const card = componentSource(readSource(DASHBOARD_VIEW), "OnboardingCard")
+  const guideCommand = launcherCommands.find((command) => command.action === "place-guide")
+
+  assert.match(card, /First run/, "the slice must be the first-run card, not another card in the file")
+  assert.ok(guideCommand, "the launcher must still offer the guide")
+  assert.match(card, /onClick=\{openPlaceGuide\}/, "the first-run card must open the same guide the launcher opens")
+  assert.match(card, /data-testid="first-run-place-guide"/, "the affordance needs a stable hook for structural checks")
+  assert.match(
+    card,
+    new RegExp(guideCommand.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+    "the card must reuse the launcher's own words for the guide, so the two entry points cannot drift apart",
+  )
 })
 
 /**

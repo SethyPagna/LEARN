@@ -417,6 +417,16 @@ function OnboardingCard({
           </div>
           <h2 className="text-2xl font-semibold text-foreground">Set up your learning loop.</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Pick a goal, your first useful move, and where Studio should start. You can change all of this later in Settings.</p>
+          <button
+            type="button"
+            onClick={openPlaceGuide}
+            data-testid="first-run-place-guide"
+            title="A one-sentence guide to every place in LEARN"
+            className="-ml-1.5 mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-md px-1.5 py-1 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            <Compass className="h-3.5 w-3.5 shrink-0" />
+            <span>Not sure where things are? <span className="font-semibold text-foreground">What can LEARN do?</span></span>
+          </button>
           {status ? <p className="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-sm font-semibold text-destructive">{status}</p> : null}
         </div>
         <button
