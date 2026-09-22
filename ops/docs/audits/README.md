@@ -396,22 +396,36 @@ enlarged box is not stolen by the `n` resize handle 28 px below). Guarded by
 | | Canvas handles under 24×24 | Non-handle targets under 24×24 |
 | --- | --- | --- |
 | Before | **12/12** measured (9 laptop + 3 phone on-screen; the other 6 phone handles were unmeasurable off-screen) | 14 |
-| After | **0/12** | 14 (unchanged — this change touched only the handles) |
+| After | **0/12** | 14 (unchanged — that change touched only the handles) |
+| Then | **0/12** | **0** — the 14 are fixed below |
 
 Measured hit areas afterwards: `laptop` all 9 handles `visual 10x10 → hit 24px`; `phone` (coarse
 pointer) the 3 on-screen handles `visual 10x10 → hit 32px`.
 
-The 14 remaining sub-24 targets are real and untouched: the sidebar `Toggle menu` button (19–23 px
-wide × 36 px tall, on five routes) and twelve 20 px-tall `<summary>` disclosure rows
-(`Planning details`, `Prompt preview`, `Provider details`, `Timer, draft, and target`, …) that are
-wide but only 20 px high.
+Then the 14 sub-24 targets: the sidebar `Toggle menu` button was 19–23 px wide because it was a flex
+item being shrunk by the title next to it — `shrink-0` restores its 36×36 box. The twelve 20 px-tall
+`<summary>` rows (`Planning details`, `Prompt preview`, `Provider details`, `Timer, draft, and
+target`, …) are wide but only a line tall, so `@layer base` in `globals.css` gives every `summary`
+`min-height: 1.5rem` (24 px) — a utility layer wins over it, so rows that already ask for more
+(`min-h-11`, `h-9`, …) are untouched.
 
-**Still failing, and not fixed here:** the audit reports **13 of 18 checks failed**, all on
-pre-existing, genuinely clipped content — `phone /dashboard` (stat cards), `phone /canvas` (the
-align-tool row, +74 px to +416 px past the edge), `laptop /canvas` (the Layers panel and its
-description card, +119…+131 px), `phone /social` (chat actions), `phone /settings` (the tab strip) —
-85 clipped leaves in total, plus 44 off-screen elements that are *scrollable* and therefore fine.
-No route has document-level overflow and no route logs a console error; the clipping is invisible to
-the old headline number only because the shell sets `overflow-x: hidden`, which hides up to 766 px of
-overflow on `phone /canvas`. Re-laying-out those views is out of scope here.
+**The 85 clipped leaves, fixed.** They were one cause wearing five faces: a grid/flex item with the
+default `min-width: auto`, which refuses to shrink below its content, so the horizontal rails inside
+it inflated the whole track — and the shell's `overflow-x: hidden` then hid the result. Each check got
+a container-level fix, no restructuring and no renamed anything:
+
+| Check | Container | Change |
+| --- | --- | --- |
+| `phone /dashboard` — stat cards, +78…+227 px | `dashboard-view.tsx:142`, the grid item around the route header and `.dashboard-rail` | `min-w-0`, so the rail's existing `overflow-x: auto` becomes the scroller it was written to be (364 px window over 798 px of cards) |
+| `phone /canvas` — align tools, +74…+416 px | `canvas-editor.tsx:932/1197`, both `Panel`s of `grid xl:grid-cols-[1fr_312px]` | `min-w-0`; the tool bar also keeps one row and scrolls below `md` instead of wrapping into seven rows, so the sheet stays on the first screen |
+| `phone /social` — chat actions, +19…+229 px | `productivity-views.tsx:1168/1443`, the chat `Panel`s inside the `min-h-[72vh]` frame | `min-w-0` on both, plus `flex-wrap` on the action row, so the four buttons wrap instead of leaving the panel |
+| `phone /settings` — tab strip, +78…+269 px | `secondary-views.tsx:1027`, the settings `Panel` | `min-w-0`; the tab strip keeps its own `overflow-x: auto` and now really scrolls (332 px window over 632 px of tabs) |
+| `laptop /canvas` — Layers panel and description card, +119…+131 px | the same two canvas `Panel`s | `min-w-0`, so the 312 px column stays on screen and the sheet scrolls its own 1080 px stage |
+
+**Green as of this commit:** 18 of 18 checks pass —
+`overflow 0, clipped 0, scrollable 126, targets<24 0, targets<44 629, canvas handles<24 0/18,
+console errors 0` (was `clipped 85, targets<24 14`). The clipping was invisible to the old headline
+number only because the shell sets `overflow-x: hidden`, which masked up to 766 px of overflow on
+`phone /canvas`. Mutation check: putting one `min-w-0` back returns `phone /settings` to 20 clipped
+with the same +78…+269 px, so the gate is measuring the fix and not a coincidence.
 

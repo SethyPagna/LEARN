@@ -45,3 +45,7 @@ next-env.d.ts
 .agents/
 .workbuddy-ai/
 .zcode/
+
+# local audit evidence — regenerate with
+#   AUDIT_SHOTS=DELIVERY/screenshots pnpm audit:ux
+/DELIVERY/

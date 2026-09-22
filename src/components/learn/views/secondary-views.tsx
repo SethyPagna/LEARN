@@ -1024,7 +1024,7 @@ export function SettingsView({
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <Panel className="p-4 xl:col-span-2">
+      <Panel className="min-w-0 p-4 xl:col-span-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">

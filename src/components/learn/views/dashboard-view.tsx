@@ -139,7 +139,7 @@ export function DashboardView({
   return (
     <div className="grid gap-3 2xl:grid-cols-2">
       {showOnboarding ? <OnboardingCard setShowOnboarding={setShowOnboarding} setView={setView} /> : null}
-      <section className="rounded-lg border border-border bg-card text-card-foreground shadow-sm xl:col-span-2">
+      <section className="min-w-0 rounded-lg border border-border bg-card text-card-foreground shadow-sm xl:col-span-2">
         <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             <span className="mt-1 rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">Route</span>
@@ -201,7 +201,7 @@ export function DashboardView({
       </section>
 
       {emptyStates.length ? (
-        <Panel className="p-0 xl:col-span-2">
+        <Panel className="min-w-0 p-0 xl:col-span-2">
           <details>
             <summary className="flex min-h-16 cursor-pointer list-none items-center gap-3 px-4" title="Small setup cards appear only while the workspace needs source material, practice, or a route signal.">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
@@ -408,7 +408,7 @@ function OnboardingCard({
   }
 
   return (
-    <Panel className="p-4 xl:col-span-2">
+    <Panel className="min-w-0 p-4 xl:col-span-2">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start">
         <div className="min-w-0">
           <div className="mb-3 flex flex-wrap items-center gap-2">

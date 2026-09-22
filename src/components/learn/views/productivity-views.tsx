@@ -1165,7 +1165,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
 
   return (
     <div className="grid min-h-[72vh] overflow-hidden rounded-xl border border-border bg-background lg:grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)]" title={options.collaborationPresence ? "Live-ready chats" : "Async chats"}>
-      <Panel className="order-2 flex min-h-[72vh] flex-col rounded-none border-0 p-0 lg:order-2 lg:border-l lg:border-border">
+      <Panel className="order-2 flex min-h-[72vh] min-w-0 flex-col rounded-none border-0 p-0 lg:order-2 lg:border-l lg:border-border">
         <div className="mb-3 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
           <div className="flex min-w-0 items-center gap-3 border-b border-border px-4 py-3">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground">
@@ -1179,7 +1179,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               </p>
             </div>
           </div>
-          <div className="flex gap-2 border-b border-border px-4 py-3 lg:justify-end">
+          <div className="flex flex-wrap gap-2 border-b border-border px-4 py-3 lg:justify-end">
             <ChatMenu icon={Users} label={activeDmTarget ? activeDmTarget.name : activeGroup ? activeGroup.name : "Group"} menuId="tools" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
               <ChatMenuSection title="Chat as this group">
                 {myGroups.length ? myGroups.map((group) => (
@@ -1440,7 +1440,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
           </div>
         </div>
       </Panel>
-      <Panel className="order-1 min-h-[72vh] rounded-none border-0 p-3 lg:order-1 lg:max-h-[72vh] lg:overflow-y-auto">
+      <Panel className="order-1 min-h-[72vh] min-w-0 rounded-none border-0 p-3 lg:order-1 lg:max-h-[72vh] lg:overflow-y-auto">
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-2xl font-semibold text-foreground">Chats</h3>
           <div className="flex items-center gap-2">

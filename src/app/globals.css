@@ -234,6 +234,13 @@ html.dark[data-learn-accent='amber'] {
   body {
     @apply bg-background text-foreground;
   }
+  /* A collapsed <details> is opened by tapping its <summary>; with only a line of
+     text inside, that row paints `line-height` tall (20px) and fails WCAG 2.2
+     SC 2.5.8's 24x24 minimum. Utilities in the layer above still win, so the
+     rows that already ask for more (min-h-11, h-9, …) are untouched. */
+  summary {
+    min-height: 1.5rem;
+  }
 }
 
 @layer components {

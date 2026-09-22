@@ -375,7 +375,7 @@ export function Topbar({
       <div className="flex min-w-0 items-center gap-3">
         <button
           onClick={() => setMenuOpen(!menuOpen)}
-          className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground lg:hidden"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground lg:hidden"
           aria-label="Toggle menu"
         >
           <MenuIcon className="h-4 w-4" />

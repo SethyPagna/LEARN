@@ -140,6 +140,23 @@ const CANVAS_PRESET_CSS = `
   border-radius: var(--canvas-radius-sm);
   background: var(--muted);
 }
+/**
+ * Below the md breakpoint the bar cannot fit its ~30 tools in one block:
+ * wrapped, it fills seven rows and pushes the canvas sheet off the first
+ * screen. It keeps its single row and scrolls instead — the same strip, every
+ * tool one swipe away, and the sheet stays where it was. The flex: 0 0 auto
+ * rule keeps each tool and divider at its natural width, so nothing is crushed
+ * to fit.
+ */
+@media (max-width: 767px) {
+  .learn-canvas-soft .canvas-toolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .learn-canvas-soft .canvas-toolbar > * {
+    flex: 0 0 auto;
+  }
+}
 .learn-canvas-soft .canvas-tool {
   display: inline-flex;
   align-items: center;
@@ -912,7 +929,7 @@ export function CanvasEditorView() {
     <div className="learn-canvas-soft grid gap-4 xl:grid-cols-[1fr_312px]">
       <style>{CANVAS_PRESET_CSS}</style>
 
-      <Panel className="canvas-panel p-4">
+      <Panel className="canvas-panel min-w-0 p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <label className="flex items-center gap-2">
@@ -1177,7 +1194,7 @@ export function CanvasEditorView() {
         </p>
       </Panel>
 
-      <Panel className="canvas-panel flex max-h-[80vh] flex-col p-4">
+      <Panel className="canvas-panel flex min-w-0 max-h-[80vh] flex-col p-4">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="inline-flex items-center gap-2 font-semibold text-foreground">
             <Layers className="h-4 w-4 text-muted-foreground" />
@@ -1211,7 +1228,7 @@ export function CanvasEditorView() {
               <button
                 type="button"
                 onClick={() => setSelectedIds(selectionCluster(doc, element.id))}
-                className="min-w-0 flex-1 truncate px-1 text-left text-sm font-medium"
+                className="min-h-6 min-w-0 flex-1 truncate px-1 text-left text-sm font-medium"
                 title={layerLabel(element)}
               >
                 {layerLabel(element)}
