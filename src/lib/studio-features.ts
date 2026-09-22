@@ -32,7 +32,7 @@ export type StudioShareOption = {
 }
 
 export type StudioDownloadOption = {
-  id: "html" | "text" | "csv" | "xlsx" | "docx" | "pptx" | "outline" | "json" | "markdown"
+  id: "html" | "text" | "csv" | "xlsx" | "docx" | "pdf" | "pptx" | "outline" | "json" | "markdown"
   label: string
   detail: string
   bestFor: string
@@ -212,6 +212,7 @@ export function buildStudioDownloadOptions(kind: StudioKind): StudioDownloadOpti
   }
   return [
     { id: "html", label: "HTML", detail: "Designed document with headings and formatting.", bestFor: "Reading and publishing", sizeHint: "Small", action: "download", suggested: true },
+    { id: "pdf", label: "PDF", detail: "Real paged PDF built in the app — no print dialog, no plugin.", bestFor: "Sharing and printing", sizeHint: "Small", action: "download" },
     { id: "docx", label: "DOCX", detail: "Real Word document with headings, lists, and tables.", bestFor: "Word handoff and printing", sizeHint: "Small", action: "download" },
     { id: "markdown", label: "Markdown", detail: "Portable headings, lists, links, and study structure.", bestFor: "Docs, notes, and AI", sizeHint: "Small", action: "export" },
     { id: "text", label: "Plain text", detail: "Clean text for email, AI, and lightweight export.", bestFor: "Fast sharing", sizeHint: "Tiny", action: "export" },

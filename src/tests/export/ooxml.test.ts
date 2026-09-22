@@ -1,13 +1,18 @@
 import assert from "node:assert/strict"
+import fs from "node:fs"
+import path from "node:path"
 import test from "node:test"
+import { fileURLToPath } from "node:url"
 import type { ThemedBlock } from "../../lib/ai/format-response"
 import { buildDocx } from "../../lib/export/docx"
 import { blocksFromDocumentHtml } from "../../lib/export/html-blocks"
-import { documentHtmlToDocx, sheetCellsToXlsx } from "../../lib/export/studio-export"
+import { documentHtmlToDocx, documentHtmlToPdf, sheetCellsToXlsx } from "../../lib/export/studio-export"
 import { buildXlsx, sheetNameOf } from "../../lib/export/xlsx"
 import { partNames, partText } from "./zip-reader"
 
 const encoder = new TextEncoder()
+
+const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
 
 // ---------------------------------------------------------------------------
 // A tiny XML well-formedness check
@@ -410,4 +415,112 @@ test("exported bytes start with the ZIP local header signature", () => {
   assert.deepEqual(Array.from(docx.subarray(docx.length - 22, docx.length - 18)), [0x50, 0x4b, 0x05, 0x06])
   assert.deepEqual(Array.from(xlsx.subarray(xlsx.length - 22, xlsx.length - 18)), [0x50, 0x4b, 0x05, 0x06])
   assert.equal(encoder.encode("PK").length, 2)
+})
+
+// ---------------------------------------------------------------------------
+// PDF wiring and dependency guards
+// ---------------------------------------------------------------------------
+
+const PDF_MODULE = path.join(PROJECT_ROOT, "src", "lib", "export", "pdf.ts")
+const STUDIO_EXPORT_MODULE = path.join(PROJECT_ROOT, "src", "lib", "export", "studio-export.ts")
+const STUDIO_FEATURES_MODULE = path.join(PROJECT_ROOT, "src", "lib", "studio-features.ts")
+const STUDIO_VIEW = path.join(PROJECT_ROOT, "src", "components", "learn", "views", "studio-view.tsx")
+
+function readSource(filePath: string): string {
+  assert.ok(fs.existsSync(filePath), `${path.relative(PROJECT_ROOT, filePath)} must exist`)
+  return fs.readFileSync(filePath, "utf8")
+}
+
+/** Comments describe the rules; only code has to obey them. */
+function readCodeSource(filePath: string): string {
+  return readSource(filePath).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "")
+}
+
+/**
+ * The PDF writer is the third hand-rolled format in this directory, and the
+ * promises that make it worth having are structural: no dependency (so the
+ * module stays testable in plain Node and the app gains no install), no clock
+ * (so the same document is the same bytes), and no compression (Node's zlib and
+ * the browser's CompressionStream are the two temptations that would split the
+ * module across runtimes). None of that breaks a build if it is given up, so it
+ * is pinned here rather than left to review.
+ */
+test("the PDF writer stays dependency-free, clock-free, and self-contained", () => {
+  const source = readSource(PDF_MODULE)
+  const code = readCodeSource(PDF_MODULE)
+
+  // A type-only import is erased at compile time and adds no dependency; a value
+  // import would be one, so every import statement must be `import type`.
+  for (const line of source.split("\n").filter((line) => /^\s*import\s/.test(line))) {
+    assert.match(line, /^\s*import type\s/, `pdf.ts may only type-import, found: ${line.trim()}`)
+  }
+  assert.doesNotMatch(code, /\brequire\s*\(/, "pdf.ts must not require anything")
+  assert.doesNotMatch(code, /from\s+"node:/, "pdf.ts must not reach for a Node builtin")
+  assert.doesNotMatch(code, /\bBuffer\b|\bCompressionStream\b|\bzlib\b/, "pdf.ts must not compress or use Buffer")
+  assert.doesNotMatch(code, /\bDate\.now\s*\(|\bnew Date\s*\(\s*\)/, "pdf.ts must not read the clock")
+  assert.doesNotMatch(code, /Math\.random/, "pdf.ts must be deterministic")
+  assert.doesNotMatch(code, /document\.|window\./, "pdf.ts must not touch the DOM")
+})
+
+/**
+ * A format nobody can reach is not a format. The Studio editor is the only
+ * caller: if the seam loses `documentHtmlToPdf`, or the menu stops offering
+ * `pdf`, or the view stops calling them, the writer still passes its own tests
+ * while no user can export anything. Each link of that chain is asserted here.
+ */
+test("Studio offers a PDF and the seam builds it from the document's blocks", () => {
+  const seam = readSource(STUDIO_EXPORT_MODULE)
+  const features = readSource(STUDIO_FEATURES_MODULE)
+  const view = readCodeSource(STUDIO_VIEW)
+
+  assert.match(seam, /import \{ buildPdf \} from "@\/lib\/export\/pdf"/, "the seam imports the PDF builder")
+  assert.match(seam, /export const PDF_MIME = "application\/pdf"/, "the seam declares the PDF MIME type")
+  assert.match(seam, /export function documentHtmlToPdf\(/, "the seam exports documentHtmlToPdf")
+  assert.match(seam, /blocks: documentHtmlToBlocks\(input\.html\)/, "PDF and DOCX share one blocks call")
+
+  // The menu offers it for documents, and the view acts on that id.
+  assert.match(features, /\{ id: "pdf", label: "PDF"/, "the Studio download menu offers PDF")
+  assert.match(view, /documentHtmlToPdf/, "the Studio view calls the PDF seam")
+  assert.match(view, /PDF_MIME/, "the Studio view passes the PDF MIME type")
+  assert.match(view, /downloadBytes\(`\$\{base\}\.pdf`, documentHtmlToPdf\(/, "the PDF is downloaded through the existing bytes helper")
+  assert.match(view, /format === "pdf" && kind === "docs"/, "the PDF branch is scoped to documents")
+})
+
+test("the Studio PDF seam produces a real PDF from document HTML", () => {
+  const bytes = documentHtmlToPdf({
+    title: "Unit 3",
+    html: [
+      "<h1>Unit 3</h1>",
+      "<p>Intro with <strong>bold</strong> &amp; an entity.</p>",
+      "<ul><li>alpha</li><li>beta</li></ul>",
+      "<table><thead><tr><th>Term</th><th>Meaning</th></tr></thead><tbody><tr><td>Cell</td><td>Box</td></tr></tbody></table>",
+      '<pre><code class="language-ts">const a = 1</code></pre>',
+      "<hr>",
+    ].join(""),
+    date: new Date(Date.UTC(2026, 0, 2, 3, 4, 6)),
+  })
+
+  const text = Buffer.from(bytes).toString("latin1")
+  assert.ok(text.startsWith("%PDF-1.4\n"), "the seam returns a PDF file")
+  assert.ok(text.endsWith("%%EOF\n"))
+  assert.match(text, /\/Type \/Catalog/)
+  assert.match(text, /\(Unit 3\) Tj/)
+  assert.match(text, /\(Cell\) Tj/)
+  assert.match(text, /\(alpha\) Tj/)
+  assert.match(text, /D:20260102030406Z/, "the caller's date reaches the document info")
+
+  // Same input, same bytes: the format joins DOCX and XLSX as reproducible.
+  const again = documentHtmlToPdf({
+    title: "Unit 3",
+    html: [
+      "<h1>Unit 3</h1>",
+      "<p>Intro with <strong>bold</strong> &amp; an entity.</p>",
+      "<ul><li>alpha</li><li>beta</li></ul>",
+      "<table><thead><tr><th>Term</th><th>Meaning</th></tr></thead><tbody><tr><td>Cell</td><td>Box</td></tr></tbody></table>",
+      '<pre><code class="language-ts">const a = 1</code></pre>',
+      "<hr>",
+    ].join(""),
+    date: new Date(Date.UTC(2026, 0, 2, 3, 4, 6)),
+  })
+  assert.deepEqual(Array.from(bytes), Array.from(again))
 })

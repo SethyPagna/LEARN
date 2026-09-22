@@ -140,7 +140,7 @@ import { buildStudioProjectBrowserHeader, buildStudioProjectBrowserState, buildS
 import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 import { HEADING_STYLE_KEY, STUDIO_LAYOUT_KEY, parseStoredHeadingStyles, parseStoredStudioLayout, type HeadingStyleLevel, type HeadingStylePreset } from "@/lib/studio-preferences"
-import { DOCX_MIME, XLSX_MIME, documentHtmlToDocx, sheetCellsToXlsx } from "@/lib/export/studio-export"
+import { DOCX_MIME, PDF_MIME, XLSX_MIME, documentHtmlToDocx, documentHtmlToPdf, sheetCellsToXlsx } from "@/lib/export/studio-export"
 import { studioDocumentFromDocxFile, studioSheetFromXlsxFile } from "@/lib/export/studio-import"
 import { StudioImportFile } from "../studio-import-file"
 
@@ -1500,10 +1500,14 @@ export function StudioView({
 
   async function downloadActive(exportMode = false, format?: StudioDownloadOption["id"]) {
     const base = fileTitle(activeTitle(), kind)
-    // DOCX and XLSX are built in-process from the same payloads the other
+    // DOCX, XLSX and PDF are built in-process from the same payloads the other
     // formats use; everything below is the pre-existing download behaviour.
     if (format === "docx" && kind === "docs") {
       downloadBytes(`${base}.docx`, documentHtmlToDocx({ title: activeTitle(), html: docHistory.present }), DOCX_MIME)
+      return
+    }
+    if (format === "pdf" && kind === "docs") {
+      downloadBytes(`${base}.pdf`, documentHtmlToPdf({ title: activeTitle(), html: docHistory.present }), PDF_MIME)
       return
     }
     if (format === "xlsx" && kind === "sheets") {
@@ -4006,6 +4010,7 @@ function StudioExportInspector({
   } satisfies Record<(typeof shareOptions)[number]["id"], React.ComponentType<{ className?: string }>>
   const downloadIconById = {
     html: FileText,
+    pdf: FileText,
     docx: FileText,
     text: FileText,
     markdown: Braces,

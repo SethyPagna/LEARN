@@ -1,5 +1,5 @@
 /**
- * `studio-export` — the single seam between Studio payloads and the OOXML
+ * `studio-export` — the single seam between Studio payloads and the file
  * writers.
  *
  * The Studio editor holds a document as HTML and a sheet as a cell grid. This
@@ -12,23 +12,26 @@
  *
  * What this module deliberately does *not* do:
  *
- *   - **No PDF.** PDF remains the browser print path; this module adds no
- *     third layout engine.
  *   - **No network.** Nothing is fetched: images inside a document become
  *     labelled placeholders instead of being downloaded and re-encoded.
+ *   - **No second layout engine.** DOCX, XLSX and PDF are all built in-process
+ *     from the same blocks: `./docx` and `./pdf` are two renderers over one
+ *     `ThemedBlock[]`, so a document cannot look like two different documents.
  */
 
 import type { ThemedBlock } from "@/lib/ai/format-response"
 import { buildDocx } from "@/lib/export/docx"
 import { blocksFromDocumentHtml } from "@/lib/export/html-blocks"
+import { buildPdf } from "@/lib/export/pdf"
 import { buildXlsx } from "@/lib/export/xlsx"
 
-/** MIME types for the two formats, as registered with IANA. */
+/** MIME types for the three formats, as registered with IANA. */
 export const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 export const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+export const PDF_MIME = "application/pdf"
 
 export interface DocumentExportInput {
-  /** Document title; becomes the Word core-property title. */
+  /** Document title; becomes the Word core-property title and the PDF's. */
   title: string
   /** The editor's HTML body. */
   html: string
@@ -43,6 +46,21 @@ export function documentHtmlToDocx(input: DocumentExportInput): Uint8Array {
     blocks: documentHtmlToBlocks(input.html),
     ...(input.creator ? { creator: input.creator } : {}),
     ...(input.date ? { date: input.date } : {}),
+  })
+}
+
+/**
+ * Document HTML -> themed blocks -> PDF bytes.
+ *
+ * The same blocks the DOCX path builds, so the two files describe the same
+ * document. The PDF is produced by this repository's own writer: no print
+ * dialog, no headless browser, no dependency.
+ */
+export function documentHtmlToPdf(input: DocumentExportInput): Uint8Array {
+  return buildPdf({
+    title: input.title,
+    blocks: documentHtmlToBlocks(input.html),
+    ...(input.date ? { createdAt: input.date } : {}),
   })
 }
 
