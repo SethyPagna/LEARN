@@ -1,5 +1,5 @@
-import { LearnShell } from "@/components/learn/learn-shell"
+import { LearnPage } from "@/components/learn/learn-page"
 
 export default function StudioPage() {
-  return <LearnShell initialView="studio" />
+  return <LearnPage initialView="studio" />
 }

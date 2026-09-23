@@ -2445,7 +2445,7 @@ function getStudioTemplateMeta(kind: StudioKind, template: StudioTemplate) {
   const sheetPalette = kind === "sheets" ? sheetTemplateDesignFor(template.label) : undefined
   return {
     accent: template.accent || slidePalette?.accent || richPalette?.accent || palette[kind],
-    background: slidePalette?.background || richPalette?.background || "hsl(var(--background))",
+    background: slidePalette?.background || richPalette?.background || "var(--background)",
     description: template.description || describeTemplate(kind, template.label),
     sections,
     style: template.style || sheetPalette?.name || richPalette?.name || styleForTemplate(kind, template.label),

@@ -460,6 +460,10 @@ export interface PublicProfile {
   bio: string
   avatar_url: string
   profile_visibility?: string
+  /** How the requester relates to the owner, decided by the server. */
+  viewer?: "public" | "connections" | "owner"
+  /** True when the owner keeps this profile from the requester: only the name and picture are sent. */
+  restricted?: boolean
   social_links?: {
     facebook?: string
     intro?: string

@@ -1258,7 +1258,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             </ChatMenu>
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.08),transparent_34%),linear-gradient(135deg,hsl(var(--muted)/0.6),hsl(var(--background)))] px-4 py-5">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top_left,color-mix(in_oklch,var(--primary)_8%,transparent),transparent_34%),linear-gradient(135deg,color-mix(in_oklch,var(--muted)_60%,transparent),var(--background))] px-4 py-5">
           <div className="mx-auto flex max-w-3xl flex-col gap-3">
             {messages.length ? messages.map((message) => {
               // A launched game and a finished game are ordinary messages with a

@@ -5,88 +5,124 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * "Notebook" — the LEARN design system.
+ *
+ * Light is paper: a warm sheet, ink-blue text, pencil-grey rules. Dark is ink:
+ * a deep blue-black page with paper-white text. Each area of the app owns a
+ * divider-tab colour (--tab-*) the way a ring binder's sections do, so the
+ * sidebar, the top bar and the page headers can say "you are in Practice"
+ * without another word. Contrast is guarded by src/tests/design/contrast.test.ts.
+ */
 :root {
-  --background: oklch(0.982 0.006 255);
-  --foreground: oklch(0.16 0.02 255);
-  --card: oklch(0.998 0.002 255);
-  --card-foreground: oklch(0.15 0.02 280);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0.02 280);
-  --primary: oklch(0.23 0.09 250);
-  --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.95 0.012 260);
-  --secondary-foreground: oklch(0.18 0.02 280);
-  --muted: oklch(0.935 0.012 260);
-  --muted-foreground: oklch(0.43 0.025 260);
-  --accent: oklch(0.92 0.045 180);
-  --accent-foreground: oklch(0.18 0.035 200);
+  --background: oklch(0.972 0.01 85);
+  --foreground: oklch(0.22 0.035 268);
+  --card: oklch(0.993 0.004 85);
+  --card-foreground: oklch(0.22 0.035 268);
+  --popover: oklch(0.996 0.003 85);
+  --popover-foreground: oklch(0.22 0.035 268);
+  --primary: oklch(0.5 0.19 268);
+  --primary-foreground: oklch(0.99 0.004 85);
+  --secondary: oklch(0.948 0.012 85);
+  --secondary-foreground: oklch(0.25 0.035 268);
+  --muted: oklch(0.942 0.013 85);
+  --muted-foreground: oklch(0.46 0.03 268);
+  --accent: oklch(0.93 0.04 268);
+  --accent-foreground: oklch(0.26 0.07 268);
   /* WCAG AA: 0.55 measured a hairline 4.50:1 as text on --muted, which rounds to a fail. */
-  --destructive: oklch(0.53 0.22 25);
-  --destructive-foreground: oklch(0.98 0 0);
+  --destructive: oklch(0.52 0.2 25);
+  --destructive-foreground: oklch(0.99 0 0);
   /* WCAG AA: white-on-success and success-as-text both need a deeper green. 0.55 measured 4.27:1. */
-  --success: oklch(0.49 0.14 155);
-  --success-foreground: oklch(0.98 0 0);
-  --warning: oklch(0.82 0.16 82);
-  --warning-foreground: oklch(0.16 0.03 70);
-  --border: oklch(0.86 0.014 260);
-  --input: oklch(0.84 0.016 260);
-  --ring: oklch(0.75 0.15 280);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.5rem;
-  --sidebar: oklch(0.97 0.007 255);
-  --sidebar-foreground: oklch(0.17 0.02 255);
-  --sidebar-primary: oklch(0.23 0.09 250);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.92 0.012 255);
-  --sidebar-accent-foreground: oklch(0.17 0.02 255);
-  --sidebar-border: oklch(0.88 0.012 255);
-  --sidebar-ring: oklch(0.708 0 0);
+  --success: oklch(0.48 0.13 155);
+  --success-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.82 0.15 80);
+  --warning-foreground: oklch(0.2 0.04 70);
+  --border: oklch(0.875 0.016 80);
+  --input: oklch(0.85 0.018 80);
+  --ring: oklch(0.58 0.18 268);
+  --chart-1: oklch(0.58 0.19 268);
+  --chart-2: oklch(0.66 0.15 155);
+  --chart-3: oklch(0.72 0.16 45);
+  --chart-4: oklch(0.62 0.2 330);
+  --chart-5: oklch(0.8 0.15 80);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.955 0.014 82);
+  --sidebar-foreground: oklch(0.22 0.035 268);
+  --sidebar-primary: oklch(0.5 0.19 268);
+  --sidebar-primary-foreground: oklch(0.99 0.004 85);
+  --sidebar-accent: oklch(0.925 0.02 82);
+  --sidebar-accent-foreground: oklch(0.2 0.035 268);
+  --sidebar-border: oklch(0.885 0.016 80);
+  --sidebar-ring: oklch(0.58 0.18 268);
+
+  /* Section divider tabs. */
+  --tab-home: oklch(0.78 0.15 75);
+  --tab-studio: oklch(0.6 0.16 252);
+  --tab-ai: oklch(0.58 0.21 300);
+  --tab-files: oklch(0.62 0.11 200);
+  --tab-calendar: oklch(0.64 0.15 150);
+  --tab-practice: oklch(0.68 0.18 42);
+  --tab-social: oklch(0.62 0.21 355);
+  --tab-settings: oklch(0.55 0.035 268);
+
+  --shadow-paper: 0 1px 0 oklch(0.2 0.03 268 / 0.04), 0 1px 3px oklch(0.2 0.03 268 / 0.06), 0 8px 24px -12px oklch(0.2 0.03 268 / 0.12);
+  --shadow-lift: 0 2px 4px oklch(0.2 0.03 268 / 0.06), 0 18px 40px -16px oklch(0.2 0.03 268 / 0.28);
+  --paper-dot: oklch(0.22 0.035 268 / 0.075);
 }
 
 .dark {
-  --background: oklch(0.055 0.012 255);
-  --foreground: oklch(0.96 0.008 255);
-  --card: oklch(0.125 0.02 255);
-  --card-foreground: oklch(0.96 0.008 255);
-  --popover: oklch(0.18 0.02 255);
-  --popover-foreground: oklch(0.96 0.008 255);
-  --primary: oklch(0.69 0.14 240);
-  --primary-foreground: oklch(0.11 0.018 255);
-  --secondary: oklch(0.2 0.024 255);
-  --secondary-foreground: oklch(0.94 0.01 255);
-  --muted: oklch(0.19 0.022 255);
-  --muted-foreground: oklch(0.82 0.012 255);
-  --accent: oklch(0.32 0.055 185);
-  --accent-foreground: oklch(0.96 0.008 255);
+  --background: oklch(0.175 0.022 268);
+  --foreground: oklch(0.955 0.01 85);
+  --card: oklch(0.21 0.024 268);
+  --card-foreground: oklch(0.955 0.01 85);
+  --popover: oklch(0.235 0.026 268);
+  --popover-foreground: oklch(0.955 0.01 85);
+  --primary: oklch(0.75 0.13 268);
+  --primary-foreground: oklch(0.18 0.035 268);
+  --secondary: oklch(0.255 0.026 268);
+  --secondary-foreground: oklch(0.94 0.01 85);
+  --muted: oklch(0.245 0.024 268);
+  --muted-foreground: oklch(0.78 0.02 268);
+  --accent: oklch(0.31 0.05 268);
+  --accent-foreground: oklch(0.965 0.01 85);
   /* WCAG AA on dark surfaces: the light-theme `--success` reads at 3.7:1 as text and
      `--destructive` at 4.3:1 on cards, so both flip to a light fill with a dark
      foreground here — the pattern `--primary` and `--warning` already follow. */
-  --success: oklch(0.72 0.15 155);
-  --success-foreground: oklch(0.16 0.03 155);
-  --destructive: oklch(0.66 0.19 25);
-  --destructive-foreground: oklch(0.15 0.03 25);
-  --warning: oklch(0.78 0.16 82);
-  --warning-foreground: oklch(0.1 0.02 70);
-  --border: oklch(0.36 0.028 255);
-  --input: oklch(0.42 0.03 255);
-  --ring: oklch(0.69 0.14 240);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.075 0.016 255);
-  --sidebar-foreground: oklch(0.94 0.01 255);
-  --sidebar-primary: oklch(0.69 0.14 240);
-  --sidebar-primary-foreground: oklch(0.1 0.018 255);
-  --sidebar-accent: oklch(0.19 0.024 255);
-  --sidebar-accent-foreground: oklch(0.96 0.008 255);
-  --sidebar-border: oklch(0.3 0.025 255);
-  --sidebar-ring: oklch(0.69 0.14 240);
+  --success: oklch(0.76 0.14 155);
+  --success-foreground: oklch(0.18 0.03 155);
+  --destructive: oklch(0.72 0.17 25);
+  --destructive-foreground: oklch(0.17 0.03 25);
+  --warning: oklch(0.82 0.14 80);
+  --warning-foreground: oklch(0.18 0.03 70);
+  --border: oklch(0.33 0.028 268);
+  --input: oklch(0.39 0.03 268);
+  --ring: oklch(0.75 0.13 268);
+  --chart-1: oklch(0.72 0.14 268);
+  --chart-2: oklch(0.74 0.14 155);
+  --chart-3: oklch(0.78 0.14 45);
+  --chart-4: oklch(0.72 0.17 330);
+  --chart-5: oklch(0.84 0.13 80);
+  --sidebar: oklch(0.152 0.02 268);
+  --sidebar-foreground: oklch(0.945 0.01 85);
+  --sidebar-primary: oklch(0.75 0.13 268);
+  --sidebar-primary-foreground: oklch(0.17 0.035 268);
+  --sidebar-accent: oklch(0.23 0.026 268);
+  --sidebar-accent-foreground: oklch(0.965 0.01 85);
+  --sidebar-border: oklch(0.28 0.026 268);
+  --sidebar-ring: oklch(0.75 0.13 268);
+
+  --tab-home: oklch(0.83 0.14 80);
+  --tab-studio: oklch(0.74 0.13 250);
+  --tab-ai: oklch(0.74 0.16 300);
+  --tab-files: oklch(0.77 0.1 200);
+  --tab-calendar: oklch(0.78 0.14 150);
+  --tab-practice: oklch(0.78 0.15 45);
+  --tab-social: oklch(0.74 0.17 355);
+  --tab-settings: oklch(0.74 0.03 268);
+
+  --shadow-paper: 0 1px 0 oklch(1 0 0 / 0.03) inset, 0 1px 2px oklch(0 0 0 / 0.3), 0 10px 28px -14px oklch(0 0 0 / 0.55);
+  --shadow-lift: 0 1px 0 oklch(1 0 0 / 0.04) inset, 0 22px 48px -18px oklch(0 0 0 / 0.7);
+  --paper-dot: oklch(0.955 0.01 85 / 0.06);
 }
 
 html[data-learn-accent='teal'] {
@@ -98,7 +134,7 @@ html[data-learn-accent='teal'] {
 
 html.dark[data-learn-accent='teal'] {
   --primary: oklch(0.74 0.13 178);
-  --accent: oklch(0.25 0.055 178);
+  --accent: oklch(0.3 0.055 178);
   --ring: oklch(0.74 0.13 178);
   --sidebar-primary: oklch(0.74 0.13 178);
 }
@@ -112,7 +148,7 @@ html[data-learn-accent='sky'] {
 
 html.dark[data-learn-accent='sky'] {
   --primary: oklch(0.72 0.15 238);
-  --accent: oklch(0.25 0.055 238);
+  --accent: oklch(0.3 0.055 238);
   --ring: oklch(0.72 0.15 238);
   --sidebar-primary: oklch(0.72 0.15 238);
 }
@@ -126,7 +162,7 @@ html[data-learn-accent='violet'] {
 
 html.dark[data-learn-accent='violet'] {
   --primary: oklch(0.74 0.16 292);
-  --accent: oklch(0.27 0.065 292);
+  --accent: oklch(0.31 0.065 292);
   --ring: oklch(0.74 0.16 292);
   --sidebar-primary: oklch(0.74 0.16 292);
 }
@@ -140,7 +176,7 @@ html[data-learn-accent='rose'] {
 
 html.dark[data-learn-accent='rose'] {
   --primary: oklch(0.72 0.15 18);
-  --accent: oklch(0.27 0.06 18);
+  --accent: oklch(0.31 0.06 18);
   --ring: oklch(0.72 0.15 18);
   --sidebar-primary: oklch(0.72 0.15 18);
 }
@@ -154,7 +190,7 @@ html[data-learn-accent='amber'] {
 
 html.dark[data-learn-accent='amber'] {
   --primary: oklch(0.78 0.14 72);
-  --accent: oklch(0.28 0.055 72);
+  --accent: oklch(0.31 0.055 72);
   --ring: oklch(0.78 0.14 72);
   --sidebar-primary: oklch(0.78 0.14 72);
 }
@@ -172,14 +208,14 @@ html.dark[data-learn-accent='amber'] {
  * src/tests/design/contrast.test.ts pins both directions.
  */
 .learn-high-contrast {
-  --border: oklch(0.54 0.03 255);
-  --sidebar-border: oklch(0.54 0.03 255);
+  --border: oklch(0.54 0.03 268);
+  --sidebar-border: oklch(0.54 0.03 268);
   --ring: oklch(0.82 0.16 155);
 }
 
 html.dark.learn-high-contrast {
   --foreground: oklch(0.99 0 0);
-  --muted-foreground: oklch(0.88 0.01 255);
+  --muted-foreground: oklch(0.88 0.01 268);
 }
 
 .learn-dyslexia body {
@@ -200,6 +236,7 @@ html.dark.learn-high-contrast {
 @theme inline {
   --font-sans: 'Geist', 'Geist Fallback';
   --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --font-display: var(--font-learn-display), 'Geist', 'Geist Fallback', sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -232,6 +269,7 @@ html.dark.learn-high-contrast {
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -240,6 +278,16 @@ html.dark.learn-high-contrast {
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-tab-home: var(--tab-home);
+  --color-tab-studio: var(--tab-studio);
+  --color-tab-ai: var(--tab-ai);
+  --color-tab-files: var(--tab-files);
+  --color-tab-calendar: var(--tab-calendar);
+  --color-tab-practice: var(--tab-practice);
+  --color-tab-social: var(--tab-social);
+  --color-tab-settings: var(--tab-settings);
+  --shadow-paper: var(--shadow-paper);
+  --shadow-lift: var(--shadow-lift);
 }
 
 @layer base {
@@ -256,6 +304,13 @@ html.dark.learn-high-contrast {
   summary {
     min-height: 1.5rem;
   }
+  ::selection {
+    background: color-mix(in oklch, var(--tab-home) 45%, transparent);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--foreground) 22%, transparent) transparent;
+  }
 }
 
 @layer components {
@@ -268,4 +323,151 @@ html.dark.learn-high-contrast {
   .context-item {
     @apply flex cursor-default select-none items-center gap-2 rounded px-2 py-1.5 outline-none transition hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground;
   }
+
+  /* Headings in the app's own chrome use the display face. Anything a person
+     wrote (the rich-text editor, rendered decks and pages marked
+     data-user-content) keeps the font its author chose. */
+  .learn-app :where(h1, h2, h3):not(:where(.ProseMirror, [data-user-content]) *) {
+    font-family: var(--font-display);
+    letter-spacing: -0.012em;
+  }
+
+  /* --- the app shell ---------------------------------------------------- */
+
+  /* The sidebar's width is a variable so the content column, the fixed top bar
+     and the sidebar itself agree without three copies of the same number. */
+  .learn-app {
+    --shell-sidebar: 264px;
+    --shell-topbar: 3.5rem;
+  }
+  .learn-app[data-sidebar='rail'] {
+    --shell-sidebar: 76px;
+  }
+  .learn-app[data-sidebar='hidden'] {
+    --shell-sidebar: 0px;
+  }
+  .learn-app-column {
+    min-width: 0;
+    transition: padding-left 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  @media (min-width: 1024px) {
+    .learn-app-column {
+      padding-left: var(--shell-sidebar);
+    }
+  }
+  .learn-sidebar {
+    width: var(--shell-sidebar);
+    transition: width 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  /* A dot-grid page, like a bullet-journal sheet. Faint enough to sit behind
+     text without adding noise. */
+  .learn-paper {
+    background-color: var(--background);
+    background-image: radial-gradient(circle at 1px 1px, var(--paper-dot) 1px, transparent 1.6px);
+    background-size: 22px 22px;
+  }
+
+  /* The coloured divider tab: a vertical marker on the leading edge of an item. */
+  .learn-tab-marker {
+    position: relative;
+  }
+  .learn-tab-marker::before {
+    content: '';
+    position: absolute;
+    left: -0.75rem;
+    top: 0.5rem;
+    bottom: 0.5rem;
+    width: 4px;
+    border-radius: 0 4px 4px 0;
+    background: var(--learn-tab, var(--primary));
+  }
+
+  .learn-surface {
+    @apply rounded-xl border border-border bg-card text-card-foreground;
+    box-shadow: var(--shadow-paper);
+  }
+
+  .learn-kbd {
+    @apply inline-flex h-5 min-w-5 items-center justify-center rounded border border-border bg-background px-1 font-mono text-[0.65rem] font-semibold text-muted-foreground;
+  }
+
+  .learn-bottom-safe {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+}
+
+@keyframes learn-pop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes learn-ring-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--success) 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 14px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.learn-pop-in {
+  animation: learn-pop-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.learn-ring-pulse {
+  animation: learn-ring-pulse 1.4s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .learn-pop-in,
+  .learn-ring-pulse {
+    animation: none;
+  }
+  .learn-app-column,
+  .learn-sidebar {
+    transition: none;
+  }
+}
+
+/* Section colour for anything tagged with data-tab: the tab stripe, tinted
+   icon wells and dots all read `--learn-tab`, so one attribute recolours a
+   whole row. The ink mix keeps icons at a readable contrast on both themes. */
+[data-tab='home'] { --learn-tab: var(--tab-home); }
+[data-tab='studio'] { --learn-tab: var(--tab-studio); }
+[data-tab='ai'] { --learn-tab: var(--tab-ai); }
+[data-tab='files'] { --learn-tab: var(--tab-files); }
+[data-tab='calendar'] { --learn-tab: var(--tab-calendar); }
+[data-tab='practice'] { --learn-tab: var(--tab-practice); }
+[data-tab='social'] { --learn-tab: var(--tab-social); }
+[data-tab='settings'] { --learn-tab: var(--tab-settings); }
+
+.learn-tab-ink {
+  color: color-mix(in oklch, var(--learn-tab, var(--primary)) 68%, var(--foreground));
+}
+.learn-tab-wash {
+  background-color: color-mix(in oklch, var(--learn-tab, var(--primary)) 15%, transparent);
+}
+.learn-tab-wash-strong {
+  background-color: color-mix(in oklch, var(--learn-tab, var(--primary)) 24%, transparent);
+}
+.learn-tab-dot {
+  background-color: var(--learn-tab, var(--primary));
+}
+.learn-tab-border {
+  border-color: color-mix(in oklch, var(--learn-tab, var(--primary)) 45%, var(--border));
+}
+/* Icon colour on a filled section tab: dark ink reads on every tab colour in
+   both themes (the tabs are mid-to-light tones by design). */
+.learn-tab-on {
+  color: oklch(0.2 0.035 268);
 }

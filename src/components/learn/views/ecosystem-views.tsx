@@ -101,7 +101,7 @@ export function VaultView({ notes = [], setView }: { notes?: Note[]; setView: (v
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-      <section className="rounded-lg border border-border bg-[radial-gradient(circle_at_20%_20%,hsl(var(--primary)/0.18),transparent_34%),hsl(var(--card))] p-5 text-card-foreground">
+      <section className="learn-surface bg-[radial-gradient(circle_at_20%_20%,color-mix(in_oklch,var(--tab-studio)_22%,transparent),transparent_42%)] p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-muted-foreground">Private by default</p>
@@ -289,7 +289,7 @@ export function GraphView({ setView }: { setView: (view: View) => void }) {
                   y1={`${50 + ((source.position?.y ?? 0) / 4)}%`}
                   x2={`${50 + ((target.position?.x ?? 0) / 4)}%`}
                   y2={`${50 + ((target.position?.y ?? 0) / 4)}%`}
-                  stroke="hsl(var(--primary))"
+                  className="stroke-primary"
                   strokeOpacity={Math.max(0.18, edge.strength)}
                   strokeWidth={2}
                 />
@@ -301,8 +301,7 @@ export function GraphView({ setView }: { setView: (view: View) => void }) {
                   cx={`${50 + ((node.position?.x ?? index * 12) / 4)}%`}
                   cy={`${50 + ((node.position?.y ?? index * 8) / 4)}%`}
                   r={18 + node.mastery * 12}
-                  fill={selectedNode?.id === node.id ? "hsl(var(--primary) / 0.18)" : "hsl(var(--card))"}
-                  stroke={orphanIds.has(node.id) ? "hsl(var(--warning))" : "hsl(var(--primary))"}
+                  className={`${selectedNode?.id === node.id ? "fill-primary/20" : "fill-card"} ${orphanIds.has(node.id) ? "stroke-warning" : "stroke-primary"}`}
                   strokeWidth={selectedNode?.id === node.id ? "4" : "2"}
                 />
                 <text
@@ -1519,9 +1518,106 @@ function SocialMenuAction({
   )
 }
 
-export function ProfileView({ setView, user }: { setView?: (view: View) => void; user: User | null }) {
-  const username = user?.username || "admin"
-  const { data, status } = useResource<{ item: PublicProfile }>(`/api/profile/public?username=${encodeURIComponent(username)}&viewer=owner`)
+/**
+ * `/profile` is your own profile; `/profile/<username>` is someone else's, read
+ * only and exactly as much of it as they share with you (the server decides).
+ */
+export function ProfileView({ setView, user, username }: { setView?: (view: View) => void; user: User | null; username?: string }) {
+  if (!user) return <StatusMessage message="Loading profile…" />
+  if (username && username !== user.username) return <PersonProfileView setView={setView} username={username} />
+  return <OwnProfileView setView={setView} user={user} />
+}
+
+function PersonProfileView({ setView, username }: { setView?: (view: View) => void; username: string }) {
+  const { data, status } = useResource<{ item: PublicProfile }>(`/api/profile/public?username=${encodeURIComponent(username)}`)
+  const profile = data?.item
+  if (!profile) return <StatusMessage message={status === "Loading" ? "Loading profile…" : status} />
+
+  const initial = (profile.name || profile.username || "?").slice(0, 1).toUpperCase()
+  const links = [
+    { href: profile.social_links?.intro, label: "Intro" },
+    { href: profile.social_links?.website, label: "Website" },
+    { href: profile.social_links?.facebook, label: "Facebook" },
+  ].filter((link): link is { href: string; label: string } => Boolean(link.href))
+  const visibilityLabel = profile.profile_visibility === "public" ? "Public profile" : profile.profile_visibility === "connections" ? "Connections only" : "Private profile"
+
+  return (
+    <div className="mx-auto grid max-w-4xl gap-4">
+      <section className="learn-surface overflow-hidden">
+        <div className="h-28 bg-gradient-to-r from-tab-studio/45 via-tab-ai/35 to-tab-social/45" aria-hidden="true" />
+        <div className="-mt-12 flex flex-wrap items-end justify-between gap-4 px-5">
+          <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-primary text-3xl font-semibold text-primary-foreground ring-4 ring-card">
+            {profile.avatar_url ? <img src={profile.avatar_url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" /> : initial}
+          </div>
+          <span className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">
+            {profile.restricted ? <Lock className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            {visibilityLabel}
+          </span>
+        </div>
+        <div className="px-5 pb-5 pt-3">
+          <h2 className="font-display text-2xl font-semibold text-foreground">{profile.name || profile.username}</h2>
+          <p className="text-sm text-muted-foreground">@{profile.username}{profile.viewer === "connections" ? " · Connected" : ""}</p>
+          {profile.bio ? <p className="mt-3 max-w-2xl text-sm leading-6 text-foreground/85">{profile.bio}</p> : null}
+          {links.length ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {links.map((link) => (
+                <a key={link.label} href={link.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
+                  {link.label}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              ))}
+            </div>
+          ) : null}
+          {!profile.restricted ? (
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <Metric label="Level" value={String(profile.metrics.level ?? 1)} />
+              <Metric label="XP" value={String(profile.metrics.xp ?? 0)} />
+              <Metric label="Streak" value={`${profile.metrics.streak ?? 0} days`} />
+              <Metric label="Reputation" value={String(profile.metrics.reputation ?? 0)} />
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      {profile.restricted ? (
+        <section className="learn-surface flex items-start gap-3 p-5">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <Lock className="h-5 w-5" />
+          </span>
+          <div>
+            <h3 className="font-semibold text-foreground">{profile.profile_visibility === "connections" ? "Only their connections can see more" : "This profile is private"}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {profile.profile_visibility === "connections"
+                ? `Once ${profile.name || profile.username} accepts you as a connection, their bio, stats and shared notes appear here.`
+                : `${profile.name || profile.username} keeps their learning to themselves. Their name and picture are all that is shared.`}
+            </p>
+          </div>
+        </section>
+      ) : (
+        <section className="learn-surface p-5">
+          <h3 className="font-display text-lg font-semibold text-foreground">Shared with you</h3>
+          {profile.artifacts.length ? (
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              {profile.artifacts.map((node) => <NodeCard key={node.id} node={node} />)}
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">Nothing shared yet.</p>
+          )}
+        </section>
+      )}
+
+      {setView ? (
+        <button type="button" onClick={() => setView("social")} className="justify-self-start rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+          Back to Social
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
+function OwnProfileView({ setView, user }: { setView?: (view: View) => void; user: User }) {
+  const username = user.username
+  const { data, status } = useResource<{ item: PublicProfile }>(`/api/profile/public?username=${encodeURIComponent(username)}`)
   const profile = data?.item
   const achievements = useResource<{ items: Achievement[] }>("/api/achievements")
   const achievementItems = achievements.data?.items ?? []

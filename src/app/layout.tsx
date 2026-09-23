@@ -1,12 +1,15 @@
 import React from "react"
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Bricolage_Grotesque, Geist, Geist_Mono } from 'next/font/google'
 import { ThemeProvider } from '@/components/theme-provider'
 import { PwaRegister } from '@/components/pwa-register'
 import './globals.css'
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" })
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" })
+// Headings only: a grotesque with a hand-drawn warmth, so titles read like a
+// notebook's section labels while body text stays in Geist.
+const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-learn-display", display: "swap" })
 
 export const metadata: Metadata = {
   title: 'LEARN',
@@ -48,14 +51,14 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${geist.variable} ${geistMono.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${geist.variable} ${geistMono.variable} ${display.variable}`}>
       <body className="font-sans antialiased">
         <script
           dangerouslySetInnerHTML={{
             __html: "globalThis.__name=globalThis.__name||function(fn){return fn}",
           }}
         />
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
         </ThemeProvider>
         <PwaRegister />

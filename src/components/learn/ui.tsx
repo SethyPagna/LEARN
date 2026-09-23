@@ -22,12 +22,12 @@ export interface ViewMenuProps<Id extends string> {
 }
 
 export function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-lg border border-border bg-card text-card-foreground shadow-sm ${className}`}>{children}</section>
+  return <section className={`rounded-xl border border-border bg-card text-card-foreground shadow-paper ${className}`}>{children}</section>
 }
 
 export function EmptyState({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-lg border border-dashed border-border bg-muted/45 p-4 text-sm">
+    <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm">
       <p className="font-semibold text-foreground">{title}</p>
       <p className="mt-1 leading-5 text-muted-foreground">{body}</p>
     </div>
@@ -35,11 +35,11 @@ export function EmptyState({ title, body }: { title: string; body: string }) {
 }
 
 export function StatusMessage({ message }: { message: string }) {
-  return <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">{message}</div>
+  return <div role="status" className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground shadow-paper">{message}</div>
 }
 
 export function StatusPill({ label, tone = "neutral" }: { label: string; tone?: UiTone }) {
-  return <span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-semibold ${statusToneClasses(tone)}`}>{label}</span>
+  return <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${statusToneClasses(tone)}`}>{label}</span>
 }
 
 export function ControlButton({

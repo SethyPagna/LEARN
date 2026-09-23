@@ -3426,20 +3426,59 @@ export async function listAchievements(user: User) {
   return listAchievements(user)
 }
 
-export async function getPublicProfile(username: string, viewer: "public" | "connections" | "owner" = "public") {
+export type ProfileViewer = "public" | "connections" | "owner"
+
+/**
+ * How the person looking relates to the profile's owner. Decided here from the
+ * session, never taken from the request, so nobody can ask to be treated as
+ * the owner or a connection.
+ *
+ * A connection counts only when the owner accepted it (their row pointing at
+ * the viewer): a request the viewer sent themselves grants nothing.
+ */
+async function profileViewerRelation(profileUserId: string, viewerUser: User | null): Promise<ProfileViewer> {
+  if (!viewerUser) return "public"
+  if (viewerUser.id === profileUserId) return "owner"
+  const result = await query(
+    `SELECT 1 AS connected FROM user_connections
+     WHERE requester_user_id = $1 AND target_user_id = $2 AND status = 'accepted'
+     LIMIT 1`,
+    [profileUserId, viewerUser.id],
+  )
+  return result.rows.length ? "connections" : "public"
+}
+
+function normalizeProfileVisibility(value: unknown) {
+  return value === "public" || value === "connections" ? value : "private"
+}
+
+export async function getPublicProfile(username: string, viewerUser: User | null = null) {
   await ensureDatabase()
   const result = await query("SELECT id, username, name, bio, avatar_url, preferences, xp_total, streak_current, streak_longest, reputation, profile_visibility FROM users WHERE username = $1 LIMIT 1", [username])
   const row = result.rows[0]
   if (!row) return null
-  const preferences = parseJsonObject(row.preferences)
-  const nodes = (await query("SELECT * FROM knowledge_nodes WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 80", [row.id])).rows.map(normalizeKnowledgeNode)
-  return {
+  const viewer = await profileViewerRelation(String(row.id), viewerUser)
+  const visibility = normalizeProfileVisibility(row.profile_visibility)
+  const visible = viewer === "owner" || visibility === "public" || (visibility === "connections" && viewer === "connections")
+  const identity = {
     id: row.id,
     username: row.username,
     name: row.name,
-    bio: row.bio || "",
     avatar_url: row.avatar_url || "",
-    profile_visibility: row.profile_visibility || "private",
+    profile_visibility: visibility,
+    viewer,
+  }
+  // A private profile still resolves (so a link to it says "private" instead
+  // of "not found"), but carries nothing beyond the name and picture.
+  if (!visible) {
+    return { ...identity, bio: "", restricted: true, social_links: {}, metrics: {}, artifacts: [] }
+  }
+  const preferences = parseJsonObject(row.preferences)
+  const nodes = (await query("SELECT * FROM knowledge_nodes WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 80", [row.id])).rows.map(normalizeKnowledgeNode)
+  return {
+    ...identity,
+    bio: row.bio || "",
+    restricted: false,
     social_links: {
       facebook: preferenceLink(preferences.facebookUrl),
       intro: preferenceLink(preferences.introUrl),

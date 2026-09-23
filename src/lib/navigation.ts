@@ -193,6 +193,43 @@ export const launcherCommands: readonly LauncherCommandConfig[] = [
 
 export const navigationItems = navigationGroups.flatMap((group) => group.items)
 
+/**
+ * The "divider tab" each area of the app owns. Colours live in globals.css as
+ * `--tab-<key>`; this map only says which tab a primary destination uses.
+ */
+export type SectionTab = "home" | "studio" | "ai" | "files" | "calendar" | "practice" | "social" | "settings"
+
+const sectionTabsByPrimaryView: Partial<Record<View, SectionTab>> = {
+  dashboard: "home",
+  studio: "studio",
+  ai: "ai",
+  files: "files",
+  calendar: "calendar",
+  practice: "practice",
+  social: "social",
+  settings: "settings",
+}
+
+export function sectionTabForView(view: View): SectionTab {
+  return sectionTabsByPrimaryView[resolveNavigationTarget(view).primaryView] ?? "home"
+}
+
+/**
+ * Pages inside a primary destination, shown as indented tabs under it in the
+ * sidebar and as their own entries in the command palette. They are not
+ * primary items: the sidebar stays capped at eight (see navigation.test.ts).
+ */
+export const navigationSubViews: Partial<Record<View, readonly View[]>> = {
+  studio: ["notes", "docs", "sheets", "slides", "canvas"],
+  calendar: ["vault", "progress", "graph", "feed"],
+  practice: ["quizzes", "live", "games"],
+  social: ["chat", "spaces", "rooms", "battles"],
+  settings: ["profile", "admin"],
+}
+
+/** Sub views only an admin may open. */
+export const adminOnlyViews: readonly View[] = ["admin"]
+
 export function getNavigationItemDetail(item: LearnNavigationItem) {
   const group = navigationGroups.find((entry) => entry.items.some((candidate) => candidate.view === item.view))
   return group?.caption ?? "Open section"
