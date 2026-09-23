@@ -56,6 +56,7 @@ import {
   type SharedAccessLike,
 } from "./sharing"
 import { blankDeckTitle, blankDocTitle, blankSheetTitle } from "./studio-defaults"
+import { designPlainText, isDesignDocShape, normalizeDesignDoc } from "./design/document"
 
 export const SESSION_COOKIE = "learn_session"
 const DEFAULT_WORKSPACE_ID = "workspace_demo"
@@ -876,6 +877,8 @@ function truncateSummary(value: string, maxLength = 240) {
 
 function extractPlainText(value: unknown): string {
   if (typeof value === "string") return value
+  // A design's words live in its page elements (picture URLs are not words).
+  if (isDesignDocShape(value)) return designPlainText(normalizeDesignDoc(value))
   if (Array.isArray(value)) return value.map(extractPlainText).filter(Boolean).join(" ")
   if (!value || typeof value !== "object") return ""
   const record = value as Record<string, unknown>
@@ -931,7 +934,30 @@ export async function restoreContentItemForSource(sourceTable: string, sourceId:
   await query("UPDATE content_items SET archived_at = NULL, updated_at = now() WHERE source_table = $1 AND source_id = $2", [sourceTable, sourceId])
 }
 
+/** Saves by the same person within this window refresh their latest version instead of adding one. */
+const VERSION_COALESCE_MINUTES = 10
+
 export async function appendContentVersion(input: ContentVersionInput) {
+  // Editors autosave every few seconds; a version per save would copy the
+  // whole document hundreds of times an hour. While the same person keeps
+  // editing, their latest version is refreshed; a pause or another editor's
+  // save starts a new one.
+  const latest = await query<{ id: string; user_id: string | null; version_number: number | string; recent: number | string }>(
+    `SELECT id, user_id, version_number,
+            CASE WHEN created_at > datetime('now', '-${VERSION_COALESCE_MINUTES} minutes') THEN 1 ELSE 0 END AS recent
+     FROM content_versions WHERE content_item_id = $1 ORDER BY version_number DESC LIMIT 1`,
+    [input.contentItemId],
+  )
+  const previous = latest.rows[0]
+  if (previous && Number(previous.recent) === 1 && (previous.user_id ?? null) === (input.userId ?? null)) {
+    await query("UPDATE content_versions SET title = $1, payload = $2, plain_text = $3 WHERE id = $4", [
+      input.title.trim() || "Untitled",
+      JSON.stringify(input.payload || {}),
+      truncateSummary(input.plainText || extractPlainText(input.payload), 20000),
+      previous.id,
+    ])
+    return { versionNumber: Number(previous.version_number) }
+  }
   const versionResult = await query<{ version_number: number | string }>(
     "SELECT COALESCE(MAX(version_number), 0) + 1 AS version_number FROM content_versions WHERE content_item_id = $1",
     [input.contentItemId],
@@ -1443,6 +1469,21 @@ export async function listEditorDocuments(user: User, documentType = "doc", stat
     [documentType, user.id, user.role],
   )
   return result.rows.map((row) => ({ ...row, content: parseJsonObject(row.content), tags: parseJsonArray(row.tags) }))
+}
+
+/** One active document of a type, when the caller owns it (or is an admin). */
+export async function getEditorDocument(user: User, id: string, documentType = "doc") {
+  await ensureDatabase()
+  const rowId = normalizeId(id)
+  if (!rowId) return null
+  const result = await query(
+    `SELECT * FROM editor_documents
+     WHERE id = $1 AND document_type = $2 AND archived_at IS NULL AND (owner_user_id = $3 OR $4 = 'admin')
+     LIMIT 1`,
+    [rowId, documentType, user.id, user.role],
+  )
+  const row = result.rows[0]
+  return row ? { ...row, content: parseJsonObject(row.content), tags: parseJsonArray(row.tags) } : null
 }
 
 export async function saveEditorDocument(user: User, input: Record<string, unknown>, documentType = "doc") {

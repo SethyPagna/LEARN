@@ -38,6 +38,16 @@ export interface ResourceRouteDescriptor {
   archive: (user: User, id: string) => Promise<unknown>
   /** Un-archive one row by id, returning the restored row. */
   restore: (user: User, id: string) => Promise<unknown>
+  /**
+   * Optional single read: `GET ?id=` answers `{ item }`, or 404 when the row
+   * does not exist or the caller may not read it.
+   */
+  get?: (user: User, id: string) => Promise<unknown | null>
+  /**
+   * Optional light listing: `GET ?view=summary` passes every row through
+   * this, so a picker can show many items without downloading each full body.
+   */
+  summarize?: (row: unknown) => unknown
 }
 
 /**
@@ -49,13 +59,19 @@ export interface ResourceRouteDescriptor {
  * data-layer error still becomes a `{ error }` JSON response.
  */
 export function createResourceRoute(descriptor: ResourceRouteDescriptor) {
-  const { name, list, save, archive, restore } = descriptor
+  const { name, list, save, archive, restore, get, summarize } = descriptor
 
   const GET = withApiErrorBoundary(async (request: NextRequest) => {
     const user = await requireApiUser(request)
     if (isApiResponse(user)) return user
-    const status = normalizeArchiveStatus(new URL(request.url).searchParams.get("status"))
-    return ok({ items: await list(user, status) })
+    const params = new URL(request.url).searchParams
+    const id = params.get("id")
+    if (get && id !== null) {
+      const item = await get(user, id)
+      return item ? ok({ item }) : fail(`That ${name} was not found.`, 404)
+    }
+    const items = await list(user, normalizeArchiveStatus(params.get("status")))
+    return ok({ items: summarize && params.get("view") === "summary" ? items.map(summarize) : items })
   })
 
   const POST = withApiErrorBoundary(async (request: NextRequest) => {
