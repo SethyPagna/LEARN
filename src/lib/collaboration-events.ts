@@ -1,11 +1,41 @@
-export const realtimeKinds = ["rooms", "battles", "presence", "chat"] as const
-export const collaborationEventTypes = ["presence", "pomodoro", "battle-answer", "editor-change", "snapshot", "chat-message", "typing", "call-signal"] as const
+export const realtimeKinds = ["rooms", "battles", "presence", "chat", "inbox"] as const
+export const collaborationEventTypes = [
+  "presence",
+  "pomodoro",
+  "battle-answer",
+  "editor-change",
+  "snapshot",
+  "chat-message",
+  "typing",
+  "call-signal",
+  "cursor",
+  // Server-originated only (see clientMayEmit in lib/realtime/hub-core.ts):
+  "chat-event",
+  "call-ring",
+  "notification",
+  "game-state",
+  "story-event",
+] as const
+
+/**
+ * Event types an API route creates after persisting a change. They carry a
+ * structured payload the route built itself, so validation only bounds their
+ * size and shape; the transports refuse them from client sockets.
+ */
+export const serverOnlyEventTypes = ["chat-event", "call-ring", "notification", "game-state", "story-event"] as const
 
 export type RealtimeKind = typeof realtimeKinds[number]
 export type CollaborationEventType = typeof collaborationEventTypes[number]
 export type CollaborationSessionType = "editor" | "room" | "battle" | "presence" | "chat"
 
-export const callSignalKinds = ["offer", "answer", "ice-candidate", "hangup", "decline", "busy"] as const
+/**
+ * Call signaling vocabulary. offer/answer/ice-candidate carry WebRTC
+ * negotiation between two devices (always addressed with `to`); join/leave
+ * announce a device entering or leaving a (possibly group) call; ringing,
+ * decline and busy answer an incoming ring; media-state shares mute/camera/
+ * screen state so every tile can show it.
+ */
+export const callSignalKinds = ["offer", "answer", "ice-candidate", "hangup", "decline", "busy", "join", "leave", "ringing", "media-state"] as const
 export type CallSignalKind = typeof callSignalKinds[number]
 
 export interface CollaborationEventPayload {
@@ -43,13 +73,18 @@ export function sessionTypeForRealtimeKind(kind: RealtimeKind): CollaborationSes
   return "presence"
 }
 
+export function isServerOnlyEventType(type: string) {
+  return (serverOnlyEventTypes as readonly string[]).includes(type)
+}
+
 export function collaborationSessionId(kind: RealtimeKind, channelId: string) {
   const safeChannel = channelId.replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 96) || "channel"
   return `collab_${kind}_${safeChannel}`
 }
 
 export function shouldPersistCollaborationEvent(type: CollaborationEventType) {
-  return type !== "presence" && type !== "typing" && type !== "chat-message" && type !== "call-signal"
+  if (isServerOnlyEventType(type)) return false
+  return type !== "presence" && type !== "typing" && type !== "chat-message" && type !== "call-signal" && type !== "cursor"
 }
 
 function payloadSize(value: unknown) {
@@ -172,13 +207,56 @@ export function validateCollaborationEvent(input: unknown): CollaborationEventVa
     if (!(callSignalKinds as readonly string[]).includes(kind)) return { ok: false, error: "Unsupported call signal kind." }
 
     const video = Boolean(record.video ?? payload.video ?? false)
-    const sdp = typeof (record.sdp ?? payload.sdp) === "string" ? cleanString(record.sdp ?? payload.sdp, 12000) : undefined
+    // A video offer carrying audio, camera and screen transceivers runs well
+    // past 12 KB of SDP in Chrome; the frame-level cap still bounds the total.
+    const sdp = typeof (record.sdp ?? payload.sdp) === "string" ? cleanString(record.sdp ?? payload.sdp, 40000) : undefined
     const candidate = typeof (record.candidate ?? payload.candidate) === "string" ? cleanString(record.candidate ?? payload.candidate, 4000) : undefined
 
     if ((kind === "offer" || kind === "answer") && !sdp) return { ok: false, error: "Offer/answer signals require an sdp payload." }
     if (kind === "ice-candidate" && candidate === undefined) return { ok: false, error: "ICE candidate signals require a candidate payload." }
 
-    return { ok: true, event: { type, userId, payload: { callId, kind, video, sdp, candidate } } }
+    const signalPayload: Record<string, unknown> = { callId, kind, video, sdp, candidate }
+    if (kind === "media-state" || kind === "join") {
+      const media = objectPayload(record.media ?? payload.media)
+      signalPayload.media = {
+        audio: media.audio !== false,
+        video: Boolean(media.video),
+        screen: Boolean(media.screen),
+      }
+    }
+    const conversationId = cleanString(record.conversationId ?? payload.conversationId, 120)
+    if (conversationId) signalPayload.conversationId = conversationId
+    const name = cleanString(record.name ?? payload.name, 80)
+    if (name) signalPayload.name = name
+
+    return { ok: true, event: { type, userId, payload: signalPayload } }
+  }
+
+  if (type === "cursor") {
+    const x = Number(record.x ?? payload.x)
+    const y = Number(record.y ?? payload.y)
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return { ok: false, error: "Cursor events require numeric x and y." }
+    return {
+      ok: true,
+      event: {
+        type,
+        userId,
+        payload: {
+          x: Math.round(x * 10) / 10,
+          y: Math.round(y * 10) / 10,
+          target: cleanString(record.target ?? payload.target, 120),
+        },
+      },
+    }
+  }
+
+  if (isServerOnlyEventType(type)) {
+    // Built by our own API routes; keep the structure, bounded by the size
+    // check above, and require the payload to be a real object.
+    if (!record.payload || typeof record.payload !== "object" || Array.isArray(record.payload)) {
+      return { ok: false, error: "Server events require an object payload." }
+    }
+    return { ok: true, event: { type, userId, payload: { ...payload } } }
   }
 
   const summary = cleanString(record.summary || payload.summary, 500)

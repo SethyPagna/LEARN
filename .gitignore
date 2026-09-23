@@ -49,3 +49,9 @@ next-env.d.ts
 # local audit evidence — regenerate with
 #   AUDIT_SHOTS=DELIVERY/screenshots pnpm audit:ux
 /DELIVERY/
+
+# wrangler / OpenNext local secrets
+.dev.vars
+
+# local assistant launch config
+.claude/

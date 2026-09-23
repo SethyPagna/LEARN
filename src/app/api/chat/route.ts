@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server"
 import { fail, isApiResponse, ok, readJsonObject, requireApiUser, withApiErrorBoundary } from "@/lib/api"
 import { dmChatChannelId, groupChatChannelId } from "@/lib/chat-channel"
-import { listChatMessages, listChatThreads, postChatMessage } from "@/lib/data"
+import { listChatMessages, listChatThreads, postChatMessage, sanitizeClientChatMetadata } from "@/lib/data"
 import { broadcastRealtimeEvent } from "@/lib/realtime-broadcast"
 
 export const GET = withApiErrorBoundary(async (request: NextRequest) => {
@@ -17,7 +17,7 @@ export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   if (isApiResponse(user)) return user
   const body = await readJsonObject(request)
   if (!String(body.body || "").trim()) return fail("Message body is required.")
-  const result = await postChatMessage(user, body)
+  const result = await postChatMessage(user, { ...body, metadata: await sanitizeClientChatMetadata(user, body.metadata) })
 
   // Fire-and-forget: push the message live to anyone else currently viewing this
   // conversation. The REST write above is already durable, so a failed broadcast

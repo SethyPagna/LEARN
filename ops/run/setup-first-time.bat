@@ -1,6 +1,6 @@
 @echo off
 setlocal
-cd /d "%~dp0\.."
+cd /d "%~dp0\..\.."
 
 echo LEARN first setup: Cloudflare D1 + R2
 if not exist ".dev.vars" (

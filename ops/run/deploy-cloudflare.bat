@@ -1,6 +1,6 @@
 @echo off
 setlocal
-cd /d "%~dp0\.."
+cd /d "%~dp0\..\.."
 set PATH=%CD%\ops\run\bin;%PATH%
 
 if "%CLOUDFLARE_ACCOUNT_ID%"=="" (

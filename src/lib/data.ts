@@ -1900,9 +1900,12 @@ async function isChatThreadParticipant(user: User, threadId: string) {
  * recipient the file's owner (they still can't delete or re-attach it).
  */
 export async function isFileSharedWithUserViaChat(fileId: string, user: User) {
+  // The message's author must own the file: naming someone else's file id in
+  // a message you wrote must not turn into read access for your audience.
   const result = await query(
     `SELECT 1 FROM chat_messages m
      JOIN chat_threads t ON t.id = m.thread_id
+     JOIN media_assets a ON a.id = $1 AND a.owner_user_id = m.user_id
      WHERE json_extract(m.metadata, '$.attachment.fileId') = $1
        AND (t.created_by_user_id = $2 OR t.target_user_id = $2 OR t.group_id IN (SELECT group_id FROM group_members WHERE user_id = $2))
      LIMIT 1`,
@@ -1911,11 +1914,43 @@ export async function isFileSharedWithUserViaChat(fileId: string, user: User) {
   return Boolean(result.rows[0])
 }
 
+/**
+ * Reduces request-supplied chat metadata to what a client may set itself.
+ * Game invites and results are written by server code that calls
+ * `postChatMessage` directly, so a `kind` never survives from a request body
+ * (that is how a participant could post a fake "results" card). An attachment
+ * must be a file the sender uploaded.
+ */
+export async function sanitizeClientChatMetadata(user: User, raw: unknown): Promise<Record<string, unknown>> {
+  const input = raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : {}
+  const clean: Record<string, unknown> = {}
+  for (const key of ["channel", "intent"]) {
+    if (typeof input[key] === "string") clean[key] = String(input[key]).slice(0, 40)
+  }
+  for (const key of ["hasMention", "hasStudioLink"]) {
+    if (typeof input[key] === "boolean") clean[key] = input[key]
+  }
+
+  const attachment = input.attachment && typeof input.attachment === "object" ? input.attachment as Record<string, unknown> : null
+  const fileId = String(attachment?.fileId || "").trim()
+  if (fileId) {
+    const owned = await query("SELECT id, filename, content_type FROM media_assets WHERE id = $1 AND owner_user_id = $2 LIMIT 1", [fileId, user.id])
+    const row = owned.rows[0]
+    if (!row) throw new Error("You can only attach files you uploaded.")
+    clean.attachment = { fileId, filename: String(row.filename || ""), contentType: String(row.content_type || "") }
+  }
+  return clean
+}
+
 export async function listChatMessages(user: User, threadId: string) {
   await ensureDatabase()
   if (!(await isChatThreadParticipant(user, threadId))) throw new Error("You don't have access to this conversation.")
+  // The newest 200, shown oldest-first: a long conversation used to be stuck
+  // showing its first 200 messages and never the new ones.
   const result = await query(
-    "SELECT * FROM chat_messages WHERE thread_id = $1 ORDER BY created_at ASC LIMIT 200",
+    `SELECT * FROM (
+       SELECT * FROM chat_messages WHERE thread_id = $1 ORDER BY created_at DESC, id DESC LIMIT 200
+     ) ORDER BY created_at ASC, id ASC`,
     [threadId],
   )
   return result.rows.map((row) => ({ ...row, metadata: parseJsonObject(row.metadata) }))

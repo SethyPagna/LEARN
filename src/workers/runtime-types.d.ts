@@ -14,6 +14,7 @@ interface DurableObjectId {}
 interface DurableObjectState {
   acceptWebSocket(socket: WebSocket): void
   getWebSockets(): WebSocket[]
+  setWebSocketAutoResponse?(pair: WebSocketRequestResponsePair): void
   storage: {
     deleteAll(): Promise<void>
     list(options?: { limit?: number; prefix?: string; reverse?: boolean }): Promise<Map<string, unknown>>
@@ -31,9 +32,13 @@ declare class WebSocketPair {
   1: WebSocket
 }
 
+declare class WebSocketRequestResponsePair {
+  constructor(request: string, response: string)
+}
+
 interface WebSocket {
-  deserializeAttachment?(): Record<string, unknown>
-  serializeAttachment?(value: Record<string, unknown>): void
+  deserializeAttachment?(): unknown
+  serializeAttachment?(value: unknown): void
 }
 
 interface ResponseInit {

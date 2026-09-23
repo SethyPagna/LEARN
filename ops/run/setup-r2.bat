@@ -1,6 +1,6 @@
 @echo off
 setlocal
-cd /d "%~dp0\.."
+cd /d "%~dp0\..\.."
 
 set FILE_BUCKET=%CLOUDFLARE_R2_BUCKET%
 if "%FILE_BUCKET%"=="" set FILE_BUCKET=learn-files

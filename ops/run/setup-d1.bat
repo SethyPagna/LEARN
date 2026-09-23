@@ -1,6 +1,6 @@
 @echo off
 setlocal
-cd /d "%~dp0\.."
+cd /d "%~dp0\..\.."
 
 set DB_NAME=%CLOUDFLARE_D1_DATABASE_NAME%
 if "%DB_NAME%"=="" set DB_NAME=learn-db

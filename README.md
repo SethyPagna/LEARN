@@ -28,7 +28,7 @@ Never commit real Cloudflare, AI, Vercel, or tunnel secrets. If a token was past
 
 ```powershell
 corepack pnpm install --frozen-lockfile
-copy ops\env\dev.vars.example .dev.vars
+copy ops\env\dev.vars.example ops\cloudflare\.dev.vars
 ops\run\setup-first-time.bat
 ```
 

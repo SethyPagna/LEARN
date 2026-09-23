@@ -1,6 +1,6 @@
 @echo off
 setlocal
-cd /d "%~dp0\.."
+cd /d "%~dp0\..\.."
 
 echo Checking dependencies and Cloudflare configuration...
 call ops\run\bin\pnpm.cmd install --frozen-lockfile
