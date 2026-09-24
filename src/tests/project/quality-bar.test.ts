@@ -44,11 +44,8 @@ const DANGEROUS_HTML_ALLOWLIST = new Set(["src/app/layout.tsx"])
  * `==` because adding another fallback is fine and deleting one is not.
  */
 const REDUCED_MOTION_SURFACES: ReadonlyArray<[file: string, minimum: number]> = [
-  ["src/app/page.tsx", 1],
-  ["src/components/intro-workflow-emil.tsx", 3],
   ["src/components/intro-workflow.tsx", 1],
   ["src/components/launch-showcase.tsx", 1],
-  ["src/components/public-workflow-link.tsx", 1],
 ]
 
 function listSourceFiles(rootDir: string): string[] {

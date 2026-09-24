@@ -1,163 +1,29 @@
 import { redirect } from "next/navigation"
 import { cookies } from "next/headers"
 import Link from "next/link"
-import { ArrowRight, BookOpen, Brain, GraduationCap, Layers3, Sparkles } from "lucide-react"
+import { ArrowRight, CalendarDays, FileText, LayoutPanelLeft, Table2 } from "lucide-react"
 import { SESSION_COOKIE } from "@/lib/data"
-import { IntroWorkflowEmil } from "@/components/intro-workflow-emil"
 import { PublicIntroControls } from "@/components/public-intro-controls"
-import { PublicWorkflowLink } from "@/components/public-workflow-link"
 
 export default async function HomePage() {
   const cookieStore = await cookies()
   const signedIn = Boolean(cookieStore.get(SESSION_COOKIE)?.value)
   if (signedIn) redirect("/dashboard")
 
-  return (
-    <main className="min-h-screen overflow-x-hidden bg-[#f6faf7] text-slate-950 dark:bg-[#040506] dark:text-white">
-      <section className="relative isolate grid h-[100svh] content-center overflow-hidden px-5 py-4 sm:px-8">
-        <div className="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_18%_14%,rgba(14,165,233,0.18),transparent_28%),radial-gradient(circle_at_78%_20%,rgba(16,185,129,0.16),transparent_24%),linear-gradient(135deg,#f8fbff_0%,#eaf7f0_54%,#f6faf7_100%)] dark:bg-[radial-gradient(circle_at_18%_14%,rgba(96,165,250,0.22),transparent_28%),radial-gradient(circle_at_78%_20%,rgba(16,185,129,0.18),transparent_24%),linear-gradient(135deg,#040506_0%,#08111f_54%,#040506_100%)]" />
-        <div className="absolute inset-x-0 bottom-0 -z-10 h-48 bg-gradient-to-t from-emerald-400/12 to-transparent" />
-
-        <nav className="mx-auto mb-5 flex w-full max-w-7xl items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-white shadow-lg shadow-emerald-300/10 dark:bg-white dark:text-black">
-              <BookOpen className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold tracking-[0.18em]">LEARN</p>
-              <p className="text-xs text-slate-500 dark:text-white/50">Vault to practice</p>
-            </div>
-          </div>
-          <PublicIntroControls signedIn={signedIn} />
-        </nav>
-
-        <div className="mx-auto grid w-full max-w-7xl items-center gap-6 lg:grid-cols-[0.86fr_1.14fr]">
-          <div className="intro-copy">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-sm text-emerald-800 shadow-sm shadow-emerald-950/5 dark:border-emerald-300/20 dark:bg-emerald-300/10 dark:text-emerald-100 dark:shadow-black/20">
-              <Sparkles className="h-4 w-4" />
-              Notes, AI, practice, and review in one loop
-            </div>
-            <h1 className="mt-4 max-w-3xl text-balance text-5xl font-semibold tracking-tight sm:text-6xl">
-              Capture what you learn. Turn it into practice.
-            </h1>
-            <p className="mt-4 max-w-xl text-lg leading-8 text-slate-600 dark:text-white/64">
-              LEARN is a personal study workspace where notes, docs, AI tutoring, quizzes, reviews, and your calendar stay connected.
-            </p>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Link href={signedIn ? "/dashboard" : "/login"} className="inline-flex h-11 items-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white shadow-lg shadow-slate-950/12 transition-[background-color,box-shadow,transform] duration-150 ease-out hover:-translate-y-0.5 hover:bg-emerald-900 hover:shadow-xl active:scale-[0.98] dark:bg-white dark:text-black dark:shadow-black/25 dark:hover:bg-emerald-100">
-                {signedIn ? "Go to LEARN" : "Start learning"}
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <PublicWorkflowLink />
-            </div>
-            <div className="mt-6 grid max-w-xl grid-cols-2 gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-white/58 sm:grid-cols-4">
-              {["Capture", "Organize", "Practice", "Remember"].map((step) => (
-                <span key={step} className="rounded-full border border-slate-300/70 bg-white/50 px-3 py-2 text-center shadow-sm shadow-slate-950/5 dark:border-white/10 dark:bg-white/[0.045] dark:shadow-black/20">{step}</span>
-              ))}
-            </div>
-          </div>
-
-          <div className="intro-stage">
-            <LearningLoopPreview />
-          </div>
-        </div>
-
-        <style>{`
-          @keyframes intro-rise {
-            from { opacity: 0; transform: translateY(18px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-          @keyframes intro-scan {
-            0%, 100% { transform: translateX(-18%); opacity: 0.36; }
-            50% { transform: translateX(18%); opacity: 0.72; }
-          }
-          .intro-copy, .intro-stage { animation: intro-rise 720ms ease-out both; }
-          .intro-stage { animation-delay: 120ms; }
-          .intro-loop-scan { animation: intro-scan 6s ease-in-out infinite; }
-          @media (prefers-reduced-motion: reduce) {
-            .intro-copy, .intro-stage, .intro-loop-scan { animation: none !important; }
-          }
-        `}</style>
-      </section>
-      <IntroWorkflowEmil />
-    </main>
-  )
-}
-
-function LearningLoopPreview() {
-  return (
-    <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.055] p-3 shadow-2xl shadow-black/50 backdrop-blur">
-      <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-emerald-200/60 to-transparent" />
-      <div className="intro-loop-scan pointer-events-none absolute left-8 right-8 top-24 h-24 rounded-full bg-emerald-300/15 blur-3xl" />
-      <div className="relative rounded-2xl border border-white/10 bg-[#07101b]/92 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200">Learning loop</p>
-            <h2 className="mt-1 text-2xl font-semibold text-white">From idea to memory</h2>
-          </div>
-          <span className="rounded-full border border-emerald-200/20 bg-emerald-200/10 px-3 py-1 text-xs font-semibold text-emerald-100">Live preview</span>
-        </div>
-
-        <div className="mt-5 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
-          <section className="rounded-2xl bg-[#eef5ff] p-4 text-slate-950">
-            <div className="flex flex-wrap items-center gap-2">
-              {["Style", "Text", "Insert", "Find"].map((item) => (
-                <span key={item} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">{item}</span>
-              ))}
-            </div>
-            <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                <Layers3 className="h-4 w-4 text-sky-500" />
-                Studio note
-              </div>
-              <h3 className="mt-2 text-3xl font-semibold">Database Indexing</h3>
-              <p className="mt-3 text-sm leading-6 text-slate-600">B-tree indexes help range queries. Hash indexes are best for exact matches.</p>
-              <div className="mt-4 grid gap-2">
-                <div className="h-2 w-4/5 rounded bg-emerald-300" />
-                <div className="h-2 w-3/5 rounded bg-sky-200" />
-              </div>
-            </div>
-          </section>
-
-          <section className="grid gap-3">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-black">
-                  <Brain className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-white">AI Tutor</p>
-                  <p className="text-xs text-white/48">Turns the note into questions</p>
-                </div>
-              </div>
-              <p className="mt-4 rounded-xl bg-black/28 p-3 text-sm leading-6 text-white/72">Generate a mixed quiz with explanations and save misses to review.</p>
-            </div>
-
-            <div className="rounded-2xl border border-emerald-200/16 bg-emerald-200/8 p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-200 text-slate-950">
-                  <GraduationCap className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-white">Practice</p>
-                  <p className="text-xs text-white/48">Reviews remember what you missed</p>
-                </div>
-              </div>
-              <div className="mt-4 grid gap-2">
-                {["Quiz ready", "Mistakes tracked", "Next review scheduled"].map((item) => (
-                  <span key={item} className="rounded-lg bg-black/24 px-3 py-2 text-sm font-semibold text-emerald-100">{item}</span>
-                ))}
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <div className="mt-4 grid grid-cols-4 gap-2 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-white/56">
-          {["Capture", "Clean", "Quiz", "Review"].map((item) => (
-            <span key={item} className="rounded-full border border-white/10 bg-white/[0.045] px-2 py-2">{item}</span>
-          ))}
-        </div>
+  return <main className="min-h-dvh bg-background text-foreground">
+    <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8" aria-label="Public navigation">
+      <Link href="/" className="flex items-center gap-2.5 text-sm font-semibold"><img loading="eager" src="/icon.svg" alt="" width={32} height={32} />LEARN</Link>
+      <PublicIntroControls signedIn={signedIn} />
+    </nav>
+    <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-12 sm:px-8 sm:py-20 lg:grid-cols-[.9fr_1.1fr]">
+      <div><p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">A space for your ideas</p><h1 className="mt-4 text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">Make room for<br />what you’re learning.</h1><p className="mt-5 max-w-md text-base leading-7 text-muted-foreground">Write, create, practise and plan. A personal workspace that keeps your projects and learning together.</p><div className="mt-7 flex items-center gap-4"><Link href="/login" className="editor-primary !px-4 !py-3">Open LEARN<ArrowRight className="h-4 w-4" /></Link><a href="#workflow" className="text-sm text-muted-foreground hover:text-foreground">How it works</a></div></div>
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-paper" aria-label="Example Studio workspace">
+        <div className="flex items-center justify-between border-b border-border px-5 py-3 text-xs text-muted-foreground"><span>Studio</span><span>Example workspace</span></div>
+        <div className="p-5 sm:p-7"><h2 className="text-lg font-semibold">Your projects</h2><p className="mt-1 text-xs text-muted-foreground">Everything starts with one idea.</p><div className="mt-5 divide-y divide-border">{[{ icon: FileText, title: "Ideas worth keeping", type: "Document" }, { icon: LayoutPanelLeft, title: "The bigger picture", type: "Canvas" }, { icon: Table2, title: "A little progress, every day", type: "Sheet" }, { icon: CalendarDays, title: "Time to focus", type: "Calendar" }].map(({icon: Icon, title, type}) => <div key={title} className="flex items-center gap-3 py-4"><Icon className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1 text-sm font-medium">{title}</span><span className="text-xs text-muted-foreground">{type}</span></div>)}</div></div>
       </div>
-    </div>
-  )
+    </section>
+    <section id="workflow" className="mx-auto grid max-w-6xl gap-8 border-t border-border px-5 py-10 sm:grid-cols-3 sm:px-8">
+      {[['01', 'Start with your work', 'Keep notes, documents, canvases, slides and sheets together in Studio.'], ['02', 'Make it make sense', 'Bring a source to your AI tutor, ask questions and turn ideas into practice.'], ['03', 'Keep moving forward', 'Review what you learn, plan your time and work with others.']].map(([step,title,body]) => <div key={step}><span className="text-xs text-muted-foreground">{step}</span><h2 className="mt-3 text-sm font-semibold">{title}</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">{body}</p></div>)}
+    </section>
+  </main>
 }
