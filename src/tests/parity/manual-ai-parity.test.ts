@@ -489,20 +489,14 @@ test("slides: the AI deck payload and the manual deck payload agree on what they
 })
 
 test("slides: the PPTX writer is browser-only, so the outline is the export compared here", () => {
-  // The deck's other export is PowerPoint, and the criterion asks for it if it is
-  // callable in Node. It is not: the exporter lives inside the Studio view, waits
-  // for `<script src="/vendor/pptxgen.min.js">` to define `window.PptxGenJS`, and
-  // downloads through `pptx.writeFile`. Nothing in `src/lib` builds a `.pptx`, so
-  // there is no byte-comparable writer for a pure test — the outline above is the
-  // structure that exporter lays out (accent, title, body, notes per slide).
-  //
-  // This assertion is the evidence for that claim, and it is also the tripwire:
-  // if the PPTX path ever becomes Node-callable, this fails and the deck must be
-  // compared by bytes instead of by outline.
+  // Studio and Designs share the browser writer. The pure plan is covered by
+  // design/from-deck tests; binary download still requires the browser runtime.
   const studioView = fs.readFileSync(path.join(PROJECT_ROOT, "src", "components", "learn", "views", "studio-view.tsx"), "utf8")
-  assert.match(studioView, /window\.PptxGenJS/, "the PPTX exporter must still be the browser global")
-  assert.match(studioView, /\/vendor\/pptxgen\.min\.js/, "the PPTX exporter must still come from a <script> tag")
-  assert.match(studioView, /pptx\.writeFile\(/, "the PPTX exporter must still hand the file to the browser")
+  const exporter = fs.readFileSync(path.join(PROJECT_ROOT, "src", "components", "learn", "design", "design-export.ts"), "utf8")
+  assert.match(studioView, /exportDesign\(deckToDesign\(/)
+  assert.match(exporter, /\/vendor\/pptxgen\.min\.js/)
+  assert.match(exporter, /pptx\.writeFile\(/)
+
 })
 
 // ---------------------------------------------------------------------------

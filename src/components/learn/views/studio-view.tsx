@@ -97,7 +97,13 @@ import {
   X,
 } from "lucide-react"
 import { api, formatDate } from "../api"
-import type { Note, SlideObject, StudioDirtyBadge, StudioKind, StudioLayoutState, StudioPane, StudioTab, WorkspaceDeck, WorkspaceDocument, WorkspaceSheet } from "../types"
+import type { Note, SlideObject, StudioDirtyBadge, StudioKind, StudioLayoutState, StudioPane, StudioTab, View, WorkspaceDeck, WorkspaceDocument, WorkspaceSheet } from "../types"
+import { launchAiTutorFromSource, type TutorSource } from "@/lib/ai/source-launch"
+import { deckToDesign } from "@/lib/design/from-deck"
+import { htmlToDesignSpec } from "@/lib/design/from-content"
+import { designFromSpec } from "@/lib/design/layout"
+import { exportDesign } from "../design/design-export"
+import { StudioContentImport, type ImportedStudioContent } from "../studio-content-import"
 import type { WorkspaceOptions } from "../preferences"
 import { EmptyState, Panel } from "../ui"
 import { VoiceInput } from "../voice-input"
@@ -141,7 +147,7 @@ import { buildStudioProjectBrowserHeader, buildStudioProjectBrowserState, buildS
 import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 import { HEADING_STYLE_KEY, STUDIO_LAYOUT_KEY, parseStoredHeadingStyles, parseStoredStudioLayout, type HeadingStyleLevel, type HeadingStylePreset } from "@/lib/studio-preferences"
-import { DOCX_MIME, PDF_MIME, XLSX_MIME, deckSlidesToPdf, documentHtmlToDocx, documentHtmlToPdf, sheetCellsToXlsx } from "@/lib/export/studio-export"
+import { DOCX_MIME, PDF_MIME, XLSX_MIME, documentHtmlToDocx, documentHtmlToPdf, sheetCellsToXlsx } from "@/lib/export/studio-export"
 import { studioDocumentFromDocxFile, studioSheetFromXlsxFile } from "@/lib/export/studio-import"
 import { StudioImportFile } from "../studio-import-file"
 
@@ -417,37 +423,6 @@ function plainTextFromHtml(value: string) {
   return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
 }
 
-type PptxGenConstructor = typeof import("pptxgenjs").default
-
-declare global {
-  interface Window {
-    PptxGenJS?: PptxGenConstructor
-  }
-}
-
-async function loadPptxGen() {
-  if (window.PptxGenJS) return window.PptxGenJS
-  await new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>('script[data-learn-pptxgen="true"]')
-    if (existing) {
-      existing.addEventListener("load", () => resolve(), { once: true })
-      existing.addEventListener("error", () => reject(new Error("Unable to load the PPTX exporter.")), { once: true })
-      return
-    }
-
-    const script = document.createElement("script")
-    script.src = "/vendor/pptxgen.min.js"
-    script.async = true
-    script.dataset.learnPptxgen = "true"
-    script.onload = () => resolve()
-    script.onerror = () => reject(new Error("Unable to load the PPTX exporter."))
-    document.head.appendChild(script)
-  })
-
-  if (!window.PptxGenJS) throw new Error("PPTX exporter did not initialize.")
-  return window.PptxGenJS
-}
-
 export function StudioView({
   initialKind,
   notes,
@@ -456,6 +431,7 @@ export function StudioView({
   setNotes,
   setSelectedNoteId,
   onDraftSummary,
+  setView,
 }: {
   initialKind: StudioKind
   notes: Note[]
@@ -464,6 +440,7 @@ export function StudioView({
   setNotes: React.Dispatch<React.SetStateAction<Note[]>>
   setSelectedNoteId: (id: string) => void
   onDraftSummary?: (summary: StudioDraftSummary) => void
+  setView: (view: View) => void
 }) {
   const [kind, setKind] = useState<StudioKind>(initialKind)
   const [query, setQuery] = useState("")
@@ -1213,6 +1190,18 @@ export function StudioView({
     setSlides(slidesFromDeck(deck))
   }
 
+  async function importOfficeContent(content: ImportedStudioContent) {
+    if (content.kind === "slides") {
+      const response = await api<{ item: WorkspaceDeck }>("/api/slides", { method: "POST", body: JSON.stringify({ title: content.title, slides: content.slides }) })
+      applyImportedItem("slides", response.item)
+    } else {
+      const response = await api<{ item: WorkspaceDocument }>("/api/docs", { method: "POST", body: JSON.stringify({ title: content.title, content: { text: content.html } }) })
+      applyImportedItem("doc", response.item)
+    }
+    setStudioMode("editor")
+    setStatus(`Imported ${content.title}. ${content.warnings.join(" ")}`)
+  }
+
   async function refreshArchivedItems() {
     setStatus("Loading archived Studio items...")
     try {
@@ -1512,34 +1501,56 @@ export function StudioView({
       return
     }
     if (format === "pdf" && kind === "slides") {
-      // The deck's second format, from the same slides the PPTX path lays out.
-      downloadBytes(`${base}.pdf`, deckSlidesToPdf({ title: activeTitle(), slides }), PDF_MIME)
-      return
+      return exportDeck("pdf")
     }
     if (format === "xlsx" && kind === "sheets") {
       downloadBytes(`${base}.xlsx`, sheetCellsToXlsx({ title: activeTitle(), cells: ensureSheetCells(cells) }), XLSX_MIME)
       return
     }
     if (kind === "sheets") return downloadText(`${base}.csv`, currentPayload("download"), "text/csv")
-    if (kind === "slides" && exportMode) return exportPptx(base)
+    if (kind === "slides" && exportMode) return exportDeck("pptx")
     if (kind === "slides") return downloadText(`${base}.outline.txt`, currentPayload("download"), "text/plain")
     downloadText(`${base}.${exportMode ? "txt" : "html"}`, currentPayload(exportMode ? "export" : "download"), exportMode ? "text/plain" : "text/html")
   }
 
-  async function exportPptx(base: string) {
-    const pptxgen = await loadPptxGen()
-    const pptx = new pptxgen()
-    pptx.layout = options.slidesAspect === "4:3" ? "LAYOUT_4X3" : "LAYOUT_WIDE"
-    pptx.author = "LEARN"
-    slides.forEach((draft) => {
-      const slide = pptx.addSlide()
-      slide.background = { color: draft.theme === "sunrise" ? "FFF3D6" : "111827" }
-      slide.addText(draft.accent || "LEARN", { x: 0.5, y: 0.35, w: 2.2, h: 0.28, fontSize: 10, bold: true, color: draft.theme === "sunrise" ? "92400E" : "A7F3D0" })
-      slide.addText(draft.title || "Slide", { x: 0.5, y: 0.8, w: 8.8, h: 0.7, fontSize: 28, bold: true, color: draft.theme === "sunrise" ? "111827" : "FFFFFF" })
-      slide.addText(draft.body || "", { x: 0.55, y: 1.65, w: 8.4, h: 3.6, fontSize: 15, breakLine: false, color: draft.theme === "sunrise" ? "374151" : "D1D5DB", fit: "shrink" })
-      if (draft.speakerNotes) slide.addNotes(draft.speakerNotes)
-    })
-    await pptx.writeFile({ fileName: `${base}.pptx` })
+  async function exportDeck(format: "pdf" | "pptx") {
+    try {
+      const result = await exportDesign(deckToDesign({ title: activeTitle(), slides, aspect: options.slidesAspect }), { format })
+      setStatus(`Exported ${result.pages} pages as ${result.filename}.`)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "The deck could not be exported.")
+    }
+  }
+
+  function askAi(task: TutorSource["task"] = "explain", content = currentPayload("export"), title = activeTitle()) {
+    try {
+      launchAiTutorFromSource({ title, content, task })
+      setView("ai")
+    } catch {
+      setStatus("Your browser could not save the AI handoff. Allow local storage and try again.")
+    }
+  }
+
+  function askAiForItem(item: StudioRecordItem) {
+    const source = findStudioItem(item)
+    if (!source) { setStatus("This item could not be loaded."); return }
+    const content = item.kind === "notes" ? (source as Note).content
+      : item.kind === "docs" ? textFromDocument(source as WorkspaceDocument)
+      : item.kind === "sheets" ? cellsFromSheet(source as WorkspaceSheet).map((row) => row.join("\t")).join("\n")
+      : slidesFromDeck(source as WorkspaceDeck).map((slide) => `${slide.title}\n${slide.body}\n${slide.objects?.map((object) => object.text || "").join("\n") || ""}`).join("\n\n")
+    askAi("explain", content, source.title)
+  }
+
+  async function copyToDesign() {
+    try {
+      const doc = kind === "slides" ? deckToDesign({ title: activeTitle(), slides, aspect: options.slidesAspect })
+        : designFromSpec(htmlToDesignSpec(kind === "notes" ? noteHistory.present : docHistory.present, { title: activeTitle() }), { name: activeTitle(), format: "presentation" })
+      await api("/api/canvas", { method: "POST", body: JSON.stringify({ id: doc.id, title: doc.name, content: doc }) })
+      setView("canvas")
+      window.history.replaceState({ learnView: "canvas" }, "", `/canvas?design=${encodeURIComponent(doc.id)}`)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "This item could not be copied to Designs.")
+    }
   }
 
   function loadStudioItem(item: { id: string; kind: StudioKind }) {
@@ -1611,6 +1622,8 @@ export function StudioView({
 
   if (studioMode === "projects") {
     return (
+      <div className="grid gap-3">
+      <StudioContentImport onImport={importOfficeContent} />
       <StudioProjectBrowser
         activeKind={kind}
         canvasFormat={getAnyStudioCanvasFormat(canvasFormatId)}
@@ -1631,13 +1644,17 @@ export function StudioView({
         onShare={shareStudioItem}
         query={query}
       />
+      </div>
     )
   }
 
   return (
     <div className="grid gap-3">
+      {(kind === "docs" || kind === "slides") ? <StudioContentImport format={kind === "slides" ? "pptx" : "pdf"} onImport={importOfficeContent} /> : null}
       <Panel className="p-2">
         <div className="flex flex-wrap items-center gap-2">
+          <button onClick={() => askAi()} className="h-9 rounded-md border border-border px-3 text-sm font-semibold" type="button">Ask AI</button>
+          {kind !== "sheets" ? <button onClick={() => void copyToDesign()} className="h-9 rounded-md border border-border px-3 text-sm font-semibold" type="button">Copy to Designs</button> : null}
           <button onClick={() => setStudioMode("projects")} className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
             <ArrowLeft className="h-4 w-4" />
             Back
@@ -1736,10 +1753,7 @@ export function StudioView({
               viewMode={viewMode}
               onApplyTemplate={(template) => applyTemplateForKind(kind, template)}
               onArchive={archiveStudioItem}
-              onAskAi={(item) => {
-                selectItem(item)
-                setInspectorTab("AI")
-              }}
+              onAskAi={askAiForItem}
               onCopy={copyStudioItem}
               onDownload={(item) => downloadStudioItem(item)}
               onDuplicate={duplicateStudioItem}
@@ -1774,6 +1788,7 @@ export function StudioView({
                     noteDraft={noteDraft}
                     noteHistory={noteHistory}
                     onArchive={archiveActive}
+                    onAskAi={askAi}
                     onClosePane={() => setLayout((current) => closeStudioPane(current, pane.id))}
                     onCloseOthers={() => setLayout((current) => closeOtherStudioPanes(current, pane.id))}
                     onCopy={copyActive}
@@ -2696,6 +2711,7 @@ function StudioPaneSurface({
   noteDraft,
   noteHistory,
   onArchive,
+  onAskAi,
   onClosePane,
   onCloseOthers,
   onCopy,
@@ -2738,6 +2754,7 @@ function StudioPaneSurface({
   noteDraft: Note | null
   noteHistory: HistoryState<string>
   onArchive: () => void
+  onAskAi: (task?: TutorSource["task"], content?: string, title?: string) => void
   onClosePane: () => void
   onCloseOthers: () => void
   onCopy: () => void
@@ -2828,6 +2845,7 @@ function StudioPaneSurface({
                 noteDraft={noteDraft}
                 noteHistory={noteHistory}
                 onArchive={onArchive}
+                onAskAi={onAskAi}
                 onDuplicate={onDuplicate}
                 onSetCells={onSetCells}
                 onSetDocHistory={onSetDocHistory}
@@ -2850,6 +2868,7 @@ function StudioPaneSurface({
                   cells={cells}
                   currentTitle={activeTitle}
                   inspectorTab={inspectorTab}
+                  onAskAi={onAskAi}
                   onCopyLink={() => navigator.clipboard?.writeText(window.location.href)}
                   onDownload={onDownload}
                   onExport={onExport}
@@ -2864,7 +2883,7 @@ function StudioPaneSurface({
           )}
         </section>
       </ContextMenu.Trigger>
-      <StudioContextContent onCopy={onCopy} onDuplicate={onDuplicate} onArchive={onArchive} onAskAi={() => onSetInspectorTab("AI")} />
+      <StudioContextContent onCopy={onCopy} onDuplicate={onDuplicate} onArchive={onArchive} onAskAi={() => onAskAi()} />
     </ContextMenu.Root>
   )
 }
@@ -2917,6 +2936,7 @@ function StudioCanvas({
   noteDraft,
   noteHistory,
   onArchive,
+  onAskAi,
   onDuplicate,
   onSetCells,
   onSetDocHistory,
@@ -2937,6 +2957,7 @@ function StudioCanvas({
   noteDraft: Note | null
   noteHistory: HistoryState<string>
   onArchive: () => void
+  onAskAi: (task?: TutorSource["task"], content?: string, title?: string) => void
   onDuplicate: () => void
   onSetCells: React.Dispatch<React.SetStateAction<string[][]>>
   onSetDocHistory: React.Dispatch<React.SetStateAction<HistoryState<string>>>
@@ -3099,7 +3120,7 @@ function StudioCanvas({
                         onCopy={() => navigator.clipboard?.writeText(cell)}
                         onDuplicate={() => onSetCells((current) => addColumn(ensureSheetCells(current), cellIndex))}
                         onArchive={() => onSetCells((current) => deleteColumn(ensureSheetCells(current), cellIndex))}
-                        onAskAi={() => undefined}
+                        onAskAi={() => onAskAi("explain", cell, `Cell R${rowIndex + 1} C${cellIndex + 1}`)}
                       />
                     </ContextMenu.Root>
                   ))}
@@ -3189,6 +3210,7 @@ function StudioCanvas({
                       onSetSlides((current) => current.length > 1 ? current.filter((_, next) => next !== index) : current)
                       onSetSelectedSlideIndex(Math.max(0, Math.min(selectedSlideIndex, slides.length - 2)))
                     }}
+                    onAskAi={() => onAskAi("explain", `${slide.title}\n${slide.body}\n${slide.objects?.map((object) => object.text || "").join("\n") || ""}`, slide.title)}
                     onCopy={() => navigator.clipboard?.writeText(`${slide.title}\n${slide.body}`)}
                     onDuplicate={() => {
                       onSetSlides((current) => duplicateSlide(current, index))
@@ -3213,13 +3235,13 @@ function StudioCanvas({
               <MenuAction icon={Grid2X2} label="Shape" onClick={() => addSlideObject("shape")} />
               <MenuAction icon={Table2} label="Table" onClick={() => addSlideObject("table")} />
             </ActionMenu>
-            <button onClick={() => selectedObject ? updateSelectedObjectStyle(selectedObject, { background: "transparent" }) : updateSelectedSlide((slide) => ({ ...slide, background: "#ffffff" }))} className="h-8 rounded-md px-2 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground" title="Remove image background or reset page background" type="button">BG remover</button>
+            <button onClick={() => selectedObject ? updateSelectedObjectStyle(selectedObject, { background: "transparent" }) : updateSelectedSlide((slide) => ({ ...slide, background: "#ffffff" }))} className="h-8 rounded-md px-2 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground" title="Clear object fill or reset the page background" type="button">Clear fill</button>
             <ToolbarIcon icon={Scissors} label="Erase selected object" onClick={() => selectedObject ? updateSelectedSlide((slide) => removeSlideDesignObject(slide, selectedObject.id)) : updateSelectedSlide((slide) => ({ ...slide, body: "" }))} />
             <span className="mx-1 h-6 w-px bg-border" />
             {["#24305e", "#64748b", "#a7794f", "#b7e4dc"].map((color) => (
               <button key={color} onClick={() => applyQuickSlideColor(color)} className="h-6 w-6 rounded-full border border-border shadow-sm transition hover:scale-105" style={{ background: color }} title={`Apply ${color}`} type="button" />
             ))}
-            <ActionMenu compact label="Flip" icon={RotateCcw}>
+            <ActionMenu compact label="Move / size" icon={RotateCcw}>
               <MenuAction disabled={!selectedObject} icon={ArrowLeft} label="Nudge left" onClick={() => selectedObject ? nudgeSelectedObject(selectedObject, "left") : undefined} />
               <MenuAction disabled={!selectedObject} icon={ArrowRight} label="Nudge right" onClick={() => selectedObject ? nudgeSelectedObject(selectedObject, "right") : undefined} />
               <MenuAction disabled={!selectedObject} icon={Rows3} label="Tall crop" onClick={() => selectedObject ? resizeSelectedObject(selectedObject, "tall") : undefined} />
@@ -3596,6 +3618,7 @@ function SortableSlideThumb({
   id,
   index,
   onArchive,
+  onAskAi,
   onCopy,
   onDuplicate,
   onSelect,
@@ -3605,6 +3628,7 @@ function SortableSlideThumb({
   id: string
   index: number
   onArchive: () => void
+  onAskAi: (task?: TutorSource["task"], content?: string, title?: string) => void
   onCopy: () => void
   onDuplicate: () => void
   onSelect: () => void
@@ -3636,7 +3660,7 @@ function SortableSlideThumb({
           </span>
         </button>
       </ContextMenu.Trigger>
-      <StudioContextContent onCopy={onCopy} onDuplicate={onDuplicate} onArchive={onArchive} onAskAi={() => undefined} />
+      <StudioContextContent onCopy={onCopy} onDuplicate={onDuplicate} onArchive={onArchive} onAskAi={() => onAskAi()} />
     </ContextMenu.Root>
   )
 }
@@ -3962,6 +3986,7 @@ function StudioInspector({
   currentTitle,
   inspectorTab,
   onCopyLink,
+  onAskAi,
   onDownload,
   onExport,
   onSetInspectorTab,
@@ -3975,6 +4000,7 @@ function StudioInspector({
   currentTitle: string
   inspectorTab: string
   onCopyLink: () => void
+  onAskAi: (task?: TutorSource["task"], content?: string, title?: string) => void
   onDownload: (format?: StudioDownloadOption["id"]) => void
   onExport: (format?: StudioDownloadOption["id"]) => void
   onSetInspectorTab: (value: string) => void
@@ -3996,7 +4022,7 @@ function StudioInspector({
         <InspectorCard title="State" body={activeSummary} />
         {activeKind === "sheets" ? <InspectorCard title="Cell" body={`R${selectedCell.row + 1} C${selectedCell.column + 1}: ${cells[selectedCell.row]?.[selectedCell.column] || "blank"}`} /> : null}
         {activeKind === "slides" ? <InspectorCard title="Slide" body={`${selectedSlideIndex + 1} / ${slides.length}: ${slides[selectedSlideIndex]?.layout || "title"}`} /> : null}
-        {inspectorTab === "AI" ? <InspectorCard title="AI actions" body="Summarize, rewrite, translate, generate quiz, flashcards, or a study route from this active Studio item." /> : null}
+        {inspectorTab === "AI" ? <div className="grid gap-2" aria-label="AI actions">{([['explain', 'Explain source'], ['rewrite', 'Rewrite as note'], ['quiz', 'Create quiz'], ['flashcards', 'Create review cards'], ['activity', 'Schedule activity'], ['discussion', 'Create discussion space']] as const).map(([task, label]) => <button type="button" key={task} onClick={() => onAskAi(task)} className="min-h-9 rounded-md border border-border px-3 py-2 text-left">{label}</button>)}</div> : null}
         {inspectorTab === "History" ? <InspectorCard title="History" body="Undo/redo is local; saved versions and audit entries stay tied to the record APIs." /> : null}
         {inspectorTab === "Export" ? <StudioExportInspector activeKind={activeKind} onCopyLink={onCopyLink} onDownload={onDownload} onExport={onExport} /> : null}
       </div>

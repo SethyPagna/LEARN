@@ -552,7 +552,7 @@ test("Studio offers PDF for decks and the seam builds it from the slides", () =>
   assert.ok(deckOptions.includes("pptx"), `the deck menu keeps PPTX, got ${JSON.stringify(deckOptions)}`)
 
   assert.match(view, /format === "pdf" && kind === "slides"/, "the PDF branch is scoped to decks")
-  assert.match(view, /downloadBytes\(`\$\{base\}\.pdf`, deckSlidesToPdf\(/, "the deck PDF is downloaded through the existing bytes helper")
+  assert.match(view, /return exportDeck\("pdf"\)/, "deck PDF uses the same object-preserving design conversion as PPTX")
   assert.match(view, /PDF_MIME/, "the deck PDF is served as application/pdf")
 })
 
