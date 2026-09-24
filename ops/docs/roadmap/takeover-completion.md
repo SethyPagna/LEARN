@@ -44,3 +44,14 @@ Sequencing follows the [takeover council](../audits/2026-09-24-ai-council-takeov
 - Two-user/call and browser tests must separate proven local behavior from external
   network/device conditions. Do not label untested WAN calls as verified.
 - Record checks, commit IDs, remaining limitations and next work after each slice.
+
+## App-wide design follow-up — 2026-09-25
+
+- [x] Extend the compact shell and consistent navigation across the app.
+- [x] Redesign Files, AI, Practice, Chat, Settings, Vault, Progress and Admin layout.
+- [x] Simplify the public entry and sign-in experience.
+- [x] Add installable web app controls and correctly sized desktop icons.
+- [x] Remove replaced UI and confirmed unused helpers.
+- [x] Verify phone/tablet/desktop layouts, key interactions, tests and build.
+
+Evidence and environment limits: [app-wide design overhaul](../audits/2026-09-25-app-design-overhaul.md).
