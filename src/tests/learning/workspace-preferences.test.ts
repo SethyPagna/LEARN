@@ -6,6 +6,24 @@ test("workspace preference storage key stays stable", () => {
   assert.equal(WORKSPACE_OPTIONS_KEY, "learn_workspace_options")
 })
 
+test("personal studio settings round-trip and old preferences receive neutral defaults", () => {
+  const restored = parseStoredWorkspaceOptions(serializeWorkspaceOptions({ workspaceName: "My thinking room", dailyFocus: "Learn something slowly", appAccent: "ink" }))
+  assert.equal(restored.workspaceName, "My thinking room")
+  assert.equal(restored.dailyFocus, "Learn something slowly")
+  assert.equal(restored.appAccent, "ink")
+  const legacy = normalizeWorkspaceOptions({ appAccent: "rose" })
+  assert.equal(legacy.appAccent, "rose")
+  assert.equal(legacy.workspaceName, defaultWorkspaceOptions.workspaceName)
+  assert.equal(legacy.dailyFocus, "")
+})
+
+test("personal studio text is bounded and malformed saved values fall back", () => {
+  const options = normalizeWorkspaceOptions({ workspaceName: "a".repeat(200), dailyFocus: "b".repeat(300) })
+  assert.equal(options.workspaceName.length, 80)
+  assert.equal(options.dailyFocus.length, 160)
+  assert.equal(normalizeWorkspaceOptions({ workspaceName: {}, dailyFocus: null }).dailyFocus, "")
+})
+
 test("workspace preference normalization keeps valid personalization choices", () => {
   const options = normalizeWorkspaceOptions({
     appAccent: "rose",

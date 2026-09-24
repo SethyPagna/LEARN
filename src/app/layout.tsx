@@ -1,6 +1,6 @@
 import React from "react"
 import type { Metadata, Viewport } from 'next'
-import { Bricolage_Grotesque, Geist, Geist_Mono } from 'next/font/google'
+import { Geist, Geist_Mono } from 'next/font/google'
 import { ThemeProvider } from '@/components/theme-provider'
 import { PwaRegister } from '@/components/pwa-register'
 import { designFontVariables } from '@/components/learn/design/design-fonts'
@@ -8,10 +8,6 @@ import './globals.css'
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" })
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" })
-// Headings only: a grotesque with a hand-drawn warmth, so titles read like a
-// notebook's section labels while body text stays in Geist.
-const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-learn-display", display: "swap" })
-
 export const metadata: Metadata = {
   title: 'LEARN',
   description: 'A Cloudflare-first learning workspace for notes, quizzes, files, AI tutoring, and progress.',
@@ -41,8 +37,8 @@ export const viewport: Viewport = {
   // Matches the app's page backgrounds (src/app/page.tsx) so the browser and
   // installed-app chrome do not flash a mismatched colour.
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f6faf7' },
-    { media: '(prefers-color-scheme: dark)', color: '#040506' },
+    { media: '(prefers-color-scheme: light)', color: '#f8f9fc' },
+    { media: '(prefers-color-scheme: dark)', color: '#171923' },
   ],
 }
 
@@ -52,7 +48,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${geist.variable} ${geistMono.variable} ${display.variable} ${designFontVariables}`}>
+    <html lang="en" suppressHydrationWarning className={`${geist.variable} ${geistMono.variable} ${designFontVariables}`}>
       <body className="font-sans antialiased">
         <script
           dangerouslySetInnerHTML={{

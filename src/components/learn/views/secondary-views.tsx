@@ -1,5 +1,6 @@
 "use client"
 
+import { AppearanceSettings } from "../appearance-settings"
 import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, Bot, CalendarDays, CalendarPlus, Camera, Check, ChevronRight, Clock, Copy, Download, FileText, Filter, Gauge, Languages, Link as LinkIcon, Lock, Palette, Repeat2, Save, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserPlus, UserRound, Users, X } from "lucide-react"
 import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
@@ -946,6 +947,9 @@ export function SettingsView({
   const [introUrl, setIntroUrl] = useState(preferenceString(user?.preferences?.introUrl))
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState(Number(user?.preferences?.dailyGoalMinutes || 45))
   const [section, setSection] = useState<SettingsSectionId>("profile")
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("section") === "experience") setSection("experience")
+  }, [])
   const [status, setStatus] = useState("")
   const [saveBusy, setSaveBusy] = useState(false)
   const settingsSummary = useMemo(() => summarizeSettingsOptions(options), [options])
@@ -1128,10 +1132,9 @@ export function SettingsView({
 
       {section === "experience" ? (
         <Panel className="p-4">
-          <SettingsSectionHeader icon={Palette} title="Experience" body="Theme, language, density, and comfort." />
+          <AppearanceSettings options={options} setOptions={setOptions} />
+          <details className="mt-7 border-t border-border pt-4"><summary className="cursor-pointer text-sm font-medium">Editor and accessibility preferences</summary>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <SelectField label="Dashboard" value={options.dashboardDetail} options={["focused", "detailed"]} onChange={(value) => setOptions({ dashboardDetail: value as WorkspaceOptions["dashboardDetail"] })} />
-            <SelectField label="Accent color" value={options.appAccent} options={["teal", "sky", "violet", "rose", "amber"]} onChange={(value) => setOptions({ appAccent: value as WorkspaceOptions["appAccent"] })} />
             <SelectField label="Files layout" value={options.fileLayout} options={["list", "grid"]} onChange={(value) => setOptions({ fileLayout: value as WorkspaceOptions["fileLayout"] })} />
             <SelectField label="Docs template" value={options.docsTemplate} options={["study", "cornell", "project"]} onChange={(value) => setOptions({ docsTemplate: value as WorkspaceOptions["docsTemplate"] })} />
             <SelectField label="Slides aspect" value={options.slidesAspect} options={["16:9", "4:3"]} onChange={(value) => setOptions({ slidesAspect: value as WorkspaceOptions["slidesAspect"] })} />
@@ -1140,10 +1143,10 @@ export function SettingsView({
             <Toggle label="High contrast" checked={options.highContrast} onChange={(checked) => setOptions({ highContrast: checked })} />
             <Toggle label="Reduced motion" checked={options.reducedMotion} onChange={(checked) => setOptions({ reducedMotion: checked })} />
             <Toggle label="Dyslexia-friendly font" checked={options.dyslexiaFriendly} onChange={(checked) => setOptions({ dyslexiaFriendly: checked })} />
-            <Toggle label="Weak-topic bars" checked={options.showWeakTopicBars} onChange={(checked) => setOptions({ showWeakTopicBars: checked })} />
             <Toggle label="File previews" checked={options.filePreview} onChange={(checked) => setOptions({ filePreview: checked })} />
           </div>
           <LanguagePicker locale={locale} setLocale={setLocale} />
+          </details>
         </Panel>
       ) : null}
 

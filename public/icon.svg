@@ -1,13 +1,1 @@
-<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="leaf" x1="34" x2="146" y1="30" y2="150" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#2DD4BF" />
-      <stop offset="0.55" stop-color="#10B981" />
-      <stop offset="1" stop-color="#0F766E" />
-    </linearGradient>
-  </defs>
-  <path d="M35 47.5C35 39.5 41.5 33 49.5 33H85C96.6 33 106 42.4 106 54V139.5C106 145.2 99.2 148.2 95 144.3C86.5 136.5 76.6 132.5 65.2 132.5H49.5C41.5 132.5 35 126 35 118V47.5Z" fill="url(#leaf)" />
-  <path d="M145 47.5C145 39.5 138.5 33 130.5 33H95C83.4 33 74 42.4 74 54V139.5C74 145.2 80.8 148.2 85 144.3C93.5 136.5 103.4 132.5 114.8 132.5H130.5C138.5 132.5 145 126 145 118V47.5Z" fill="url(#leaf)" opacity="0.86" />
-  <path d="M58 61H86M58 77H90M58 93H82M94 61H122M90 77H120M98 93H122" stroke="#ECFDF5" stroke-width="7" stroke-linecap="round" />
-  <path d="M89.5 51V137" stroke="#064E3B" stroke-width="5" stroke-linecap="round" opacity="0.34" />
-</svg>
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="180" height="180" rx="44" fill="#202433"/><path d="M52 44h27v88H52zM79 105h53v27H79z" fill="#FAFBFD"/><path d="M98 48h34v34H98z" fill="#8396E6"/></svg>
