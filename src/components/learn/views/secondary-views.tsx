@@ -1,11 +1,12 @@
 "use client"
 
 import { AppearanceSettings } from "../appearance-settings"
+import { InstallAppSettings } from "../app-install"
 import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, Bot, CalendarDays, CalendarPlus, Camera, Check, ChevronRight, Clock, Copy, Download, FileText, Filter, Gauge, Languages, Link as LinkIcon, Lock, Palette, Repeat2, Save, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserPlus, UserRound, Users, X } from "lucide-react"
+import { AlertTriangle, ArrowRight, BookOpen, Bot, CalendarPlus, Camera, Check, ChevronRight, FileText, Filter, Gauge, Languages, Link as LinkIcon, Lock, Palette, Repeat2, Save, Search, ShieldCheck, Sparkles, Target, UserPlus, UserRound, Users, X } from "lucide-react"
 import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
 import { buildProgressCommandPlan, summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
-import { buildSettingsControlPlan, buildSettingsSummaryChips, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
+import { buildSettingsControlPlan, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
 import { adminPanelTabOptions, buildAdminOperationalPlan, buildAdminSummaryChips, filterAdminList, summarizeAdminOperations, type AdminAccessRequest, type AdminPanelTab, type AdminSummaryChip } from "@/lib/admin-features"
 import type { WorkspaceOptions } from "../preferences"
 import type { AdminData, AutomationData, DashboardData, Quiz, User, View } from "../types"
@@ -43,72 +44,16 @@ export function ProgressView({ dashboard, quizzes, setView }: { dashboard: Dashb
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <header className="workspace-header xl:col-span-2">
+        <div><h2 className="text-lg font-semibold">Progress</h2><p className="mt-1 text-xs text-muted-foreground">{progress.momentumLabel}</p></div>
+        <button type="button" onClick={() => setView?.(progressPlan.target)} className="editor-command border border-border"><ProgressPlanIcon className="h-4 w-4" />{progressPlan.headline}<ArrowRight className="h-4 w-4" /></button>
+      </header>
       <Panel className="p-4 xl:col-span-2">
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <TrendingUp className="h-6 w-6" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-2xl font-semibold text-foreground">Progress command center</h2>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <SharedStatusPill label={progress.momentumLabel} />
-                <SharedStatusPill label={`${progress.focusTopics.length} focus`} />
-                <SharedStatusPill label={`${progress.reviewCount} review`} />
-                <SharedStatusPill label={`${topicSeverityCounts.critical} critical`} tone={topicSeverityCounts.critical ? "watch" : "neutral"} />
-              </div>
-            </div>
-          </div>
-          <button onClick={() => setView?.(progressPlan.target)} className="rounded-md border border-border bg-secondary p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
-            <div className="flex items-center gap-3">
-              <ProgressPlanIcon className="h-5 w-5 text-success" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold text-foreground">{progressPlan.headline}</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{progressPlan.chips.slice(0, 2).join(" / ")}</p>
-              </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </button>
-          <div className="xl:col-span-2">
-            <div className="flex items-center justify-between text-xs font-semibold uppercase text-muted-foreground">
-              <span>Goal route</span>
-              <span>{progress.goalCompletion}%</span>
-            </div>
-            <div className="mt-2 h-3 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-success transition-all" style={{ width: `${Math.max(4, progress.goalCompletion)}%` }} />
-            </div>
-            <details className="mt-3 rounded-md border border-border bg-background">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-                <span>Route details</span>
-                <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{progress.focusTopics.length || 0} focus</span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </summary>
-              <div className="grid gap-3 border-t border-border p-3 md:grid-cols-[1fr_auto]">
-                <p className="text-sm leading-6 text-muted-foreground">{progressPlan.detail}</p>
-                <div className="flex flex-wrap gap-2 md:justify-end">
-                  {progressPlan.chips.map((chip) => <SharedStatusPill key={chip} label={chip} />)}
-                  {progress.focusTopics.length ? progress.focusTopics.map((topic) => <SharedStatusPill key={topic} label={topic} />) : <SharedStatusPill label="No focus set" />}
-                </div>
-              </div>
-            </details>
-          </div>
+        <div className="grid grid-cols-2 gap-5 md:grid-cols-4">
+          {progress.metrics.map((metric) => <div key={metric.id}><p className="text-xs text-muted-foreground">{metric.label}</p><p className="mt-2 text-2xl font-semibold tabular-nums">{metric.value}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{metric.detail}</p></div>)}
         </div>
-        <details className="mt-4 rounded-md border border-border bg-background">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-            <span>Metrics</span>
-            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{progress.metrics.length}</span>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          </summary>
-          <div className="grid gap-3 border-t border-border p-3 sm:grid-cols-2 xl:grid-cols-4">
-            {progress.metrics.map((metric) => (
-              <div key={metric.id} className="group relative rounded-md border border-border bg-card p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{metric.label}</p>
-                <p className="mt-2 text-3xl font-semibold leading-none text-foreground">{metric.value}</p>
-                <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{metric.detail}</p>
-              </div>
-            ))}
-          </div>
-        </details>
+        <div className="mt-5 border-t border-border pt-4"><div className="flex justify-between text-xs text-muted-foreground"><span>Goal completion</span><span>{progress.goalCompletion}%</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary" style={{ width: `${progress.goalCompletion}%` }} /></div></div>
+        <details className="mt-3 text-xs text-muted-foreground"><summary className="cursor-pointer py-1">Goal details</summary><p className="mt-2 leading-6">{progressPlan.detail}</p><div className="mt-2 flex flex-wrap gap-2">{progress.focusTopics.map((topic) => <SharedStatusPill key={topic} label={topic} />)}</div></details>
       </Panel>
 
       <Panel className="p-4">
@@ -156,7 +101,7 @@ export function ProgressView({ dashboard, quizzes, setView }: { dashboard: Dashb
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
                 <Gauge className="h-5 w-5" />
               </div>
-              <h3 className="truncate font-semibold text-foreground">Learning loop</h3>
+              <h3 className="truncate font-semibold text-foreground">Your learning activity</h3>
             </div>
             <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">Guide</span>
           </summary>
@@ -258,30 +203,13 @@ function SettingsSectionButton({
   active,
   guide,
   onClick,
-  suggested,
 }: {
   active: boolean
   guide: SettingsSectionGuide
   onClick: () => void
-  suggested: boolean
 }) {
   const Icon = settingsSectionIcons[guide.id]
-  return (
-    <button
-      onClick={onClick}
-      className={`group relative inline-flex h-10 min-w-[9.5rem] items-center gap-2 rounded-md border px-3 text-left text-sm transition hover:-translate-y-0.5 ${active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
-      title={guide.detail}
-    >
-      <Icon className="h-4 w-4 shrink-0" />
-      <span className="min-w-0 flex-1 truncate font-semibold">{guide.label}</span>
-      {active ? (
-        <span className="rounded-md bg-primary-foreground/15 px-2 py-0.5 text-[0.65rem] font-semibold text-primary-foreground">{suggested ? "next" : guide.badge}</span>
-      ) : (
-        <span className="rounded-md bg-background/80 px-2 py-0.5 text-[0.65rem] font-semibold text-muted-foreground">{suggested ? "next" : guide.badge}</span>
-      )}
-      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-[70] hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{guide.detail}</p>
-    </button>
-  )
+  return <button type="button" onClick={onClick} aria-current={active ? "page" : undefined} className="settings-section" title={guide.detail}><Icon className="h-4 w-4 shrink-0" /><span>{guide.label}</span></button>
 }
 
 export function SettingsView({
@@ -315,9 +243,6 @@ export function SettingsView({
   const [status, setStatus] = useState("")
   const [saveBusy, setSaveBusy] = useState(false)
   const settingsSummary = useMemo(() => summarizeSettingsOptions(options), [options])
-  const settingsSummaryChips = useMemo(() => buildSettingsSummaryChips(settingsSummary), [settingsSummary])
-  const primarySettingsChips = settingsSummaryChips.filter((chip) => chip.priority === "primary")
-  const secondarySettingsChips = settingsSummaryChips.filter((chip) => chip.priority === "secondary")
   const settingsPlan = useMemo(() => buildSettingsControlPlan(settingsSummary), [settingsSummary])
   const profileDirty = name !== (user?.name || "")
     || email !== (user?.email || "")
@@ -389,73 +314,21 @@ export function SettingsView({
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <Panel className="min-w-0 p-4 xl:col-span-2">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <SlidersHorizontal className="h-6 w-6" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-2xl font-semibold text-foreground">Settings</h2>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {primarySettingsChips.map((chip) => (
-                  <SharedStatusPill key={chip.id} label={`${chip.label}: ${chip.value}`} />
-                ))}
-                {profileDirty ? <SharedStatusPill label="profile draft" tone="watch" /> : <SharedStatusPill label="profile saved" tone="steady" />}
-              </div>
-            </div>
-          </div>
-          <ControlButton onClick={saveProfile} active disabled={saveBusy}>
-            <Save className="h-4 w-4" />
-            {saveBusy ? "Saving" : "Save"}
-          </ControlButton>
-        </div>
-        {status ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-          {settingsPlan.guides.map((guide) => (
-            <SettingsSectionButton key={guide.id} guide={guide} active={section === guide.id} suggested={settingsPlan.suggestedSection === guide.id} onClick={() => setSection(guide.id)} />
-          ))}
-        </div>
-        <details className="mt-3 rounded-md border border-border bg-background p-2">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
-            <span>Signals</span>
-            <span className="flex items-center gap-2">
-              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{settingsSummary.statuses.length}</span>
-              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{settingsPlan.nextAction}</span>
-            </span>
-          </summary>
-          <div className="mt-3 grid gap-2 md:grid-cols-5">
-            {secondarySettingsChips.map((chip) => (
-              <div key={chip.id} className="rounded-md border border-border bg-card p-2 text-sm">
-                <span className="block truncate font-medium text-foreground">{chip.label}</span>
-                <span className="mt-2 inline-flex"><SharedStatusPill label={chip.value} /></span>
-              </div>
-            ))}
-            {settingsSummary.statuses.map((item) => (
-              <div key={item.id} className="rounded-md border border-border bg-card p-2 text-sm">
-                <span className="block truncate font-medium text-foreground">{item.label}</span>
-                <span className="mt-2 inline-flex"><SharedStatusPill label={item.value} tone={settingsTone(item.tone)} /></span>
-              </div>
-            ))}
-          </div>
-          <ControlButton
-            onClick={() => setSection(settingsPlan.suggestedSection)}
-            className="mt-3 w-full justify-between"
-          >
-            <span className="min-w-0 truncate">{settingsPlan.nextAction}</span>
-            <ArrowRight className="h-4 w-4 shrink-0" />
-          </ControlButton>
-        </details>
-      </Panel>
-
+    <div className="settings-workspace">
+      <header className="workspace-header">
+        <div><h2>Settings</h2><p>{section === "profile" ? "Your profile and account details." : "Make LEARN work your way. Changes save automatically."}</p></div>
+        {section === "profile" ? <ControlButton onClick={saveProfile} active disabled={saveBusy || !profileDirty}><Save className="h-4 w-4" />{saveBusy ? "Saving…" : "Save profile"}</ControlButton> : null}
+      </header>
+      <nav aria-label="Settings sections" className="settings-sections">{settingsPlan.guides.map((guide) => <SettingsSectionButton key={guide.id} guide={guide} active={section === guide.id} onClick={() => setSection(guide.id)} />)}</nav>
+      <div className="settings-content">
+      {status ? <p role="status" className="mb-4 text-sm text-muted-foreground">{status}</p> : null}
       {section === "profile" ? (
         <Panel className="p-4">
           <SettingsSectionHeader icon={UserRound} title="Profile" body="Edit identity, avatar, privacy, and links." />
-          <div className="mt-4 grid gap-4 xl:grid-cols-[280px_1fr]">
-            <div className="rounded-lg bg-muted p-4">
+          <div className="mt-4 grid gap-4">
+            <div className="self-start border-b border-border pb-4">
               <span className="text-xs font-semibold uppercase text-muted-foreground">Avatar</span>
-              <div className="mt-3 flex items-center gap-3">
+              <div className="mt-3 flex max-w-sm items-center gap-3">
                 <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-primary text-2xl font-semibold text-primary-foreground">
                   {avatarUrl ? <img src={avatarUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" /> : (name || user?.username || "L").slice(0, 1)}
                 </div>
@@ -495,6 +368,7 @@ export function SettingsView({
       {section === "experience" ? (
         <Panel className="p-4">
           <AppearanceSettings options={options} setOptions={setOptions} />
+          <InstallAppSettings />
           <details className="mt-7 border-t border-border pt-4"><summary className="cursor-pointer text-sm font-medium">Editor and accessibility preferences</summary>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <SelectField label="Files layout" value={options.fileLayout} options={["list", "grid"]} onChange={(value) => setOptions({ fileLayout: value as WorkspaceOptions["fileLayout"] })} />
@@ -558,6 +432,7 @@ export function SettingsView({
           </div>
         </Panel>
       ) : null}
+      </div>
     </div>
   )
 }
@@ -626,8 +501,7 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
   const adminSummary = useMemo(() => summarizeAdminOperations({ adminData, automationData }), [adminData, automationData])
   const adminPlan = useMemo(() => buildAdminOperationalPlan(adminSummary), [adminSummary])
   const adminSummaryChips = useMemo(() => buildAdminSummaryChips(adminSummary), [adminSummary])
-  const primaryAdminChips = adminSummaryChips.filter((chip) => chip.priority === "primary")
-  const secondaryAdminChips = adminSummaryChips.filter((chip) => chip.priority === "secondary")
+  const secondaryAdminChips = adminSummaryChips
   const accessRequests = useMemo(() => filterAdminList(adminSummary.accessRequests, query, ["name", "email", "goal", "role"]), [adminSummary.accessRequests, query])
   const users = useMemo(() => filterAdminList(adminData?.users || [], query, ["name", "username", "email", "role"]), [adminData?.users, query])
   const providers = useMemo(() => filterAdminList(adminData?.providers || [], query, ["name", "provider", "last_status", "last_error"]), [adminData?.providers, query])
@@ -657,19 +531,7 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
     <div className="grid gap-4">
       <Panel className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-md ${toneSurfaceClasses(adminSummary.systemTone === "watch" ? "watch" : "primary")}`}>
-              <ShieldCheck className="h-6 w-6" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-2xl font-semibold text-foreground">Admin control center</h2>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {primaryAdminChips.map((chip) => (
-                  <AdminSummaryChipButton key={chip.id} chip={chip} onClick={() => setTab(chip.targetTab)} />
-                ))}
-              </div>
-            </div>
-          </div>
+          <div><h2 className="text-lg font-semibold">Admin</h2><p className="mt-1 text-xs text-muted-foreground">{adminPlan.headline}</p></div>
           <label className="flex h-10 w-full max-w-sm items-center gap-2 rounded-md border border-border bg-background px-3 focus-within:ring-2 focus-within:ring-primary/25">
             <Search className="h-4 w-4 text-muted-foreground" />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search admin data" className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
@@ -687,31 +549,11 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
             ))}
           </div>
         </details>
-        <button onClick={() => setTab(adminPlan.targetTab)} className="mt-4 flex w-full items-center justify-between gap-3 rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-foreground">{adminPlan.headline}</span>
-            <span className="mt-1 flex flex-wrap gap-2">
-              {adminPlan.chips.map((chip) => <SharedStatusPill key={chip} label={chip} />)}
-            </span>
-          </span>
-          <span className="inline-flex shrink-0 items-center gap-2 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">
-            {adminPlan.nextAction}
-            <ArrowRight className="h-3.5 w-3.5" />
-          </span>
-        </button>
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="workspace-tabs mt-4" aria-label="Admin sections">
           {adminPanelTabOptions.map(({ id, label }) => {
             const Icon = adminPanelTabIcons[id]
             return (
-            <ControlButton
-              key={id}
-              onClick={() => setTab(id)}
-              active={tab === id}
-              size="compact"
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </ControlButton>
+            <button type="button" key={id} onClick={() => setTab(id)} aria-current={tab === id ? "page" : undefined} className={`workspace-tab ${tab === id ? "is-active" : ""}`}><Icon className="h-4 w-4" />{label}</button>
             )
           })}
         </div>
@@ -750,10 +592,10 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
       ) : null}
 
       {options.adminVerbose ? (
-        <Panel className="p-4">
-          <p className="font-semibold text-foreground">Current option policy</p>
+        <details className="workspace-disclosure">
+          <summary>Current option policy</summary>
           <pre className="mt-3 overflow-auto rounded-md bg-muted p-3 text-xs text-muted-foreground">{JSON.stringify(options, null, 2)}</pre>
-        </Panel>
+        </details>
       ) : null}
     </div>
   )
@@ -804,23 +646,6 @@ function Info({ label, value }: { label: string; value?: unknown }) {
       <p className="mt-2 font-medium text-foreground">{String(value ?? "Not set")}</p>
     </div>
   )
-}
-
-function CompactInfo({ label, tone = "neutral", value }: { label: string; tone?: string; value: string }) {
-  return (
-    <div className={`rounded-md border px-3 py-2 ${compactInfoToneClass(tone)}`}>
-      <p className="text-[0.65rem] font-semibold uppercase text-muted-foreground">{label}</p>
-      <p className="text-base font-semibold text-foreground">{value}</p>
-    </div>
-  )
-}
-
-function compactInfoToneClass(tone: string) {
-  if (tone === "primary") return "border-primary/25 bg-primary/10"
-  if (tone === "sky") return "border-sky-400/25 bg-sky-500/10"
-  if (tone === "success") return "border-success/25 bg-success/10"
-  if (tone === "warning") return "border-warning/25 bg-warning/10"
-  return "border-border bg-background"
 }
 
 function SelectField({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
@@ -885,12 +710,11 @@ function AdminList<TItem extends AdminListItem>({
         </div>
         <SharedStatusPill label={String(items.length)} tone={settingsTone(accent)} />
       </div>
-      <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-3 divide-y divide-border">
         {items.slice(0, 12).map((item, index) => (
-          <div key={item.id || item.key || index} className="rounded-md border border-border bg-background p-3 text-sm">
+          <div key={item.id || item.key || index} className="py-3 text-sm">
             <div className="flex items-center justify-between gap-2">
               <span className="truncate font-semibold text-foreground">{item.name || item.username || item.action || item.provider || item.label || item.id || item.key || "Record"}</span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
             </div>
             <p className="mt-1 truncate text-xs text-muted-foreground">{String(item.email || item.role || item.entity || item.description || item.default_model || item.details || item.provider_type || item.key || "No detail")}</p>
             {item.last_status || item.enabled !== undefined || item.has_key !== undefined ? (
