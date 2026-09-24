@@ -56,7 +56,7 @@ test("viewFromPath preserves public route compatibility", () => {
   assert.equal(viewFromPath("/docs/some-id"), "docs")
   assert.equal(viewFromPath("/groups"), "spaces")
   assert.equal(viewFromPath("/learn"), "dashboard")
-  assert.equal(viewFromPath("/reviews"), "practice")
+  assert.equal(viewFromPath("/reviews"), "reviews")
   assert.equal(viewFromPath("/spaces"), "spaces")
   assert.equal(viewFromPath("/quiz/quiz_operating_systems"), "quizzes")
   assert.equal(viewFromPath("/unknown"), null)

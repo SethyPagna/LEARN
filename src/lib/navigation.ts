@@ -139,7 +139,6 @@ const pathViewAliases: Record<string, View> = {
   // rendered it, so the member was removed. The path keeps working by
   // resolving to the dashboard, exactly as it did before.
   learn: "dashboard",
-  reviews: "practice",
 }
 
 export const navigationGroups: readonly LearnNavigationGroup[] = [
@@ -180,7 +179,7 @@ export const launcherCommands: readonly LauncherCommandConfig[] = [
   { label: "Create in Studio", detail: "New note, doc, sheet, or slide", view: "studio", iconKey: "studio", keywords: ["new", "create", "note", "doc", "sheet", "slide", "studio"] },
   { label: "Open design canvas", detail: "Free-form layout with snapping, layers, and groups", view: "canvas", iconKey: "studio", keywords: ["canvas", "design", "layout", "drag", "layer", "z-order", "rotate", "snap"] },
   { label: "Open files", detail: "Uploads, media, and imports", view: "files", iconKey: "studio", keywords: ["file", "upload", "download", "media", "import"] },
-  { label: "Start reviews", detail: "Open practice and review loops", view: "practice", iconKey: "practice", keywords: ["review", "recall", "flashcard", "practice"] },
+  { label: "Start reviews", detail: "Reveal and grade due review cards", view: "reviews", iconKey: "practice", keywords: ["review", "recall", "flashcard", "practice"] },
   { label: "Practice now", detail: "Quizzes and games", view: "practice", iconKey: "practice", keywords: ["quiz", "game", "practice", "test"] },
   { label: "Host a live quiz", detail: "Join code, lobby, timer, and live standings", view: "live", iconKey: "practice", keywords: ["live", "quiz", "kahoot", "host", "join", "code", "lobby", "game"] },
   { label: "Ask AI tutor", detail: "Prompt, rewrite, quiz, plan", view: "ai", iconKey: "ai", keywords: ["ai", "tutor", "prompt", "rewrite", "plan"] },
@@ -222,7 +221,7 @@ export function sectionTabForView(view: View): SectionTab {
 export const navigationSubViews: Partial<Record<View, readonly View[]>> = {
   studio: ["notes", "docs", "sheets", "slides", "canvas"],
   calendar: ["vault", "progress", "graph", "feed"],
-  practice: ["quizzes", "live", "games"],
+  practice: ["quizzes", "live", "games", "reviews"],
   social: ["chat", "spaces", "rooms", "battles"],
   settings: ["profile", "admin"],
 }

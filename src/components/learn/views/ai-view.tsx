@@ -425,7 +425,10 @@ export function AiTutorView({
         body: JSON.stringify(payload.body),
       })
       if (payload.endpoint === "/api/notes" && response.item) setNotes?.((current) => [response.item as Note, ...current])
-      if (payload.endpoint === "/api/quizzes" && response.item) setQuizzes?.((current) => [response.item as Quiz, ...current.filter((quiz) => quiz.id !== response.item?.id)])
+      if (payload.endpoint === "/api/quizzes" && response.item) {
+        const createdQuiz = { ...response.item as Quiz, question_count: Array.isArray(payload.body.questions) ? payload.body.questions.length : (response.item as Quiz).question_count }
+        setQuizzes?.((current) => [createdQuiz, ...current.filter((quiz) => quiz.id !== createdQuiz.id)])
+      }
       setActionStatus(`Created ${payload.view} item from AI result.`)
       setView?.(payload.view)
     } catch (error) {

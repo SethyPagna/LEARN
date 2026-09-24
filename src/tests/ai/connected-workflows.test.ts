@@ -41,6 +41,16 @@ test("source handoff survives launch and draft parsing and excludes unrelated re
   assert.doesNotMatch(context, /Unrelated/)
 })
 
+test("quiz result can become review cards with resolved answer text and its explanation", () => {
+  const result = buildInsertBackPayload("review-cards", JSON.stringify({ title: "Arithmetic", questions: [{ question: "What is 2+2?", choices: ["3", "4"], correct_answer_id: "b", explanation: "Two pairs make four." }] }))
+  assert.equal(result.view, "reviews")
+  assert.equal(result.endpoint, "/api/reviews")
+  const cards = result.body.items as Array<{ prompt: string; answer: string }>
+  assert.equal(cards[0].prompt, "What is 2+2?\na. 3\nb. 4")
+  assert.equal(cards[0].answer, "4\n\nTwo pairs make four.")
+  assert.throws(() => buildInsertBackPayload("review-cards", JSON.stringify({ questions: [{ question: "Invalid?", choices: ["A", "B"], answer: "absent" }] })), /matching one choice/)
+})
+
 test("study activity preserves instructions and requires an explicit valid schedule", () => {
   const activity = { title: "Recall cells", notes: "Draw a cell, label its parts, then check the source.", startsAt: "2026-10-01T10:00:00+08:00", endsAt: "2026-10-01T10:30:00+08:00", timezone: "Asia/Hong_Kong" }
   const payload = buildInsertBackPayload("study-activity", JSON.stringify(activity))

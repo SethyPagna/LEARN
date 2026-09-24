@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation"
+import { LearnPage } from "@/components/learn/learn-page"
 
 export default function ReviewsPage() {
-  redirect("/practice")
+  return <LearnPage initialView="reviews" />
 }

@@ -19,7 +19,13 @@ export function buildInsertBackPayload(target: StudioInsertTarget, reply: string
     return { endpoint: "/api/quizzes", view: "quizzes", body: { title, source: "ai", topic: readString(parsed, "topic") || "General", questions: generatedQuizQuestions(parsed?.questions) } }
   }
   if (target === "flashcards" || target === "review-cards") {
-    return { endpoint: "/api/reviews", view: "reviews", body: { items: generatedReviewCards(parsed?.cards ?? parsed?.flashcards ?? parsed?.items, title) } }
+    const cards = parsed?.cards ?? parsed?.flashcards ?? parsed?.items ?? (Array.isArray(parsed?.questions)
+      ? generatedQuizQuestions(parsed.questions).map((question) => ({
+        prompt: `${question.question}\n${question.choices.map((choice) => `${choice.id}. ${choice.text}`).join("\n")}`,
+        answer: [question.choices.find((choice) => choice.id === question.correct_answer_id)!.text, question.explanation].filter(Boolean).join("\n\n"),
+        topic: question.topic,
+      })) : undefined)
+    return { endpoint: "/api/reviews", view: "reviews", body: { items: generatedReviewCards(cards, title) } }
   }
 
   if (target === "doc-section") {

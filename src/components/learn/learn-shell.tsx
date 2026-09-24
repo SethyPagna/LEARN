@@ -14,7 +14,7 @@ import { DashboardView } from "./views/dashboard-view"
 import { FilesView } from "./views/files-view"
 import { AdminView, CalendarView, ProgressView, SettingsView } from "./views/secondary-views"
 import { useWorkspacePreferences } from "./preferences"
-import { FeedView, GraphView, ProfileView, VaultView } from "./views/ecosystem-views"
+import { FeedView, GraphView, ProfileView, ReviewsView, VaultView } from "./views/ecosystem-views"
 import { LiveQuizView } from "./views/live-quiz-view"
 import { StudioView } from "./views/studio-view"
 import { PracticeWorkspaceView, SocialWorkspaceView } from "./views/workspaces/combined-workspace-views"
@@ -278,8 +278,9 @@ export function LearnShell({
                 workspace below is for every other Practice view, so the two never
                 stack on one page. */}
             {view === "live" ? <LiveQuizView quizzes={quizzes} user={user} /> : null}
+            {view === "reviews" ? <ReviewsView setView={chooseView} /> : null}
             {studioViews.includes(view as (typeof studioViews)[number]) ? <StudioView setView={chooseView} initialKind={getStudioKind(view)} notes={notes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} onDraftSummary={setStudioDraftSummary} /> : null}
-            {view !== "live" && practiceViews.includes(view as (typeof practiceViews)[number]) ? <PracticeWorkspaceView initialView={view} quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={preferences.options} setView={chooseView} /> : null}
+            {view !== "live" && view !== "reviews" && practiceViews.includes(view as (typeof practiceViews)[number]) ? <PracticeWorkspaceView initialView={view} quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={preferences.options} setView={chooseView} /> : null}
             {view === "ai" ? <AiTutorView notes={notes} options={preferences.options} setNotes={setNotes} setQuizzes={setQuizzes} setOptions={preferences.setOptions} setView={chooseView} /> : null}
             {view === "files" ? <FilesView options={preferences.options} setView={chooseView} /> : null}
             {socialViews.includes(view as (typeof socialViews)[number]) ? <SocialWorkspaceView initialView={view} options={preferences.options} setView={chooseView} user={user} /> : null}

@@ -422,6 +422,211 @@ function graphFilterLabel(filter: GraphFilter) {
   return "All"
 }
 
+export function ReviewsView({ setView }: { setView: (view: View) => void }) {
+  const { data, status, refresh } = useResource<ReviewPayload>("/api/reviews")
+  const [busyId, setBusyId] = useState("")
+  const [busyRating, setBusyRating] = useState<ReviewRating | null>(null)
+  const [reviewMessage, setReviewMessage] = useState("")
+  const [revealedIds, setRevealedIds] = useState<string[]>([])
+  const revealed = useMemo(() => new Set(revealedIds), [revealedIds])
+  const reviewSummary = useMemo(
+    () => summarizeReviewSession({ items: data?.items ?? [], remainingDueCount: data?.remainingDueCount ?? 0 }, revealedIds),
+    [data?.items, data?.remainingDueCount, revealedIds],
+  )
+  const reviewSummaryChips = useMemo(() => buildReviewSummaryChips(reviewSummary), [reviewSummary])
+  const primaryReviewChips = reviewSummaryChips.filter((chip) => chip.priority === "primary")
+  const secondaryReviewChips = reviewSummaryChips.filter((chip) => chip.priority === "secondary")
+  const reviewPlan = useMemo(
+    () => buildReviewActionPlan({ items: data?.items ?? [], isRestDay: Boolean(data?.isRestDay), remainingDueCount: data?.remainingDueCount ?? 0 }, reviewSummary, revealedIds),
+    [data?.isRestDay, data?.items, data?.remainingDueCount, revealedIds, reviewSummary],
+  )
+
+  async function record(item: ReviewItem, rating: ReviewRating) {
+    if (!revealed.has(item.id)) {
+      setReviewMessage("Reveal the answer before grading.")
+      return
+    }
+    setBusyId(item.id)
+    setBusyRating(rating)
+    try {
+      await api("/api/reviews", { method: "POST", body: JSON.stringify({ id: item.id, rating }) })
+      setRevealedIds((current) => current.filter((id) => id !== item.id))
+      setReviewMessage(`${item.title} graded ${rating}.`)
+      await refresh()
+    } catch (error) {
+      setReviewMessage(error instanceof Error ? error.message : "Unable to record this review.")
+    } finally {
+      setBusyId("")
+      setBusyRating(null)
+    }
+  }
+
+  function toggleReveal(id: string) {
+    setRevealedIds((current) => current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id])
+  }
+
+  function applyReviewPlan() {
+    if (reviewPlan.nextAction === "studio" || reviewPlan.nextAction === "rest") {
+      setView("studio")
+      return
+    }
+    if (reviewPlan.nextAction === "practice") {
+      setView("practice")
+      return
+    }
+    if (reviewPlan.targetItemId) {
+      if (reviewPlan.nextAction === "reveal") {
+        setRevealedIds((current) => current.includes(reviewPlan.targetItemId!) ? current : [...current, reviewPlan.targetItemId!])
+      }
+      document.getElementById(`review-${reviewPlan.targetItemId}`)?.scrollIntoView({ behavior: "smooth", block: "start" })
+    }
+  }
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[340px_1fr]">
+      <Panel className="p-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-semibold text-foreground">Reviews</h2>
+          <details className="relative">
+            <summary className="flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label="About reviews">
+              <SlidersHorizontal className="h-4 w-4" />
+            </summary>
+            <p className="absolute right-0 top-10 z-[80] w-72 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">
+              Reveal only when ready, grade honestly, and let LEARN schedule the next review from your answer.
+            </p>
+          </details>
+        </div>
+        <button onClick={applyReviewPlan} className="mt-3 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-semibold text-foreground">{reviewPlan.headline}</span>
+            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {reviewPlan.chips.map((chip) => (
+              <span key={chip} className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">
+                {chip}
+              </span>
+            ))}
+          </div>
+        </button>
+        <details className="mt-3 rounded-md border border-border bg-background p-2">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
+            <span>Why this move</span>
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          </summary>
+          <p className="mt-2 border-t border-border pt-2 text-xs leading-5 text-muted-foreground">{reviewPlan.detail}</p>
+        </details>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {primaryReviewChips.map((chip) => (
+            <CompactMetric key={chip.id} label={chip.label} value={chip.value} />
+          ))}
+        </div>
+        <details className="mt-3 rounded-md border border-border bg-background p-2">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
+            <span>Queue details</span>
+            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{status}</span>
+          </summary>
+          <div className="mt-2 grid grid-cols-2 gap-2 border-t border-border pt-2">
+            {secondaryReviewChips.map((chip) => (
+              <Metric key={chip.id} label={chip.label} value={chip.value} />
+            ))}
+            <Metric label="Notes" value={String(reviewSummary.sourceCounts.note)} />
+            <Metric label="Blocks" value={String(reviewSummary.sourceCounts.block)} />
+            <Metric label="Cards" value={String(reviewSummary.sourceCounts.flashcard)} />
+            <Metric label="Lessons" value={String(reviewSummary.sourceCounts.lesson)} />
+          </div>
+        </details>
+        {reviewMessage ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{reviewMessage}</p> : null}
+        {reviewSummary.topTopics.length ? (
+          <details className="mt-3 rounded-md border border-border bg-background p-2">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
+              <span>Topics</span>
+              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{reviewSummary.topTopics.length}</span>
+            </summary>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {reviewSummary.topTopics.map((topic) => (
+              <span key={topic.topic} className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
+                {topic.topic} {topic.count}
+              </span>
+            ))}
+          </div>
+          </details>
+        ) : null}
+      </Panel>
+      <div className="grid gap-3">
+        {(data?.items ?? []).map((item) => {
+          const isRevealed = revealed.has(item.id)
+          const ratingActions = buildReviewRatingActions({ busyRating, isBusy: busyId === item.id, isRevealed })
+          return (
+          <div key={item.id} id={`review-${item.id}`}>
+          <Panel className="p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-semibold text-foreground">{item.title}</p>
+                  <span className="rounded-md border border-border bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">
+                    {reviewSourceLabel(item)}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => { toggleReveal(item.id); setReviewMessage(isRevealed ? "Answer hidden." : "Answer revealed. Grade when ready.") }}
+                  disabled={Boolean(busyId)}
+                  className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground"
+                >
+                  <Eye className="h-4 w-4" />
+                  {isRevealed ? "Hide answer" : "Reveal"}
+                </button>
+                {isRevealed ? ratingActions.map((action) => (
+                    <button
+                      key={action.rating}
+                      disabled={action.disabled}
+                      onClick={() => record(item, action.rating)}
+                      title={action.helper}
+                      className={`h-9 rounded-md border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60 ${reviewRatingClassName(action.rating)}`}
+                    >
+                      {action.busy ? "Saving" : action.label}
+                    </button>
+                  )) : (
+                    <span className="inline-flex h-9 items-center rounded-md border border-border bg-muted px-3 text-sm font-semibold text-muted-foreground">
+                      Reveal first
+                    </span>
+                  )}
+              </div>
+            </div>
+            <div className="mt-4 rounded-md border border-border bg-background p-3">
+              <p className="text-sm font-semibold text-foreground">{reviewPromptText(item)}</p>
+              {isRevealed ? <p className="mt-3 text-sm leading-6 text-muted-foreground">{reviewAnswerText(item)}</p> : null}
+            </div>
+            <details className="mt-3 rounded-md border border-border bg-background p-2">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                <span>Memory signal</span>
+                <span>{Math.round(item.retrievability * 100)}%</span>
+              </summary>
+              <div className="mt-2 flex flex-wrap gap-2 border-t border-border pt-2 text-xs font-semibold text-muted-foreground">
+                <span className="rounded-md bg-muted px-2 py-1">Retrievability {Math.round(item.retrievability * 100)}%</span>
+                <span className="rounded-md bg-muted px-2 py-1">Difficulty {Math.round(item.difficulty * 100)}%</span>
+                <span className="rounded-md bg-muted px-2 py-1">Stability {Math.round(item.stability * 10) / 10}</span>
+              </div>
+            </details>
+          </Panel>
+          </div>
+          )
+        })}
+        {data && data.items.length === 0 ? <EmptyState title="No reviews due" body="Rest or save a feed lesson into Studio for the next session." /> : null}
+      </div>
+    </div>
+  )
+}
+
+function reviewRatingClassName(rating: "again" | "hard" | "good" | "easy") {
+  if (rating === "again") return "border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+  if (rating === "hard") return "border-warning text-warning hover:bg-warning hover:text-warning-foreground"
+  if (rating === "easy") return "border-success text-success hover:bg-success hover:text-success-foreground"
+  return "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
+}
+
 export function FeedView({ setView }: { setView: (view: View) => void }) {
   const { data, refresh } = useResource<{ items: MicroLesson[] }>("/api/feed?topic=study&topic=notes")
   const [answered, setAnswered] = useState<Record<string, string>>({})
