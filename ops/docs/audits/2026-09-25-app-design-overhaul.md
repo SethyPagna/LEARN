@@ -106,9 +106,14 @@ timestamps as UTC, fixing newly saved work appearing eight hours old in Hong
 Kong. The skip-link check now finds the actual Sidebar JSX tag instead of
 matching a TypeScript generic name.
 
-Validation: 1,072 tests and TypeScript passed. Desktop white/charcoal layouts,
+Validation: 1,073 tests and TypeScript passed. Desktop white/charcoal layouts,
 sidebar account/notification popovers, mobile project search, note-to-canvas
 switching and sidebar restoration were inspected in the browser. A Canvas
 title edit survived leaving and reopening the project; its original title was
 restored. Viewport overrides were reset. Production build and generated CSS
 checks passed, with the existing local Durable Object proxy warnings.
+
+The browser check also exposed a worker left by the earlier production preview
+serving stale development CSS. Local Next assets now bypass its cache, and
+development refreshes an already installed LEARN worker without installing a
+new one. The regression test covers localhost, IPv4 and IPv6 loopback origins.

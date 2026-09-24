@@ -12,8 +12,15 @@ import { useEffect } from "react"
  */
 export function PwaRegister() {
   useEffect(() => {
-    if (process.env.NODE_ENV !== "production") return
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return
+    if (process.env.NODE_ENV !== "production") {
+      // Refresh a worker left by a local production preview without installing
+      // one in development. Its local-asset bypass prevents stale hot reloads.
+      void navigator.serviceWorker.getRegistration().then((registration) => {
+        if (registration?.active?.scriptURL === new URL("/sw.js", window.location.origin).href) return registration.update()
+      }).catch(() => {})
+      return
+    }
 
     const secureOrigin =
       window.location.protocol === "https:" || window.location.hostname === "localhost"

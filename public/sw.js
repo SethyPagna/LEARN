@@ -52,6 +52,10 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return
   if (url.pathname === "/api" || url.pathname.startsWith("/api/")) return
 
+  // A production preview can install this worker before switching back to dev.
+  // Local Next assets reuse URLs across edits, so they must never hit this cache.
+  if (["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) && url.pathname.startsWith("/_next/")) return
+
   if (request.mode === "navigate") {
     event.respondWith(networkFirstDocument(request))
     return

@@ -49,7 +49,7 @@ function keyOf(input: SwRequest | string) {
   return typeof input === "string" ? input : input.url
 }
 
-function createWorker() {
+function createWorker(origin = ORIGIN) {
   const listeners = new Map<string, SwListener[]>()
   const cacheStores = new Map<string, Map<string, Response>>()
   const cacheWrites: Array<{ cache: string; key: string }> = []
@@ -70,7 +70,7 @@ function createWorker() {
     URL,
     Response,
     console,
-    location: { origin: ORIGIN },
+    location: { origin },
     skipWaiting: async () => undefined,
     clients: { claim: async () => undefined },
     addEventListener: (type: string, listener: SwListener) => {
@@ -158,6 +158,16 @@ function createWorker() {
 // ---------------------------------------------------------------------------
 // Manifest
 // ---------------------------------------------------------------------------
+
+test("local development assets bypass caches left by production previews", async () => {
+  for (const origin of ["http://localhost:3000", "http://127.0.0.1:3000", "http://[::1]:3000"]) {
+    const worker = createWorker(origin)
+    const url = `${origin}/_next/static/chunks/app.css`
+    worker.seedCache("learn-pwa-v1-runtime", url, "old stylesheet")
+    assert.equal((await worker.dispatch({ url })).handled, false)
+    assert.equal(worker.cacheWrites.length, 0)
+  }
+})
 
 test("manifest module declares the app as installable", () => {
   const source = readApp("manifest.ts")
