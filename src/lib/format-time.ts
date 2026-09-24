@@ -5,7 +5,7 @@
  */
 export function formatRelativeTime(iso: string | null | undefined, now: Date = new Date()) {
   if (!iso) return ""
-  const time = new Date(iso)
+  const time = parseServerTime(iso)
   const stamp = time.getTime()
   if (Number.isNaN(stamp)) return ""
   const seconds = Math.round((now.getTime() - stamp) / 1000)
@@ -23,7 +23,14 @@ export function formatRelativeTime(iso: string | null | undefined, now: Date = n
 /** "12:04" in the viewer's locale, for message bubbles. */
 export function formatClockTime(iso: string | null | undefined) {
   if (!iso) return ""
-  const time = new Date(iso)
+  const time = parseServerTime(iso)
   if (Number.isNaN(time.getTime())) return ""
   return time.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+}
+
+/** SQLite CURRENT_TIMESTAMP is UTC even though it omits the zone suffix. */
+export function parseServerTime(value: string): Date {
+  return new Date(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(value)
+    ? `${value.replace(" ", "T")}Z`
+    : value)
 }
