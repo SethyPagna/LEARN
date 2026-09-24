@@ -78,6 +78,19 @@ Task windows stay open so errors can be read. For automation, set
 `LEARN_NO_PAUSE=1`; launchers preserve the command's exit code. Remote deployments
 are separate, explicitly labelled menu choices and require configured credentials.
 
+For local AI, run Ollama with an installed chat model and set `OLLAMA_BASE_URL`
+to `http://127.0.0.1:11434` and `OLLAMA_MODEL` to its name in
+`ops/cloudflare/.dev.vars`. Restart LEARN and select **Ollama (local server)** in
+AI. The endpoint is restricted to the LEARN server's loopback address; a hosted
+Worker cannot reach Ollama on your personal computer. Unconfigured or failed
+providers show an error instead of a saveable AI answer.
+
+Calls use one peer connection, including invitations sent to a group. For
+networks requiring a relay, configure `LEARN_TURN_URLS` (comma-separated TURN
+URLs) and `LEARN_TURN_SECRET` with a coturn-compatible shared secret. Authenticated
+clients receive temporary credentials; the shared secret stays on the server.
+Direct local call checks do not establish reliability on every external network.
+
 ## Deploy
 
 Cloudflare Workers:
