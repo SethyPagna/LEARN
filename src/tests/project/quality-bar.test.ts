@@ -349,7 +349,7 @@ test("the shell starts with a skip link that lands on the main landmark", () => 
 
   // A skip link placed after the sidebar would skip nothing: the point of WCAG
   // 2.4.1 is that the repeated navigation is bypassed, so it must come first.
-  const sidebarIndex = source.indexOf("<Sidebar")
+  const sidebarIndex = findOpenTags(source, "Sidebar")[0]?.index ?? -1
   assert.ok(sidebarIndex > -1, "the shell renders <Sidebar>; the skip link is measured against it")
   assert.ok(link.index < sidebarIndex, "the skip link must precede the navigation it bypasses")
 

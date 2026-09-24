@@ -146,6 +146,7 @@ import { getImportDestinationView, importTargetOptions, labelImportTarget, norma
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 import { canvasAspectRatio, canvasPreviewWidth, getAnyStudioCanvasFormat, getStudioCanvasFormat, getStudioKindForCanvasFormat, listAllStudioCanvasFormatGroups, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
 import { buildStudioProjectBrowserHeader, buildStudioProjectBrowserState, buildStudioProjectBrowserSummary, buildStudioProjectSubtitle, buildStudioTemplateSubtitle, filterStudioProjectsByDraftStatus, getStudioProjectDisplayMeta, getStudioProjectFilterOption, listStudioProjectFilterOptions, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, type StudioProjectKindFilter, type StudioProjectStatusFilter } from "@/lib/studio-project-browser"
+import { useEditorExitGuard } from "../editor-navigation"
 import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
 import { HEADING_STYLE_KEY, STUDIO_LAYOUT_KEY, parseStoredHeadingStyles, parseStoredStudioLayout, type HeadingStyleLevel, type HeadingStylePreset } from "@/lib/studio-preferences"
@@ -1633,6 +1634,8 @@ export function StudioView({
   const canUndoRedo = kind === "notes" || kind === "docs"
   const hasActiveItem = kind === "notes" ? Boolean(noteDraft) : true
   const projectMenuItems = allItems.slice(0, 12)
+
+  useEditorExitGuard(async () => studioMode !== "editor" || !hasActiveItem ? true : !saving ? saveActive(true) : false)
 
   if (studioMode === "projects") {
     return (

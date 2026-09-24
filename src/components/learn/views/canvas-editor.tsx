@@ -27,7 +27,7 @@ function withDrafts(items: DesignSummary[]): DesignSummary[] {
 }
 
 /** One route and one editor for both legacy canvases and multi-page designs. */
-export function CanvasEditorView({ notes = [], onHome }: { notes?: readonly Note[]; onHome?: () => void }) {
+export function CanvasEditorView({ notes = [], onHome, designId }: { notes?: readonly Note[]; onHome?: () => void; designId?: string }) {
   const measure = useDesignMeasure()
   const [items, setItems] = useState<DesignSummary[] | null>(null)
   const [error, setError] = useState("")
@@ -49,10 +49,10 @@ export function CanvasEditorView({ notes = [], onHome }: { notes?: readonly Note
   }, [])
   useEffect(() => {
     void load()
-    const id = new URL(window.location.href).searchParams.get("design")
+    const id = designId || new URL(window.location.href).searchParams.get("design")
     if (id) void open(id)
     return () => { request.current += 1 }
-  }, [load])
+  }, [load, designId])
 
   function setDesignUrl(id: string | null) {
     const url = new URL(window.location.href)
@@ -114,6 +114,14 @@ export function CanvasEditorView({ notes = [], onHome }: { notes?: readonly Note
       create(normalizeDesignDoc(value), "Imported as a new design. The original stays unchanged.")
     } catch (reason) { setError(reason instanceof Error ? reason.message : "The design file could not be opened.") }
   }
+
+  if (designId && !opened) return <section className="studio-editor-workspace flex min-w-0 items-center justify-center p-6">
+    <div className="grid gap-3 text-center">
+      <p role="status" className="text-sm text-muted-foreground">{error || "Opening your project…"}</p>
+      {error ? <button type="button" className="editor-command" onClick={() => void open(designId)}>Try again</button> : null}
+      {onHome ? <button type="button" className="editor-command" onClick={onHome}>Back to Studio</button> : null}
+    </div>
+  </section>
 
   return <section className="learn-canvas-soft min-w-0">
     <style>{CANVAS_PRESET_CSS}</style>

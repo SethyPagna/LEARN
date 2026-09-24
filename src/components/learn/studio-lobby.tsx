@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ArrowRight, ChevronDown, ChevronRight, FileText, Loader2, PenTool, Plus, Presentation, Search, SlidersHorizontal, StickyNote, Table2, X } from "lucide-react"
+import { ArrowRight, ChevronDown, ChevronRight, FileText, Loader2, PenTool, Plus, Search, SlidersHorizontal, X } from "lucide-react"
 import { createDesignDoc } from "@/lib/design/document"
-import { readDesignDrafts } from "@/lib/design/draft"
+import { projectHref, projectKinds, useStudioProjects, type ProjectKind, type Project } from "./studio-projects"
 import { formatRelativeTime } from "@/lib/format-time"
 import { api } from "./api"
 import { CREATE_MENU_EVENT } from "./create-menu"
@@ -12,15 +12,6 @@ import { openPlaceGuide } from "./place-guide"
 import type { WorkspaceOptions } from "./preferences"
 import type { Note } from "./types"
 
-type ProjectKind = "canvas" | "notes" | "docs" | "slides" | "sheets"
-type Project = { id: string; title: string; kind: ProjectKind; updated_at?: string | null; content?: unknown }
-const projectKinds = {
-  canvas: { label: "Canvas", icon: PenTool, endpoint: "/api/canvas" },
-  notes: { label: "Note", icon: StickyNote, endpoint: "/api/notes" },
-  docs: { label: "Document", icon: FileText, endpoint: "/api/docs" },
-  slides: { label: "Slides", icon: Presentation, endpoint: "/api/slides" },
-  sheets: { label: "Sheet", icon: Table2, endpoint: "/api/sheets" },
-} as const
 const filters = ["All", "Canvas", "Writing", "Slides", "Sheets"] as const
 type Filter = (typeof filters)[number]
 const projectKindOrder = Object.keys(projectKinds) as ProjectKind[]
@@ -33,8 +24,6 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
   onNoteCreated: (note: Note) => void
   initialFilter?: Filter
 }) {
-  const [projects, setProjects] = useState<Project[]>([])
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [creating, setCreating] = useState<ProjectKind | null>(null)
   const [filter, setFilter] = useState<Filter>(initialFilter)
@@ -67,40 +56,20 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
     open: menuOpen, setActiveIndex, setOpen: setMenuOpen,
   })
 
-  useEffect(() => {
-    let active = true
-    async function load() {
-      const kinds = ["canvas", "docs", "slides", "sheets"] as const
-      const results = await Promise.allSettled(kinds.map(async (kind) => {
-        const response = await api<{ items: Omit<Project, "kind">[] }>(`${projectKinds[kind].endpoint}${kind === "canvas" ? "?view=summary" : ""}`)
-        return response.items.map((item) => ({ ...item, kind }))
-      }))
-      if (!active) return
-      const saved = results.flatMap((result) => result.status === "fulfilled" ? result.value : [])
-      const merged = new Map(saved.map((item) => [`${item.kind}:${item.id}`, item as Project]))
-      for (const draft of readDesignDrafts()) {
-        const key = `canvas:${draft.id}`
-        const current = merged.get(key)
-        if (!current?.updated_at || draft.updatedAt > current.updated_at) merged.set(key, { id: draft.id, title: draft.title, kind: "canvas", content: draft.design, updated_at: draft.updatedAt })
-      }
-      setProjects([...merged.values()])
-      if (results.some((result) => result.status === "rejected")) setError("Some projects couldn't load. Your available work is shown below.")
-      setLoading(false)
-    }
-    void load()
-    return () => { active = false }
-  }, [])
+
+  const { projects: allProjects, loading, error: loadError } = useStudioProjects(notes)
+  useEffect(() => { if (loadError) setError(loadError) }, [loadError])
+  const recentProject = allProjects[0]
 
   const matches = useMemo(() => {
-    const all: Project[] = [...projects, ...notes.map((note) => ({ ...note, kind: "notes" as const }))]
-    return all.filter((project) => {
+    return allProjects.filter((project) => {
       const category = project.kind === "notes" || project.kind === "docs" ? "Writing" : project.kind === "canvas" ? "Canvas" : project.kind === "slides" ? "Slides" : "Sheets"
       return (filter === "All" || category === filter) && project.title.toLowerCase().includes(query.toLowerCase().trim())
     }).sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""))
-  }, [projects, notes, filter, query])
+  }, [allProjects, filter, query])
 
   function openProject(project: Project) {
-    onOpen(project.kind === "canvas" ? `/canvas?design=${encodeURIComponent(project.id)}` : `/${project.kind}?item=${encodeURIComponent(`${project.kind}:${project.id}`)}`)
+    onOpen(projectHref(project))
   }
 
   async function create(kind: ProjectKind) {
@@ -128,7 +97,8 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
   return <section className="studio-lobby mx-auto max-w-6xl pb-4" aria-label="Your Studio home">
     <header className="mb-5 flex items-center justify-between gap-3">
       <div className="min-w-0">
-        <h2 className="truncate text-xl font-semibold tracking-tight">{options.workspaceName && options.workspaceName !== "Your personal studio" ? options.workspaceName : "Projects"}</h2>
+        <h2 className="truncate text-xl font-semibold tracking-tight">{options.workspaceName && options.workspaceName !== "Your personal studio" ? options.workspaceName : "Studio"}</h2>
+        <p className="mt-1 text-xs text-muted-foreground">{options.dailyFocus || "A little space for your next big idea."}</p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <button type="button" aria-label="Workspace appearance" title="Workspace appearance" className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring" onClick={() => onOpen("/settings?section=experience")}><SlidersHorizontal className="h-4 w-4" /></button>
@@ -140,12 +110,21 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
             {projectKindOrder.map((kind, index) => {
               const item = projectKinds[kind]
               const Icon = item.icon
-              return <button key={kind} type="button" role="menuitem" disabled={Boolean(creating)} onClick={() => void create(kind)} onMouseEnter={() => setActiveIndex(index)} onFocus={() => setActiveIndex(index)} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${activeIndex === index ? "bg-secondary" : "hover:bg-secondary"}`}><Icon className="h-4 w-4 text-muted-foreground" />{item.label}</button>
+              return <button key={kind} type="button" role="menuitem" disabled={Boolean(creating)} onClick={() => void create(kind)} onMouseEnter={() => setActiveIndex(index)} onFocus={() => setActiveIndex(index)} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${activeIndex === index ? "bg-secondary" : "hover:bg-secondary"}`}><span data-project-kind={kind} className="studio-project-icon rounded-md p-1.5"><Icon className="h-4 w-4" /></span>{item.label}</button>
             })}
           </div> : null}
         </div>
       </div>
     </header>
+    {!query && filter === "All" ? <div className="studio-resume mb-5">
+      <div className="min-w-0 py-1">
+        <p className="mb-2 text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{recentProject ? "Pick up where you left off" : "Make something yours"}</p>
+        <h3 className="truncate text-lg font-semibold tracking-tight">{recentProject?.title || "Every good idea starts somewhere."}</h3>
+        <p className="mt-1 text-xs text-muted-foreground">{recentProject ? projectKinds[recentProject.kind].label + (recentProject.updated_at ? " · Edited " + formatRelativeTime(recentProject.updated_at) : "") : "A note, a canvas, a plan. Start with Add."}</p>
+        {recentProject ? <button type="button" onClick={() => openProject(recentProject)} className="mt-3 inline-flex items-center gap-2 text-xs font-medium underline-offset-4 hover:underline">Continue working<ArrowRight className="h-3.5 w-3.5" /></button> : null}
+      </div>
+      <div className="studio-paper-stack" aria-hidden="true"><span className="studio-paper studio-paper-back"><PenTool /></span><span className="studio-paper studio-paper-front"><FileText /><i /><i /><i /></span><span className="studio-paper-spark">✳</span></div>
+    </div> : null}
     {error ? <p role="alert" className="mb-4 flex items-center justify-between gap-3 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}<button type="button" aria-label="Dismiss error" onClick={() => setError("")}><X className="h-4 w-4" /></button></p> : null}
     <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
       <div className="flex max-w-full gap-1 overflow-auto" aria-label="Project filters">
@@ -162,7 +141,7 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
           const edited = project.updated_at ? formatRelativeTime(project.updated_at) : "—"
           return <li key={`${project.kind}:${project.id}`}>
             <button type="button" onClick={() => openProject(project)} className="group grid min-h-16 w-full grid-cols-[minmax(0,1fr)_1rem] items-center gap-3 px-4 py-3 text-left transition hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-14 sm:grid-cols-[minmax(0,1fr)_7rem_7rem_1rem] sm:gap-4">
-              <span className="flex min-w-0 items-center gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground"><Icon className="h-4 w-4" /></span><span className="min-w-0"><span className="block truncate text-sm font-medium">{project.title || "Untitled"}</span><span className="mt-0.5 block text-xs text-muted-foreground sm:hidden">{spec.label} · {edited}</span></span></span>
+              <span className="flex min-w-0 items-center gap-3"><span data-project-kind={project.kind} className="studio-project-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"><Icon className="h-4 w-4" /></span><span className="min-w-0"><span className="block truncate text-sm font-medium">{project.title || "Untitled"}</span><span className="mt-0.5 block text-xs text-muted-foreground sm:hidden">{spec.label} · {edited}</span></span></span>
               <span className="hidden text-xs text-muted-foreground sm:block">{spec.label}</span>
               <span className="hidden text-xs text-muted-foreground sm:block">{edited}</span>
               <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-foreground" />

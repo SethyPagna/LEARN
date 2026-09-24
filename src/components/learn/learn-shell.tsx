@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { launcherActions, MobileTabBar, Sidebar, Topbar, titleForView } from "./app-nav"
 import { api } from "./api"
 import { CommandPalette } from "./command-palette"
@@ -10,6 +10,8 @@ import type { AdminData, AutomationData, DashboardData, Note, Quiz, User, View }
 import { StatusMessage } from "./ui"
 import { AiTutorView } from "./views/ai-view"
 import { CanvasEditorView } from "./views/canvas-editor"
+import { EditorProjectList } from "./editor-project-list"
+import { EditorNavigationContext, type EditorExitGuard } from "./editor-navigation"
 import { StudioLobby } from "./studio-lobby"
 import { AppInstallProvider } from "./app-install"
 import { FilesView } from "./views/files-view"
@@ -53,6 +55,18 @@ export function LearnShell({
   const [view, setView] = useState<View>(initialView)
   const [locationSearch, setLocationSearch] = useState("")
   const [sidebarMode, setSidebarMode] = useState(initialSidebarMode)
+  const [editorSidebarMode, setEditorSidebarMode] = useState<SidebarMode>("rail")
+  const isEditor = ["notes", "docs", "slides", "sheets"].includes(view) || (view === "canvas" && new URLSearchParams(locationSearch).has("design"))
+  const effectiveSidebarMode = isEditor ? editorSidebarMode : sidebarMode
+  useEffect(() => { if (isEditor) setEditorSidebarMode("rail") }, [isEditor])
+  const editorExitGuard = useRef<EditorExitGuard | null>(null)
+  const navigationPending = useRef(false)
+  const navigateSafely = useCallback(async (navigate: () => void) => {
+    if (navigationPending.current) return
+    navigationPending.current = true
+    try { if (!editorExitGuard.current || await editorExitGuard.current()) navigate() }
+    finally { navigationPending.current = false }
+  }, [])
   const [profileUsername, setProfileUsername] = useState(initialProfileUsername)
   const [user, setUser] = useState<User | null>(null)
   const [notes, setNotes] = useState<Note[]>([])
@@ -149,19 +163,21 @@ export function LearnShell({
   }, [view, automationData])
 
   const changeSidebarMode = useCallback((mode: SidebarMode) => {
+    if (isEditor) { setEditorSidebarMode(mode); return }
     setSidebarMode(mode)
     // A cookie rather than localStorage: the server reads it, so a reload
     // paints the sidebar at its chosen width instead of flashing the default.
     document.cookie = sidebarModeCookie(mode)
-  }, [])
+  }, [isEditor])
 
   const cycleSidebar = useCallback(() => {
+    if (isEditor) { setEditorSidebarMode(cycleSidebarMode); return }
     setSidebarMode((current) => {
       const next = cycleSidebarMode(current)
       document.cookie = sidebarModeCookie(next)
       return next
     })
-  }, [])
+  }, [isEditor])
 
   // Ctrl/Cmd+\ cycles full → icons → hidden. An editor that binds the same
   // chord for itself calls preventDefault() first and keeps it.
@@ -181,6 +197,7 @@ export function LearnShell({
   }
 
   const chooseView = useCallback((nextView: View) => {
+    void navigateSafely(() => {
     setView(nextView)
     setProfileUsername(undefined)
     const nextPath = viewRoutes[nextView]
@@ -188,10 +205,13 @@ export function LearnShell({
       window.history.pushState({ learnView: nextView }, "", nextPath)
       setLocationSearch("")
     }
-  }, [])
+    })
+  }, [navigateSafely])
 
   /** In-app links (a notification's target) keep their query, e.g. `/chat?thread=…`. */
   const openLink = useCallback((href: string) => {
+    if (new URL(href, window.location.origin).href === window.location.href) return
+    void navigateSafely(() => {
     const url = new URL(href, window.location.origin)
     const nextView = url.origin === window.location.origin ? viewFromPath(url.pathname) : null
     if (!nextView) {
@@ -202,7 +222,8 @@ export function LearnShell({
     setLocationSearch(url.search)
     setProfileUsername(profileUsernameFromPath(url.pathname))
     setView(nextView)
-  }, [])
+    })
+  }, [navigateSafely])
 
   const openNote = useCallback((id: string) => {
     setSelectedNoteId(id)
@@ -218,8 +239,8 @@ export function LearnShell({
   const isStudioLobby = view === "dashboard" || view === "studio" || (view === "canvas" && !new URLSearchParams(locationSearch).has("design"))
 
   return (
-    <AppInstallProvider><RealtimeInboxProvider userId={user?.id}>
-      <div className="learn-app min-h-screen overflow-x-hidden bg-background text-foreground" data-sidebar={sidebarMode} data-density={preferences.density} data-view={view}>
+    <EditorNavigationContext.Provider value={editorExitGuard}><AppInstallProvider><RealtimeInboxProvider userId={user?.id}>
+      <div className="learn-app min-h-screen overflow-x-hidden bg-background text-foreground" data-sidebar={effectiveSidebarMode} data-editor={isEditor || undefined} data-density={preferences.density} data-view={view}>
         {/* WCAG 2.4.1 (bypass blocks): the sidebar and topbar repeat on every view,
             so the first focusable element in the shell is a link that jumps past
             them. It sits just above the viewport until it is focused and only then
@@ -234,7 +255,7 @@ export function LearnShell({
         </a>
         <Sidebar
           hideCreate
-          mode={sidebarMode}
+          mode={effectiveSidebarMode}
           onModeChange={changeSidebarMode}
           practiceDraftSummary={practiceDraftSummary}
           setView={chooseView}
@@ -257,7 +278,7 @@ export function LearnShell({
             setLocale={preferences.setLocale}
             setTheme={preferences.setTheme}
             setView={chooseView}
-            sidebarMode={sidebarMode}
+            sidebarMode={effectiveSidebarMode}
             studioDraftSummary={studioDraftSummary}
             text={preferences.text}
             theme={preferences.theme}
@@ -269,6 +290,8 @@ export function LearnShell({
             tabIndex={-1}
             className={`learn-paper min-h-[calc(100vh-var(--shell-topbar))] min-w-0 pb-28 focus:outline-none lg:pb-10 ${preferences.density === "compact" ? "px-3 pt-4 sm:px-5 lg:px-6" : "px-4 pt-5 sm:px-6 lg:px-8 lg:pt-7"}`}
           >
+            {isEditor ? <EditorProjectList notes={notes} view={view} search={locationSearch} onOpen={openLink} /> : null}
+            <div className="learn-content-pane min-w-0">
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
             {isStudioLobby ? <StudioLobby key={view} notes={notes} options={preferences.options} onOpen={openLink} onNoteCreated={(note) => setNotes((current) => [note, ...current])} initialFilter={view === "canvas" ? "Canvas" : "All"} /> : null}
             {view === "vault" ? <VaultView setView={chooseView} notes={notes} /> : null}
@@ -281,7 +304,7 @@ export function LearnShell({
             {view === "graph" ? <GraphView setView={chooseView} /> : null}
             {view === "progress" ? <ProgressView dashboard={dashboard} quizzes={quizzes} setView={chooseView} /> : null}
             {view === "calendar" ? <CalendarView options={preferences.options} /> : null}
-            {view === "canvas" && new URLSearchParams(locationSearch).has("design") ? <CanvasEditorView key={locationSearch} notes={notes} onHome={() => chooseView("dashboard")} /> : null}
+            {view === "canvas" && new URLSearchParams(locationSearch).has("design") ? <CanvasEditorView key={locationSearch} designId={new URLSearchParams(locationSearch).get("design") || undefined} notes={notes} onHome={() => chooseView("dashboard")} /> : null}
             {/* `live` is a Practice alias with a screen of its own; the Practice
                 workspace below is for every other Practice view, so the two never
                 stack on one page. */}
@@ -295,6 +318,7 @@ export function LearnShell({
             {view === "profile" ? <ProfileView key={profileUsername || "me"} user={user} username={profileUsername} setView={chooseView} /> : null}
             {view === "settings" ? <SettingsView user={user} automationData={automationData} locale={preferences.locale} options={preferences.options} setLocale={preferences.setLocale} setOptions={preferences.setOptions} /> : null}
             {view === "admin" ? <AdminView user={user} adminData={adminData} automationData={automationData} options={preferences.options} /> : null}
+            </div>
           </main>
         </div>
         <MobileTabBar logout={logout} setView={chooseView} text={preferences.text} user={user} view={view} />
@@ -313,6 +337,6 @@ export function LearnShell({
         />
         <PlaceGuide setView={chooseView} />
       </div>
-    </RealtimeInboxProvider></AppInstallProvider>
+    </RealtimeInboxProvider></AppInstallProvider></EditorNavigationContext.Provider>
   )
 }

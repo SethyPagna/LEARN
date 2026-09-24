@@ -23,6 +23,7 @@ import { PresentMode } from "./present-mode"
 import { PopoverButton } from "./popover"
 import { ResizeMenu, type ResizeTarget } from "./resize-menu"
 import { useDesignController } from "./use-design-controller"
+import { useEditorExitGuard } from "../editor-navigation"
 import { useDesignSave } from "./use-design-save"
 
 export interface OpenDesign { id: string; doc: DesignDoc; saved: DesignDoc | null; exists: boolean }
@@ -34,6 +35,7 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
   const controller = useDesignController({ initial: opened.doc, notes, measure, notify })
   const { api, state, commands, undo } = controller
   const save = useDesignSave({ recordId: opened.id, design: api.design, initialSaved: opened.saved, exists: opened.exists })
+  useEditorExitGuard(async () => save.status === "saved" ? true : save.saveNow())
   const compact = useCompactLayout()
   const [panel, setPanel] = useState<DesignPanelId | null>(null)
   const [pagesOpen, setPagesOpen] = useState(false)
