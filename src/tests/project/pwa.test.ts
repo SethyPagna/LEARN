@@ -166,7 +166,7 @@ test("manifest module declares the app as installable", () => {
   assert.match(source, /name:\s*"LEARN"/)
   assert.match(source, /short_name:\s*"LEARN"/)
   assert.match(source, /description:/)
-  assert.match(source, /start_url:\s*"\/"/)
+  assert.match(source, /start_url:\s*"\/dashboard"/)
   assert.match(source, /display:\s*"standalone"/)
   assert.match(source, /background_color:\s*"#[0-9a-fA-F]{3,8}"/)
   assert.match(source, /theme_color:\s*"#[0-9a-fA-F]{3,8}"/)

@@ -13,6 +13,13 @@ export type StudioDraftRecord =
 
 export type StudioDraftStore = Partial<Record<StudioKind, StudioDraftRecord>>
 
+/** A project link must never restore a different project's last open draft. */
+export function canRestoreStudioDraft(draft: StudioDraftRecord | undefined, target: string | null, loadedId?: string): boolean {
+  if (!draft) return false
+  if (!target) return true
+  return target === `${draft.kind}:${draft.id}` && loadedId === draft.id
+}
+
 export type StudioDraftSummary = {
   count: number
   labels: string[]

@@ -136,7 +136,7 @@ import {
   type StudioRecordActionId,
 } from "@/lib/studio-features"
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, replaceTextInHtml, summarizeDocumentHtml, undoHistory, type HistoryState } from "@/lib/workspace-features"
-import { clearStudioDraft, readStudioDrafts, shouldAnnounceStudioDraftSave, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
+import { canRestoreStudioDraft, clearStudioDraft, readStudioDrafts, shouldAnnounceStudioDraftSave, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
 import { studioFontOptions, studioFontSizeOptions, studioHighlightColorOptions, studioTextColorOptions } from "@/lib/studio-formatting"
 import { getStudioKindOption, getStudioViewModeOption, studioEmptyTabLabels, studioInspectorTabs, studioKindOptions, studioSectionFilters, studioViewModeOptions, type StudioViewMode } from "@/lib/studio-navigation"
 import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, blankNoteTitle, blankRichText, blankSheetCells, blankSheetFingerprint, blankSheetTitle, ensureSheetCells, parseDeckSlides, parseSheetCells, studioCreateLabels, studioDraftSummary, studioFallbackTitle, studioNoItemSummary } from "@/lib/studio-defaults"
@@ -597,7 +597,7 @@ export function StudioView({
 
   useEffect(() => {
     const stored = readStudioDrafts().notes
-    if (!hydratedDraftKinds.current.has("notes") && stored?.kind === "notes") {
+    if (!hydratedDraftKinds.current.has("notes") && stored?.kind === "notes" && canRestoreStudioDraft(stored, new URLSearchParams(window.location.search).get("item"), selectedNote?.id)) {
       hydratedDraftKinds.current.add("notes")
       setSelectedNoteId(stored.id || "")
       setNoteDraft({
@@ -616,6 +616,11 @@ export function StudioView({
   useEffect(() => {
     const deepLink = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("item")
     const [deepLinkKind, deepLinkId] = deepLink ? deepLink.split(":") : [undefined, undefined]
+    if (deepLinkKind === "notes" && deepLinkId) {
+      setSelectedNoteId(deepLinkId)
+      setKind("notes")
+      setStudioMode("editor")
+    }
 
     Promise.all([
       api<{ items: WorkspaceDocument[] }>("/api/docs"),
@@ -659,7 +664,7 @@ export function StudioView({
 
   useEffect(() => {
     const stored = readStudioDrafts().docs
-    if (!hydratedDraftKinds.current.has("docs") && stored?.kind === "docs") {
+    if (!hydratedDraftKinds.current.has("docs") && stored?.kind === "docs" && canRestoreStudioDraft(stored, new URLSearchParams(window.location.search).get("item"), selectedDoc?.id)) {
       hydratedDraftKinds.current.add("docs")
       setDocId(stored.id || "")
       setDocTitle(stored.title)
@@ -673,7 +678,7 @@ export function StudioView({
 
   useEffect(() => {
     const stored = readStudioDrafts().sheets
-    if (!hydratedDraftKinds.current.has("sheets") && stored?.kind === "sheets") {
+    if (!hydratedDraftKinds.current.has("sheets") && stored?.kind === "sheets" && canRestoreStudioDraft(stored, new URLSearchParams(window.location.search).get("item"), selectedSheet?.id)) {
       hydratedDraftKinds.current.add("sheets")
       setSheetId(stored.id || "")
       setSheetTitle(stored.title)
@@ -687,7 +692,7 @@ export function StudioView({
 
   useEffect(() => {
     const stored = readStudioDrafts().slides
-    if (!hydratedDraftKinds.current.has("slides") && stored?.kind === "slides") {
+    if (!hydratedDraftKinds.current.has("slides") && stored?.kind === "slides" && canRestoreStudioDraft(stored, new URLSearchParams(window.location.search).get("item"), selectedDeck?.id)) {
       hydratedDraftKinds.current.add("slides")
       setDeckId(stored.id || "")
       setDeckTitle(stored.title)
@@ -1548,6 +1553,7 @@ export function StudioView({
       await api("/api/canvas", { method: "POST", body: JSON.stringify({ id: doc.id, title: doc.name, content: doc }) })
       setView("canvas")
       window.history.replaceState({ learnView: "canvas" }, "", `/canvas?design=${encodeURIComponent(doc.id)}`)
+      window.dispatchEvent(new PopStateEvent("popstate"))
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "This item could not be copied to Designs.")
     }
@@ -1655,7 +1661,7 @@ export function StudioView({
         <div className="flex flex-wrap items-center gap-2">
           <button onClick={() => askAi()} className="h-9 rounded-md border border-border px-3 text-sm font-semibold" type="button">Ask AI</button>
           {kind !== "sheets" ? <button onClick={() => void copyToDesign()} className="h-9 rounded-md border border-border px-3 text-sm font-semibold" type="button">Copy to Designs</button> : null}
-          <button onClick={() => setStudioMode("projects")} className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+          <button onClick={() => setView("dashboard")} className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
             <ArrowLeft className="h-4 w-4" />
             Back
           </button>
@@ -1666,7 +1672,7 @@ export function StudioView({
                 const nextTitle = window.prompt("Project name", activeTitle() || studioFallbackTitle)
                 if (nextTitle?.trim()) setActiveTitle(nextTitle.trim())
               }} meta="Update the title shown in Studio" />
-              <MenuAction icon={ArrowLeft} label="All projects" onClick={() => setStudioMode("projects")} meta="Search, formats, and templates" />
+              <MenuAction icon={ArrowLeft} label="All projects" onClick={() => setView("dashboard")} meta="Search, formats, and templates" />
               {projectMenuItems.map((item) => {
                 const Icon = studioKindIcons[item.kind]
                 const badge = dirtyBadgeMap.get(item.kind)

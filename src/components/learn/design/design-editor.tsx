@@ -156,7 +156,7 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
     else controller.paste()
   }}>
     <header className="flex flex-wrap items-center gap-2 border-b border-border p-2">
-      <button type="button" className="canvas-tool" onClick={() => { void save.saveNow().then(onHome) }}>Designs</button>
+      <button type="button" className="canvas-tool" onClick={() => { void save.saveNow().then(onHome) }}>Studio home</button>
       <input aria-label="Design title" className="min-w-32 flex-1 rounded-lg bg-transparent px-2 py-1 font-semibold" value={api.design.name} maxLength={200} onChange={(event) => api.update((doc) => ({ ...doc, name: event.target.value }), { coalesce: "title" })} />
       <span role="status" className="text-xs text-muted-foreground">{save.status === "error" ? "Save failed — draft kept" : save.status === "saving" ? "Saving…" : save.status === "dirty" ? "Unsaved changes" : save.exists ? "Saved" : "New design"}</span>
       <button type="button" className="canvas-tool" onClick={() => void save.saveNow()}>Save</button>

@@ -4,13 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { launcherActions, MobileTabBar, Sidebar, Topbar, titleForView } from "./app-nav"
 import { api } from "./api"
 import { CommandPalette } from "./command-palette"
-import { PlaceGuide } from "./place-guide"
+import { PlaceGuide, openPlaceGuide } from "./place-guide"
 import { RealtimeInboxProvider } from "./realtime-inbox"
 import type { AdminData, AutomationData, DashboardData, Note, Quiz, User, View } from "./types"
 import { StatusMessage } from "./ui"
 import { AiTutorView } from "./views/ai-view"
 import { CanvasEditorView } from "./views/canvas-editor"
-import { DashboardView } from "./views/dashboard-view"
+import { StudioLobby } from "./studio-lobby"
 import { FilesView } from "./views/files-view"
 import { AdminView, CalendarView, ProgressView, SettingsView } from "./views/secondary-views"
 import { useWorkspacePreferences } from "./preferences"
@@ -49,6 +49,7 @@ export function LearnShell({
   profileUsername?: string
 }) {
   const [view, setView] = useState<View>(initialView)
+  const [locationSearch, setLocationSearch] = useState("")
   const [sidebarMode, setSidebarMode] = useState(initialSidebarMode)
   const [profileUsername, setProfileUsername] = useState(initialProfileUsername)
   const [user, setUser] = useState<User | null>(null)
@@ -62,7 +63,6 @@ export function LearnShell({
   const [status, setStatus] = useState("")
   const [studioDraftSummary, setStudioDraftSummary] = useState<StudioDraftSummary>({ count: 0, labels: [] })
   const [practiceDraftSummary, setPracticeDraftSummary] = useState<PracticeDraftSummary>({ count: 0, quizIds: [] })
-  const [forceOnboarding, setForceOnboarding] = useState(false)
   const preferences = useWorkspacePreferences()
   const { resolvedTheme, setTheme } = preferences
 
@@ -121,7 +121,8 @@ export function LearnShell({
     function syncViewFromLocation() {
       const nextView = viewFromPath(window.location.pathname)
       if (!nextView) return
-      setForceOnboarding(new URLSearchParams(window.location.search).get("onboarding") === "1")
+      if (new URLSearchParams(window.location.search).get("onboarding") === "1") openPlaceGuide()
+      setLocationSearch(window.location.search)
       setProfileUsername(profileUsernameFromPath(window.location.pathname))
       setView(nextView)
     }
@@ -183,6 +184,7 @@ export function LearnShell({
     const nextPath = viewRoutes[nextView]
     if (typeof window !== "undefined" && nextPath && window.location.pathname !== nextPath) {
       window.history.pushState({ learnView: nextView }, "", nextPath)
+      setLocationSearch("")
     }
   }, [])
 
@@ -195,6 +197,7 @@ export function LearnShell({
       return
     }
     window.history.pushState({ learnView: nextView }, "", `${url.pathname}${url.search}${url.hash}`)
+    setLocationSearch(url.search)
     setProfileUsername(profileUsernameFromPath(url.pathname))
     setView(nextView)
   }, [])
@@ -262,7 +265,7 @@ export function LearnShell({
             className={`learn-paper min-h-[calc(100vh-var(--shell-topbar))] min-w-0 pb-28 focus:outline-none lg:pb-10 ${preferences.density === "compact" ? "px-3 pt-4 sm:px-5 lg:px-6" : "px-4 pt-5 sm:px-6 lg:px-8 lg:pt-7"}`}
           >
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
-            {view === "dashboard" ? <DashboardView dashboard={dashboard} forceOnboarding={forceOnboarding} notes={notes} openNote={openNote} quizzes={quizzes} options={preferences.options} practiceDraftSummary={practiceDraftSummary} setView={chooseView} studioDraftSummary={studioDraftSummary} user={user} /> : null}
+            {view === "dashboard" || view === "studio" || (view === "canvas" && !new URLSearchParams(locationSearch).has("design")) ? <StudioLobby key={view} user={user} notes={notes} options={preferences.options} setOptions={preferences.setOptions} onOpen={openLink} onNoteCreated={(note) => setNotes((current) => [note, ...current])} initialFilter={view === "canvas" ? "Canvas" : "All"} /> : null}
             {view === "vault" ? <VaultView setView={chooseView} notes={notes} /> : null}
             {/* `discover` is a documented alias of `feed`, not a second screen: both
                 views render the same FeedView. `/discover` exists as a route (and
@@ -273,13 +276,13 @@ export function LearnShell({
             {view === "graph" ? <GraphView setView={chooseView} /> : null}
             {view === "progress" ? <ProgressView dashboard={dashboard} quizzes={quizzes} setView={chooseView} /> : null}
             {view === "calendar" ? <CalendarView options={preferences.options} /> : null}
-            {view === "canvas" ? <CanvasEditorView notes={notes} /> : null}
+            {view === "canvas" && new URLSearchParams(locationSearch).has("design") ? <CanvasEditorView key={locationSearch} notes={notes} onHome={() => chooseView("dashboard")} /> : null}
             {/* `live` is a Practice alias with a screen of its own; the Practice
                 workspace below is for every other Practice view, so the two never
                 stack on one page. */}
             {view === "live" ? <LiveQuizView quizzes={quizzes} user={user} /> : null}
             {view === "reviews" ? <ReviewsView setView={chooseView} /> : null}
-            {studioViews.includes(view as (typeof studioViews)[number]) ? <StudioView setView={chooseView} initialKind={getStudioKind(view)} notes={notes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} onDraftSummary={setStudioDraftSummary} /> : null}
+            {view !== "studio" && studioViews.includes(view as (typeof studioViews)[number]) ? <StudioView key={`${view}:${locationSearch}`} setView={chooseView} initialKind={getStudioKind(view)} notes={notes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} onDraftSummary={setStudioDraftSummary} /> : null}
             {view !== "live" && view !== "reviews" && practiceViews.includes(view as (typeof practiceViews)[number]) ? <PracticeWorkspaceView initialView={view} quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={preferences.options} setView={chooseView} /> : null}
             {view === "ai" ? <AiTutorView notes={notes} options={preferences.options} setNotes={setNotes} setQuizzes={setQuizzes} setOptions={preferences.setOptions} setView={chooseView} /> : null}
             {view === "files" ? <FilesView options={preferences.options} setView={chooseView} /> : null}

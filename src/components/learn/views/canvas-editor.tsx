@@ -27,7 +27,7 @@ function withDrafts(items: DesignSummary[]): DesignSummary[] {
 }
 
 /** One route and one editor for both legacy canvases and multi-page designs. */
-export function CanvasEditorView({ notes = [] }: { notes?: readonly Note[] }) {
+export function CanvasEditorView({ notes = [], onHome }: { notes?: readonly Note[]; onHome?: () => void }) {
   const measure = useDesignMeasure()
   const [items, setItems] = useState<DesignSummary[] | null>(null)
   const [error, setError] = useState("")
@@ -118,7 +118,7 @@ export function CanvasEditorView({ notes = [] }: { notes?: readonly Note[] }) {
   return <section className="learn-canvas-soft min-w-0">
     <style>{CANVAS_PRESET_CSS}</style>
     {message ? <p role="status" className="mb-2 flex justify-between rounded-lg bg-muted px-3 py-2 text-sm">{message}<button type="button" aria-label="Dismiss notice" onClick={() => setMessage("")}>×</button></p> : null}
-    {opened ? <DesignEditor key={opened.id} opened={opened} notes={notes} measure={measure} onHome={() => { setOpened(null); setDesignUrl(null); void load() }} onCreate={create} /> : <>
+    {opened ? <DesignEditor key={opened.id} opened={opened} notes={notes} measure={measure} onHome={() => { if (onHome) onHome(); else { setOpened(null); setDesignUrl(null); void load() } }} onCreate={create} /> : <>
       <label className="canvas-tool mb-3 inline-flex cursor-pointer">Import design<input type="file" className="hidden" accept="application/json,.json" aria-label="Import design JSON" onChange={(event) => { void importFile(event.target.files?.[0]); event.target.value = "" }} /></label>
       <DesignsHome items={items} error={error} notes={notes} measure={measure} openingId={openingId} onOpen={(id) => void open(id)} onCreate={create} onArchive={(id) => void archive(id)} onRetry={() => void load()} onNotify={setMessage} />
     </>}

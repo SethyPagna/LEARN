@@ -19,7 +19,6 @@ import {
   MessageCircle,
   Monitor,
   Moon,
-  NotebookPen,
   PanelLeftClose,
   PanelLeftDashed,
   PanelLeftOpen,
@@ -83,6 +82,7 @@ export const launcherActions: Record<LauncherCommandAction, () => void> = {
 }
 
 export function titleForView(view: View, text: Text) {
+  if (view === "dashboard" || view === "studio") return "Studio"
   return text[viewLabelKeys[view]] || text.dashboard
 }
 
@@ -130,7 +130,7 @@ function subViewsFor(view: View, user: User | null) {
 }
 
 function draftBadgeFor(item: LearnNavigationItem, studioDraftSummary: StudioDraftSummary, practiceDraftSummary: PracticeDraftSummary) {
-  const count = item.view === "studio" ? studioDraftSummary.count : item.view === "practice" ? practiceDraftSummary.count : 0
+  const count = item.view === "dashboard" ? studioDraftSummary.count : item.view === "practice" ? practiceDraftSummary.count : 0
   const title = item.view === "practice"
     ? formatNavigationBadge(count, "saved Practice attempt", "saved Practice attempts")
     : formatNavigationBadge(count, "local Studio draft", "local Studio drafts")
@@ -141,16 +141,13 @@ function draftBadgeFor(item: LearnNavigationItem, studioDraftSummary: StudioDraf
 /* Brand                                                                     */
 /* ------------------------------------------------------------------------ */
 
-/** The mark: a notebook with two divider tabs sticking out of its edge. */
+/** A simple folded L, shared with the installed-app icon. */
 function BrandMark({ size = "md" }: { size?: "sm" | "md" }) {
-  const box = size === "sm" ? "h-8 w-8 rounded-lg" : "h-10 w-10 rounded-xl"
-  return (
-    <span className={`relative flex shrink-0 items-center justify-center bg-primary text-primary-foreground shadow-paper ${box}`} aria-hidden="true">
-      <NotebookPen className={size === "sm" ? "h-4 w-4" : "h-[18px] w-[18px]"} />
-      <span className="absolute -right-[5px] top-[18%] h-[26%] w-[5px] rounded-r-[3px] bg-tab-home" />
-      <span className="absolute -right-[5px] top-[52%] h-[22%] w-[5px] rounded-r-[3px] bg-tab-social" />
-    </span>
-  )
+  return <svg viewBox="0 0 48 48" className={size === "sm" ? "h-8 w-8 shrink-0" : "h-10 w-10 shrink-0"} fill="none" aria-hidden="true">
+    <rect width="48" height="48" rx="13" fill="currentColor" className="text-foreground" />
+    <path d="M14 12h7v23h-7zM21 28h14v7H21z" className="fill-background" />
+    <path d="M26 13h9v9h-9z" className="fill-primary" />
+  </svg>
 }
 
 /* ------------------------------------------------------------------------ */
@@ -200,7 +197,7 @@ export function Sidebar({
             <BrandMark />
             <span className="min-w-0">
               <span className="block font-display text-lg font-bold leading-tight tracking-tight">{text.appName}</span>
-              <span className="block truncate text-xs text-muted-foreground">Your study notebook</span>
+              <span className="block truncate text-xs text-muted-foreground">Your space</span>
             </span>
           </button>
           <button type="button" onClick={() => onModeChange("rail")} className={ghostIconButton} aria-label="Collapse sidebar to icons" title={`Collapse to icons (${modKey}+\\)`}>
@@ -224,7 +221,7 @@ export function Sidebar({
             className="mb-3 flex h-9 w-full items-center gap-2 rounded-lg border border-sidebar-border bg-background/70 px-3 text-sm text-muted-foreground transition hover:border-ring/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Search className="h-4 w-4" />
-            <span>Search or jump</span>
+            <span className="whitespace-nowrap text-xs">Search or jump</span>
             <span className="ml-auto flex items-center gap-0.5">
               <kbd className="learn-kbd">{modKey}</kbd>
               <kbd className="learn-kbd">K</kbd>
@@ -311,7 +308,7 @@ function Navigation({
               const Icon = viewIcons[item.view]
               const tab = sectionTabForView(item.view)
               const badge = draftBadgeFor(item, studioDraftSummary, practiceDraftSummary)
-              const subViews = active ? subViewsFor(item.view, user) : []
+              const subViews = active && item.view !== "dashboard" ? subViewsFor(item.view, user) : []
               return (
                 <li key={item.view} data-tab={tab}>
                   <button
@@ -1097,7 +1094,7 @@ function NotificationToasts({
 /* Phone: bottom tabs and the "More" sheet                                   */
 /* ------------------------------------------------------------------------ */
 
-const mobileTabViews: readonly View[] = ["dashboard", "studio", "practice", "social"]
+const mobileTabViews: readonly View[] = ["dashboard", "ai", "practice", "social"]
 
 export function MobileTabBar({
   logout,

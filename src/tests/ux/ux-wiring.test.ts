@@ -38,7 +38,7 @@ const LEARN_SHELL = "src/components/learn/learn-shell.tsx"
 const CREATE_MENU = "src/components/learn/create-menu.tsx"
 const PLACE_GUIDE = "src/components/learn/place-guide.tsx"
 const MENU_KEYBOARD = "src/components/learn/menu-keyboard.ts"
-const DASHBOARD_VIEW = "src/components/learn/views/dashboard-view.tsx"
+const DASHBOARD_VIEW = "src/components/learn/studio-lobby.tsx"
 
 /**
  * The source of one top-level component, from its declaration to the next one.
@@ -99,7 +99,7 @@ test("both new controls live in the component tree, not just in their own files"
   assert.match(appNav, /import \{ openPlaceGuide \} from "\.\/place-guide"/, "the launcher must be able to open the guide")
 
   const shell = readSource(LEARN_SHELL)
-  assert.match(shell, /import \{ PlaceGuide \} from "\.\/place-guide"/, "the shell must import the guide")
+  assert.match(shell, /import \{[^}]*\bPlaceGuide\b[^}]*\} from "\.\/place-guide"/, "the shell must import the guide")
   assert.match(shell, /<PlaceGuide setView=\{chooseView\} \/>/, "the guide must be mounted once for the whole app")
 })
 
@@ -139,54 +139,22 @@ test("the launcher offers exactly one create and one guide entry, both keyworded
   }
 })
 
-test("the dashboard offers the guide from its empty setup state", () => {
-  const dashboard = readSource(DASHBOARD_VIEW)
-
-  assert.match(dashboard, /import \{ openPlaceGuide \} from "\.\.\/place-guide"/, "the dashboard must be able to open the guide")
-  assert.match(dashboard, /onClick=\{openPlaceGuide\}/, "an empty-state card must open the guide")
-  assert.match(dashboard, /New here\? What&apos;s where/, "the empty-state card needs a label that says what it does")
+test("the personal Studio lobby keeps a discoverable guide without a dashboard of setup cards", () => {
+  const lobby = readSource(DASHBOARD_VIEW)
+  assert.match(lobby, /onClick=\{openPlaceGuide\}/)
+  const guide = launcherCommands.find((command) => command.action === "place-guide")
+  assert.ok(guide)
+  assert.ok(lobby.includes(guide.label))
 })
 
-/**
- * The day-one guard.
- *
- * The setup-gaps card above only teaches "Vault vs Studio vs Notes vs Docs" to
- * someone who thinks to expand a collapsed panel; a brand-new user sees the
- * first-run card and nothing else. That card must carry the same entry point as
- * the launcher, in the launcher's own words, or the two surfaces drift apart and
- * the guide goes back to being reachable only by people who already know it.
- */
-test("the first-run card carries the same guide entry point as the launcher", () => {
-  const card = componentSource(readSource(DASHBOARD_VIEW), "OnboardingCard")
-  const guideCommand = launcherCommands.find((command) => command.action === "place-guide")
-
-  assert.match(card, /First run/, "the slice must be the first-run card, not another card in the file")
-  assert.ok(guideCommand, "the launcher must still offer the guide")
-  assert.match(card, /onClick=\{openPlaceGuide\}/, "the first-run card must open the same guide the launcher opens")
-  assert.match(card, /data-testid="first-run-place-guide"/, "the affordance needs a stable hook for structural checks")
-  assert.match(
-    card,
-    new RegExp(guideCommand.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
-    "the card must reuse the launcher's own words for the guide, so the two entry points cannot drift apart",
-  )
-})
-
-/**
- * The restructuring guard.
- *
- * This change adds clarity; it is not allowed to move anything. If a future
- * edit renames a sidebar group or one of the eight primary destinations, the
- * guide's "grouped the same way as the sidebar" promise breaks silently — so
- * the pinned surface is repeated here, independently of navigation.test.ts.
- */
-test("no sidebar group label or primary destination was renamed by this change", () => {
+test("sidebar keeps stable learning destinations with one Studio home", () => {
   assert.deepEqual(
     navigationGroups.map((group) => group.label),
     ["Home", "Learn", "Practice", "Social", "Manage"],
   )
   assert.deepEqual(
     navigationGroups.flatMap((group) => group.items).map((item) => item.view),
-    ["dashboard", "studio", "ai", "files", "calendar", "practice", "social", "settings"],
+    ["dashboard", "ai", "files", "calendar", "practice", "social", "settings"],
   )
 })
 

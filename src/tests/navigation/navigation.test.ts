@@ -14,7 +14,6 @@ test("navigation keeps primary sidebar destinations compact", () => {
   assert.equal(primaryItems.length <= 9, true)
   assert.deepEqual(primaryItems.map((item) => item.view), [
     "dashboard",
-    "studio",
     "ai",
     "files",
     "calendar",
@@ -26,13 +25,13 @@ test("navigation keeps primary sidebar destinations compact", () => {
   assert.equal(navigationGroups.find((group) => group.label === "Practice")?.caption, "Quizzes, games, retries, and reviews")
 })
 
-test("stable Studio routes resolve to Studio with the matching tab", () => {
-  for (const view of ["notes", "docs", "sheets", "slides"] as const) {
+test("Studio and Canvas belong to the home lobby while editor routes stay stable", () => {
+  for (const view of ["studio", "canvas", "notes", "docs", "sheets", "slides"] as const) {
     const target = resolveNavigationTarget(view)
 
-    assert.equal(target.primaryView, "studio")
+    assert.equal(target.primaryView, "dashboard")
     assert.equal(target.route, viewRoutes[view])
-    assert.equal(getStudioKind(view), view)
+    if (view !== "studio" && view !== "canvas") assert.equal(getStudioKind(view), view)
   }
 })
 

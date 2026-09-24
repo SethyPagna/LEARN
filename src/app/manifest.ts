@@ -6,10 +6,10 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "LEARN",
     description:
       "A Cloudflare-first learning workspace for notes, quizzes, files, AI tutoring, and progress.",
-    start_url: "/",
+    start_url: "/dashboard",
     display: "standalone",
-    background_color: "#040506",
-    theme_color: "#040506",
+    background_color: "#202433",
+    theme_color: "#202433",
     icons: [
       {
         src: "/icon.svg",

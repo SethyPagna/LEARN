@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import { cookies } from "next/headers"
 import Link from "next/link"
 import { ArrowRight, BookOpen, Brain, GraduationCap, Layers3, Sparkles } from "lucide-react"
@@ -9,6 +10,7 @@ import { PublicWorkflowLink } from "@/components/public-workflow-link"
 export default async function HomePage() {
   const cookieStore = await cookies()
   const signedIn = Boolean(cookieStore.get(SESSION_COOKIE)?.value)
+  if (signedIn) redirect("/dashboard")
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#f6faf7] text-slate-950 dark:bg-[#040506] dark:text-white">

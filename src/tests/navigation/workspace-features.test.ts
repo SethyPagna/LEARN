@@ -38,7 +38,16 @@ import {
   sortSheetByColumn,
   splitStudioPane,
 } from "../../lib/studio-features"
-import { normalizeStudioDraftRecord, parseStoredStudioDrafts, serializeStudioDrafts, shouldAnnounceStudioDraftSave, summarizeStudioDrafts } from "../../lib/studio-drafts"
+import { canRestoreStudioDraft, normalizeStudioDraftRecord, parseStoredStudioDrafts, serializeStudioDrafts, shouldAnnounceStudioDraftSave, summarizeStudioDrafts } from "../../lib/studio-drafts"
+
+test("project deep links restore only their own loaded draft", () => {
+  const draft = { kind: "docs" as const, id: "doc_a", title: "Draft", content: "Unsaved", updatedAt: "2026-09-24" }
+  assert.equal(canRestoreStudioDraft(draft, "docs:doc_a", "doc_a"), true)
+  assert.equal(canRestoreStudioDraft(draft, "docs:doc_b", "doc_b"), false)
+  assert.equal(canRestoreStudioDraft(draft, "docs:doc_a", undefined), false)
+  assert.equal(canRestoreStudioDraft(draft, "notes:doc_a", "doc_a"), false)
+  assert.equal(canRestoreStudioDraft(draft, null), true)
+})
 import {
   findStudioFormattingOption,
   studioFontOptions,

@@ -215,8 +215,8 @@ export function findArtifact(id: string): ArtifactType | null {
 export const PLACES = [
   {
     id: "dashboard",
-    label: "Dashboard",
-    oneLine: "Your starting view: today's route, recent work, and the gaps still to close.",
+    label: "Studio",
+    oneLine: "Your personal lobby for canvases, writing, slides, sheets, and recent projects.",
     view: "dashboard",
     route: viewRoutes.dashboard,
     groupLabel: "Home",
@@ -225,10 +225,10 @@ export const PLACES = [
   {
     id: "studio",
     label: "Studio",
-    oneLine: "The writers' room where every note, doc, sheet, and deck is edited.",
+    oneLine: "The same personal home lobby, with every project in one place.",
     view: "studio",
     route: viewRoutes.studio,
-    groupLabel: "Learn",
+    groupLabel: "Home",
     keywords: ["studio", "editor", "workspace", "write", "edit", "pane"],
   },
   {
@@ -237,7 +237,7 @@ export const PLACES = [
     oneLine: "Quick captures, opened straight into Studio.",
     view: "notes",
     route: viewRoutes.notes,
-    groupLabel: "Learn",
+    groupLabel: "Home",
     keywords: ["note", "notes", "capture", "quick"],
   },
   {
@@ -246,7 +246,7 @@ export const PLACES = [
     oneLine: "Long-form writing with headings and pages, opened in Studio.",
     view: "docs",
     route: viewRoutes.docs,
-    groupLabel: "Learn",
+    groupLabel: "Home",
     keywords: ["doc", "docs", "document", "writing", "page"],
   },
   {
@@ -255,7 +255,7 @@ export const PLACES = [
     oneLine: "Grids of rows and numbers, opened in Studio.",
     view: "sheets",
     route: viewRoutes.sheets,
-    groupLabel: "Learn",
+    groupLabel: "Home",
     keywords: ["sheet", "sheets", "table", "grid", "numbers"],
   },
   {
@@ -264,7 +264,7 @@ export const PLACES = [
     oneLine: "Slide sets for presenting, opened in Studio.",
     view: "slides",
     route: viewRoutes.slides,
-    groupLabel: "Learn",
+    groupLabel: "Home",
     keywords: ["slide", "slides", "deck", "presentation"],
   },
   {
@@ -273,7 +273,7 @@ export const PLACES = [
     oneLine: "A free-form board for diagrams, layouts, and posters.",
     view: "canvas",
     route: viewRoutes.canvas,
-    groupLabel: "Learn",
+    groupLabel: "Home",
     keywords: ["canvas", "board", "design", "diagram", "layout"],
   },
   {
