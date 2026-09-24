@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { launcherActions, MobileTabBar, Sidebar, Topbar, titleForView } from "./app-nav"
 import { api } from "./api"
+import { PageSections } from "./page-sections"
 import { CommandPalette } from "./command-palette"
 import { PlaceGuide, openPlaceGuide } from "./place-guide"
 import { RealtimeInboxProvider } from "./realtime-inbox"
@@ -294,9 +295,10 @@ export function LearnShell({
           >
             {isEditor ? <EditorProjectList notes={notes} view={view} search={locationSearch} onOpen={openLink} /> : null}
             <div className="learn-content-pane min-w-0">
+            <PageSections view={view} setView={chooseView} />
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
             {isStudioLobby ? <StudioLobby key={view} notes={notes} options={preferences.options} onOpen={openLink} onNoteCreated={(note) => setNotes((current) => [note, ...current])} initialFilter={view === "canvas" ? "Canvas" : "All"} /> : null}
-            {view === "vault" ? <VaultView setView={chooseView} notes={notes} /> : null}
+            {view === "vault" ? <VaultView setView={chooseView} notes={notes} onOpenNote={openNote} /> : null}
             {/* `discover` is a documented alias of `feed`, not a second screen: both
                 views render the same FeedView. `/discover` exists as a route (and
                 `viewFromPath` resolves it to the `discover` view), but the catalog

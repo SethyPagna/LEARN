@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Check, Copy, Link as LinkIcon, Plus, Sparkles, Trash2, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Check, Copy, Link as LinkIcon, Plus, Sparkles, Trash2, X, SlidersHorizontal } from "lucide-react"
 import { DEFAULT_ALARM_LEAD_MINUTES } from "@/lib/calendar/ics"
 import { buildCalendarMonthGrid, buildCalendarPlanningSummary, calendarEventTypeOptions, calendarReminderOptions, filterCalendarAgenda, formatCalendarDuration, labelCalendarEventType, normalizeCalendarEventType, type CalendarAgendaFilter, type CalendarEventType } from "@/lib/calendar-features"
 import type { WorkspaceOptions } from "../preferences"
@@ -276,7 +276,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
 
   return <section className="calendar-workspace mx-auto max-w-[1600px]" aria-label="Calendar">
     <header className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex items-baseline gap-3"><h2 className="text-xl font-semibold tracking-tight">Calendar</h2><span className="text-[11px] text-muted-foreground">{timezone}</span></div>
+      <div className="flex items-baseline gap-3"><h2 className="text-xl font-semibold tracking-tight">Calendar</h2><span title={`Times shown in ${timezone}`} className="hidden text-[11px] text-muted-foreground sm:inline">{timezone.split("/").at(-1)?.replaceAll("_", " ")}</span></div>
       <div className="flex items-center gap-2">
         <button type="button" onClick={() => setConnectionsOpen(true)} aria-label="Calendar connections" className="editor-command"><LinkIcon className="h-4 w-4" /><span className="hidden sm:inline">Connections</span></button>
         <button type="button" onClick={() => createEventForDay()} className="editor-primary"><Plus className="h-4 w-4" /> Add</button>
@@ -296,8 +296,10 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
       </div>
       <div className="flex rounded-lg bg-secondary p-1" aria-label="Calendar views">{(["month", "week", "agenda"] as const).map((value) => <button key={value} type="button" aria-pressed={mode === value} onClick={() => setMode(value)} className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize ${mode === value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>{value}</button>)}</div>
     </div>
+    <details className="calendar-filters-panel"><summary className="editor-command"><SlidersHorizontal className="h-4 w-4" />Filters{hiddenTypes.length + hiddenCalendars.length ? <span className="text-xs text-primary">{hiddenTypes.length + hiddenCalendars.length} hidden</span> : null}</summary><div className="grid gap-2 py-2">
     <div className="flex flex-wrap gap-1.5" aria-label="Event category filters">{[...calendarEventTypeOptions, { value: "external", label: "Connected" }].map(option => <button key={option.value} type="button" className="calendar-filter" aria-pressed={!hiddenTypes.includes(option.value)} onClick={() => setHiddenTypes(current => toggleHidden(current, option.value))}><span className={`h-1.5 w-1.5 rounded-full ${calendarDotClass(option.value)}`} />{option.label}</button>)}</div>
     {connected.calendars.length ? <div className="flex flex-wrap gap-1.5" aria-label="Calendar filters"><button type="button" className="calendar-filter" aria-pressed={!hiddenCalendars.includes("learn")} onClick={() => setHiddenCalendars(current => toggleHidden(current, "learn"))}>LEARN</button>{connected.calendars.map(calendar => { const key = calendarSource(calendar.connectionId, calendar.id); return <button key={key} type="button" className="calendar-filter" aria-pressed={!hiddenCalendars.includes(key)} onClick={() => setHiddenCalendars(current => toggleHidden(current, key))}>{calendar.name}</button> })}</div> : null}
+    </div></details>
     {mode === "agenda" ? <div className="rounded-xl border border-border bg-card">
       <div className="flex flex-wrap gap-1 border-b border-border p-3">{(["all", "today", "upcoming", "review", "completed"] as CalendarAgendaFilter[]).map((filter) => <button key={filter} type="button" aria-pressed={agendaFilter === filter} onClick={() => setAgendaFilter(filter)} className={`rounded-lg px-3 py-2 text-xs capitalize ${agendaFilter === filter ? "bg-secondary font-medium" : "text-muted-foreground"}`}>{filter}</button>)}</div>
       <ul className="divide-y divide-border" aria-label="Agenda">{filteredEvents.map((event) => <li key={event.id}><button type="button" onClick={() => openEvent(event)} className="flex w-full items-center gap-4 px-4 py-4 text-left hover:bg-secondary/50">

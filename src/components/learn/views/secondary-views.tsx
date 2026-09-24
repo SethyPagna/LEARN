@@ -40,93 +40,14 @@ export function ProgressView({ dashboard, quizzes, setView }: { dashboard: Dashb
   )
   const progressPlan = useMemo(() => buildProgressCommandPlan(progress), [progress])
   const ProgressPlanIcon = progressActionIcons[progressPlan.target]
-  const topicSeverityCounts = useMemo(() => summarizeProgressTopicSeverity(progress.weakTopics), [progress.weakTopics])
 
-  return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <header className="workspace-header xl:col-span-2">
-        <div><h2 className="text-lg font-semibold">Progress</h2><p className="mt-1 text-xs text-muted-foreground">{progress.momentumLabel}</p></div>
-        <button type="button" onClick={() => setView?.(progressPlan.target)} className="editor-command border border-border"><ProgressPlanIcon className="h-4 w-4" />{progressPlan.headline}<ArrowRight className="h-4 w-4" /></button>
-      </header>
-      <Panel className="p-4 xl:col-span-2">
-        <div className="grid grid-cols-2 gap-5 md:grid-cols-4">
-          {progress.metrics.map((metric) => <div key={metric.id}><p className="text-xs text-muted-foreground">{metric.label}</p><p className="mt-2 text-2xl font-semibold tabular-nums">{metric.value}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{metric.detail}</p></div>)}
-        </div>
-        <div className="mt-5 border-t border-border pt-4"><div className="flex justify-between text-xs text-muted-foreground"><span>Goal completion</span><span>{progress.goalCompletion}%</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary" style={{ width: `${progress.goalCompletion}%` }} /></div></div>
-        <details className="mt-3 text-xs text-muted-foreground"><summary className="cursor-pointer py-1">Goal details</summary><p className="mt-2 leading-6">{progressPlan.detail}</p><div className="mt-2 flex flex-wrap gap-2">{progress.focusTopics.map((topic) => <SharedStatusPill key={topic} label={topic} />)}</div></details>
-      </Panel>
-
-      <Panel className="p-4">
-        <ProgressHeader icon={Target} title="Next actions" info="Ranked from the current goal, weak topics, and available quiz banks." />
-        <div className="mt-4 grid gap-2">
-          {progress.nextActions.map((action) => (
-            <ProgressActionButton key={action.id} action={action} onClick={() => setView?.(action.target)} />
-          ))}
-        </div>
-      </Panel>
-
-      <Panel className="p-4">
-        <ProgressHeader icon={AlertTriangle} title="Weak topics" info="Lower accuracy appears first. Use these cards to decide what should become review or practice next." />
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          <MiniProgressStat label="Critical" value={String(topicSeverityCounts.critical)} tone="critical" />
-          <MiniProgressStat label="Watch" value={String(topicSeverityCounts.watch)} tone="watch" />
-          <MiniProgressStat label="Steady" value={String(topicSeverityCounts.steady)} tone="steady" />
-        </div>
-        <div className="mt-4 grid gap-2">
-          {progress.weakTopics.length ? progress.weakTopics.map((topic) => (
-            <div key={topic.topic} className="rounded-md border border-border bg-background p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">{topic.topic}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{topic.attempts || 0} attempts</p>
-                </div>
-                <span className={`rounded-md px-2 py-1 text-xs font-semibold ${severityClass(topic.severity)}`}>{topic.accuracy}%</span>
-              </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-                <div className={`h-full rounded-full ${topic.severity === "critical" ? "bg-destructive" : "bg-success"}`} style={{ width: `${Math.max(6, topic.accuracy)}%` }} />
-              </div>
-            </div>
-          )) : (
-            <div className="rounded-md border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
-              No weak topics yet. Run practice to create signals.
-            </div>
-          )}
-        </div>
-      </Panel>
-
-      <Panel className="p-4 xl:col-span-2">
-        <details>
-          <summary className="flex cursor-pointer items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
-                <Gauge className="h-5 w-5" />
-              </div>
-              <h3 className="truncate font-semibold text-foreground">Your learning activity</h3>
-            </div>
-            <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">Guide</span>
-          </summary>
-          <div className="mt-4 grid gap-3 md:grid-cols-5">
-            {[
-              ["Studio", "Capture"],
-              ["AI", "Clean"],
-              ["Practice", "Attempt"],
-              ["Reviews", "Recall"],
-              ["Calendar", "Schedule"],
-            ].map(([label, detail], index) => (
-              <div key={label} className="rounded-md border border-border bg-background p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-secondary text-sm font-semibold text-secondary-foreground">{index + 1}</span>
-                  {index < 4 ? <ArrowRight className="h-4 w-4 text-muted-foreground" /> : <Check className="h-4 w-4 text-success" />}
-                </div>
-                <p className="mt-3 font-semibold text-foreground">{label}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
-              </div>
-            ))}
-          </div>
-        </details>
-      </Panel>
-    </div>
-  )
+  return <section className="learning-page mx-auto grid max-w-4xl gap-4">
+    <header className="workspace-header"><h2 className="text-lg font-semibold">Progress</h2><span className="text-xs text-muted-foreground">{progress.momentumLabel === "steady" ? "On track" : progress.momentumLabel === "building" ? "Making progress" : "Let’s get started"}</span></header>
+    <div className="progress-overview"><div className="progress-ring" style={{ background: `conic-gradient(var(--primary) ${progress.goalCompletion}%, var(--muted) 0)` }}><span><strong>{progress.goalCompletion}%</strong><small>Daily goal</small></span></div><div className="grid flex-1 grid-cols-2 gap-4">{progress.metrics.filter(metric => metric.id !== "goal").map(metric => <div key={metric.id} title={metric.detail}><p className="text-2xl font-semibold tabular-nums">{metric.value}</p><p className="mt-1 text-xs text-muted-foreground">{metric.label}</p></div>)}</div></div>
+    <div className="grid gap-4 md:grid-cols-2"><Panel className="p-4"><h3 className="mb-3 text-sm font-semibold">Keep going</h3><div className="grid gap-2">{progress.nextActions.slice(0, 3).map(action => <ProgressActionButton key={action.id} action={action} onClick={() => setView?.(action.target)} />)}</div></Panel>
+    <Panel className="p-4"><h3 className="mb-3 text-sm font-semibold">A little more practice</h3>{progress.weakTopics.length ? progress.weakTopics.map(topic => <button key={topic.topic} onClick={() => setView?.("quizzes")} className="block w-full py-2 text-left"><span className="flex justify-between gap-2 text-sm"><span className="truncate">{topic.topic}</span><span className="text-xs text-muted-foreground">{topic.accuracy}%</span></span><span className="mt-2 block h-1.5 rounded-full bg-muted"><span className="block h-full rounded-full bg-primary" style={{ width: `${topic.accuracy}%` }} /></span></button>) : <p className="text-sm text-muted-foreground">Complete a quiz to see your topic strengths.</p>}</Panel></div>
+    <details className="workspace-disclosure"><summary>Goal details</summary><p className="pt-3 text-sm text-muted-foreground">{progressPlan.detail}</p><button className="editor-command mt-2" onClick={() => setView?.(progressPlan.target)}><ProgressPlanIcon className="h-4 w-4" />{progressPlan.headline}</button></details>
+  </section>
 }
 
 function ProgressActionButton({ action, onClick }: { action: ProgressNextAction; onClick: () => void }) {
@@ -137,59 +58,12 @@ function ProgressActionButton({ action, onClick }: { action: ProgressNextAction;
         <Icon className="h-5 w-5 text-success" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{action.label}</p>
-          <SharedStatusPill label={action.urgency} tone={urgencyTone(action.urgency)} />
         </div>
         <ArrowRight className="h-4 w-4 text-muted-foreground" />
       </div>
       <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{action.detail}</p>
     </button>
   )
-}
-
-function ProgressHeader({ icon: Icon, info, title }: { icon: typeof Target; info: string; title: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
-          <Icon className="h-5 w-5" />
-        </div>
-        <h3 className="truncate font-semibold text-foreground">{title}</h3>
-      </div>
-      <details className="relative">
-        <summary className="flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${title}`}>
-          <Filter className="h-4 w-4" />
-        </summary>
-        <p className="absolute right-0 top-10 z-20 w-64 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">{info}</p>
-      </details>
-    </div>
-  )
-}
-
-function MiniProgressStat({ label, tone, value }: { label: string; tone: "critical" | "watch" | "steady"; value: string }) {
-  return (
-    <div className={`rounded-md border p-2 ${severityClass(tone)}`}>
-      <p className="text-[0.65rem] font-semibold uppercase opacity-80">{label}</p>
-      <p className="mt-1 text-lg font-semibold leading-none">{value}</p>
-    </div>
-  )
-}
-
-function summarizeProgressTopicSeverity(topics: Array<{ severity: "critical" | "watch" | "steady" }>) {
-  const counts = { critical: 0, steady: 0, watch: 0 }
-  for (const topic of topics) counts[topic.severity] += 1
-  return counts
-}
-
-function severityClass(severity: "critical" | "watch" | "steady") {
-  if (severity === "critical") return "bg-destructive text-destructive-foreground"
-  if (severity === "watch") return "bg-warning/20 text-warning-foreground"
-  return "bg-success/20 text-success"
-}
-
-function urgencyTone(urgency: ProgressNextAction["urgency"]) {
-  if (urgency === "high") return "critical"
-  if (urgency === "medium") return "watch"
-  return "steady"
 }
 
 const settingsSectionIcons: Record<SettingsSectionId, typeof Target> = {

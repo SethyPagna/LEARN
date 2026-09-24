@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { Sparkles, BookOpen, CalendarDays, MessageSquare } from "lucide-react"
 import { launchAiTutorFromSource } from "@/lib/ai/source-launch"
 import { api } from "./api"
 import type { Note, View } from "./types"
@@ -47,19 +48,19 @@ export function VaultNoteBlocks({ note, revision, setView }: { note?: Note; revi
     }
   }
 
-  return <section className="mt-4 rounded-md border border-border p-3" aria-label="Saved Vault blocks">
-    <h4 className="font-semibold">Saved blocks for {note?.title || "your note"}</h4>
+  return <section className="vault-blocks" aria-label="Saved Vault blocks">
+
     {status ? <p role="status" className="mt-2 text-sm text-muted-foreground">{status}</p> : null}
     <div className="my-3 flex flex-wrap gap-2">
-      <button className="rounded-md border px-3 py-2 text-sm" disabled={!note || loadedNoteId !== note.id} onClick={() => openTutor("explain")}>Ask AI about this note</button>
-      <button className="rounded-md border px-3 py-2 text-sm" disabled={!note || loadedNoteId !== note.id} onClick={() => openTutor("quiz")}>Create quiz from this note</button>
-      <button className="rounded-md border px-3 py-2 text-sm" disabled={!note || loadedNoteId !== note.id} onClick={() => openTutor("activity")}>Plan a study activity</button>
-      <button className="rounded-md border px-3 py-2 text-sm" disabled={!note || loadedNoteId !== note.id} onClick={() => openTutor("discussion")}>Draft a discussion space</button>
+      <button className="editor-command border border-border" disabled={!note || loadedNoteId !== note.id} onClick={() => openTutor("explain")} title="Ask AI about this note"><Sparkles className="h-4 w-4 text-primary" />Explain</button>
+      <button className="editor-command border border-border" disabled={!note || loadedNoteId !== note.id} onClick={() => openTutor("quiz")} title="Create quiz from this note"><BookOpen className="h-4 w-4 text-primary" />Quiz</button>
+      <button className="editor-command border border-border" disabled={!note || loadedNoteId !== note.id} onClick={() => openTutor("activity")} title="Plan a study activity"><CalendarDays className="h-4 w-4 text-primary" />Plan</button>
+      <button className="editor-command border border-border" disabled={!note || loadedNoteId !== note.id} onClick={() => openTutor("discussion")} title="Draft a discussion space"><MessageSquare className="h-4 w-4 text-primary" />Discuss</button>
     </div>
     <ul className="grid gap-2">{blocks.map((block) => <li key={block.id} className="rounded-md bg-muted p-3">
       <p className="text-xs font-semibold uppercase text-muted-foreground">{block.blockType}</p>
       <p className="mt-1 whitespace-pre-wrap text-sm">{blockText(block)}</p>
-      <button className="mt-2 text-sm font-semibold text-primary" onClick={() => openTutor("explain", block)}>Ask AI about this block</button>
+      <button className="mt-2 text-sm font-semibold text-primary" onClick={() => openTutor("explain", block)}>Explain block</button>
     </li>)}</ul>
     {blocks.length === 200 ? <p className="mt-2 text-xs text-muted-foreground">Showing the first 200 blocks.</p> : null}
   </section>
