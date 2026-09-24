@@ -1,7 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0\..\.."
-set PATH=%CD%\ops\run\bin;%PATH%
+set "PATH=%CD%\ops\run\bin;%PATH%"
 
 if "%VERCEL_TOKEN%"=="" (
   echo VERCEL_TOKEN is not set.
@@ -34,4 +34,5 @@ if errorlevel 1 exit /b 1
 
 echo Deploying Vercel project learn...
 call ops\run\bin\pnpm.cmd dlx vercel@latest deploy --prebuilt --prod --token="%VERCEL_TOKEN%"
-endlocal
+set "deploy_result=%errorlevel%"
+endlocal & exit /b %deploy_result%
