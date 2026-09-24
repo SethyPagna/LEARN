@@ -196,7 +196,7 @@ export function Sidebar({
           </button>
         </div>
       ) : (
-        <div className="flex items-center gap-3 px-4 pb-3 pt-4">
+        <div className="flex items-center gap-2 px-3 pb-2 pt-3">
           <button type="button" onClick={() => setView("dashboard")} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <BrandMark size="sm" />
             <span className="min-w-0">
@@ -301,7 +301,7 @@ function Navigation({
   }
 
   return (
-    <nav aria-label="Sections" className="grid gap-3">
+    <nav aria-label="Sections" className="grid gap-0.5">
       {navigationGroups.map((group) => (
         <div key={group.label}>
           <p className="sr-only" title={group.caption}>
@@ -321,7 +321,7 @@ function Navigation({
                     onClick={() => setView(item.view)}
                     aria-current={view === item.view ? "page" : undefined}
                     title={getNavigationItemDetail(item)}
-                    className={`relative flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    className={`relative flex h-8 w-full items-center gap-1.5 rounded-lg px-2 text-[13px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       active
                         ? "learn-tab-marker learn-tab-wash-strong font-semibold text-foreground"
                         : "font-medium text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -348,7 +348,7 @@ function Navigation({
                               type="button"
                               onClick={() => setView(sub)}
                               aria-current={subActive ? "page" : undefined}
-                              className={`flex h-8 w-full items-center gap-2 rounded-md px-2 text-[0.82rem] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                              className={`flex h-7 w-full items-center gap-2 rounded-md px-2 text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                                 subActive ? "learn-tab-wash font-semibold text-foreground" : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                               }`}
                             >
@@ -480,7 +480,7 @@ export function Topbar({
   const ThemeIcon = resolvedTheme === "dark" ? Sun : Moon
 
   const accountControls = (
-    <div className={accountHost ? (sidebarMode === "rail" ? "flex flex-col items-center gap-2" : "flex items-center gap-1") : "flex items-center gap-1"}>
+    <div className={accountHost ? (sidebarMode === "rail" ? "account-cluster account-cluster-rail" : "account-cluster") : "flex items-center gap-1"}>
           <AccountMenu
             sidebar={Boolean(accountHost)}
             showName={Boolean(accountHost) && sidebarMode === "expanded"}
