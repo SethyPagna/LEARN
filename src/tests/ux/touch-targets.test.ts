@@ -17,7 +17,8 @@ import { fileURLToPath } from "node:url"
  */
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
-const CANVAS_EDITOR = "src/components/learn/views/canvas-editor.tsx"
+const CANVAS_EDITOR = "src/components/learn/design/editor-styles.ts"
+const DESIGN_STAGE = "src/components/learn/design/design-stage.tsx"
 const AUDIT_SCRIPT = "ops/scripts/test/browser-ux-audit.mjs"
 const CDP_DRIVER = "ops/scripts/test/lib/cdp.mjs"
 
@@ -84,9 +85,10 @@ const hitRule = declarationsFor(canvasCss, ".learn-canvas-soft .canvas-handle::a
   declarationsFor(canvasCss, ".learn-canvas-soft .canvas-handle::before")
 
 test("canvas handles keep a hit area of at least 24x24 around the small dot", () => {
-  // The dot is drawn at 10 * scale; only the hit surface may grow.
-  const dotMatch = /const size = (\d+(?:\.\d+)?) \* scale/.exec(canvasCss)
-  assert.ok(dotMatch, "canvas-editor must still size its handles from a scaled dot")
+  // Chrome lives outside the transformed page, so dot and hit area stay in
+  // screen pixels at every zoom level.
+  const dotMatch = /width: (\d+(?:\.\d+)?), height: \1, transform: "translate\(-50%,-50%\)"/.exec(readSource(DESIGN_STAGE))
+  assert.ok(dotMatch, "design-stage must keep its handles at a fixed screen size")
   const dotPx = Number(dotMatch[1])
   assert.ok(dotPx <= 14, `handle dots stay small; found ${dotPx}px`)
 

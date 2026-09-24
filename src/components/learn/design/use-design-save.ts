@@ -1,10 +1,11 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { canvasDeepEqual } from "@/lib/studio/canvas-engine"
 import { serializeDesign, type DesignDoc } from "@/lib/design/document"
 import { clearDesignDraft, writeDesignDraft, type DesignDraftReason } from "@/lib/design/draft"
+import { createLatestSaveQueue } from "@/lib/design/save-queue"
 
 import { api } from "../api"
 
@@ -36,8 +37,6 @@ export interface SavedDesignRecord {
 export const MAX_DESIGN_SAVE_BYTES = 1_800_000
 const AUTOSAVE_DELAY = 1100
 const DRAFT_DELAY = 300
-/** `keepalive` requests are capped at 64 KB by browsers. */
-const KEEPALIVE_LIMIT = 60_000
 
 interface ServerRecord {
   id?: string
@@ -90,7 +89,6 @@ export function useDesignSave({ recordId, design, initialSaved, exists: initiall
   const designRef = useRef(design)
   const existsRef = useRef(initiallyExists)
   const onSavedRef = useRef(onSaved)
-  const inFlightRef = useRef<Promise<boolean> | null>(null)
   const saveTimerRef = useRef<number | undefined>(undefined)
   const draftTimerRef = useRef<number | undefined>(undefined)
   const [status, setStatus] = useState<SaveStatus>(() => (initialSaved && (initialSaved === design || canvasDeepEqual(initialSaved, design)) ? (initiallyExists ? "saved" : "clean") : "dirty"))
@@ -115,9 +113,7 @@ export function useDesignSave({ recordId, design, initialSaved, exists: initiall
     [dirty, recordId],
   )
 
-  const runSave = useCallback(async (): Promise<boolean> => {
-    // Queue behind a save in flight; it re-checks what is newest when it ends.
-    while (inFlightRef.current) await inFlightRef.current.catch(() => false)
+  const saveOnce = useCallback(async (): Promise<boolean> => {
     const doc = designRef.current
     if (!dirty(doc)) {
       setStatus(existsRef.current ? "saved" : "clean")
@@ -132,8 +128,7 @@ export function useDesignSave({ recordId, design, initialSaved, exists: initiall
       return false
     }
     setStatus("saving")
-    const attempt = (async () => {
-      try {
+    try {
         const { item } = await api<{ item: ServerRecord }>("/api/canvas", { method: "PUT", body })
         savedRef.current = doc
         existsRef.current = true
@@ -143,24 +138,20 @@ export function useDesignSave({ recordId, design, initialSaved, exists: initiall
         if (designRef.current === doc) clearDesignDraft(recordId)
         onSavedRef.current?.({ id: item?.id ?? recordId, title: item?.title ?? doc.name, updatedAt: item?.updated_at ?? null }, doc)
         return true
-      } catch (reason) {
+    } catch (reason) {
         writeDraft("save-failed")
         setStatus("error")
         setError(reason instanceof Error && reason.message ? reason.message : "The design could not be saved.")
         return false
-      }
-    })()
-    inFlightRef.current = attempt
-    const ok = await attempt
-    inFlightRef.current = null
-    if (!ok) return false
-    if (dirty(designRef.current)) {
-      // Edits arrived during the save: send them too.
-      return runSave()
     }
-    setStatus("saved")
-    return true
   }, [dirty, recordId, writeDraft])
+
+  const queue = useMemo(() => createLatestSaveQueue({ isDirty: () => dirty(designRef.current), saveOnce }), [dirty, saveOnce])
+  const runSave = useCallback(async () => {
+    const ok = await queue.flush()
+    if (ok) setStatus(existsRef.current ? "saved" : "clean")
+    return ok
+  }, [queue])
 
   useEffect(() => {
     designRef.current = design
@@ -175,20 +166,14 @@ export function useDesignSave({ recordId, design, initialSaved, exists: initiall
     saveTimerRef.current = window.setTimeout(() => void runSave(), AUTOSAVE_DELAY)
   }, [design, dirty, runSave, writeDraft])
 
-  // A hidden or closing tab writes its draft at once and tries a last save
-  // (small designs only: a keepalive request is capped by the browser).
+  // A hidden or closing tab writes its draft at once. Use the same queue as
+  // autosave: a separate keepalive request could finish after a newer edit.
   useEffect(() => {
     const flush = () => {
       const doc = designRef.current
       if (!dirty(doc)) return
       writeDraft("unsaved")
-      const body = designSaveBody(recordId, doc)
-      if (body.length > KEEPALIVE_LIMIT || inFlightRef.current) return
-      try {
-        void fetch("/api/canvas", { method: "PUT", body, keepalive: true, headers: { "content-type": "application/json" } }).catch(() => undefined)
-      } catch {
-        // The draft is the fallback.
-      }
+      void runSave()
     }
     const onVisibility = () => {
       if (document.visibilityState === "hidden") flush()
@@ -199,7 +184,7 @@ export function useDesignSave({ recordId, design, initialSaved, exists: initiall
       window.removeEventListener("pagehide", flush)
       document.removeEventListener("visibilitychange", onVisibility)
     }
-  }, [dirty, recordId, writeDraft])
+  }, [dirty, runSave, writeDraft])
 
   // Leaving the editor (Home, another view) keeps the draft and sends the save.
   useEffect(

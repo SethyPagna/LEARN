@@ -21,6 +21,7 @@ import { EmptyHint } from "./panel-kit"
 const LAYER_MIME = "application/x-learn-design-layer"
 
 export function layerLabel(element: CanvasElement): string {
+  if (typeof element.style.name === "string" && element.style.name.trim()) return element.style.name.trim()
   if (element.type === "text") return element.content.split("\n")[0].trim().slice(0, 48) || "Empty text"
   if (element.type === "image") return element.content ? "Picture" : "Empty frame"
   if (element.type === "shape") {
@@ -43,6 +44,8 @@ export function LayersPanel({ api }: { api: DesignEditorApi }) {
   const page = api.design.pages[api.pageIndex]
   const [dragId, setDragId] = useState<string | null>(null)
   const [dropId, setDropId] = useState<string | null>(null)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [name, setName] = useState("")
   if (!page) return null
   const stack = page.elements
   const rows = [...stack].reverse()
@@ -118,12 +121,17 @@ export function LayersPanel({ api }: { api: DesignEditorApi }) {
                 onClick={(event) => select(element, event)}
                 aria-pressed={isSelected}
                 title={layerLabel(element)}
+                onDoubleClick={() => { setRenamingId(element.id); setName(layerLabel(element)) }}
               >
                 <GripVertical className="h-3.5 w-3.5 shrink-0 cursor-grab opacity-0 transition group-hover:opacity-50" aria-hidden="true" />
                 <LayerIcon element={element} />
                 <span className="min-w-0 flex-1 truncate">{layerLabel(element)}</span>
                 {element.groupId ? <span className="rounded-full bg-primary/15 px-1.5 text-[0.6rem] font-bold uppercase tracking-wide text-primary">Group</span> : null}
               </button>
+              {renamingId === element.id ? <input autoFocus aria-label="Layer name" className="min-w-0 flex-1 rounded border bg-background px-2 py-1 text-sm" maxLength={120} value={name} onChange={(event) => setName(event.target.value)} onBlur={() => {
+                api.update((design) => withPageElements(design, api.pageIndex, design.pages[api.pageIndex].elements.map((candidate) => candidate.id === element.id ? { ...candidate, style: { ...candidate.style, name: name.trim() } } : candidate)))
+                setRenamingId(null)
+              }} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { setRenamingId(null); event.stopPropagation() } }} /> : <button type="button" className="rounded p-1 text-xs text-muted-foreground hover:bg-muted" aria-label={`Rename ${layerLabel(element)}`} onClick={() => { setRenamingId(element.id); setName(layerLabel(element)) }}>Rename</button>}
               <button
                 type="button"
                 className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-background/70 hover:text-foreground"

@@ -287,38 +287,22 @@ function readSource(relativePath: string): string {
   return fs.readFileSync(filePath, "utf8")
 }
 
-/** The body of one top-level function in a file, up to the next blank-line break. */
-function functionBody(source: string, signature: string): string {
-  const start = source.indexOf(signature)
-  assert.notEqual(start, -1, `${signature} must exist`)
-  const end = source.indexOf("\n  }\n", start)
-  assert.notEqual(end, -1, `${signature} must be a top-level function`)
-  return source.slice(start, end)
-}
-
 test("the design canvas accepts a dropped block and commits it as one step", () => {
-  const source = readSource("src/components/learn/views/canvas-editor.tsx")
+  const source = readSource("src/components/learn/design/design-stage.tsx")
 
   assert.match(
     source,
     /import\s*\{[^}]*\bblockToElement\b[^}]*\bhasBlockDragPayload\b[^}]*\breadBlockDragPayload\b[^}]*\}\s*from\s*"@\/lib\/studio\/block-drop"/,
     "the canvas must read the drop through the shared payload helpers",
   )
-  assert.match(source, /onDragOver=\{onStageDragOver\}/, "the stage must consider falling drags")
-  assert.match(source, /onDrop=\{onStageDrop\}/, "the stage must accept the drop")
-
-  const dragOver = functionBody(source, "function onStageDragOver(")
-  assert.match(dragOver, /hasBlockDragPayload/, "dragover must ask whether the drag carries a block")
-  assert.match(dragOver, /event\.preventDefault\(\)/, "a block drag must be accepted, or no drop fires")
-  assert.match(dragOver, /dropEffect/, "the drag must read as a copy")
-
-  const drop = functionBody(source, "function onStageDrop(")
-  assert.match(drop, /readBlockDragPayload/, "the drop must read the payload")
-  assert.match(drop, /blockToElement\(/, "the drop must convert through the pure module")
-  assert.match(drop, /toCanvasPoint\(/, "the element must land where the pointer is")
-  assert.match(drop, /computeSnapGuides/, "a dropped element must respect the same snapping as a drag")
-  assert.match(drop, /setSelectedIds/, "the dropped element must be selected")
-  assert.equal((drop.match(/commit\(/g) || []).length, 1, "a drop must be exactly one undoable step")
+  assert.match(source, /onDragOver=/, "the stage must accept dragover")
+  assert.match(source, /onDrop=\{drop\}/, "the stage must accept the drop")
+  assert.match(source, /api\.insertElements\(\[adaptDroppedElement\(/, "AI blocks use the same insertion command as palette elements")
+  const controller = readSource("src/components/learn/design/use-design-controller.ts")
+  assert.match(controller, /update\(\(doc\) => insertDesignElements\(/, "the shared insertion enters document history once")
+  // Coordinates, frame replacement, selection and undo are exercised as actual
+  // state transitions in design/editor-integration.test.ts, rather than guessed
+  // from the spelling of a view-local implementation.
 })
 
 test("the AI block renderer starts a drag carrying the block payload", () => {
@@ -345,7 +329,7 @@ test("the block payload type has exactly one definition", () => {
 
   // A second copy of the literal elsewhere would be a drag that can never be
   // dropped, which no test of either half alone would catch.
-  for (const relativePath of ["src/components/learn/views/canvas-editor.tsx", "src/components/learn/ai-block-renderer.tsx"]) {
+  for (const relativePath of ["src/components/learn/design/design-stage.tsx", "src/components/learn/ai-block-renderer.tsx"]) {
     assert.equal(
       readSource(relativePath).includes("application/x-learn-block"),
       false,
