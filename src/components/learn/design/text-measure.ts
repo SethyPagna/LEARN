@@ -124,4 +124,3 @@ export async function loadDesignFonts(specs: Array<Pick<FontSpec, "font" | "weig
   const wanted = new Set(specs.map((spec) => canvasFont(resolvedFontFamily(spec.font), 32, spec.weight, spec.italic)))
   await Promise.all([...wanted].map((font) => document.fonts.load(font).catch(() => [])))
 }
-

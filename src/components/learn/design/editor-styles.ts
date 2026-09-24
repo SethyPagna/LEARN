@@ -134,5 +134,3 @@ export const CANVAS_PRESET_CSS = `
   box-shadow: inset 0 0 0 1.5px var(--primary);
 }
 `
-
-
