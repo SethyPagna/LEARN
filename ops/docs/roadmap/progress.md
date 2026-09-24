@@ -1,15 +1,32 @@
 # LEARN Comprehensive Improvement Progress
 
 Status: Active
-Last updated: 2026-05-21
+Last updated: 2026-09-24
 Current owner: User and maintainer
-Current branch: main
+Current branch: cleanup/stage-1
 
 ## Current Snapshot
 
-- A comprehensive 20 phase improvement roadmap exists in `docs/roadmap/plan.md`.
-- Existing in-progress files were already dirty before this tracking update and were not changed by this planning pass.
-- This tracker is the source of truth for phase status, evidence, risks, and next targets.
+- The comprehensive 20 phase roadmap is in `ops/docs/roadmap/plan.md`.
+- September 24 code baseline: `3681710`, pushed to `origin/cleanup/stage-1`; `origin/main` remains at `5f06f9e` (54 commits behind that baseline).
+- P0 realtime and P1 notebook shell are committed. P2a design foundations are committed, but P2b integration into the visible editor is unfinished.
+- The expanded batch launcher request was interrupted in Claude. Existing launchers are tracked; a dedicated test launcher and the expanded launcher work are still pending.
+- June Codex records describe Studio/Social implementations and smoke tests absent from this checkout. Recovery comparison is required before declaring historical feature coverage complete.
+- Evidence, source inventory and remaining work: [assistant history reconciliation](../audits/2026-09-24-assistant-history-reconciliation.md).
+- Verified at the code baseline: 1,000 tests passed and TypeScript passed. This session did not build or deploy the app.
+
+## September 24 Continuity Checkpoint
+
+- Scope: reconcile Claude, WorkBuddy, ZCode and Codex progress with the pushed Git history.
+- Files changed: the reconciliation report, audit index, this tracker and `productivity-suite-plan.md`.
+- Verification: checked local histories, commit reachability, remote SHA, tracked launchers and editor wiring; reviewed documentation links.
+- Known risks: historical artifacts are missing, several assistant task lists are stale, and older deployment reports concern different revisions or checkouts.
+- Next target: choose a bounded launcher, historical recovery, or P2b integration checkpoint; preserve the completed September work.
+
+The phase table and detailed checklists below are the original May planning
+baseline. They have **not** been individually re-audited and must not override the
+September checkpoint evidence above. The P0–P6 overhaul labels are a separate,
+later checkpoint scheme from these original 20 phases.
 
 ## Status Legend
 

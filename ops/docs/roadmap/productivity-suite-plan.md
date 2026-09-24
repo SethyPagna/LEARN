@@ -1,7 +1,7 @@
 # LEARN Productivity Suite Plan
 
 Status: Active
-Last updated: 2026-05-21
+Last updated: 2026-09-24
 
 ## Goal
 
@@ -11,7 +11,28 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 
 - Studio is the unified home for Notes, Docs, Sheets, and Slides.
 - `/notes`, `/docs`, `/sheets`, and `/slides` remain stable routes that open Studio on the matching tab.
-- Work lands on `main`, with small commits and Cloudflare deployment verification after passing local gates.
+- Current work is on `cleanup/stage-1`; completed checkpoints are pushed there. `main` remains at `5f06f9e` and has not been merged by this audit.
+
+## September 24 Checkpoint Status
+
+The [assistant history reconciliation](../audits/2026-09-24-assistant-history-reconciliation.md)
+cross-checks Claude, WorkBuddy, ZCode and Codex records against the actual source.
+
+| Checkpoint | Current evidence |
+| --- | --- |
+| P0 local realtime | Pushed in `949ba3f`, including existing batch launchers' working-directory fixes |
+| P1 notebook shell | Pushed in `e1be1a4` |
+| P2a design foundations | Pushed in `8472644`; not yet integrated into the visible editor |
+| Cleanup data protection | Pushed in `1b44c7f` and `3681710`; local D1/R2 state retained |
+| Expanded batch launchers | Interrupted; existing run/deploy wrappers are present, dedicated test wrapper still absent |
+| P2b–P2c | Editor integration, multi-page sharing and document/deck interoperability remain |
+| P3–P5 | Connected AI/activity workflows, chat v2 and expanded calls/minigames remain |
+| P6 | Browser verification, polish and PR remain; completed checkpoints have already been pushed |
+| Historical recovery | June Studio/Social files and smoke tests described in Codex are absent; compare against newer implementations before restoring |
+
+Validation at `3681710`: 1,000 tests pass and TypeScript passes. No new build or
+deployment was performed during this reconciliation. The older tracker and log
+below remain historical context; their planned items need individual revalidation.
 
 ## Status Tracker
 
