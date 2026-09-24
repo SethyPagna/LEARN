@@ -83,3 +83,32 @@ and [triggering installation](https://developer.mozilla.org/en-US/docs/Web/Progr
 - `ab4bff9` — Files, AI, Practice and responsive Social layouts; unused UI removal.
 - `93c35dc` — Settings, Progress and Admin simplification.
 - `613aa2e` — public entry, account forms and sign-in network recovery.
+
+## Theme and editor navigation refinement
+
+The follow-up goal replaces the blue-black/sand feel with white and neutral
+charcoal surfaces, a restrained indigo primary action, and consistent section
+and project-type colors. Account, theme and notifications share the bottom of
+the desktop sidebar; the same controls move to the header on smaller screens.
+Appearance still offers Light, Dark, System and accent choices.
+
+Studio keeps its single Add menu and compact project rows, with a small resume
+panel and colored paper illustration. Opening a project collapses navigation
+to an icon rail and adds a searchable project list beside the editor. The
+project list becomes a dropdown on phones. Returning to Studio restores the
+ordinary sidebar preference. Shell navigation waits for the active editor's
+save result before switching projects. Canvas deep links show an opening state
+instead of briefly displaying the old template lobby.
+
+Project loading is shared between the lobby and editor browser. Draft/server
+recency uses parsed UTC timestamps, and display times now interpret SQLite
+timestamps as UTC, fixing newly saved work appearing eight hours old in Hong
+Kong. The skip-link check now finds the actual Sidebar JSX tag instead of
+matching a TypeScript generic name.
+
+Validation: 1,072 tests and TypeScript passed. Desktop white/charcoal layouts,
+sidebar account/notification popovers, mobile project search, note-to-canvas
+switching and sidebar restoration were inspected in the browser. A Canvas
+title edit survived leaving and reopening the project; its original title was
+restored. Viewport overrides were reset. Production build and generated CSS
+checks passed, with the existing local Durable Object proxy warnings.
