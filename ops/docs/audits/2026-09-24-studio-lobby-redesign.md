@@ -1,5 +1,24 @@
 # Personal Studio lobby and appearance refresh
 
+## Compact lobby follow-up
+
+The lobby now uses one Add menu and a compact project list, replacing the
+greeting, creation cards, daily-focus row and preview thumbnails described below.
+Rows show a project name, type and last edit; twelve rows are shown before Show
+more. The mobile layout keeps metadata under the title. Duplicate shell Create
+buttons are hidden while the lobby is visible. Canvas opens directly into its
+editor from Add or an existing project row.
+
+TypeScript, all 1,069 tests, the production build and CSS validation passed.
+Browser checks covered one visible Add
+button, keyboard arrows/Escape, mobile overflow, search and filtering, and
+Canvas creation followed by return and reopening from the list. The single
+verification canvas was archived afterward. Updated screenshots are
+`output/playwright/compact-lobby-desktop.png`, `compact-lobby-mobile.png` and
+`compact-lobby-add.png` in the same directory.
+
+## Initial appearance refresh
+
 The signed-in landing page now opens one personal Studio lobby. Canvas, notes,
 documents, slides and sheets can be created there and reopened from the same
 recent-project grid. `/studio` and `/canvas` remain supported aliases; canvas
