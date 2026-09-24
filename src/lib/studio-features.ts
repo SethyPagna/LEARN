@@ -63,7 +63,7 @@ export function createDefaultStudioLayout(kind: StudioKind = "notes", title = st
     version: 1,
     activePaneId: pane.id,
     groups: [{ id: "group_root", direction: "horizontal", panes: [pane] }],
-    inspectorOpen: true,
+    inspectorOpen: false,
     density: "comfortable",
   }
 }
