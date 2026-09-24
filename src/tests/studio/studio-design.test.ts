@@ -141,7 +141,7 @@ test("slide export payload includes presenter outline and timings", () => {
 
 test("slide editor toolbar keeps visible controls actionable", () => {
   const source = readFileSync("src/components/learn/views/studio-view.tsx", "utf8")
-  const start = source.indexOf("BG remover")
+  const start = source.indexOf("Clear fill")
   const end = source.indexOf("<div className=\"mb-2 flex items-center gap-2", start)
   const toolbarSource = source.slice(start, end)
 

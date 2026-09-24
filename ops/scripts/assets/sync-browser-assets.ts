@@ -23,7 +23,9 @@ async function main() {
   const browserAssets: BrowserAsset[] = [
     {
       label: "PPTX browser exporter",
-      sourcePath: path.join(rootDir, "node_modules", "pptxgenjs", "dist", "pptxgen.min.js"),
+      // The standalone min file expects a preloaded JSZip global. The browser
+      // bundle includes that dependency so the same-origin exporter can start.
+      sourcePath: path.join(rootDir, "node_modules", "pptxgenjs", "dist", "pptxgen.bundle.js"),
       targetPath: path.join(rootDir, "public", "vendor", "pptxgen.min.js"),
     },
   ]
