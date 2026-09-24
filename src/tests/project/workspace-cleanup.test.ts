@@ -10,7 +10,7 @@ test("workspace cleanup plan includes only generated local targets", () => {
 
   assert.deepEqual(plan.map((item) => item.relativePath), [...generatedWorkspaceTargets])
   assert.equal(plan.find((item) => item.relativePath === ".next")?.exists, true)
-  assert.equal(plan.find((item) => item.relativePath === ".wrangler")?.exists, false)
+  assert.equal(plan.find((item) => item.relativePath === ".wrangler/tmp")?.exists, false)
   assert.equal(plan.find((item) => item.relativePath === "ops/cloudflare/.wrangler")?.exists, true)
   assert.equal(plan.find((item) => item.relativePath === "ops/learn-dev-3001.out.log")?.exists, true)
   assert.equal(plan.every((item) => item.safe), true)
