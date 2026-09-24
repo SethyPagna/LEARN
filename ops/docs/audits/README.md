@@ -3,6 +3,11 @@
 Audit outputs for the LEARN app. Each report is reproducible from the revision it
 names; re-run after any structural change.
 
+Latest continuity review: [September 24 assistant history reconciliation](./2026-09-24-assistant-history-reconciliation.md).
+It records the pushed checkpoints, interrupted launcher work, remaining P2b–P6
+scope and missing June Studio/Social artifacts. The baseline and status sections
+below describe their historical audit checkpoints, not the current test totals.
+
 | Date | Report | Skill used | Scope |
 | --- | --- | --- | --- |
 | 2026-09-21 | [Code Quality & Maintainability Audit](./2026-09-21-code-quality-audit.md) | `code-quality-audit` | Dead code, duplication, complexity, legacy, redundant IO, tech debt — 37 findings, ~2,900 lines removable |
@@ -428,4 +433,3 @@ console errors 0` (was `clipped 85, targets<24 14`). The clipping was invisible 
 number only because the shell sets `overflow-x: hidden`, which masked up to 766 px of overflow on
 `phone /canvas`. Mutation check: putting one `min-w-0` back returns `phone /settings` to 20 clipped
 with the same +78…+269 px, so the gate is measuring the fix and not a coincidence.
-
