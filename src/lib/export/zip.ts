@@ -316,7 +316,15 @@ interface ZipDirectoryEntry {
  * is the point of storing one: a silently corrupted part would become silently
  * corrupted content.
  */
-export async function readZip(bytes: Uint8Array): Promise<Record<string, Uint8Array>> {
+export interface ZipReadLimits {
+  maxArchiveBytes?: number
+  maxEntries?: number
+  maxEntryBytes?: number
+  maxTotalBytes?: number
+}
+
+export async function readZip(bytes: Uint8Array, limits: ZipReadLimits = {}): Promise<Record<string, Uint8Array>> {
+  if (bytes.length > (limits.maxArchiveBytes ?? Infinity)) throw new Error("ZIP file exceeds the import size limit.")
   if (!bytes || bytes.length < END_OF_CENTRAL_DIRECTORY_SIZE) {
     throw new Error("Not a ZIP archive: the file is smaller than an end-of-central-directory record.")
   }
@@ -328,6 +336,7 @@ export async function readZip(bytes: Uint8Array): Promise<Record<string, Uint8Ar
   const directoryDisk = view.getUint16(endOffset + 6, true)
   const entriesOnDisk = view.getUint16(endOffset + 8, true)
   const entryCount = view.getUint16(endOffset + 10, true)
+  if (entryCount > (limits.maxEntries ?? Infinity)) throw new Error("ZIP file has too many entries to import.")
   const directorySize = view.getUint32(endOffset + 12, true)
   const directoryOffset = view.getUint32(endOffset + 16, true)
 
@@ -347,6 +356,7 @@ export async function readZip(bytes: Uint8Array): Promise<Record<string, Uint8Ar
   }
 
   const directory: ZipDirectoryEntry[] = []
+  let totalBytes = 0
   let cursor = directoryOffset
   for (let index = 0; index < entryCount; index += 1) {
     if (cursor + CENTRAL_DIRECTORY_HEADER_SIZE > bytes.length || view.getUint32(cursor, true) !== CENTRAL_DIRECTORY_SIGNATURE) {
@@ -357,6 +367,10 @@ export async function readZip(bytes: Uint8Array): Promise<Record<string, Uint8Ar
     const crc = view.getUint32(cursor + 16, true)
     const compressedSize = view.getUint32(cursor + 20, true)
     const uncompressedSize = view.getUint32(cursor + 24, true)
+    totalBytes += uncompressedSize
+    if (uncompressedSize > (limits.maxEntryBytes ?? Infinity) || totalBytes > (limits.maxTotalBytes ?? Infinity)) {
+      throw new Error("ZIP expanded content exceeds the import size limit.")
+    }
     const nameLength = view.getUint16(cursor + 28, true)
     const extraLength = view.getUint16(cursor + 30, true)
     const commentLength = view.getUint16(cursor + 32, true)
@@ -403,7 +417,7 @@ export async function readZip(bytes: Uint8Array): Promise<Record<string, Uint8Ar
       // Only the compressed bytes are needed: the directory already holds the
       // real sizes, so an entry written with a data descriptor (bit 3, zeros in
       // its local header) reads exactly like any other.
-      data = await inflateRaw(raw, name)
+      data = await inflateRaw(raw, name, Math.min(entry.uncompressedSize, limits.maxEntryBytes ?? Infinity))
       if (data.length !== entry.uncompressedSize) {
         throw new Error(`Malformed ZIP archive: "${name}" inflated to ${data.length} bytes but the directory records ${entry.uncompressedSize}.`)
       }
@@ -467,7 +481,7 @@ function hex32(value: number): string {
  * shipping the same streams), and in Workers — but not everywhere, so its
  * absence is reported as what it is instead of being papered over.
  */
-async function inflateRaw(compressed: Uint8Array, name: string): Promise<Uint8Array> {
+async function inflateRaw(compressed: Uint8Array, name: string, maxBytes: number): Promise<Uint8Array> {
   const factory = globalThis.DecompressionStream
   if (typeof factory !== "function") {
     throw new Error(
@@ -506,8 +520,12 @@ async function inflateRaw(compressed: Uint8Array, name: string): Promise<Uint8Ar
       const { done, value } = await reader.read()
       if (done) break
       if (value) {
-        chunks.push(value)
         total += value.length
+        if (total > maxBytes) {
+          await reader.cancel("ZIP expanded size exceeds its declared size or import limit.")
+          throw new Error("ZIP expanded size exceeds its declared size or import limit.")
+        }
+        chunks.push(value)
       }
     }
   } catch {

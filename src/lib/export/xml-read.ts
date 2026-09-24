@@ -93,11 +93,16 @@ const ATTRIBUTE_PATTERN = /([A-Za-z_][\w.:-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\
 /**
  * Parse a document into its root element.
  *
- * Throws only when there is no root element — an empty part, or a part that is
- * not XML at all. Every other oddity is absorbed, because the caller's job
- * (walk `w:p`, `w:tbl`, `sheetData`) is unaffected by it.
+ * Rejects missing root elements and optional caller-supplied complexity limits.
+ * Other structural oddities are tolerated for existing OOXML producers.
  */
-export function parseXml(xml: string, label: string): XmlElement {
+export interface XmlReadOptions {
+  preserveQualifiedAttributes?: boolean
+  maxDepth?: number
+  maxNodes?: number
+}
+
+export function parseXml(xml: string, label: string, options: XmlReadOptions = {}): XmlElement {
   const root: XmlElement = { name: "#root", attributes: {}, children: [] }
   const stack: XmlElement[] = [root]
   // Comments, CDATA sections and declarations carry '<' but no element, so they
@@ -109,6 +114,7 @@ export function parseXml(xml: string, label: string): XmlElement {
     .replace(/<![^>]*>/g, "")
 
   let cursor = 0
+  let nodes = 0
   const pushText = (text: string) => {
     if (text) stack[stack.length - 1].children.push(decodeEntities(text))
   }
@@ -129,9 +135,13 @@ export function parseXml(xml: string, label: string): XmlElement {
       continue
     }
 
+    nodes += 1
+    if (nodes > (options.maxNodes ?? Infinity) || stack.length > (options.maxDepth ?? Infinity)) {
+      throw new Error(`XML complexity exceeds the import limit in ${label}.`)
+    }
     const element: XmlElement = {
       name: localNameOf(rawName),
-      attributes: parseAttributes(rawAttributes),
+      attributes: parseAttributes(rawAttributes, options),
       children: [],
     }
     stack[stack.length - 1].children.push(element)
@@ -157,7 +167,7 @@ function localNameOf(rawName: string): string {
   return colon === -1 ? rawName : rawName.slice(colon + 1)
 }
 
-function parseAttributes(raw: string): Record<string, string> {
+function parseAttributes(raw: string, options: XmlReadOptions): Record<string, string> {
   const attributes: Record<string, string> = {}
   if (!raw) return attributes
   ATTRIBUTE_PATTERN.lastIndex = 0
@@ -168,6 +178,9 @@ function parseAttributes(raw: string): Record<string, string> {
     // change what it means to us.
     if (rawName === "xmlns" || rawName.startsWith("xmlns:")) continue
     const name = localNameOf(rawName)
+    if (options.preserveQualifiedAttributes && rawName.includes(":")) {
+      attributes[rawName] = decodeEntities(match[2] ?? match[3] ?? match[4] ?? "")
+    }
     if (name in attributes) continue
     attributes[name] = decodeEntities(match[2] ?? match[3] ?? match[4] ?? "")
   }
