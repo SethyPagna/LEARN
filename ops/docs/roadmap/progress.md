@@ -11,13 +11,13 @@ Current branch: cleanup/stage-1
 - September 24 code baseline: `3681710`, pushed to `origin/cleanup/stage-1`; `origin/main` remains at `5f06f9e` (54 commits behind that baseline).
 - P0 realtime and P1 notebook shell are committed. P2a design foundations are committed, but P2b integration into the visible editor is unfinished.
 - The expanded batch launcher request was interrupted in Claude. Existing launchers are tracked; a dedicated test launcher and the expanded launcher work are still pending.
-- June Codex records describe Studio/Social implementations and smoke tests absent from this checkout. Recovery comparison is required before declaring historical feature coverage complete.
+- June development records describe Studio/Social implementations and smoke tests absent from this checkout. Recovery comparison is required before declaring historical feature coverage complete.
 - Evidence, source inventory and remaining work: [assistant history reconciliation](../audits/2026-09-24-assistant-history-reconciliation.md).
 - Verified at the code baseline: 1,000 tests passed and TypeScript passed. This session did not build or deploy the app.
 
 ## September 24 Continuity Checkpoint
 
-- Scope: reconcile Claude, WorkBuddy, ZCode and Codex progress with the pushed Git history.
+- Scope: reconcile local assistant progress with the pushed Git history; source provenance is recorded in the linked audit.
 - Files changed: the reconciliation report, audit index, this tracker and `productivity-suite-plan.md`.
 - Verification: checked local histories, commit reachability, remote SHA, tracked launchers and editor wiring; reviewed documentation links.
 - Known risks: historical artifacts are missing, several assistant task lists are stale, and older deployment reports concern different revisions or checkouts.

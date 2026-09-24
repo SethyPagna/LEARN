@@ -1,3 +1,3 @@
 @echo off
-call "%~dp0run-task.bat" start
+call "%~dp0run-task.bat" check
 exit /b %errorlevel%
