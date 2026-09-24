@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react"
+import { ArrowLeft, ChevronDown, Layers, Link, Plus, Redo2, Save, Undo2, Upload } from "lucide-react"
 import { createElement } from "@/lib/studio/canvas-engine"
 import { sanitizeImageUrl } from "@/lib/studio/canvas-styles"
 import { addPage, duplicatePage, movePage, newDesignId, removePage, updatePage, type DesignDoc } from "@/lib/design/document"
@@ -19,6 +20,7 @@ import { ExportMenu } from "./export-dialog"
 import { pictureFilesFrom, uploadPicture } from "./image-upload"
 import { PagesStrip } from "./pages-strip"
 import { PresentMode } from "./present-mode"
+import { PopoverButton } from "./popover"
 import { ResizeMenu, type ResizeTarget } from "./resize-menu"
 import { useDesignController } from "./use-design-controller"
 import { useDesignSave } from "./use-design-save"
@@ -33,7 +35,8 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
   const { api, state, commands, undo } = controller
   const save = useDesignSave({ recordId: opened.id, design: api.design, initialSaved: opened.saved, exists: opened.exists })
   const compact = useCompactLayout()
-  const [panel, setPanel] = useState<DesignPanelId | null>(compact ? null : "templates")
+  const [panel, setPanel] = useState<DesignPanelId | null>(null)
+  const [pagesOpen, setPagesOpen] = useState(false)
   const [zoom, setZoom] = useState(0.5)
   const [fit, setFit] = useState(true)
   const [snap, setSnap] = useState(true)
@@ -60,7 +63,7 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
   useEffect(() => {
     const node = viewport.current
     if (!node || !fit) return
-    const resize = () => setZoom(fitZoom(api.design, { width: node.clientWidth, height: node.clientHeight }))
+    const resize = () => setZoom(fitZoom(api.design, { width: node.clientWidth, height: node.clientHeight }, 80))
     resize()
     const observer = new ResizeObserver(resize)
     observer.observe(node)
@@ -146,7 +149,7 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
     else api.update(() => next)
   }
 
-  return <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card" tabIndex={-1} onKeyDown={onKeyDown} onPointerDownCapture={(event) => {
+  return <div className="studio-editor-workspace design-editor-workspace flex min-w-0 flex-col overflow-hidden bg-card" tabIndex={-1} onKeyDown={onKeyDown} onPointerDownCapture={(event) => {
     if (editingId && !(event.target as HTMLElement).closest("[data-keep-editing]")) setEditingId(null)
   }} onPaste={(event) => {
     if (isTypingTarget(event.target)) return
@@ -155,40 +158,53 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
     if (files.length) void api.uploadFiles(files)
     else controller.paste()
   }}>
-    <header className="flex flex-wrap items-center gap-2 border-b border-border p-2">
-      <button type="button" className="canvas-tool" onClick={() => { void save.saveNow().then(onHome) }}>Studio home</button>
-      <input aria-label="Design title" className="min-w-32 flex-1 rounded-lg bg-transparent px-2 py-1 font-semibold" value={api.design.name} maxLength={200} onChange={(event) => api.update((doc) => ({ ...doc, name: event.target.value }), { coalesce: "title" })} />
-      <span role="status" className="text-xs text-muted-foreground">{save.status === "error" ? "Save failed — draft kept" : save.status === "saving" ? "Saving…" : save.status === "dirty" ? "Unsaved changes" : save.exists ? "Saved" : "New design"}</span>
-      <button type="button" className="canvas-tool" onClick={() => void save.saveNow()}>Save</button>
-      <button type="button" className="canvas-tool" aria-label="Undo" disabled={!state.history.canUndo} onClick={() => travel()}>↶</button>
-      <button type="button" className="canvas-tool" aria-label="Redo" disabled={!state.history.canRedo} onClick={() => travel(true)}>↷</button>
-      <ResizeMenu design={api.design} onResize={(target) => resize(target, false)} onResizeCopy={(target) => resize(target, true)} />
+    <header className="editor-document-header">
+      <button type="button" className="editor-command !px-2" aria-label="Studio home" title="Back to projects" onClick={() => { void save.saveNow().then((saved) => { if (saved) onHome() }) }}><ArrowLeft className="h-4 w-4" /></button>
+      <div className="min-w-0 flex-1"><input aria-label="Design title" className="h-9 w-full min-w-0 rounded-md bg-transparent px-2 text-sm font-semibold focus:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring" value={api.design.name} maxLength={200} onChange={(event) => api.update((doc) => ({ ...doc, name: event.target.value }), { coalesce: "title" })} /></div>
+      <span role="status" className="hidden text-xs text-muted-foreground sm:block">{save.status === "error" ? "Save failed — draft kept" : save.status === "saving" ? "Saving…" : save.status === "dirty" ? "Unsaved changes" : save.exists ? "Saved" : "New design"}</span>
+      <button type="button" className="editor-command" aria-label="Save" onClick={() => void save.saveNow()}><Save className="h-4 w-4" /><span className="hidden sm:inline">Save</span></button>
+      <SharePanel sourceTable="editor_documents" sourceId={save.exists ? opened.id : ""} triggerClassName="editor-primary" requiresSourceMessage="Save this design before creating a share link." />
       <ExportMenu design={api.design} pageIndex={api.pageIndex} onNotify={notify} onBeforeExport={() => setEditingId(null)} />
-      <button type="button" className="canvas-tool" onClick={() => { setEditingId(null); setPresenting(true) }}>Present</button>
     </header>
-    <div className="flex flex-wrap items-center gap-2 border-b border-border p-2">
-      <SharePanel sourceTable="editor_documents" sourceId={save.exists ? opened.id : ""} triggerClassName="canvas-tool" requiresSourceMessage="Save this design before creating a share link." />
-      <button type="button" className="canvas-tool" onClick={() => { replacement.current = null; upload.current?.click() }}>Upload picture</button>
-      <button type="button" className="canvas-tool" aria-expanded={urlOpen} onClick={() => setUrlOpen((value) => !value)}>Insert URL</button>
-      <button type="button" className="canvas-tool" aria-pressed={snap} onClick={() => setSnap((value) => !value)}>Snap</button>
-      <button type="button" className="canvas-tool" aria-pressed={grid} onClick={() => setGrid((value) => !value)}>Grid</button>
-    </div>
-    <input ref={upload} type="file" accept="image/*" multiple className="hidden" aria-label="Upload design pictures" onChange={(event) => { void pickedFiles(Array.from(event.target.files ?? [])); event.target.value = "" }} />
+    <div className="editor-menu-bar">
+      <div className="flex items-center gap-1 border-r border-border pr-2">
+        <button type="button" className="editor-command !px-2" aria-label="Undo" disabled={!state.history.canUndo} onClick={() => travel()}><Undo2 className="h-4 w-4" /></button>
+        <button type="button" className="editor-command !px-2" aria-label="Redo" disabled={!state.history.canRedo} onClick={() => travel(true)}><Redo2 className="h-4 w-4" /></button>
+      </div>
+      <PopoverButton label="Insert" buttonClassName="editor-command" width={240} panel={(close) => <div onClick={() => close()}>
+        <button type="button" className="editor-menu-item" onClick={() => setPanel("text")}>Text</button>
+        <button type="button" className="editor-menu-item" onClick={() => setPanel("elements")}>Shapes & elements</button>
+        <button type="button" className="editor-menu-item" onClick={() => { replacement.current = null; upload.current?.click() }}><Upload className="h-4 w-4" /> Upload picture</button>
+        <button type="button" className="editor-menu-item" onClick={() => setUrlOpen((value) => !value)}><Link className="h-4 w-4" /> Image or embed URL</button>
+      </div>}><Plus className="h-4 w-4" /> Insert <ChevronDown className="h-3 w-3" /></PopoverButton>
+      <ResizeMenu design={api.design} onResize={(target) => resize(target, false)} onResizeCopy={(target) => resize(target, true)} />
+      <PopoverButton label="View" buttonClassName="editor-command" width={240} panel={() => <div>
+        <button type="button" className="editor-menu-item" aria-pressed={snap} onClick={() => setSnap((value) => !value)}>Snap to objects <span className="ml-auto">{snap ? "On" : "Off"}</span></button>
+        <button type="button" className="editor-menu-item" aria-pressed={grid} onClick={() => setGrid((value) => !value)}>Grid <span className="ml-auto">{grid ? "On" : "Off"}</span></button>
+        <button type="button" className="editor-menu-item" onClick={() => setPanel("layers")}>Layers</button>
+        <button type="button" className="editor-menu-item" onClick={() => setFit(true)}>Fit to screen</button>
+      </div>}>View <ChevronDown className="h-3 w-3" /></PopoverButton>
+      <button type="button" className="editor-command ml-auto" onClick={() => { setEditingId(null); setPresenting(true) }}>Present</button>
+    </div>    <input ref={upload} type="file" accept="image/*" multiple className="hidden" aria-label="Upload design pictures" onChange={(event) => { void pickedFiles(Array.from(event.target.files ?? [])); event.target.value = "" }} />
     {urlOpen ? <form className="flex flex-wrap gap-2 p-2" onSubmit={(event) => { event.preventDefault(); insertUrl() }}><select aria-label="URL type" value={urlKind} onChange={(event) => setUrlKind(event.target.value as "image" | "embed")}><option value="image">Picture</option><option value="embed">Embed link</option></select><input aria-label="Image or embed URL" className="min-w-0 flex-1 rounded border px-2" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://…" /><button className="canvas-tool" type="submit">Insert</button></form> : null}
     {save.error ? <p role="alert" className="px-3 py-2 text-sm text-destructive">{save.error}</p> : null}
     {message ? <p role="status" className="flex items-center justify-between px-3 py-1 text-xs text-muted-foreground">{message}<button aria-label="Dismiss message" onClick={() => setMessage("")}>×</button></p> : null}
     <ContextToolbar api={api} selection={selection} actions={actions} cropping={cropping} />
-    <div className="relative flex min-h-0" style={{ height: "min(65vh, 720px)", minHeight: 320 }}>
+    <div className="relative flex min-h-0 flex-1">
       {!compact ? <EditorRail panel={panel} onPanel={setPanel} compact={false} /> : null}
       <EditorPanel api={api} panel={panel} onPanel={setPanel} compact={compact} />
-      <div ref={viewport} className="min-w-0 flex-1 overflow-auto bg-muted/60">
+      <div ref={viewport} className="min-w-0 flex-1 overflow-auto bg-secondary/60">
         <div className="flex min-h-full min-w-full items-center justify-center p-8" style={{ width: api.design.width * zoom + 64, height: api.design.height * zoom + 64 }}>
           <DesignStage key={api.design.pages[api.pageIndex].id} api={api} zoom={zoom} snap={snap} grid={grid} editingId={editingId} cropping={cropping} onEdit={setEditingId} onUndo={travel} onInteraction={(busy) => { interacting.current = busy }} onContext={setContext} />
         </div>
       </div>
     </div>
-    <footer className="flex min-w-0 flex-wrap items-center gap-2 border-t border-border p-2">
-      <PagesStrip design={api.design} pageIndex={api.pageIndex} measure={measure} onSelect={goToPage} onAdd={(index) => api.update((doc) => { const result = addPage(doc, index); return { doc: result.doc, page: result.index, select: [] } })} onDuplicate={(index) => api.update((doc) => { const result = duplicatePage(doc, index); return { doc: result.doc, page: result.index, select: [] } })} onRemove={(index) => api.update((doc) => { const result = removePage(doc, index); return { doc: result.doc, page: result.index, select: [] } })} onMove={(from, to) => api.update((doc) => { const id = doc.pages[api.pageIndex].id; const next = movePage(doc, from, to); return { doc: next, page: next.pages.findIndex((page) => page.id === id) } })} onToggleHidden={(index) => api.update((doc) => updatePage(doc, index, { hidden: !doc.pages[index].hidden }))} />
+    {pagesOpen ? <div className="border-t border-border px-3"><PagesStrip design={api.design} pageIndex={api.pageIndex} measure={measure} onSelect={goToPage} onAdd={(index) => api.update((doc) => { const result = addPage(doc, index); return { doc: result.doc, page: result.index, select: [] } })} onDuplicate={(index) => api.update((doc) => { const result = duplicatePage(doc, index); return { doc: result.doc, page: result.index, select: [] } })} onRemove={(index) => api.update((doc) => { const result = removePage(doc, index); return { doc: result.doc, page: result.index, select: [] } })} onMove={(from, to) => api.update((doc) => { const id = doc.pages[api.pageIndex].id; const next = movePage(doc, from, to); return { doc: next, page: next.pages.findIndex((page) => page.id === id) } })} onToggleHidden={(index) => api.update((doc) => updatePage(doc, index, { hidden: !doc.pages[index].hidden }))} /></div> : null}
+    <footer className="editor-status-bar">
+      <button type="button" className="editor-command" aria-expanded={pagesOpen} onClick={() => setPagesOpen(!pagesOpen)}><Layers className="h-4 w-4" /> Page {api.pageIndex + 1} / {api.design.pages.length}</button>
+      <button type="button" className="editor-command !px-2" aria-label="Add page" onClick={() => api.update((doc) => { const result = addPage(doc, api.pageIndex); return { doc: result.doc, page: result.index, select: [] } })}><Plus className="h-4 w-4" /></button>
+      <div className="flex-1" />
+
       <button type="button" className="canvas-tool" aria-label="Zoom out" onClick={() => changeZoom(stepZoom(zoom, -1))}>−</button><span className="text-xs">{Math.round(zoom * 100)}%</span><button type="button" className="canvas-tool" aria-label="Zoom in" onClick={() => changeZoom(stepZoom(zoom, 1))}>+</button><button type="button" className="canvas-tool" onClick={() => setFit(true)}>Fit</button>
     </footer>
     <details className="border-t border-border px-3 py-2"><summary className="cursor-pointer text-xs">Page notes</summary><textarea aria-label="Speaker notes" className="mt-2 min-h-20 w-full rounded border bg-background p-2 text-sm" value={api.design.pages[api.pageIndex].notes} onChange={(event) => api.update((doc) => updatePage(doc, api.pageIndex, { notes: event.target.value }), { coalesce: `notes:${api.design.pages[api.pageIndex].id}` })} /></details>

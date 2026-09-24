@@ -226,8 +226,8 @@ export function DesignsHome({ items, error, notes, measure, openingId, onOpen, o
     [notes],
   )
 
-  const createFormat = (format: DesignFormat) => onCreate(createDesignDoc({ format: format.id, theme: DEFAULT_DESIGN_THEME }), `New ${format.label.toLowerCase()}. Pick a template or start adding.`)
-  const createCustom = (width: number, height: number) => onCreate(createDesignDoc({ format: "custom", width, height, theme: DEFAULT_DESIGN_THEME }), `New ${width} × ${height} design.`)
+  const createFormat = (format: DesignFormat) => onCreate(createDesignDoc({ format: format.id, theme: "minimal" }), `New ${format.label.toLowerCase()}. Pick a template or start adding.`)
+  const createCustom = (width: number, height: number) => onCreate(createDesignDoc({ format: "custom", width, height, theme: "minimal" }), `New ${width} × ${height} design.`)
   const useTemplate = (template: DesignTemplate) => onCreate(designFromTemplate(template, { measure }), `${template.name} is ready to edit.`)
   const fromNote = (note: Note) => {
     const spec = htmlToDesignSpec(note.content, { title: note.title })

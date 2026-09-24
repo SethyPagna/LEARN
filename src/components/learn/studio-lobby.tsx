@@ -111,7 +111,7 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
     setError("")
     try {
       const title = `Untitled ${projectKinds[kind].label.toLowerCase()}`
-      const design = kind === "canvas" ? createDesignDoc({ name: title, format: "presentation" }) : null
+      const design = kind === "canvas" ? createDesignDoc({ name: title, format: "presentation", theme: "minimal" }) : null
       const payload = design ? { id: design.id, title, content: design }
         : kind === "notes" ? { title, content: "", template: "blank" }
         : kind === "docs" ? { title, content: { text: "<p></p>" } }

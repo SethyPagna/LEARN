@@ -18,11 +18,16 @@ export const CANVAS_PRESET_CSS = `
 }
 .learn-canvas-soft .canvas-toolbar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px;
-  border-radius: var(--canvas-radius-sm);
-  background: var(--muted);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 4px;
+  padding: 5px 12px;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+.learn-canvas-soft .canvas-toolbar > * {
+  flex: 0 0 auto;
 }
 /**
  * Below the md breakpoint the bar cannot fit its ~30 tools in one block:
@@ -47,27 +52,27 @@ export const CANVAS_PRESET_CSS = `
   justify-content: center;
   gap: 6px;
   height: 36px;
-  padding: 0 12px;
+  padding: 0 10px;
   border: 0;
-  border-radius: 10px;
-  background: var(--card);
+  border-radius: 6px;
+  background: transparent;
   color: var(--card-foreground);
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.01em;
   transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
 }
 .learn-canvas-soft .canvas-tool:hover:not(:disabled) {
   background: var(--accent);
   color: var(--accent-foreground);
-  box-shadow: var(--canvas-shadow-soft);
+  box-shadow: none;
 }
 .learn-canvas-soft .canvas-tool:disabled {
   opacity: 0.5;
 }
 .learn-canvas-soft .canvas-tool[data-active="true"] {
-  background: var(--primary);
-  color: var(--primary-foreground);
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 .learn-canvas-soft .canvas-element {
   border-radius: var(--canvas-radius-sm);

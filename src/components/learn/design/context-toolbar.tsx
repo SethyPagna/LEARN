@@ -346,7 +346,6 @@ export function ContextToolbar({ api, selection, actions, cropping }: ContextToo
           <WandSparkles className="h-4 w-4" aria-hidden="true" />
           <span className="text-xs">Magic layout</span>
         </ToolButton>
-        <span className="hidden items-center px-2 text-xs text-muted-foreground xl:inline-flex">Click anything to change it · double-click text to type · drag from the left panels</span>
       </div>
     )
   }
