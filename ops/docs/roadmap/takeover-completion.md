@@ -67,3 +67,14 @@ Evidence and environment limits: [app-wide design overhaul](../audits/2026-09-25
   credentials and user authorization are supplied.
 
 Evidence: [calendar and preview refinement](../audits/2026-09-25-calendar-connections-preview.md).
+
+## Learning, practice and social refinement — 2026-09-25
+
+- [x] Tighten the sidebar and account controls; keep section tabs available in pages.
+- [x] Simplify Calendar, Vault, Progress, Graph and Feed.
+- [x] Add six coordinated Practice designs and one-question navigation.
+- [x] Reorganize Social browsing, details and editing; compact Chat and stories.
+- [x] Fix responsive interactions and remove replaced guides and unused helpers.
+- [x] Verify browser behavior, TypeScript, the test suite and production build.
+
+Evidence: [learning and social usability](../audits/2026-09-25-friendly-learning-social.md).
