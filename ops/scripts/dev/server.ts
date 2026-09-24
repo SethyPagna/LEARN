@@ -52,7 +52,9 @@ setLocalRealtimeHub(hub)
 // names (default: the one serving the first request). That listener ends any
 // socket whose path matches an app route — including /api/realtime/* while we
 // are still authorizing it. Handing Next an idle server keeps its listener off
-// ours; HMR upgrades still reach Next through getUpgradeHandler() below.
+// ours. Forward framework upgrades to the listener installed on this server:
+// NextCustomServer.getUpgradeHandler() bypasses that router listener in Next 16,
+// leaving HMR (and React's hydration debug channel) waiting forever.
 const idleServerForNext = new http.Server()
 const app = next({ dev: true, hostname: hostnameForNext, port, httpServer: idleServerForNext })
 
@@ -134,7 +136,6 @@ async function handleRpc(request: http.IncomingMessage, response: http.ServerRes
 async function main() {
   await app.prepare()
   const handle = app.getRequestHandler()
-  const upgradeNext = app.getUpgradeHandler()
   const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 })
 
   const server = http.createServer((request, response) => {
@@ -149,7 +150,9 @@ async function main() {
     const url = new URL(request.url || "/", `http://${request.headers.host || "localhost"}`)
     const match = url.pathname.match(REALTIME_ROUTE)
     if (!match) {
-      void upgradeNext(request, socket, head)
+      if (!idleServerForNext.emit("upgrade", request, socket, head)) {
+        rejectUpgrade(socket, 503, "Development server is not ready.")
+      }
       return
     }
 
