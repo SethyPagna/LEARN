@@ -65,6 +65,7 @@ export const EditorRail = memo(function EditorRail({ panel, onPanel, compact }: 
             key={item.id}
             type="button"
             data-design-rail={item.id}
+            aria-label={item.label}
             aria-pressed={active}
             title={item.title}
             onClick={() => onPanel(active ? null : item.id)}
