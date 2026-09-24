@@ -5,20 +5,22 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "LEARN",
     short_name: "LEARN",
     description:
-      "A Cloudflare-first learning workspace for notes, quizzes, files, AI tutoring, and progress.",
+      "Your workspace for projects, notes, practice and learning together.",
+    id: "/",
+    scope: "/",
     start_url: "/dashboard",
     display: "standalone",
     background_color: "#202433",
     theme_color: "#202433",
     icons: [
+      { src: "/icons/app-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icons/app-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icons/app-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
       {
         src: "/icon.svg",
         sizes: "any",
         type: "image/svg+xml",
-        // The Web App Manifest spec allows a space-separated purpose list
-        // ("any maskable"); Next's type only models a single value, so the
-        // literal is widened rather than splitting the icon into two entries.
-        purpose: "any maskable" as "any" | "maskable",
+        purpose: "any",
       },
       {
         src: "/icon-light-32x32.png",
@@ -30,6 +32,11 @@ export default function manifest(): MetadataRoute.Manifest {
         sizes: "32x32",
         type: "image/png",
       },
+    ],
+    shortcuts: [
+      { name: "Projects", url: "/dashboard" },
+      { name: "Calendar", url: "/calendar" },
+      { name: "AI tutor", url: "/ai" },
     ],
   }
 }

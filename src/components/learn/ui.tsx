@@ -22,12 +22,12 @@ export interface ViewMenuProps<Id extends string> {
 }
 
 export function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-xl border border-border bg-card text-card-foreground shadow-paper ${className}`}>{children}</section>
+  return <section className={`learn-panel rounded-lg border border-border bg-card text-card-foreground ${className}`}>{children}</section>
 }
 
 export function EmptyState({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm">
+    <div className="rounded-lg border border-dashed border-border bg-card px-5 py-8 text-center text-sm">
       <p className="font-semibold text-foreground">{title}</p>
       <p className="mt-1 leading-5 text-muted-foreground">{body}</p>
     </div>
@@ -35,7 +35,7 @@ export function EmptyState({ title, body }: { title: string; body: string }) {
 }
 
 export function StatusMessage({ message }: { message: string }) {
-  return <div role="status" className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground shadow-paper">{message}</div>
+  return <div role="status" className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground">{message}</div>
 }
 
 export function StatusPill({ label, tone = "neutral" }: { label: string; tone?: UiTone }) {

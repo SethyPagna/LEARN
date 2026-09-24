@@ -177,17 +177,22 @@ test("manifest icons reference existing public assets only", () => {
   const source = readApp("manifest.ts")
   const iconSources = [...source.matchAll(/src:\s*"([^"]+)"/g)].map((match) => match[1])
 
-  assert.deepEqual(iconSources, ["/icon.svg", "/icon-light-32x32.png", "/icon-dark-32x32.png"])
+  assert.deepEqual(iconSources, ["/icons/app-192.png", "/icons/app-512.png", "/icons/app-maskable-512.png", "/icon.svg", "/icon-light-32x32.png", "/icon-dark-32x32.png"])
 
   for (const iconSource of iconSources) {
     const onDisk = path.join(PUBLIC_ROOT, iconSource.replace(/^\//, ""))
     assert.equal(fs.existsSync(onDisk), true, `${iconSource} must exist in public/`)
   }
 
-  // The SVG is the maskable/any-size icon; the two PNGs cover 32x32.
+  // Installable apps need raster icons; the maskable asset keeps its logo inside the safe area.
+  for (const [name, size] of [["app-192.png", 192], ["app-512.png", 512], ["app-maskable-512.png", 512]] as const) {
+    const png = fs.readFileSync(path.join(PUBLIC_ROOT, "icons", name))
+    assert.equal(png.readUInt32BE(16), size)
+    assert.equal(png.readUInt32BE(20), size)
+  }
   assert.match(source, /sizes:\s*"any"/)
   assert.match(source, /type:\s*"image\/svg\+xml"/)
-  assert.match(source, /purpose:\s*"any maskable"/)
+  assert.match(source, /purpose:\s*"maskable"/)
   assert.match(source, /sizes:\s*"32x32"[\s\S]*sizes:\s*"32x32"/)
 })
 

@@ -518,6 +518,50 @@ html.dark.learn-high-contrast {
 .calendar-day:nth-child(7n) { border-right: 0; }
 .calendar-day:nth-last-child(-n+7) { border-bottom: 0; }
 .calendar-event-dialog { width: min(520px, calc(100% - 2rem)); }
+
+/* Shared workspace rhythm: navigation, a task toolbar, then the working area. */
+.learn-app { font-size: 14px; }
+.learn-app #learn-main-content { max-width: 1720px; margin-inline: auto; }
+.learn-app:has(.studio-editor-workspace) #learn-main-content { max-width: none; }
+.learn-panel { min-width: 0; }
+.workspace-screen { display: grid; min-width: 0; gap: 16px; }
+.workspace-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.workspace-header h2 { font-size: 18px; font-weight: 600; letter-spacing: -.025em; }
+.workspace-header p { color: var(--muted-foreground); font-size: 12px; margin-top: 3px; }
+.workspace-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.workspace-tabs { display: flex; min-width: 0; gap: 20px; overflow-x: auto; border-bottom: 1px solid var(--border); }
+.workspace-tab { display: inline-flex; flex-shrink: 0; align-items: center; gap: 7px; min-height: 40px; padding: 8px 2px; border-bottom: 2px solid transparent; color: var(--muted-foreground); font-size: 13px; font-weight: 500; white-space: nowrap; }
+.workspace-tab:hover { color: var(--foreground); }
+.workspace-tab.is-active { color: var(--foreground); border-bottom-color: var(--primary); }
+.workspace-tab:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+.workspace-disclosure { padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); font-size: 13px; }
+.workspace-disclosure > summary { cursor: pointer; color: var(--muted-foreground); font-weight: 500; }
+.workspace-search { display: flex; align-items: center; gap: 8px; min-width: 160px; height: 36px; padding: 0 11px; border: 1px solid var(--input); border-radius: 6px; background: var(--card); }
+.workspace-search input { width: 100%; min-width: 0; outline: none; background: transparent; font-size: 13px; }
+.workspace-search:focus-within { outline: 2px solid var(--ring); outline-offset: 1px; }
+.settings-workspace { display: grid; gap: 16px; grid-template-columns: 180px minmax(0,1fr); max-width: 1160px; margin-inline: auto; }
+.settings-workspace > .workspace-header { grid-column: 1 / -1; }
+.settings-sections { display: flex; flex-direction: column; gap: 3px; align-self: start; position: sticky; top: 76px; }
+.settings-section { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-radius: 6px; font-size: 13px; text-align: left; white-space: nowrap; }
+.settings-section[aria-current='page'] { background: var(--accent); color: var(--foreground); font-weight: 600; }
+.settings-section:hover { background: var(--secondary); }
+.settings-content { min-width: 0; }
+.settings-content > .learn-panel { padding: 24px; }
+.settings-content label.block { padding: 0; background: transparent; }
+.settings-content label.block > span { font-size: 12px; text-transform: none; }
+.learn-app[data-density='comfortable'] .workspace-tab { min-height: 46px; }
+.learn-app[data-density='comfortable'] .settings-section { padding-block: 13px; }
+@media (max-width: 767px) {
+  .settings-workspace { grid-template-columns: minmax(0,1fr); }
+  .settings-sections { position: static; flex-direction: row; overflow-x: auto; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .settings-content > .learn-panel { padding: 16px; }
+  .workspace-tabs { gap: 16px; }
+  .workspace-tab { min-height: 44px; }
+}
+@media (display-mode: standalone) {
+  .learn-topbar { padding-top: env(safe-area-inset-top); }
+  .learn-app { overscroll-behavior-y: none; }
+}
 @media (max-width: 1199px) {
   .studio-editor-body { display: flex; flex-direction: column; position: relative; }
   .studio-editor-body > nav { flex-direction: row; flex-shrink: 0; max-height: 70px; padding: 4px; border-bottom: 1px solid var(--border); }

@@ -60,6 +60,7 @@ import type { SidebarMode } from "@/lib/shell/sidebar-mode"
 import type { StudioDraftSummary } from "@/lib/studio-drafts"
 import type { RealtimeStatus } from "@/lib/realtime/client"
 import { api } from "./api"
+import { InstallAppButton } from "./app-install"
 import { openCommandPalette } from "./command-palette"
 import { CreateMenu, openCreateMenu } from "./create-menu"
 import { viewIcons } from "./nav-icons"
@@ -196,10 +197,10 @@ export function Sidebar({
       ) : (
         <div className="flex items-center gap-3 px-4 pb-3 pt-4">
           <button type="button" onClick={() => setView("dashboard")} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <BrandMark />
+            <BrandMark size="sm" />
             <span className="min-w-0">
               <span className="block font-display text-lg font-bold leading-tight tracking-tight">{text.appName}</span>
-              <span className="block truncate text-xs text-muted-foreground">Your space</span>
+
             </span>
           </button>
           <button type="button" onClick={() => onModeChange("rail")} className={ghostIconButton} aria-label="Collapse sidebar to icons" title={`Collapse to icons (${modKey}+\\)`}>
@@ -298,10 +299,10 @@ function Navigation({
   }
 
   return (
-    <nav aria-label="Sections" className="grid gap-4">
+    <nav aria-label="Sections" className="grid gap-3">
       {navigationGroups.map((group) => (
         <div key={group.label}>
-          <p className="px-3 pb-1 text-[0.66rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80" title={group.caption}>
+          <p className="sr-only" title={group.caption}>
             {group.label}
           </p>
           <ul className="grid gap-0.5">
@@ -318,13 +319,13 @@ function Navigation({
                     onClick={() => setView(item.view)}
                     aria-current={view === item.view ? "page" : undefined}
                     title={getNavigationItemDetail(item)}
-                    className={`relative flex h-10 w-full items-center gap-3 rounded-lg px-2.5 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    className={`relative flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       active
                         ? "learn-tab-marker learn-tab-wash-strong font-semibold text-foreground"
                         : "font-medium text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                     }`}
                   >
-                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${active ? "learn-tab-dot learn-tab-on" : "learn-tab-wash learn-tab-ink"}`}>
+                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center ${active ? "text-foreground" : "text-muted-foreground"}`}>
                       <Icon className="h-4 w-4" />
                     </span>
                     <span className="truncate">{text[item.labelKey]}</span>
@@ -469,7 +470,7 @@ export function Topbar({
   const ThemeIcon = resolvedTheme === "dark" ? Sun : Moon
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border/70 bg-background/85 backdrop-blur-md">
+    <header className="learn-topbar sticky top-0 z-30 border-b border-border bg-card">
       <div className="flex h-14 items-center gap-2 px-3 sm:px-4 lg:px-6">
         {sidebarMode === "hidden" ? (
           <button type="button" onClick={() => onSidebarModeChange("expanded")} className={`${ghostIconButton} hidden lg:inline-flex`} aria-label="Show sidebar" title={`Show sidebar (${modKey}+\\)`}>
@@ -494,11 +495,11 @@ export function Topbar({
               <ChevronRight className="hidden h-4 w-4 shrink-0 text-muted-foreground/60 sm:block" aria-hidden="true" />
             </>
           ) : (
-            <span className="learn-tab-dot h-2.5 w-2.5 shrink-0 rounded-full" aria-hidden="true" />
+            null
           )}
-          <h1 className="truncate font-display text-base font-semibold tracking-tight sm:text-lg">{title}</h1>
+          <h1 className="truncate text-sm font-semibold tracking-tight">{title}</h1>
           {studioDraftSummary.count && studioViews.includes(view as (typeof studioViews)[number]) ? (
-            <span className="hidden shrink-0 rounded-full bg-warning px-2 py-0.5 text-[0.68rem] font-semibold text-warning-foreground sm:inline-flex">
+            <span className="hidden shrink-0 rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] text-muted-foreground sm:inline-flex">
               {studioDraftSummary.count} draft{studioDraftSummary.count === 1 ? "" : "s"}
             </span>
           ) : null}
@@ -513,7 +514,7 @@ export function Topbar({
           <button
             type="button"
             onClick={openCommandPalette}
-            className="hidden h-9 w-52 items-center gap-2 rounded-lg border border-border bg-card/70 px-3 text-sm text-muted-foreground transition hover:border-ring/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex xl:w-72"
+            className={`h-8 w-52 items-center gap-2 rounded-md border border-border bg-background px-3 text-xs text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring ${sidebarMode === "expanded" ? "hidden" : "hidden md:flex"}`}
           >
             <Search className="h-4 w-4" />
             <span className="truncate">Search or jump…</span>
@@ -525,10 +526,11 @@ export function Topbar({
           <button type="button" onClick={openCommandPalette} className={`${ghostIconButton} md:hidden`} aria-label="Search or jump" title="Search or jump">
             <Search className="h-[18px] w-[18px]" />
           </button>
-          <div className={sidebarMode === "hidden" ? "" : "lg:hidden"}>
+          <div className="hidden sm:block">
             {hideCreate ? null : <CreateMenu variant="header" setView={setView} />}
           </div>
           <NotificationsMenu openLink={openLink} user={user} />
+          <div className="hidden xl:block"><InstallAppButton /></div>
           <button
             type="button"
             onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}

@@ -11,6 +11,7 @@ import { StatusMessage } from "./ui"
 import { AiTutorView } from "./views/ai-view"
 import { CanvasEditorView } from "./views/canvas-editor"
 import { StudioLobby } from "./studio-lobby"
+import { AppInstallProvider } from "./app-install"
 import { FilesView } from "./views/files-view"
 import { AdminView, ProgressView, SettingsView } from "./views/secondary-views"
 import { CalendarView } from "./views/calendar-view"
@@ -217,8 +218,8 @@ export function LearnShell({
   const isStudioLobby = view === "dashboard" || view === "studio" || (view === "canvas" && !new URLSearchParams(locationSearch).has("design"))
 
   return (
-    <RealtimeInboxProvider userId={user?.id}>
-      <div className="learn-app min-h-screen overflow-x-hidden bg-background text-foreground" data-sidebar={sidebarMode}>
+    <AppInstallProvider><RealtimeInboxProvider userId={user?.id}>
+      <div className="learn-app min-h-screen overflow-x-hidden bg-background text-foreground" data-sidebar={sidebarMode} data-density={preferences.density} data-view={view}>
         {/* WCAG 2.4.1 (bypass blocks): the sidebar and topbar repeat on every view,
             so the first focusable element in the shell is a link that jumps past
             them. It sits just above the viewport until it is focused and only then
@@ -232,7 +233,7 @@ export function LearnShell({
           Skip to content
         </a>
         <Sidebar
-          hideCreate={isStudioLobby}
+          hideCreate
           mode={sidebarMode}
           onModeChange={changeSidebarMode}
           practiceDraftSummary={practiceDraftSummary}
@@ -312,6 +313,6 @@ export function LearnShell({
         />
         <PlaceGuide setView={chooseView} />
       </div>
-    </RealtimeInboxProvider>
+    </RealtimeInboxProvider></AppInstallProvider>
   )
 }
