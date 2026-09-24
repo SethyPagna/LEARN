@@ -115,6 +115,11 @@ build, not proof of a deployed Worker. Nothing was deployed or merged.
 
 ## Delivery
 
+Pushed to `origin/cleanup/stage-1` and opened
+[draft PR #1](https://github.com/SethyPagna/LEARN/pull/1) against `main`.
+All G1–G8 local implementation and delivery goals are complete. Infrastructure
+verification limits above remain explicit deployment work, not passing claims.
+
 Changes are separated into launcher, planning, document page-break, deployment
 failure handling, development hydration, debloat, editor integration, sharing,
 imports, AI destinations, Studio handoffs, SDP validation, social, export asset,

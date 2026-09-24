@@ -15,7 +15,7 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 
 ## September 24 Takeover Status
 
-The remaining P2b–P6 takeover is at final verification.
+The P2b–P6 takeover is complete in [draft PR #1](https://github.com/SethyPagna/LEARN/pull/1).
 See [completion goals](takeover-completion.md) and the
 [verification report](../audits/2026-09-24-takeover-verification.md) for current
 evidence. The following table records the earlier reconciliation baseline.

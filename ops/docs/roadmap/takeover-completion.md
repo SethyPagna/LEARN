@@ -1,6 +1,8 @@
 # LEARN takeover completion goals
 
-Started: 2026-09-24. Branch: `cleanup/stage-1`. Status: final verification.
+Started and completed: 2026-09-24. Branch: `cleanup/stage-1`. Status: complete.
+
+Delivery: [draft PR #1](https://github.com/SethyPagna/LEARN/pull/1).
 
 The current instruction is to continue until all agreed goals are complete.
 Checkpoints provide reviewable commits and progress, not automatic stopping points.
@@ -16,7 +18,7 @@ Sequencing follows the [takeover council](../audits/2026-09-24-ai-council-takeov
 | G5 Learning workflow (P3) | Owned Vault block readback, source handoff, provider routing/Ollama, quiz/review/activity/discussion destinations | Complete; real Ollama quiz scored 1/1, card revealed and graded |
 | G6 Social media (P4) | Exclusive DM/group routing, recorded audio, image/GIF/sticker/emoji/meme tools, reactions and scoped 24h stories | Complete; two-account local browser evidence |
 | G7 Calls and games (P5) | Peer/device addressing, ICE recovery, optional TURN credentials, local connected call and live game delivery | Complete locally; external network limits recorded |
-| G8 Quality and delivery (P6) | Council outcome, measured cleanup, 1,067 tests, types/build/CSS, browser evidence, documentation, commits/push and review PR | Local verification passed; delivery underway |
+| G8 Quality and delivery (P6) | Council outcome, measured cleanup, 1,067 tests, types/build/CSS, browser evidence, documentation, commits/push and review PR | Complete; branch pushed and draft PR #1 opened |
 
 ## Evidence log
 

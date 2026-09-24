@@ -1,12 +1,13 @@
 # LEARN Comprehensive Improvement Progress
 
-Status: Takeover final verification
+Status: Takeover complete; draft PR #1 ready for review
 Last updated: 2026-09-24
 Current owner: User and maintainer
 Current branch: cleanup/stage-1
 
 ## Current Snapshot
 
+- Delivery: [draft PR #1](https://github.com/SethyPagna/LEARN/pull/1). All eight takeover goals are closed with the limits recorded below.
 - The comprehensive 20 phase roadmap is in `ops/docs/roadmap/plan.md`.
 - P0/P1 foundations are preserved; P2b/P2c now integrate the multi-page editor, shared rendering, source conversions and bounded content imports.
 - P3 connects owned sources to real AI destinations, including local Ollama. P4/P5 add private media/stories, peer calls and real-time game delivery.
