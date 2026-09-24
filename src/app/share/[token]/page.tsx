@@ -33,8 +33,7 @@ import { AiBlockRenderer } from "@/components/learn/ai-block-renderer"
 import { formatAiResponse, type ThemedBlock } from "@/lib/ai/format-response"
 import { readSharedContentPayload, resolveContentRoleForToken, resolveShareToken, type ShareLinkRole } from "@/lib/data"
 import { blocksFromDocumentHtml } from "@/lib/export/html-blocks"
-import { normalizeCanvasDoc, type CanvasDoc, type CanvasElement } from "@/lib/studio/canvas-engine"
-import { safeColor, safeNumber, sanitizeImageUrl } from "@/lib/studio/canvas-styles"
+import { SharedDesign } from "@/components/learn/shared-design"
 
 // A token is resolved per request against the database; there is nothing to
 // prerender and a cached page must never outlive a revoke.
@@ -164,7 +163,7 @@ export default async function SharePage({ params }: SharePageProps) {
 
 function SharedItemBody({ item }: { item: SharedItem }) {
   if (item.sourceTable === "editor_documents" && item.documentType === "canvas") {
-    return <CanvasPreview doc={normalizeCanvasDoc(item.payload.content)} />
+    return <SharedDesign content={item.payload.content} />
   }
   if (item.sourceTable === "sheet_documents") {
     return <SheetTable cells={asMatrix(item.payload.cells)} />
@@ -283,78 +282,5 @@ function QuizQuestions({ items, revealAnswers }: { items: Record<string, unknown
         )
       })}
     </ol>
-  )
-}
-
-/**
- * A read-only canvas: the stored elements at their stored positions.
- *
- * Styling is deliberately limited to what `canvas-styles` validates, and the
- * document is the same object the editor reads — so a preview can never show
- * something the editor would refuse.
- */
-function CanvasPreview({ doc }: { doc: CanvasDoc }) {
-  const elements = doc.elements.filter((element) => !element.hidden)
-  return (
-    <figure className="rounded-[12px] border border-border">
-      <figcaption className="sr-only">{doc.name}</figcaption>
-      <div className="max-h-[70vh] overflow-auto p-4">
-        <div
-          className="relative"
-          style={{ width: doc.width, height: doc.height, background: safeColor(doc.background) || "#ffffff" }}
-        >
-          {elements.map((element) => (
-            <CanvasPreviewElement key={element.id} element={element} />
-          ))}
-        </div>
-      </div>
-    </figure>
-  )
-}
-
-function CanvasPreviewElement({ element }: { element: CanvasElement }) {
-  const background = safeColor(element.style?.backgroundColor ?? element.style?.background)
-  const color = safeColor(element.style?.color)
-  const fontSize = safeNumber(element.style?.fontSize, 8, 200)
-  const fontWeight = safeNumber(element.style?.fontWeight, 100, 900)
-  const borderRadius = safeNumber(element.style?.borderRadius, 0, 96)
-  const opacity = safeNumber(element.style?.opacity, 0.05, 1)
-  const label = typeof element.style?.name === "string" && element.style.name.trim() ? element.style.name.trim() : element.content.slice(0, 60)
-  const imageUrl = element.type === "image" ? sanitizeImageUrl(element.content) : null
-
-  return (
-    <div
-      style={{
-        position: "absolute",
-        left: element.x,
-        top: element.y,
-        width: element.width,
-        height: element.height,
-        transform: `rotate(${element.rotation}deg)`,
-        transformOrigin: "center",
-        display: "flex",
-        alignItems: element.type === "text" ? "flex-start" : "center",
-        justifyContent: element.type === "text" ? "flex-start" : "center",
-        overflow: "hidden",
-        padding: 8,
-        ...(background ? { background } : {}),
-        ...(color ? { color } : {}),
-        ...(fontSize === undefined ? {} : { fontSize }),
-        ...(fontWeight === undefined ? {} : { fontWeight }),
-        ...(borderRadius === undefined ? {} : { borderRadius }),
-        ...(opacity === undefined ? {} : { opacity }),
-      }}
-    >
-      {element.type === "image" ? (
-        imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- remote sources are not known at build time
-          <img src={imageUrl} alt={label || "Shared image"} loading="lazy" decoding="async" className="h-full w-full object-cover" />
-        ) : (
-          <span className="text-xs text-muted-foreground">Image</span>
-        )
-      ) : (
-        <span className="whitespace-pre-wrap break-words">{element.content}</span>
-      )}
-    </div>
   )
 }

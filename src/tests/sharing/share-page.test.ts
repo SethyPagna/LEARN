@@ -239,8 +239,7 @@ test("the page renders stored content as text, never as markup", () => {
   assert.match(source, /AiBlockRenderer/, "blocks must render through the existing themed renderer")
   assert.match(source, /blocksFromDocumentHtml/, "a stored document body must be read by the existing reader")
   assert.match(source, /formatAiResponse/, "a stored note body must be normalized, not rendered raw")
-  assert.match(source, /normalizeCanvasDoc/, "a shared canvas must be normalised by the engine")
-  assert.match(source, /sanitizeImageUrl|safeColor/, "canvas values must pass the shared validators")
+  assert.match(source, /SharedDesign/, "a shared design must use the version-aware shared renderer")
 })
 
 test("the answer key is only marked up for an editor link", () => {
@@ -274,7 +273,7 @@ test("one share panel serves both the canvas and the quiz surface", () => {
   assert.match(panel, /`\$\{origin\}\/share\/\$\{token\}`/, "a copied link must point at the share page")
 
   for (const [relativePath, source] of [
-    ["src/components/learn/views/canvas-editor.tsx", "editor_documents"],
+    ["src/components/learn/design/design-editor.tsx", "editor_documents"],
     ["src/components/learn/views/quiz-view.tsx", "quizzes"],
   ] as const) {
     const view = fs.readFileSync(path.join(PROJECT_ROOT, relativePath), "utf8")
