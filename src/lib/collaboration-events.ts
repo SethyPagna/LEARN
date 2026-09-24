@@ -209,10 +209,13 @@ export function validateCollaborationEvent(input: unknown): CollaborationEventVa
     const video = Boolean(record.video ?? payload.video ?? false)
     // A video offer carrying audio, camera and screen transceivers runs well
     // past 12 KB of SDP in Chrome; the frame-level cap still bounds the total.
-    const sdp = typeof (record.sdp ?? payload.sdp) === "string" ? cleanString(record.sdp ?? payload.sdp, 40000) : undefined
+    // SDP is a wire format: trimming its final CRLF makes Chromium reject it.
+    const rawSdp = record.sdp ?? payload.sdp
+    const sdp = typeof rawSdp === "string" ? rawSdp : undefined
+    if (sdp && sdp.length > 40000) return { ok: false, error: "The call description is too large." }
     const candidate = typeof (record.candidate ?? payload.candidate) === "string" ? cleanString(record.candidate ?? payload.candidate, 4000) : undefined
 
-    if ((kind === "offer" || kind === "answer") && !sdp) return { ok: false, error: "Offer/answer signals require an sdp payload." }
+    if ((kind === "offer" || kind === "answer") && !sdp?.trim()) return { ok: false, error: "Offer/answer signals require an sdp payload." }
     if (kind === "ice-candidate" && candidate === undefined) return { ok: false, error: "ICE candidate signals require a candidate payload." }
 
     const signalPayload: Record<string, unknown> = { callId, kind, video, sdp, candidate }
