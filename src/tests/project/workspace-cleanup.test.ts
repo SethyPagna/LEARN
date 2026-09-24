@@ -25,3 +25,15 @@ test("workspace cleanup target safety rejects traversal and source folders", () 
   assert.equal(isSafeWorkspaceCleanupTarget(rootDir, path.resolve(rootDir, "src/app")), false)
   assert.equal(isSafeWorkspaceCleanupTarget(rootDir, path.resolve(rootDir, "../outside/.next")), false)
 })
+
+test("workspace cleanup never deletes the local database or uploads", () => {
+  // `.wrangler/state` holds the local D1 database and R2 files, and the
+  // Cloudflare deploy script runs this cleanup before building.
+  const rootDir = path.resolve("C:/repo/learn")
+
+  for (const kept of [".wrangler", ".wrangler/state", ".wrangler/state/v3/d1", ".wrangler/state/v3/r2"]) {
+    assert.equal(isSafeWorkspaceCleanupTarget(rootDir, path.resolve(rootDir, kept)), false, kept)
+  }
+  assert.equal(isSafeWorkspaceCleanupTarget(rootDir, path.resolve(rootDir, ".wrangler/tmp")), true)
+  assert.equal(generatedWorkspaceTargets.some((target: string) => target === ".wrangler" || target.startsWith(".wrangler/state")), false)
+})
