@@ -50,40 +50,6 @@ export function useNearViewport<T extends Element>(options: { root?: Element | n
   return [ref, near]
 }
 
-/**
- * A value outside React state. The stage writes the hovered element here on
- * every pointer move; only the selection chrome subscribes, so hovering never
- * re-renders the editor or the page.
- */
-export interface ValueStore<T> {
-  get: () => T
-  set: (value: T) => void
-  subscribe: (listener: () => void) => () => void
-}
-
-export function createValueStore<T>(initial: T): ValueStore<T> {
-  let value = initial
-  const listeners = new Set<() => void>()
-  return {
-    get: () => value,
-    set: (next) => {
-      if (Object.is(next, value)) return
-      value = next
-      for (const listener of listeners) listener()
-    },
-    subscribe: (listener) => {
-      listeners.add(listener)
-      return () => {
-        listeners.delete(listener)
-      }
-    },
-  }
-}
-
-export function useValueStore<T>(store: ValueStore<T>): T {
-  return useSyncExternalStore(store.subscribe, store.get, store.get)
-}
-
 /** Whether the main pointer is coarse (a finger): handles grow for it. */
 export function useCoarsePointer(): boolean {
   return useSyncExternalStore(subscribeCoarse, readCoarse, () => false)

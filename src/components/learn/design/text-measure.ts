@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useSyncExternalStore } from "react"
-import { designFont, designFonts, type DesignFontId } from "@/lib/design/fonts"
+import { designFont, type DesignFontId } from "@/lib/design/fonts"
 import { canvasFont } from "@/lib/design/raster"
 import { estimateMeasure, type FontSpec, type MeasureText } from "@/lib/design/text"
 
@@ -114,11 +114,6 @@ export function useDesignMeasure(): MeasureText {
   return useMemo(() => (current < 0 ? estimateMeasure : browserMeasure()), [current])
 }
 
-/** A measurer for one-off work outside React (export, paste, drop). */
-export function currentDesignMeasure(): MeasureText {
-  return typeof document === "undefined" ? estimateMeasure : browserMeasure()
-}
-
 /**
  * Load the faces a set of text runs needs (canvas drawing never triggers a
  * font download by itself). Resolves once they are ready or have failed;
@@ -130,7 +125,3 @@ export async function loadDesignFonts(specs: Array<Pick<FontSpec, "font" | "weig
   await Promise.all([...wanted].map((font) => document.fonts.load(font).catch(() => [])))
 }
 
-/** Every face at the weights it ships (the font picker previews them all). */
-export function allDesignFontSpecs(): Array<Pick<FontSpec, "font" | "weight" | "italic">> {
-  return designFonts.flatMap((font) => font.weights.map((weight) => ({ font: font.id, weight, italic: false })))
-}

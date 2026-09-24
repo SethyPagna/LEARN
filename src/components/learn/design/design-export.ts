@@ -413,23 +413,3 @@ export async function exportDesign(doc: DesignDoc, options: DesignExportOptions)
   if (options.format === "pdf") return exportPdf(doc, indices, base, options)
   return exportPictures(doc, indices, base, options)
 }
-
-export interface PagePictureOptions {
-  type?: "image/png" | "image/jpeg"
-  /** Longest edge in pixels (default 1600). */
-  maxEdge?: number
-}
-
-/** One page as a picture file, for sharing into a chat or saving to the vault. */
-export async function designPagePicture(doc: DesignDoc, index: number, options: PagePictureOptions = {}): Promise<Blob> {
-  const type = options.type ?? "image/png"
-  const safeIndex = Math.max(0, Math.min(doc.pages.length - 1, index))
-  const scale = Math.max(0.05, Math.min(2, (options.maxEdge ?? 1600) / Math.max(1, doc.width, doc.height)))
-  const images = await prepare(doc, [safeIndex])
-  const canvas = drawPageCanvas(doc, safeIndex, scale, images, type === "image/jpeg")
-  try {
-    return await canvasBlob(canvas, type, type === "image/jpeg" ? JPG_QUALITY : undefined)
-  } finally {
-    release(canvas)
-  }
-}

@@ -13,7 +13,7 @@ import { setBlockDragPayload } from "@/lib/studio/block-drop"
  * The `format-response` test suite pins that property from the other side.
  *
  * The shape language follows the canvas editor's Takram-soft preset (see
- * `CANVAS_PRESET_CSS` in `views/canvas-editor.tsx`): the same radius/shadow
+ * `CANVAS_PRESET_CSS` in `design/editor-styles.ts`): the same radius/shadow
  * conventions reusing the app's semantic tokens, scoped to this component
  * instead of duplicating a stylesheet.
  */
