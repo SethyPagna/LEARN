@@ -1,12 +1,11 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react"
-import { ArrowRight, Copy, Download, FileText, ImageIcon, Info, RefreshCw, Search, ShieldCheck, SlidersHorizontal, Trash2, Upload, Video } from "lucide-react"
+import { ArrowRight, Copy, Download, Grid2X2, List, X, FileText, ImageIcon, Search, Trash2, Upload, Video } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { MediaFile, View } from "../types"
 import { api, formatBytes, formatDate } from "../api"
-import { EmptyState, Panel } from "../ui"
-import { buildFileLibraryActionPlan, buildFileLibraryEmptyState, buildFileLibraryFilterSummary, buildFileLibrarySummaryChips, filterFileLibrary, fileKindLabel, resolveVisibleFileSelection, summarizeFileLibrary, type FileLibraryFilter, type FileLibraryKind } from "@/lib/file-library-features"
+import { buildFileLibraryActionPlan, buildFileLibraryEmptyState, buildFileLibraryFilterSummary, filterFileLibrary, fileKindLabel, resolveVisibleFileSelection, summarizeFileLibrary, type FileLibraryFilter, type FileLibraryKind } from "@/lib/file-library-features"
 import { classifyUploadContentType, validateUploadFileShape } from "@/lib/file-security"
 
 const mediaFilters: FileLibraryFilter[] = ["all", "image", "video", "audio", "pdf", "doc", "sheet", "slides"]
@@ -15,6 +14,8 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
   const inputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<MediaFile[]>([])
   const [selectedId, setSelectedId] = useState("")
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [layout, setLayout] = useState(options.fileLayout)
   const [query, setQuery] = useState("")
   const [mediaFilter, setMediaFilter] = useState<FileLibraryFilter>("all")
   const [status, setStatus] = useState("Loading files...")
@@ -22,9 +23,6 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
   const [pendingDeleteId, setPendingDeleteId] = useState("")
   const [fileActionBusy, setFileActionBusy] = useState<"delete" | "copy" | null>(null)
   const storageStats = useMemo(() => summarizeFileLibrary(files), [files])
-  const storageChips = useMemo(() => buildFileLibrarySummaryChips(storageStats), [storageStats])
-  const primaryStorageChips = storageChips.filter((chip) => chip.priority === "primary")
-  const secondaryStorageChips = storageChips.filter((chip) => chip.priority === "secondary")
   const filteredFiles = useMemo(() => filterFileLibrary(files, { query, kind: mediaFilter }), [files, mediaFilter, query])
   const selectedFile = useMemo(() => resolveVisibleFileSelection(filteredFiles, selectedId), [filteredFiles, selectedId])
   const filterSummary = useMemo(() => buildFileLibraryFilterSummary({
@@ -42,6 +40,8 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
     () => buildFileLibraryActionPlan(files, storageStats, { selectedId: selectedFile?.id, query, filter: mediaFilter, visibleFileCount: filteredFiles.length }),
     [files, filteredFiles.length, mediaFilter, query, selectedFile?.id, storageStats],
   )
+
+  useEffect(() => setLayout(options.fileLayout), [options.fileLayout])
 
   async function refresh() {
     try {
@@ -147,177 +147,35 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
     upload(event.dataTransfer.files?.[0])
   }
 
-  return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
-      <div
-        onDragOver={(event) => {
-          event.preventDefault()
-          setDragActive(true)
-        }}
-        onDragLeave={() => setDragActive(false)}
-        onDrop={handleDrop}
-      >
-        <Panel className={`p-4 transition ${dragActive ? "border-primary bg-primary/5" : ""}`}>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <h2 className="text-2xl font-semibold text-foreground">Files</h2>
-            <InfoMenu body="Drop in study sources, media, and exports for Studio or AI. Uploads are validated first and stored in LEARN object storage." label="About Files" />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={resetFilters} className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-              <RefreshCw className="h-4 w-4" />
-              Reset
-            </button>
-            <button onClick={() => inputRef.current?.click()} className="flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
-              <Upload className="h-4 w-4" />
-              Upload
-            </button>
-          </div>
-          <input ref={inputRef} type="file" aria-label="Upload files" className="hidden" onChange={(event) => upload(event.target.files?.[0])} />
-        </div>
-        <label className="mb-3 flex h-10 items-center gap-2 rounded-md border border-input bg-background px-3 focus-within:ring-2 focus-within:ring-primary/25">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search files" className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
-        </label>
-        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {primaryStorageChips.map((chip) => (
-            <FileStat key={chip.id} label={chip.label} value={chip.value} />
-          ))}
-          <FileStat label="Size" value={formatBytes(storageStats.totalBytes)} />
-        </div>
-        <details className="mb-3 rounded-md border border-border bg-background p-2">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
-            <span className="inline-flex items-center gap-2">
-              <SlidersHorizontal className="h-4 w-4 text-success" />
-              Browse
-            </span>
-            <span className="flex items-center gap-2">
-              {filterSummary.active ? <span className="rounded-md bg-warning/15 px-2 py-0.5 text-xs text-warning">{filterSummary.label}</span> : null}
-              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{fileKindLabel(mediaFilter)}</span>
-              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{filteredFiles.length}/{files.length}</span>
-            </span>
-          </summary>
-          <div className="mt-3 grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
-            <div className="flex flex-wrap gap-2">
-              {mediaFilters.map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => {
-                    setMediaFilter(filter)
-                    setPendingDeleteId("")
-                  }}
-                  className={`h-8 rounded-md px-3 text-xs font-semibold ${mediaFilter === filter ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
-                >
-                  {fileKindLabel(filter)}
-                </button>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-muted-foreground sm:grid-cols-4 md:w-[360px]">
-              {secondaryStorageChips.map((chip) => (
-                <FileStat key={chip.id} label={chip.label} value={chip.value} />
-              ))}
-              <FileStat label="Visible" value={`${filteredFiles.length}/${files.length}`} />
-            </div>
-          </div>
-        </details>
-        {status ? <p className="mb-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
-        {filteredFiles.length ? options.fileLayout === "grid" ? (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {filteredFiles.map((file) => <FileCard key={file.id} file={file} selected={selectedFile?.id === file.id} preview={options.filePreview} onSelect={() => setSelectedId(file.id)} />)}
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-lg border border-border">
-            {filteredFiles.map((file) => (
-              <button key={file.id} onClick={() => setSelectedId(file.id)} className={`grid w-full gap-3 border-b border-border p-3 text-left text-sm last:border-b-0 md:grid-cols-[1fr_130px_110px] md:items-center ${selectedFile?.id === file.id ? "bg-primary/10" : "hover:bg-muted"}`}>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <FileKindIcon kind={classifyUploadContentType(file.content_type)} className="h-4 w-4 text-success" />
-                    <p className="font-medium text-foreground">{file.filename}</p>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{file.content_type} | {fileKindLabel(classifyUploadContentType(file.content_type))}</p>
-                </div>
-                <p className="text-muted-foreground">{formatBytes(file.size_bytes)}</p>
-                <p className="text-muted-foreground">{formatDate(file.created_at)}</p>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="grid gap-3 rounded-md border border-dashed border-border bg-background p-4">
-            <EmptyState title={emptyState.title} body={emptyState.body} />
-            <button
-              onClick={emptyState.action === "clear-filter" ? resetFilters : () => inputRef.current?.click()}
-              className="inline-flex h-9 w-fit items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
-              type="button"
-            >
-              {emptyState.action === "clear-filter" ? <RefreshCw className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
-              {emptyState.action === "clear-filter" ? "Clear filters" : "Upload file"}
-            </button>
-          </div>
-        )}
-        </Panel>
-      </div>
-
-      <Panel className="p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="font-semibold text-foreground">Next action</h3>
-          <InfoMenu body={fileActionPlan.detail} label="About next action" />
-        </div>
-        <button onClick={applyFileActionPlan} className="mt-3 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
-          <div className="flex items-center justify-between gap-3">
-            <span className="font-semibold text-foreground">{fileActionPlan.headline}</span>
-            <ArrowRight className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {fileActionPlan.chips.map((chip) => (
-              <span key={chip} className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">
-                {chip}
-              </span>
-            ))}
-          </div>
-        </button>
-        {selectedFile ? (
-          <div className="mt-3">
-            {options.filePreview && selectedFile.content_type.startsWith("image/") ? (
-              <img src={`/api/files/${selectedFile.id}/download`} alt="" loading="lazy" decoding="async" className="aspect-video w-full rounded-md object-cover" />
-            ) : (
-              <div className="flex aspect-video w-full items-center justify-center rounded-md bg-muted">
-                <FileKindIcon kind={classifyUploadContentType(selectedFile.content_type)} className="h-8 w-8 text-success" />
-              </div>
-            )}
-            <p className="mt-3 break-words font-semibold text-foreground">{selectedFile.filename}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{formatBytes(selectedFile.size_bytes)} - {selectedFile.content_type}</p>
-            <p className="mt-1 text-sm text-muted-foreground">Kind: {fileKindLabel(classifyUploadContentType(selectedFile.content_type))}</p>
-            <p className="mt-1 text-sm text-muted-foreground">Uploaded {formatDate(selectedFile.created_at)}</p>
-            <details className="mt-3 rounded-md border border-border bg-background p-2 text-xs font-semibold text-muted-foreground">
-              <summary className="cursor-pointer text-foreground">Security and storage</summary>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1"><ShieldCheck className="h-3 w-3" /> R2-backed</span>
-                <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1"><ShieldCheck className="h-3 w-3" /> Private route</span>
-                <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1"><ShieldCheck className="h-3 w-3" /> Validated type</span>
-                <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1"><ShieldCheck className="h-3 w-3" /> Downloadable</span>
-              </div>
-            </details>
-            <div className="mt-4 grid gap-2">
-              <a href={`/api/files/${selectedFile.id}/download`} className="flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-secondary text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-                <Download className="h-4 w-4" />
-                Download
-              </a>
-              <button onClick={() => copyLink(selectedFile)} disabled={fileActionBusy !== null} className="flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-secondary text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60">
-                <Copy className="h-4 w-4" />
-                {fileActionBusy === "copy" ? "Copying" : "Copy link"}
-              </button>
-              <button onClick={() => deleteFile(selectedFile.id)} disabled={fileActionBusy !== null} className="flex h-10 items-center justify-center gap-2 rounded-md border border-destructive text-sm font-semibold text-destructive hover:bg-destructive hover:text-destructive-foreground disabled:cursor-not-allowed disabled:opacity-60">
-                <Trash2 className="h-4 w-4" />
-                {fileActionBusy === "delete" ? "Deleting" : pendingDeleteId === selectedFile.id ? "Confirm delete" : "Delete"}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <EmptyState title="No file selected" body="Select a file to preview or manage." />
-        )}
-      </Panel>
+  return <section className="workspace-screen" aria-label="File library">
+    <header className="workspace-header">
+      <div><h2>Files</h2><p>{files.length} files · {formatBytes(storageStats.totalBytes)} used</p></div>
+      <button type="button" onClick={() => inputRef.current?.click()} className="editor-primary"><Upload className="h-4 w-4" />Upload</button>
+      <input ref={inputRef} type="file" aria-label="Upload files" className="hidden" onChange={(event) => upload(event.target.files?.[0])} />
+    </header>
+    <div className="workspace-toolbar">
+      <label className="workspace-search flex-1 sm:max-w-sm"><Search className="h-4 w-4 shrink-0 text-muted-foreground" /><input aria-label="Search files" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search files" /></label>
+      <select aria-label="File type" value={mediaFilter} onChange={(event) => { setMediaFilter(event.target.value as FileLibraryFilter); setPendingDeleteId("") }} className="h-9 rounded-md border border-input bg-card px-3 text-xs">{mediaFilters.map((filter) => <option key={filter} value={filter}>{fileKindLabel(filter)}</option>)}</select>
+      {filterSummary.active ? <button type="button" onClick={resetFilters} className="editor-command">Clear filters</button> : null}
+      <div className="ml-auto flex rounded-md border border-border bg-card p-0.5"><button type="button" aria-label="List view" aria-pressed={layout === "list"} className="editor-command !px-2" onClick={() => setLayout("list")}><List className="h-4 w-4" /></button><button type="button" aria-label="Grid view" aria-pressed={layout === "grid"} className="editor-command !px-2" onClick={() => setLayout("grid")}><Grid2X2 className="h-4 w-4" /></button></div>
     </div>
-  )
+    {status ? <p role="status" className="text-xs text-muted-foreground">{status}</p> : null}
+    <div className={`grid min-w-0 items-start gap-4 ${detailsOpen ? "xl:grid-cols-[minmax(0,1fr)_300px]" : ""}`}>
+      <div onDragOver={(event) => { event.preventDefault(); setDragActive(true) }} onDragLeave={() => setDragActive(false)} onDrop={handleDrop} className={`${detailsOpen && selectedFile ? "hidden xl:block" : ""} min-w-0 rounded-lg border bg-card ${dragActive ? "border-primary ring-2 ring-primary/20" : "border-border"}`}>
+        {filteredFiles.length ? layout === "grid" ? <div className="grid gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3">{filteredFiles.map((file) => <FileCard key={file.id} file={file} selected={detailsOpen && selectedFile?.id === file.id} preview={options.filePreview} onSelect={() => { setSelectedId(file.id); setDetailsOpen(true) }} />)}</div> : <>
+          <div className="hidden grid-cols-[minmax(0,1fr)_110px_110px] gap-3 border-b border-border px-4 py-2 text-xs text-muted-foreground md:grid"><span>Name</span><span>Size</span><span>Added</span></div>
+          <ul className="divide-y divide-border">{filteredFiles.map((file) => <li key={file.id}><button type="button" aria-pressed={detailsOpen && selectedFile?.id === file.id} onClick={() => { setSelectedId(file.id); setDetailsOpen(true) }} className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-left text-sm md:grid-cols-[minmax(0,1fr)_110px_110px] ${detailsOpen && selectedFile?.id === file.id ? "bg-accent" : "hover:bg-secondary/60"}`}><span className="flex min-w-0 items-center gap-3"><FileKindIcon kind={classifyUploadContentType(file.content_type)} className="h-5 w-5 shrink-0 text-muted-foreground" /><span className="truncate">{file.filename}</span></span><span className="text-xs text-muted-foreground">{formatBytes(file.size_bytes)}</span><span className="hidden text-xs text-muted-foreground md:block">{formatDate(file.created_at)}</span></button></li>)}</ul>
+        </> : <div className="grid justify-items-center gap-3 px-4 py-16 text-center"><Upload className="h-7 w-7 text-muted-foreground" /><h3 className="text-sm font-medium">{emptyState.title}</h3><p className="max-w-sm text-sm text-muted-foreground">{emptyState.body}</p><button type="button" className="editor-command" onClick={emptyState.action === "clear-filter" ? resetFilters : () => inputRef.current?.click()}>{emptyState.action === "clear-filter" ? "Clear filters" : "Choose a file"}</button></div>}
+        <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground">{filteredFiles.length} shown · Drop files here to upload</div>
+      </div>
+      {detailsOpen && selectedFile ? <aside className="rounded-lg border border-border bg-card p-4" aria-label="File details">
+        <div className="mb-4 flex items-center justify-between"><h3 className="text-sm font-semibold">File details</h3><button type="button" aria-label="Close file details" className="editor-command !px-2" onClick={() => setDetailsOpen(false)}><X className="h-4 w-4" /></button></div>
+        {options.filePreview && selectedFile.content_type.startsWith("image/") ? <img loading="lazy" src={`/api/files/${selectedFile.id}/download`} alt={selectedFile.filename} className="mb-4 max-h-52 w-full rounded-md object-contain" /> : null}
+        <p className="break-words text-sm font-medium">{selectedFile.filename}</p><p className="mt-2 text-xs text-muted-foreground">{formatBytes(selectedFile.size_bytes)} · {fileKindLabel(classifyUploadContentType(selectedFile.content_type))}</p>
+        <div className="mt-5 grid gap-2"><a href={`/api/files/${selectedFile.id}/download`} className="editor-primary"><Download className="h-4 w-4" />Download</a><button type="button" className="editor-command" onClick={applyFileActionPlan}>{fileActionPlan.headline}<ArrowRight className="h-4 w-4" /></button><button type="button" className="editor-command" disabled={fileActionBusy !== null} onClick={() => copyLink(selectedFile)}><Copy className="h-4 w-4" />Copy link</button><button type="button" className="editor-command !text-destructive" disabled={fileActionBusy !== null} onClick={() => deleteFile(selectedFile.id)}><Trash2 className="h-4 w-4" />{pendingDeleteId === selectedFile.id ? "Confirm delete" : "Delete"}</button></div>
+      </aside> : null}
+    </div>
+  </section>
 }
 
 function FileCard({ file, selected, preview, onSelect }: { file: MediaFile; selected: boolean; preview: boolean; onSelect: () => void }) {
@@ -341,26 +199,4 @@ function FileKindIcon({ className, kind }: { className?: string; kind: FileLibra
   if (kind === "video") return <Video className={className} />
   if (kind === "image") return <ImageIcon className={className} />
   return <FileText className={className} />
-}
-
-function FileStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md bg-muted px-2 py-1.5">
-      <p className="text-[0.66rem] uppercase tracking-[0.08em]">{label}</p>
-      <p className="truncate text-foreground">{value}</p>
-    </div>
-  )
-}
-
-function InfoMenu({ body, label }: { body: string; label: string }) {
-  return (
-    <details className="relative shrink-0">
-      <summary className="flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label={label} title={label}>
-        <Info className="h-4 w-4" />
-      </summary>
-      <p className="absolute right-0 top-10 z-[80] w-72 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">
-        {body}
-      </p>
-    </details>
-  )
 }

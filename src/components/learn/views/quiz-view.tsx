@@ -305,8 +305,9 @@ export function QuizView({
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)]">
-      <Panel className="p-3 xl:sticky xl:top-3 xl:max-h-[calc(100vh-6rem)] xl:overflow-auto">
+    <div className="practice-screen grid min-w-0 gap-3 xl:grid-cols-[200px_minmax(0,1fr)]">
+      <label className="editor-field xl:hidden">Practice set<select aria-label="Practice set" className="editor-input" value={selected} onChange={(event) => setSelectedQuizId(event.target.value)}>{visibleQuizBank.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+      <Panel className="hidden p-3 xl:block xl:sticky xl:top-3 xl:max-h-[calc(100vh-6rem)] xl:overflow-auto">
         <details open>
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground xl:hidden">
             Sets
@@ -321,7 +322,7 @@ export function QuizView({
               <button
                 key={item.id}
                 onClick={() => setSelectedQuizId(item.id)}
-                className={`mb-2 flex w-full items-center justify-between gap-2 rounded-md p-2.5 text-left ${selected === item.id ? "bg-primary text-primary-foreground" : "bg-muted text-foreground hover:bg-accent hover:text-accent-foreground"}`}
+                className={`mb-1 flex w-full items-center justify-between gap-2 rounded-md p-2.5 text-left ${selected === item.id ? "bg-primary text-primary-foreground" : "bg-muted text-foreground hover:bg-accent hover:text-accent-foreground"}`}
               >
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-semibold">{item.title}</span>
@@ -340,7 +341,7 @@ export function QuizView({
             <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-2xl font-semibold text-foreground">{quiz.title}</h2>
+                  <h2 className="text-lg font-semibold text-foreground">{quiz.title}</h2>
                   <details className="group relative">
                     <summary className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden" title="About this practice set">
                       <Info className="h-3.5 w-3.5" />

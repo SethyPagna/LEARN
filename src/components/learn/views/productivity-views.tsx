@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import type React from "react"
-import { AtSign, CheckCircle2, Circle, Clock, Download, Gamepad2, Image as ImageIcon, MessageSquare, Mic, MicOff, MoreHorizontal, Paperclip, Phone, PhoneOff, Plus, Reply, RotateCcw, Search, Send, SlidersHorizontal, Smile, Sparkles, Trophy, Users, Video, VideoOff, XCircle } from "lucide-react"
+import { ArrowLeft, AtSign, CheckCircle2, Circle, Clock, Download, Gamepad2, Image as ImageIcon, MessageSquare, Mic, MicOff, MoreHorizontal, Paperclip, Phone, PhoneOff, Plus, Reply, RotateCcw, Search, Send, SlidersHorizontal, Smile, Sparkles, Trophy, Users, Video, VideoOff, XCircle } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Quiz } from "../types"
 import { api, formatDate } from "../api"
 import { EmptyState, Panel, type ViewMenuProps } from "../ui"
+import { Popover } from "../design/popover"
 import { VoiceInput } from "../voice-input"
 import { buildGameRunActions, evaluateGameChoice, summarizeGameRun, type GameRunActionId } from "@/lib/practice-features"
 import { parseLiveGameInvite, parseLiveGameResult } from "@/lib/live/game-invite"
@@ -351,6 +352,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const [chatAction, setChatAction] = useState<ChatComposerActionId | null>(null)
   const [threadAction, setThreadAction] = useState<{ action: ChatThreadActionId; threadId: string } | null>(null)
   const [openChatMenu, setOpenChatMenu] = useState<ChatMenuId | null>(null)
+  const [conversationOpen, setConversationOpen] = useState(false)
   const [destination, setDestination] = useState<ChatDestination>({ kind: "personal" })
   // The "Start a live game" composer flow: which mode, on which quiz. The
   // launcher owns the choices; this only owns whether it is open.
@@ -459,6 +461,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   }
 
   function startDirectMessage(targetUserId: string) {
+    setConversationOpen(true)
     setDestination({ kind: "dm", targetUserId })
     setReplyThreadId(undefined)
     setMessages([])
@@ -466,6 +469,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   }
 
   function switchToGroup(id: string) {
+    setConversationOpen(true)
     setDestination({ kind: "group", groupId: id })
     setReplyThreadId(undefined)
     setMessages([])
@@ -1063,6 +1067,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   }
 
   function selectThread(thread: ChatThreadRecord) {
+    setConversationOpen(true)
     const parsed = parseThreadTitle(thread.title)
     const targetId = chatThreadKey(thread)
     setDestination({ kind: "thread", threadId: targetId })
@@ -1268,10 +1273,10 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   }
 
   return (
-    <div className="grid min-h-[72vh] overflow-hidden rounded-xl border border-border bg-background lg:grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)]" title={options.collaborationPresence ? "Live-ready chats" : "Async chats"}>
-      <Panel className="order-2 flex min-h-[72vh] min-w-0 flex-col rounded-none border-0 p-0 lg:order-2 lg:border-l lg:border-border">
-        <div className="mb-3 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
-          <div className="flex min-w-0 items-center gap-3 border-b border-border px-4 py-3">
+    <div className="chat-workspace grid min-h-[580px] overflow-hidden rounded-lg border border-border bg-card lg:h-[calc(100dvh-160px)] lg:grid-cols-[280px_minmax(0,1fr)]" title={options.collaborationPresence ? "Live-ready chats" : "Async chats"}>
+      <Panel className={`chat-conversation order-2 min-h-0 min-w-0 flex-col !rounded-none !border-0 !p-0 lg:!border-l lg:!border-border ${conversationOpen ? "flex" : "hidden lg:flex"}`}>
+        <div className="chat-header grid gap-0 border-b border-border">
+          <div className="flex min-w-0 items-center gap-3 px-4 py-3"><span className="lg:hidden"><button type="button" aria-label="Back to conversations" onClick={() => setConversationOpen(false)} className="editor-command !px-2"><ArrowLeft className="h-4 w-4" /></button></span>
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground">
               <MessageSquare className="h-5 w-5" />
             </span>
@@ -1283,7 +1288,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 border-b border-border px-4 py-3 lg:justify-end">
+          <div className="chat-actions flex items-center gap-1 overflow-x-auto px-3 pb-2 [&>button]:shrink-0 [&>div]:shrink-0">
             <ChatMenu icon={Users} label={activeDmTarget ? activeDmTarget.name : activeGroup ? activeGroup.name : "Group"} menuId="tools" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
               <ChatMenuSection title="Chat as this group">
                 {myGroups.length ? myGroups.map((group) => (
@@ -1322,7 +1327,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                 )}
               </ChatMenuSection>
             </ChatMenu>
-            <span role="status" className="text-xs text-muted-foreground">{socketStatus === "open" ? "Live" : socketStatus === "closed" ? "Select a conversation" : "Reconnecting…"}</span>
+            <span role="status" className="hidden text-xs text-muted-foreground xl:inline">{socketStatus === "open" ? "Live" : socketStatus === "closed" ? "Select a conversation" : "Reconnecting…"}</span>
             <ToolbarButton label="Video" onClick={() => startCall(true)} icon={Video} />
             <ToolbarButton label="Call" onClick={() => startCall(false)} icon={Phone} />
             <ToolbarButton label="Download" onClick={exportConversation} icon={Download} />
@@ -1362,7 +1367,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             </ChatMenu>
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top_left,color-mix(in_oklch,var(--primary)_8%,transparent),transparent_34%),linear-gradient(135deg,color-mix(in_oklch,var(--muted)_60%,transparent),var(--background))] px-4 py-5">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-background px-4 py-5">
           <div className="mx-auto flex max-w-3xl flex-col gap-3">
             {messages.length ? messages.map((message) => {
               // A launched game and a finished game are ordinary messages with a
@@ -1418,31 +1423,14 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               </div>
               )
             }) : (
-              <div className="max-w-[78%] rounded-2xl rounded-tl-sm bg-secondary px-4 py-3 text-sm leading-6 text-secondary-foreground shadow-sm">
+              <div className="px-4 py-8 text-center text-sm leading-6 text-muted-foreground">
                 <p>{activeThreadBody.replace(/^\[[^\]]+\]\s*/, "")}</p>
-                <p className="mt-1 text-right text-[11px] opacity-70">{activeThread?.updated_at ? formatDate(activeThread.updated_at) : "recent"}</p>
+                {activeThread?.updated_at ? <p className="mt-1 text-xs">{formatDate(activeThread.updated_at)}</p> : null}
               </div>
             )}
-            {body.trim() ? (
-              <div className="ml-auto max-w-[78%] rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-sm leading-6 text-primary-foreground shadow-sm">
-                <p>{body}</p>
-                <p className="mt-1 text-right text-[11px] opacity-75">draft</p>
-              </div>
-            ) : !messages.length ? (
-              <div className="mx-auto mt-12 grid grid-cols-2 gap-3 text-center text-sm text-muted-foreground">
-                <button onClick={() => openAttachPicker("document")} className="grid h-28 w-32 place-items-center rounded-2xl bg-card shadow-sm hover:bg-accent hover:text-accent-foreground" type="button">
-                  <Paperclip className="h-6 w-6" />
-                  <span>Send document</span>
-                </button>
-                <button onClick={() => setDraftStatus("Contact invite ready")} className="grid h-28 w-32 place-items-center rounded-2xl bg-card shadow-sm hover:bg-accent hover:text-accent-foreground" type="button">
-                  <Plus className="h-6 w-6" />
-                  <span>Add contact</span>
-                </button>
-              </div>
-            ) : null}
           </div>
         </div>
-        <div className="mx-4 mt-3"><ChatStories currentUserId={currentUserId} groups={myGroups} /></div>
+        <details className="chat-extras mx-4 mt-2"><summary className="cursor-pointer py-1 text-xs text-muted-foreground">Media, stories and prompts</summary><div className="max-h-60 overflow-y-auto pb-2"><ChatStories currentUserId={currentUserId} groups={myGroups} /></div>
         <details className="mx-4 mt-3 rounded-md border border-border bg-background">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
             <span>Starter prompts</span>
@@ -1466,6 +1454,11 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
           ))}
           </div>
         </details>
+        <div key={JSON.stringify(messageDestination)} className="mx-4 mt-3 grid gap-2">
+          <ChatVoiceMessage onSend={sendAttachment} disabled={Boolean(activeCall)} />
+          <ChatMediaComposer onSend={sendAttachment} onEmoji={(emoji) => setBody((current) => `${current}${emoji}`)} />
+        </div>
+        </details>
         {liveGameOpen ? (
           <div className="mx-4 mt-3">
             <LiveGameLauncher
@@ -1483,11 +1476,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             />
           </div>
         ) : null}
-        <div key={JSON.stringify(messageDestination)} className="mx-4 mt-3 grid gap-2">
-          <ChatVoiceMessage onSend={sendAttachment} disabled={Boolean(activeCall)} />
-          <ChatMediaComposer onSend={sendAttachment} onEmoji={(emoji) => setBody((current) => `${current}${emoji}`)} />
-        </div>
-        <div className="m-4 mt-3 rounded-full border border-input bg-background px-3 py-2 shadow-sm">
+        <div className="m-3 mt-2 rounded-lg border border-input bg-card px-3 py-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -1500,8 +1489,8 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               event.target.value = ""
             }}
           />
-          <textarea value={body} onChange={(event) => { setBody(event.target.value); handleDraftActivity(event.target.value) }} className="min-h-28 w-full resize-none bg-transparent text-sm leading-6 text-foreground outline-none" placeholder="Message your study group, mention someone, link Studio, or ask a question..." />
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+          <textarea aria-label="Message" rows={2} value={body} onChange={(event) => { setBody(event.target.value); handleDraftActivity(event.target.value) }} className="min-h-14 max-h-40 w-full resize-y bg-transparent text-sm leading-6 text-foreground outline-none" placeholder="Message your study group, mention someone, link Studio, or ask a question..." />
+          <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
             <ChatMenu compact icon={Plus} label="Attach" menuId="attach" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
               <ChatMenuSection title="Attach">
@@ -1557,11 +1546,11 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
           </div>
         </div>
       </Panel>
-      <Panel className="order-1 min-h-[72vh] min-w-0 rounded-none border-0 p-3 lg:order-1 lg:max-h-[72vh] lg:overflow-y-auto">
+      <Panel className={`order-1 min-h-0 min-w-0 !rounded-none !border-0 p-3 lg:overflow-y-auto ${conversationOpen ? "hidden lg:block" : ""}`}>
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-2xl font-semibold text-foreground">Chats</h3>
+          <h3 className="text-base font-semibold text-foreground">Messages</h3>
           <div className="flex items-center gap-2">
-            <button onClick={() => setBody((current) => current || "Can someone help me with ")} aria-label="Start a new message" className="grid h-9 w-9 place-items-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+            <button onClick={() => { setConversationOpen(true); setBody((current) => current || "") }} aria-label="Start a new message" className="grid h-9 w-9 place-items-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
               <Plus className="h-4 w-4" />
             </button>
             <ChatMenu align="right" compact icon={MoreHorizontal} label="Menu" menuId="filters" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
@@ -1634,7 +1623,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                   selectThread(thread)
                 }
               }}
-              className={`cursor-pointer rounded-xl border p-3 text-sm transition hover:border-primary/40 hover:bg-accent hover:text-accent-foreground ${
+              className={`cursor-pointer rounded-md border border-transparent p-2.5 text-sm transition hover:bg-accent hover:text-accent-foreground ${
                 selected ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background"
               }`}
               role="button"
@@ -1769,10 +1758,12 @@ function ChatMenu({
   openMenu,
   setOpenMenu,
 }: ViewMenuProps<ChatMenuId>) {
+  const anchor = useRef<HTMLButtonElement>(null)
   const open = openMenu === menuId
   return (
     <div className="relative">
       <button
+        ref={anchor}
         aria-expanded={open}
         onClick={() => setOpenMenu(open ? null : menuId)}
         className={`inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground ${compact ? "px-2" : "px-3"}`}
@@ -1781,11 +1772,7 @@ function ChatMenu({
         <Icon className="h-4 w-4" />
         <span>{label}</span>
       </button>
-      {open ? (
-        <div className={`absolute top-[calc(100%+0.4rem)] z-[120] w-72 rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-xl ${align === "right" ? "right-0" : "left-0"}`}>
-          {children}
-        </div>
-      ) : null}
+      <Popover open={open} anchor={anchor} onClose={() => setOpenMenu(null)} label={label} placement={align === "right" ? "bottom-end" : "bottom-start"} width={288}>{children}</Popover>
     </div>
   )
 }
@@ -1846,7 +1833,7 @@ function ToolbarButton({
   primary?: boolean
 }) {
   return (
-    <button disabled={disabled} onClick={onClick} className={`flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60 ${primary ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+    <button type="button" aria-label={label} title={label} disabled={disabled} onClick={onClick} className={`flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60 ${primary ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
       <Icon className="h-4 w-4" />
       <span>{label}</span>
     </button>

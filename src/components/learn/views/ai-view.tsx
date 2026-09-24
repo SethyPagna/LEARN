@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Bot, Brain, CheckCircle2, CheckSquare, ChevronDown, FileText, Gauge, Info, Languages, ListFilter, MoreHorizontal, Plus, Route, SlidersHorizontal, Sparkles, UploadCloud, Wand2 } from "lucide-react"
+import { Bot, Brain, CheckCircle2, CheckSquare, ChevronDown, FileText, Gauge, Info, Languages, ListFilter, MoreHorizontal, Plus, Route, Sparkles, UploadCloud, Wand2 } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Note, Quiz, StudioInsertTarget, View } from "../types"
 import { api } from "../api"
@@ -121,8 +121,9 @@ export function AiTutorView({
   const [targetAudience, setTargetAudience] = useState("Self-directed learner")
   const [requiredOutput, setRequiredOutput] = useState("Clear sections, compact examples, and one next action.")
   const [activeTaskKey, setActiveTaskKey] = useState(aiTutorModeOptions[0].id)
-  const [modeGroup, setModeGroup] = useState<AiTutorModeGroupId>("tutor")
+  const [, setModeGroup] = useState<AiTutorModeGroupId>("tutor")
   const [openTutorMenu, setOpenTutorMenu] = useState<TutorMenuId | null>(null)
+  const [toolsOpen, setToolsOpen] = useState(false)
   const [sidePanel, setSidePanel] = useState<"gateway" | "import" | "presets">("gateway")
   const draftHydrated = useRef(false)
   const draftStatusTimer = useRef<number | null>(null)
@@ -537,11 +538,11 @@ export function AiTutorView({
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <Panel className="p-3 sm:p-4">
+    <div className={`ai-workspace mx-auto grid max-w-6xl items-start gap-4 ${toolsOpen ? "xl:grid-cols-[minmax(0,1fr)_300px]" : ""}`}>
+      <Panel className="p-4 sm:p-6">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
           <div>
-            <h2 className="text-2xl font-semibold text-foreground">AI tutor</h2>
+            <h2 className="text-lg font-semibold text-foreground">AI tutor</h2>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <StatusPill label={workflowSummary.statusLabel} tone={readinessTone(workflowSummary.status)} />
               <StatusPill label={workflowSummary.taskLabel} />
@@ -595,6 +596,7 @@ export function AiTutorView({
                 </label>
               </TutorMenuSection>
             </TutorMenu>
+            <button type="button" className="editor-command" aria-expanded={toolsOpen} onClick={() => setToolsOpen(!toolsOpen)}>Tools</button>
             <TutorMenu label="Gateway" icon={Gauge} align="right" menuId="gateway" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
               <TutorMenuSection title="Gateway">
                 <TutorMenuSelect
@@ -623,17 +625,10 @@ export function AiTutorView({
           </div>
         </div>
 
-        <div className="mt-4 grid gap-2 rounded-lg border border-border bg-muted/30 p-2 text-sm sm:grid-cols-2 lg:grid-cols-5">
-          {workflowSummary.overview.map((item) => (
-            <AiSummaryChip key={item.id} detail={item.detail} label={item.label} tone={item.tone} value={item.value} />
-          ))}
-          <AiSummaryChip detail="Best next action from the current prompt, source, insert target, and gateway state." label="Next" value={workflowSummary.nextAction} />
-        </div>
-
         {sourceScope === "Active Studio item" ? <p className="mt-3 text-sm text-muted-foreground">{sourceContent ? `Source: ${sourceTitle}` : "No Studio source selected. Open Ask AI from the source item."}</p> : null}
         <label className="mt-4 grid gap-2 text-sm font-semibold text-foreground">
-          Prompt
-          <textarea value={message} onChange={(event) => setMessage(event.target.value)} className="min-h-44 w-full rounded-md border border-input bg-background p-4 font-normal text-foreground outline-none focus:border-ring" />
+          What would you like to work on?
+          <textarea aria-label="AI prompt" placeholder="Ask a question, explain an idea, or describe what you want to create…" value={message} onChange={(event) => setMessage(event.target.value)} className="min-h-36 w-full rounded-md border border-input bg-background p-4 font-normal text-foreground outline-none focus:border-ring" />
         </label>
         <VoiceInput
           className="mt-2"
@@ -643,7 +638,14 @@ export function AiTutorView({
         />
 
         <details className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm">
-          <summary className="cursor-pointer font-semibold text-foreground">Prompt preview {promptBuild.ok ? "" : `- ${promptBuild.missing.length} missing`}</summary>
+          <summary className="cursor-pointer font-semibold text-foreground">Prompt details {promptBuild.ok ? "" : `- ${promptBuild.missing.length} missing`}</summary>
+        <div className="mt-4 grid gap-2 rounded-lg border border-border bg-muted/30 p-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+          {workflowSummary.overview.map((item) => (
+            <AiSummaryChip key={item.id} detail={item.detail} label={item.label} tone={item.tone} value={item.value} />
+          ))}
+          <AiSummaryChip detail="Best next action from the current prompt, source, insert target, and gateway state." label="Next" value={workflowSummary.nextAction} />
+        </div>
+
           <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-background p-3 text-xs leading-5 text-muted-foreground">{completePromptPreview}</pre>
           {promptBuild.warnings.length ? <p className="mt-2 rounded-md bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">{promptBuild.warnings.join(" ")}</p> : null}
         </details>
@@ -700,7 +702,7 @@ export function AiTutorView({
         ) : null}
       </Panel>
 
-      <Panel className="p-3 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
+      {toolsOpen ? <Panel className="p-4 xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto">
         <div className="flex items-center justify-between gap-3">
           <p className="flex items-center gap-2 font-semibold text-foreground"><Brain className="h-4 w-4 text-success" /> Tools</p>
           <button onClick={loadProviders} className="h-8 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
@@ -826,7 +828,7 @@ export function AiTutorView({
             {catalog.length ? <p className="mt-3 text-xs text-muted-foreground">{catalog.length} provider families available.</p> : null}
           </div>
         ) : null}
-      </Panel>
+      </Panel> : null}
     </div>
   )
 }
@@ -1160,15 +1162,6 @@ function SectionLabel({ body, compact, icon: Icon, title }: { body: string; comp
         </summary>
         <p className="absolute right-0 top-9 z-30 w-64 rounded-md border border-border bg-popover p-3 text-xs leading-5 text-popover-foreground shadow-xl">{body}</p>
       </details>
-    </div>
-  )
-}
-
-function PreviewBlock({ body, title }: { body: string; title: string }) {
-  return (
-    <div className="rounded-md border border-border bg-background p-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{title}</p>
-      <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{body || "None"}</pre>
     </div>
   )
 }

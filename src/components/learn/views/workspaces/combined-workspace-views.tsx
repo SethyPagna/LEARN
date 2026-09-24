@@ -1,10 +1,9 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ComponentType } from "react"
-import { BookOpen, ChevronDown, Clock, Gamepad2, Info, Mail, MessageSquare, MoreHorizontal, PhoneCall, Play, Plus, Radio, Repeat2, Search, Send, SlidersHorizontal, Sparkles, Swords, Target, Trash2, Users, UsersRound } from "lucide-react"
-import type { DashboardData, LearningSpace, Quiz, StudyBattle, StudyRoom, User, View } from "../../types"
+import { BookOpen, ChevronDown, Clock, Gamepad2, Info, MessageSquare, Play, Radio, Repeat2, Send, Sparkles, Swords, Target, Trash2, Users, UsersRound } from "lucide-react"
+import type { Quiz, User, View } from "../../types"
 import type { WorkspaceOptions } from "../../preferences"
-import { api } from "../../api"
 import { Panel } from "../../ui"
 import { SocialLearningView } from "../ecosystem-views"
 import { ChatView, GamesView } from "../productivity-views"
@@ -21,7 +20,6 @@ import {
 } from "@/lib/learn-workspace-navigation"
 import { clearPracticeDraft, listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import { buildPracticeArenaPresets, buildPracticeGameModes, buildPracticeLiveJoinCard, buildPracticePlayStyles, buildPracticeReadyLoops, buildPracticeWorkspacePlan, type PracticeArenaPreset, type PracticeGameMode, type PracticeLiveJoinCard, type PracticePlayStyle, type PracticeReadyLoop, type PracticeWorkspaceAction, type PracticeWorkspaceActionId, type PracticeWorkspacePlan, type PracticeWorkspaceTarget } from "@/lib/practice-features"
-import { buildChatDraftPayload, buildConnectablePeoplePage, buildConnectionActions, buildConnectionsPage, buildSocialCommandModel, buildSocialCommandRunActions, buildSocialContactQuickActions, buildSocialUnifiedSearchCommand, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeConnections, type ChatThreadLike, type ConnectionActionId, type SocialCommandRunId, type SocialContactQuickAction, type SocialFlowId, type SocialInviteRole, type SocialMomentOption, type SocialMomentTypeId, type SocialUnifiedSearchScope, type UserConnectionLike, type WorkspaceMemberLike } from "@/lib/social-features"
 
 const practiceTabIcons: Record<PracticeWorkspaceTab, ComponentType<{ className?: string }>> = {
   quizzes: BookOpen,
@@ -29,26 +27,6 @@ const practiceTabIcons: Record<PracticeWorkspaceTab, ComponentType<{ className?:
 }
 
 const socialTabIcons: Record<SocialWorkspaceTab, ComponentType<{ className?: string }>> = {
-  chat: MessageSquare,
-  spaces: Users,
-  rooms: Radio,
-  battles: Swords,
-}
-
-const socialContactQuickActionIcons: Record<SocialContactQuickAction["id"], ComponentType<{ className?: string }>> = {
-  chat: MessageSquare,
-  group: UsersRound,
-  call: PhoneCall,
-}
-
-const socialMomentOptionIcons: Record<SocialMomentOption["id"], ComponentType<{ className?: string }>> = {
-  win: Sparkles,
-  question: MessageSquare,
-  resource: BookOpen,
-  milestone: Target,
-}
-
-const socialFlowIcons: Record<SocialFlowId, ComponentType<{ className?: string }>> = {
   chat: MessageSquare,
   spaces: Users,
   rooms: Radio,
@@ -86,11 +64,6 @@ const practiceReadyLoopIcons: Record<PracticeReadyLoop["id"], ComponentType<{ cl
   play: Play,
   battle: Swords,
   share: Send,
-}
-
-type SocialThreadRecord = ChatThreadLike & {
-  body?: string
-  channel?: string
 }
 
 type PracticeGuideStep = "start" | "live" | "setup" | "drafts"
@@ -206,9 +179,7 @@ export function PracticeWorkspaceView({
 
   return (
     <WorkspaceFrame
-      eyebrow="Practice workspace"
       title="Practice"
-      body="Quiz, retry, play, and save mistakes."
       tabs={practiceTabs}
       activeTab={tab}
       setActiveTab={(value) => {
@@ -217,15 +188,15 @@ export function PracticeWorkspaceView({
         setView(viewFromPracticeWorkspaceTab(nextTab))
       }}
     >
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_270px]">
+      <div className="grid min-w-0 gap-3">
         <div>{tab === "quizzes" ? <QuizView quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={options} /> : <GamesView quizzes={quizzes} options={options} />}</div>
-        <PracticeGuide arenaPresets={arenaPresets} draftCards={draftCards} gameModes={gameModes} liveJoinCard={liveJoinCard} onClearDraft={discardDraft} onCreatePractice={openAiPracticeGenerator} onOpenTarget={openPracticeTarget} onOpenView={setView} onResumeDraft={resumeDraft} plan={practicePlan} playStyles={playStyles} readyLoops={readyLoops} />
+        <details className="workspace-disclosure"><summary>Study tools and saved attempts</summary><div className="pt-3"><PracticeGuide arenaPresets={arenaPresets} draftCards={draftCards} gameModes={gameModes} liveJoinCard={liveJoinCard} onClearDraft={discardDraft} onCreatePractice={openAiPracticeGenerator} onOpenTarget={openPracticeTarget} onOpenView={setView} onResumeDraft={resumeDraft} plan={practicePlan} playStyles={playStyles} readyLoops={readyLoops} /></div></details>
       </div>
     </WorkspaceFrame>
   )
 }
 
-export function SocialWorkspaceView({ initialView, options, setView, user }: { initialView: View; options: WorkspaceOptions; setView: (view: View) => void; user: User | null }) {
+export function SocialWorkspaceView({ initialView, options, setView }: { initialView: View; options: WorkspaceOptions; setView: (view: View) => void; user: User | null }) {
   const [tab, setTab] = useState<SocialWorkspaceTab>(socialWorkspaceTabFromView(initialView))
   const socialTabs = useMemo(() => socialWorkspaceTabs.map((item) => ({
     ...item,
@@ -238,7 +209,7 @@ export function SocialWorkspaceView({ initialView, options, setView, user }: { i
   }, [initialView])
 
   return (
-    <div className="grid gap-3 lg:grid-cols-[72px_1fr]">
+    <div className="social-workspace grid min-w-0 gap-3">
       <SocialSectionNav
         activeTab={tab}
         tabs={socialTabs}
@@ -268,8 +239,8 @@ function SocialSectionNav({
   tabs: Array<{ id: SocialWorkspaceTab; label: string; icon: ComponentType<{ className?: string }>; caption: string }>
 }) {
   return (
-    <Panel className="p-1.5 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:self-start lg:overflow-y-auto">
-      <div className="flex gap-1.5 overflow-x-auto lg:flex-col lg:overflow-visible">
+    <Panel className="!border-0 !rounded-none !bg-transparent">
+      <nav aria-label="Social sections" className="workspace-tabs">
         {tabs.map((item) => {
           const Icon = item.icon
           const active = activeTab === item.id
@@ -277,9 +248,8 @@ function SocialSectionNav({
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`relative inline-flex h-12 min-w-[4rem] shrink-0 flex-col items-center justify-center gap-0.5 rounded-md px-1.5 text-[0.68rem] font-semibold transition lg:min-w-0 ${
-                active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              }`}
+              aria-current={active ? "page" : undefined}
+              className={`workspace-tab ${active ? "is-active" : ""}`}
               title={item.caption}
               type="button"
             >
@@ -288,594 +258,20 @@ function SocialSectionNav({
             </button>
           )
         })}
-      </div>
+      </nav>
     </Panel>
-  )
-}
-
-function SocialCommandCenter({ currentUserId, setActiveTab, setView }: { currentUserId?: string; setActiveTab: (tab: SocialWorkspaceTab) => void; setView: (view: View) => void }) {
-  const [members, setMembers] = useState<WorkspaceMemberLike[]>([])
-  const [connections, setConnections] = useState<UserConnectionLike[]>([])
-  const [threads, setThreads] = useState<SocialThreadRecord[]>([])
-  const [counts, setCounts] = useState({ spaces: 0, rooms: 0, battles: 0 })
-  const [query, setQuery] = useState("")
-  const [searchScope, setSearchScope] = useState<SocialUnifiedSearchScope>("people")
-  const [quickPost, setQuickPost] = useState("")
-  const [momentType, setMomentType] = useState<SocialMomentTypeId>("win")
-  const [inviteEmail, setInviteEmail] = useState("")
-  const [inviteRole, setInviteRole] = useState<SocialInviteRole>("learner")
-  const [status, setStatus] = useState("Loading")
-  const [peopleLimit, setPeopleLimit] = useState(5)
-  const [connectionLimit, setConnectionLimit] = useState(6)
-  const [connectionAction, setConnectionAction] = useState<{ action: ConnectionActionId; targetId: string } | null>(null)
-  const [commandAction, setCommandAction] = useState<SocialCommandRunId | null>(null)
-  const connectionSummary = useMemo(() => summarizeConnections(connections), [connections])
-  const peoplePage = useMemo(() => buildConnectablePeoplePage({ members, connections, currentUserId, query, limit: peopleLimit }), [connections, currentUserId, members, peopleLimit, query])
-  const connectionPage = useMemo(() => buildConnectionsPage(connections, connectionLimit), [connectionLimit, connections])
-  const connectableMembers = peoplePage.items
-  const queryLooksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(query.trim())
-  const pendingInviteEmail = queryLooksLikeEmail ? query.trim() : inviteEmail.trim()
-  const inviteValidation = useMemo(() => normalizeSocialInviteDraft({ email: pendingInviteEmail, role: inviteRole }), [pendingInviteEmail, inviteRole])
-  const inviteReady = Boolean(pendingInviteEmail) && inviteValidation.ok
-  const inviteStatus = pendingInviteEmail ? inviteValidation.ok ? "Ready" : inviteValidation.error : "Paste an email in search"
-  const socialModel = useMemo(() => buildSocialCommandModel({
-    memberCount: members.length,
-    connectionCount: connectionSummary.total,
-    threadCount: threads.length,
-    spaceCount: counts.spaces,
-    roomCount: counts.rooms,
-    battleCount: counts.battles,
-  }), [connectionSummary.total, counts.battles, counts.rooms, counts.spaces, members.length, threads.length])
-  const { flowCards, momentOptions } = socialModel
-  const activeMomentOption = momentOptions.find((option) => option.id === momentType) ?? momentOptions[0]
-  const commandActions = useMemo(() => buildSocialCommandRunActions({
-    busyAction: commandAction,
-    hasPostDraft: Boolean(quickPost.trim()),
-    inviteReady,
-  }), [commandAction, inviteReady, quickPost])
-  const commandActionById = useMemo(() => new Map(commandActions.map((action) => [action.id, action])), [commandActions])
-  const matchingThreads = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    if (!needle) return threads.slice(0, 4)
-    return threads.filter((thread) => `${thread.title || ""} ${thread.body || ""} ${thread.channel || ""}`.toLowerCase().includes(needle)).slice(0, 4)
-  }, [query, threads])
-  const filteredFlowCards = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    if (!needle) return flowCards
-    return flowCards.filter((card) => `${card.label} ${card.action} ${card.createAction}`.toLowerCase().includes(needle))
-  }, [flowCards, query])
-  const filteredPlaceCards = useMemo(() => filteredFlowCards.filter((card) => card.id !== "chat"), [filteredFlowCards])
-  const searchCommand = useMemo(() => buildSocialUnifiedSearchCommand({
-    connectionCount: connectionSummary.total,
-    groupResultCount: filteredPlaceCards.length,
-    peopleResultCount: peoplePage.total,
-    query,
-    roomCount: counts.rooms,
-    threadResultCount: matchingThreads.length,
-  }), [connectionSummary.total, counts.rooms, filteredPlaceCards.length, matchingThreads.length, peoplePage.total, query])
-  const activeSocialScope = searchScope === "all"
-    ? searchCommand.scope === "all" ? "people" : searchCommand.scope
-    : searchScope
-  const showPeople = activeSocialScope === "people"
-  const showChats = activeSocialScope === "chats"
-  const showGroups = activeSocialScope === "groups"
-  const showInvite = showPeople && Boolean(pendingInviteEmail)
-
-  useEffect(() => {
-    setPeopleLimit(5)
-  }, [query])
-
-  async function refresh() {
-    if (commandAction) return
-    setCommandAction("sync")
-    setStatus("Loading")
-    try {
-      const [memberData, connectionData, chatData, spaceData, roomData, battleData] = await Promise.all([
-        api<{ items: WorkspaceMemberLike[] }>("/api/workspace/members"),
-        api<{ items: UserConnectionLike[] }>("/api/connections"),
-        api<{ items: SocialThreadRecord[] }>("/api/chat"),
-        api<{ items: LearningSpace[] }>("/api/learning-spaces"),
-        api<{ items: StudyRoom[] }>("/api/study-rooms"),
-        api<{ items: StudyBattle[] }>("/api/study-battles"),
-      ])
-      setMembers(memberData.items)
-      setConnections(connectionData.items)
-      setThreads(chatData.items)
-      setCounts({ spaces: spaceData.items.length, rooms: roomData.items.length, battles: battleData.items.length })
-      setStatus("Ready")
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to load social workspace")
-    } finally {
-      setCommandAction(null)
-    }
-  }
-
-  useEffect(() => {
-    refresh().catch(() => undefined)
-  }, [])
-
-  async function connect(member: WorkspaceMemberLike, type: "friend" | "follow") {
-    if (!member.id || connectionAction) return
-    setConnectionAction({ action: type, targetId: member.id })
-    setStatus(type === "friend" ? "Adding friend..." : "Following...")
-    try {
-      await api("/api/connections", {
-        method: "POST",
-        body: JSON.stringify({ targetUserId: member.id, connectionType: type, status: type === "friend" ? "pending" : "accepted" }),
-      })
-      await refresh()
-      setStatus(type === "friend" ? "Friend request ready" : "Following")
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to connect")
-    } finally {
-      setConnectionAction(null)
-    }
-  }
-
-  async function removeConnection(connection: UserConnectionLike) {
-    const targetUserId = String(connection.target_user_id || connection.targetUserId || "")
-    if (!targetUserId || connectionAction) return
-    const connectionType = String(connection.connection_type || connection.connectionType || "follow")
-    setConnectionAction({ action: "remove", targetId: targetUserId })
-    setStatus("Removing...")
-    try {
-      await api("/api/connections", {
-        method: "DELETE",
-        body: JSON.stringify({ targetUserId, connectionType }),
-      })
-      await refresh()
-      setStatus("Removed")
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to remove")
-    } finally {
-      setConnectionAction(null)
-    }
-  }
-
-  async function sendQuickPost() {
-    if (commandActionById.get("post")?.disabled) return
-    setCommandAction("post")
-    setStatus("Posting...")
-    try {
-      await api("/api/chat", {
-        method: "POST",
-        body: JSON.stringify(buildChatDraftPayload({ body: quickPost, channel: activeMomentOption.channel, title: activeMomentOption.label, intent: activeMomentOption.intent })),
-      })
-      setQuickPost("")
-      setActiveTab("chat")
-      setView("chat")
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to post")
-    } finally {
-      setCommandAction(null)
-    }
-  }
-
-  function chooseMoment(option: SocialMomentOption) {
-    setMomentType(option.id)
-    if (!quickPost.trim()) setQuickPost(option.prompt)
-  }
-
-  async function createInvite() {
-    if (commandActionById.get("invite")?.disabled) return
-    if (!inviteValidation.ok) {
-      setStatus(inviteStatus)
-      return
-    }
-    setCommandAction("invite")
-    setStatus("Inviting...")
-    try {
-      await api("/api/invites", {
-        method: "POST",
-        body: JSON.stringify(inviteValidation.value),
-      })
-      setInviteEmail("")
-      if (query.trim() === pendingInviteEmail) setQuery("")
-      setStatus("Invite sent")
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to invite")
-    } finally {
-      setCommandAction(null)
-    }
-  }
-
-  async function createSocialPlace(id: SocialFlowId) {
-    if (id === "chat") {
-      if (quickPost.trim()) {
-        await sendQuickPost()
-      } else {
-        if (commandActionById.get("chat")?.disabled) return
-        setCommandAction("chat")
-        open("chat")
-        setCommandAction(null)
-      }
-      return
-    }
-    if (commandActionById.get(id)?.disabled) return
-    setCommandAction(id)
-    setStatus(id === "spaces" ? "Creating group..." : id === "rooms" ? "Starting room..." : "Creating battle...")
-    const createdAt = new Date().toLocaleDateString("en", { month: "short", day: "numeric" })
-    const endpoint = id === "spaces" ? "/api/learning-spaces" : id === "rooms" ? "/api/study-rooms" : "/api/study-battles"
-    const body =
-      id === "spaces"
-        ? { name: `Study group ${createdAt}`, description: "Shared notes, questions, and review plans.", visibility: "private", topicTags: ["study"] }
-        : id === "rooms"
-          ? { name: `Focus room ${createdAt}`, mode: "focus", status: "open", pomodoroMinutes: 25, breakMinutes: 5 }
-          : { title: `Quick battle ${createdAt}`, topic: "Review", mode: "solo", status: "waiting" }
-    try {
-      await api(endpoint, { method: "POST", body: JSON.stringify(body) })
-      await refresh()
-      open(id)
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to create")
-    } finally {
-      setCommandAction(null)
-    }
-  }
-
-  function open(tab: SocialWorkspaceTab) {
-    setActiveTab(tab)
-    setView(viewFromSocialWorkspaceTab(tab))
-  }
-
-  function openContactAction(action: SocialContactQuickAction) {
-    if (action.disabled) return
-    open(action.target.value)
-  }
-
-  function runSearchCommand() {
-    if (commandAction) return
-    if (searchCommand.action === "invite") {
-      setSearchScope("people")
-      if (queryLooksLikeEmail) setInviteEmail(query.trim())
-      return
-    }
-    if (searchCommand.action === "people") {
-      setSearchScope("people")
-      return
-    }
-    if (searchCommand.action === "chat") {
-      open("chat")
-      return
-    }
-    if (searchCommand.action === "groups") {
-      if (filteredPlaceCards.length > 0) {
-        setSearchScope("groups")
-        return
-      }
-      void createSocialPlace("spaces")
-      return
-    }
-    void refresh()
-  }
-
-  const syncAction = commandActionById.get("sync")
-  const postAction = commandActionById.get("post")
-  const inviteAction = commandActionById.get("invite")
-  const scopeTabs: Array<{ id: SocialUnifiedSearchScope; label: string; count: number }> = [
-    { id: "people", label: "People", count: peoplePage.total + connectionPage.total },
-    { id: "chats", label: "Chats", count: matchingThreads.length },
-    { id: "groups", label: "Groups", count: filteredPlaceCards.length },
-  ]
-
-  return (
-    <Panel className="overflow-visible p-0">
-      <div className="grid gap-3 border-b border-border bg-card p-3">
-        <div className="grid gap-2 lg:grid-cols-[1fr_auto] lg:items-center">
-          <label className="flex h-11 min-w-0 items-center gap-2 rounded-md border border-input bg-background px-3">
-            <Search className="h-4 w-4 text-primary" />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search people, chats, groups, or paste an email" className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-foreground outline-none" />
-          </label>
-          <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
-            <details className="group relative shrink-0">
-              <summary className="inline-flex h-10 cursor-pointer list-none items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden" title="Filter social search">
-                <SlidersHorizontal className="h-4 w-4" />
-                <span className="hidden sm:inline">Filter</span>
-              </summary>
-              <div className="absolute right-0 top-11 z-40 grid w-52 gap-1 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-lg">
-                {scopeTabs.map((scope) => (
-                  <button
-                    key={scope.id}
-                    onClick={() => setSearchScope(scope.id)}
-                    className={`flex h-9 items-center justify-between gap-2 rounded-md px-2 text-sm font-semibold transition ${searchScope === scope.id ? "bg-primary text-primary-foreground" : "hover:bg-accent hover:text-accent-foreground"}`}
-                    type="button"
-                  >
-                    <span>{scope.label}</span>
-                    <span className={`rounded px-1.5 py-0.5 text-[0.65rem] ${searchScope === scope.id ? "bg-primary-foreground/20 text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{scope.count}</span>
-                  </button>
-                ))}
-              </div>
-            </details>
-            <button onClick={runSearchCommand} disabled={Boolean(commandAction)} className="inline-flex h-10 shrink-0 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60" title={searchCommand.detail} type="button">
-              <Sparkles className="h-4 w-4" />
-              <span>{searchCommand.label}</span>
-              <span className="rounded bg-primary-foreground/20 px-1.5 py-0.5 text-[0.65rem] uppercase">{searchCommand.badge}</span>
-            </button>
-            <button onClick={() => void refresh()} disabled={syncAction?.disabled} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60" title={syncAction?.busy ? syncAction.busyLabel : syncAction?.label || status} type="button">
-              <Repeat2 className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-      <div className="grid gap-3 p-3 lg:p-4">
-        {showPeople ? (
-          <section className="grid gap-3 rounded-lg border border-border bg-background p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-foreground">People</h3>
-              <div className="flex flex-wrap gap-1.5">
-                <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{connectionPage.total} friends</span>
-                <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{peoplePage.total} available</span>
-              </div>
-            </div>
-            {connections.length ? (
-              <div className="grid gap-2 md:grid-cols-2">
-                {connectionPage.items.map((connection) => {
-                  const targetUserId = String(connection.target_user_id || connection.targetUserId || "")
-                  const label = connection.name || connection.username || targetUserId || "Connection"
-                  const type = String(connection.connection_type || connection.connectionType || "follow")
-                  const quickActions = buildSocialContactQuickActions(connection)
-                  const removeAction = buildConnectionActions({
-                    busyAction: connectionAction?.targetId === targetUserId ? connectionAction.action : null,
-                    busyTargetId: connectionAction?.targetId,
-                    connected: true,
-                    targetId: targetUserId,
-                  }).find((action) => action.id === "remove")
-                  return (
-                    <div key={`${targetUserId}-${type}`} className="grid gap-2 rounded-md border border-border bg-card p-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-foreground">{label}</p>
-                          <p className="truncate text-xs text-muted-foreground">{type} - {connection.status || "accepted"}</p>
-                        </div>
-                        <button onClick={() => void removeConnection(connection)} disabled={removeAction?.disabled} className="inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-md border border-border px-2 text-xs font-semibold text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60" aria-label={`Remove ${label}`}>
-                          <Trash2 className="h-4 w-4" />
-                          {removeAction?.busy ? removeAction.busyLabel : ""}
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-3 gap-1">
-                        {quickActions.map((action) => (
-                          <SocialContactQuickActionButton key={action.id} action={action} onClick={() => openContactAction(action)} />
-                        ))}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : null}
-            <details className="group/find rounded-md border border-border bg-card" open={Boolean(query.trim())}>
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-semibold text-foreground">
-                <span>{connections.length ? "Find more people" : "Find people"}</span>
-                <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/find:rotate-180" />
-              </summary>
-              <div className="grid gap-2 border-t border-border p-2">
-                {connectableMembers.map((member) => {
-                  const targetId = String(member.id || "")
-                  const actions = buildConnectionActions({
-                    busyAction: connectionAction?.targetId === targetId ? connectionAction.action : null,
-                    busyTargetId: connectionAction?.targetId,
-                    targetId,
-                  })
-                  const friendAction = actions.find((action) => action.id === "friend")
-                  const followAction = actions.find((action) => action.id === "follow")
-                  return (
-                    <div key={member.id || member.email} className="grid gap-2 rounded-md border border-border bg-background p-2 sm:grid-cols-[1fr_auto] sm:items-center">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-foreground">{member.name || member.email || "Learner"}</p>
-                        <p className="truncate text-xs text-muted-foreground">{member.email || member.role || "Workspace member"}</p>
-                      </div>
-                      <div className="flex gap-1">
-                        <button onClick={() => void connect(member, "friend")} disabled={friendAction?.disabled} className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60">{friendAction?.busy ? friendAction.busyLabel : friendAction?.label || "Add"}</button>
-                        <button onClick={() => void connect(member, "follow")} disabled={followAction?.disabled} className="rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs font-semibold text-secondary-foreground disabled:cursor-not-allowed disabled:opacity-60">{followAction?.busy ? followAction.busyLabel : followAction?.label || "Follow"}</button>
-                      </div>
-                    </div>
-                  )
-                })}
-                {!connectableMembers.length ? (
-                  <div className="grid gap-2 rounded-md border border-dashed border-border bg-background p-3 text-sm text-muted-foreground sm:grid-cols-[1fr_auto] sm:items-center">
-                    <span>{peoplePage.emptyAction === "invite" ? "No matching learner yet." : "Search members or invite a new learner."}</span>
-                    <button onClick={() => setInviteEmail(queryLooksLikeEmail ? query.trim() : inviteEmail)} disabled={!queryLooksLikeEmail} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50" title={queryLooksLikeEmail ? "Invite this email" : "Paste an email in search first"} type="button">
-                      <Mail className="h-3.5 w-3.5" />
-                      {queryLooksLikeEmail ? "Invite" : "Paste email"}
-                    </button>
-                  </div>
-                ) : null}
-                {peoplePage.hiddenCount ? (
-                  <button onClick={() => setPeopleLimit((limit) => limit + 5)} className="h-9 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-                    Show more
-                  </button>
-                ) : null}
-              </div>
-            </details>
-          </section>
-        ) : null}
-
-        {showChats ? (
-          <section className="grid gap-3 rounded-lg border border-border bg-background p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-foreground">Chats</h3>
-              <button onClick={() => open("chat")} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-                <MessageSquare className="h-3.5 w-3.5" />
-                Open
-              </button>
-            </div>
-            <div className="grid gap-2 md:grid-cols-2">
-              {matchingThreads.map((thread) => (
-                <button key={thread.id || thread.title} onClick={() => open("chat")} className="rounded-md border border-border bg-card p-3 text-left hover:bg-accent hover:text-accent-foreground" type="button">
-                  <p className="truncate text-sm font-semibold text-foreground">{thread.title || "Chat"}</p>
-                  <p className="truncate text-xs text-muted-foreground">{thread.channel || "message"}</p>
-                </button>
-              ))}
-              {!matchingThreads.length ? <p className="rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">No chats match.</p> : null}
-            </div>
-            <details className="group/post rounded-md border border-border bg-card">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-semibold text-foreground">
-                <span>Share update</span>
-                <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/post:rotate-180" />
-              </summary>
-              <div className="grid gap-3 border-t border-border p-3">
-                <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                  {momentOptions.map((option) => (
-                    <SocialMomentOptionButton key={option.id} active={option.id === momentType} option={option} onClick={() => chooseMoment(option)} />
-                  ))}
-                </div>
-                <textarea value={quickPost} onChange={(event) => setQuickPost(event.target.value)} placeholder="Ask a question or share a quick update..." className="min-h-28 w-full resize-none rounded-md border border-input bg-card p-3 text-sm text-foreground outline-none" />
-                <div className="flex flex-wrap items-center gap-2">
-                  <button onClick={sendQuickPost} disabled={postAction?.disabled} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">
-                    <Send className="h-4 w-4" />
-                    {postAction?.busy ? postAction.busyLabel : postAction?.label || "Post"}
-                  </button>
-                  <button onClick={() => open("chat")} disabled={Boolean(commandAction)} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60">
-                    <MessageSquare className="h-4 w-4" />
-                    Open chat
-                  </button>
-                  <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">{threads.length} threads</span>
-                  <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{activeMomentOption.channel}</span>
-                </div>
-              </div>
-            </details>
-          </section>
-        ) : null}
-
-        {showGroups ? (
-          <section className="grid gap-3 rounded-lg border border-border bg-background p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-foreground">Groups, calls, games</h3>
-              <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{filteredPlaceCards.length} actions</span>
-            </div>
-            <div className="grid gap-2 md:grid-cols-3">
-              {filteredPlaceCards.map((card) => {
-                const Icon = socialFlowIcons[card.id]
-                const createAction = commandActionById.get(card.id)
-                return (
-                  <SocialFlowButton
-                    key={card.id}
-                    action={card.action}
-                    count={card.count}
-                    createDisabled={createAction?.disabled}
-                    createLabel={createAction?.busy ? createAction.busyLabel : card.createAction}
-                    icon={Icon}
-                    label={card.label}
-                    onCreate={() => void createSocialPlace(card.id)}
-                    onOpen={() => open(card.id)}
-                  />
-                )
-              })}
-            </div>
-          </section>
-        ) : null}
-
-        {showInvite ? (
-        <details className="group/invite rounded-lg border border-border bg-background" open>
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-semibold text-foreground">
-            <span>Invite {pendingInviteEmail}</span>
-            <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open/invite:rotate-180" />
-          </summary>
-          <div className="grid gap-2 border-t border-border p-3 sm:grid-cols-[1fr_120px_auto] sm:items-center">
-                <span className="truncate rounded-md border border-input bg-card px-3 py-2 text-sm font-semibold text-foreground">{pendingInviteEmail}</span>
-                <select value={inviteRole} aria-label="Invite role" onChange={(event) => setInviteRole(normalizeSocialInviteRole(event.target.value))} className="h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground outline-none">
-                  {socialInviteRoleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
-                <button onClick={() => void createInvite()} disabled={inviteAction?.disabled} className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50" title={inviteStatus}>
-                  <Plus className="h-4 w-4" />
-                  {inviteAction?.busy ? inviteAction.busyLabel : inviteAction?.label || "Send"}
-                </button>
-                <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground sm:col-span-3">Use the search bar to change the email. {inviteStatus}</span>
-          </div>
-        </details>
-        ) : null}
-      </div>
-    </Panel>
-  )
-}
-
-function SocialMomentOptionButton({ active, onClick, option }: { active: boolean; onClick: () => void; option: SocialMomentOption }) {
-  const Icon = socialMomentOptionIcons[option.id]
-  return (
-    <button
-      onClick={onClick}
-      className={`group flex min-w-0 items-center gap-2 rounded-md border p-2 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground ${
-        active || option.recommended ? "border-primary/40 bg-primary/10" : "border-border bg-card"
-      }`}
-      title={option.detail}
-      type="button"
-    >
-      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground group-hover:text-accent-foreground"}`}>
-        <Icon className="h-4 w-4" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-xs font-semibold text-foreground group-hover:text-accent-foreground">{option.label}</span>
-        <span className="block truncate text-[0.65rem] font-semibold text-muted-foreground">{option.badge}</span>
-      </span>
-    </button>
-  )
-}
-
-function SocialContactQuickActionButton({ action, onClick }: { action: SocialContactQuickAction; onClick: () => void }) {
-  const Icon = socialContactQuickActionIcons[action.id]
-  return (
-    <button
-      onClick={onClick}
-      disabled={action.disabled}
-      className={`group inline-flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border px-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-        action.primary ? "border-primary/40 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
-      }`}
-      title={action.detail}
-      type="button"
-    >
-      <Icon className="h-3.5 w-3.5 shrink-0" />
-      <span className="truncate">{action.label}</span>
-    </button>
-  )
-}
-
-function SocialFlowButton({
-  action,
-  count,
-  createDisabled,
-  createLabel,
-  icon: Icon,
-  label,
-  onCreate,
-  onOpen,
-}: {
-  action: string
-  count: number
-  createDisabled?: boolean
-  createLabel?: string
-  icon: ComponentType<{ className?: string }>
-  label: string
-  onCreate: () => void
-  onOpen: () => void
-}) {
-  return (
-    <div className="grid grid-cols-[1fr_auto] items-center gap-1 rounded-md border border-border bg-card p-1">
-      <button onClick={onOpen} className="flex h-10 min-w-0 items-center gap-2 rounded-md px-2 text-left hover:bg-accent hover:text-accent-foreground" type="button">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/12 text-primary">
-          <Icon className="h-4 w-4" />
-        </span>
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{label}</span>
-        <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[0.65rem] font-semibold text-secondary-foreground">{count}</span>
-      </button>
-      <button onClick={onCreate} disabled={createDisabled} className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60" title={createLabel || action}>
-        <Plus className="h-4 w-4" />
-      </button>
-    </div>
   )
 }
 
 function WorkspaceFrame<T extends string>({
   activeTab,
-  body,
   children,
-  eyebrow,
   setActiveTab,
   tabs,
   title,
 }: {
   activeTab?: T
-  body: string
   children: React.ReactNode
-  eyebrow: string
   setActiveTab?: (tab: T) => void
   tabs?: Array<{ id: T; label: string; icon: ComponentType<{ className?: string }>; caption: string }>
   title: string
@@ -883,36 +279,12 @@ function WorkspaceFrame<T extends string>({
   const visibleTabs = tabs ?? []
   return (
     <div className="grid gap-4">
-      <Panel className="p-3 lg:p-4">
-        <div className="grid gap-3 xl:grid-cols-[1fr_auto] xl:items-center">
-          <div className="flex min-w-0 items-start gap-3">
-            <InfoMenu title={eyebrow} body={body} />
-            <div className="min-w-0">
-              <h2 className="max-w-4xl text-2xl font-semibold leading-tight text-foreground lg:text-3xl">{title}</h2>
-            </div>
-          </div>
-          {visibleTabs.length ? (
-          <div className="flex max-w-full gap-1.5 overflow-x-auto pb-1 xl:w-auto xl:max-w-[720px]">
-            {visibleTabs.map((tab) => {
-              const Icon = tab.icon
-              const active = activeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab?.(tab.id)}
-                  className={`group relative inline-flex h-10 min-w-[6.25rem] flex-none items-center gap-2 rounded-md border px-2.5 text-left text-sm transition hover:-translate-y-0.5 ${active ? "border-primary bg-primary text-primary-foreground shadow-sm" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span className="truncate font-semibold">{tab.label}</span>
-                  <MoreHorizontal className="ml-auto h-4 w-4 shrink-0 opacity-60" />
-                  <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-50 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{tab.caption}</p>
-                </button>
-              )
-            })}
-          </div>
-          ) : null}
-        </div>
-      </Panel>
+      <nav aria-label={title} className="workspace-tabs">
+        {visibleTabs.map((tab) => {
+          const Icon = tab.icon
+          return <button key={tab.id} type="button" aria-current={activeTab === tab.id ? "page" : undefined} onClick={() => setActiveTab?.(tab.id)} className={`workspace-tab ${activeTab === tab.id ? "is-active" : ""}`} title={tab.caption}><Icon className="h-4 w-4" />{tab.label}</button>
+        })}
+      </nav>
       {children}
     </div>
   )

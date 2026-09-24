@@ -103,38 +103,16 @@ export function VaultView({ notes = [], setView }: { notes?: Note[]; setView: (v
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-      <section className="learn-surface bg-[radial-gradient(circle_at_20%_20%,color-mix(in_oklch,var(--tab-studio)_22%,transparent),transparent_42%)] p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Private by default</p>
-            <h2 className="mt-2 max-w-2xl text-3xl font-semibold leading-tight">Your Vault is the living map of what you know.</h2>
-          </div>
-          <button onClick={() => setView("notes")} className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground">
-            <Brain className="h-4 w-4" />
-            New note
-          </button>
-        </div>
-        <div className="mt-5 flex flex-wrap gap-2">
-          {vaultChips.map((chip) => (
-            <GraphSummaryChipView key={chip.id} chip={chip} />
-          ))}
-        </div>
-      </section>
-
-      <Panel className="p-4">
-        <h3 className="font-semibold text-foreground">Daily ritual</h3>
-        <div className="mt-3 grid gap-2">
-          <RitualButton icon={Repeat2} label="Review queue" onClick={() => setView("reviews")} />
-          <RitualButton icon={GitFork} label="Open graph" onClick={() => setView("graph")} />
-          <RitualButton icon={Compass} label="Discover spark" onClick={() => setView("feed")} />
-        </div>
-      </Panel>
-
+    <div className="grid gap-4">
+      <header className="workspace-header">
+        <div><h2 className="text-lg font-semibold">Vault</h2><p className="mt-1 text-xs text-muted-foreground">Your notes and connected knowledge.</p></div>
+        <div className="flex flex-wrap gap-1"><button type="button" onClick={() => setView("reviews")} className="editor-command"><Repeat2 className="h-4 w-4" />Reviews</button><button type="button" onClick={() => setView("graph")} className="editor-command"><GitFork className="h-4 w-4" />Graph</button><button type="button" onClick={() => setView("notes")} className="editor-primary"><Brain className="h-4 w-4" />Open notes</button></div>
+      </header>
+      <div className="flex flex-wrap gap-2">{vaultChips.map((chip) => <GraphSummaryChipView key={chip.id} chip={chip} />)}</div>
       <Panel className="p-4 xl:col-span-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="font-semibold text-foreground">Block palette</h3>
+            <h3 className="font-semibold text-foreground">Add to a note</h3>
             <p className="text-sm text-muted-foreground">Selected: {blockType}</p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -200,7 +178,7 @@ export function VaultView({ notes = [], setView }: { notes?: Note[]; setView: (v
           <h3 className="font-semibold text-foreground">Active knowledge</h3>
           <span className="text-sm text-muted-foreground">{status}</span>
         </div>
-        <div className="grid gap-3 md:grid-cols-5">
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {topNodes.length ? topNodes.map((node) => <NodeCard key={node.id} node={node} />) : <EmptyState title="No graph nodes yet" body="Create notes and reviews to grow your Vault graph." />}
         </div>
       </Panel>
@@ -1135,7 +1113,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   }
 
   return (
-    <div className="grid gap-3 xl:grid-cols-[304px_minmax(0,1fr)]">
+    <div className="grid gap-3 xl:grid-cols-[264px_minmax(0,1fr)]">
       <section className="rounded-lg border border-border bg-card p-3 xl:sticky xl:top-3 xl:max-h-[calc(100vh-6rem)] xl:self-start xl:overflow-y-auto">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
