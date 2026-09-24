@@ -39,7 +39,8 @@ export const GET = withApiErrorBoundary(async (_request: Request, { params }: { 
   const headers = new Headers()
   headers.set("content-type", asset.content_type)
   headers.set("cache-control", "private, no-store")
-  headers.set("content-disposition", `attachment; filename="${asset.filename.replace(/"/g, "")}"`)
+  const disposition = new URL(_request.url).searchParams.get("preview") === "1" && asset.content_type === "application/pdf" ? "inline" : "attachment"
+  headers.set("content-disposition", `${disposition}; filename="${asset.filename.replace(/["\r\n]/g, "")}"`)
   headers.set("x-content-type-options", "nosniff")
 
   // Bytes, not the storage stream: a raw R2 body cannot be handed to the

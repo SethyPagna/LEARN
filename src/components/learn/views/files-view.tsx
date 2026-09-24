@@ -1,16 +1,17 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react"
-import { ArrowRight, Copy, Download, Grid2X2, List, X, FileText, ImageIcon, Search, Trash2, Upload, Video } from "lucide-react"
+import { Copy, Download, Grid2X2, List, X, FileText, ImageIcon, Search, Trash2, Upload, Video } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
-import type { MediaFile, View } from "../types"
+import type { MediaFile } from "../types"
 import { api, formatBytes, formatDate } from "../api"
-import { buildFileLibraryActionPlan, buildFileLibraryEmptyState, buildFileLibraryFilterSummary, filterFileLibrary, fileKindLabel, resolveVisibleFileSelection, summarizeFileLibrary, type FileLibraryFilter, type FileLibraryKind } from "@/lib/file-library-features"
+import { buildFileLibraryEmptyState, buildFileLibraryFilterSummary, filterFileLibrary, fileKindLabel, resolveVisibleFileSelection, summarizeFileLibrary, type FileLibraryFilter, type FileLibraryKind } from "@/lib/file-library-features"
 import { classifyUploadContentType, validateUploadFileShape } from "@/lib/file-security"
+import { FilePreview } from "../file-preview"
 
 const mediaFilters: FileLibraryFilter[] = ["all", "image", "video", "audio", "pdf", "doc", "sheet", "slides"]
 
-export function FilesView({ options, setView }: { options: WorkspaceOptions; setView?: (view: View) => void }) {
+export function FilesView({ options, onPreviewChange }: { options: WorkspaceOptions; onPreviewChange?: (open: boolean) => void }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<MediaFile[]>([])
   const [selectedId, setSelectedId] = useState("")
@@ -36,12 +37,18 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
     query,
     total: files.length,
   }), [files.length, mediaFilter, query])
-  const fileActionPlan = useMemo(
-    () => buildFileLibraryActionPlan(files, storageStats, { selectedId: selectedFile?.id, query, filter: mediaFilter, visibleFileCount: filteredFiles.length }),
-    [files, filteredFiles.length, mediaFilter, query, selectedFile?.id, storageStats],
-  )
 
   useEffect(() => setLayout(options.fileLayout), [options.fileLayout])
+  useEffect(() => {
+    onPreviewChange?.(detailsOpen && Boolean(selectedFile))
+    return () => onPreviewChange?.(false)
+  }, [detailsOpen, selectedFile, onPreviewChange])
+  useEffect(() => {
+    if (!detailsOpen) return
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setDetailsOpen(false) }
+    window.addEventListener("keydown", close)
+    return () => window.removeEventListener("keydown", close)
+  }, [detailsOpen])
 
   async function refresh() {
     try {
@@ -120,34 +127,13 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
     setPendingDeleteId("")
   }
 
-  function applyFileActionPlan() {
-    if (fileActionPlan.nextAction === "upload") {
-      inputRef.current?.click()
-      return
-    }
-    if (fileActionPlan.nextAction === "clear-filter") {
-      resetFilters()
-      return
-    }
-    if (fileActionPlan.targetFileId) {
-      setSelectedId(fileActionPlan.targetFileId)
-    }
-    if (fileActionPlan.nextAction === "open-studio") {
-      setView?.("studio")
-      return
-    }
-    if (fileActionPlan.nextAction === "download" && fileActionPlan.targetFileId) {
-      window.location.assign(`/api/files/${fileActionPlan.targetFileId}/download`)
-    }
-  }
-
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault()
     setDragActive(false)
     upload(event.dataTransfer.files?.[0])
   }
 
-  return <section className="workspace-screen" aria-label="File library">
+  return <section className="workspace-screen file-library" data-preview={detailsOpen || undefined} aria-label="File library">
     <header className="workspace-header">
       <div><h2>Files</h2><p>{files.length} files · {formatBytes(storageStats.totalBytes)} used</p></div>
       <button type="button" onClick={() => inputRef.current?.click()} className="editor-primary"><Upload className="h-4 w-4" />Upload</button>
@@ -160,19 +146,18 @@ export function FilesView({ options, setView }: { options: WorkspaceOptions; set
       <div className="ml-auto flex rounded-md border border-border bg-card p-0.5"><button type="button" aria-label="List view" aria-pressed={layout === "list"} className="editor-command !px-2" onClick={() => setLayout("list")}><List className="h-4 w-4" /></button><button type="button" aria-label="Grid view" aria-pressed={layout === "grid"} className="editor-command !px-2" onClick={() => setLayout("grid")}><Grid2X2 className="h-4 w-4" /></button></div>
     </div>
     {status ? <p role="status" className="text-xs text-muted-foreground">{status}</p> : null}
-    <div className={`grid min-w-0 items-start gap-4 ${detailsOpen ? "xl:grid-cols-[minmax(0,1fr)_300px]" : ""}`}>
-      <div onDragOver={(event) => { event.preventDefault(); setDragActive(true) }} onDragLeave={() => setDragActive(false)} onDrop={handleDrop} className={`${detailsOpen && selectedFile ? "hidden xl:block" : ""} min-w-0 rounded-lg border bg-card ${dragActive ? "border-primary ring-2 ring-primary/20" : "border-border"}`}>
-        {filteredFiles.length ? layout === "grid" ? <div className="grid gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3">{filteredFiles.map((file) => <FileCard key={file.id} file={file} selected={detailsOpen && selectedFile?.id === file.id} preview={options.filePreview} onSelect={() => { setSelectedId(file.id); setDetailsOpen(true) }} />)}</div> : <>
-          <div className="hidden grid-cols-[minmax(0,1fr)_110px_110px] gap-3 border-b border-border px-4 py-2 text-xs text-muted-foreground md:grid"><span>Name</span><span>Size</span><span>Added</span></div>
-          <ul className="divide-y divide-border">{filteredFiles.map((file) => <li key={file.id}><button type="button" aria-pressed={detailsOpen && selectedFile?.id === file.id} onClick={() => { setSelectedId(file.id); setDetailsOpen(true) }} className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-left text-sm md:grid-cols-[minmax(0,1fr)_110px_110px] ${detailsOpen && selectedFile?.id === file.id ? "bg-accent" : "hover:bg-secondary/60"}`}><span className="flex min-w-0 items-center gap-3"><FileKindIcon kind={classifyUploadContentType(file.content_type)} className="h-5 w-5 shrink-0 text-muted-foreground" /><span className="truncate">{file.filename}</span></span><span className="text-xs text-muted-foreground">{formatBytes(file.size_bytes)}</span><span className="hidden text-xs text-muted-foreground md:block">{formatDate(file.created_at)}</span></button></li>)}</ul>
+    <div className={`grid min-w-0 items-start gap-3 ${detailsOpen ? "lg:grid-cols-[minmax(220px,0.7fr)_minmax(0,1.3fr)]" : ""}`}>
+      <div onDragOver={(event) => { event.preventDefault(); setDragActive(true) }} onDragLeave={() => setDragActive(false)} onDrop={handleDrop} className={`min-w-0 rounded-lg border bg-card ${dragActive ? "border-primary ring-2 ring-primary/20" : "border-border"}`}>
+        {filteredFiles.length ? layout === "grid" && !detailsOpen ? <div className="grid gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3">{filteredFiles.map((file) => <FileCard key={file.id} file={file} selected={detailsOpen && selectedFile?.id === file.id} preview={options.filePreview} onSelect={() => { setSelectedId(file.id); setDetailsOpen(true) }} />)}</div> : <>
+          <div className="file-list-heading hidden grid-cols-[minmax(0,1fr)_110px_110px] gap-3 border-b border-border px-4 py-2 text-xs text-muted-foreground md:grid"><span>Name</span><span>Size</span><span>Added</span></div>
+          <ul className="divide-y divide-border">{filteredFiles.map((file) => <li key={file.id}><button type="button" aria-pressed={detailsOpen && selectedFile?.id === file.id} onClick={() => { setSelectedId(file.id); setDetailsOpen(true) }} className={`file-list-row grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-left text-sm md:grid-cols-[minmax(0,1fr)_110px_110px] ${detailsOpen && selectedFile?.id === file.id ? "bg-accent" : "hover:bg-secondary/60"}`}><span className="flex min-w-0 items-center gap-3"><FileKindIcon kind={classifyUploadContentType(file.content_type)} className="h-5 w-5 shrink-0 text-muted-foreground" /><span className="truncate">{file.filename}</span></span><span className="text-xs text-muted-foreground">{formatBytes(file.size_bytes)}</span><span className="hidden text-xs text-muted-foreground md:block">{formatDate(file.created_at)}</span></button></li>)}</ul>
         </> : <div className="grid justify-items-center gap-3 px-4 py-16 text-center"><Upload className="h-7 w-7 text-muted-foreground" /><h3 className="text-sm font-medium">{emptyState.title}</h3><p className="max-w-sm text-sm text-muted-foreground">{emptyState.body}</p><button type="button" className="editor-command" onClick={emptyState.action === "clear-filter" ? resetFilters : () => inputRef.current?.click()}>{emptyState.action === "clear-filter" ? "Clear filters" : "Choose a file"}</button></div>}
         <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground">{filteredFiles.length} shown · Drop files here to upload</div>
       </div>
-      {detailsOpen && selectedFile ? <aside className="rounded-lg border border-border bg-card p-4" aria-label="File details">
-        <div className="mb-4 flex items-center justify-between"><h3 className="text-sm font-semibold">File details</h3><button type="button" aria-label="Close file details" className="editor-command !px-2" onClick={() => setDetailsOpen(false)}><X className="h-4 w-4" /></button></div>
-        {options.filePreview && selectedFile.content_type.startsWith("image/") ? <img loading="lazy" src={`/api/files/${selectedFile.id}/download`} alt={selectedFile.filename} className="mb-4 max-h-52 w-full rounded-md object-contain" /> : null}
-        <p className="break-words text-sm font-medium">{selectedFile.filename}</p><p className="mt-2 text-xs text-muted-foreground">{formatBytes(selectedFile.size_bytes)} · {fileKindLabel(classifyUploadContentType(selectedFile.content_type))}</p>
-        <div className="mt-5 grid gap-2"><a href={`/api/files/${selectedFile.id}/download`} className="editor-primary"><Download className="h-4 w-4" />Download</a><button type="button" className="editor-command" onClick={applyFileActionPlan}>{fileActionPlan.headline}<ArrowRight className="h-4 w-4" /></button><button type="button" className="editor-command" disabled={fileActionBusy !== null} onClick={() => copyLink(selectedFile)}><Copy className="h-4 w-4" />Copy link</button><button type="button" className="editor-command !text-destructive" disabled={fileActionBusy !== null} onClick={() => deleteFile(selectedFile.id)}><Trash2 className="h-4 w-4" />{pendingDeleteId === selectedFile.id ? "Confirm delete" : "Delete"}</button></div>
+      {detailsOpen && selectedFile ? <aside className="file-preview-panel min-w-0 rounded-lg border border-border bg-card p-3 lg:sticky lg:top-3" aria-label="File preview">
+        <div className="mb-3 flex items-center justify-between gap-3"><h3 className="truncate text-sm font-semibold" title={selectedFile.filename}>{selectedFile.filename}</h3><button type="button" aria-label="Close file preview" className="editor-command !px-2" onClick={() => setDetailsOpen(false)}><X className="h-4 w-4" /></button></div>
+        <FilePreview key={selectedFile.id} file={selectedFile} />
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3"><span className="mr-auto text-xs text-muted-foreground">{formatBytes(selectedFile.size_bytes)} · {fileKindLabel(classifyUploadContentType(selectedFile.content_type))}</span><a href={`/api/files/${selectedFile.id}/download`} className="editor-command" aria-label="Download file"><Download className="h-4 w-4" /></a><button type="button" className="editor-command" aria-label="Copy file link" disabled={fileActionBusy !== null} onClick={() => copyLink(selectedFile)}><Copy className="h-4 w-4" /></button><button type="button" className="editor-command !text-destructive" aria-label={pendingDeleteId === selectedFile.id ? "Confirm delete" : "Delete file"} disabled={fileActionBusy !== null} onClick={() => deleteFile(selectedFile.id)}><Trash2 className="h-4 w-4" />{pendingDeleteId === selectedFile.id ? "Confirm" : null}</button></div>
       </aside> : null}
     </div>
   </section>

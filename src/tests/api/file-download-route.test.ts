@@ -216,6 +216,23 @@ async function downloadFile(id: string) {
   return withRequestScope(TEST_SESSION_TOKEN, () => GET(request(`/api/files/${id}/download`), assetContext(id)))
 }
 
+test("inline preview is opt-in and restricted to authorized PDF assets", async () => {
+  const stub = installDatabaseStub()
+  try {
+    await primeDatabase(stub); stubSessionLookup(stub); bucket.reset()
+    bucket.seed(OBJECT_KEY, PNG)
+    const assets = installMediaAssetTable(stub)
+    const { GET } = await loadDownloadRoute()
+    for (const type of ["application/pdf", "image/png", "text/plain"]) {
+      assets.serve(assetRow({ content_type: type }))
+      const response = await withRequestScope(TEST_SESSION_TOKEN, () => GET(request(`/api/files/${ASSET_ID}/download?preview=1`), assetContext(ASSET_ID)))
+      assert.equal(response.status, 200)
+      assert.equal(response.headers.get("content-disposition")?.startsWith("inline;"), type === "application/pdf")
+      assert.equal(response.headers.get("cache-control"), "private, no-store")
+    }
+  } finally { stub.restore() }
+})
+
 /** The upload's SQL, answered from the row the insert just wrote. */
 function installMediaAssetTable(stub: DatabaseStub) {
   let written: Record<string, unknown> | null = null

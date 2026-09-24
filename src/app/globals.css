@@ -614,3 +614,24 @@ html.dark.learn-high-contrast {
   .learn-app[data-editor='true'] .studio-editor-workspace { height:calc(100dvh - 44px); }
 }
 .learn-sidebar button[data-tab][aria-current='page'] svg { color:var(--primary-foreground); }
+
+/* The page owns its heading; a visible desktop sidebar already supplies navigation. */
+@media (min-width:1024px) {
+  .learn-app:not([data-sidebar='hidden']) { --shell-topbar:0px; }
+  .learn-app:not([data-sidebar='hidden']) .learn-topbar { display:none; }
+}
+@media (max-width:1023px) {
+  .learn-content-pane > .workspace-screen > .workspace-header h2,
+  .studio-lobby > header h2,
+  .calendar-workspace > header h2 { display:none; }
+  .file-preview-panel { position:fixed; inset:20dvh 8px 70px; z-index:45; overflow:auto; box-shadow:var(--shadow-lift); }
+}
+.calendar-workspace { display:grid; gap:12px; }
+.calendar-workspace .calendar-day { min-height:88px; }
+.calendar-workspace .calendar-event-dialog { width:min(440px,calc(100vw - 24px)); }
+.calendar-filter { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--border); border-radius:6px; padding:5px 9px; font-size:11px; }
+.calendar-filter[aria-pressed='false'] { opacity:.5; }
+.file-library[data-preview='true'] .file-list-row { grid-template-columns:minmax(0,1fr); padding:10px 12px; }
+.file-library[data-preview='true'] .file-list-row > span:not(:first-child),
+.file-library[data-preview='true'] .file-list-heading { display:none; }
+@media (max-width:639px) { .calendar-workspace .calendar-day { min-height:60px; } }

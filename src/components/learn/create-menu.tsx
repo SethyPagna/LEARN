@@ -1,6 +1,7 @@
 "use client"
 
 import { ChevronDown, Plus } from "lucide-react"
+import { viewIcons } from "./nav-icons"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { menuSurfaceClasses } from "@/lib/design-system"
 import { groupArtifactTypes, type ArtifactType } from "@/lib/ux/artifact-catalog"
@@ -10,11 +11,8 @@ import type { View } from "./types"
 /**
  * The one obvious way to make something.
  *
- * Before this, "make a thing" was spread across Studio's own Create menu, the
- * dashboard's quick actions, and the launcher — and nothing told a first-time
- * user whether they wanted a Note or a Doc. This control lists every entry in
- * `ARTIFACT_TYPES`, grouped, each with the plain-language `oneLine` that says
- * what the thing is.
+ * Lists the artifact catalog as compact, grouped names and colored icons.
+ * Descriptions remain available in each entry's tooltip.
  *
  * Reachable two ways: the button itself, and `CREATE_MENU_EVENT`, which the
  * launcher dispatches. A window event (the same idiom as `STUDIO_DRAFT_EVENT`)
@@ -50,12 +48,10 @@ const createMenuLayout: Record<CreateMenuVariant, { button: string; panel: strin
 
 export function CreateMenuPanel({
   activeIndex = -1,
-  italicHint = false,
   onChoose,
   onHover,
 }: {
   activeIndex?: number
-  italicHint?: boolean
   onChoose: (artifact: ArtifactType) => void
   onHover?: (index: number) => void
 }) {
@@ -71,6 +67,7 @@ export function CreateMenuPanel({
             {group.items.map((artifact) => {
               const index = ordered.indexOf(artifact)
               const active = index === activeIndex
+              const Icon = viewIcons[artifact.view]
               return (
                 <button
                   key={artifact.id}
@@ -79,12 +76,11 @@ export function CreateMenuPanel({
                   data-active={active ? "true" : undefined}
                   onClick={() => onChoose(artifact)}
                   onMouseEnter={() => onHover?.(index)}
-                  title={`${artifact.whenToUse} (${artifact.route})`}
-                  className={`rounded-md p-2 text-left transition ${active ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground"}`}
+                  title={artifact.oneLine}
+                  className={`flex items-center gap-2 rounded-md p-2 text-left transition ${active ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground"}`}
                 >
-                  <span className="block text-sm font-semibold text-foreground">{artifact.label}</span>
-                  <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{artifact.oneLine}</span>
-                  <span className={`mt-1 block text-[0.68rem] leading-4 text-muted-foreground/90 ${italicHint ? "italic" : ""}`}>{artifact.whenToUse}</span>
+                  <Icon className="h-4 w-4 text-primary" />
+                  <span className="text-sm text-foreground">{artifact.label}</span>
                 </button>
               )
             })}
@@ -161,7 +157,7 @@ export function CreateMenu({
         className={createMenuLayout[variant].button}
       >
         <Plus className="h-4 w-4" />
-        {variant === "rail" ? <span className="sr-only">Create</span> : <span>Create</span>}
+        {variant === "rail" ? <span className="sr-only">Add</span> : <span>Add</span>}
         {variant === "rail" ? null : <ChevronDown className={`ml-auto h-4 w-4 transition ${open ? "rotate-180" : ""}`} />}
       </button>
       {open ? (
@@ -170,8 +166,7 @@ export function CreateMenu({
           aria-label="Create something new"
           className={`absolute z-[80] animate-in fade-in zoom-in-95 ${menuSurfaceClasses()} ${createMenuLayout[variant].panel}`}
         >
-          <CreateMenuPanel activeIndex={activeIndex} italicHint onChoose={choose} onHover={setActiveIndex} />
-          <p className="px-2 pt-2 text-[0.68rem] text-muted-foreground">Arrow keys to move, Enter to open, Escape to close.</p>
+          <CreateMenuPanel activeIndex={activeIndex} onChoose={choose} onHover={setActiveIndex} />
         </div>
       ) : null}
     </div>

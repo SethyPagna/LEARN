@@ -56,9 +56,11 @@ export function LearnShell({
   const [locationSearch, setLocationSearch] = useState("")
   const [sidebarMode, setSidebarMode] = useState(initialSidebarMode)
   const [editorSidebarMode, setEditorSidebarMode] = useState<SidebarMode>("rail")
+  const [filePreviewOpen, setFilePreviewOpen] = useState(false)
   const isEditor = ["notes", "docs", "slides", "sheets"].includes(view) || (view === "canvas" && new URLSearchParams(locationSearch).has("design"))
-  const effectiveSidebarMode = isEditor ? editorSidebarMode : sidebarMode
-  useEffect(() => { if (isEditor) setEditorSidebarMode("rail") }, [isEditor])
+  const focusedWorkspace = isEditor || (view === "files" && filePreviewOpen)
+  const effectiveSidebarMode = focusedWorkspace ? editorSidebarMode : sidebarMode
+  useEffect(() => { if (focusedWorkspace) setEditorSidebarMode("rail") }, [focusedWorkspace])
   const editorExitGuard = useRef<EditorExitGuard | null>(null)
   const navigationPending = useRef(false)
   const navigateSafely = useCallback(async (navigate: () => void) => {
@@ -163,21 +165,21 @@ export function LearnShell({
   }, [view, automationData])
 
   const changeSidebarMode = useCallback((mode: SidebarMode) => {
-    if (isEditor) { setEditorSidebarMode(mode); return }
+    if (focusedWorkspace) { setEditorSidebarMode(mode); return }
     setSidebarMode(mode)
     // A cookie rather than localStorage: the server reads it, so a reload
     // paints the sidebar at its chosen width instead of flashing the default.
     document.cookie = sidebarModeCookie(mode)
-  }, [isEditor])
+  }, [focusedWorkspace])
 
   const cycleSidebar = useCallback(() => {
-    if (isEditor) { setEditorSidebarMode(cycleSidebarMode); return }
+    if (focusedWorkspace) { setEditorSidebarMode(cycleSidebarMode); return }
     setSidebarMode((current) => {
       const next = cycleSidebarMode(current)
       document.cookie = sidebarModeCookie(next)
       return next
     })
-  }, [isEditor])
+  }, [focusedWorkspace])
 
   // Ctrl/Cmd+\ cycles full → icons → hidden. An editor that binds the same
   // chord for itself calls preventDefault() first and keeps it.
@@ -313,7 +315,7 @@ export function LearnShell({
             {view !== "studio" && studioViews.includes(view as (typeof studioViews)[number]) ? <StudioView key={`${view}:${locationSearch}`} setView={chooseView} initialKind={getStudioKind(view)} notes={notes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} onDraftSummary={setStudioDraftSummary} /> : null}
             {view !== "live" && view !== "reviews" && practiceViews.includes(view as (typeof practiceViews)[number]) ? <PracticeWorkspaceView initialView={view} quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={preferences.options} setView={chooseView} /> : null}
             {view === "ai" ? <AiTutorView notes={notes} options={preferences.options} setNotes={setNotes} setQuizzes={setQuizzes} setOptions={preferences.setOptions} setView={chooseView} /> : null}
-            {view === "files" ? <FilesView options={preferences.options} setView={chooseView} /> : null}
+            {view === "files" ? <FilesView options={preferences.options} onPreviewChange={setFilePreviewOpen} /> : null}
             {socialViews.includes(view as (typeof socialViews)[number]) ? <SocialWorkspaceView initialView={view} options={preferences.options} setView={chooseView} user={user} /> : null}
             {view === "profile" ? <ProfileView key={profileUsername || "me"} user={user} username={profileUsername} setView={chooseView} /> : null}
             {view === "settings" ? <SettingsView user={user} automationData={automationData} locale={preferences.locale} options={preferences.options} setLocale={preferences.setLocale} setOptions={preferences.setOptions} /> : null}
