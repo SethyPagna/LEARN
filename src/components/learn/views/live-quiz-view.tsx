@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import type { Quiz, User } from "../types"
 import { api } from "../api"
+import { PracticeDesign } from "../practice-design"
 import { ControlButton, EmptyState, Panel, StatusPill } from "../ui"
 import {
   JOIN_CODE_LENGTH,
@@ -349,7 +350,7 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
   // ---------------------------------------------------------------------------
 
   return (
-    <section className="learn-live-soft grid gap-3 sm:gap-4">
+    <PracticeDesign allowFocus={false}><section className="learn-live-soft grid gap-3 sm:gap-4">
       <style>{LIVE_PRESET_CSS}</style>
 
       {status ? (
@@ -366,8 +367,7 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
             </div>
             <h2 className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">Start a game</h2>
             <p className="mt-1 text-sm leading-5 text-muted-foreground">
-              Everyone joins with a six-character code. Questions run one at a time with a timer, and the fastest correct
-              answer scores highest.
+              Pick a set. Share the code. Play together.
             </p>
             {quizzes.length ? (
               <div className="mt-4 grid gap-3">
@@ -418,7 +418,7 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
             </div>
             <h2 className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">Enter your code</h2>
             <p className="mt-1 text-sm leading-5 text-muted-foreground">
-              The code is on the host screen. Letters and numbers only — spaces and dashes are ignored.
+              Use the six-character code from your host.
             </p>
             <div className="mt-4 grid gap-3">
               <input
@@ -691,7 +691,7 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
           ) : null}
         </div>
       ) : null}
-    </section>
+    </section></PracticeDesign>
   )
 }
 

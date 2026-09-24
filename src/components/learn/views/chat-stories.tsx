@@ -1,7 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { MAX_SOCIAL_MEDIA_BYTES, MAX_STORY_TEXT, type SocialStory } from "@/lib/social-media"
+import { Plus, X } from "lucide-react"
 import { api } from "../api"
 
 export function ChatStories({ currentUserId, groups }: { currentUserId: string; groups: Array<{ id: string; name: string }> }) {
@@ -13,6 +15,13 @@ export function ChatStories({ currentUserId, groups }: { currentUserId: string; 
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState("")
   const [now, setNow] = useState(Date.now())
+  const [selectedId, setSelectedId] = useState("")
+  const [composing, setComposing] = useState(false)
+  const dialog = useRef<HTMLDialogElement>(null)
+  const selected = stories.find(story => story.id === selectedId && Date.parse(story.expiresAt) > now)
+  useEffect(() => { if (composing || selected) dialog.current?.showModal(); else dialog.current?.close() }, [composing, selected])
+  function closeStory() { setComposing(false); setSelectedId("") }
+
 
   async function refresh() {
     const response = await api<{ items: SocialStory[] }>("/api/stories")
@@ -47,7 +56,7 @@ export function ChatStories({ currentUserId, groups }: { currentUserId: string; 
         fileId = upload.file.id
       }
       await api("/api/stories", { method: "POST", body: JSON.stringify({ body, fileId, audience, ...(audience === "group" ? { groupId } : {}) }) })
-      setBody(""); setFile(null)
+      setBody(""); setFile(null); setComposing(false)
       setStatus("Story posted. It expires in 24 hours.")
       await refresh()
     } catch (error) { setStatus(error instanceof Error ? error.message : "Could not post story.") }
@@ -63,21 +72,12 @@ export function ChatStories({ currentUserId, groups }: { currentUserId: string; 
   }
 
   const visible = stories.filter((story) => Date.parse(story.expiresAt) > now)
-  return <details className="rounded-xl border border-border bg-background p-3 text-sm">
-    <summary className="cursor-pointer font-semibold">Stories · {visible.length} active</summary>
-    <p className="mt-2 text-xs text-muted-foreground">Text and picture updates that disappear after 24 hours. Choose who can see each story.</p>
-    <div className="mt-3 flex gap-3 overflow-x-auto pb-2">
-      {visible.map((story) => <article key={story.id} className="w-56 shrink-0 rounded-xl border border-border p-3">
-        <p className="font-semibold">{story.ownerName}{story.ownerUserId === currentUserId ? " · You" : ""}</p>
-        {story.fileId ? <img src={`/api/files/${encodeURIComponent(story.fileId)}/download`} alt={story.body || `${story.ownerName}'s story`} loading="lazy" decoding="async" className="mt-2 max-h-48 w-full rounded-lg object-contain" /> : null}
-        <p className="mt-2 whitespace-pre-wrap break-words">{story.body}</p>
-        <p className="mt-2 text-xs text-muted-foreground">{story.audience === "private" ? "Only you" : story.audience === "friends" ? "Friends" : "Group"} · expires {new Date(story.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
-        {story.ownerUserId === currentUserId ? <button type="button" disabled={busy} onClick={() => remove(story.id)} className="mt-2 text-xs underline">Delete story</button> : null}
-      </article>)}
-      {!visible.length ? <p className="text-xs text-muted-foreground">No active stories in your audience.</p> : null}
-    </div>
-    <fieldset disabled={busy} className="mt-3 grid gap-2 border-t border-border pt-3">
-      <legend className="px-1 font-semibold">Post a story</legend>
+  return <section aria-label="Stories">
+    <div className="story-strip"><button className="story-avatar" onClick={() => { setSelectedId(""); setComposing(true) }} aria-label="Add a story"><span><Plus className="h-5 w-5" /></span><small>Your story</small></button>{visible.map(story => <button className="story-avatar" key={story.id} onClick={() => { setComposing(false); setSelectedId(story.id) }} aria-label={`View ${story.ownerName}'s story`}><span>{story.fileId ? <img src={`/api/files/${encodeURIComponent(story.fileId)}/download`} alt="" loading="lazy" /> : story.ownerName.slice(0, 1)}</span><small>{story.ownerUserId === currentUserId ? "You" : story.ownerName}</small></button>)}</div>
+    {(composing || selected) ? createPortal(<dialog ref={dialog} aria-label={composing ? "New story" : `${selected?.ownerName || "Your"} story`} onCancel={closeStory} className="story-dialog"><button aria-label="Close story" className="editor-command ml-auto" onClick={closeStory}><X className="h-4 w-4" /></button>
+      {selected ? <article className="p-2"><h3 className="font-semibold">{selected.ownerName}</h3>{selected.fileId ? <img src={`/api/files/${encodeURIComponent(selected.fileId)}/download`} loading="eager" decoding="async" alt={selected.body || "Story picture"} className="mt-3 max-h-[50dvh] w-full rounded-xl object-contain" /> : null}<p className="story-text">{selected.body}</p><p className="text-xs text-muted-foreground">{selected.audience === "private" ? "Only you" : selected.audience === "friends" ? "Friends" : "Group"} · expires {new Date(selected.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>{selected.ownerUserId === currentUserId ? <button className="editor-command mt-3 text-destructive" disabled={busy} onClick={() => void remove(selected.id)}>Delete story</button> : null}</article> : null}
+      {composing ? <>    <fieldset disabled={busy} className="mt-3 grid gap-2 border-t border-border pt-3">
+      <legend className="px-1 font-semibold">New story</legend>
       <textarea aria-label="Story text" placeholder="Share a study update…" maxLength={MAX_STORY_TEXT} value={body} onChange={(event) => setBody(event.target.value)} className="rounded-lg border bg-background p-2" />
       <label className="grid gap-1 text-xs">Optional picture or GIF
         <input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" onChange={(event) => {
@@ -94,8 +94,10 @@ export function ChatStories({ currentUserId, groups }: { currentUserId: string; 
         </select>
       </label>
       {audience === "group" ? <select aria-label="Story group" value={groupId} onChange={(event) => setGroupId(event.target.value)} className="rounded border bg-background p-2"><option value="">Choose a group</option>{groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select> : null}
-      <button type="button" disabled={(!body.trim() && !file) || (audience === "group" && !groupId)} onClick={post} className="justify-self-start rounded bg-primary px-3 py-2 text-primary-foreground disabled:opacity-50">{busy ? "Saving…" : "Post for 24 hours"}</button>
-    </fieldset>
-    {status ? <p role="status" className="mt-2 text-xs">{status}</p> : null}
-  </details>
+      <button type="button" disabled={(!body.trim() && !file) || (audience === "group" && !groupId)} onClick={post} className="justify-self-start rounded bg-primary px-3 py-2 text-primary-foreground disabled:opacity-50">{busy ? "Saving…" : "Share for 24h"}</button>
+    </fieldset></> : null}
+      {status ? <p role="status" className="mt-2 text-xs">{status}</p> : null}
+    </dialog>, document.body) : null}
+    {status && !composing && !selected ? <p role="status" className="text-xs text-muted-foreground">{status}</p> : null}
+  </section>
 }

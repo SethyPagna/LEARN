@@ -40,6 +40,8 @@ export function QuizView({
   const [attemptSummary, setAttemptSummary] = useState<PracticeAttemptSummary | null>(null)
   const [retryQuestionIds, setRetryQuestionIds] = useState<string[]>([])
   const [markedQuestionIds, setMarkedQuestionIds] = useState<string[]>([])
+  const [showAllQuestions, setShowAllQuestions] = useState(false)
+  const [questionIndex, setQuestionIndex] = useState(0)
   const [questionFilter, setQuestionFilter] = useState<PracticeQuestionFilter>("all")
   const [reviewCardStatus, setReviewCardStatus] = useState("")
   const [draftStatus, setDraftStatus] = useState("")
@@ -304,6 +306,10 @@ export function QuizView({
     }
   }
 
+  const activeQuestionIndex = Math.min(questionIndex, Math.max(0, filteredQuestions.length - 1))
+  const displayedQuestions = showAllQuestions ? filteredQuestions : filteredQuestions.slice(activeQuestionIndex, activeQuestionIndex + 1)
+  useEffect(() => { setQuestionIndex(0) }, [selected, questionFilter])
+
   return (
     <div className="practice-screen grid min-w-0 gap-3 xl:grid-cols-[200px_minmax(0,1fr)]">
       <label className="editor-field xl:hidden">Practice set<select aria-label="Practice set" className="editor-input" value={selected} onChange={(event) => setSelectedQuizId(event.target.value)}>{visibleQuizBank.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
@@ -355,9 +361,7 @@ export function QuizView({
                 <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{visibleQuestions.length} questions - {progressPercent}% complete</p>
               </div>
               <div className="flex flex-wrap gap-2 lg:justify-end">
-                <ModeStatusChip label={modeSummary.activeGroup.label} value={modeSummary.activeModeLabel} />
-                <ModeStatusChip label="Filter" value={`${questionFilters.find((filter) => filter.id === questionFilter)?.label || "All"} ${questionFilterCounts.get(questionFilter) ?? filteredQuestions.length}`} />
-                <PracticeMenu label="Setup" icon={ListFilter}>
+                <PracticeMenu label={modeSummary.activeModeLabel} icon={ListFilter}>
                   <PracticeMenuSection title="Mode" />
                   <PracticeMenuAction icon={Sparkles} label={`Recommended: ${practiceModeLabel(modeSummary.recommendedNextMode)}`} onClick={() => setPracticeMode(modeSummary.recommendedNextMode)} meta={modeSummary.caption} />
                   {practiceModeGroups.map((group) => (
@@ -400,14 +404,15 @@ export function QuizView({
             />
             {practiceStatus ? <p className="mt-3 rounded-md bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground">{practiceStatus}</p> : null}
             {missedCount ? <div className="mt-3"><StatusPill label={`${missedCount} to repair`} tone="watch" /></div> : null}
-            <div className="mt-5 space-y-3">
-              {filteredQuestions.map((question, index) => {
+            <div className="mt-4 flex items-center justify-between gap-2"><button type="button" className="editor-command" aria-pressed={showAllQuestions} onClick={() => setShowAllQuestions(value => !value)}><ListFilter className="h-4 w-4" />All questions</button>{!showAllQuestions && filteredQuestions.length ? <div className="flex items-center gap-2"><button type="button" className="editor-command" disabled={activeQuestionIndex === 0} onClick={() => setQuestionIndex(activeQuestionIndex - 1)}>Previous</button><span className="text-xs tabular-nums text-muted-foreground">{activeQuestionIndex + 1} / {filteredQuestions.length}</span><button type="button" className="editor-command" disabled={activeQuestionIndex + 1 >= filteredQuestions.length} onClick={() => setQuestionIndex(activeQuestionIndex + 1)}>Next</button></div> : null}</div>
+            <div className="mt-3 space-y-3">
+              {displayedQuestions.map((question, index) => {
                 const marked = markedQuestionIds.includes(question.id)
                 return (
                 <article key={question.id} className="rounded-lg border border-border p-4">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      <p className="text-sm text-muted-foreground">Question {index + 1}</p>
+                      <p className="text-sm text-muted-foreground">Question {showAllQuestions ? index + 1 : activeQuestionIndex + 1}</p>
                       <h3 className="mt-1 font-semibold text-foreground">{question.question}</h3>
                     </div>
                     <PracticeMenu align="right" compact label="Question actions" icon={MoreHorizontal}>
@@ -492,14 +497,6 @@ export function QuizView({
   )
 }
 
-function ModeStatusChip({ label, value }: { label: string; value: string }) {
-  return (
-    <span className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-xs font-semibold text-muted-foreground">
-      {label}
-      <span className="rounded bg-secondary px-1.5 py-0.5 text-secondary-foreground">{value}</span>
-    </span>
-  )
-}
 
 function PracticeProgressBar({
   elapsedSeconds,

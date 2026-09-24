@@ -25,7 +25,7 @@ import { chatDestinationPayload, selectConversationThread, type ChatDestination 
 import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatInboxShortcut, type ChatIntent, type ChatQuickPrompt, type ChatThreadActionId, type ChatThreadFilter, type ChatThreadLike } from "@/lib/social-features"
 
 const quizDetailCache = new Map<string, Quiz>()
-type ChatMenuId = "attach" | "compose" | "chatMore" | "tools" | "filters" | `threadActions:${string}`
+type ChatMenuId = "recipients" | "attach" | "compose" | "chatMore" | "tools" | "filters" | `threadActions:${string}`
 type ChatThreadRecord = ChatThreadLike & {
   threadId?: string
   thread_id?: string
@@ -226,11 +226,11 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
           <button onClick={resetRun} disabled={gameActionById.get("restart")?.disabled} className="mt-3 rounded-md bg-background px-3 py-1.5 text-xs font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-60">Start another run</button>
         </div>
       ) : null}
-      <div className="rounded-lg border border-primary/30 bg-primary p-5 text-primary-foreground">
+      <div className="game-prompt rounded-lg border border-primary/30 bg-primary p-5 text-primary-foreground">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] opacity-75">Prompt {index + 1}</p>
         <h3 className="mt-2 text-2xl font-semibold leading-tight">{current.question}</h3>
       </div>
-      <div className="mt-4 grid gap-2 md:grid-cols-2">
+      <div className="game-choices mt-4 grid gap-2 md:grid-cols-2">
         {current.choices.map((choice) => (
           <button
             key={choice.id}
@@ -1273,7 +1273,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   }
 
   return (
-    <div className="chat-workspace grid min-h-[580px] overflow-hidden rounded-lg border border-border bg-card lg:h-[calc(100dvh-160px)] lg:grid-cols-[280px_minmax(0,1fr)]" title={options.collaborationPresence ? "Live-ready chats" : "Async chats"}>
+    <div className="chat-workspace grid min-h-[580px] overflow-hidden rounded-lg border border-border bg-card lg:h-[calc(100dvh-160px)] lg:grid-cols-[250px_minmax(0,1fr)]" title={options.collaborationPresence ? "Live-ready chats" : "Async chats"}>
       <Panel className={`chat-conversation order-2 min-h-0 min-w-0 flex-col !rounded-none !border-0 !p-0 lg:!border-l lg:!border-border ${conversationOpen ? "flex" : "hidden lg:flex"}`}>
         <div className="chat-header grid gap-0 border-b border-border">
           <div className="flex min-w-0 items-center gap-3 px-4 py-3"><span className="lg:hidden"><button type="button" aria-label="Back to conversations" onClick={() => setConversationOpen(false)} className="editor-command !px-2"><ArrowLeft className="h-4 w-4" /></button></span>
@@ -1289,7 +1289,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             </div>
           </div>
           <div className="chat-actions flex items-center gap-1 overflow-x-auto px-3 pb-2 [&>button]:shrink-0 [&>div]:shrink-0">
-            <ChatMenu icon={Users} label={activeDmTarget ? activeDmTarget.name : activeGroup ? activeGroup.name : "Group"} menuId="tools" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
+            <ChatMenu compact icon={Users} label={activeDmTarget ? activeDmTarget.name : activeGroup ? activeGroup.name : "Recipients"} menuId="recipients" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
               <ChatMenuSection title="Chat as this group">
                 {myGroups.length ? myGroups.map((group) => (
                   <ChatMenuAction
@@ -1328,10 +1328,10 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               </ChatMenuSection>
             </ChatMenu>
             <span role="status" className="hidden text-xs text-muted-foreground xl:inline">{socketStatus === "open" ? "Live" : socketStatus === "closed" ? "Select a conversation" : "Reconnecting…"}</span>
-            <ToolbarButton label="Video" onClick={() => startCall(true)} icon={Video} />
-            <ToolbarButton label="Call" onClick={() => startCall(false)} icon={Phone} />
-            <ToolbarButton label="Download" onClick={exportConversation} icon={Download} />
-            <ChatMenu icon={Sparkles} label="Compose" menuId="compose" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
+            <ToolbarButton iconOnly label="Video" onClick={() => startCall(true)} icon={Video} />
+            <ToolbarButton iconOnly label="Call" onClick={() => startCall(false)} icon={Phone} />
+            <ToolbarButton iconOnly label="Download" onClick={exportConversation} icon={Download} />
+            <ChatMenu compact icon={Sparkles} label="Compose" menuId="compose" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
               <ChatMenuSection title="Draft intent">
                 {quickIntents.map((item) => (
                   <ChatMenuAction
@@ -1430,7 +1430,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             )}
           </div>
         </div>
-        <details className="chat-extras mx-4 mt-2"><summary className="cursor-pointer py-1 text-xs text-muted-foreground">Media, stories and prompts</summary><div className="max-h-60 overflow-y-auto pb-2"><ChatStories currentUserId={currentUserId} groups={myGroups} /></div>
+        <details className="chat-extras mx-4 mt-2"><summary className="cursor-pointer py-1 text-xs text-muted-foreground">Writing prompts</summary>
         <details className="mx-4 mt-3 rounded-md border border-border bg-background">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
             <span>Starter prompts</span>
@@ -1534,7 +1534,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             />
             </div>
             <p className={`rounded-md px-2 py-1 text-xs font-semibold ${draftStatus ? "bg-success/15 text-success" : "text-muted-foreground"}`}>
-              {replyThreadId ? "Reply target saved" : draftStatus || "Private-first sharing"}
+              {replyThreadId ? "Reply target saved" : draftStatus || ""}
             </p>
             <ToolbarButton
               disabled={chatActionById.get("send")?.disabled}
@@ -1550,7 +1550,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-base font-semibold text-foreground">Messages</h3>
           <div className="flex items-center gap-2">
-            <button onClick={() => { setConversationOpen(true); setBody((current) => current || "") }} aria-label="Start a new message" className="grid h-9 w-9 place-items-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+            <button onClick={() => { setConversationOpen(true); setOpenChatMenu("recipients") }} aria-label="Start a new message" className="grid h-9 w-9 place-items-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
               <Plus className="h-4 w-4" />
             </button>
             <ChatMenu align="right" compact icon={MoreHorizontal} label="Menu" menuId="filters" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
@@ -1571,9 +1571,10 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             </ChatMenu>
           </div>
         </div>
+        <div className="my-3"><ChatStories currentUserId={currentUserId} groups={myGroups} /></div>
         <div className="mt-4 flex h-11 items-center gap-2 rounded-full bg-muted px-4">
           <Search className="h-4 w-4 text-muted-foreground" />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search or start a new chat" className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search messages" className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
         </div>
         <div className="mt-3 flex gap-2 overflow-x-auto">
           {inboxShortcuts.map((shortcut) => (
@@ -1638,11 +1639,11 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                     <p className="truncate font-semibold text-foreground">{parsed.title}</p>
                     <span className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold ${chatStatusClasses(status.tone)}`}>{status.label}</span>
                   </div>
-                  <p className="text-xs font-semibold text-muted-foreground">{parsed.channel}</p>
-                  <p className="mt-1 line-clamp-2 text-muted-foreground">{thread.last_message || "No messages yet"}</p>
+
+                  <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{thread.last_message || "No messages yet"}</p>
                 </div>
               </div>
-              <div className="mt-2 flex flex-wrap gap-2 pl-[3.25rem]" onClick={(event) => event.stopPropagation()}>
+              <div className="thread-secondary-actions flex justify-end gap-1" onClick={(event) => event.stopPropagation()}>
                 <ChatMenu compact icon={Smile} label={menuLabel} menuId={`threadActions:${targetId || parsed.title}`} openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
                   <ChatMenuSection title="Thread actions">
                     {threadActions.map((item) => (
@@ -1657,14 +1658,11 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                     ))}
                   </ChatMenuSection>
                 </ChatMenu>
-                <button onClick={() => runThreadAction(thread, "reply")} disabled={Boolean(threadAction)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60">
-                  <Reply className="h-3.5 w-3.5" />
-                  reply
-                </button>
+
               </div>
             </div>
           )})}
-          {!visibleThreads.length ? <EmptyState title="No matching threads" body="Send a message or change the search/filter to see more collaboration history." /> : null}
+          {!visibleThreads.length ? <EmptyState title="No messages found" body="Try another search or start a conversation." /> : null}
         </div>
       </Panel>
       {activeCall ? (
@@ -1765,12 +1763,14 @@ function ChatMenu({
       <button
         ref={anchor}
         aria-expanded={open}
+        aria-label={label}
+        title={label}
         onClick={() => setOpenMenu(open ? null : menuId)}
         className={`inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground ${compact ? "px-2" : "px-3"}`}
         type="button"
       >
         <Icon className="h-4 w-4" />
-        <span>{label}</span>
+        <span className={compact ? "sr-only" : undefined}>{label}</span>
       </button>
       <Popover open={open} anchor={anchor} onClose={() => setOpenMenu(null)} label={label} placement={align === "right" ? "bottom-end" : "bottom-start"} width={288}>{children}</Popover>
     </div>
@@ -1807,13 +1807,14 @@ function ChatMenuAction({
     <button
       onClick={onClick}
       disabled={disabled}
+      title={meta}
       className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50 ${active ? "bg-primary/10 text-primary" : danger ? "text-destructive" : "text-popover-foreground"}`}
       type="button"
     >
       {Icon ? <Icon className="mt-0.5 h-4 w-4 shrink-0" /> : <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-current opacity-50" />}
       <span className="min-w-0">
         <span className="block font-semibold">{label}</span>
-        {meta ? <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{meta}</span> : null}
+        {meta ? <span className="sr-only">{meta}</span> : null}
       </span>
     </button>
   )
@@ -1825,17 +1826,19 @@ function ToolbarButton({
   label,
   onClick,
   primary,
+  iconOnly,
 }: {
   disabled?: boolean
   icon: React.ComponentType<{ className?: string }>
   label: string
   onClick: () => void
   primary?: boolean
+  iconOnly?: boolean
 }) {
   return (
     <button type="button" aria-label={label} title={label} disabled={disabled} onClick={onClick} className={`flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60 ${primary ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
       <Icon className="h-4 w-4" />
-      <span>{label}</span>
+      <span className={iconOnly ? "sr-only" : undefined}>{label}</span>
     </button>
   )
 }
