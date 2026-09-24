@@ -37,6 +37,8 @@ export interface AiTutorDraft {
   requiredOutput: string
   activeTaskKey: AiTaskKey
   updatedAt: string
+  sourceTitle?: string
+  sourceContent?: string
 }
 
 const DEFAULT_MESSAGE = "Create a study plan from my recent notes."
@@ -74,6 +76,8 @@ export function normalizeAiTutorDraft(value: unknown): AiTutorDraft | null {
     requiredOutput: readString(value.requiredOutput, DEFAULT_OUTPUT),
     activeTaskKey: task.id,
     updatedAt: normalizeIsoDate(value.updatedAt),
+    sourceTitle: readString(value.sourceTitle, "").slice(0, 200),
+    sourceContent: readString(value.sourceContent, "").slice(0, 12_000),
   }
 }
 
@@ -91,6 +95,8 @@ export function normalizeAiTutorLaunchPreset(value: unknown): AiTutorLaunchPrese
     outputLength: normalizeChoice(value.outputLength, aiTutorOutputLengths, aiTutorOutputLengths[1]),
     sourceScope: normalizeChoice(value.sourceScope, aiTutorSourceScopes, aiTutorSourceScopes[0]),
     status: readString(value.status, ""),
+    sourceTitle: readString(value.sourceTitle, "").slice(0, 200),
+    sourceContent: readString(value.sourceContent, "").slice(0, 12_000),
   }
 }
 

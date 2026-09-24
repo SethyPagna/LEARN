@@ -3,16 +3,18 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Bot, Brain, CheckCircle2, CheckSquare, ChevronDown, FileText, Gauge, Info, Languages, ListFilter, MoreHorizontal, Plus, Route, SlidersHorizontal, Sparkles, UploadCloud, Wand2 } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
-import type { Note, StudioInsertTarget, View } from "../types"
+import type { Note, Quiz, StudioInsertTarget, View } from "../types"
 import { api } from "../api"
 import { AiBlockRenderer } from "../ai-block-renderer"
 import { ControlButton, Panel, StatusPill } from "../ui"
 import { VoiceInput } from "../voice-input"
 import { menuSurfaceClasses, statusToneClasses, toneTextClasses, type UiTone } from "@/lib/design-system"
 import { formatAiResponse } from "@/lib/ai/format-response"
-import { buildAiGatewayReadiness, type AiGatewayProviderCatalogItem, type AiGatewayProviderPresetItem, type AiGatewayProviderStatus } from "@/lib/ai/gateway-readiness"
+import { buildAiGatewayReadiness, isProviderReady, type AiGatewayProviderCatalogItem, type AiGatewayProviderPresetItem, type AiGatewayProviderStatus } from "@/lib/ai/gateway-readiness"
 import { buildGuidedPrompt, listInsertActions, normalizeStudioInsertTarget, promptContracts, studioInsertTargets, type GuidedPromptResult } from "@/lib/ai/prompt-builder"
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
+import { assessmentOutputInstruction } from "@/lib/ai/assessment-output"
+import { workflowOutputInstruction } from "@/lib/ai/workflow-destinations"
 import { AI_TUTOR_DRAFT_KEY, parseStoredAiTutorDraft, parseStoredAiTutorLaunchPreset, type AiTutorDraft } from "@/lib/ai/tutor-drafts"
 import {
   aiTutorDifficulties,
@@ -40,6 +42,7 @@ import type { AiTaskKey } from "@/lib/ai/prompt-library"
 import { buildImportFollowupAction, getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, previewImportedLearningContent, type ImportFollowupKind, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 
 const tutorModeIcons: Record<AiTaskKey, React.ComponentType<{ className?: string }>> = {
+  source_explanation: Brain,
   answer_explanation: Sparkles,
   note_design: Wand2,
   quiz_generation: CheckSquare,
@@ -80,12 +83,14 @@ export function AiTutorView({
   notes,
   options,
   setNotes,
+  setQuizzes,
   setOptions,
   setView,
 }: {
   notes: Note[]
   options: WorkspaceOptions
   setNotes?: (updater: (current: Note[]) => Note[]) => void
+  setQuizzes?: (updater: (current: Quiz[]) => Quiz[]) => void
   setOptions: (options: Partial<WorkspaceOptions>) => void
   setView?: (view: View) => void
 }) {
@@ -105,6 +110,8 @@ export function AiTutorView({
   const [lastImport, setLastImport] = useState<{ target: ImportTarget; title: string } | null>(null)
   const [lastImportText, setLastImportText] = useState("")
   const [sourceScope, setSourceScope] = useState(aiTutorSourceScopes[0])
+  const [sourceTitle, setSourceTitle] = useState("")
+  const [sourceContent, setSourceContent] = useState("")
   const [difficulty, setDifficulty] = useState(aiTutorDifficulties[0])
   const [tone, setTone] = useState(aiTutorTones[0])
   const [outputLength, setOutputLength] = useState(aiTutorOutputLengths[1])
@@ -132,7 +139,8 @@ export function AiTutorView({
     sourceScope,
     includeRecentNotes: options.aiIncludeNotes,
     uploadedContext,
-  }), [message, options.aiIncludeNotes, recentContext, sourceScope, uploadedContext])
+    activeSourceContext: sourceContent ? `Source: ${sourceTitle}\n${sourceContent}` : "",
+  }), [message, options.aiIncludeNotes, recentContext, sourceScope, uploadedContext, sourceTitle, sourceContent])
   const activeContract = useMemo(() => promptContracts.find((contract) => contract.mode === activeMode.id), [activeMode.id])
   const availableInsertTargets = useMemo(() => activeContract?.insertTargets || studioInsertTargets, [activeContract?.insertTargets])
   const insertActions = useMemo(() => listInsertActions(availableInsertTargets), [availableInsertTargets])
@@ -193,7 +201,7 @@ export function AiTutorView({
     savedTitle: lastImport?.title,
   }), [importText, lastImport?.title, lastImportText])
   const providerSummary = useMemo(() => {
-    const readyCount = providers.filter(providerIsReady).length
+    const readyCount = providers.filter(isProviderReady).length
     const configuredCount = providers.filter((provider) => provider.has_key).length
     return {
       readyCount,
@@ -231,6 +239,8 @@ export function AiTutorView({
     if (draft) {
       setMessage(draft.message || DEFAULT_AI_MESSAGE)
       setReply(draft.reply || "")
+      setSourceTitle(draft.sourceTitle || "")
+      setSourceContent(draft.sourceContent || "")
       setImportText(draft.importText || "")
       setImportTitle(draft.importTitle || "")
       setImportTarget(normalizeImportTargetSelection(draft.importTarget))
@@ -253,6 +263,8 @@ export function AiTutorView({
     } else if (launch) {
       const restoredTask = getAiTutorModeOption(launch.activeTaskKey)
       setMessage(launch.message || DEFAULT_AI_MESSAGE)
+      setSourceTitle(launch.sourceTitle || "")
+      setSourceContent(launch.sourceContent || "")
       setReply("")
       setSourceScope(normalizeChoice(launch.sourceScope, aiTutorSourceScopes, aiTutorSourceScopes[0]))
       setOutputLength(normalizeChoice(launch.outputLength, aiTutorOutputLengths, aiTutorOutputLengths[1]))
@@ -281,6 +293,8 @@ export function AiTutorView({
         lastImport,
         lastImportText,
         sourceScope,
+        sourceTitle,
+        sourceContent,
         difficulty,
         tone,
         outputLength,
@@ -297,10 +311,12 @@ export function AiTutorView({
       draftStatusTimer.current = window.setTimeout(() => setDraftStatus(""), 1400)
     }, 500)
     return () => window.clearTimeout(timeout)
-  }, [activeTaskKey, difficulty, importTarget, importText, importTitle, insertTarget, language, lastImport, lastImportText, message, outputLength, providerFamily, reply, sourceScope, targetAudience, requiredOutput, tone])
+  }, [activeTaskKey, difficulty, importTarget, importText, importTitle, insertTarget, language, lastImport, lastImportText, message, outputLength, providerFamily, reply, sourceScope, sourceTitle, sourceContent, targetAudience, requiredOutput, tone])
 
   function resetDraft() {
     setMessage(DEFAULT_AI_MESSAGE)
+    setSourceTitle("")
+    setSourceContent("")
     setReply("")
     setImportText("")
     setImportTitle("")
@@ -323,14 +339,21 @@ export function AiTutorView({
   }
 
   async function ask() {
+    if (sourceScope === "Active Studio item" && !sourceContent.trim()) {
+      setActionStatus("Open Ask AI from a Studio item or Vault note first, or choose another source.")
+      return
+    }
     if (!promptBuild.ok) {
       setActionStatus(`Missing: ${promptBuild.missing.join(", ")}`)
       return
     }
     setLoading(true)
+    setReply("")
+    setActionStatus("")
     try {
       const contextParts = [
-        promptBuild.preview,
+        assessmentOutputInstruction(insertTarget),
+        workflowOutputInstruction(insertTarget),
         `Task mode: ${activeMode.label}`,
         `Source scope: ${sourceScope}`,
         `Difficulty: ${difficulty}`,
@@ -338,20 +361,27 @@ export function AiTutorView({
         `Output length: ${outputLength}`,
         `Language: ${language}`,
         `Max output tokens: ${effectiveMaxTokens}`,
-        providerFamily !== "auto" ? `Preferred provider family: ${providerFamily}` : "",
       ].filter(Boolean)
       const response = await api<AiTutorChatResponse>("/api/ai/chat", {
         method: "POST",
         body: JSON.stringify({
-          message: promptBuild.user,
+          message: `${promptBuild.user}\n\nLearner's explicit request (takes precedence over default quantities):\n${message}`,
           context: [promptBuild.system, contextParts.join("\n\n")].join("\n\n"),
           mode: activeMode.mode,
           temperature: options.aiTemperature,
           maxTokens: effectiveMaxTokens,
+          provider: providerFamily,
         }),
       })
+      if (response.status !== "ok") {
+        setActionStatus(response.text || "The tutor could not produce a result. Check the provider setup.")
+        setSidePanel("gateway")
+        return
+      }
       setReply(response.text)
-      setActionStatus("")
+      setActionStatus(`Generated with ${response.provider || "configured provider"}${response.model ? ` · ${response.model}` : ""}.`)
+    } catch (error) {
+      setActionStatus(error instanceof Error ? error.message : "The tutor request failed. Try again.")
     } finally {
       setLoading(false)
     }
@@ -376,37 +406,31 @@ export function AiTutorView({
   }
 
   async function loadProviders() {
-    const response = await api<{ items: AiTutorProviderStatus[]; catalog?: AiTutorProviderCatalogItem[]; presets?: AiTutorProviderPresetItem[] }>("/api/ai/providers").catch(() => ({ items: [], catalog: [], presets: [] }))
-    setProviders(response.items)
+    const response = await api<{ items: AiTutorProviderStatus[]; runtimeItems?: AiTutorProviderStatus[]; catalog?: AiTutorProviderCatalogItem[]; presets?: AiTutorProviderPresetItem[] }>("/api/ai/providers").catch(() => ({ items: [], runtimeItems: [], catalog: [], presets: [] }))
+    setProviders([...response.items, ...(response.runtimeItems || [])])
     setCatalog(response.catalog || [])
     setPresets(response.presets || [])
   }
 
   async function saveReplyAsNote() {
-    if (!reply.trim()) return
-    const response = await api<{ item: Note }>("/api/notes", {
-      method: "POST",
-      body: JSON.stringify({
-        title: `AI ${activeMode.label} - ${new Date().toLocaleDateString()}`,
-        content: `<h2>${escapeHtml(activeMode.label)}</h2><pre>${escapeHtml(reply)}</pre>`,
-        template: "ai-result",
-      }),
-    })
-    setNotes?.((current) => [response.item, ...current])
-    setActionStatus("Saved as a Studio note.")
-    setView?.("notes")
+    await insertReply("ai-note")
   }
 
   async function insertReply(target: StudioInsertTarget) {
     if (!reply.trim()) return
-    const payload = buildInsertBackPayload(target, reply, `AI ${activeMode.label}`)
-    const response = await api<{ item?: Note }>(payload.endpoint, {
-      method: "POST",
-      body: JSON.stringify(payload.body),
-    })
-    if (payload.endpoint === "/api/notes" && response.item) setNotes?.((current) => [response.item as Note, ...current])
-    setActionStatus(`Created ${payload.view} item from AI result.`)
-    setView?.(payload.view)
+    try {
+      const payload = buildInsertBackPayload(target, reply, `AI ${activeMode.label}`)
+      const response = await api<{ item?: Note | Quiz }>(payload.endpoint, {
+        method: "POST",
+        body: JSON.stringify(payload.body),
+      })
+      if (payload.endpoint === "/api/notes" && response.item) setNotes?.((current) => [response.item as Note, ...current])
+      if (payload.endpoint === "/api/quizzes" && response.item) setQuizzes?.((current) => [response.item as Quiz, ...current.filter((quiz) => quiz.id !== response.item?.id)])
+      setActionStatus(`Created ${payload.view} item from AI result.`)
+      setView?.(payload.view)
+    } catch (error) {
+      setActionStatus(error instanceof Error ? error.message : "Unable to save the result. Your response is still here.")
+    }
   }
 
   async function organizeImport() {
@@ -603,6 +627,7 @@ export function AiTutorView({
           <AiSummaryChip detail="Best next action from the current prompt, source, insert target, and gateway state." label="Next" value={workflowSummary.nextAction} />
         </div>
 
+        {sourceScope === "Active Studio item" ? <p className="mt-3 text-sm text-muted-foreground">{sourceContent ? `Source: ${sourceTitle}` : "No Studio source selected. Open Ask AI from the source item."}</p> : null}
         <label className="mt-4 grid gap-2 text-sm font-semibold text-foreground">
           Prompt
           <textarea value={message} onChange={(event) => setMessage(event.target.value)} className="min-h-44 w-full rounded-md border border-input bg-background p-4 font-normal text-foreground outline-none focus:border-ring" />
@@ -633,6 +658,7 @@ export function AiTutorView({
             Reset draft
           </button>
         </div>
+        {!reply && actionStatus ? <p role="status" className="mt-3 rounded-md border border-border p-3 text-sm">{actionStatus}</p> : null}
         {reply ? (
           <div className="mt-5 rounded-md border border-border bg-muted p-4">
             <SectionLabel icon={CheckCircle2} title="Result" body="Insert, save, copy, or turn this into practice." compact />
@@ -648,6 +674,8 @@ export function AiTutorView({
                 <ResultMenuAction label="Practice" onClick={() => useReplyAsPrompt("practice_generator", "Create targeted practice from this result with explanations and retry guidance.", "quiz")} />
                 <ResultMenuAction label="Review cards" onClick={() => useReplyAsPrompt("flashcard_generation", "Create review cards from this result with active-recall prompts.", "review-cards")} />
                 <ResultMenuAction label="Studio format" onClick={() => useReplyAsPrompt("document_formatter", "Format this result into clean Studio blocks with headings and next actions.", "doc-section")} />
+                <ResultMenuAction label="Schedule study activity" onClick={() => useReplyAsPrompt("study_plan", "Create one study activity from this result. Ask me for its start, end and timezone before producing the calendar output.", "study-activity")} />
+                <ResultMenuAction label="Private discussion space" onClick={() => useReplyAsPrompt("personalized_prompt", "Create a discussion protocol from this result for a private learning space.", "discussion-space")} />
               </ResultMenu>
             </div>
             {actionStatus ? <p className="mb-3 rounded-md bg-background px-3 py-2 text-xs font-semibold text-muted-foreground">{actionStatus}</p> : null}
@@ -692,7 +720,7 @@ export function AiTutorView({
             </div>
             <details className="mt-3 rounded-md border border-border bg-background p-3">
               <summary className="cursor-pointer text-sm font-semibold text-foreground">Provider details</summary>
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">Keys stay masked. Failover follows priority.</p>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">Keys stay masked. Auto mode follows priority; choosing a provider stays within that family. Local Ollama uses OLLAMA_BASE_URL and OLLAMA_MODEL on the LEARN server, without a key. A hosted deployment cannot reach Ollama on your browser's computer.</p>
               <div className="mt-3 space-y-2">
                 {providers.map((provider) => (
                   <div key={provider.id} className="rounded-md bg-muted p-3 text-sm">
@@ -703,7 +731,7 @@ export function AiTutorView({
                     <div className="mt-2 flex flex-wrap gap-2 text-xs">
                       <span className="rounded bg-background px-2 py-0.5 text-muted-foreground">{provider.provider}</span>
                       <span className="rounded bg-background px-2 py-0.5 text-muted-foreground">{provider.default_model}</span>
-                      <StatusPill label={providerStatusLabel(provider)} tone={providerIsReady(provider) ? "steady" : "watch"} />
+                      <StatusPill label={providerStatusLabel(provider)} tone={isProviderReady(provider) ? "steady" : "watch"} />
                     </div>
                   </div>
                 ))}
@@ -1048,15 +1076,6 @@ function buildCompletePromptPreview(input: {
   return sections.map(([title, body]) => `## ${title}\n${body}`).join("\n\n")
 }
 
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;")
-}
-
 function ResultAction({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <ControlButton onClick={onClick} size="compact">
@@ -1101,15 +1120,12 @@ function GatewayMetric({ label, tone, value }: { label: string; tone: "ready" | 
   )
 }
 
-function providerIsReady(provider: { enabled?: boolean; has_key?: boolean; last_status?: string }) {
-  return Boolean(provider.enabled && provider.has_key && provider.last_status !== "error")
-}
-
 function providerCatalogKey(provider: AiTutorProviderCatalogItem) {
   return provider.provider || provider.id || ""
 }
 
-function providerStatusLabel(provider: { has_key?: boolean; last_status?: string }) {
+function providerStatusLabel(provider: AiGatewayProviderStatus) {
+  if (provider.requires_key === false) return "Local · not yet tested"
   if (!provider.has_key) return "Missing key"
   return provider.last_status === "error" ? "Error" : provider.last_status || "Untested"
 }

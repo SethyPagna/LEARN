@@ -22,6 +22,7 @@ export interface AiTutorModeOption {
 
 export const aiTutorModeOptions: AiTutorModeOption[] = [
   { id: "answer_explanation", mode: "mistake", label: "Mistake", prompt: "Explain the mistake, repair the misconception, and create a short retry drill." },
+  { id: "source_explanation", mode: "coach", label: "Explain source", prompt: "Explain the supplied source with examples and one recall question. Do not assume the learner made a mistake." },
   { id: "note_design", mode: "rewrite", label: "Rewrite", prompt: "Rewrite this into a clean study page with headings, callouts, examples, and review prompts." },
   { id: "quiz_generation", mode: "quiz", label: "Quiz", prompt: "Generate a mixed quiz with MCQ, true/false, fill-in-the-blank, and explanations." },
   { id: "flashcard_generation", mode: "flashcards", label: "Flashcards", prompt: "Create active-recall flashcards and a tiny memory game from this context." },
@@ -46,7 +47,7 @@ export const aiTutorTokenPresets = [SHORT_OUTPUT_TOKENS, BALANCED_OUTPUT_TOKENS,
 
 export const aiTutorModeGroups: Array<{ id: AiTutorModeGroupId; label: string; modes: AiTaskKey[] }> = [
   { id: "all", label: "All", modes: aiTutorModeOptions.map((mode) => mode.id) },
-  { id: "tutor", label: "Tutor", modes: ["answer_explanation", "study_plan", "personalized_prompt", "translation"] },
+  { id: "tutor", label: "Tutor", modes: ["source_explanation", "answer_explanation", "study_plan", "personalized_prompt", "translation"] },
   { id: "studio", label: "Studio", modes: ["note_design", "document_formatter", "document_editor", "sheet_organizer", "sheet_formula_builder", "slide_builder", "slide_design_director"] },
   { id: "practice", label: "Practice", modes: ["quiz_generation", "flashcard_generation", "practice_generator"] },
 ]
@@ -69,6 +70,8 @@ export interface AiTutorLaunchPreset {
   outputLength: string
   sourceScope: string
   status: string
+  sourceTitle?: string
+  sourceContent?: string
 }
 
 export function buildAiTutorSourceContext(input: {
@@ -77,11 +80,13 @@ export function buildAiTutorSourceContext(input: {
   sourceScope: string
   includeRecentNotes: boolean
   uploadedContext?: string
+  activeSourceContext?: string
 }) {
   const message = input.message.trim()
   const recentContext = input.recentContext.trim()
   const uploadedContext = input.uploadedContext?.trim() || ""
   if (input.sourceScope === "Manual only") return message
+  if (input.sourceScope === "Active Studio item") return [message, input.activeSourceContext?.trim()].filter(Boolean).join("\n\n")
   if (input.sourceScope === "Recent notes") return [message, recentContext].filter(Boolean).join("\n\n")
   if (input.sourceScope === "Uploaded files") {
     return [

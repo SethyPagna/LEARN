@@ -509,9 +509,10 @@ export function normalizeArchiveStatus(value?: string | null): ArchiveListStatus
   return value === "archived" || value === "all" ? value : "active"
 }
 
-export async function listNotes(user: User, status: ArchiveListStatus = "active") {
+export async function listNotes(user: User, status: ArchiveListStatus = "active", options: { limit?: number } = {}) {
   await ensureDatabase()
   const archiveClause = archivedWhereClause("n")[status]
+  const limit = options.limit === undefined ? undefined : Math.max(1, Math.min(200, Math.floor(Number.isFinite(options.limit) ? options.limit : 1)))
   const result = await query<NoteRecord>(
     `SELECT n.*,
       COALESCE((
@@ -522,8 +523,8 @@ export async function listNotes(user: User, status: ArchiveListStatus = "active"
       ), '[]') AS tags
      FROM notes n
      WHERE ${archiveClause} AND (n.owner_user_id = $1 OR $2 = 'admin')
-     ORDER BY n.favorite DESC, n.updated_at DESC`,
-    [user.id, user.role],
+     ORDER BY n.favorite DESC, n.updated_at DESC${limit === undefined ? "" : " LIMIT $3"}`,
+    limit === undefined ? [user.id, user.role] : [user.id, user.role, limit],
   )
   return result.rows.map(normalizeNote)
 }
@@ -3018,7 +3019,7 @@ async function seedKnowledgeGraphForUser(user: User) {
   const existing = await query("SELECT count(*) AS count FROM knowledge_nodes WHERE user_id = $1", [user.id])
   if (Number(existing.rows[0]?.count || 0) > 0) return
 
-  const notes = (await listNotes(user)).slice(0, 5)
+  const notes = await listNotes(user, "active", { limit: 5 })
   await insertRows(
     "knowledge_nodes",
     [
@@ -3068,7 +3069,7 @@ async function seedReviewItemsForUser(user: User) {
   const existing = await query("SELECT count(*) AS count FROM review_items WHERE user_id = $1", [user.id])
   if (Number(existing.rows[0]?.count || 0) > 0) return
 
-  const notes = (await listNotes(user)).slice(0, 6)
+  const notes = await listNotes(user, "active", { limit: 6 })
   await insertRows(
     "review_items",
     [
@@ -3177,6 +3178,17 @@ export async function getVaultGraph(user: User) {
     edges,
     orphanNodes: detectOrphanKnowledgeNodes(nodes, edges),
   }
+}
+
+export async function listVaultBlocks(user: User, noteId: string) {
+  await ensureDatabase()
+  const result = await query(
+    `SELECT b.* FROM note_blocks b JOIN notes n ON n.id = b.note_id
+     WHERE b.note_id = $1 AND n.archived_at IS NULL AND (n.owner_user_id = $2 OR $3 = 'admin')
+     ORDER BY b.sort_order ASC, b.id ASC LIMIT 200`,
+    [noteId, user.id, user.role],
+  )
+  return result.rows.map((row) => ({ id: String(row.id), noteId: String(row.note_id), blockType: String(row.block_type), content: parseJsonObject(row.content) }))
 }
 
 export async function saveVaultBlock(user: User, input: Record<string, unknown>) {

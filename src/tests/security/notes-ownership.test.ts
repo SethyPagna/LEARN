@@ -250,9 +250,10 @@ test("the per-user seeds that reuse notes reads pass the user through", async ()
 
     const reads = stub.matching(/FROM notes n/)
     assert.equal(reads.length, 2, "both seeds read notes once")
-    for (const read of reads) {
+    for (const [index, read] of reads.entries()) {
       assert.match(read.sql, OWNER_PREDICATE, "the seeds must not fall back to an unscoped read")
-      assert.deepEqual(read.params, [TEST_USER_ROW.id, TEST_USER_ROW.role])
+      assert.match(read.sql, /LIMIT \?/, "seed reads should be bounded in the database")
+      assert.deepEqual(read.params, [TEST_USER_ROW.id, TEST_USER_ROW.role, index === 0 ? 5 : 6])
     }
   } finally {
     stub.restore()

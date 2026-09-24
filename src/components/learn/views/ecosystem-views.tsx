@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react"
+import { VaultNoteBlocks } from "../vault-note-blocks"
 import {
   ArrowRight,
   Brain,
@@ -71,6 +72,7 @@ export function VaultView({ notes = [], setView }: { notes?: Note[]; setView: (v
   const [blockNoteId, setBlockNoteId] = useState("")
   const [blockContent, setBlockContent] = useState("")
   const [blockStatus, setBlockStatus] = useState("")
+  const [blocksRevision, setBlocksRevision] = useState(0)
 
   const topNodes = data?.nodes.slice(0, 5) ?? []
   const graphSummary = useMemo(() => summarizeKnowledgeGraph(data?.nodes ?? [], data?.edges ?? []), [data?.edges, data?.nodes])
@@ -93,6 +95,7 @@ export function VaultView({ notes = [], setView }: { notes?: Note[]; setView: (v
         body: JSON.stringify({ noteId: targetNoteId, blockType, content: { text: blockContent } }),
       })
       setBlockContent("")
+      setBlocksRevision((value) => value + 1)
       setBlockStatus(`Saved a ${blockType} block to "${targetNoteTitle}".`)
     } catch (error) {
       setBlockStatus(error instanceof Error ? error.message : "Unable to save the block.")
@@ -125,7 +128,6 @@ export function VaultView({ notes = [], setView }: { notes?: Note[]; setView: (v
           <RitualButton icon={Repeat2} label="Review queue" onClick={() => setView("reviews")} />
           <RitualButton icon={GitFork} label="Open graph" onClick={() => setView("graph")} />
           <RitualButton icon={Compass} label="Discover spark" onClick={() => setView("feed")} />
-          <RitualButton icon={Sparkles} label="Ask AI co-pilot" onClick={() => setView("ai")} />
         </div>
       </Panel>
 
@@ -178,6 +180,7 @@ export function VaultView({ notes = [], setView }: { notes?: Note[]; setView: (v
           {blockStatus ? <StatusPill label={blockStatus} tone={blockStatus.startsWith("Saved") ? "steady" : "neutral"} /> : null}
           {!notes.length ? <p className="text-xs text-muted-foreground">Blocks attach to a note, so create one in Studio first.</p> : null}
         </div>
+        <VaultNoteBlocks note={notes.find((note) => note.id === targetNoteId)} revision={blocksRevision} setView={setView} />
         <details className="mt-3 rounded-md border border-border bg-background">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
             <span>More block tools</span>

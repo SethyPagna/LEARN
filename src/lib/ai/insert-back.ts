@@ -1,14 +1,26 @@
 import type { StudioInsertTarget, WorkspaceDeck } from "@/components/learn/types"
+import { generatedQuizQuestions, generatedReviewCards } from "./assessment-output"
+import { generatedDiscussionSpace, generatedStudyActivity } from "./workflow-destinations"
 
 export interface InsertBackPayload {
-  endpoint: "/api/notes" | "/api/docs" | "/api/sheets" | "/api/slides"
-  view: "notes" | "docs" | "sheets" | "slides"
+  endpoint: "/api/notes" | "/api/docs" | "/api/sheets" | "/api/slides" | "/api/quizzes" | "/api/reviews" | "/api/calendar" | "/api/learning-spaces"
+  view: "notes" | "docs" | "sheets" | "slides" | "quizzes" | "reviews" | "calendar" | "spaces"
   body: Record<string, unknown>
 }
 
 export function buildInsertBackPayload(target: StudioInsertTarget, reply: string, titlePrefix = "AI result"): InsertBackPayload {
   const parsed = parseAiJson(reply)
   const title = cleanTitle(readString(parsed, "title") || `${titlePrefix} - ${new Date().toLocaleDateString()}`)
+
+  if (target === "study-activity") return { endpoint: "/api/calendar", view: "calendar", body: generatedStudyActivity(parsed) }
+  if (target === "discussion-space") return { endpoint: "/api/learning-spaces", view: "spaces", body: generatedDiscussionSpace(parsed) }
+
+  if (target === "quiz") {
+    return { endpoint: "/api/quizzes", view: "quizzes", body: { title, source: "ai", topic: readString(parsed, "topic") || "General", questions: generatedQuizQuestions(parsed?.questions) } }
+  }
+  if (target === "flashcards" || target === "review-cards") {
+    return { endpoint: "/api/reviews", view: "reviews", body: { items: generatedReviewCards(parsed?.cards ?? parsed?.flashcards ?? parsed?.items, title) } }
+  }
 
   if (target === "doc-section") {
     return {
@@ -58,8 +70,8 @@ export function buildInsertBackPayload(target: StudioInsertTarget, reply: string
     body: {
       title,
       content: toHtmlDocument(parsed, reply),
-      icon: target === "flashcards" || target === "review-cards" ? "Brain" : "Sparkles",
-      favorite: target === "review-cards",
+      icon: "Sparkles",
+      favorite: false,
       template: target,
     },
   }

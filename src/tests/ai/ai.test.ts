@@ -269,7 +269,7 @@ test("guided prompt builder adds task rules and insert target warnings", () => {
 test("guided prompt contracts expose insert-back actions", () => {
   const practice = promptContracts.find((item) => item.mode === "practice_generator")
   assert.ok(practice)
-  assert.deepEqual(studioInsertTargets, ["note-block", "doc-section", "sheet-rows", "slide-outline", "quiz", "flashcards", "review-cards", "ai-note"])
+  assert.deepEqual(studioInsertTargets, ["note-block", "doc-section", "sheet-rows", "slide-outline", "quiz", "flashcards", "review-cards", "ai-note", "study-activity", "discussion-space"])
   assert.equal(normalizeStudioInsertTarget("sheet-rows"), "sheet-rows")
   assert.equal(normalizeStudioInsertTarget("missing"), "ai-note")
   assert.equal(normalizeStudioInsertTarget("missing", "doc-section"), "doc-section")

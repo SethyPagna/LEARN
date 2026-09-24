@@ -163,7 +163,7 @@ export interface StudioDirtyBadge {
   count: number
   latestAt?: string
 }
-export type StudioInsertTarget = "note-block" | "doc-section" | "sheet-rows" | "slide-outline" | "quiz" | "flashcards" | "review-cards" | "ai-note"
+export type StudioInsertTarget = "note-block" | "doc-section" | "sheet-rows" | "slide-outline" | "quiz" | "flashcards" | "review-cards" | "ai-note" | "study-activity" | "discussion-space"
 export interface SheetMetadata {
   columnWidths?: number[]
   rowHeights?: number[]

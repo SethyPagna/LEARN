@@ -27,24 +27,27 @@ export interface GuidedPromptResult {
 }
 
 const commonInsertActions: AiInsertBackAction[] = [
-  { target: "note-block", label: "Insert note block", description: "Append the result to the active note." },
-  { target: "doc-section", label: "Append doc section", description: "Add formatted output to the active document." },
+  { target: "note-block", label: "Create note", description: "Save the result as a new Studio note." },
+  { target: "doc-section", label: "Create document", description: "Save formatted output as a new document." },
   { target: "sheet-rows", label: "Create sheet rows", description: "Turn structured output into spreadsheet rows." },
   { target: "slide-outline", label: "Build slides", description: "Create a deck outline from the response." },
   { target: "quiz", label: "Create quiz", description: "Save generated questions as practice." },
   { target: "flashcards", label: "Create flashcards", description: "Save active-recall cards for review." },
   { target: "review-cards", label: "Save review cards", description: "Schedule the result for recall." },
   { target: "ai-note", label: "Save AI note", description: "Store the result as a Studio note." },
+  { target: "study-activity", label: "Schedule study activity", description: "Save the activity instructions and time to your calendar." },
+  { target: "discussion-space", label: "Create private discussion space", description: "Save the discussion protocol in a private learning space." },
 ]
 
 export const studioInsertTargets: StudioInsertTarget[] = commonInsertActions.map((action) => action.target)
 
 export const promptContracts: AiPromptContract[] = [
+  contract("source_explanation", "Explain Source", ["input", "context"], ["ai-note", "doc-section", "review-cards"]),
   contract("answer_explanation", "Explain Mistake", ["question", "selectedAnswer", "correctAnswer", "context"], ["note-block", "review-cards"]),
   contract("note_design", "Rewrite", ["input"], ["note-block", "doc-section", "quiz", "flashcards"]),
   contract("quiz_generation", "Quiz", ["context", "difficulty", "count"], ["quiz", "review-cards"]),
   contract("flashcard_generation", "Flashcards", ["blocks"], ["flashcards", "review-cards"]),
-  contract("study_plan", "Study Plan", ["goals", "availableTime"], ["doc-section", "note-block"]),
+  contract("study_plan", "Study Plan", ["goals", "availableTime"], ["doc-section", "note-block", "study-activity"]),
   contract("document_formatter", "Document Formatter", ["input", "purpose"], ["doc-section", "note-block"]),
   contract("document_editor", "Document Editor", ["input", "editGoal"], ["doc-section", "note-block"]),
   contract("sheet_organizer", "Sheet Organizer", ["input", "goal"], ["sheet-rows"]),
@@ -53,7 +56,7 @@ export const promptContracts: AiPromptContract[] = [
   contract("slide_design_director", "Slide Designer", ["input", "goal"], ["slide-outline", "doc-section"]),
   contract("practice_generator", "Practice Generator", ["context", "mode", "count"], ["quiz", "flashcards", "review-cards"]),
   contract("graph_edge_suggestion", "Graph Connector", ["node", "graph"], ["note-block"]),
-  contract("personalized_prompt", "Prompt Composer", ["task", "source"], ["ai-note"]),
+  contract("personalized_prompt", "Prompt Composer", ["task", "source"], ["ai-note", "discussion-space"]),
 ]
 
 const taskRequirements: Partial<Record<AiTaskKey, string[]>> = {

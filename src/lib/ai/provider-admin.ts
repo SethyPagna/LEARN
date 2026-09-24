@@ -90,6 +90,7 @@ export interface ProviderAdminSummary {
 const safeProviderDefaults: Record<AiProviderKey, Pick<NormalizedProviderConfigInput,
   "priority" | "requestsPerMinute" | "maxInputChars" | "maxCompletionTokens" | "timeoutMs" | "cooldownSeconds"
 >> = {
+  ollama: fromMetadata("ollama", 16_000, 4096),
   groq: fromMetadata("groq", 16_000, 16_384),
   google: fromMetadata("google", 16_000, 16_384),
   mistral: fromMetadata("mistral", 16_000, 16_384),
@@ -194,6 +195,7 @@ export async function decryptProviderSecret(value: string, masterKey = process.e
 
 export function normalizeProviderConfigInput(input: ProviderConfigInput): NormalizedProviderConfigInput {
   const requestedProvider = trim(input.provider)
+  if (requestedProvider === "ollama") throw new Error("Configure OLLAMA_BASE_URL and OLLAMA_MODEL in the LEARN server environment. Local Ollama endpoints cannot be set through the provider form.")
   const metadata = getProviderMetadata(requestedProvider)
   if (!metadata) throw new Error(`"${requestedProvider || "(none)"}" isn't a supported AI provider.`)
   const defaults = safeProviderDefaults[metadata.provider]

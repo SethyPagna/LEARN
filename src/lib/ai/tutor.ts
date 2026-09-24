@@ -1,4 +1,4 @@
-import { resolveConfiguredProvider } from "./providers"
+import { listConfiguredEnvironmentProviders } from "./providers"
 import { getCloudflareBindings } from "../cloudflare"
 import { listRuntimeAiProviderConfigs, recordAiProviderRuntimeStatus, type RuntimeAiProviderConfig } from "../data"
 
@@ -8,6 +8,7 @@ export interface TutorRequest {
   mode?: TutorMode
   temperature?: number
   maxTokens?: number
+  provider?: string
 }
 
 export type TutorMode = "coach" | "rewrite" | "quiz" | "flashcards" | "translate" | "route" | "cleanup" | "mistake"
@@ -16,11 +17,13 @@ export const MAX_TUTOR_COMPLETION_TOKENS = 16_384
 
 export async function askTutor(input: TutorRequest) {
   const cloudflareEnv = await getCloudflareBindings()
-  const envProvider = resolveConfiguredProvider({ ...process.env, ...(cloudflareEnv || {}) } as Record<string, string | undefined>)
+  const env = { ...process.env, ...(cloudflareEnv || {}) } as Record<string, string | undefined>
+  const requestedProvider = input.provider && input.provider !== "auto" ? input.provider : undefined
+  const envProviders = listConfiguredEnvironmentProviders(env)
   const dbProviders = await listRuntimeAiProviderConfigs("chat").catch(() => [])
   const providers = [
     ...dbProviders,
-    ...(envProvider ? [{
+    ...envProviders.map((envProvider) => ({
       id: `env:${envProvider.provider}`,
       name: envProvider.label,
       provider: envProvider.provider,
@@ -34,8 +37,9 @@ export async function askTutor(input: TutorRequest) {
       maxCompletionTokens: MAX_TUTOR_COMPLETION_TOKENS,
       timeoutMs: envProvider.safeTimeoutMs,
       cooldownSeconds: envProvider.safeCooldownSeconds,
-    } satisfies RuntimeAiProviderConfig] : []),
-  ].filter((provider) => provider.providerType !== "embed")
+    } satisfies RuntimeAiProviderConfig)),
+  ].filter((provider) => provider.providerType !== "embed" && (!requestedProvider || provider.provider === requestedProvider)
+    && (provider.provider !== "ollama" || provider.id === "env:ollama"))
 
   if (!providers.length) {
     return {
@@ -43,7 +47,7 @@ export async function askTutor(input: TutorRequest) {
       provider: null,
       model: null,
       text: [
-        "AI tutor is ready, but no provider key is configured yet.",
+        requestedProvider === "ollama" ? "Local Ollama is not configured. Set OLLAMA_BASE_URL to a loopback server URL and OLLAMA_MODEL to an installed model in the LEARN server environment." : requestedProvider ? `The selected provider (${requestedProvider}) is not configured. Choose an available provider or configure its key.` : "No AI provider is configured yet.",
         "Add one of GROQ_API_KEY, MISTRAL_API_KEY, CEREBRAS_API_KEY, GOOGLE_AI_API_KEY, COHERE_API_KEY, VERCEL_AI_GATEWAY, or CLOUDFLARE_AI_GATEWAY_TOKEN to your runtime secrets.",
         "Until then, use the notes, quizzes, and progress features offline.",
       ].join("\n\n"),
@@ -134,11 +138,13 @@ async function askProvider(provider: RuntimeAiProviderConfig, systemPrompt: stri
       })
       const json = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(json?.error?.message || "Google AI request failed")
+      const text = json?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text).filter(Boolean).join("\n") || ""
+      if (!text.trim()) throw new Error("The provider returned an empty response.")
       return {
         status: "ok" as const,
         provider: provider.provider,
         model: provider.model,
-        text: json?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text).filter(Boolean).join("\n") || "",
+        text,
       }
     } finally {
       timeout.done()
@@ -155,8 +161,9 @@ async function askProvider(provider: RuntimeAiProviderConfig, systemPrompt: stri
       method: "POST",
       headers: {
         "content-type": "application/json",
-        authorization: `Bearer ${provider.apiKey}`,
+        ...(provider.apiKey ? { authorization: `Bearer ${provider.apiKey}` } : {}),
       },
+      redirect: provider.provider === "ollama" ? "error" : "follow",
       signal: timeout.signal,
       body: JSON.stringify(usesWorkersAiGateway
         ? {
@@ -175,11 +182,13 @@ async function askProvider(provider: RuntimeAiProviderConfig, systemPrompt: stri
     })
     const json = await response.json().catch(() => ({}))
     if (!response.ok) throw new Error(json?.error?.message || json?.message || "AI request failed")
+    const text = json?.choices?.[0]?.message?.content || json?.result?.response || json?.response || ""
+    if (typeof text !== "string" || !text.trim()) throw new Error("The provider returned an empty response.")
     return {
       status: "ok" as const,
       provider: provider.provider,
       model: provider.model,
-      text: json?.choices?.[0]?.message?.content || json?.result?.response || json?.response || "",
+      text,
     }
   } finally {
     timeout.done()
