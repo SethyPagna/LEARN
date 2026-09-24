@@ -11,6 +11,7 @@ import { Extension } from "@tiptap/core"
 import { Panel as ResizePanel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import { EditorContent, useEditor, type Editor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
+import { StudioPageBreak } from "../studio-page-break"
 import Underline from "@tiptap/extension-underline"
 import TextAlign from "@tiptap/extension-text-align"
 import { TextStyle } from "@tiptap/extension-text-style"
@@ -3645,15 +3646,16 @@ function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: {
   const pageCount = countRichDocumentPages(value)
   const [pageHidden, setPageHidden] = useState(false)
   const [pageLocked, setPageLocked] = useState(false)
+  const [activePage, setActivePage] = useState(1)
   const [zoom, setZoom] = useState(100)
   const pageWidth = canvasPreviewWidth(canvasFormat)
   const pageScale = zoom / 100
-  const pageAspectRatio = canvasAspectRatio(canvasFormat)
   const editor = useEditor({
     immediatelyRender: false,
     editable: !pageLocked,
     extensions: [
       StarterKit.configure({ link: false, underline: false }),
+      StudioPageBreak,
       Underline,
       TextStyle,
       FontFamily,
@@ -3675,6 +3677,13 @@ function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: {
     ],
     content: richTextContent(value),
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
+    onSelectionUpdate: ({ editor }) => {
+      let page = 1
+      editor.state.doc.nodesBetween(0, editor.state.selection.from, (node) => {
+        if (node.type.name === "horizontalRule" && node.attrs.pageBreak) page += 1
+      })
+      setActivePage(page)
+    },
   })
 
   useEffect(() => {
@@ -3696,6 +3705,7 @@ function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: {
         onAddPage={() => onChange(appendRichDocumentPage(value))}
         onDuplicatePage={() => onChange(duplicateRichDocumentLastPage(value))}
         pageCount={pageCount}
+        activePage={activePage}
         pageHidden={pageHidden}
         pageLocked={pageLocked}
         setPageHidden={setPageHidden}
@@ -3716,11 +3726,11 @@ function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: {
       <div className="overflow-auto bg-muted/35 p-2 sm:p-3">
         <div
           className="mx-auto"
-          style={{ aspectRatio: pageAspectRatio, width: Math.round(pageWidth * pageScale) }}
+          style={{ minHeight: pageWidth / Number(canvasFormat.width / canvasFormat.height) * pageScale, width: Math.round(pageWidth * pageScale) }}
         >
           <div
             className="origin-top-left rounded-lg border border-border bg-background shadow-xl"
-            style={{ aspectRatio: pageAspectRatio, opacity: pageHidden ? 0.3 : 1, transform: `scale(${pageScale})`, width: pageWidth }}
+            style={{ minHeight: pageWidth / Number(canvasFormat.width / canvasFormat.height), opacity: pageHidden ? 0.3 : 1, transform: `scale(${pageScale})`, width: pageWidth }}
           >
             <EditorContent
               editor={editor}
@@ -3735,6 +3745,7 @@ function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: {
         onAddPage={() => onChange(appendRichDocumentPage(value))}
         onDuplicatePage={() => onChange(duplicateRichDocumentLastPage(value))}
         pageCount={pageCount}
+        activePage={activePage}
         pageHidden={pageHidden}
         pageLocked={pageLocked}
         setPageHidden={setPageHidden}
@@ -3753,6 +3764,7 @@ function RichDocumentPageControls({
   onAddPage,
   onDuplicatePage,
   pageCount,
+  activePage,
   pageHidden,
   pageLocked,
   placement,
@@ -3766,6 +3778,7 @@ function RichDocumentPageControls({
   onAddPage: () => void
   onDuplicatePage: () => void
   pageCount: number
+  activePage: number
   pageHidden: boolean
   pageLocked: boolean
   placement: "top" | "bottom"
@@ -3797,7 +3810,7 @@ function RichDocumentPageControls({
         <input value={zoom} onChange={(event) => setZoom(Number(event.target.value))} min={60} max={150} type="range" className="w-24 accent-primary sm:w-32" aria-label="Zoom" />
         <span className="w-10 text-right font-semibold text-foreground">{zoom}%</span>
         <span className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 font-semibold text-secondary-foreground"><LayoutPanelLeft className="h-3.5 w-3.5" /> Pages</span>
-        <span className="font-semibold text-foreground">1 / {pageCount}</span>
+        <span className="font-semibold text-foreground">{Math.min(activePage, pageCount)} / {pageCount}</span>
       </div>
       {placement === "bottom" ? documentSummary.headings.slice(0, 3).map((heading) => (
         <span key={`${heading.level}-${heading.title}`} className="rounded-md bg-secondary px-2 py-1 text-secondary-foreground">

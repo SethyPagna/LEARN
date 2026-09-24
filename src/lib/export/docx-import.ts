@@ -173,6 +173,13 @@ function blocksFromBody(body: XmlElement, numbering: NumberingFormats): ThemedBl
     const text = collapse(rawText)
     const style = paragraphStyle(node)
 
+    if (!text && descendants(node, "br").some((item) => attribute(item, "type") === "page")) {
+      flush()
+      blocks.push({ type: "divider", pageBreak: true })
+      lastParagraph = null
+      continue
+    }
+
     if (CODE_STYLE.test(style)) {
       flushList()
       if (!code) {

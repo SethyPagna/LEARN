@@ -238,7 +238,7 @@ function blocksFromNode(node: HtmlNode): ThemedBlock[] {
     case "pre":
       return [codeBlockOf(node)]
     case "hr":
-      return [{ type: "divider" }]
+      return [{ type: "divider", ...(node.attributes["data-studio-page"] === "true" ? { pageBreak: true } : {}) }]
     case "img": {
       const url = (node.attributes.src || "").trim()
       const alt = normalizeInlineText(node.attributes.alt || "")
@@ -428,7 +428,7 @@ function blockToDocumentHtml(block: ThemedBlock): string {
     case "quote":
       return `<blockquote><p>${inlineHtml(block.text)}</p></blockquote>`
     case "divider":
-      return "<hr>"
+      return block.pageBreak ? '<hr data-studio-page="true">' : "<hr>"
     case "image":
       if (!isSafeUrl(block.url)) return block.alt ? `<p>${inlineHtml(block.alt)}</p>` : ""
       return `<img src="${escapeHtmlText(block.url)}" alt="${escapeHtmlText(block.alt)}">`

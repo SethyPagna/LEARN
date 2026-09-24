@@ -832,7 +832,7 @@ function layoutBlock(state: LayoutState, block: PdfBlock): void {
     case "quote":
       return layoutQuote(state, block.text)
     case "divider":
-      return layoutDivider(state)
+      return block.pageBreak ? beginPage(state) : layoutDivider(state)
     case "image":
       return layoutImage(state, block.alt, block.url)
     case "callout":

@@ -203,7 +203,7 @@ function blockXml(block: DocxBlock): string {
     case "quote":
       return paragraph([run(block.text)], { style: "Quote" })
     case "divider":
-      return dividerXml()
+      return block.pageBreak ? '<w:p><w:r><w:br w:type="page"/></w:r></w:p>' : dividerXml()
     case "image":
       return paragraph([run(imagePlaceholder(block.alt, block.url), italicRunProps())])
     case "callout":

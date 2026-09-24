@@ -88,6 +88,7 @@ interface ThemedQuoteBlock {
 
 interface ThemedDividerBlock {
   type: "divider"
+  pageBreak?: boolean
 }
 
 interface ThemedImageBlock {
@@ -404,7 +405,7 @@ function typedJsonBlock(value: Record<string, unknown>, log: WarningLog, depth: 
     case "divider":
     case "hr":
     case "separator":
-      return { type: "divider" }
+      return { type: "divider", ...(value.pageBreak === true ? { pageBreak: true } : {}) }
     case "image":
     case "img": {
       const raw = readFirstString(value, ["url", "src", "href"])
@@ -1055,7 +1056,7 @@ function themedBlockHtml(block: ThemedBlock, index: number): string {
     case "quote":
       return `${open}<blockquote class="learn-block__quote">${escapeHtml(block.text)}</blockquote>${close}`
     case "divider":
-      return `${open}<hr class="learn-block__divider" />${close}`
+      return `${open}<hr class="learn-block__divider"${block.pageBreak ? ' data-studio-page="true"' : ""} />${close}`
     case "image":
       if (!isSafeUrl(block.url)) return `${open}<p class="learn-block__paragraph">${escapeHtml(block.alt)}</p>${close}`
       return `${open}<img class="learn-block__image" src="${escapeHtml(block.url)}" alt="${escapeHtml(block.alt)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" />${close}`
