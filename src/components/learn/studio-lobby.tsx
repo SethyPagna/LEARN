@@ -1,34 +1,34 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { ArrowRight, ArrowUpRight, FileText, LayoutTemplate, Loader2, Plus, Presentation, Search, SlidersHorizontal, Table2, X } from "lucide-react"
-import { createDesignDoc, designPreview } from "@/lib/design/document"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { ArrowRight, ChevronDown, ChevronRight, FileText, Loader2, PenTool, Plus, Presentation, Search, SlidersHorizontal, StickyNote, Table2, X } from "lucide-react"
+import { createDesignDoc } from "@/lib/design/document"
 import { readDesignDrafts } from "@/lib/design/draft"
 import { formatRelativeTime } from "@/lib/format-time"
 import { api } from "./api"
-import { DesignThumbnail } from "./design/design-renderer"
-import { useDesignMeasure } from "./design/text-measure"
+import { CREATE_MENU_EVENT } from "./create-menu"
+import { useMenuKeyboard } from "./menu-keyboard"
 import { openPlaceGuide } from "./place-guide"
 import type { WorkspaceOptions } from "./preferences"
-import type { Note, User } from "./types"
+import type { Note } from "./types"
 
 type ProjectKind = "canvas" | "notes" | "docs" | "slides" | "sheets"
 type Project = { id: string; title: string; kind: ProjectKind; updated_at?: string | null; content?: unknown }
 const projectKinds = {
-  canvas: { label: "Canvas", description: "Think visually", icon: LayoutTemplate, endpoint: "/api/canvas" },
-  notes: { label: "Note", description: "Catch an idea", icon: FileText, endpoint: "/api/notes" },
-  docs: { label: "Document", description: "Find your words", icon: FileText, endpoint: "/api/docs" },
-  slides: { label: "Slides", description: "Tell your story", icon: Presentation, endpoint: "/api/slides" },
-  sheets: { label: "Sheet", description: "Make sense of it", icon: Table2, endpoint: "/api/sheets" },
+  canvas: { label: "Canvas", icon: PenTool, endpoint: "/api/canvas" },
+  notes: { label: "Note", icon: StickyNote, endpoint: "/api/notes" },
+  docs: { label: "Document", icon: FileText, endpoint: "/api/docs" },
+  slides: { label: "Slides", icon: Presentation, endpoint: "/api/slides" },
+  sheets: { label: "Sheet", icon: Table2, endpoint: "/api/sheets" },
 } as const
 const filters = ["All", "Canvas", "Writing", "Slides", "Sheets"] as const
 type Filter = (typeof filters)[number]
+const projectKindOrder = Object.keys(projectKinds) as ProjectKind[]
+const PAGE_SIZE = 12
 
-export function StudioLobby({ user, notes, options, setOptions, onOpen, onNoteCreated, initialFilter = "All" }: {
-  user: User | null
+export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilter = "All" }: {
   notes: readonly Note[]
   options: WorkspaceOptions
-  setOptions: (options: Partial<WorkspaceOptions>) => void
   onOpen: (href: string) => void
   onNoteCreated: (note: Note) => void
   initialFilter?: Filter
@@ -39,13 +39,35 @@ export function StudioLobby({ user, notes, options, setOptions, onOpen, onNoteCr
   const [creating, setCreating] = useState<ProjectKind | null>(null)
   const [filter, setFilter] = useState<Filter>(initialFilter)
   const [query, setQuery] = useState("")
-  const [limit, setLimit] = useState(6)
-  const [greeting, setGreeting] = useState("Welcome back")
-  const measure = useDesignMeasure()
+  const [limit, setLimit] = useState(PAGE_SIZE)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const addRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
-    const hour = new Date().getHours()
-    setGreeting(hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening")
+    function openMenu() { setActiveIndex(0); setMenuOpen(true) }
+    window.addEventListener(CREATE_MENU_EVENT, openMenu)
+    return () => window.removeEventListener(CREATE_MENU_EVENT, openMenu)
+  }, [])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    menuRef.current?.querySelector<HTMLButtonElement>("[role=menuitem]")?.focus()
+    function closeOutside(event: PointerEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false)
+    }
+    document.addEventListener("pointerdown", closeOutside)
+    return () => document.removeEventListener("pointerdown", closeOutside)
+  }, [menuOpen])
+
+  const menuKeyDown = useMenuKeyboard({
+    activeIndex, containerRef: menuRef, entries: projectKindOrder,
+    entrySelector: "[role=menuitem]", onChoose: (kind) => void create(kind),
+    open: menuOpen, setActiveIndex, setOpen: setMenuOpen,
+  })
+
+  useEffect(() => {
     let active = true
     async function load() {
       const kinds = ["canvas", "docs", "slides", "sheets"] as const
@@ -83,6 +105,8 @@ export function StudioLobby({ user, notes, options, setOptions, onOpen, onNoteCr
 
   async function create(kind: ProjectKind) {
     if (creating) return
+    setMenuOpen(false)
+    addRef.current?.focus()
     setCreating(kind)
     setError("")
     try {
@@ -101,55 +125,53 @@ export function StudioLobby({ user, notes, options, setOptions, onOpen, onNoteCr
     } finally { setCreating(null) }
   }
 
-  const firstName = user?.name?.trim().split(/\s+/)[0]
-  return <section className="studio-lobby mx-auto max-w-6xl pb-8" aria-label="Your Studio home">
-    <div className="mb-9 flex items-center justify-between gap-4 pt-4 sm:pt-7">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{options.workspaceName || "Your personal studio"}</p>
-      <button type="button" className="inline-flex min-h-9 items-center gap-2 rounded-lg px-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground" onClick={() => onOpen("/settings?section=experience")}><SlidersHorizontal className="h-3.5 w-3.5" /> Make it yours</button>
-    </div>
-    <header className="mb-9 sm:mb-11">
-      <h2 className="text-balance text-3xl font-medium tracking-[-0.045em] sm:text-5xl">{greeting}{firstName ? `, ${firstName}` : ""}<span className="text-primary">.</span></h2>
-      <p className="mt-3 text-sm text-muted-foreground sm:text-base">A little space for your next idea.</p>
+  return <section className="studio-lobby mx-auto max-w-6xl pb-4" aria-label="Your Studio home">
+    <header className="mb-5 flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <h2 className="truncate text-xl font-semibold tracking-tight">{options.workspaceName && options.workspaceName !== "Your personal studio" ? options.workspaceName : "Projects"}</h2>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <button type="button" aria-label="Workspace appearance" title="Workspace appearance" className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring" onClick={() => onOpen("/settings?section=experience")}><SlidersHorizontal className="h-4 w-4" /></button>
+        <div ref={menuRef} className="relative" onKeyDown={(event) => { menuKeyDown(event); if (event.key === "Escape") addRef.current?.focus() }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setMenuOpen(false) }}>
+          <button ref={addRef} type="button" aria-haspopup="menu" aria-expanded={menuOpen} disabled={Boolean(creating)} onClick={() => { setActiveIndex(0); setMenuOpen(!menuOpen) }} className="flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60">
+            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Add <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+          </button>
+          {menuOpen ? <div role="menu" aria-label="Add a project" className="absolute right-0 top-11 z-40 w-48 rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-lift">
+            {projectKindOrder.map((kind, index) => {
+              const item = projectKinds[kind]
+              const Icon = item.icon
+              return <button key={kind} type="button" role="menuitem" disabled={Boolean(creating)} onClick={() => void create(kind)} onMouseEnter={() => setActiveIndex(index)} onFocus={() => setActiveIndex(index)} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${activeIndex === index ? "bg-secondary" : "hover:bg-secondary"}`}><Icon className="h-4 w-4 text-muted-foreground" />{item.label}</button>
+            })}
+          </div> : null}
+        </div>
+      </div>
     </header>
-    <div className="lobby-create-grid grid grid-cols-2 gap-3 sm:grid-cols-5" aria-label="Create a project">
-      {(Object.keys(projectKinds) as ProjectKind[]).map((kind) => {
-        const item = projectKinds[kind]
-        const Icon = item.icon
-        return <button key={kind} type="button" disabled={Boolean(creating)} onClick={() => void create(kind)} className={`lobby-create group relative flex min-h-32 flex-col items-start rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-paper focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 sm:p-5 ${kind === "canvas" ? "col-span-2 border-primary/25 bg-primary text-primary-foreground sm:col-span-1" : "border-border bg-card hover:border-primary/40"}`}>
-          {creating === kind ? <Loader2 className="mb-5 h-6 w-6 animate-spin" /> : <Icon className="mb-5 h-6 w-6" strokeWidth={1.5} />}
-          <Plus className="absolute right-4 top-4 h-4 w-4 opacity-50 transition group-hover:opacity-100" />
-          <span className="text-sm font-semibold">{item.label}</span>
-          <span className={`mt-1 text-xs ${kind === "canvas" ? "opacity-80" : "text-muted-foreground"}`}>{item.description}</span>
-        </button>
-      })}
+    {error ? <p role="alert" className="mb-4 flex items-center justify-between gap-3 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}<button type="button" aria-label="Dismiss error" onClick={() => setError("")}><X className="h-4 w-4" /></button></p> : null}
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex max-w-full gap-1 overflow-auto" aria-label="Project filters">
+        {filters.map((value) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => { setFilter(value); setLimit(PAGE_SIZE) }} className={`min-h-9 shrink-0 rounded-lg px-3 text-xs font-medium ${filter === value ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/60"}`}>{value}</button>)}
+      </div>
+      <label className="flex min-h-9 w-full items-center gap-2 rounded-lg border border-border bg-card px-3 text-muted-foreground sm:w-auto"><Search className="h-4 w-4" /><input aria-label="Find a project" placeholder="Find a project" value={query} onChange={(event) => { setQuery(event.target.value); setLimit(PAGE_SIZE) }} className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground sm:w-40" /></label>
     </div>
-    <label className="my-7 flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border pb-6 text-sm">
-      <span className="shrink-0 text-muted-foreground">Today, I'm thinking about</span>
-      <input maxLength={160} aria-label="Today's focus" value={options.dailyFocus} onChange={(event) => setOptions({ dailyFocus: event.target.value })} placeholder="One thing you'd like to explore…" className="min-h-9 min-w-0 flex-1 basis-48 bg-transparent text-foreground outline-none placeholder:text-muted-foreground/75 focus:underline focus:decoration-primary focus:underline-offset-8" />
-    </label>
-    {error ? <p role="alert" className="mb-5 flex items-center justify-between gap-3 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}<button type="button" aria-label="Dismiss error" onClick={() => setError("")}><X className="h-4 w-4" /></button></p> : null}
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-      <h3 className="text-lg font-semibold tracking-tight">Pick up where you left off</h3>
-      <label className="flex min-h-9 items-center gap-2 rounded-lg border border-border bg-card px-3 text-muted-foreground"><Search className="h-4 w-4" /><input aria-label="Find a project" placeholder="Find a project" value={query} onChange={(event) => { setQuery(event.target.value); setLimit(6) }} className="w-36 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground" /></label>
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="hidden grid-cols-[minmax(0,1fr)_7rem_7rem_1rem] gap-4 border-b border-border bg-secondary/35 px-4 py-2.5 text-xs text-muted-foreground sm:grid" aria-hidden="true"><span>Name</span><span>Type</span><span>Last edited</span><span /></div>
+      {loading ? <p role="status" className="px-4 py-10 text-center text-sm text-muted-foreground">Loading projects…</p> : matches.length ? <ul aria-label="Projects" className="divide-y divide-border">
+        {matches.slice(0, limit).map((project) => {
+          const spec = projectKinds[project.kind]
+          const Icon = spec.icon
+          const edited = project.updated_at ? formatRelativeTime(project.updated_at) : "—"
+          return <li key={`${project.kind}:${project.id}`}>
+            <button type="button" onClick={() => openProject(project)} className="group grid min-h-16 w-full grid-cols-[minmax(0,1fr)_1rem] items-center gap-3 px-4 py-3 text-left transition hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-14 sm:grid-cols-[minmax(0,1fr)_7rem_7rem_1rem] sm:gap-4">
+              <span className="flex min-w-0 items-center gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground"><Icon className="h-4 w-4" /></span><span className="min-w-0"><span className="block truncate text-sm font-medium">{project.title || "Untitled"}</span><span className="mt-0.5 block text-xs text-muted-foreground sm:hidden">{spec.label} · {edited}</span></span></span>
+              <span className="hidden text-xs text-muted-foreground sm:block">{spec.label}</span>
+              <span className="hidden text-xs text-muted-foreground sm:block">{edited}</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-foreground" />
+            </button>
+          </li>
+        })}
+      </ul> : <div className="px-4 py-12 text-center"><p className="text-sm text-muted-foreground">{query || filter !== "All" ? "No matching projects." : "No projects yet. Use Add to start."}</p></div>}
     </div>
-    <div className="mb-5 flex gap-1 overflow-auto" aria-label="Project filters">
-      {filters.map((value) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => { setFilter(value); setLimit(6) }} className={`min-h-9 shrink-0 rounded-lg px-3 text-xs font-medium ${filter === value ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/60"}`}>{value}</button>)}
-    </div>
-    {loading ? <p role="status" className="py-10 text-center text-sm text-muted-foreground">Gathering your projects…</p> : matches.length ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {matches.slice(0, limit).map((project) => {
-        const spec = projectKinds[project.kind]
-        const Icon = spec.icon
-        const preview = project.kind === "canvas" ? designPreview(project.content).preview : null
-        return <button type="button" key={`${project.kind}:${project.id}`} onClick={() => openProject(project)} className="lobby-project group min-w-0 overflow-hidden rounded-xl border border-border bg-card text-left transition hover:border-primary/40 hover:shadow-paper focus-visible:ring-2 focus-visible:ring-ring">
-          <div className="lobby-project-cover relative flex h-32 items-center justify-center overflow-hidden border-b border-border bg-secondary/50 p-5" aria-hidden="true">
-            {preview ? <div className="pointer-events-none overflow-hidden rounded-sm shadow-sm"><DesignThumbnail displayWidth={Math.min(208, 88 * preview.width / preview.height)} width={preview.width} height={preview.height} theme={preview.theme} page={preview.pages[0]} measure={measure} /></div> : <div className={`lobby-paper-preview ${project.kind === "slides" ? "is-slide" : project.kind === "sheets" ? "is-sheet" : ""}`}><Icon className="h-5 w-5 text-primary/75" strokeWidth={1.5} /><span /><span /><span /></div>}
-            <ArrowUpRight className="absolute right-3 top-3 h-4 w-4 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
-          </div>
-          <div className="p-4"><span className="block truncate text-sm font-medium">{project.title || "Untitled"}</span><span className="mt-1.5 block text-xs text-muted-foreground">{spec.label}{project.updated_at ? ` · ${formatRelativeTime(project.updated_at)}` : ""}</span></div>
-        </button>
-      })}
-    </div> : <div className="rounded-2xl border border-dashed border-border py-12 text-center"><p className="text-sm font-medium">{query ? "No projects match that search." : "Your next idea starts here."}</p><p className="mt-2 text-xs text-muted-foreground">{query ? "Try a different title or filter." : "Choose a canvas, note or document above."}</p></div>}
-    {matches.length > limit ? <button type="button" onClick={() => setLimit((current) => current + 12)} className="mx-auto mt-6 flex min-h-10 items-center gap-2 rounded-lg px-4 text-sm text-muted-foreground hover:bg-secondary">Show more projects <ArrowRight className="h-4 w-4" /></button> : null}
-    <button type="button" onClick={openPlaceGuide} className="mt-8 min-h-9 text-xs text-muted-foreground underline-offset-4 hover:underline">What can LEARN do?</button>
+    {matches.length > limit ? <button type="button" onClick={() => setLimit((current) => current + PAGE_SIZE)} className="mx-auto mt-3 flex min-h-9 items-center gap-2 rounded-lg px-4 text-xs text-muted-foreground hover:bg-secondary">Show more <ArrowRight className="h-3.5 w-3.5" /></button> : null}
+    <button type="button" onClick={openPlaceGuide} className="mt-4 min-h-9 text-xs text-muted-foreground underline-offset-4 hover:underline">What can LEARN do?</button>
   </section>
 }

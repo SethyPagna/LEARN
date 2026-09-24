@@ -213,6 +213,7 @@ export function LearnShell({
   }, [chooseView])
 
   const toggleTheme = useCallback(() => setTheme(resolvedTheme === "dark" ? "light" : "dark"), [resolvedTheme, setTheme])
+  const isStudioLobby = view === "dashboard" || view === "studio" || (view === "canvas" && !new URLSearchParams(locationSearch).has("design"))
 
   return (
     <RealtimeInboxProvider userId={user?.id}>
@@ -230,6 +231,7 @@ export function LearnShell({
           Skip to content
         </a>
         <Sidebar
+          hideCreate={isStudioLobby}
           mode={sidebarMode}
           onModeChange={changeSidebarMode}
           practiceDraftSummary={practiceDraftSummary}
@@ -241,6 +243,7 @@ export function LearnShell({
         />
         <div className="learn-app-column">
           <Topbar
+            hideCreate={isStudioLobby}
             density={preferences.density}
             locale={preferences.locale}
             logout={logout}
@@ -265,7 +268,7 @@ export function LearnShell({
             className={`learn-paper min-h-[calc(100vh-var(--shell-topbar))] min-w-0 pb-28 focus:outline-none lg:pb-10 ${preferences.density === "compact" ? "px-3 pt-4 sm:px-5 lg:px-6" : "px-4 pt-5 sm:px-6 lg:px-8 lg:pt-7"}`}
           >
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
-            {view === "dashboard" || view === "studio" || (view === "canvas" && !new URLSearchParams(locationSearch).has("design")) ? <StudioLobby key={view} user={user} notes={notes} options={preferences.options} setOptions={preferences.setOptions} onOpen={openLink} onNoteCreated={(note) => setNotes((current) => [note, ...current])} initialFilter={view === "canvas" ? "Canvas" : "All"} /> : null}
+            {isStudioLobby ? <StudioLobby key={view} notes={notes} options={preferences.options} onOpen={openLink} onNoteCreated={(note) => setNotes((current) => [note, ...current])} initialFilter={view === "canvas" ? "Canvas" : "All"} /> : null}
             {view === "vault" ? <VaultView setView={chooseView} notes={notes} /> : null}
             {/* `discover` is a documented alias of `feed`, not a second screen: both
                 views render the same FeedView. `/discover` exists as a route (and

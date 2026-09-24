@@ -479,9 +479,3 @@ html.dark.learn-high-contrast {
 .learn-app .learn-tab-ink { color: var(--muted-foreground); }
 .learn-app .learn-tab-marker::before { display: none; }
 .learn-app svg.lucide { stroke-width: 1.65; }
-.lobby-paper-preview { width: 104px; height: 114px; margin-top: 42px; padding: 18px; border: 1px solid var(--border); border-radius: 4px; background: var(--card); box-shadow: var(--shadow-paper); transform: rotate(-5deg); }
-.lobby-paper-preview span { display: block; height: 3px; margin-top: 9px; border-radius: 2px; background: var(--border); }
-.lobby-paper-preview span:last-child { width: 65%; }
-.lobby-paper-preview.is-slide { width: 148px; height: 90px; margin-top: 20px; transform: rotate(4deg); }
-.lobby-paper-preview.is-sheet { background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px); background-size: 20px 20px; }
-@media (prefers-reduced-motion: reduce) { .lobby-create { transform: none !important; } }

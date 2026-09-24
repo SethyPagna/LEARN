@@ -155,6 +155,7 @@ function BrandMark({ size = "md" }: { size?: "sm" | "md" }) {
 /* ------------------------------------------------------------------------ */
 
 export function Sidebar({
+  hideCreate = false,
   mode,
   onModeChange,
   practiceDraftSummary,
@@ -164,6 +165,7 @@ export function Sidebar({
   user,
   view,
 }: {
+  hideCreate?: boolean
   mode: SidebarMode
   onModeChange: (mode: SidebarMode) => void
   practiceDraftSummary: PracticeDraftSummary
@@ -207,7 +209,7 @@ export function Sidebar({
       )}
 
       <div className={compact ? "px-2" : "px-3"}>
-        <CreateMenu variant={compact ? "rail" : "sidebar"} setView={setView} />
+        {hideCreate ? null : <CreateMenu variant={compact ? "rail" : "sidebar"} setView={setView} />}
         {compact ? (
           <div className="mb-3 flex justify-center">
             <button type="button" onClick={openCommandPalette} className={`${ghostIconButton} h-11 w-11 rounded-xl border border-sidebar-border bg-background/60`} aria-label="Search or jump" title={`Search or jump (${modKey}+K)`}>
@@ -420,6 +422,7 @@ function SidebarFooter({ compact, modKey, onModeChange }: { compact: boolean; mo
 /* ------------------------------------------------------------------------ */
 
 export function Topbar({
+  hideCreate = false,
   density,
   locale,
   logout,
@@ -438,6 +441,7 @@ export function Topbar({
   user,
   view,
 }: {
+  hideCreate?: boolean
   density: Density
   locale: SupportedLocale
   logout: () => void
@@ -522,7 +526,7 @@ export function Topbar({
             <Search className="h-[18px] w-[18px]" />
           </button>
           <div className={sidebarMode === "hidden" ? "" : "lg:hidden"}>
-            <CreateMenu variant="header" setView={setView} />
+            {hideCreate ? null : <CreateMenu variant="header" setView={setView} />}
           </div>
           <NotificationsMenu openLink={openLink} user={user} />
           <button
