@@ -4,6 +4,8 @@ import { buildProviderAdminSummary, decryptProviderSecret, encryptProviderSecret
 import type { AiProviderKey } from "./ai/providers"
 import { createSessionToken, hashPassword, hashSessionToken, verifyPassword } from "./auth"
 import { query } from "./db"
+import { dmChatChannelId, groupChatChannelId } from "./chat-channel"
+import { broadcastRealtimeEvent } from "./realtime-broadcast"
 import { buildFeedRankCacheEntries, feedTopicKey, selectCachedFeedLessons, type FeedRankCacheEntry } from "./feed-cache"
 import { buildLearningSnapshot, type TopicAnswer } from "./learning"
 import {
@@ -1923,7 +1925,7 @@ export async function listChatThreads(user: User) {
   return result.rows
 }
 
-async function isChatThreadParticipant(user: User, threadId: string) {
+export async function isChatThreadParticipant(user: User, threadId: string) {
   const result = await query(
     `SELECT 1 FROM chat_threads t
      WHERE t.id = $1
@@ -2003,16 +2005,22 @@ export async function postChatMessage(user: User, input: Record<string, unknown>
   const providedThreadId = String(input.threadId || input.thread_id || "").trim()
   let threadId = providedThreadId
 
+  const title = String(input.title || "Study chat").trim()
+  const groupId = String(input.groupId || input.group_id || "").trim() || null
+  const requestedTargetUserId = String(input.targetUserId || input.target_user_id || "").trim() || null
+  if (groupId && requestedTargetUserId) throw new Error("Choose either a group or a direct message recipient.")
   if (providedThreadId) {
-    const existing = await query("SELECT id FROM chat_threads WHERE id = $1 LIMIT 1", [providedThreadId])
-    if (existing.rows[0] && !(await isChatThreadParticipant(user, providedThreadId))) {
+    const existing = await query("SELECT id, group_id, target_user_id, created_by_user_id FROM chat_threads WHERE id = $1 LIMIT 1", [providedThreadId])
+    const thread = existing.rows[0]
+    if (!thread || !(await isChatThreadParticipant(user, providedThreadId))) {
       throw new Error("You don't have access to this conversation.")
+    }
+    const peerId = thread.created_by_user_id === user.id ? thread.target_user_id : thread.created_by_user_id
+    if ((groupId && groupId !== thread.group_id) || (requestedTargetUserId && (thread.group_id || peerId !== requestedTargetUserId))) {
+      throw new Error("The recipient does not match this conversation.")
     }
   }
 
-  const title = String(input.title || "Study chat").trim()
-  const groupId = (input.groupId || input.group_id || null) as string | null
-  const requestedTargetUserId = String(input.targetUserId || input.target_user_id || "").trim() || null
   if (groupId) {
     const membership = await query("SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2 LIMIT 1", [groupId, user.id])
     if (!membership.rows[0]) throw new Error("You're not a member of that group.")
@@ -2029,6 +2037,10 @@ export async function postChatMessage(user: User, input: Record<string, unknown>
       [user.id, requestedTargetUserId],
     )
     threadId = existingDm.rows[0]?.id as string | undefined || ""
+  }
+  if (!threadId && groupId) {
+    const existingGroup = await query("SELECT id FROM chat_threads WHERE group_id = $1 AND target_user_id IS NULL ORDER BY updated_at DESC LIMIT 1", [groupId])
+    threadId = String(existingGroup.rows[0]?.id || "")
   }
   if (!threadId) threadId = createId("thread")
 
@@ -2057,7 +2069,18 @@ export async function postChatMessage(user: User, input: Record<string, unknown>
     ? ((threadRow.created_by_user_id === user.id ? threadRow.target_user_id : threadRow.created_by_user_id) as string)
     : null
 
+  await broadcastChatThreadChange(threadId, user.id, threadRow)
   return { threadId, messageId, item, groupId: resolvedGroupId, targetUserId: resolvedTargetUserId }
+}
+
+export async function broadcastChatThreadChange(threadId: string, userId: string, knownThread?: Record<string, unknown>) {
+  const thread = knownThread || (await query("SELECT group_id, target_user_id, created_by_user_id FROM chat_threads WHERE id = $1 LIMIT 1", [threadId])).rows[0]
+  const channelId = thread?.group_id
+    ? groupChatChannelId(String(thread.group_id))
+    : thread?.target_user_id
+      ? dmChatChannelId(String(thread.created_by_user_id), String(thread.target_user_id))
+      : null
+  if (channelId) await broadcastRealtimeEvent("chat", channelId, { type: "chat-event", userId, payload: { threadId } })
 }
 
 export async function listGameAttempts(user: User) {
@@ -2434,6 +2457,13 @@ export async function createLiveSession(user: User, input: { quizId: string; tit
   const quiz = await getQuiz(String(input.quizId || "").trim())
   if (!quiz) throw new Error("Quiz not found")
 
+  const source = quiz as Record<string, unknown>
+  if (source.created_by_user_id && source.created_by_user_id !== user.id && user.role !== "admin") {
+    const contentItem = await getContentItemForSource("quizzes", String(source.id))
+    const role = await resolveContentRole(user, contentItem)
+    if (!canUseContentRole(role, "viewer")) throw new Error("You don't have access to this quiz.")
+  }
+
   const questions = toLiveQuizQuestions(quiz.questions)
   if (!questions.length) throw new Error("That quiz has no questions a live session could ask yet.")
 
@@ -2534,6 +2564,8 @@ async function recordLiveGameResultMessage(session: LiveQuizSession, finishedAtM
   // reads as one person reporting a result rather than as a system notice.
   if (written.rowCount > 0) {
     await logAudit({ userId: session.hostUserId, action: "create", entity: "chat_message", entityId: messageId })
+    await query("UPDATE chat_threads SET updated_at = now() WHERE id = $1", [session.threadId])
+    await broadcastChatThreadChange(session.threadId, session.hostUserId)
   }
   // `rowCount` is 0 when the row already existed: idempotency working, not a
   // failure. Still returned, because "was this the first write?" is the only
@@ -2564,6 +2596,11 @@ export async function launchLiveGameInChat(user: User, input: {
   const threadId = String(input.threadId || "").trim()
   const targetUserId = String(input.targetUserId || "").trim()
   const groupId = String(input.groupId || "").trim()
+  if (groupId && targetUserId) throw new Error("Choose either a group or a direct message recipient.")
+  if (groupId) {
+    const membership = await query("SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2 LIMIT 1", [groupId, user.id])
+    if (!membership.rows[0]) throw new Error("You're not a member of that group.")
+  }
   if (!threadId && !groupId && !targetUserId) {
     throw new Error("A live game needs a conversation to be launched into.")
   }

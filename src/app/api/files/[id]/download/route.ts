@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getCurrentUser, isFileSharedWithUserViaChat } from "@/lib/data"
+import { isFileSharedViaStory } from "@/lib/social-data"
 import { MAX_INLINE_DOWNLOAD_BYTES } from "@/lib/file-security"
 import { getMediaAsset, getMediaAssetById, getMediaObject } from "@/lib/storage"
 import { withApiErrorBoundary } from "@/lib/api"
@@ -10,7 +11,7 @@ export const GET = withApiErrorBoundary(async (_request: Request, { params }: { 
 
   const { id } = await params
   let asset = await getMediaAsset(id, user)
-  if (!asset && (await isFileSharedWithUserViaChat(id, user))) {
+  if (!asset && ((await isFileSharedWithUserViaChat(id, user)) || (await isFileSharedViaStory(id, user)))) {
     asset = await getMediaAssetById(id)
   }
   if (!asset) return NextResponse.json({ error: "File not found" }, { status: 404 })
