@@ -106,6 +106,8 @@ export interface CalendarEvent {
   notes?: string
   /** Alarm lead in minutes for the exported ICS. `0` is an explicit "no alarm". */
   reminder_minutes?: number | null
+  allDay?: boolean
+  remote?: { connectionId: string; calendarId: string; eventId: string; etag: string; provider: "google" | "outlook" | "apple"; writable: boolean; recurring?: boolean; recurrenceId?: string }
 }
 
 export interface WorkspaceDocument {
