@@ -55,3 +55,15 @@ Sequencing follows the [takeover council](../audits/2026-09-24-ai-council-takeov
 - [x] Verify phone/tablet/desktop layouts, key interactions, tests and build.
 
 Evidence and environment limits: [app-wide design overhaul](../audits/2026-09-25-app-design-overhaul.md).
+
+## Calendar and preview follow-up — 2026-09-25
+
+- [x] Remove duplicate page chrome and shorten the Add menu.
+- [x] Preview files beside their names and collapse/restore navigation automatically.
+- [x] Compact Calendar, separate year/month controls, and persist visibility filters.
+- [x] Implement Google, Outlook and iCloud read/write adapters with secure storage.
+- [x] Verify local UI, automated provider contracts, TypeScript and production build.
+- [ ] Activate real provider accounts and verify live round trips after server
+  credentials and user authorization are supplied.
+
+Evidence: [calendar and preview refinement](../audits/2026-09-25-calendar-connections-preview.md).
