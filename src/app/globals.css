@@ -14,20 +14,20 @@
 
 /* Neutral surfaces, restrained ink accents, and shared accessible contrast tokens. */
 :root {
-  --background: oklch(0.983 0.003 260);
-  --foreground: oklch(0.22 0.035 268);
+  --background: oklch(1 0 0);
+  --foreground: oklch(.24 0 0);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.035 268);
+  --card-foreground: oklch(.24 0 0);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.035 268);
-  --primary: oklch(0.5 0.19 268);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.955 0.005 260);
-  --secondary-foreground: oklch(0.25 0.035 268);
-  --muted: oklch(0.95 0.005 260);
-  --muted-foreground: oklch(0.46 0.03 268);
-  --accent: oklch(0.93 0.04 268);
-  --accent-foreground: oklch(0.26 0.07 268);
+  --popover-foreground: oklch(.24 0 0);
+  --primary: oklch(0.51 0.15 268);
+  --primary-foreground: oklch(.99 0 0);
+  --secondary: oklch(.965 0 0);
+  --secondary-foreground: oklch(.28 0 0);
+  --muted: oklch(.955 0 0);
+  --muted-foreground: oklch(.46 0 0);
+  --accent: oklch(.935 0 0);
+  --accent-foreground: oklch(.24 0 0);
   /* WCAG AA: 0.55 measured a hairline 4.50:1 as text on --muted, which rounds to a fail. */
   --destructive: oklch(0.52 0.2 25);
   --destructive-foreground: oklch(0.99 0 0);
@@ -36,23 +36,23 @@
   --success-foreground: oklch(0.99 0 0);
   --warning: oklch(0.82 0.15 80);
   --warning-foreground: oklch(0.2 0.04 70);
-  --border: oklch(0.9 0.008 260);
-  --input: oklch(0.85 0.012 260);
-  --ring: oklch(0.58 0.18 268);
+  --border: oklch(.91 0 0);
+  --input: oklch(.83 0 0);
+  --ring: oklch(.55 0 0);
   --chart-1: oklch(0.58 0.19 268);
   --chart-2: oklch(0.66 0.15 155);
   --chart-3: oklch(0.72 0.16 45);
   --chart-4: oklch(0.62 0.2 330);
   --chart-5: oklch(0.8 0.15 80);
   --radius: 0.75rem;
-  --sidebar: oklch(0.969 0.004 260);
-  --sidebar-foreground: oklch(0.22 0.035 268);
-  --sidebar-primary: oklch(0.5 0.19 268);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.94 0.009 260);
-  --sidebar-accent-foreground: oklch(0.2 0.035 268);
-  --sidebar-border: oklch(0.9 0.008 260);
-  --sidebar-ring: oklch(0.58 0.18 268);
+  --sidebar: oklch(.977 0 0);
+  --sidebar-foreground: oklch(.28 0 0);
+  --sidebar-primary: oklch(.24 0 0);
+  --sidebar-primary-foreground: oklch(.99 0 0);
+  --sidebar-accent: oklch(.935 0 0);
+  --sidebar-accent-foreground: oklch(.24 0 0);
+  --sidebar-border: oklch(.92 0 0);
+  --sidebar-ring: oklch(.55 0 0);
 
   /* Section divider tabs. */
   --tab-home: oklch(0.78 0.15 75);
@@ -70,20 +70,20 @@
 }
 
 .dark {
-  --background: oklch(0.175 0.022 268);
-  --foreground: oklch(0.955 0.005 260);
-  --card: oklch(0.21 0.024 268);
-  --card-foreground: oklch(0.955 0.005 260);
-  --popover: oklch(0.235 0.026 268);
-  --popover-foreground: oklch(0.955 0.005 260);
-  --primary: oklch(0.75 0.13 268);
-  --primary-foreground: oklch(0.18 0.035 268);
-  --secondary: oklch(0.255 0.026 268);
-  --secondary-foreground: oklch(0.94 0.005 260);
-  --muted: oklch(0.245 0.024 268);
-  --muted-foreground: oklch(0.78 0.02 268);
-  --accent: oklch(0.31 0.05 268);
-  --accent-foreground: oklch(0.965 0.005 260);
+  --background: oklch(.248 0 0);
+  --foreground: oklch(.94 0 0);
+  --card: oklch(.285 0 0);
+  --card-foreground: oklch(.94 0 0);
+  --popover: oklch(.31 0 0);
+  --popover-foreground: oklch(.94 0 0);
+  --primary: oklch(0.76 0.12 268);
+  --primary-foreground: oklch(.22 0 0);
+  --secondary: oklch(.32 0 0);
+  --secondary-foreground: oklch(.94 0 0);
+  --muted: oklch(.30 0 0);
+  --muted-foreground: oklch(.76 0 0);
+  --accent: oklch(.355 0 0);
+  --accent-foreground: oklch(.97 0 0);
   /* WCAG AA on dark surfaces: the light-theme `--success` reads at 3.7:1 as text and
      `--destructive` at 4.3:1 on cards, so both flip to a light fill with a dark
      foreground here — the pattern `--primary` and `--warning` already follow. */
@@ -93,22 +93,22 @@
   --destructive-foreground: oklch(0.17 0.03 25);
   --warning: oklch(0.82 0.14 80);
   --warning-foreground: oklch(0.18 0.03 70);
-  --border: oklch(0.33 0.028 268);
-  --input: oklch(0.39 0.03 268);
-  --ring: oklch(0.75 0.13 268);
+  --border: oklch(.37 0 0);
+  --input: oklch(.44 0 0);
+  --ring: oklch(.72 0 0);
   --chart-1: oklch(0.72 0.14 268);
   --chart-2: oklch(0.74 0.14 155);
   --chart-3: oklch(0.78 0.14 45);
   --chart-4: oklch(0.72 0.17 330);
   --chart-5: oklch(0.84 0.13 80);
-  --sidebar: oklch(0.152 0.02 268);
-  --sidebar-foreground: oklch(0.945 0.005 260);
-  --sidebar-primary: oklch(0.75 0.13 268);
-  --sidebar-primary-foreground: oklch(0.17 0.035 268);
-  --sidebar-accent: oklch(0.23 0.026 268);
-  --sidebar-accent-foreground: oklch(0.965 0.005 260);
-  --sidebar-border: oklch(0.28 0.026 268);
-  --sidebar-ring: oklch(0.75 0.13 268);
+  --sidebar: oklch(.205 0 0);
+  --sidebar-foreground: oklch(.92 0 0);
+  --sidebar-primary: oklch(.94 0 0);
+  --sidebar-primary-foreground: oklch(.22 0 0);
+  --sidebar-accent: oklch(.30 0 0);
+  --sidebar-accent-foreground: oklch(.96 0 0);
+  --sidebar-border: oklch(.31 0 0);
+  --sidebar-ring: oklch(.72 0 0);
 
   --tab-home: oklch(0.83 0.14 80);
   --tab-studio: oklch(0.74 0.13 250);
@@ -471,7 +471,7 @@ html.dark.learn-high-contrast {
 }
 
 /* Quiet app navigation; accent is a personal choice rather than a colour per section. */
-.learn-app [data-tab] { --learn-tab: var(--primary); }
+
 .learn-app .learn-tab-dot { background-color: var(--primary); }
 .learn-app .learn-tab-on { color: var(--primary-foreground); }
 .learn-app .learn-tab-wash { background-color: transparent; }
@@ -481,10 +481,9 @@ html.dark.learn-high-contrast {
 .learn-app svg.lucide { stroke-width: 1.65; }
 
 /* Dedicated editing workspaces keep application navigation outside the document. */
-.learn-app:has(.studio-editor-workspace) .learn-sidebar,
 .learn-app:has(.studio-editor-workspace) .learn-app-column > header,
 .learn-app:has(.studio-editor-workspace) .learn-bottom-safe { display: none; }
-.learn-app:has(.studio-editor-workspace) .learn-app-column { padding-left: 0; margin-left: 0; transition: none; }
+.learn-app:has(.studio-editor-workspace) .learn-app-column { margin-left: 0; transition: none; }
 .learn-app:has(.studio-editor-workspace) #learn-main-content { padding: 0; min-height: 100dvh; }
 .studio-editor-workspace { display: flex; flex-direction: column; height: 100dvh; min-width: 0; overflow: hidden; background: var(--card); }
 .editor-document-header { display: flex; flex-shrink: 0; align-items: center; gap: 12px; min-height: 60px; padding: 10px 20px; border-bottom: 1px solid var(--border); }
@@ -575,3 +574,43 @@ html.dark.learn-high-contrast {
   .calendar-day { min-height: 72px; }
   .editor-status-bar { flex-wrap: wrap; }
 }
+
+/* Studio keeps its project list; color comes from the work, not the shell. */
+.studio-resume { display:flex; align-items:center; justify-content:space-between; gap:24px; min-height:154px; padding:22px 28px; border:1px solid var(--border); border-radius:16px; background:linear-gradient(115deg,color-mix(in oklch,var(--tab-studio) 8%,var(--card)),var(--card) 65%,color-mix(in oklch,var(--tab-ai) 6%,var(--card))); overflow:hidden; }
+.studio-paper-stack { position:relative; flex-shrink:0; width:154px; height:108px; }
+.studio-paper { position:absolute; display:flex; flex-direction:column; gap:8px; width:73px; height:94px; border-radius:9px; padding:12px; box-shadow:0 6px 16px #00000012; }
+.studio-paper svg { width:22px; height:22px; }
+.studio-paper-back { left:14px; top:2px; transform:rotate(-14deg); background:#dce9fc; color:#3562ab; }
+.studio-paper-front { left:66px; top:10px; transform:rotate(9deg); background:#e8ddfb; color:#7650a3; }
+.studio-paper i { height:3px; border-radius:2px; background:currentColor; opacity:.3; }
+.studio-paper i:last-child { width:65%; }
+.studio-paper-spark { position:absolute; top:-8px; right:1px; font-size:32px; color:#b87a34; }
+.studio-project-icon { color:color-mix(in oklch,var(--project-color) 75%,black); background:color-mix(in oklch,var(--project-color) 13%,var(--card)); }
+[data-project-kind='canvas'] { --project-color:#9461c5; }
+[data-project-kind='notes'] { --project-color:#bf873d; }
+[data-project-kind='docs'] { --project-color:#4e83ce; }
+[data-project-kind='slides'] { --project-color:#c46657; }
+[data-project-kind='sheets'] { --project-color:#47977c; }
+.dark .studio-project-icon { color:color-mix(in oklch,var(--project-color) 65%,white); background:color-mix(in oklch,var(--project-color) 18%,var(--card)); }
+.dark .studio-paper-back { background:#394c68; color:#b9d6ff; }
+.dark .studio-paper-front { background:#54426a; color:#e1cbff; }
+@media (max-width:639px) { .studio-resume { padding:18px; gap:10px; min-height:142px; } .studio-paper-stack { width:85px; transform:scale(.75); transform-origin:right center; margin-left:-20px; } .studio-paper-back { left:-22px; } .studio-paper-front { left:24px; } }
+
+/* Project browser stays beside the editor, with the app rail still available. */
+.learn-app[data-editor='true'] #learn-main-content { display:grid; grid-template-columns:240px minmax(0,1fr); padding:0; max-width:none; min-height:100dvh; }
+.learn-app[data-editor='true'] .learn-content-pane { min-width:0; }
+.editor-projects { display:flex; min-height:0; height:100dvh; flex-direction:column; border-right:1px solid var(--border); background:var(--sidebar); }
+.editor-projects-body { min-height:0; overflow-y:auto; }
+.editor-projects-toggle.editor-command { display:none; }
+.learn-sidebar [data-tab] svg { color:color-mix(in oklch,var(--learn-tab) 75%,var(--foreground)); }
+.studio-lobby button.bg-primary, .editor-primary { box-shadow:0 2px 5px color-mix(in oklch,var(--primary) 18%,transparent); }
+@media (max-width:1023px) {
+  .learn-app[data-editor='true'] #learn-main-content { display:block; }
+  .editor-projects { position:relative; height:auto; border-right:0; }
+  .editor-projects > div:first-child { height:44px; }
+  .editor-projects-toggle.editor-command { display:inline-flex; }
+  .editor-projects-body { display:none; }
+  .editor-projects-body.is-open { display:block; position:absolute; inset-inline:0; top:44px; z-index:45; max-height:60dvh; background:var(--sidebar); border-bottom:1px solid var(--border); box-shadow:var(--shadow-lift); }
+  .learn-app[data-editor='true'] .studio-editor-workspace { height:calc(100dvh - 44px); }
+}
+.learn-sidebar button[data-tab][aria-current='page'] svg { color:var(--primary-foreground); }

@@ -1,5 +1,6 @@
 "use client"
 
+import { createPortal } from "react-dom"
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
   AtSign,
@@ -238,6 +239,7 @@ export function Sidebar({
       </div>
 
       <SidebarFooter compact={compact} modKey={modKey} onModeChange={onModeChange} />
+      <div id="sidebar-account" className={`border-t border-sidebar-border p-2 ${compact ? "" : "px-3"}`} />
     </aside>
   )
 }
@@ -467,7 +469,47 @@ export function Topbar({
   const sectionLabel = primary ? String(text[primary.labelKey]) : ""
   const title = String(titleForView(view, text))
   const showSection = target.isAlias && Boolean(sectionLabel) && sectionLabel !== title
+  const [accountHost, setAccountHost] = useState<HTMLElement | null>(null)
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1024px)")
+    const updateHost = () => setAccountHost(desktop.matches && sidebarMode !== "hidden" ? document.getElementById("sidebar-account") : null)
+    updateHost()
+    desktop.addEventListener("change", updateHost)
+    return () => desktop.removeEventListener("change", updateHost)
+  }, [sidebarMode])
   const ThemeIcon = resolvedTheme === "dark" ? Sun : Moon
+
+  const accountControls = (
+    <div className={accountHost ? (sidebarMode === "rail" ? "flex flex-col items-center gap-2" : "flex items-center gap-1") : "flex items-center gap-1"}>
+          <AccountMenu
+            sidebar={Boolean(accountHost)}
+            showName={Boolean(accountHost) && sidebarMode === "expanded"}
+            density={density}
+            locale={locale}
+            logout={logout}
+            modKey={modKey}
+            onSidebarModeChange={onSidebarModeChange}
+            setDensity={setDensity}
+            setLocale={setLocale}
+            setTheme={setTheme}
+            setView={setView}
+            sidebarMode={sidebarMode}
+            text={text}
+            theme={theme}
+            user={user}
+          />
+          <button
+            type="button"
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+            className={ghostIconButton}
+            aria-label={resolvedTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+            title={resolvedTheme === "dark" ? text.lightMode : text.darkMode}
+          >
+            <ThemeIcon className="h-[18px] w-[18px]" />
+          </button>
+          <NotificationsMenu openLink={openLink} user={user} sidebar={Boolean(accountHost)} />
+    </div>
+  )
 
   return (
     <header className="learn-topbar sticky top-0 z-30 border-b border-border bg-card">
@@ -529,32 +571,8 @@ export function Topbar({
           <div className="hidden sm:block">
             {hideCreate ? null : <CreateMenu variant="header" setView={setView} />}
           </div>
-          <NotificationsMenu openLink={openLink} user={user} />
           <div className="hidden xl:block"><InstallAppButton /></div>
-          <button
-            type="button"
-            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-            className={`${ghostIconButton} hidden sm:inline-flex`}
-            aria-label={resolvedTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-            title={resolvedTheme === "dark" ? text.lightMode : text.darkMode}
-          >
-            <ThemeIcon className="h-[18px] w-[18px]" />
-          </button>
-          <AccountMenu
-            density={density}
-            locale={locale}
-            logout={logout}
-            modKey={modKey}
-            onSidebarModeChange={onSidebarModeChange}
-            setDensity={setDensity}
-            setLocale={setLocale}
-            setTheme={setTheme}
-            setView={setView}
-            sidebarMode={sidebarMode}
-            text={text}
-            theme={theme}
-            user={user}
-          />
+          {accountHost ? createPortal(accountControls, accountHost) : accountControls}
         </div>
       </div>
     </header>
@@ -611,9 +629,9 @@ function Segmented<T extends string>({
 }
 
 const themeOptions: ReadonlyArray<{ value: ThemeChoice; label: string; icon: LucideIcon }> = [
-  { value: "light", label: "Paper", icon: Sun },
-  { value: "dark", label: "Ink", icon: Moon },
-  { value: "system", label: "Auto", icon: Monitor },
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+  { value: "system", label: "System", icon: Monitor },
 ]
 
 const sidebarOptions: ReadonlyArray<{ value: SidebarMode; label: string }> = [
@@ -623,6 +641,8 @@ const sidebarOptions: ReadonlyArray<{ value: SidebarMode; label: string }> = [
 ]
 
 function AccountMenu({
+  sidebar = false,
+  showName = false,
   density,
   locale,
   logout,
@@ -637,6 +657,8 @@ function AccountMenu({
   theme,
   user,
 }: {
+  sidebar?: boolean
+  showName?: boolean
   density: Density
   locale: SupportedLocale
   logout: () => void
@@ -661,7 +683,7 @@ function AccountMenu({
   }
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className={showName ? "relative min-w-0 flex-1" : "relative"}>
       <button
         type="button"
         data-popover-trigger
@@ -673,19 +695,20 @@ function AccountMenu({
         aria-haspopup="dialog"
         aria-label={`Account: ${user?.name || "you"}`}
         title={user?.name || "Account"}
-        className="relative ml-0.5 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className={`relative flex items-center gap-2 rounded-lg p-1 text-left hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${showName ? "w-full" : ""}`}
       >
-        <Avatar user={user} />
+        <span className="relative"><Avatar user={user} />
         <span
           className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-background ${status === "open" ? "bg-success" : status === "closed" ? "bg-muted-foreground/50" : "bg-warning"}`}
           aria-hidden="true"
-        />
+        /></span>
+        {showName ? <span className="min-w-0"><span className="block truncate text-xs font-medium">{user?.name || "Your account"}</span><span className="block truncate text-[10px] text-muted-foreground">Personal workspace</span></span> : null}
       </button>
       {open ? (
         <div
           role="dialog"
           aria-label="Account and preferences"
-          className="learn-pop-in fixed inset-x-3 top-[3.75rem] z-[80] max-h-[calc(100vh-5rem)] overflow-y-auto rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-lift sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:w-80"
+          className={`learn-pop-in fixed z-[80] max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-lift ${sidebar ? "bottom-20 left-3 w-80 max-w-[calc(100vw-1.5rem)]" : "inset-x-3 top-[3.75rem] sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:w-80"}`}
         >
           <div className="flex items-center gap-3 rounded-xl p-2">
             <Avatar user={user} className="h-11 w-11 text-base" />
@@ -823,7 +846,7 @@ interface NotificationList {
   unreadCount: number
 }
 
-function NotificationsMenu({ openLink, user }: { openLink: (href: string) => void; user: User | null }) {
+function NotificationsMenu({ openLink, user, sidebar = false }: { sidebar?: boolean; openLink: (href: string) => void; user: User | null }) {
   const { open, rootRef, setOpen } = usePopover()
   const [items, setItems] = useState<NotificationItem[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -948,7 +971,7 @@ function NotificationsMenu({ openLink, user }: { openLink: (href: string) => voi
         <div
           role="dialog"
           aria-label="Notifications"
-          className="learn-pop-in fixed inset-x-3 top-[3.75rem] z-[80] flex max-h-[calc(100vh-5rem)] flex-col overflow-hidden rounded-2xl border border-border bg-popover text-popover-foreground shadow-lift sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:max-h-[32rem] sm:w-[23rem]"
+          className={`learn-pop-in fixed z-[80] flex max-h-[calc(100dvh-6rem)] flex-col overflow-hidden rounded-2xl border border-border bg-popover text-popover-foreground shadow-lift ${sidebar ? "bottom-20 left-3 w-[23rem] max-w-[calc(100vw-1.5rem)]" : "inset-x-3 top-[3.75rem] sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:max-h-[32rem] sm:w-[23rem]"}`}
         >
           <div className="flex items-center justify-between gap-2 px-4 pb-2 pt-3">
             <p className="font-display text-base font-semibold">Notifications</p>
