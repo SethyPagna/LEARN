@@ -3,6 +3,9 @@
 Date: 2026-09-24 (Asia/Hong_Kong)
 Code baseline: `3681710`, branch `cleanup/stage-1`
 
+Follow-through: [takeover implementation and verification](./2026-09-24-takeover-verification.md).
+The findings below describe the initial reconciliation checkpoint.
+
 ## Result
 
 The current checkout is committed and pushed, but that does **not** mean every

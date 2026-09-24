@@ -13,7 +13,14 @@ Make the LEARN Productivity Suite feel like a complete learning workspace for no
 - `/notes`, `/docs`, `/sheets`, and `/slides` remain stable routes that open Studio on the matching tab.
 - Current work is on `cleanup/stage-1`; completed checkpoints are pushed there. `main` remains at `5f06f9e` and has not been merged by this audit.
 
-## September 24 Checkpoint Status
+## September 24 Takeover Status
+
+The remaining P2b–P6 takeover is at final verification.
+See [completion goals](takeover-completion.md) and the
+[verification report](../audits/2026-09-24-takeover-verification.md) for current
+evidence. The following table records the earlier reconciliation baseline.
+
+## Initial September 24 Checkpoint (historical)
 
 The [assistant history reconciliation](../audits/2026-09-24-assistant-history-reconciliation.md)
 cross-checks Claude, WorkBuddy, ZCode and Codex records against the actual source.

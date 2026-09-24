@@ -1,6 +1,6 @@
 # LEARN Comprehensive Improvement Progress
 
-Status: Active
+Status: Takeover final verification
 Last updated: 2026-09-24
 Current owner: User and maintainer
 Current branch: cleanup/stage-1
@@ -8,14 +8,14 @@ Current branch: cleanup/stage-1
 ## Current Snapshot
 
 - The comprehensive 20 phase roadmap is in `ops/docs/roadmap/plan.md`.
-- September 24 code baseline: `3681710`, pushed to `origin/cleanup/stage-1`; `origin/main` remains at `5f06f9e` (54 commits behind that baseline).
-- P0 realtime and P1 notebook shell are committed. P2a design foundations are committed, but P2b integration into the visible editor is unfinished.
-- The expanded batch launcher request was interrupted in Claude. Existing launchers are tracked; a dedicated test launcher and the expanded launcher work are still pending.
-- June development records describe Studio/Social implementations and smoke tests absent from this checkout. Recovery comparison is required before declaring historical feature coverage complete.
-- Evidence, source inventory and remaining work: [assistant history reconciliation](../audits/2026-09-24-assistant-history-reconciliation.md).
-- Verified at the code baseline: 1,000 tests passed and TypeScript passed. This session did not build or deploy the app.
+- P0/P1 foundations are preserved; P2b/P2c now integrate the multi-page editor, shared rendering, source conversions and bounded content imports.
+- P3 connects owned sources to real AI destinations, including local Ollama. P4/P5 add private media/stories, peer calls and real-time game delivery.
+- Expanded launchers include the shared task menu and dedicated test/check/build/preview wrappers with truthful failures.
+- Historical recovery follows the accessible source inventory; newer authorization and local stored data are retained.
+- Acceptance, verification results and infrastructure limits: [takeover goals](takeover-completion.md) and [verification report](../audits/2026-09-24-takeover-verification.md).
+- The [history reconciliation](../audits/2026-09-24-assistant-history-reconciliation.md) remains the initial checkpoint, not the final implementation status. No production deployment or merge is part of this delivery.
 
-## September 24 Continuity Checkpoint
+## September 24 Continuity Checkpoint (historical)
 
 - Scope: reconcile local assistant progress with the pushed Git history; source provenance is recorded in the linked audit.
 - Files changed: the reconciliation report, audit index, this tracker and `productivity-suite-plan.md`.

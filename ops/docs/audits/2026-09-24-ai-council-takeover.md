@@ -102,16 +102,45 @@ highest-confidence requirements; both the ambitious and skeptical views need the
    while finishing the local launcher. Apply the executor's kill criterion as
    written above, then integrate the editor and verify save/reload/share.
 
-## Outcome — in progress
+## Outcome — executed
+
+**One-hour decision:** “Can the current launcher and destination boundaries
+support a trustworthy first journey?” **Yes.** After repairing the exposed
+boundaries, the launcher, two-user messaging, saved designs and generated quiz
+destination have direct execution evidence.
+
+**Convergence closed:** artifact/message destinations and recoverability now have
+request tests plus browser evidence, rather than relying on historical claims.
+
+| Advisor | Correct diagnosis or recommendation | Correction or remaining blind spot |
+| --- | --- | --- |
+| Skeptic | DM/group isolation failed and needed repair before adding senders | Privacy tests alone did not find browser dependency and SDP failures |
+| Engineer | Existing design model supported the integrated editor without wholesale restoration | Runtime font/export dependencies needed browser checks beyond model tests |
+| Expansionist | Real source-to-design and provider-to-quiz journeys became usable | The review destination still required restoring a deleted view and multiple route mappings |
+| Outsider (modeled) | Honest labels and usable destinations mattered; inactive actions were removed | A visible review route name did not prove that it rendered review cards |
+| Executor (modeled) | Bounded destination and launcher gates exposed actionable defects | First-gate success did not establish call, export or review behavior; those needed separate journeys |
 
 - Baseline production build passed, including CSS output validation.
 - Shared launcher `check.bat` passed TypeScript and all 1,000 tests. Its first run
   exposed a direct-pnpm-only batch guard and a roadmap naming guard; both corrected.
-- Quiz and chat boundary repairs are underway; the first journey is not yet proven.
-- The privacy criterion fired during audit, so new social sending surfaces wait
-  until the destination repair has evidence.
-- All five perspectives remain provisional until browser and recipient tests land.
-  No claim is made that the launchers prove editor, AI-provider or call behavior.
+- The privacy criterion fired during audit. Exclusive destination and private-quiz
+  authorization repairs were tested before adding social media sending surfaces.
+- Two-account browser checks proved DM/group isolation, real-time reactions/media,
+  audience-scoped stories, a connected local call and live game result delivery.
+- The engineer's integrated editor passed save/reopen/two-page/share checks and
+  mobile layout inspection. The expansionist's note-to-design journey worked.
+- A real Ollama response became a playable quiz and scored 1/1. Following the same
+  output into review cards exposed a conversion gap and incorrect review routing;
+  those boundaries were repaired and the real card was revealed and graded.
+- Browser testing also found missing JSZip in the PowerPoint browser asset and
+  terminal CRLF trimming in SDP. Both fixes have direct runtime evidence.
+- Calibration: the skeptic/executor focus on real destinations was justified;
+  passing unit tests alone had missed export, call and review-route defects.
+  The outsider's label clarity led to removing fake event/mute/translation/notify
+  actions and clarifying remaining draft actions. Shared model consolidation
+  avoided restoring incompatible historic editors.
+- WAN/TURN and physical devices require separate deployment testing. See the
+  [verification report](./2026-09-24-takeover-verification.md) for gates and limits.
 
 ## Measured cleanup baseline
 
@@ -130,3 +159,8 @@ render/persistence generations, overloaded editor/chat modules, bounded and
 unbounded source reads, and missing request/browser coverage. No broad deletion
 is authorized by the candidate counts alone. Consolidate the specific boundaries
 being corrected, with rollback through their individual commits.
+
+After integration: 428 files, 12 unused-export candidates and zero orphan files.
+Five confirmed unused helpers, the obsolete editor and duplicate PPTX loader were
+removed. Ten tooling/type/peer dependency candidates and three type-level import
+relationships were retained rather than deleted solely on an analyzer report.
