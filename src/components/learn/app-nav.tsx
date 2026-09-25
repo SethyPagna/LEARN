@@ -143,13 +143,8 @@ function draftBadgeFor(item: LearnNavigationItem, studioDraftSummary: StudioDraf
 /* Brand                                                                     */
 /* ------------------------------------------------------------------------ */
 
-/** A simple folded L, shared with the installed-app icon. */
 function BrandMark({ size = "md" }: { size?: "sm" | "md" }) {
-  return <svg viewBox="0 0 48 48" className={size === "sm" ? "h-8 w-8 shrink-0" : "h-10 w-10 shrink-0"} fill="none" aria-hidden="true">
-    <rect width="48" height="48" rx="13" fill="currentColor" className="text-foreground" />
-    <path d="M14 12h7v23h-7zM21 28h14v7H21z" className="fill-background" />
-    <path d="M26 13h9v9h-9z" className="fill-primary" />
-  </svg>
+  return <img src="/icon.svg" width={40} height={40} className={size === "sm" ? "h-8 w-8 shrink-0" : "h-10 w-10 shrink-0"} alt="" aria-hidden="true" loading="eager" decoding="async" />
 }
 
 /* ------------------------------------------------------------------------ */
@@ -197,12 +192,8 @@ export function Sidebar({
         </div>
       ) : (
         <div className="flex items-center gap-2 px-3 pb-2 pt-3">
-          <button type="button" onClick={() => setView("dashboard")} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <button type="button" onClick={() => setView("dashboard")} className="mr-auto rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`${text.appName} home`} title={`${text.appName} home`}>
             <BrandMark size="sm" />
-            <span className="min-w-0">
-              <span className="block font-display text-lg font-bold leading-tight tracking-tight">{text.appName}</span>
-
-            </span>
           </button>
           <button type="button" onClick={() => onModeChange("rail")} className={ghostIconButton} aria-label="Collapse sidebar to icons" title={`Collapse to icons (${modKey}+\\)`}>
             <PanelLeftClose className="h-[18px] w-[18px]" />

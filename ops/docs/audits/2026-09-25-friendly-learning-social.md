@@ -59,3 +59,12 @@ This pass changes presentation and client interactions; it does not establish
 new external accounts, deploy migrations or add backend group membership.
 Existing calendar activation and network/device call verification requirements
 remain in the earlier reports. Visual designs are browser-local preferences.
+
+## Icon-only branding follow-up
+
+Removed the sidebar wordmark while preserving the accessible LEARN home label.
+The shared SVG is now a blue folded-book tile with a mint accent. Sidebar/mobile
+branding, browser favicons, Apple and installed-app icons use the same artwork;
+the maskable icon retains an inset safe area. Verified the expanded sidebar in
+light and dark mode, inspected the raster artwork, and passed TypeScript and all
+1,095 tests. Existing OS installations may refresh their icon on a later update.
