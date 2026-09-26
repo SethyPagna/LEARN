@@ -1,7 +1,7 @@
 "use client"
 
 import { useDeferredValue, useMemo, useState } from "react"
-import { NotebookText, Sparkles, WandSparkles } from "lucide-react"
+import { AlignLeft, LayoutTemplate, NotebookText, Sparkles, WandSparkles } from "lucide-react"
 
 import { composeFromSpec } from "@/lib/design/compose"
 import { htmlToDesignSpec, specHasContent } from "@/lib/design/from-content"
@@ -56,6 +56,7 @@ c) Collection`
 export function MagicPanel({ api }: { api: DesignEditorApi }) {
   const [draft, setDraft] = useState("")
   const [noteQuery, setNoteQuery] = useState("")
+  const [source, setSource] = useState<"layout" | "outline" | "notes">("layout")
   const deferredDesign = useDeferredValue(api.design)
   const pageIndex = Math.min(api.pageIndex, deferredDesign.pages.length - 1)
   const page = deferredDesign.pages[pageIndex]
@@ -107,7 +108,10 @@ export function MagicPanel({ api }: { api: DesignEditorApi }) {
 
   return (
     <div>
-      <PanelHeading>Arrange this page</PanelHeading>
+      <div className="mb-4 grid grid-cols-3 gap-1 rounded-xl bg-muted p-1" aria-label="Magic tools">
+        {([{ id: "layout", label: "Layout", icon: LayoutTemplate }, { id: "outline", label: "Outline", icon: AlignLeft }, { id: "notes", label: "Notes", icon: NotebookText }] as const).map(({ id, label, icon: Icon }) => <button key={id} type="button" aria-pressed={source === id} onClick={() => setSource(id)} className={`flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-2 text-xs font-medium ${source === id ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><Icon size={17} aria-hidden="true" />{label}</button>)}
+      </div>
+      {source === "layout" ? <>
       {choices.length ? (
         <div className="grid grid-cols-2 gap-2">
           {choices.map((choice) => {
@@ -131,7 +135,7 @@ export function MagicPanel({ api }: { api: DesignEditorApi }) {
           })}
         </div>
       ) : (
-        <EmptyHint>Add a title, some text or a list to this page and Magic layout will offer ways to arrange it.</EmptyHint>
+        <EmptyHint>Add text to see layouts.</EmptyHint>
       )}
       {layoutPages > 1 ? (
         <button
@@ -149,24 +153,25 @@ export function MagicPanel({ api }: { api: DesignEditorApi }) {
           }}
         >
           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-          Tidy every layout page
+          Tidy all pages
         </button>
       ) : null}
-
+      </> : null}
+      {source === "outline" ? <>
       <PanelHeading
         action={
           <button type="button" className="text-xs font-semibold text-primary hover:underline" onClick={() => setDraft(EXAMPLE)}>
-            Show an example
+            Example
           </button>
         }
       >
-        Write it, we design it
+        Outline
       </PanelHeading>
       <textarea
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
         rows={7}
-        placeholder={"Type or paste an outline:\n# Title\n## A page heading\n- a list item\n> a quote — someone\nQ: a quiz question\na) answer *"}
+        placeholder={"# Title\n## Page heading\n- Your idea"}
         className="w-full resize-y rounded-xl border border-border bg-background p-3 font-mono text-xs leading-5 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
         aria-label="Outline to design"
       />
@@ -177,11 +182,11 @@ export function MagicPanel({ api }: { api: DesignEditorApi }) {
         className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50"
       >
         <WandSparkles className="h-4 w-4" aria-hidden="true" />
-        Design these pages
+        Create pages
       </button>
-      <p className="mt-1.5 text-[0.7rem] leading-4 text-muted-foreground"># starts the cover, ## or --- starts a page. Lists, quotes, “Term: meaning”, numbers and Q: questions each get their own look.</p>
-
-      <PanelHeading>From your notes</PanelHeading>
+      <details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer">Outline guide</summary><p className="mt-2 leading-5"># starts the cover; ## or --- starts a page. Use lists, quotes, “Term: meaning”, numbers or Q: questions.</p></details>
+      </> : null}
+      {source === "notes" ? <>
       {api.notes.length ? (
         <>
           <PanelSearch value={noteQuery} onChange={setNoteQuery} placeholder="Find a note" label="Find a note" />
@@ -205,8 +210,9 @@ export function MagicPanel({ api }: { api: DesignEditorApi }) {
           {!notes.length ? <EmptyHint>No note matches “{noteQuery}”.</EmptyHint> : null}
         </>
       ) : (
-        <EmptyHint>Your notes show up here. Write one in Notes and turn it into slides, a poster or a study guide.</EmptyHint>
+        <EmptyHint>No notes yet.</EmptyHint>
       )}
+      </> : null}
     </div>
   )
 }

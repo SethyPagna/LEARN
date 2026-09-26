@@ -1,6 +1,9 @@
 "use client"
 
 import { PopoverButton } from "../design/popover"
+import { useDesignMeasure } from "../design/text-measure"
+import { StudioProjectPreview } from "../studio-project-preview"
+import type { Project } from "../studio-projects"
 
 import { Fragment, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import type React from "react"
@@ -147,7 +150,7 @@ import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, b
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
 import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
 import { canvasAspectRatio, canvasPreviewWidth, getAnyStudioCanvasFormat, getStudioCanvasFormat, getStudioKindForCanvasFormat, listAllStudioCanvasFormatGroups, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
-import { buildStudioProjectBrowserHeader, buildStudioProjectBrowserState, buildStudioProjectBrowserSummary, buildStudioProjectSubtitle, buildStudioTemplateSubtitle, filterStudioProjectsByDraftStatus, getStudioProjectDisplayMeta, getStudioProjectFilterOption, listStudioProjectFilterOptions, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, type StudioProjectKindFilter, type StudioProjectStatusFilter } from "@/lib/studio-project-browser"
+import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplateSubtitle, filterStudioProjectsByDraftStatus, getStudioProjectFilterOption, listStudioProjectFilterOptions, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, type StudioProjectKindFilter, type StudioProjectStatusFilter } from "@/lib/studio-project-browser"
 import { useEditorExitGuard } from "../editor-navigation"
 import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
 import { richDocumentEditingHtml, appendRichDocumentPage, duplicateRichDocumentLastPage, countRichDocumentPages } from "@/lib/studio-pages"
@@ -184,6 +187,7 @@ type StudioListItem = {
   summary?: string
   favorite?: boolean
   archived_at?: string | null
+  preview?: Project
 }
 
 type StudioRecordItem = Pick<StudioListItem, "id" | "kind" | "title">
@@ -823,10 +827,10 @@ export function StudioView({
       mapped.push(item)
     }
 
-    for (const item of notesSource) append({ id: item.id, kind: "notes", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: item.content, favorite: item.favorite })
-    for (const item of docsSource) append({ id: item.id, kind: "docs", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: textFromDocument(item) })
-    for (const item of sheetsSource) append({ id: item.id, kind: "sheets", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: `${cellsFromSheet(item).length} rows` })
-    for (const item of decksSource) append({ id: item.id, kind: "slides", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: `${slidesFromDeck(item).length} slides` })
+    for (const item of notesSource) append({ id: item.id, kind: "notes", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: item.content, favorite: item.favorite, preview: { ...item, kind: "notes" } })
+    for (const item of docsSource) append({ id: item.id, kind: "docs", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: textFromDocument(item), preview: { ...item, kind: "docs" } })
+    for (const item of sheetsSource) append({ id: item.id, kind: "sheets", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: `${cellsFromSheet(item).length} rows`, preview: { ...item, kind: "sheets", cells: cellsFromSheet(item) } })
+    for (const item of decksSource) append({ id: item.id, kind: "slides", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: `${slidesFromDeck(item).length} slides`, preview: { ...item, kind: "slides", slides: slidesFromDeck(item) } })
 
     return mapped.sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")))
   }, [archivedDecks, archivedDocs, archivedNotes, archivedSheets, decks, deferredQuery, docs, notes, section, sheets])
@@ -2115,6 +2119,7 @@ function StudioProjectBrowser({
   onShare: (item: StudioRecordItem) => void
   query: string
 }) {
+  const measure = useDesignMeasure()
   const [projectKindFilter, setProjectKindFilter] = useState<StudioProjectKindFilter>("all")
   const [projectSort, setProjectSort] = useState<"newest" | "oldest">("newest")
   const [projectStatusFilter, setProjectStatusFilter] = useState<StudioProjectStatusFilter>("all")
@@ -2149,14 +2154,6 @@ function StudioProjectBrowser({
   const selectedTemplate = templateChoices.find((template) => `${template.kind}:${template.label}` === selectedTemplateKey) || selectStudioBrowserTemplate(templateChoices, "")
   const templateFilterOptions = listStudioProjectFilterOptions()
   const activeTemplateFilter = getStudioProjectFilterOption(projectKindFilter)
-  const browserSummary = buildStudioProjectBrowserSummary({
-    draftCount: draftProjectCount,
-    filterLabel: projectKindFilter === "all" ? "All projects" : activeTemplateFilter.label,
-    formatLabel: selectedCanvasFormat.label,
-    projectCount: filteredProjects.length,
-    query,
-    templateCount: templateChoices.length,
-  })
   const browserSteps: Array<{ id: StudioProjectBrowserStep; label: string; count: number }> = [
     { id: "projects", label: "Recent", count: recentItems.length },
     { id: "templates", label: "Designs", count: templateShelf.length },
@@ -2194,23 +2191,14 @@ function StudioProjectBrowser({
     <div className="grid gap-4">
       <Panel className="overflow-hidden p-0">
         <div>
-          <main className="min-w-0 bg-gradient-to-b from-primary/10 via-muted/35 to-muted/35 p-4 lg:p-6">
-            <div className="mx-auto max-w-4xl text-center">
-              <h2 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">{browserSummary.title}</h2>
-              <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground" title={buildStudioProjectBrowserHeader(browserSummary)}>{browserSummary.caption}</p>
-              <label className="mx-auto mt-5 flex h-14 max-w-3xl items-center gap-3 rounded-2xl border border-primary/20 bg-background px-5 shadow-xl shadow-primary/10">
+          <section aria-label="Project library" className="min-w-0 p-3 sm:p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-lg font-semibold text-foreground">Projects</h2>
+              <label className="flex h-9 min-w-40 flex-1 items-center gap-2 rounded-lg border border-border bg-background px-3 sm:max-w-sm">
                 <Search className="h-5 w-5 text-foreground" />
-                <input value={query} onChange={(event) => onQuery(event.target.value)} placeholder="Search across all content" className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
+                <input value={query} onChange={(event) => onQuery(event.target.value)} aria-label="Search projects" placeholder="Search projects" className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
               </label>
-              <div className="mx-auto mt-3 grid max-w-3xl grid-cols-2 gap-2 md:grid-cols-4">
-                {browserSummary.chips.map((chip) => (
-                  <div key={chip.label} className="rounded-xl border border-border bg-background/80 px-3 py-2 text-left shadow-sm">
-                    <p className="truncate text-[0.65rem] font-bold uppercase tracking-[0.12em] text-muted-foreground">{chip.label}</p>
-                    <p className="mt-1 truncate text-sm font-black text-foreground" title={chip.value}>{chip.value}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 flex flex-wrap justify-center gap-2">
+              <div className="ml-auto flex flex-wrap gap-2">
                 <ActionMenu compact label={projectKindFilter === "all" ? "All designs" : activeTemplateFilter.label} icon={LayoutPanelLeft}>
                   {templateFilterOptions.map((option) => {
                     const Icon = option.value === "all" ? LayoutPanelLeft : studioKindIcons[option.value]
@@ -2229,7 +2217,7 @@ function StudioProjectBrowser({
                 </ActionMenu>
               </div>
             </div>
-            <div className="mt-8 grid gap-5">
+            <div className="mt-4 grid gap-3">
               <section className="min-w-0">
                 <div className="mb-5 flex gap-2 overflow-x-auto rounded-2xl border border-border bg-background/75 p-1.5 shadow-sm">
                   {visibleBrowserSteps.map((step) => (
@@ -2272,25 +2260,17 @@ function StudioProjectBrowser({
                       <Plus className="h-6 w-6" />
                     </span>
                     <span className="mt-3 text-sm font-black text-foreground group-hover:text-accent-foreground">New project</span>
-                    <span className="mt-1 text-xs text-muted-foreground">Pick a size first</span>
                   </button>
                   {recentItems.map((item) => {
                     const Icon = studioKindIcons[item.kind]
-                    const meta = getStudioProjectDisplayMeta(item.kind)
                     const projectKey = `${item.kind}:${item.id}`
                     const selected = selectedProjectKeys.has(projectKey)
                     return (
                       <div key={`${item.kind}_${item.id}`} className="group relative w-48 shrink-0 text-left">
                         <button onClick={() => onOpen(item)} className="block w-full text-left" type="button">
-                        <span className={`relative block h-32 overflow-hidden rounded-xl border ${selected ? "border-primary ring-2 ring-primary/25" : "border-border"} ${studioKindStyles[item.kind].icon} p-4 shadow-sm transition group-hover:-translate-y-0.5 group-hover:border-primary group-hover:shadow-lg`}>
-                          <Icon className="h-6 w-6" />
-                          <span className="absolute bottom-4 left-4 right-4 space-y-2">
-                            <span className="block h-2 w-20 rounded-full bg-background/80" />
-                            <span className="block h-2 w-28 rounded-full bg-background/60" />
-                            <span className="block h-2 w-16 rounded-full bg-background/50" />
-                          </span>
-                          <span className="absolute right-3 top-3 rounded-full bg-background/85 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-foreground">{meta.badge}</span>
-                        </span>
+                        <div aria-hidden="true" className={`studio-recent-preview rounded-xl border ${selected ? "border-primary ring-2 ring-primary/25" : "border-border"}`}>
+                          {item.preview ? <StudioProjectPreview project={item.preview} measure={measure} /> : <Icon className="m-auto h-6 w-6" />}
+                        </div>
                         <span className="mt-3 block">
                           <span className="block truncate text-sm font-bold text-foreground" title={item.title}>{item.title}</span>
                           <span className="mt-1 flex items-center gap-1 truncate text-xs text-muted-foreground">
@@ -2375,7 +2355,6 @@ function StudioProjectBrowser({
                       <div className="mb-3 flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <h4 className="truncate text-sm font-black text-foreground">{group.label}</h4>
-                          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{group.description}</p>
                         </div>
                         <span className="rounded-md bg-secondary px-2 py-1 text-[0.65rem] font-bold text-secondary-foreground">{group.formats.length}</span>
                       </div>
@@ -2383,12 +2362,11 @@ function StudioProjectBrowser({
                         {group.formats.map((format) => {
                           const active = format.id === selectedCanvasFormat.id
                           return (
-                            <button key={format.id} onClick={() => chooseCanvasFormat(format)} className={`group rounded-xl border p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground ${active ? "border-primary bg-primary/10" : "border-border bg-card"}`} type="button">
+                            <button key={format.id} title={format.description} aria-pressed={active} onClick={() => chooseCanvasFormat(format)} className={`group rounded-xl border p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground ${active ? "border-primary bg-primary/10" : "border-border bg-card"}`} type="button">
                               <span className="flex items-center justify-between gap-3">
                                 <span className="truncate text-sm font-bold text-foreground group-hover:text-accent-foreground">{format.label}</span>
                                 <span className={`rounded px-1.5 py-0.5 text-[0.65rem] font-bold ${active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{active ? "Active" : `${format.width}:${format.height}`}</span>
                               </span>
-                              <span className="mt-1 block line-clamp-2 text-xs text-muted-foreground">{format.description}</span>
                             </button>
                           )
                         })}
@@ -2400,7 +2378,7 @@ function StudioProjectBrowser({
                 ) : null}
               </section>
             </div>
-          </main>
+          </section>
         </div>
       </Panel>
     </div>
@@ -3729,7 +3707,13 @@ function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: {
   useEffect(() => {
     if (!editor) return
     const next = richTextContent(value)
-    if (writingDocumentHtml(editor) !== next) editor.commands.setContent(richDocumentEditingHtml(next), { emitUpdate: false })
+    if (writingDocumentHtml(editor) === next) return
+    let cancelled = false
+    // React-backed page nodes must mount outside React's effect flush.
+    queueMicrotask(() => {
+      if (!cancelled && !editor.isDestroyed) editor.chain().setMeta("addToHistory", false).setContent(richDocumentEditingHtml(next), { emitUpdate: false }).run()
+    })
+    return () => { cancelled = true }
   }, [editor, value])
 
   return (

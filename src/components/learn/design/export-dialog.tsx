@@ -101,13 +101,14 @@ export function ExportMenu({ design, pageIndex, onNotify, onBeforeExport, button
       panel={() => (
         <div className="w-[19rem] space-y-3">
           <p className="text-sm font-bold">Download</p>
-          <div role="radiogroup" aria-label="File type" className="grid gap-1">
+          <div role="radiogroup" aria-label="File type" className="grid grid-cols-2 gap-2">
             {FORMATS.map((choice) => (
               <button
                 key={choice.id}
                 type="button"
                 role="radio"
                 aria-checked={format === choice.id}
+                title={choice.hint}
                 disabled={running}
                 onClick={() => setFormat(choice.id)}
                 className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition disabled:opacity-60 ${format === choice.id ? "bg-primary/12 ring-2 ring-primary" : "hover:bg-muted"}`}
@@ -115,7 +116,6 @@ export function ExportMenu({ design, pageIndex, onNotify, onBeforeExport, button
                 <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${format === choice.id ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{choice.icon}</span>
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold">{choice.label}</span>
-                  <span className="block truncate text-[0.72rem] text-muted-foreground">{choice.hint}</span>
                 </span>
               </button>
             ))}

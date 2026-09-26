@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Bot, Brain, CheckCircle2, CheckSquare, ChevronDown, FileText, Gauge, Info, Languages, ListFilter, MoreHorizontal, Plus, Route, Sparkles, UploadCloud, Wand2 } from "lucide-react"
+import { Bot, Brain, CheckCircle2, CheckSquare, ChevronDown, Copy, FileText, Gauge, Info, Languages, ListFilter, MoreHorizontal, Plus, RotateCcw, Route, Save, Sparkles, UploadCloud, Wand2 } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Note, Quiz, StudioInsertTarget, View } from "../types"
 import { api } from "../api"
@@ -130,8 +130,6 @@ export function AiTutorView({
 
   const activeMode = useMemo(() => getAiTutorModeOption(activeTaskKey), [activeTaskKey])
   const recentContext = useMemo(() => notes.slice(0, 5).map((note) => `${note.title}: ${note.content}`).join("\n\n"), [notes])
-  // Additive: the reply stays rendered raw below; this is a themed, structured
-  // preview of the same text so markdown/JSON answers never read as raw text.
   const formattedReply = useMemo(() => (reply.trim() ? formatAiResponse({ reply }) : null), [reply])
   const uploadedContext = useMemo(() => (importText || lastImportText).trim(), [importText, lastImportText])
   const sourceContext = useMemo(() => buildAiTutorSourceContext({
@@ -377,6 +375,7 @@ export function AiTutorView({
       if (response.status !== "ok") {
         setActionStatus(response.text || "The tutor could not produce a result. Check the provider setup.")
         setSidePanel("gateway")
+        setToolsOpen(true)
         return
       }
       setReply(response.text)
@@ -391,11 +390,13 @@ export function AiTutorView({
   async function runPrimaryAction() {
     if (primaryActionPlan.action === "import") {
       setSidePanel("import")
+      setToolsOpen(true)
       setImportStatus(primaryActionPlan.statusMessage)
       return
     }
     if (primaryActionPlan.action === "gateway") {
       setSidePanel("gateway")
+      setToolsOpen(true)
       setActionStatus(primaryActionPlan.statusMessage)
       return
     }
@@ -463,6 +464,8 @@ export function AiTutorView({
       setImportText("")
       setImportTitle("")
       setImportStatus(`Created ${labelImportTarget(response.target)} in Studio. Uploaded files selected for AI.`)
+    } catch (error) {
+      setImportStatus(error instanceof Error ? error.message : "Import failed. Your source is still here.")
     } finally {
       setImportLoading(false)
     }
@@ -494,8 +497,13 @@ export function AiTutorView({
 
   async function copyReply() {
     if (!reply.trim()) return
-    await navigator.clipboard?.writeText(reply)
-    setActionStatus("Copied result.")
+    try {
+      if (!navigator.clipboard) throw new Error("Clipboard unavailable")
+      await navigator.clipboard.writeText(reply)
+      setActionStatus("Copied result.")
+    } catch {
+      setActionStatus("Copy failed. Select the original text to copy it.")
+    }
   }
 
   function prepareStudioBlockPrompt() {
@@ -657,8 +665,8 @@ export function AiTutorView({
           <button aria-label="Studio block" title="Studio block" onClick={prepareStudioBlockPrompt} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
             <Plus className="h-4 w-4" />
           </button>
-          <button onClick={resetDraft} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-            Reset draft
+          <button aria-label="Reset draft" title="Reset draft" onClick={resetDraft} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+            <RotateCcw className="h-4 w-4" />
           </button>
         </div>
         {!reply && actionStatus ? <p role="status" className="mt-3 rounded-md border border-border p-3 text-sm">{actionStatus}</p> : null}
@@ -666,8 +674,8 @@ export function AiTutorView({
           <div className="mt-5 rounded-md border border-border bg-muted p-4">
             <SectionLabel icon={CheckCircle2} title="Result" body="Insert, save, copy, or turn this into practice." compact />
             <div className="mb-3 flex flex-wrap items-center gap-2">
-              <ResultAction label="Save as note" onClick={saveReplyAsNote} />
-              <ResultAction label="Copy result" onClick={copyReply} />
+              <ResultAction label="Save as note" icon={Save} onClick={saveReplyAsNote} />
+              <ResultAction label="Copy result" icon={Copy} onClick={copyReply} />
               <ResultMenu label="Insert">
                 {insertActions.map((action) => <ResultMenuAction key={action.target} label={action.label} onClick={() => insertReply(action.target)} />)}
               </ResultMenu>
@@ -682,20 +690,20 @@ export function AiTutorView({
               </ResultMenu>
             </div>
             {actionStatus ? <p className="mb-3 rounded-md bg-background px-3 py-2 text-xs font-semibold text-muted-foreground">{actionStatus}</p> : null}
-            <div className="whitespace-pre-wrap leading-7 text-foreground">{reply}</div>
             {formattedReply && formattedReply.blocks.length ? (
-              <details className="mt-3 rounded-md border border-border bg-background p-3" open>
-                <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  Formatted · {formattedReply.sourceFormat}
-                </summary>
-                <AiBlockRenderer blocks={formattedReply.blocks} className="mt-3" />
+              <>
+                <AiBlockRenderer blocks={formattedReply.blocks} />
                 {formattedReply.warnings.length ? (
                   <ul className="mt-3 grid gap-1 text-xs leading-5 text-muted-foreground">
                     {formattedReply.warnings.map((warning) => <li key={warning}>{warning}</li>)}
                   </ul>
                 ) : null}
-              </details>
-            ) : null}
+                <details className="mt-3 border-t border-border pt-3">
+                  <summary className="cursor-pointer text-xs text-muted-foreground">Original text</summary>
+                  <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs leading-5">{reply}</pre>
+                </details>
+              </>
+            ) : <div className="whitespace-pre-wrap leading-7 text-foreground">{reply}</div>}
           </div>
         ) : null}
       </Panel>
@@ -752,7 +760,6 @@ export function AiTutorView({
                 <span className="rounded-md bg-background px-2 py-1 font-semibold text-muted-foreground">{uploadedSourceSummary.detail}</span>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span>{uploadedSourceSummary.attached ? "Attached for uploaded-file context." : "Paste material to clean up or practice."}</span>
                 {uploadedSourceSummary.attached ? (
                   <button onClick={clearUploadedSource} className="rounded-md border border-border bg-secondary px-2 py-1 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
                     Clear
@@ -761,6 +768,7 @@ export function AiTutorView({
               </div>
             </div>
             <input
+              aria-label="Import title"
               value={importTitle}
               onChange={(event) => {
                 setImportTitle(event.target.value)
@@ -776,6 +784,7 @@ export function AiTutorView({
               {importTargetOptions.map((target) => <option key={target} value={target}>{labelImportTarget(target)}</option>)}
             </select>
             <textarea
+              aria-label="Import content"
               value={importText}
               onChange={(event) => replaceImportText(event.target.value)}
               placeholder="Paste text, CSV, or slide outline"
@@ -786,13 +795,13 @@ export function AiTutorView({
                 <span className="font-semibold text-foreground">{labelImportTarget(importPreview.target)} preview</span>
                 <span className="rounded-md bg-secondary px-2 py-1 font-semibold text-secondary-foreground">{importPreview.confidence}</span>
               </div>
-              <p className="mt-2">{importPreview.title} - {importPreview.itemLabel} - opens {importPreview.destinationView}</p>
+              <p className="mt-2" title={`${importPreview.title} · ${importPreview.destinationView}`}>{importPreview.itemLabel}</p>
               {importPreview.warnings.length ? <p className="mt-2 text-warning-foreground">{importPreview.warnings.join(" ")}</p> : null}
             </div>
             <button onClick={organizeImport} disabled={importLoading || !importPreview.ok} className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-60">
               {importLoading ? "Organizing" : "Organize into Studio"}
             </button>
-            {importStatus ? <p className="rounded-md bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground">{importStatus}</p> : null}
+            {importStatus ? <p role="status" className="rounded-md bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground">{importStatus}</p> : null}
             {lastImport ? (
               <div className="grid gap-2 sm:grid-cols-4">
                 <button onClick={() => setView?.(getImportDestinationView(lastImport.target))} className="rounded-md border border-border bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">Open {getImportDestinationView(lastImport.target)}</button>
@@ -847,11 +856,14 @@ function SidePanelButton({
   return (
     <button
       onClick={onClick}
+      aria-label={label}
+      title={label}
+      aria-pressed={active}
       className={`flex min-w-0 items-center justify-center gap-1.5 rounded px-2 py-2 text-xs font-semibold transition ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}
       type="button"
     >
       <Icon className="h-3.5 w-3.5 shrink-0" />
-      <span className="truncate">{label}</span>
+      <span className="sr-only">{label}</span>
       <span className={active ? "text-primary-foreground/80" : "text-muted-foreground"}>{count}</span>
     </button>
   )
@@ -885,12 +897,30 @@ function TutorMenu({
   openMenu: TutorMenuId | null
   setOpenMenu: (menuId: TutorMenuId | null) => void
 }) {
+  const container = useRef<HTMLDivElement>(null)
   const open = openMenu === menuId
+  useEffect(() => {
+    if (!open) return
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !container.current?.contains(event.target)) setOpenMenu(null)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return
+      setOpenMenu(null)
+      container.current?.querySelector<HTMLButtonElement>("button")?.focus()
+    }
+    document.addEventListener("pointerdown", closeOutside)
+    document.addEventListener("keydown", closeOnEscape)
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside)
+      document.removeEventListener("keydown", closeOnEscape)
+    }
+  }, [open, setOpenMenu])
   const panelPosition = align === "right"
     ? "left-1/2 top-20 -translate-x-1/2"
     : "left-4 top-20"
   return (
-    <div className="relative inline-block">
+    <div ref={container} className="relative inline-block">
       <ControlButton
         aria-expanded={open}
         onClick={() => setOpenMenu(open ? null : menuId)}
@@ -1079,10 +1109,10 @@ function buildCompletePromptPreview(input: {
   return sections.map(([title, body]) => `## ${title}\n${body}`).join("\n\n")
 }
 
-function ResultAction({ label, onClick }: { label: string; onClick: () => void }) {
+function ResultAction({ label, icon: Icon, onClick }: { label: string; icon: React.ComponentType<{ className?: string }>; onClick: () => void }) {
   return (
-    <ControlButton onClick={onClick} size="compact">
-      {label}
+    <ControlButton aria-label={label} title={label} onClick={onClick} size="compact">
+      <Icon className="h-4 w-4" />
     </ControlButton>
   )
 }
