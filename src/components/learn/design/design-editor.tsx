@@ -12,13 +12,14 @@ import type { MeasureText } from "@/lib/design/text"
 import type { Note } from "../types"
 import { SharePanel } from "../share-panel"
 import { ContextToolbar, type ToolbarActions } from "./context-toolbar"
-import { DesignStage } from "./design-stage"
+import { DesignStage, type StageProps } from "./design-stage"
+import { PageWorkspace } from "./page-workspace"
 import { EditorPanel, EditorRail } from "./editor-rail"
 import { isTypingTarget, useCompactLayout } from "./editor-hooks"
 import type { DesignPanelId } from "./editor-types"
 import { ExportMenu } from "./export-dialog"
 import { pictureFilesFrom, uploadPicture } from "./image-upload"
-import { PagesStrip } from "./pages-strip"
+import { PagesStrip, type PagesStripProps } from "./pages-strip"
 import { PresentMode } from "./present-mode"
 import { PopoverButton } from "./popover"
 import { ResizeMenu, type ResizeTarget } from "./resize-menu"
@@ -38,7 +39,8 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
   useEditorExitGuard(async () => save.status === "saved" ? true : save.saveNow())
   const compact = useCompactLayout()
   const [panel, setPanel] = useState<DesignPanelId | null>(null)
-  const [pagesOpen, setPagesOpen] = useState(true)
+  const presentation = api.design.format === "presentation" || api.design.format === "presentation-4-3"
+  const [pagesOpen, setPagesOpen] = useState(presentation)
   const [focus, setFocus] = useState(false)
   const [zoom, setZoom] = useState(0.5)
   const [fit, setFit] = useState(true)
@@ -56,8 +58,11 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
   const replacement = useRef<string | null>(null)
   const interacting = useRef(false)
   const selection = api.design.pages[api.pageIndex].elements.filter((element) => api.selectedIds.includes(element.id))
+  const selectionKey = api.selectedIds.join(":")
+  useEffect(() => { setPagesOpen(presentation && !compact) }, [presentation, compact])
 
   useEffect(() => { setEditingId(null); setCropping(false); setContext(null) }, [api.pageIndex])
+  useEffect(() => { setPanel(current => current === "text-color" || current === "text-effects" ? null : current) }, [api.pageIndex, selectionKey])
   useEffect(() => { if (compact) { setPanel(null); setPagesOpen(false) } }, [compact])
   useEffect(() => {
     if (!selection.some((element) => element.id === editingId)) setEditingId(null)
@@ -66,12 +71,12 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
   useEffect(() => {
     const node = viewport.current
     if (!node || !fit) return
-    const resize = () => setZoom(fitZoom(api.design, { width: node.clientWidth, height: node.clientHeight }, 80))
+    const resize = () => setZoom(fitZoom(api.design, { width: node.clientWidth, height: node.clientHeight }, presentation ? 64 : 112))
     resize()
     const observer = new ResizeObserver(resize)
     observer.observe(node)
     return () => observer.disconnect()
-  }, [api.design.width, api.design.height, fit])
+  }, [api.design.width, api.design.height, fit, presentation])
   useEffect(() => {
     if (!context) return
     const close = () => setContext(null)
@@ -152,6 +157,16 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
     else api.update(() => next)
   }
 
+  const pageActions: Omit<PagesStripProps, "design" | "pageIndex" | "measure"> = {
+    onSelect: goToPage,
+    onAdd: index => api.update(doc => { const result = addPage(doc, index); return { doc: result.doc, page: result.index, select: [] } }),
+    onDuplicate: index => api.update(doc => { const result = duplicatePage(doc, index); return { doc: result.doc, page: result.index, select: [] } }),
+    onRemove: index => api.update(doc => { const result = removePage(doc, index); return { doc: result.doc, page: result.index, select: [] } }),
+    onMove: (from, to) => api.update(doc => { const id = doc.pages[api.pageIndex].id; const next = movePage(doc, from, to); return { doc: next, page: next.pages.findIndex(page => page.id === id) } }),
+    onToggleHidden: index => api.update(doc => updatePage(doc, index, { hidden: !doc.pages[index].hidden })),
+  }
+  const stage: StageProps = { api, zoom, snap, grid, editingId, cropping, onEdit: setEditingId, onUndo: travel, onInteraction: busy => { interacting.current = busy }, onContext: setContext }
+
   return <div data-focus={focus} className="studio-editor-workspace design-editor-workspace flex min-w-0 flex-col overflow-hidden bg-card" tabIndex={-1} onKeyDown={onKeyDown} onPointerDownCapture={(event) => {
     if (editingId && !(event.target as HTMLElement).closest("[data-keep-editing]")) setEditingId(null)
   }} onPaste={(event) => {
@@ -201,13 +216,13 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
           <ContextToolbar key={`${api.design.pages[api.pageIndex].id}:${api.selectedIds.join(":")}`} api={api} selection={selection} actions={actions} cropping={cropping} />
         </div> : null}
         <div ref={viewport} className="min-h-0 min-w-0 flex-1 overflow-auto">
-        <div className="flex min-h-full min-w-full items-center justify-center p-8" style={{ width: api.design.width * zoom + 64, height: api.design.height * zoom + 64 }}>
-          <DesignStage key={api.design.pages[api.pageIndex].id} api={api} zoom={zoom} snap={snap} grid={grid} editingId={editingId} cropping={cropping} onEdit={setEditingId} onUndo={travel} onInteraction={(busy) => { interacting.current = busy }} onContext={setContext} />
-        </div>
+        {presentation || focus ? <div className="flex min-h-full min-w-full items-center justify-center p-8" style={{ width: api.design.width * zoom + 64, height: api.design.height * zoom + 64 }}>
+          <DesignStage key={api.design.pages[api.pageIndex].id} {...stage} />
+        </div> : <PageWorkspace stage={stage} actions={pageActions} />}
         </div>
       </div>
     </div>
-    {pagesOpen && !focus ? <div className="border-t border-border px-3"><PagesStrip design={api.design} pageIndex={api.pageIndex} measure={measure} onSelect={goToPage} onAdd={(index) => api.update((doc) => { const result = addPage(doc, index); return { doc: result.doc, page: result.index, select: [] } })} onDuplicate={(index) => api.update((doc) => { const result = duplicatePage(doc, index); return { doc: result.doc, page: result.index, select: [] } })} onRemove={(index) => api.update((doc) => { const result = removePage(doc, index); return { doc: result.doc, page: result.index, select: [] } })} onMove={(from, to) => api.update((doc) => { const id = doc.pages[api.pageIndex].id; const next = movePage(doc, from, to); return { doc: next, page: next.pages.findIndex((page) => page.id === id) } })} onToggleHidden={(index) => api.update((doc) => updatePage(doc, index, { hidden: !doc.pages[index].hidden }))} /></div> : null}
+    {pagesOpen && !focus ? <div className="border-t border-border px-3"><PagesStrip design={api.design} pageIndex={api.pageIndex} measure={measure} {...pageActions} /></div> : null}
     <footer className="editor-status-bar">
       <button type="button" className="editor-command" aria-expanded={pagesOpen && !focus} onClick={() => { setFocus(false); setPagesOpen(focus || !pagesOpen) }}><Layers className="h-4 w-4" /> Page {api.pageIndex + 1} / {api.design.pages.length}</button>
       <button type="button" className="editor-command !px-2" aria-label="Add page" onClick={() => api.update((doc) => { const result = addPage(doc, api.pageIndex); return { doc: result.doc, page: result.index, select: [] } })}><Plus className="h-4 w-4" /></button>

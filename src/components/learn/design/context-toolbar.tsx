@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import {
   AlignCenter,
   AlignHorizontalDistributeCenter,
@@ -56,12 +56,10 @@ import {
   readShapeStyle,
   readTextStyle,
   SHADOW_KINDS,
-  TEXT_EFFECTS,
   type ImageFilter,
   type ImageMask,
   type ShadowKind,
   type StrokeDash,
-  type TextEffect,
 } from "@/lib/design/style"
 import type { ListStyle, TextAlign } from "@/lib/design/text"
 
@@ -111,7 +109,6 @@ const FONT_CATEGORY_LABELS: Record<DesignFontCategory, string> = {
   mono: "Monospace",
 }
 
-const TEXT_EFFECT_LABELS: Record<TextEffect, string> = { none: "None", shadow: "Shadow", lift: "Lift", outline: "Outline", neon: "Neon", highlight: "Highlight" }
 const SHADOW_LABELS: Record<ShadowKind, string> = { none: "None", soft: "Soft", lifted: "Lifted", glow: "Glow" }
 const FILTER_LABELS: Record<ImageFilter, string> = { none: "Original", grayscale: "Mono", sepia: "Sepia", warm: "Warm", cool: "Cool", vivid: "Vivid", fade: "Faded", dark: "Moody" }
 const MASK_LABELS: Record<ImageMask, string> = { none: "Square", rounded: "Rounded", circle: "Circle", blob: "Blob", heart: "Heart", star: "Star", hexagon: "Hexagon", arch: "Arch" }
@@ -407,7 +404,7 @@ export function ContextToolbar({ api, selection, actions, cropping }: ContextToo
             }
           />
           <FontSizeControl size={typeSize} onChange={setSize} />
-          <ColorButton label="Text colour" look="text" value={typeColor} onChange={(color) => color && styleAll({ color }, undefined, isTypeable)} theme={api.theme} design={api.design} />
+          {textStyle ? <ToolButton label="Text colour" onClick={() => actions.openPanel("text-color")}><span className="border-b-[3px] px-1 font-semibold leading-4" style={{ borderColor: typeColor }}>A</span></ToolButton> : <ColorButton label="Text colour" look="text" value={typeColor} onChange={color => color && styleAll({ color }, undefined, isTypeable)} theme={api.theme} design={api.design} />}
           <ToolButton
             label="Bold (Ctrl+B)"
             active={typeWeight >= 600}
@@ -473,40 +470,7 @@ export function ContextToolbar({ api, selection, actions, cropping }: ContextToo
               )}>
                 <SlidersHorizontal className="h-4 w-4" />
               </PopoverButton>
-              <PopoverButton label="Text effects" buttonClassName="canvas-tool !px-2.5" width={280} active={textStyle.effect !== "none" || Boolean(textStyle.background)} panel={() => (
-                <div className="w-[16rem] space-y-3">
-                  <ChoiceGrid
-                    label="Effect"
-                    options={TEXT_EFFECTS}
-                    value={textStyle.effect}
-                    labels={TEXT_EFFECT_LABELS}
-                    onChange={(effect) => styleAll({ effect }, undefined, (element) => element.type === "text")}
-                    render={(effect) => <EffectSample effect={effect} />}
-                  />
-                  {textStyle.effect !== "none" && textStyle.effect !== "lift" ? (
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold">Effect colour</span>
-                      <ColorButton label="Effect colour" value={textStyle.effectColor} onChange={(color) => color && styleAll({ effectColor: color }, undefined, (element) => element.type === "text")} theme={api.theme} design={api.design} />
-                    </div>
-                  ) : null}
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold">Box background</span>
-                    <ColorButton
-                      label="Text box background"
-                      value={textStyle.background}
-                      allowNone
-                      onChange={(color) => styleAll(color ? { backgroundColor: color, padding: textStyle.padding || Math.round(16 * unit), borderRadius: textStyle.radius || Math.round(12 * unit) } : { backgroundColor: null }, undefined, (element) => element.type === "text")}
-                      theme={api.theme}
-                      design={api.design}
-                    />
-                  </div>
-                  {textStyle.background ? (
-                    <RangeRow label="Box padding" min={0} max={Math.round(120 * unit)} step={1} value={textStyle.padding} onChange={(value) => styleAll({ padding: value }, "padding", (element) => element.type === "text")} />
-                  ) : null}
-                </div>
-              )}>
-                <Sparkles className="h-4 w-4" />
-              </PopoverButton>
+              <ToolButton label="Text effects" onClick={() => actions.openPanel("text-effects")}><Sparkles className="h-4 w-4" /></ToolButton>
             </>
           ) : null}
           <Divider />
@@ -758,22 +722,6 @@ function MiniMask({ mask }: { mask: ImageMask }) {
     <svg width={28} height={28} viewBox={`-3 ${mask === "arch" ? -1 : -3} 28 28`} aria-hidden="true">
       <path d={path} fill="currentColor" opacity={0.7} />
     </svg>
-  )
-}
-
-function EffectSample({ effect }: { effect: TextEffect }) {
-  const style: Record<TextEffect, CSSProperties> = {
-    none: {},
-    shadow: { textShadow: "2px 2px 0 rgba(0,0,0,0.35)" },
-    lift: { textShadow: "0 4px 8px rgba(0,0,0,0.35)" },
-    outline: { color: "transparent", WebkitTextStroke: "1px currentColor" },
-    neon: { textShadow: "0 0 6px #5CC8FF, 0 0 12px #5CC8FF" },
-    highlight: { background: "#FFE066", color: "#111", padding: "0 3px", borderRadius: 3 },
-  }
-  return (
-    <span className="text-lg font-black leading-none" style={style[effect]} aria-hidden="true">
-      Ag
-    </span>
   )
 }
 

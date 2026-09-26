@@ -15,7 +15,7 @@ import { dragHasFiles, naturalSize, pictureFilesFrom } from "./image-upload"
 import { TextEditorOverlay } from "./text-editor-overlay"
 import type { DesignEditorApi } from "./editor-types"
 
-interface StageProps {
+export interface StageProps {
   api: DesignEditorApi
   zoom: number
   snap: boolean

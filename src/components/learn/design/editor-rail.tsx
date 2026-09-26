@@ -11,6 +11,7 @@ import { StylesPanel } from "./panels/styles-panel"
 import { TemplatesPanel } from "./panels/templates-panel"
 import { TextPanel } from "./panels/text-panel"
 import { UploadsPanel } from "./panels/uploads-panel"
+import { SelectionPanel } from "./panels/selection-panel"
 
 /**
  * The editor's left rail and the panel it opens: templates, elements, text,
@@ -86,17 +87,20 @@ export const EditorRail = memo(function EditorRail({ panel, onPanel, compact }: 
 /** The open panel: beside the page, or a sheet over it on a phone. */
 export function EditorPanel({ api, panel, onPanel, compact }: EditorRailProps) {
   const item = RAIL_ITEMS.find((entry) => entry.id === panel)
+  const selectionPanel = panel === "text-color" || panel === "text-effects"
   const bodyRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: 0 })
   }, [panel])
 
-  if (!item) return null
-  const Body = item.panel
+  if (!item && !selectionPanel) return null
+  const Body = item?.panel
+  const label = item?.label ?? (panel === "text-color" ? "Text color" : "Effects")
   return (
     <aside
-      aria-label={item.title}
+      aria-label={item?.title ?? label}
+      data-keep-editing="true"
       data-editor-panel={panel}
       className={
         compact
@@ -106,13 +110,13 @@ export function EditorPanel({ api, panel, onPanel, compact }: EditorRailProps) {
     >
       {compact ? <span className="mx-auto mt-2 h-1.5 w-10 shrink-0 rounded-full bg-border" aria-hidden="true" /> : null}
       <div className="flex shrink-0 items-center justify-between gap-2 px-4 pb-2 pt-3">
-        <h3 className="text-sm font-bold tracking-tight">{item.label}</h3>
+        <h3 className="text-sm font-bold tracking-tight">{label}</h3>
         <button type="button" onClick={() => onPanel(null)} aria-label="Close panel" className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground">
           <X className="h-4 w-4" />
         </button>
       </div>
       <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-        <Body api={api} />
+        {Body ? <Body api={api} /> : <SelectionPanel api={api} effects={panel === "text-effects"} />}
       </div>
     </aside>
   )

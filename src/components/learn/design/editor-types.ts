@@ -12,7 +12,7 @@ import type { Note } from "../types"
  * right after another edit cannot undo it.
  */
 
-export type DesignPanelId = "templates" | "elements" | "text" | "uploads" | "magic" | "styles" | "layers"
+export type DesignPanelId = "templates" | "elements" | "text" | "uploads" | "magic" | "styles" | "layers" | "text-color" | "text-effects"
 
 export interface UploadedPicture {
   /** The stored file's id in `/api/files`. */
