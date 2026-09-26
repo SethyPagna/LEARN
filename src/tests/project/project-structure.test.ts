@@ -48,6 +48,13 @@ const allowedJavaScriptFiles = new Set([
   // wiring assertions in src/tests/ux/touch-targets.test.ts.
   "ops/scripts/test/browser-ux-audit.mjs",
   "ops/scripts/test/lib/cdp.mjs",
+  // Playwright CLI evaluates these functions directly in its browser sandbox;
+  // it does not compile TypeScript. They share no application runtime code.
+  "ops/scripts/test/playwright-routes.js",
+  "ops/scripts/test/playwright-learning.js",
+  "ops/scripts/test/playwright-practice.js",
+  "ops/scripts/test/playwright-social.js",
+  "ops/scripts/test/playwright-editor.js",
 ])
 
 function listTrackedFiles() {
