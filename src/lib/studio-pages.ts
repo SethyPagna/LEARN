@@ -1,6 +1,18 @@
 const STUDIO_PAGE_MARKER = '<hr data-studio-page="true">'
 const STUDIO_PAGE_PATTERN = /<hr\b(?=[^>]*\bdata-studio-page\s*=\s*(?:"true"|'true'|true(?=[\s/>])))[^>]*>/gi
 
+export function richDocumentPageBodies(html: string): string[] {
+  return html.split(STUDIO_PAGE_PATTERN).map(page => page.trim() || "<p></p>")
+}
+
+export function richDocumentEditingHtml(html: string): string {
+  return richDocumentPageBodies(html).map(page => `<section data-studio-sheet="true">${page}</section>`).join("")
+}
+
+export function joinRichDocumentPages(pages: readonly string[]): string {
+  return pages.join(STUDIO_PAGE_MARKER)
+}
+
 export function countRichDocumentPages(html: string) {
   if (!html.trim()) return 1
   return html.split(STUDIO_PAGE_PATTERN).length

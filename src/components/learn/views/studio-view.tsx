@@ -11,9 +11,11 @@ import * as ContextMenu from "@radix-ui/react-context-menu"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { Extension } from "@tiptap/core"
 import { Panel as ResizePanel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
-import { EditorContent, useEditor, type Editor } from "@tiptap/react"
+import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import { StudioPageBreak } from "../studio-page-break"
+import { WritingDocument, WritingPage, writingDocumentHtml, insertWritingPageBreak } from "../studio-writing-pages"
+import { sanitizeImageUrl } from "@/lib/studio/canvas-styles"
 import Underline from "@tiptap/extension-underline"
 import TextAlign from "@tiptap/extension-text-align"
 import { TextStyle } from "@tiptap/extension-text-style"
@@ -148,7 +150,7 @@ import { canvasAspectRatio, canvasPreviewWidth, getAnyStudioCanvasFormat, getStu
 import { buildStudioProjectBrowserHeader, buildStudioProjectBrowserState, buildStudioProjectBrowserSummary, buildStudioProjectSubtitle, buildStudioTemplateSubtitle, filterStudioProjectsByDraftStatus, getStudioProjectDisplayMeta, getStudioProjectFilterOption, listStudioProjectFilterOptions, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, type StudioProjectKindFilter, type StudioProjectStatusFilter } from "@/lib/studio-project-browser"
 import { useEditorExitGuard } from "../editor-navigation"
 import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
-import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
+import { richDocumentEditingHtml, appendRichDocumentPage, duplicateRichDocumentLastPage, countRichDocumentPages } from "@/lib/studio-pages"
 import { HEADING_STYLE_KEY, STUDIO_LAYOUT_KEY, parseStoredHeadingStyles, parseStoredStudioLayout, type HeadingStyleLevel, type HeadingStylePreset } from "@/lib/studio-preferences"
 import { DOCX_MIME, PDF_MIME, XLSX_MIME, documentHtmlToDocx, documentHtmlToPdf, sheetCellsToXlsx } from "@/lib/export/studio-export"
 import { studioDocumentFromDocxFile, studioSheetFromXlsxFile } from "@/lib/export/studio-import"
@@ -1673,8 +1675,7 @@ export function StudioView({
         <span className="hidden text-xs text-muted-foreground sm:block" role="status">{saving ? "Saving…" : lastSaved ? `Saved ${lastSaved}` : "Draft"}</span>
         <StudioButton label="Save" icon={Save} onClick={() => saveActive()} disabled={!hasActiveItem || saving} primary />
         <ActionMenu label="Export" icon={Download} align="right">
-          <MenuAction icon={Download} label="Download" onClick={() => downloadActive(false)} />
-          <MenuAction icon={PanelRight} label="Export format" onClick={() => downloadActive(true)} />
+          {buildStudioDownloadOptions(kind).map(option => <MenuAction key={option.id} icon={Download} label={option.label} onClick={() => downloadActive(option.action === "export", option.id)} />)}
         </ActionMenu>
       </div>
       <div className="editor-menu-bar">
@@ -3673,8 +3674,6 @@ function SortableSlideThumb({
 function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: { canvasFormat: StudioCanvasFormat; large?: boolean; onChange: (value: string) => void; placeholder: string; value: string }) {
   const documentSummary = useMemo(() => summarizeDocumentHtml(value), [value])
   const pageCount = countRichDocumentPages(value)
-  const [pageHidden, setPageHidden] = useState(false)
-  const [pageLocked, setPageLocked] = useState(false)
   const [activePage, setActivePage] = useState(1)
   const [zoom, setZoom] = useState(100)
   const writingViewport = useRef<HTMLDivElement>(null)
@@ -3695,9 +3694,11 @@ function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: {
   }, [])
   const editor = useEditor({
     immediatelyRender: false,
-    editable: !pageLocked,
+    editorProps: { attributes: { "aria-label": "Document content", role: "textbox", "aria-multiline": "true" } },
     extensions: [
-      StarterKit.configure({ link: false, underline: false }),
+      StarterKit.configure({ link: false, underline: false, document: false }),
+      WritingDocument,
+      WritingPage,
       StudioPageBreak,
       Underline,
       TextStyle,
@@ -3718,26 +3719,18 @@ function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: {
       CharacterCount,
       Placeholder.configure({ placeholder }),
     ],
-    content: richTextContent(value),
-    onUpdate: ({ editor }) => onChange(editor.getHTML()),
+    content: richDocumentEditingHtml(richTextContent(value)),
+    onUpdate: ({ editor }) => onChange(writingDocumentHtml(editor)),
     onSelectionUpdate: ({ editor }) => {
-      let page = 1
-      editor.state.doc.nodesBetween(0, editor.state.selection.from, (node) => {
-        if (node.type.name === "horizontalRule" && node.attrs.pageBreak) page += 1
-      })
-      setActivePage(page)
+      setActivePage(editor.state.selection.$from.index(0) + 1)
     },
   })
 
   useEffect(() => {
     if (!editor) return
     const next = richTextContent(value)
-    if (editor.getHTML() !== next) editor.commands.setContent(next, { emitUpdate: false })
+    if (writingDocumentHtml(editor) !== next) editor.commands.setContent(richDocumentEditingHtml(next), { emitUpdate: false })
   }, [editor, value])
-
-  useEffect(() => {
-    editor?.setEditable(!pageLocked)
-  }, [editor, pageLocked])
 
   return (
     <div className="studio-writing-surface">
@@ -3748,99 +3741,48 @@ function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: {
           style={{ minHeight: pageWidth / Number(canvasFormat.width / canvasFormat.height) * pageScale, width: Math.round(pageWidth * pageScale) }}
         >
           <div
-            className="origin-top-left border border-border bg-card shadow-paper"
-            style={{ minHeight: pageWidth / Number(canvasFormat.width / canvasFormat.height), opacity: pageHidden ? 0.3 : 1, transform: `scale(${pageScale})`, width: pageWidth }}
+            className="writing-pages"
+            style={{ "--writing-page-height": `${pageWidth / Number(canvasFormat.width / canvasFormat.height)}px`, "--writing-controls-zoom": 1 / pageScale, zoom: pageScale, width: pageWidth } as React.CSSProperties}
           >
             <EditorContent
               editor={editor}
-              className={`${large ? "min-h-[62vh]" : "min-h-[52vh]"} px-6 py-6 text-foreground sm:px-10 sm:py-8 [&_.ProseMirror]:min-h-[48vh] [&_.ProseMirror]:outline-none [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-3 [&_h1]:text-3xl [&_h1]:font-semibold [&_h2]:text-2xl [&_h2]:font-semibold [&_p]:leading-8 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-2 [&_th]:border [&_th]:border-border [&_th]:bg-secondary [&_th]:p-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6`}
+              className={`${large ? "min-h-[62vh]" : "min-h-[52vh]"} text-foreground [&_.ProseMirror]:outline-none [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-3 [&_h1]:text-3xl [&_h1]:font-semibold [&_h2]:text-2xl [&_h2]:font-semibold [&_p]:leading-8 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-2 [&_th]:border [&_th]:border-border [&_th]:bg-secondary [&_th]:p-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6`}
             />
           </div>
+          <button type="button" className="design-add-page mx-auto mt-5" onClick={() => editor?.chain().focus().insertContentAt(editor.state.doc.content.size, { type: "studioSheet", content: [{ type: "paragraph" }] }).run()}><Plus size={16} />Add page</button>
         </div>
       </div>
       <RichDocumentPageControls
         canvasLabel={canvasFormat.label}
         documentSummary={documentSummary}
-        onAddPage={() => onChange(appendRichDocumentPage(value))}
-        onDuplicatePage={() => onChange(duplicateRichDocumentLastPage(value))}
         pageCount={pageCount}
         activePage={activePage}
-        pageHidden={pageHidden}
-        pageLocked={pageLocked}
-        setPageHidden={setPageHidden}
-        setPageLocked={setPageLocked}
         setZoom={setZoom}
         zoom={zoom}
-        placement="bottom"
       />
     </div>
   )
 }
 
-function RichDocumentPageControls({
-  canvasLabel,
-  documentSummary,
-  onAddPage,
-  onDuplicatePage,
-  pageCount,
-  activePage,
-  pageHidden,
-  pageLocked,
-  placement,
-  setPageHidden,
-  setPageLocked,
-  setZoom,
-  zoom,
-}: {
+function RichDocumentPageControls({ canvasLabel, documentSummary, pageCount, activePage, setZoom, zoom }: {
   canvasLabel: string
   documentSummary: ReturnType<typeof summarizeDocumentHtml>
-  onAddPage: () => void
-  onDuplicatePage: () => void
   pageCount: number
   activePage: number
-  pageHidden: boolean
-  pageLocked: boolean
-  placement: "top" | "bottom"
-  setPageHidden: React.Dispatch<React.SetStateAction<boolean>>
-  setPageLocked: React.Dispatch<React.SetStateAction<boolean>>
   setZoom: React.Dispatch<React.SetStateAction<number>>
   zoom: number
 }) {
-  return (
-    <div className={`${placement === "bottom" ? "sticky bottom-0 z-10 border-t" : "border-b"} flex flex-wrap items-center gap-2 border-border bg-card/95 px-3 py-2 text-xs text-muted-foreground backdrop-blur`}>
-      <button onClick={onAddPage} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-secondary px-2 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" title="Add page" type="button">
-        <Plus className="h-3.5 w-3.5" />
-        Page
-      </button>
-      <button onClick={onDuplicatePage} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-secondary px-2 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" title="Duplicate page" type="button">
-        <Copy className="h-3.5 w-3.5" />
-      </button>
-      <button onClick={() => setPageHidden((hidden) => !hidden)} className={`inline-flex h-8 items-center gap-1 rounded-md border px-2 font-semibold ${pageHidden ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} title={pageHidden ? "Show page" : "Hide page preview"} type="button">
-        {pageHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-      </button>
-      <button onClick={() => setPageLocked((locked) => !locked)} className={`inline-flex h-8 items-center gap-1 rounded-md border px-2 font-semibold ${pageLocked ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} title={pageLocked ? "Unlock editing" : "Lock editing"} type="button">
-        <Lock className="h-3.5 w-3.5" />
-      </button>
-      <span className="hidden font-semibold text-muted-foreground md:inline">{canvasLabel}</span>
-      <span className="hidden md:inline">{documentSummary.words} words</span>
-      <span className="hidden md:inline">{documentSummary.characters} chars</span>
-      <span className="hidden lg:inline">{documentSummary.readingMinutes} min read</span>
-      <div className="ml-auto flex items-center gap-2">
-        <input value={zoom} onChange={(event) => setZoom(Number(event.target.value))} min={60} max={150} type="range" className="w-24 accent-primary sm:w-32" aria-label="Zoom" />
-        <span className="w-10 text-right font-semibold text-foreground">{zoom}%</span>
-        <span className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 font-semibold text-secondary-foreground"><LayoutPanelLeft className="h-3.5 w-3.5" /> Pages</span>
-        <span className="font-semibold text-foreground">{Math.min(activePage, pageCount)} / {pageCount}</span>
-      </div>
-      {placement === "bottom" ? documentSummary.headings.slice(0, 3).map((heading) => (
-        <span key={`${heading.level}-${heading.title}`} className="rounded-md bg-secondary px-2 py-1 text-secondary-foreground">
-          H{heading.level} {heading.title}
-        </span>
-      )) : null}
-    </div>
-  )
+  return <footer className="editor-status-bar">
+    <span className="inline-flex items-center gap-2 text-xs"><LayoutPanelLeft size={15} />{Math.min(activePage, pageCount)} / {pageCount}</span>
+    <PopoverButton label="Document details" placement="top-start" panel={() => <div className="space-y-2 p-2 text-xs"><p>{canvasLabel}</p><p>{documentSummary.words} words · {documentSummary.characters} characters</p><p>{documentSummary.readingMinutes} min read</p></div>}><FileText size={15} /></PopoverButton>
+    <div className="flex-1" />
+    <input value={zoom} onChange={event => setZoom(Number(event.target.value))} min={40} max={150} type="range" className="w-24 accent-primary sm:w-32" aria-label="Zoom" />
+    <span className="w-10 text-right text-xs">{zoom}%</span>
+  </footer>
 }
 
 function RichTextToolbar({ editor }: { editor: Editor | null }) {
+  const selected = useEditorState({ editor, selector: ({ editor }) => ({ image: Boolean(editor?.isActive("image")), table: Boolean(editor?.isActive("table")) }) })
   const [findText, setFindText] = useState("")
   const [headingStyles, setHeadingStyles] = useState<Record<HeadingStyleLevel, HeadingStylePreset>>(() => readHeadingStyles())
   const [headingStatus, setHeadingStatus] = useState("")
@@ -3870,6 +3812,10 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
     setHeadingStyles(next)
     setHeadingStatus("Styles reset")
   }
+  if (selected?.image) return <div className="studio-format-toolbar" role="toolbar" aria-label="Image tools">
+    <PopoverButton label="Edit image" panel={close => <WritingImageForm editor={editor} replace onDone={close} />}><ImageIcon size={16} /></PopoverButton>
+    <ToolbarIcon icon={Trash2} label="Delete image" onClick={() => run(item => item.chain().focus().deleteSelection().run())} />
+  </div>
   return (
     <div className="studio-format-toolbar flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-card px-3 py-2">
 
@@ -3902,39 +3848,38 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
       <ToolbarIcon icon={Bold} label="Bold" onClick={() => run((item) => item.chain().focus().toggleBold().run())} />
       <ToolbarIcon icon={Italic} label="Italic" onClick={() => run((item) => item.chain().focus().toggleItalic().run())} />
       <ToolbarIcon icon={UnderlineIcon} label="Underline" onClick={() => run((item) => item.chain().focus().toggleUnderline().run())} />
-      <ToolbarIcon icon={Strikethrough} label="Strike" onClick={() => run((item) => item.chain().focus().toggleStrike().run())} />
       <ActionMenu label="Text settings" icon={Type} compact>
+        <MenuAction icon={Strikethrough} label="Strike" onClick={() => run((item) => item.chain().focus().toggleStrike().run())} />
         <MenuAction icon={Type} label="Uppercase style" onClick={() => run((item) => item.chain().focus().setMark("textStyle", { textTransform: "uppercase" }).run())} />
         <MenuAction icon={Braces} label="Inline code" onClick={() => run((item) => item.chain().focus().toggleCode().run())} />
         <MenuAction icon={Quote} label="Quote" onClick={() => run((item) => item.chain().focus().toggleBlockquote().run())} />
       </ActionMenu>
-      <ToolbarIcon icon={AlignLeft} label="Align left" onClick={() => run((item) => item.chain().focus().setTextAlign("left").run())} />
-      <ToolbarIcon icon={AlignCenter} label="Align center" onClick={() => run((item) => item.chain().focus().setTextAlign("center").run())} />
-      <ToolbarIcon icon={List} label="Bullets" onClick={() => run((item) => item.chain().focus().toggleBulletList().run())} />
-      <ToolbarIcon icon={ListOrdered} label="Numbers" onClick={() => run((item) => item.chain().focus().toggleOrderedList().run())} />
-      <ToolbarIcon icon={CheckSquare} label="Tasks" onClick={() => run((item) => item.chain().focus().toggleTaskList().run())} />
-      <ActionMenu label="Insert" icon={Plus}>
+      <ActionMenu label="Lists" icon={List} compact>
+        <MenuAction icon={List} label="Bullets" onClick={() => run(item => item.chain().focus().toggleBulletList().run())} />
+        <MenuAction icon={ListOrdered} label="Numbers" onClick={() => run(item => item.chain().focus().toggleOrderedList().run())} />
+        <MenuAction icon={CheckSquare} label="Tasks" onClick={() => run(item => item.chain().focus().toggleTaskList().run())} />
+      </ActionMenu>
+      <ActionMenu label="Insert" icon={Plus} compact>
         {documentInsertGroups.map((group) => (
           <div key={group.label} className="grid gap-1">
             <p className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground first:pt-0">{group.label}</p>
             {group.items.map((insertKind) => (
-              <MenuAction key={insertKind} icon={FilePlus2} label={insertLabel(insertKind)} onClick={() => run((item) => item.chain().focus().insertContent(getDocumentInsertBlock(insertKind)).run())} />
+              <MenuAction key={insertKind} icon={FilePlus2} label={insertLabel(insertKind)} onClick={() => run(item => insertKind === "page-break" ? insertWritingPageBreak(item) : item.chain().focus().insertContent(getDocumentInsertBlock(insertKind)).run())} />
             ))}
           </div>
         ))}
         <MenuAction icon={Grid2X2} label="Table" onClick={() => run((item) => item.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())} />
+        {selected?.table ? <>
         <MenuAction icon={Rows3} label="Table row" onClick={() => run((item) => item.chain().focus().addRowAfter().run())} />
         <MenuAction icon={Columns3} label="Table column" onClick={() => run((item) => item.chain().focus().addColumnAfter().run())} />
         <MenuAction danger icon={Trash2} label="Delete table column" onClick={() => run((item) => item.chain().focus().deleteColumn().run())} />
         <MenuAction danger icon={Trash2} label="Delete table row" onClick={() => run((item) => item.chain().focus().deleteRow().run())} />
+        </> : null}
         <MenuAction icon={Minus} label="Divider" onClick={() => run((item) => item.chain().focus().setHorizontalRule().run())} />
         <MenuAction icon={Braces} label="Code block" onClick={() => run((item) => item.chain().focus().toggleCodeBlock().run())} />
-        <MenuAction icon={ImageIcon} label="Image URL" onClick={() => {
-          const src = window.prompt("Image URL")
-          if (src) run((item) => item.chain().focus().setImage({ src }).run())
-        }} />
+        <WritingImageForm editor={editor} />
       </ActionMenu>
-      <ActionMenu label="Position" icon={Maximize2}>
+      <ActionMenu label="Position" icon={AlignLeft} compact>
         <MenuAction icon={AlignLeft} label="Align left" onClick={() => run((item) => item.chain().focus().setTextAlign("left").run())} />
         <MenuAction icon={AlignCenter} label="Align center" onClick={() => run((item) => item.chain().focus().setTextAlign("center").run())} />
         <MenuAction icon={AlignRight} label="Align right" onClick={() => run((item) => item.chain().focus().setTextAlign("right").run())} />
@@ -3957,6 +3902,26 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
       {headingStatus ? <span className="text-xs font-semibold text-success">{headingStatus}</span> : null}
     </div>
   )
+}
+
+function WritingImageForm({ editor, replace = false, onDone }: { editor: Editor | null; replace?: boolean; onDone?: () => void }) {
+  const image = replace ? editor?.getAttributes("image") : undefined
+  const [url, setUrl] = useState(String(image?.src ?? ""))
+  const [alt, setAlt] = useState(String(image?.alt ?? ""))
+  const [error, setError] = useState("")
+  return <form className="grid gap-2 border-t border-border p-2" onSubmit={event => {
+    event.preventDefault()
+    const src = sanitizeImageUrl(url)
+    if (!src) { setError("Use a valid image URL."); return }
+    if (replace) editor?.chain().focus().updateAttributes("image", { src, alt }).run()
+    else editor?.chain().focus().setImage({ src, alt }).run()
+    onDone?.()
+  }}>
+    <input aria-label="Image URL" placeholder="Image URL" value={url} onChange={event => setUrl(event.target.value)} className="h-8 w-full rounded border border-input bg-background px-2 text-sm" />
+    <input aria-label="Image description" placeholder="Description" value={alt} onChange={event => setAlt(event.target.value)} className="h-8 w-full rounded border border-input bg-background px-2 text-sm" />
+    {error ? <p role="alert" className="text-xs text-destructive">{error}</p> : null}
+    <button type="submit" className="editor-command justify-center" aria-label={replace ? "Update image" : "Insert image"}><ImageIcon size={15} />{replace ? "Apply" : "Insert"}</button>
+  </form>
 }
 
 function insertLabel(kind: DocumentInsertKind) {
