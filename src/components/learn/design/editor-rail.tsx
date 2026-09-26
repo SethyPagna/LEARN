@@ -107,7 +107,7 @@ export function EditorPanel({ api, panel, onPanel, compact }: EditorRailProps) {
     >
       {compact ? <span className="mx-auto mt-2 h-1.5 w-10 shrink-0 rounded-full bg-border" aria-hidden="true" /> : null}
       <div className="flex shrink-0 items-center justify-between gap-2 px-4 pb-2 pt-3">
-        <h3 className="text-sm font-bold tracking-tight">{item.title}</h3>
+        <h3 className="text-sm font-bold tracking-tight">{item.label}</h3>
         <button type="button" onClick={() => onPanel(null)} aria-label="Close panel" className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground">
           <X className="h-4 w-4" />
         </button>

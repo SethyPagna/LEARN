@@ -754,33 +754,16 @@ button.compact-row:hover, .compact-row[aria-pressed='true'] { background:var(--a
 
 @media(max-width:767px) { .graph-stage svg { height:280px; } }
 
-/* Canvas-first editing: tools, workbench and a contextual inspector. */
+/* Canvas-first editing: tools, workbench and contextual controls. */
 .design-editor-workspace .editor-document-header { min-height:52px; padding:8px 12px; }
 .design-editor-workspace .editor-menu-bar { min-height:40px; padding:4px 10px; }
-.design-workbench { background:var(--muted); background-image:radial-gradient(color-mix(in oklch,var(--foreground) 12%,transparent) .7px,transparent .7px); background-size:16px 16px; }
+.design-workbench { background:var(--muted); }
 .design-workbench [role="application"] { box-shadow:0 12px 44px rgb(0 0 0 / .14); }
-.design-inspector { display:flex; flex-direction:column; width:246px; flex-shrink:0; border-left:1px solid var(--border); background:var(--card); }
-.inspector-tabs { display:flex; align-items:center; gap:3px; padding:8px; border-bottom:1px solid var(--border); }
-.inspector-tabs button { display:flex; align-items:center; justify-content:center; gap:6px; padding:7px 9px; border-radius:6px; font-size:12px; color:var(--muted-foreground); }
-.inspector-tabs button:last-child { margin-left:auto; }
-.inspector-tabs button[aria-pressed='true'] { background:var(--secondary); color:var(--foreground); font-weight:600; }
-.inspector-body { overflow-y:auto; min-height:0; }
-.inspector-body > .space-y-3 { padding:12px; }
-.inspector-section { padding:14px 12px; border-bottom:1px solid var(--border); }
-.inspector-section h3 { margin-bottom:10px; font-size:12px; font-weight:600; }
 .inspector-geometry { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
 .inspector-number { display:flex; align-items:center; gap:5px; padding:7px 9px; border-radius:7px; background:var(--secondary); font-size:11px; color:var(--muted-foreground); }
 .inspector-number input { width:100%; min-width:0; background:transparent; color:var(--foreground); outline:none; font-size:12px; }
 .inspector-number:focus-within { outline:2px solid var(--ring); }
 .inspector-number input:disabled { opacity:.5; }
-.design-inspector .canvas-toolbar { display:flex; flex-wrap:wrap; gap:5px; padding:0; background:transparent; border:0; overflow:visible; }
-.design-inspector .canvas-page-label { display:none; }
-.design-inspector .canvas-toolbar > span.h-px,.design-inspector .canvas-toolbar > span.w-px { display:none; }
-.design-editor-workspace .design-inspector .canvas-tool { min-height:32px; border-radius:7px; background:var(--secondary); }
-.inspector-hint { padding:16px 12px; font-size:11px; line-height:1.8; color:var(--muted-foreground); }
-.inspector-hint details { margin-top:12px; }
-.design-page-notes { background:var(--card); }
-.design-editor-workspace[data-focus='true'] .design-page-notes { display:none; }
 [data-editor-rail] button { min-height:58px; border-radius:9px; }
 [data-editor-rail] button[data-design-rail='templates'] svg { color:#8a6be0; }
 [data-editor-rail] button[data-design-rail='elements'] svg { color:#d9864e; }
@@ -803,9 +786,8 @@ button.compact-row:hover, .compact-row[aria-pressed='true'] { background:var(--a
 .practice-launches button { min-height:76px; }
 .practice-design[data-design='arcade'] .game-prompt { border-radius:6px; box-shadow:4px 4px 0 var(--play-second); }
 .practice-design[data-design='garden'] .game-prompt { border-radius:28px 8px 28px 8px; }
-@media(min-width:1024px) and (max-width:1350px) { .design-inspector { width:220px; } [data-editor-panel] { width:228px; } }
-@media(max-width:1023px) { .design-inspector { position:absolute; z-index:44; bottom:0; right:0; width:min(350px,100%); max-height:75%; border:1px solid var(--border); border-radius:14px 0 0 0; box-shadow:0 -8px 30px rgb(0 0 0 / .15); } }
-@media(max-width:639px) { .design-editor-workspace .editor-document-header { padding:6px; gap:3px; } .design-editor-workspace .editor-menu-bar { padding:4px; } .design-inspector { max-height:85%; } .social-hub > header h2 { display:none; } }
+@media(min-width:1024px) and (max-width:1350px) { [data-editor-panel] { width:228px; } }
+@media(max-width:639px) { .design-editor-workspace .editor-document-header { padding:6px; gap:3px; } .design-editor-workspace .editor-menu-bar { padding:4px; } .social-hub > header h2 { display:none; } }
 
 /* Keep conversation identity and common actions together. */
 @media(max-width:639px) { .page-sections { gap:2px; } .page-sections button { gap:4px; padding-inline:6px; font-size:11px; } }
@@ -820,3 +802,14 @@ button.compact-row:hover, .compact-row[aria-pressed='true'] { background:var(--a
   .social-workspace .chat-heading input { font-size:15px; }
   .social-workspace .chat-actions { padding:8px 12px 8px 0; }
 }
+
+/* Selection tools float above the artwork; advanced controls stay in popovers. */
+.design-context-row { display:flex; justify-content:center; flex-shrink:0; min-width:0; padding:10px 16px 2px; }
+.design-context-row .canvas-toolbar { width:max-content; max-width:100%; min-height:42px; padding:4px 6px; gap:2px; flex-wrap:nowrap; overflow-x:auto; border:1px solid var(--border); border-radius:12px; background:var(--card); box-shadow:0 2px 8px rgb(0 0 0 / .08); scrollbar-width:thin; }
+.design-context-row .canvas-page-label { display:none; }
+.design-context-row .canvas-tool { height:32px; min-height:32px; border-radius:7px; }
+.design-context-row .canvas-toolbar > * { flex-shrink:0; }
+.design-context-row .canvas-toolbar > span:has([aria-label="Font size"]) { height:32px; }
+.design-context-row [aria-label="Font size"] { width:42px; }
+.design-notes-panel { width:296px; max-width:calc(100vw - 42px); }
+@media(max-width:639px) { .design-context-row { padding:6px 6px 0; } .design-editor-workspace .editor-status-bar { gap:2px; padding-inline:4px; } .design-editor-workspace .editor-status-bar .editor-command { gap:4px; padding-inline:5px; } }

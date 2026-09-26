@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react"
-import { ArrowLeft, ChevronDown, Layers, Link, Plus, Redo2, Save, Undo2, Upload, Scan, SlidersHorizontal } from "lucide-react"
+import { ArrowLeft, ChevronDown, Layers, Link, Plus, Redo2, Save, Undo2, Upload, Scan, NotebookPen } from "lucide-react"
 import { createElement } from "@/lib/studio/canvas-engine"
 import { sanitizeImageUrl } from "@/lib/studio/canvas-styles"
 import { addPage, duplicatePage, movePage, newDesignId, removePage, updatePage, type DesignDoc } from "@/lib/design/document"
@@ -11,8 +11,7 @@ import { resizeDesign } from "@/lib/design/layout"
 import type { MeasureText } from "@/lib/design/text"
 import type { Note } from "../types"
 import { SharePanel } from "../share-panel"
-import type { ToolbarActions } from "./context-toolbar"
-import { DesignInspector } from "./design-inspector"
+import { ContextToolbar, type ToolbarActions } from "./context-toolbar"
 import { DesignStage } from "./design-stage"
 import { EditorPanel, EditorRail } from "./editor-rail"
 import { isTypingTarget, useCompactLayout } from "./editor-hooks"
@@ -40,7 +39,6 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
   const compact = useCompactLayout()
   const [panel, setPanel] = useState<DesignPanelId | null>(null)
   const [pagesOpen, setPagesOpen] = useState(true)
-  const [inspectorOpen, setInspectorOpen] = useState(true)
   const [focus, setFocus] = useState(false)
   const [zoom, setZoom] = useState(0.5)
   const [fit, setFit] = useState(true)
@@ -60,7 +58,7 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
   const selection = api.design.pages[api.pageIndex].elements.filter((element) => api.selectedIds.includes(element.id))
 
   useEffect(() => { setEditingId(null); setCropping(false); setContext(null) }, [api.pageIndex])
-  useEffect(() => { if (compact) { setPanel(null); setInspectorOpen(false); setPagesOpen(false) } }, [compact])
+  useEffect(() => { if (compact) { setPanel(null); setPagesOpen(false) } }, [compact])
   useEffect(() => {
     if (!selection.some((element) => element.id === editingId)) setEditingId(null)
     if (selection.length !== 1 || selection[0].type !== "image") setCropping(false)
@@ -190,7 +188,6 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
         <button type="button" className="editor-menu-item" onClick={() => setFit(true)}>Fit to screen</button>
       </div>}>View <ChevronDown className="h-3 w-3" /></PopoverButton>
       <button type="button" className="editor-command ml-auto" aria-pressed={focus} onClick={() => setFocus(!focus)} title="Focus on the canvas"><Scan className="h-4 w-4" /><span className="hidden sm:inline">Focus</span></button>
-      <button type="button" className="editor-command" aria-label="Toggle inspector" aria-pressed={inspectorOpen && !focus} onClick={() => { setFocus(false); setInspectorOpen(focus || !inspectorOpen); if (compact) setPanel(null) }}><SlidersHorizontal className="h-4 w-4" /></button>
       <button type="button" className="editor-command" onClick={() => { setEditingId(null); setPresenting(true) }}>Present</button>
     </div>    <input ref={upload} type="file" accept="image/*" multiple className="hidden" aria-label="Upload design pictures" onChange={(event) => { void pickedFiles(Array.from(event.target.files ?? [])); event.target.value = "" }} />
     {urlOpen ? <form className="flex flex-wrap gap-2 p-2" onSubmit={(event) => { event.preventDefault(); insertUrl() }}><select aria-label="URL type" value={urlKind} onChange={(event) => setUrlKind(event.target.value as "image" | "embed")}><option value="image">Picture</option><option value="embed">Embed link</option></select><input aria-label="Image or embed URL" className="min-w-0 flex-1 rounded border px-2" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://…" /><button className="canvas-tool" type="submit">Insert</button></form> : null}
@@ -199,23 +196,30 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
     <div className="relative flex min-h-0 flex-1">
       {!compact && !focus ? <EditorRail panel={panel} onPanel={setPanel} compact={false} /> : null}
       {!focus ? <EditorPanel api={api} panel={panel} onPanel={setPanel} compact={compact} /> : null}
-      <div ref={viewport} className="design-workbench min-w-0 flex-1 overflow-auto">
+      <div className="design-workbench flex min-w-0 flex-1 flex-col">
+        {!focus ? <div className="design-context-row" data-keep-editing="true">
+          <ContextToolbar key={`${api.design.pages[api.pageIndex].id}:${api.selectedIds.join(":")}`} api={api} selection={selection} actions={actions} cropping={cropping} />
+        </div> : null}
+        <div ref={viewport} className="min-h-0 min-w-0 flex-1 overflow-auto">
         <div className="flex min-h-full min-w-full items-center justify-center p-8" style={{ width: api.design.width * zoom + 64, height: api.design.height * zoom + 64 }}>
           <DesignStage key={api.design.pages[api.pageIndex].id} api={api} zoom={zoom} snap={snap} grid={grid} editingId={editingId} cropping={cropping} onEdit={setEditingId} onUndo={travel} onInteraction={(busy) => { interacting.current = busy }} onContext={setContext} />
         </div>
+        </div>
       </div>
-      {inspectorOpen && !focus ? <DesignInspector api={api} selection={selection} actions={actions} cropping={cropping} onClose={() => setInspectorOpen(false)} /> : null}
     </div>
     {pagesOpen && !focus ? <div className="border-t border-border px-3"><PagesStrip design={api.design} pageIndex={api.pageIndex} measure={measure} onSelect={goToPage} onAdd={(index) => api.update((doc) => { const result = addPage(doc, index); return { doc: result.doc, page: result.index, select: [] } })} onDuplicate={(index) => api.update((doc) => { const result = duplicatePage(doc, index); return { doc: result.doc, page: result.index, select: [] } })} onRemove={(index) => api.update((doc) => { const result = removePage(doc, index); return { doc: result.doc, page: result.index, select: [] } })} onMove={(from, to) => api.update((doc) => { const id = doc.pages[api.pageIndex].id; const next = movePage(doc, from, to); return { doc: next, page: next.pages.findIndex((page) => page.id === id) } })} onToggleHidden={(index) => api.update((doc) => updatePage(doc, index, { hidden: !doc.pages[index].hidden }))} /></div> : null}
     <footer className="editor-status-bar">
       <button type="button" className="editor-command" aria-expanded={pagesOpen && !focus} onClick={() => { setFocus(false); setPagesOpen(focus || !pagesOpen) }}><Layers className="h-4 w-4" /> Page {api.pageIndex + 1} / {api.design.pages.length}</button>
       <button type="button" className="editor-command !px-2" aria-label="Add page" onClick={() => api.update((doc) => { const result = addPage(doc, api.pageIndex); return { doc: result.doc, page: result.index, select: [] } })}><Plus className="h-4 w-4" /></button>
+      <PopoverButton key={api.design.pages[api.pageIndex].id} label="Page notes" buttonClassName="editor-command" placement="top-start" width={320} panel={() => <div className="design-notes-panel">
+        <label htmlFor="design-speaker-notes" className="mb-2 block text-sm font-semibold">Notes · Page {api.pageIndex + 1}</label>
+        <textarea id="design-speaker-notes" aria-label="Speaker notes" className="min-h-36 w-full resize-y rounded-lg border border-input bg-background p-3 text-sm" value={api.design.pages[api.pageIndex].notes} onChange={event => api.update(doc => updatePage(doc, api.pageIndex, { notes: event.target.value }), { coalesce: `notes:${api.design.pages[api.pageIndex].id}` })} placeholder="Add speaker notes…" />
+      </div>}><NotebookPen className="h-4 w-4" /><span>Notes</span></PopoverButton>
       <div className="flex-1" />
 
       <button type="button" className="canvas-tool" aria-label="Zoom out" onClick={() => changeZoom(stepZoom(zoom, -1))}>−</button><span className="text-xs">{Math.round(zoom * 100)}%</span><button type="button" className="canvas-tool" aria-label="Zoom in" onClick={() => changeZoom(stepZoom(zoom, 1))}>+</button><button type="button" className="canvas-tool" onClick={() => setFit(true)}>Fit</button>
     </footer>
-    <details className="design-page-notes border-t border-border px-3 py-2"><summary className="cursor-pointer text-xs">Page notes</summary><textarea aria-label="Speaker notes" className="mt-2 min-h-20 w-full rounded border bg-background p-2 text-sm" value={api.design.pages[api.pageIndex].notes} onChange={(event) => api.update((doc) => updatePage(doc, api.pageIndex, { notes: event.target.value }), { coalesce: `notes:${api.design.pages[api.pageIndex].id}` })} /></details>
-    {compact && !focus ? <EditorRail panel={panel} onPanel={value => { setPanel(value); setInspectorOpen(false) }} compact /> : null}
+    {compact && !focus ? <EditorRail panel={panel} onPanel={setPanel} compact /> : null}
     {context ? <div role="menu" className="fixed z-50 grid min-w-44 gap-1 rounded-xl border bg-card p-2 shadow-xl" style={{ left: Math.max(8, Math.min(context.x, window.innerWidth - 210)), top: Math.max(8, Math.min(context.y, window.innerHeight - 300)) }} onPointerDown={(event) => event.stopPropagation()}>
       {([ ["Copy", controller.copy], ["Paste", controller.paste], ["Duplicate", commands.duplicate], ["Group", commands.group], ["Ungroup", commands.ungroup], ["Lock / unlock", commands.toggleLock], ["Bring to front", () => commands.reorder("front")], ["Delete", commands.remove] ] as const).map(([label, action]) => <button key={label} type="button" role="menuitem" className="rounded px-3 py-1 text-left text-sm hover:bg-muted" onClick={() => { action(); setContext(null) }}>{label}</button>)}
     </div> : null}

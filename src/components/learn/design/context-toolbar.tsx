@@ -16,6 +16,7 @@ import {
   ChevronsDown,
   ChevronsUp,
   Copy,
+  Ellipsis,
   Crop,
   FlipHorizontal2,
   Frame,
@@ -67,6 +68,7 @@ import type { ListStyle, TextAlign } from "@/lib/design/text"
 import { ColorButton } from "./color-picker"
 import type { DesignEditorApi, DesignPanelId } from "./editor-types"
 import { PopoverButton } from "./popover"
+import { SelectionGeometry } from "./selection-geometry"
 
 /**
  * The bar above the page that changes with the selection, like every design
@@ -350,9 +352,10 @@ export function ContextToolbar({ api, selection, actions, cropping }: ContextToo
     )
   }
 
-  const texts = selection.filter((element) => element.type === "text")
-  const shapes = selection.filter((element) => element.type === "shape")
-  const images = selection.filter((element) => element.type === "image")
+  const uniformSelection = selection.every(element => element.type === selection[0].type) ? selection : []
+  const texts = uniformSelection.filter((element) => element.type === "text")
+  const shapes = uniformSelection.filter((element) => element.type === "shape")
+  const images = uniformSelection.filter((element) => element.type === "image")
   const labelled = shapes.filter((element) => element.content.trim())
   const typeable = [...texts, ...labelled]
   const isTypeable = (element: CanvasElement) => element.type === "text" || (element.type === "shape" && Boolean(element.content.trim()))
@@ -391,7 +394,7 @@ export function ContextToolbar({ api, selection, actions, cropping }: ContextToo
   }
 
   return (
-    <div className="canvas-toolbar items-center" role="toolbar" aria-label="Selection tools">
+    <div className="canvas-toolbar items-center" role="toolbar" aria-label="Selection tools" data-selection-kind={uniformSelection.length ? selection[0].type : "mixed"}>
       {typeable.length ? (
         <>
           <FontPicker
@@ -420,14 +423,15 @@ export function ContextToolbar({ api, selection, actions, cropping }: ContextToo
               <ToolButton label="Underline (Ctrl+U)" active={textStyle.underline} onClick={() => styleAll({ underline: !textStyle.underline }, undefined, (element) => element.type === "text")}>
                 <Underline className="h-4 w-4" />
               </ToolButton>
-              <ToolButton label="Strikethrough" active={textStyle.strike} onClick={() => styleAll({ strike: !textStyle.strike }, undefined, (element) => element.type === "text")}>
-                <Strikethrough className="h-4 w-4" />
-              </ToolButton>
               <ToolButton
                 label={`Alignment: ${textStyle.align}`}
                 onClick={() => styleAll({ textAlign: ALIGN_ORDER[(ALIGN_ORDER.indexOf(textStyle.align) + 1) % ALIGN_ORDER.length] }, undefined, (element) => element.type === "text")}
               >
                 {textStyle.align === "center" ? <AlignCenter className="h-4 w-4" /> : textStyle.align === "right" ? <AlignRight className="h-4 w-4" /> : textStyle.align === "justify" ? <AlignJustify className="h-4 w-4" /> : <AlignLeft className="h-4 w-4" />}
+              </ToolButton>
+              <PopoverButton label="More text options" width={220} panel={() => <div className="flex gap-1">
+              <ToolButton label="Strikethrough" active={textStyle.strike} onClick={() => styleAll({ strike: !textStyle.strike }, undefined, (element) => element.type === "text")}>
+                <Strikethrough className="h-4 w-4" />
               </ToolButton>
               <ToolButton
                 label={`List: ${textStyle.list === "none" ? "off" : textStyle.list}`}
@@ -439,6 +443,7 @@ export function ContextToolbar({ api, selection, actions, cropping }: ContextToo
               <ToolButton label={textStyle.uppercase ? "Normal case" : "Uppercase"} active={textStyle.uppercase} onClick={() => styleAll({ uppercase: !textStyle.uppercase }, undefined, (element) => element.type === "text")}>
                 <span className="text-[0.8rem] font-bold leading-none">aA</span>
               </ToolButton>
+              </div>}><span className="text-xs font-semibold">aA</span></PopoverButton>
               <PopoverButton label="Spacing" buttonClassName="canvas-tool !px-2.5" width={260} panel={() => (
                 <div className="w-[15rem] space-y-3">
                   <RangeRow label="Letter spacing" min={-0.1} max={0.6} step={0.01} value={textStyle.letterSpacing} format={(value) => `${Math.round(value * 1000)}`} onChange={(value) => styleAll({ letterSpacing: value }, "letter-spacing", (element) => element.type === "text")} />
@@ -676,6 +681,7 @@ export function ContextToolbar({ api, selection, actions, cropping }: ContextToo
 
       <PopoverButton label="Position" buttonClassName="canvas-tool !px-2.5" width={290} panel={(close) => (
         <div className="w-[16rem] space-y-3">
+          {single ? <SelectionGeometry api={api} element={single} /> : null}
           <div>
             <p className="mb-1.5 text-xs font-semibold">Layer</p>
             <div className="grid grid-cols-2 gap-1.5">
@@ -715,29 +721,13 @@ export function ContextToolbar({ api, selection, actions, cropping }: ContextToo
         <span className="text-xs">Position</span>
       </PopoverButton>
 
-      {clusters > 1 ? (
-        <ToolButton label="Group (Ctrl+G)" onClick={actions.group}>
-          <Group className="h-4 w-4" />
-        </ToolButton>
-      ) : grouped ? (
-        <ToolButton label="Ungroup (Ctrl+Shift+G)" onClick={actions.ungroup}>
-          <Ungroup className="h-4 w-4" />
-        </ToolButton>
-      ) : null}
-      <ToolButton label={locked ? "Unlock" : "Lock"} active={locked} onClick={actions.toggleLock}>
-        {locked ? <Lock className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}
-      </ToolButton>
-      <ToolButton label="Duplicate (Ctrl+D)" onClick={actions.duplicate}>
-        <Copy className="h-4 w-4" />
-      </ToolButton>
-      <ToolButton label="Delete (Del)" onClick={actions.remove}>
-        <Trash2 className="h-4 w-4" />
-      </ToolButton>
-      {single?.type === "text" ? (
-        <ToolButton label="Edit text (Enter)" onClick={actions.editText}>
-          <span className="text-xs">Edit text</span>
-        </ToolButton>
-      ) : null}
+      <PopoverButton label="Object actions" width={220} panel={close => <div className="grid min-w-44 gap-1">
+        {clusters > 1 ? <button className="editor-menu-item" onClick={() => { actions.group(); close() }}><Group size={15} />Group</button> : grouped ? <button className="editor-menu-item" onClick={() => { actions.ungroup(); close() }}><Ungroup size={15} />Ungroup</button> : null}
+        <button className="editor-menu-item" onClick={() => { actions.toggleLock(); close() }}>{locked ? <LockOpen size={15} /> : <Lock size={15} />}{locked ? "Unlock" : "Lock"}</button>
+        <button className="editor-menu-item" onClick={() => { actions.duplicate(); close() }}><Copy size={15} />Duplicate</button>
+        <button className="editor-menu-item" onClick={() => { actions.remove(); close() }}><Trash2 size={15} />Delete</button>
+        {single?.type === "text" ? <button className="editor-menu-item" onClick={() => { actions.editText(); close() }}>Edit text</button> : null}
+      </div>}><Ellipsis className="h-4 w-4" /></PopoverButton>
     </div>
   )
 }
