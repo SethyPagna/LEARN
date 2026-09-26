@@ -23,6 +23,7 @@ export type R2BucketLike = {
     httpMetadata?: { contentType?: string }
     size?: number
     writeHttpMetadata(headers: Headers): void
+    arrayBuffer(): Promise<ArrayBuffer>
   } | null>
   delete(key: string): Promise<void>
   head(key: string): Promise<{ size?: number; httpMetadata?: { contentType?: string } } | null>

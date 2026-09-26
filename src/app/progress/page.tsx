@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation"
+import { LearnPage } from "@/components/learn/learn-page"
 
 export default function ProgressPage() {
-  redirect("/dashboard")
+  return <LearnPage initialView="progress" />
 }

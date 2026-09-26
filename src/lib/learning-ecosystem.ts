@@ -209,7 +209,7 @@ export function reviewSourceLabel(item: ReviewItem) {
     block: "Vault block",
     flashcard: "Flashcard",
     lesson: "Feed lesson",
-    practice_mistake: "Practice miss",
+    practice_mistake: "Practice card",
   }
   const base = labels[item.sourceType || "note"]
   return item.topic ? `${base} | ${item.topic}` : base

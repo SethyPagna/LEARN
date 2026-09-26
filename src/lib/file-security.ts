@@ -1,5 +1,19 @@
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024
-export const UPLOAD_HELP_TEXT = "Images, video, audio, PDFs, Office files, CSV, Markdown, and plain text. Max 100 MB."
+
+/**
+ * The largest object the download route will buffer into memory.
+ *
+ * Downloads are served by reading the object and returning its bytes rather
+ * than by piping a storage stream (see `getMediaObject` in `lib/storage.ts`),
+ * so the whole file is resident while the response is built. A worker isolate
+ * gets 128 MB, and it has to hold the request, the session, the D1 client and
+ * whatever else is in flight at the same time; 25 MB leaves comfortable
+ * headroom for several concurrent downloads while still covering everything
+ * this app stores in practice (images, PDFs, docs, slides, short clips).
+ * Uploads stay capped at 100 MB — an object above this cap is still stored,
+ * it simply has to be fetched from R2 directly instead of through this route.
+ */
+export const MAX_INLINE_DOWNLOAD_BYTES = 25 * 1024 * 1024
 
 const BLOCKED_EXTENSIONS = new Set([
   "apk",

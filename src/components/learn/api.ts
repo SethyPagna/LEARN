@@ -1,3 +1,5 @@
+export const PROJECTS_CHANGED_EVENT = "learn:projects-changed"
+
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const headers = options?.body instanceof FormData
     ? options.headers
@@ -11,6 +13,9 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error("Please sign in.")
   }
   if (!response.ok) throw new Error(json.error || "Request failed.")
+  if (typeof window !== "undefined" && /^(POST|PUT|PATCH|DELETE)$/i.test(options?.method || "GET") && /^\/api\/(canvas|docs|slides|sheets)(\?|$)/.test(path)) {
+    window.dispatchEvent(new Event(PROJECTS_CHANGED_EVENT))
+  }
   return json
 }
 

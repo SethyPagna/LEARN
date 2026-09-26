@@ -3,6 +3,7 @@ import { fail, isApiResponse, ok, readJsonObject, requireApiUser, withApiErrorBo
 import { askTutor, type TutorMode } from "@/lib/ai/tutor"
 import { saveAiTurn } from "@/lib/data"
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
+import { getProviderMetadata } from "@/lib/ai/providers"
 
 const tutorModes: TutorMode[] = ["coach", "rewrite", "quiz", "flashcards", "translate", "route", "cleanup", "mistake"]
 const controlCharacterPattern = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g
@@ -21,7 +22,9 @@ export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   const mode = String(body.mode || "coach").trim()
   const temperature = Number(body.temperature)
   const maxTokens = Number(body.maxTokens)
+  const provider = cleanText(body.provider, 40).toLowerCase() || "auto"
   if (!message) return fail("Message is required.")
+  if (provider !== "auto" && (!getProviderMetadata(provider) || getProviderMetadata(provider)?.type === "embed")) return fail("Choose a supported chat provider.")
 
   const limit = await checkRateLimit({
     key: `ai:${user.id}:${getClientIp(request.headers)}`,
@@ -37,6 +40,7 @@ export const POST = withApiErrorBoundary(async (request: NextRequest) => {
       mode: tutorModes.includes(mode as TutorMode) ? mode as TutorMode : "coach",
       temperature: Number.isFinite(temperature) ? temperature : undefined,
       maxTokens: Number.isFinite(maxTokens) ? maxTokens : undefined,
+      provider,
     })
     const saved = await saveAiTurn({
       user,

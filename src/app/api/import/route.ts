@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server"
-import { readJsonObject, withApiErrorBoundary } from "@/lib/api"
-import { getCurrentUser, saveEditorDocument, saveNote, saveSheet, saveSlideDeck } from "@/lib/data"
+import { NextResponse, type NextRequest } from "next/server"
+import { isApiResponse, readJsonObject, requireApiUser, withApiErrorBoundary } from "@/lib/api"
+import { saveEditorDocument, saveNote, saveSheet, saveSlideDeck } from "@/lib/data"
 import { importTargetOptions, shapeImportedLearningContent, type ImportTargetSelection } from "@/lib/import-gateway"
 
 function normalizeImportTarget(value: unknown): ImportTargetSelection {
@@ -8,9 +8,12 @@ function normalizeImportTarget(value: unknown): ImportTargetSelection {
   return importTargetOptions.includes(target as ImportTargetSelection) ? target as ImportTargetSelection : "auto"
 }
 
-export const POST = withApiErrorBoundary(async (request: Request) => {
-  const user = await getCurrentUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+export const POST = withApiErrorBoundary(async (request: NextRequest) => {
+  // requireApiUser() rather than getCurrentUser(): this is a mutation, and
+  // requireApiUser applies the hasTrustedOrigin() cross-origin check that a bare
+  // session lookup skips.
+  const user = await requireApiUser(request)
+  if (isApiResponse(user)) return user
 
   const body = await readJsonObject(request)
   const text = String(body.text || "").trim()

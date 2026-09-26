@@ -38,7 +38,16 @@ import {
   sortSheetByColumn,
   splitStudioPane,
 } from "../../lib/studio-features"
-import { normalizeStudioDraftRecord, parseStoredStudioDrafts, serializeStudioDrafts, shouldAnnounceStudioDraftSave, summarizeStudioDrafts } from "../../lib/studio-drafts"
+import { canRestoreStudioDraft, normalizeStudioDraftRecord, parseStoredStudioDrafts, serializeStudioDrafts, shouldAnnounceStudioDraftSave, summarizeStudioDrafts } from "../../lib/studio-drafts"
+
+test("project deep links restore only their own loaded draft", () => {
+  const draft = { kind: "docs" as const, id: "doc_a", title: "Draft", content: "Unsaved", updatedAt: "2026-09-24" }
+  assert.equal(canRestoreStudioDraft(draft, "docs:doc_a", "doc_a"), true)
+  assert.equal(canRestoreStudioDraft(draft, "docs:doc_b", "doc_b"), false)
+  assert.equal(canRestoreStudioDraft(draft, "docs:doc_a", undefined), false)
+  assert.equal(canRestoreStudioDraft(draft, "notes:doc_a", "doc_a"), false)
+  assert.equal(canRestoreStudioDraft(draft, null), true)
+})
 import {
   findStudioFormattingOption,
   studioFontOptions,
@@ -228,8 +237,13 @@ test("studio record action groups swap manage actions for archived items", () =>
 test("studio share and download options match Canva-style Studio outputs", () => {
   assert.equal(buildStudioShareOptions("slides").some((option) => option.id === "present"), true)
   assert.equal(buildStudioShareOptions("docs").some((option) => option.id === "present"), false)
-  assert.deepEqual(buildStudioDownloadOptions("sheets").map((option) => option.id), ["csv", "text", "json"])
-  assert.deepEqual(buildStudioDownloadOptions("slides").map((option) => option.id), ["pptx", "outline", "json"])
+  // XLSX, DOCX and PDF are the standard formats the Brief lists; all three are
+  // offered alongside the previous CSV/HTML/plain-text outputs rather than
+  // replacing them. The Brief's "PPTX/PDF/image for decks" is pinned here too:
+  // a deck offers both PPTX and PDF (image export is not built yet).
+  assert.deepEqual(buildStudioDownloadOptions("sheets").map((option) => option.id), ["csv", "xlsx", "text", "json"])
+  assert.deepEqual(buildStudioDownloadOptions("docs").map((option) => option.id), ["html", "pdf", "docx", "markdown", "text"])
+  assert.deepEqual(buildStudioDownloadOptions("slides").map((option) => option.id), ["pptx", "pdf", "outline", "json"])
   assert.equal(recommendedStudioDownloadOption("docs")?.id, "html")
   assert.equal(buildStudioShareOptions("docs").find((option) => option.id === "copy-link")?.badge, "Now")
 })

@@ -1,15 +1,33 @@
 # LEARN Comprehensive Improvement Progress
 
-Status: Active
-Last updated: 2026-05-21
+Status: Takeover complete; draft PR #1 ready for review
+Last updated: 2026-09-24
 Current owner: User and maintainer
-Current branch: main
+Current branch: cleanup/stage-1
 
 ## Current Snapshot
 
-- A comprehensive 20 phase improvement roadmap exists in `docs/roadmap/plan.md`.
-- Existing in-progress files were already dirty before this tracking update and were not changed by this planning pass.
-- This tracker is the source of truth for phase status, evidence, risks, and next targets.
+- Delivery: [draft PR #1](https://github.com/SethyPagna/LEARN/pull/1). All eight takeover goals are closed with the limits recorded below.
+- The comprehensive 20 phase roadmap is in `ops/docs/roadmap/plan.md`.
+- P0/P1 foundations are preserved; P2b/P2c now integrate the multi-page editor, shared rendering, source conversions and bounded content imports.
+- P3 connects owned sources to real AI destinations, including local Ollama. P4/P5 add private media/stories, peer calls and real-time game delivery.
+- Expanded launchers include the shared task menu and dedicated test/check/build/preview wrappers with truthful failures.
+- Historical recovery follows the accessible source inventory; newer authorization and local stored data are retained.
+- Acceptance, verification results and infrastructure limits: [takeover goals](takeover-completion.md) and [verification report](../audits/2026-09-24-takeover-verification.md).
+- The [history reconciliation](../audits/2026-09-24-assistant-history-reconciliation.md) remains the initial checkpoint, not the final implementation status. No production deployment or merge is part of this delivery.
+
+## September 24 Continuity Checkpoint (historical)
+
+- Scope: reconcile local assistant progress with the pushed Git history; source provenance is recorded in the linked audit.
+- Files changed: the reconciliation report, audit index, this tracker and `productivity-suite-plan.md`.
+- Verification: checked local histories, commit reachability, remote SHA, tracked launchers and editor wiring; reviewed documentation links.
+- Known risks: historical artifacts are missing, several assistant task lists are stale, and older deployment reports concern different revisions or checkouts.
+- Next target: choose a bounded launcher, historical recovery, or P2b integration checkpoint; preserve the completed September work.
+
+The phase table and detailed checklists below are the original May planning
+baseline. They have **not** been individually re-audited and must not override the
+September checkpoint evidence above. The P0–P6 overhaul labels are a separate,
+later checkpoint scheme from these original 20 phases.
 
 ## Status Legend
 

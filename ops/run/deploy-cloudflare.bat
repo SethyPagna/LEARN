@@ -1,7 +1,7 @@
 @echo off
 setlocal
-cd /d "%~dp0\.."
-set PATH=%CD%\ops\run\bin;%PATH%
+cd /d "%~dp0\..\.."
+set "PATH=%CD%\ops\run\bin;%PATH%"
 
 if "%CLOUDFLARE_ACCOUNT_ID%"=="" (
   echo CLOUDFLARE_ACCOUNT_ID is not set.
@@ -29,4 +29,5 @@ if errorlevel 1 exit /b 1
 
 echo Deploying LEARN to Cloudflare Workers...
 call ops\run\bin\pnpm.cmd deploy:cloudflare
-endlocal
+set "deploy_result=%errorlevel%"
+endlocal & exit /b %deploy_result%

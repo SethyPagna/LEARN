@@ -2,18 +2,30 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import type React from "react"
-import { AtSign, Bell, CheckCircle2, Circle, Clock, Download, Gamepad2, Image as ImageIcon, Languages, MessageSquare, Mic, MicOff, MoreHorizontal, Paperclip, Phone, PhoneOff, Plus, Reply, RotateCcw, Search, Send, SlidersHorizontal, Smile, Sparkles, Trophy, Users, Video, VideoOff, XCircle } from "lucide-react"
+import { ArrowLeft, AtSign, CheckCircle2, Circle, Clock, Download, Gamepad2, Image as ImageIcon, MessageSquare, Mic, MicOff, MoreHorizontal, Paperclip, Phone, PhoneOff, Plus, Reply, RotateCcw, Search, Send, SlidersHorizontal, Smile, Sparkles, Trophy, Users, Video, VideoOff, XCircle } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Quiz } from "../types"
 import { api, formatDate } from "../api"
-import { EmptyState, Panel } from "../ui"
+import { EmptyState, Panel, type ViewMenuProps } from "../ui"
+import { Popover } from "../design/popover"
+import { VoiceInput } from "../voice-input"
 import { buildGameRunActions, evaluateGameChoice, summarizeGameRun, type GameRunActionId } from "@/lib/practice-features"
+import { parseLiveGameInvite, parseLiveGameResult } from "@/lib/live/game-invite"
+import { LiveGameCard, LiveGameResultCard } from "./live-game-cards"
+import { LiveGameLauncher } from "./live-game-launcher"
+import { ChatVoiceMessage } from "./chat-voice-message"
+import { ChatMediaComposer } from "./chat-media-composer"
+import { ChatStories } from "./chat-stories"
+import { CHAT_REACTION_EMOJI, type MessageReaction } from "@/lib/social-media"
 import { CHAT_DRAFT_KEY, parseStoredChatDraft, serializeChatDraft, type ChatDraft } from "@/lib/chat-drafts"
 import { dmChatChannelId, groupChatChannelId } from "@/lib/chat-channel"
+import { RealtimeSocket, type RealtimeStatus, type RealtimeFrame } from "@/lib/realtime/client"
+import { acceptsCallSignal } from "@/lib/chat-call"
+import { chatDestinationPayload, selectConversationThread, type ChatDestination } from "@/lib/chat-destination"
 import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatInboxShortcut, type ChatIntent, type ChatQuickPrompt, type ChatThreadActionId, type ChatThreadFilter, type ChatThreadLike } from "@/lib/social-features"
 
 const quizDetailCache = new Map<string, Quiz>()
-type ChatMenuId = "attach" | "compose" | "chatMore" | "tools" | "filters" | `threadActions:${string}`
+type ChatMenuId = "recipients" | "attach" | "compose" | "chatMore" | "tools" | "filters" | `threadActions:${string}`
 type ChatThreadRecord = ChatThreadLike & {
   threadId?: string
   thread_id?: string
@@ -28,7 +40,17 @@ type ChatMessageRecord = {
   user_id: string
   body: string
   created_at: string
-  metadata?: { attachment?: { fileId: string; filename: string; contentType: string } }
+  /**
+   * The message's machine-readable descriptor. `attachment` is an uploaded
+   * file; `kind: "live-game"` is a launched game and `"live-game-result"` is a
+   * finished one — both read back through `@/lib/live/game-invite`, which
+   * returns `null` for anything it does not recognise.
+   */
+  metadata?: {
+    attachment?: { fileId: string; filename: string; contentType: string }
+    kind?: string
+    [key: string]: unknown
+  }
 }
 type GroupRecord = {
   id: string
@@ -47,6 +69,8 @@ type CallStatus = "outgoing" | "incoming" | "connected"
 type ActiveCall = {
   callId: string
   peerUserId: string
+  peerDevice?: string
+  initiator?: boolean
   video: boolean
   status: CallStatus
   muted: boolean
@@ -202,11 +226,11 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
           <button onClick={resetRun} disabled={gameActionById.get("restart")?.disabled} className="mt-3 rounded-md bg-background px-3 py-1.5 text-xs font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-60">Start another run</button>
         </div>
       ) : null}
-      <div className="rounded-lg border border-primary/30 bg-primary p-5 text-primary-foreground">
+      <div className="game-prompt rounded-lg border border-primary/30 bg-primary p-5 text-primary-foreground">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] opacity-75">Prompt {index + 1}</p>
         <h3 className="mt-2 text-2xl font-semibold leading-tight">{current.question}</h3>
       </div>
-      <div className="mt-4 grid gap-2 md:grid-cols-2">
+      <div className="game-choices mt-4 grid gap-2 md:grid-cols-2">
         {current.choices.map((choice) => (
           <button
             key={choice.id}
@@ -328,7 +352,11 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const [chatAction, setChatAction] = useState<ChatComposerActionId | null>(null)
   const [threadAction, setThreadAction] = useState<{ action: ChatThreadActionId; threadId: string } | null>(null)
   const [openChatMenu, setOpenChatMenu] = useState<ChatMenuId | null>(null)
-  const [activeThreadKey, setActiveThreadKey] = useState("")
+  const [conversationOpen, setConversationOpen] = useState(false)
+  const [destination, setDestination] = useState<ChatDestination>({ kind: "personal" })
+  // The "Start a live game" composer flow: which mode, on which quiz. The
+  // launcher owns the choices; this only owns whether it is open.
+  const [liveGameOpen, setLiveGameOpen] = useState(false)
   const quickIntents = [
     { id: "update" as const, label: "Update", body: "Share progress, a note, or what changed." },
     { id: "question" as const, label: "Question", body: "Ask for help and invite replies." },
@@ -358,28 +386,29 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   }), [body, chatAction, composerPlan.nextAction])
   const chatActionById = useMemo(() => new Map(chatActions.map((action) => [action.id, action])), [chatActions])
   const visibleThreads = useMemo(() => filterChatThreads(threads, { query, filter }), [filter, query, threads])
-  const activeThread = useMemo(() => {
-    if (!threads.length) return null
-    return visibleThreads.find((thread) => chatThreadKey(thread) === activeThreadKey)
-      || visibleThreads[0]
-      || threads[0]
-  }, [activeThreadKey, threads, visibleThreads])
+  const activeThread = useMemo(() => selectConversationThread(threads, destination), [threads, destination])
+  const groupId = destination.kind === "group" ? destination.groupId : activeThread?.group_id || ""
+  const dmTargetUserId = destination.kind === "dm" ? destination.targetUserId : activeThread?.dm_peer_id || ""
   const activeThreadParsed = parseThreadTitle(activeThread?.title || `${channel} - ${title}`)
   const activeThreadBody = String(activeThread?.last_message || activeThread?.lastMessage || "No messages yet. Start with one clear question, resource, or win.")
   const activeThreadId = activeThread ? chatThreadKey(activeThread) : ""
+  const activeThreadIdRef = useRef(activeThreadId)
+  activeThreadIdRef.current = activeThreadId
 
   // --- Groups: which group this conversation posts into, and live/message state ---
   const [groups, setGroups] = useState<GroupRecord[]>([])
-  const [groupId, setGroupId] = useState<string>("")
   const [messages, setMessages] = useState<ChatMessageRecord[]>([])
+  const [messageReactions, setMessageReactions] = useState<Record<string, MessageReaction[]>>({})
+  const [reactionPending, setReactionPending] = useState(false)
   const [remoteTyping, setRemoteTyping] = useState(false)
   const [currentUserId, setCurrentUserId] = useState("")
-  const socketRef = useRef<WebSocket | null>(null)
+  const socketRef = useRef<RealtimeSocket | null>(null)
+  const [socketStatus, setSocketStatus] = useState<RealtimeStatus>("closed")
   const typingClearRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const typingStopRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastTypingSentRef = useRef(0)
   const myGroups = useMemo(() => groups.filter((group) => group.is_member), [groups])
-  const activeGroup = useMemo(() => myGroups.find((group) => group.id === groupId) || myGroups[0] || null, [groupId, myGroups])
+  const activeGroup = useMemo(() => myGroups.find((group) => group.id === groupId) || null, [groupId, myGroups])
 
   useEffect(() => {
     api<{ user?: { id?: string } }>("/api/auth/session").then((response) => {
@@ -398,7 +427,6 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
 
   // --- Direct messages: 1:1 with a connection, mutually exclusive with the group selection above ---
   const [connections, setConnections] = useState<ConnectionRecord[]>([])
-  const [dmTargetUserId, setDmTargetUserId] = useState("")
   const activeDmTarget = useMemo(() => connections.find((c) => c.target_user_id === dmTargetUserId) || null, [connections, dmTargetUserId])
 
   useEffect(() => {
@@ -409,16 +437,12 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     refreshGroups().catch(() => undefined)
   }, [])
 
-  useEffect(() => {
-    if (!activeGroup && !dmTargetUserId && myGroups.length) setGroupId(myGroups[0].id)
-  }, [activeGroup, myGroups, dmTargetUserId])
-
   async function createGroup(name: string) {
     if (!name.trim()) return
     try {
       const response = await api<{ item: GroupRecord }>("/api/groups", { method: "POST", body: JSON.stringify({ name: name.trim() }) })
       await refreshGroups()
-      setGroupId(response.item.id)
+      switchToGroup(response.item.id)
       setDraftStatus(`Created "${name.trim()}"`)
     } catch (error) {
       setDraftStatus(error instanceof Error ? error.message : "Unable to create group.")
@@ -429,7 +453,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     try {
       await api(`/api/groups/${id}/join`, { method: "POST" })
       await refreshGroups()
-      setGroupId(id)
+      switchToGroup(id)
       setDraftStatus("Joined group")
     } catch (error) {
       setDraftStatus(error instanceof Error ? error.message : "Unable to join group.")
@@ -437,27 +461,22 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   }
 
   function startDirectMessage(targetUserId: string) {
-    setDmTargetUserId(targetUserId)
-    setGroupId("")
+    setConversationOpen(true)
+    setDestination({ kind: "dm", targetUserId })
+    setReplyThreadId(undefined)
+    setMessages([])
     setOpenChatMenu(null)
   }
 
   function switchToGroup(id: string) {
-    setGroupId(id)
-    setDmTargetUserId("")
+    setConversationOpen(true)
+    setDestination({ kind: "group", groupId: id })
+    setReplyThreadId(undefined)
+    setMessages([])
     setOpenChatMenu(null)
   }
 
-  useEffect(() => {
-    if (dmTargetUserId) {
-      const match = threads.find((thread) => thread.dm_peer_id === dmTargetUserId)
-      setActiveThreadKey(match ? chatThreadKey(match) : "")
-    } else if (groupId) {
-      const match = threads.find((thread) => thread.group_id === groupId)
-      setActiveThreadKey(match ? chatThreadKey(match) : "")
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dmTargetUserId, groupId, threads])
+  const messageDestination = chatDestinationPayload(activeThreadId ? { kind: "thread", threadId: activeThreadId } : destination)
 
   // --- Message history for the active thread ---
   async function refreshMessages(threadId: string) {
@@ -466,40 +485,48 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
       return
     }
     try {
-      const response = await api<{ items: ChatMessageRecord[] }>(`/api/chat?threadId=${encodeURIComponent(threadId)}`)
-      setMessages(response.items)
+      const response = await api<{ items: ChatMessageRecord[]; reactions?: Record<string, MessageReaction[]> }>(`/api/chat?threadId=${encodeURIComponent(threadId)}`)
+      if (activeThreadIdRef.current === threadId) { setMessages(response.items); setMessageReactions(response.reactions || {}) }
     } catch {
-      setMessages([])
+      if (activeThreadIdRef.current === threadId) setMessages([])
     }
   }
 
   useEffect(() => {
+    setMessages([])
     refreshMessages(activeThreadId).catch(() => undefined)
   }, [activeThreadId])
 
   // --- Realtime: live messages + typing over the active group's or DM's channel ---
-  const groupChannelId = activeGroup ? groupChatChannelId(activeGroup.id) : (activeDmTarget && currentUserId ? dmChatChannelId(currentUserId, activeDmTarget.target_user_id) : null)
+  const groupChannelId = groupId ? groupChatChannelId(groupId) : (dmTargetUserId && currentUserId ? dmChatChannelId(currentUserId, dmTargetUserId) : null)
 
   useEffect(() => {
     if (!groupChannelId || typeof window === "undefined") return
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-    const socket = new WebSocket(`${protocol}//${window.location.host}/api/realtime/chat/${encodeURIComponent(groupChannelId)}`)
+    const socket = new RealtimeSocket({
+      kind: "chat", id: groupChannelId,
+      onStatus: (status) => {
+        setSocketStatus(status)
+        if (status === "open") { void refresh().catch(() => undefined); void refreshMessages(activeThreadIdRef.current) }
+      },
+      onFrame: receiveFrame,
+    }).start()
     socketRef.current = socket
 
-    socket.onmessage = (event) => {
-      let parsed: { type?: string; userId?: string; payload?: Record<string, unknown> } | null = null
-      try {
-        parsed = JSON.parse(event.data)
-      } catch {
+    function receiveFrame(parsed: RealtimeFrame) {
+      if (!parsed) return
+      if (parsed.type === "chat-event") {
+        const threadId = String(parsed.payload?.threadId || "")
+        if (threadId === activeThreadIdRef.current) void refreshMessages(threadId)
+        void refresh().catch(() => undefined)
         return
       }
-      if (!parsed || parsed.userId === currentUserId) return
+      if (parsed.userId === currentUserId) return
 
       if (parsed.type === "chat-message") {
         const payload = parsed.payload || {}
         const threadId = String(payload.threadId || "")
         setMessages((current) => {
-          if (threadId !== activeThreadId) return current
+          if (threadId !== activeThreadIdRef.current) return current
           if (current.some((m) => m.id === payload.messageId)) return current
           const attachment = payload.attachment as { fileId?: string; filename?: string; contentType?: string } | undefined
           return [...current, {
@@ -525,7 +552,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
       }
 
       if (parsed.type === "call-signal") {
-        handleCallSignal(parsed.payload || {}, parsed.userId)
+        void handleCallSignal(parsed.payload || {}, parsed.userId, parsed.fromDevice).catch(() => endCall(true, "Call negotiation failed. Please try again."))
       }
     }
 
@@ -534,18 +561,19 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     }
 
     return () => {
+      endCall(true, "")
       socket.close()
       if (socketRef.current === socket) socketRef.current = null
       setRemoteTyping(false)
-      endCall(false, "")
+      cleanupMedia()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupChannelId, currentUserId, activeThreadId])
+  }, [groupChannelId, currentUserId])
 
   function sendTypingSignal(isTyping: boolean) {
     const socket = socketRef.current
-    if (!socket || socket.readyState !== WebSocket.OPEN || !groupChannelId || !currentUserId) return
-    socket.send(JSON.stringify({ type: "typing", userId: currentUserId, payload: { threadId: groupChannelId, isTyping } }))
+    if (!socket || socket.status !== "open" || !groupChannelId || !currentUserId) return
+    socket.sendNow({ type: "typing", payload: { threadId: groupChannelId, isTyping } })
   }
 
   function stopTypingSignal() {
@@ -575,6 +603,13 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const [callElapsed, setCallElapsed] = useState(0)
   const activeCallRef = useRef<ActiveCall | null>(null)
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
+  const callRecoveryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const callSetupPendingRef = useRef(false)
+  const callSetupVersionRef = useRef(0)
+  const [callConnectionStatus, setCallConnectionStatus] = useState("Connecting media…")
+  const [relayAvailable, setRelayAvailable] = useState(false)
+  const outgoingIceRef = useRef<string[]>([])
+  const earlyPeerIceRef = useRef<Array<{ userId: string; device?: string; candidate: RTCIceCandidateInit }>>([])
   const localStreamRef = useRef<MediaStream | null>(null)
   const pendingIceCandidatesRef = useRef<RTCIceCandidateInit[]>([])
   const incomingOfferRef = useRef<{ callId: string; sdp: string; video: boolean; peerUserId: string } | null>(null)
@@ -588,23 +623,29 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const recordedChunksRef = useRef<Blob[]>([])
   const recordingAudioContextRef = useRef<AudioContext | null>(null)
   const recordingAnimationFrameRef = useRef<number | null>(null)
-  const iceServers = useMemo<RTCIceServer[]>(() => [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-  ], [])
+  const iceServersRef = useRef<RTCIceServer[]>([{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }])
 
-  useEffect(() => {
-    activeCallRef.current = activeCall
-  }, [activeCall])
+  async function loadCallConfiguration() {
+    try {
+      const config = await api<{ iceServers: RTCIceServer[]; relayAvailable: boolean }>("/api/calls/config")
+      iceServersRef.current = config.iceServers
+      setRelayAvailable(config.relayAvailable)
+    } catch { setRelayAvailable(false) }
+  }
+
+  function updateActiveCall(call: ActiveCall | null) {
+    activeCallRef.current = call
+    setActiveCall(call)
+  }
 
   useEffect(() => {
     if (localVideoRef.current) localVideoRef.current.srcObject = localStream
-  }, [localStream])
+  }, [localStream, activeCall?.status])
 
   useEffect(() => {
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream
     if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream
-  }, [remoteStream])
+  }, [remoteStream, activeCall?.status])
 
   useEffect(() => {
     if (activeCall?.status !== "connected") {
@@ -623,17 +664,21 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     }
   }, [])
 
-  function sendCallSignal(payload: { callId: string; kind: string; video?: boolean; sdp?: string; candidate?: string }) {
+  function sendCallSignal(payload: { callId: string; kind: string; video?: boolean; sdp?: string; candidate?: string }, recipient?: { userId: string; device?: string }) {
     const socket = socketRef.current
-    if (!socket || socket.readyState !== WebSocket.OPEN || !currentUserId) return false
-    socket.send(JSON.stringify({ type: "call-signal", userId: currentUserId, payload }))
+    if (!socket || socket.status !== "open" || !currentUserId) return false
+    const peer = recipient || (activeCallRef.current?.peerUserId ? { userId: activeCallRef.current.peerUserId, device: activeCallRef.current.peerDevice } : null)
+    socket.sendNow({ type: "call-signal", payload, ...(peer ? { to: peer.userId, toDevice: peer.device } : {}) })
     return true
   }
 
   function createPeerConnection(callId: string) {
-    const pc = new RTCPeerConnection({ iceServers })
+    const pc = new RTCPeerConnection({ iceServers: iceServersRef.current })
     pc.onicecandidate = (event) => {
-      if (event.candidate) sendCallSignal({ callId, kind: "ice-candidate", candidate: JSON.stringify(event.candidate.toJSON()) })
+      if (!event.candidate) return
+      const candidate = JSON.stringify(event.candidate.toJSON())
+      if (!activeCallRef.current?.peerUserId) outgoingIceRef.current.push(candidate)
+      else sendCallSignal({ callId, kind: "ice-candidate", candidate })
     }
     pc.ontrack = (event) => {
       setRemoteStream((current) => {
@@ -643,47 +688,78 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
       })
     }
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === "failed" || pc.connectionState === "disconnected" || pc.connectionState === "closed") {
-        if (activeCallRef.current?.callId === callId) endCall(pc.connectionState !== "closed", "Call disconnected.")
+      if (pc.connectionState === "connected") {
+        if (callRecoveryRef.current) clearTimeout(callRecoveryRef.current)
+        callRecoveryRef.current = null
+        setCallConnectionStatus("Connected")
+        return
+      }
+      if (pc.connectionState === "connecting" || pc.connectionState === "new") { setCallConnectionStatus("Connecting media…"); return }
+      if ((pc.connectionState === "disconnected" || pc.connectionState === "failed") && !callRecoveryRef.current) {
+        setCallConnectionStatus("Connection interrupted. Reconnecting…")
+        callRecoveryRef.current = setTimeout(async () => {
+          if (activeCallRef.current?.callId !== callId || pc.connectionState === "connected") return
+          try {
+            if (activeCallRef.current.initiator && activeCallRef.current.peerUserId && pc.signalingState === "stable") {
+              const offer = await pc.createOffer({ iceRestart: true })
+              await pc.setLocalDescription(offer)
+              if (activeCallRef.current?.callId !== callId) return
+              sendCallSignal({ callId, kind: "offer", sdp: offer.sdp, video: activeCallRef.current.video })
+            }
+          } catch { /* The timeout below closes an unrecoverable connection. */ }
+          callRecoveryRef.current = setTimeout(() => {
+            if (activeCallRef.current?.callId === callId && pc.connectionState !== "connected") endCall(true, "Could not reconnect the call. Try calling again.")
+          }, 15000)
+        }, pc.connectionState === "failed" ? 0 : 6000)
       }
     }
     peerConnectionRef.current = pc
     return pc
   }
 
-  async function attachLocalMedia(video: boolean) {
+  async function attachLocalMedia(video: boolean, setupVersion: number) {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video })
+    if (setupVersion !== callSetupVersionRef.current) { stream.getTracks().forEach((track) => track.stop()); throw new Error("Call cancelled.") }
     localStreamRef.current = stream
     setLocalStream(stream)
     return stream
   }
 
   async function startCall(video: boolean) {
+    if (callSetupPendingRef.current) return
     if (activeCallRef.current || !groupChannelId || !currentUserId) {
-      setDraftStatus("Open a group chat to start a call.")
+      setDraftStatus("Open a conversation to start a call.")
       return
     }
-    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
+    if (!socketRef.current || socketRef.current.status !== "open") {
       setDraftStatus("Connecting — try the call again in a moment.")
       return
     }
     const callId = crypto.randomUUID()
+    const setupVersion = callSetupVersionRef.current
+    callSetupPendingRef.current = true
     try {
-      const stream = await attachLocalMedia(video)
+      await loadCallConfiguration()
+      if (setupVersion !== callSetupVersionRef.current) return
+      setCallConnectionStatus("Connecting media…")
+      const stream = await attachLocalMedia(video, setupVersion)
       const pc = createPeerConnection(callId)
       stream.getTracks().forEach((track) => pc.addTrack(track, stream))
-      setActiveCall({ callId, peerUserId: "", video, status: "outgoing", muted: false, cameraOff: false })
+      updateActiveCall({ callId, peerUserId: dmTargetUserId, initiator: true, video, status: "outgoing", muted: false, cameraOff: false })
       const offer = await pc.createOffer()
       await pc.setLocalDescription(offer)
+      if (setupVersion !== callSetupVersionRef.current) return
       sendCallSignal({ callId, kind: "offer", video, sdp: offer.sdp })
       if (callTimeoutRef.current) clearTimeout(callTimeoutRef.current)
       callTimeoutRef.current = setTimeout(handleNoAnswerTimeout, 30000)
-      setDraftStatus(video ? "Calling the group with video…" : "Calling the group…")
+      setDraftStatus(dmTargetUserId ? (video ? "Calling with video…" : "Calling…") : "Inviting one group member to a call…")
     } catch {
-      setDraftStatus("Couldn't access your camera/microphone — check permissions.")
-      cleanupMedia()
-      setActiveCall(null)
-    }
+      if (setupVersion === callSetupVersionRef.current) {
+        setDraftStatus("Couldn't start the call — check camera/microphone permissions.")
+        cleanupMedia()
+        updateActiveCall(null)
+      }
+    } finally { callSetupPendingRef.current = false }
 
     function handleNoAnswerTimeout() {
       if (activeCallRef.current?.callId === callId && activeCallRef.current.status === "outgoing") {
@@ -693,31 +769,57 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     }
   }
 
-  async function handleCallSignal(payload: Record<string, unknown>, fromUserId: string | undefined) {
+  async function handleCallSignal(payload: Record<string, unknown>, fromUserId: string | undefined, fromDevice?: string) {
     const callId = String(payload.callId || "")
     const kind = String(payload.kind || "")
     if (!callId || !kind || !fromUserId) return
 
     if (kind === "offer") {
+      const existingCall = activeCallRef.current
+      const existingPeer = peerConnectionRef.current
+      if (existingCall?.status === "connected" && existingPeer && acceptsCallSignal(existingCall, { callId, kind, userId: fromUserId, device: fromDevice })) {
+        await existingPeer.setRemoteDescription({ type: "offer", sdp: String(payload.sdp || "") })
+        await flushPendingIceCandidates()
+        const answer = await existingPeer.createAnswer()
+        await existingPeer.setLocalDescription(answer)
+        if (activeCallRef.current?.callId !== callId) return
+        sendCallSignal({ callId, kind: "answer", sdp: answer.sdp })
+        return
+      }
       if (activeCallRef.current) {
-        sendCallSignal({ callId, kind: "busy" })
+        sendCallSignal({ callId, kind: "busy" }, { userId: fromUserId, device: fromDevice })
         return
       }
       incomingOfferRef.current = { callId, sdp: String(payload.sdp || ""), video: Boolean(payload.video), peerUserId: fromUserId }
-      setActiveCall({ callId, peerUserId: fromUserId, video: Boolean(payload.video), status: "incoming", muted: false, cameraOff: false })
+      updateActiveCall({ callId, peerUserId: fromUserId, peerDevice: fromDevice, video: Boolean(payload.video), status: "incoming", muted: false, cameraOff: false })
       setDraftStatus(`Incoming ${payload.video ? "video" : "voice"} call…`)
       return
     }
 
-    if (activeCallRef.current?.callId !== callId) return
+    if (kind === "ice-candidate" && activeCallRef.current?.callId === callId && !activeCallRef.current.peerUserId) {
+      if (earlyPeerIceRef.current.length < 128) {
+        try {
+          const candidate: RTCIceCandidateInit = JSON.parse(String(payload.candidate || ""))
+          if (candidate && typeof candidate === "object") earlyPeerIceRef.current.push({ userId: fromUserId, device: fromDevice, candidate })
+        } catch { /* Ignore malformed candidates. */ }
+      }
+      return
+    }
+    const restarting = kind === "answer" && peerConnectionRef.current?.signalingState === "have-local-offer" && activeCallRef.current?.status === "connected"
+    if (!acceptsCallSignal(activeCallRef.current, { callId, kind: restarting ? "ice-candidate" : kind, userId: fromUserId, device: fromDevice })) return
 
     if (kind === "answer") {
       const pc = peerConnectionRef.current
-      if (!pc) return
+      if (!pc || pc.signalingState !== "have-local-offer") return
+      const call = activeCallRef.current
+      if (!call) return
+      updateActiveCall({ ...call, peerUserId: fromUserId, peerDevice: fromDevice, status: "connected" })
       await pc.setRemoteDescription({ type: "answer", sdp: String(payload.sdp || "") })
+      pendingIceCandidatesRef.current.push(...earlyPeerIceRef.current.filter((entry) => entry.userId === fromUserId && entry.device === fromDevice).map((entry) => entry.candidate))
+      earlyPeerIceRef.current = []
       await flushPendingIceCandidates()
       if (callTimeoutRef.current) clearTimeout(callTimeoutRef.current)
-      setActiveCall((current) => (current ? { ...current, peerUserId: fromUserId, status: "connected" } : current))
+      for (const candidate of outgoingIceRef.current.splice(0)) sendCallSignal({ callId, kind: "ice-candidate", candidate })
       setDraftStatus("Call connected.")
       return
     }
@@ -766,37 +868,45 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   async function acceptIncomingCall() {
     const offer = incomingOfferRef.current
     const call = activeCallRef.current
-    if (!offer || !call || call.status !== "incoming") return
+    if (!offer || !call || call.status !== "incoming" || callSetupPendingRef.current) return
+    const setupVersion = callSetupVersionRef.current
+    callSetupPendingRef.current = true
     try {
-      const stream = await attachLocalMedia(offer.video)
+      await loadCallConfiguration()
+      if (setupVersion !== callSetupVersionRef.current) return
+      setCallConnectionStatus("Connecting media…")
+      const stream = await attachLocalMedia(offer.video, setupVersion)
       const pc = createPeerConnection(offer.callId)
       stream.getTracks().forEach((track) => pc.addTrack(track, stream))
       await pc.setRemoteDescription({ type: "offer", sdp: offer.sdp })
       await flushPendingIceCandidates()
       const answer = await pc.createAnswer()
       await pc.setLocalDescription(answer)
+      if (activeCallRef.current?.callId !== offer.callId) return
       sendCallSignal({ callId: offer.callId, kind: "answer", sdp: answer.sdp })
-      setActiveCall((current) => (current ? { ...current, status: "connected" } : current))
+      updateActiveCall(activeCallRef.current ? { ...activeCallRef.current, status: "connected" } : null)
       setDraftStatus("Call connected.")
     } catch {
+      if (setupVersion !== callSetupVersionRef.current) return
       sendCallSignal({ callId: offer.callId, kind: "hangup" })
       setDraftStatus("Couldn't access your camera/microphone — check permissions.")
       cleanupMedia()
-      setActiveCall(null)
+      updateActiveCall(null)
       incomingOfferRef.current = null
-    }
+    } finally { callSetupPendingRef.current = false }
   }
 
   function declineIncomingCall() {
     const call = activeCallRef.current
     if (!call || call.status !== "incoming") return
     sendCallSignal({ callId: call.callId, kind: "decline" })
-    incomingOfferRef.current = null
-    setActiveCall(null)
-    setDraftStatus("Call declined.")
+    endCall(false, "Call declined.")
   }
 
   function cleanupMedia() {
+    callSetupVersionRef.current += 1
+    if (callRecoveryRef.current) clearTimeout(callRecoveryRef.current)
+    callRecoveryRef.current = null
     localStreamRef.current?.getTracks().forEach((track) => track.stop())
     localStreamRef.current = null
     setLocalStream(null)
@@ -804,6 +914,8 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     peerConnectionRef.current?.close()
     peerConnectionRef.current = null
     pendingIceCandidatesRef.current = []
+    outgoingIceRef.current = []
+    earlyPeerIceRef.current = []
   }
 
   function endCall(notifyPeer: boolean, reason: string) {
@@ -814,10 +926,11 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
       clearTimeout(callTimeoutRef.current)
       callTimeoutRef.current = null
     }
-    if (isRecordingCall) stopRecordingCall()
+    if (mediaRecorderRef.current) stopRecordingCall()
     incomingOfferRef.current = null
+    activeCallRef.current = null
     cleanupMedia()
-    setActiveCall(null)
+    updateActiveCall(null)
     setCallElapsed(0)
     if (reason) setDraftStatus(reason)
   }
@@ -901,7 +1014,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   }
 
   function toggleCallRecording() {
-    if (isRecordingCall) stopRecordingCall()
+    if (mediaRecorderRef.current) stopRecordingCall()
     else startRecordingCall()
   }
 
@@ -910,7 +1023,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     if (!stream) return
     const nextMuted = !activeCallRef.current?.muted
     stream.getAudioTracks().forEach((track) => { track.enabled = !nextMuted })
-    setActiveCall((current) => (current ? { ...current, muted: nextMuted } : current))
+    updateActiveCall(activeCallRef.current ? { ...activeCallRef.current, muted: nextMuted } : null)
   }
 
   function toggleCallCamera() {
@@ -918,7 +1031,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     if (!stream || !activeCallRef.current?.video) return
     const nextOff = !activeCallRef.current?.cameraOff
     stream.getVideoTracks().forEach((track) => { track.enabled = !nextOff })
-    setActiveCall((current) => (current ? { ...current, cameraOff: nextOff } : current))
+    updateActiveCall(activeCallRef.current ? { ...activeCallRef.current, cameraOff: nextOff } : null)
   }
 
   function formatCallDuration(totalSeconds: number) {
@@ -954,9 +1067,10 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   }
 
   function selectThread(thread: ChatThreadRecord) {
+    setConversationOpen(true)
     const parsed = parseThreadTitle(thread.title)
     const targetId = chatThreadKey(thread)
-    setActiveThreadKey(targetId)
+    setDestination({ kind: "thread", threadId: targetId })
     setChannel(parsed.channel || "#general")
     setTitle(parsed.title)
     setReplyThreadId(targetId || undefined)
@@ -979,6 +1093,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     setIntent(draft.intent || "update")
     setChannel(draft.channel || "#general")
     setReplyThreadId(draft.replyThreadId)
+    if (draft.replyThreadId) setDestination({ kind: "thread", threadId: draft.replyThreadId })
   }, [])
 
   useEffect(() => {
@@ -993,8 +1108,9 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     if (chatActionById.get("send")?.disabled) return
     setChatAction("send")
     try {
-      const payload = { ...buildChatDraftPayload({ body, channel, title, intent, threadId: replyThreadId }), groupId: activeGroup?.id, targetUserId: activeDmTarget?.target_user_id }
-      await api("/api/chat", { method: "POST", body: JSON.stringify(payload) })
+      const payload = { ...buildChatDraftPayload({ body, channel, title, intent }), ...messageDestination }
+      const sent = await api<{ threadId: string }>("/api/chat", { method: "POST", body: JSON.stringify(payload) })
+      setDestination((current) => current === destination ? { kind: "thread", threadId: sent.threadId } : current)
       setBody("")
       setReplyThreadId(undefined)
       clearChatDraft()
@@ -1002,7 +1118,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
       if (typingStopRef.current) clearTimeout(typingStopRef.current)
       sendTypingSignal(false)
       await refresh()
-      await refreshMessages(activeThreadId)
+      await refreshMessages(sent.threadId)
     } catch (error) {
       setDraftStatus(error instanceof Error ? error.message : "Unable to send this message.")
     } finally {
@@ -1045,7 +1161,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     fileInputRef.current?.click()
   }
 
-  async function sendAttachment(file: File) {
+  async function sendAttachment(file: File): Promise<boolean> {
     setDraftStatus("Uploading...")
     try {
       const form = new FormData()
@@ -1054,23 +1170,35 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
       const uploadResponse = await api<{ file: { id: string; filename: string; content_type: string } }>("/api/files", { method: "POST", body: form })
       const attachment = { fileId: uploadResponse.file.id, filename: uploadResponse.file.filename, contentType: uploadResponse.file.content_type }
       const payload = {
-        body: attachment.contentType.startsWith("image/") ? "Shared a photo" : `Shared a file: ${attachment.filename}`,
+        body: attachment.contentType.startsWith("audio/") ? "Voice message" : attachment.contentType.startsWith("image/") ? "Shared a picture" : `Shared a file: ${attachment.filename}`,
         title,
-        groupId: activeGroup?.id,
-        targetUserId: activeDmTarget?.target_user_id,
-        threadId: replyThreadId,
+        ...messageDestination,
         metadata: { attachment },
       }
-      await api("/api/chat", { method: "POST", body: JSON.stringify(payload) })
+      const sent = await api<{ threadId: string }>("/api/chat", { method: "POST", body: JSON.stringify(payload) })
+      setDestination((current) => current === destination ? { kind: "thread", threadId: sent.threadId } : current)
       setDraftStatus("Sent")
-      await refresh()
-      await refreshMessages(activeThreadId)
+      await refresh().catch(() => setDraftStatus("Sent. Reopen the conversation if the history has not refreshed."))
+      await refreshMessages(sent.threadId)
+      return true
     } catch (error) {
       setDraftStatus(error instanceof Error ? error.message : "Unable to send that attachment.")
+      return false
     }
   }
 
+  async function reactToMessage(messageId: string, emoji: string, active: boolean) {
+    if (reactionPending) return
+    setReactionPending(true)
+    try {
+      await api("/api/chat/reactions", { method: "POST", body: JSON.stringify({ messageId, emoji, active }) })
+      await refreshMessages(activeThreadId)
+    } catch (error) { setDraftStatus(error instanceof Error ? error.message : "Could not save reaction.") }
+    finally { setReactionPending(false) }
+  }
+
   function replyToThread(thread: ChatThreadRecord) {
+    selectThread(thread)
     const parsed = parseThreadTitle(thread.title)
     const targetId = chatThreadKey(thread)
     setChannel(parsed.channel || "#general")
@@ -1130,12 +1258,10 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     }
   }
 
-  function useComposerTool(tool: "mention" | "reaction" | "translate" | "notify") {
+  function useComposerTool(tool: "mention" | "reaction") {
     const additions = {
       mention: { text: "@", status: "Mention ready" },
       reaction: { text: `\n\nReaction: ${reaction}`, status: "Reaction added" },
-      translate: { text: "\n\nTranslate this for my study group.", status: "Translation intent added" },
-      notify: { text: "\n\nNotify the group when this is posted.", status: "Notification intent added" },
     }
     const addition = additions[tool]
     setBody((current) => {
@@ -1147,23 +1273,23 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   }
 
   return (
-    <div className="grid min-h-[72vh] overflow-hidden rounded-xl border border-border bg-background lg:grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)]" title={options.collaborationPresence ? "Live-ready chats" : "Async chats"}>
-      <Panel className="order-2 flex min-h-[72vh] flex-col rounded-none border-0 p-0 lg:order-2 lg:border-l lg:border-border">
-        <div className="mb-3 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
-          <div className="flex min-w-0 items-center gap-3 border-b border-border px-4 py-3">
+    <div className="chat-workspace grid min-h-[580px] overflow-hidden rounded-lg border border-border bg-card lg:h-[calc(100dvh-160px)] lg:grid-cols-[250px_minmax(0,1fr)]" title={options.collaborationPresence ? "Live-ready chats" : "Async chats"}>
+      <Panel className={`chat-conversation order-2 min-h-0 min-w-0 flex-col !rounded-none !border-0 !p-0 lg:!border-l lg:!border-border ${conversationOpen ? "flex" : "hidden lg:flex"}`}>
+        <div className="chat-header grid gap-0 border-b border-border">
+          <div className="chat-heading flex min-w-0 items-center gap-3 px-4 py-3"><span className="lg:hidden"><button type="button" aria-label="Back to conversations" onClick={() => setConversationOpen(false)} className="editor-command !px-2"><ArrowLeft className="h-4 w-4" /></button></span>
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground">
               <MessageSquare className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <input value={title} onChange={(event) => setTitle(event.target.value)} className="w-full bg-transparent text-lg font-semibold text-foreground outline-none" />
+              <input value={title} onChange={(event) => setTitle(event.target.value)} aria-label="Conversation title" className="w-full bg-transparent text-lg font-semibold text-foreground outline-none" />
               <p className="truncate text-xs font-semibold text-muted-foreground">
                 {activeDmTarget ? `Direct message with ${activeDmTarget.name}` : `${activeThreadParsed.channel} - ${activeIntent.label}`}
                 {remoteTyping ? <span className="ml-2 text-primary">typing…</span> : null}
               </p>
             </div>
           </div>
-          <div className="flex gap-2 border-b border-border px-4 py-3 lg:justify-end">
-            <ChatMenu icon={Users} label={activeDmTarget ? activeDmTarget.name : activeGroup ? activeGroup.name : "Group"} menuId="tools" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
+          <div className="chat-actions flex items-center gap-1 overflow-x-auto px-3 pb-2 [&>button]:shrink-0 [&>div]:shrink-0">
+            <ChatMenu compact icon={Users} label={activeDmTarget ? activeDmTarget.name : activeGroup ? activeGroup.name : "Recipients"} menuId="recipients" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
               <ChatMenuSection title="Chat as this group">
                 {myGroups.length ? myGroups.map((group) => (
                   <ChatMenuAction
@@ -1201,10 +1327,11 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                 )}
               </ChatMenuSection>
             </ChatMenu>
-            <ToolbarButton label="Video" onClick={() => startCall(true)} icon={Video} />
-            <ToolbarButton label="Call" onClick={() => startCall(false)} icon={Phone} />
-            <ToolbarButton label="Download" onClick={exportConversation} icon={Download} />
-            <ChatMenu icon={Sparkles} label="Compose" menuId="compose" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
+            <span role="status" aria-label={socketStatus === "open" ? "Live" : socketStatus === "closed" ? "Choose recipients" : "Reconnecting"} title={socketStatus === "open" ? "Live" : socketStatus === "closed" ? "Choose recipients" : "Reconnecting"} className={`chat-connection ${socketStatus === "open" ? "is-live" : ""}`} />
+            <ToolbarButton disabled={!groupChannelId || Boolean(activeCall)} iconOnly label="Video" onClick={() => startCall(true)} icon={Video} />
+            <ToolbarButton disabled={!groupChannelId || Boolean(activeCall)} iconOnly label="Call" onClick={() => startCall(false)} icon={Phone} />
+            <ToolbarButton iconOnly label="Download" onClick={exportConversation} icon={Download} />
+            <ChatMenu compact icon={Sparkles} label="Compose" menuId="compose" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
               <ChatMenuSection title="Draft intent">
                 {quickIntents.map((item) => (
                   <ChatMenuAction
@@ -1235,15 +1362,33 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             <ChatMenu align="right" compact icon={MoreHorizontal} label="More" menuId="chatMore" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
               <ChatMenuSection title="Conversation">
                 <ChatMenuAction icon={Search} label="Search chat" meta="Filter the inbox by this conversation title." onClick={() => setQuery(activeThreadParsed.title)} />
-                <ChatMenuAction icon={Bell} label="Mute notifications" meta="Prepared for notification settings." onClick={() => setDraftStatus("Notifications muted for this chat")} />
-                <ChatMenuAction icon={Gamepad2} label="Start quiz battle" meta="Jump to Practice for a live challenge." onClick={() => setDraftStatus("Battle prompt ready")} />
+                <ChatMenuAction icon={Gamepad2} label="Start a live game" meta="Post a game into this conversation." onClick={() => { setLiveGameOpen(true); setOpenChatMenu(null) }} />
               </ChatMenuSection>
             </ChatMenu>
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.08),transparent_34%),linear-gradient(135deg,hsl(var(--muted)/0.6),hsl(var(--background)))] px-4 py-5">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-background px-4 py-5">
           <div className="mx-auto flex max-w-3xl flex-col gap-3">
-            {messages.length ? messages.map((message) => (
+            {messages.length ? messages.map((message) => {
+              // A launched game and a finished game are ordinary messages with a
+              // descriptor in `metadata`; they render as cards instead of a
+              // bubble. Both parsers return `null` for anything else, so an
+              // attachment, a plain message, and a message written by a build
+              // that did not know about games all fall through to the bubble.
+              const invite = parseLiveGameInvite(message.metadata)
+              const result = parseLiveGameResult(message.metadata)
+              if (invite || result) {
+                return (
+                  <div key={message.id} className="w-full max-w-sm">
+                    {invite ? (
+                      <LiveGameCard invite={invite} createdAt={message.created_at} alignRight={message.user_id === currentUserId} />
+                    ) : result ? (
+                      <LiveGameResultCard result={result} createdAt={message.created_at} threadId={activeThreadId} alignRight={message.user_id === currentUserId} />
+                    ) : null}
+                  </div>
+                )
+              }
+              return (
               <div
                 key={message.id}
                 className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${
@@ -1255,8 +1400,12 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                 {message.metadata?.attachment ? (
                   message.metadata.attachment.contentType.startsWith("image/") ? (
                     <a href={`/api/files/${message.metadata.attachment.fileId}/download`} target="_blank" rel="noreferrer">
-                      <img src={`/api/files/${message.metadata.attachment.fileId}/download`} alt={message.metadata.attachment.filename} className="mb-1.5 max-h-64 w-full rounded-xl object-cover" />
+                      <img src={`/api/files/${message.metadata.attachment.fileId}/download`} alt={message.metadata.attachment.filename} loading="lazy" decoding="async" className="mb-1.5 max-h-64 w-full rounded-xl object-cover" />
                     </a>
+                  ) : message.metadata.attachment.contentType.startsWith("audio/") ? (
+                    <audio controls preload="metadata" src={`/api/files/${message.metadata.attachment.fileId}/download`} aria-label="Voice message" className="mb-2 max-w-full" />
+                  ) : message.metadata.attachment.contentType.startsWith("video/") ? (
+                    <video controls preload="metadata" src={`/api/files/${message.metadata.attachment.fileId}/download`} aria-label="Shared video" className="mb-2 max-h-64 max-w-full rounded-lg" />
                   ) : (
                     <a href={`/api/files/${message.metadata.attachment.fileId}/download`} target="_blank" rel="noreferrer" className="mb-1.5 flex items-center gap-2 rounded-xl bg-black/10 px-3 py-2 text-xs font-semibold underline">
                       <Paperclip className="h-3.5 w-3.5 shrink-0" /> {message.metadata.attachment.filename}
@@ -1265,32 +1414,23 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                 ) : null}
                 <p>{message.body.replace(/^\[[^\]]+\]\s*/, "")}</p>
                 <p className="mt-1 text-right text-[11px] opacity-70">{formatDate(message.created_at)}</p>
+                <div className="mt-2 flex flex-wrap gap-1" aria-label="Message reactions">
+                  {CHAT_REACTION_EMOJI.map((emoji) => {
+                    const entry = messageReactions[message.id]?.find((reaction) => reaction.emoji === emoji)
+                    return <button type="button" key={emoji} disabled={reactionPending} aria-pressed={Boolean(entry?.mine)} aria-label={`${entry?.mine ? "Remove" : "Add"} ${emoji} reaction`} onClick={() => reactToMessage(message.id, emoji, !entry?.mine)} className={`rounded-full border px-2 py-0.5 text-xs ${entry?.mine ? "bg-background text-foreground" : "border-current/20"}`}>{emoji}{entry?.count ? ` ${entry.count}` : ""}</button>
+                  })}
+                </div>
               </div>
-            )) : (
-              <div className="max-w-[78%] rounded-2xl rounded-tl-sm bg-secondary px-4 py-3 text-sm leading-6 text-secondary-foreground shadow-sm">
-                <p>{activeThreadBody.replace(/^\[[^\]]+\]\s*/, "")}</p>
-                <p className="mt-1 text-right text-[11px] opacity-70">{activeThread?.updated_at ? formatDate(activeThread.updated_at) : "recent"}</p>
+              )
+            }) : (
+              <div className="px-4 py-8 text-center text-sm leading-6 text-muted-foreground">
+                <p>{!activeThread && !groupChannelId ? "Choose recipients to start a conversation." : activeThreadBody.replace(/^\[[^\]]+\]\s*/, "")}</p>
+                {activeThread?.updated_at ? <p className="mt-1 text-xs">{formatDate(activeThread.updated_at)}</p> : null}
               </div>
             )}
-            {body.trim() ? (
-              <div className="ml-auto max-w-[78%] rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-sm leading-6 text-primary-foreground shadow-sm">
-                <p>{body}</p>
-                <p className="mt-1 text-right text-[11px] opacity-75">draft</p>
-              </div>
-            ) : !messages.length ? (
-              <div className="mx-auto mt-12 grid grid-cols-2 gap-3 text-center text-sm text-muted-foreground">
-                <button onClick={() => setDraftStatus("Document picker ready")} className="grid h-28 w-32 place-items-center rounded-2xl bg-card shadow-sm hover:bg-accent hover:text-accent-foreground" type="button">
-                  <Paperclip className="h-6 w-6" />
-                  <span>Send document</span>
-                </button>
-                <button onClick={() => setDraftStatus("Contact invite ready")} className="grid h-28 w-32 place-items-center rounded-2xl bg-card shadow-sm hover:bg-accent hover:text-accent-foreground" type="button">
-                  <Plus className="h-6 w-6" />
-                  <span>Add contact</span>
-                </button>
-              </div>
-            ) : null}
           </div>
         </div>
+        <details className="chat-extras mx-4 mt-2"><summary className="cursor-pointer py-1 text-xs text-muted-foreground">Creative tools</summary>
         <details className="mx-4 mt-3 rounded-md border border-border bg-background">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
             <span>Starter prompts</span>
@@ -1314,10 +1454,33 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
           ))}
           </div>
         </details>
-        <div className="m-4 mt-3 rounded-full border border-input bg-background px-3 py-2 shadow-sm">
+        <div key={JSON.stringify(messageDestination)} className="mx-4 mt-3 grid gap-2">
+          <ChatVoiceMessage onSend={sendAttachment} disabled={Boolean(activeCall)} />
+          <ChatMediaComposer onSend={sendAttachment} onEmoji={(emoji) => setBody((current) => `${current}${emoji}`)} />
+        </div>
+        </details>
+        {liveGameOpen ? (
+          <div className="mx-4 mt-3">
+            <LiveGameLauncher
+              threadId={messageDestination.threadId || ""}
+              groupId={messageDestination.groupId}
+              targetUserId={messageDestination.targetUserId}
+              onClose={() => setLiveGameOpen(false)}
+              onLaunched={async (code, threadId) => {
+                setLiveGameOpen(false)
+                if (threadId) setDestination({ kind: "thread", threadId })
+                setDraftStatus(`Live game ${code} posted`)
+                await refresh()
+                await refreshMessages(threadId || activeThreadId)
+              }}
+            />
+          </div>
+        ) : null}
+        <div className="m-3 mt-2 rounded-lg border border-input bg-card px-3 py-2">
           <input
             ref={fileInputRef}
             type="file"
+            aria-label="Attach a file"
             accept={pendingAttachKind === "photo" ? "image/*" : undefined}
             className="hidden"
             onChange={(event) => {
@@ -1326,23 +1489,20 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               event.target.value = ""
             }}
           />
-          <textarea value={body} onChange={(event) => { setBody(event.target.value); handleDraftActivity(event.target.value) }} className="min-h-28 w-full resize-none bg-transparent text-sm leading-6 text-foreground outline-none" placeholder="Message your study group, mention someone, link Studio, or ask a question..." />
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+          <textarea aria-label="Message" rows={2} value={body} onChange={(event) => { setBody(event.target.value); handleDraftActivity(event.target.value) }} className="min-h-14 max-h-40 w-full resize-y bg-transparent text-sm leading-6 text-foreground outline-none" placeholder="Write a message…" />
+          <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
             <ChatMenu compact icon={Plus} label="Attach" menuId="attach" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
               <ChatMenuSection title="Attach">
                 <ChatMenuAction icon={Paperclip} label="Document" meta="Upload a file from your device." onClick={() => openAttachPicker("document")} />
                 <ChatMenuAction icon={ImageIcon} label="Photo" meta="Upload and share a picture." onClick={() => openAttachPicker("photo")} />
-                <ChatMenuAction icon={Gamepad2} label="Quiz battle" meta="Attach a practice challenge." onClick={() => setDraftStatus("Practice attachment ready")} />
-                <ChatMenuAction icon={Clock} label="Event" meta="Attach a study calendar block." onClick={() => setDraftStatus("Event attachment ready")} />
+                <ChatMenuAction icon={Gamepad2} label="Start a live game" meta="Race, survival, or streak — post it into this chat." onClick={() => { setLiveGameOpen(true); setOpenChatMenu(null) }} />
               </ChatMenuSection>
             </ChatMenu>
             <ChatMenu compact icon={Smile} label="Tools" menuId="tools" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
               <ChatMenuSection title="Composer tools">
                 <ChatMenuAction icon={AtSign} label="@mention" meta="Mention a teammate in the draft." onClick={() => useComposerTool("mention")} />
-                <ChatMenuAction icon={Smile} label="Reaction" meta={`Default thread reaction: ${reaction}.`} onClick={() => useComposerTool("reaction")} />
-                <ChatMenuAction icon={Languages} label="Translate" meta="Mark this message for translation after sending." onClick={() => useComposerTool("translate")} />
-                <ChatMenuAction icon={Bell} label="Notify" meta="Prepare this draft as a notification-worthy update." onClick={() => useComposerTool("notify")} />
+                <ChatMenuAction icon={Smile} label="Reaction note" meta={`Add the text “Reaction: ${reaction}” to your draft.`} onClick={() => useComposerTool("reaction")} />
               </ChatMenuSection>
               <ChatMenuSection title="Draft">
                 <ChatMenuAction
@@ -1363,14 +1523,21 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                 />
               </ChatMenuSection>
             </ChatMenu>
-            <button onClick={() => setDraftStatus("Voice note ready")} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-2 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-              <Mic className="h-4 w-4" />
-            </button>
+            <VoiceInput
+              label="Dictate message"
+              prompt={activeDmTarget ? `Direct message with ${activeDmTarget.name}` : activeGroup ? `${activeGroup.name} study group chat` : `${activeThreadParsed.channel} - ${title}`}
+              onTranscript={(text) => {
+                const next = body && !/\s$/.test(body) ? `${body} ${text}` : `${body}${text}`
+                setBody(next)
+                handleDraftActivity(next)
+              }}
+            />
             </div>
             <p className={`rounded-md px-2 py-1 text-xs font-semibold ${draftStatus ? "bg-success/15 text-success" : "text-muted-foreground"}`}>
-              {replyThreadId ? "Reply target saved" : draftStatus || "Private-first sharing"}
+              {replyThreadId ? "Reply target saved" : draftStatus || ""}
             </p>
             <ToolbarButton
+              iconOnly
               disabled={chatActionById.get("send")?.disabled}
               label={chatActionById.get("send")?.busy ? chatActionById.get("send")?.busyLabel || "Sending" : "Send"}
               onClick={send}
@@ -1380,11 +1547,11 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
           </div>
         </div>
       </Panel>
-      <Panel className="order-1 min-h-[72vh] rounded-none border-0 p-3 lg:order-1 lg:max-h-[72vh] lg:overflow-y-auto">
+      <Panel className={`order-1 min-h-0 min-w-0 !rounded-none !border-0 p-3 lg:overflow-y-auto ${conversationOpen ? "hidden lg:block" : ""}`}>
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-2xl font-semibold text-foreground">Chats</h3>
+          <h3 className="text-base font-semibold text-foreground">Messages</h3>
           <div className="flex items-center gap-2">
-            <button onClick={() => setBody((current) => current || "Can someone help me with ")} className="grid h-9 w-9 place-items-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
+            <button onClick={() => { setConversationOpen(true); setOpenChatMenu("recipients") }} aria-label="Start a new message" className="grid h-9 w-9 place-items-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
               <Plus className="h-4 w-4" />
             </button>
             <ChatMenu align="right" compact icon={MoreHorizontal} label="Menu" menuId="filters" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
@@ -1405,11 +1572,12 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
             </ChatMenu>
           </div>
         </div>
+        <div className="my-3"><ChatStories currentUserId={currentUserId} groups={myGroups} /></div>
         <div className="mt-4 flex h-11 items-center gap-2 rounded-full bg-muted px-4">
           <Search className="h-4 w-4 text-muted-foreground" />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search or start a new chat" className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search messages" className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
         </div>
-        <div className="mt-3 flex gap-2 overflow-x-auto">
+        <div className="chat-inbox-filters mt-3 flex gap-2 overflow-x-auto" aria-label="Inbox filters">
           {inboxShortcuts.map((shortcut) => (
             <button
               key={shortcut.id}
@@ -1457,7 +1625,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                   selectThread(thread)
                 }
               }}
-              className={`cursor-pointer rounded-xl border p-3 text-sm transition hover:border-primary/40 hover:bg-accent hover:text-accent-foreground ${
+              className={`cursor-pointer rounded-md border border-transparent p-2.5 text-sm transition hover:bg-accent hover:text-accent-foreground ${
                 selected ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background"
               }`}
               role="button"
@@ -1472,11 +1640,11 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                     <p className="truncate font-semibold text-foreground">{parsed.title}</p>
                     <span className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold ${chatStatusClasses(status.tone)}`}>{status.label}</span>
                   </div>
-                  <p className="text-xs font-semibold text-muted-foreground">{parsed.channel}</p>
-                  <p className="mt-1 line-clamp-2 text-muted-foreground">{thread.last_message || "No messages yet"}</p>
+
+                  <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{thread.last_message || "No messages yet"}</p>
                 </div>
               </div>
-              <div className="mt-2 flex flex-wrap gap-2 pl-[3.25rem]" onClick={(event) => event.stopPropagation()}>
+              <div className="thread-secondary-actions flex justify-end gap-1" onClick={(event) => event.stopPropagation()}>
                 <ChatMenu compact icon={Smile} label={menuLabel} menuId={`threadActions:${targetId || parsed.title}`} openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
                   <ChatMenuSection title="Thread actions">
                     {threadActions.map((item) => (
@@ -1491,14 +1659,11 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                     ))}
                   </ChatMenuSection>
                 </ChatMenu>
-                <button onClick={() => runThreadAction(thread, "reply")} disabled={Boolean(threadAction)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60">
-                  <Reply className="h-3.5 w-3.5" />
-                  reply
-                </button>
+
               </div>
             </div>
           )})}
-          {!visibleThreads.length ? <EmptyState title="No matching threads" body="Send a message or change the search/filter to see more collaboration history." /> : null}
+          {!visibleThreads.length ? <EmptyState title="No messages found" body="Try another search or start a conversation." /> : null}
         </div>
       </Panel>
       {activeCall ? (
@@ -1523,6 +1688,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               {activeCall.status === "connected" && formatCallDuration(callElapsed)}
             </p>
 
+            <p role="status" className="mt-2 text-xs text-muted-foreground">{activeCall.status === "connected" ? callConnectionStatus : "One-to-one call"}{activeCall.status === "connected" && !relayAvailable ? " · Direct connection" : ""}</p>
             {activeCall.status === "incoming" ? (
               <div className="mt-6 flex items-center gap-4">
                 <button onClick={declineIncomingCall} className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-lg transition hover:opacity-90" type="button" aria-label="Decline call">
@@ -1590,33 +1756,24 @@ function ChatMenu({
   menuId,
   openMenu,
   setOpenMenu,
-}: {
-  align?: "left" | "right"
-  children: React.ReactNode
-  compact?: boolean
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  menuId: ChatMenuId
-  openMenu: ChatMenuId | null
-  setOpenMenu: (menuId: ChatMenuId | null) => void
-}) {
+}: ViewMenuProps<ChatMenuId>) {
+  const anchor = useRef<HTMLButtonElement>(null)
   const open = openMenu === menuId
   return (
     <div className="relative">
       <button
+        ref={anchor}
         aria-expanded={open}
+        aria-label={label}
+        title={label}
         onClick={() => setOpenMenu(open ? null : menuId)}
         className={`inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground ${compact ? "px-2" : "px-3"}`}
         type="button"
       >
         <Icon className="h-4 w-4" />
-        <span>{label}</span>
+        <span className={compact ? "sr-only" : undefined}>{label}</span>
       </button>
-      {open ? (
-        <div className={`absolute top-[calc(100%+0.4rem)] z-[120] w-72 rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-xl ${align === "right" ? "right-0" : "left-0"}`}>
-          {children}
-        </div>
-      ) : null}
+      <Popover open={open} anchor={anchor} onClose={() => setOpenMenu(null)} label={label} placement={align === "right" ? "bottom-end" : "bottom-start"} width={288}>{children}</Popover>
     </div>
   )
 }
@@ -1651,13 +1808,14 @@ function ChatMenuAction({
     <button
       onClick={onClick}
       disabled={disabled}
+      title={meta}
       className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50 ${active ? "bg-primary/10 text-primary" : danger ? "text-destructive" : "text-popover-foreground"}`}
       type="button"
     >
       {Icon ? <Icon className="mt-0.5 h-4 w-4 shrink-0" /> : <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-current opacity-50" />}
       <span className="min-w-0">
         <span className="block font-semibold">{label}</span>
-        {meta ? <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{meta}</span> : null}
+        {meta ? <span className="sr-only">{meta}</span> : null}
       </span>
     </button>
   )
@@ -1669,17 +1827,19 @@ function ToolbarButton({
   label,
   onClick,
   primary,
+  iconOnly,
 }: {
   disabled?: boolean
   icon: React.ComponentType<{ className?: string }>
   label: string
   onClick: () => void
   primary?: boolean
+  iconOnly?: boolean
 }) {
   return (
-    <button disabled={disabled} onClick={onClick} className={`flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60 ${primary ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+    <button type="button" aria-label={label} title={label} disabled={disabled} onClick={onClick} className={`flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60 ${primary ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
       <Icon className="h-4 w-4" />
-      <span>{label}</span>
+      <span className={iconOnly ? "sr-only" : undefined}>{label}</span>
     </button>
   )
 }

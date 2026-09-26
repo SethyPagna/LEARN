@@ -1,6 +1,6 @@
-import { LearnShell } from "@/components/learn/learn-shell"
+import { LearnPage } from "@/components/learn/learn-page"
 
 export default async function NotePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  return <LearnShell initialView="notes" initialNoteId={id} />
+  return <LearnPage initialView="notes" initialNoteId={id} />
 }

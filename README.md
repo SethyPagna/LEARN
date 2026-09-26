@@ -26,13 +26,18 @@ Never commit real Cloudflare, AI, Vercel, or tunnel secrets. If a token was past
 
 ## First Setup
 
+On Windows, double-click `ops\run\learn.bat` for the task menu. Local setup and
+development do not require Cloudflare login. Node.js 24 and Corepack must be installed.
+
 ```powershell
-corepack pnpm install --frozen-lockfile
-copy ops\env\dev.vars.example .dev.vars
 ops\run\setup-first-time.bat
 ```
 
-When `wrangler d1 create learn-db` prints the database id, paste that id into `ops\cloudflare\wrangler.jsonc` at `d1_databases[0].database_id` and set `CLOUDFLARE_D1_DATABASE_ID` in ignored local, GitHub, Vercel, or Docker env.
+Setup installs the pinned dependencies, creates `ops\cloudflare\.dev.vars` only
+when missing, and applies local D1 migrations. Existing local data and credentials
+are preserved. For first-time remote provisioning, use `ops\run\setup-d1.bat`
+and `ops\run\setup-r2.bat` after Cloudflare authentication. Set the resulting
+database id in both Wrangler configs and your deployment environment.
 
 Set production secrets with Wrangler or the Cloudflare dashboard:
 
@@ -59,6 +64,32 @@ ops\run\start-local.bat
 ```
 
 This applies local D1 migrations and starts Next dev with D1/R2 bindings available through OpenNext's Cloudflare integration.
+
+| Windows launcher | Action |
+| --- | --- |
+| `ops\run\learn.bat` | Task menu for setup, development, checks, build, preview and deployment |
+| `ops\run\test.bat` | Run the complete test suite |
+| `ops\run\check.bat` | Typecheck and run tests |
+| `ops\run\build.bat` | Build production Next.js output |
+| `ops\run\preview-cloudflare.bat` | Build and preview the Worker locally |
+| `ops\run\doctor.bat` | Check types, tests and local D1 migration status |
+
+Task windows stay open so errors can be read. For automation, set
+`LEARN_NO_PAUSE=1`; launchers preserve the command's exit code. Remote deployments
+are separate, explicitly labelled menu choices and require configured credentials.
+
+For local AI, run Ollama with an installed chat model and set `OLLAMA_BASE_URL`
+to `http://127.0.0.1:11434` and `OLLAMA_MODEL` to its name in
+`ops/cloudflare/.dev.vars`. Restart LEARN and select **Ollama (local server)** in
+AI. The endpoint is restricted to the LEARN server's loopback address; a hosted
+Worker cannot reach Ollama on your personal computer. Unconfigured or failed
+providers show an error instead of a saveable AI answer.
+
+Calls use one peer connection, including invitations sent to a group. For
+networks requiring a relay, configure `LEARN_TURN_URLS` (comma-separated TURN
+URLs) and `LEARN_TURN_SECRET` with a coturn-compatible shared secret. Authenticated
+clients receive temporary credentials; the shared secret stays on the server.
+Direct local call checks do not establish reliability on every external network.
 
 ## Deploy
 

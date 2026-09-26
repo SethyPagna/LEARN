@@ -1,16 +1,20 @@
+import type { QuizChoice } from "@/lib/ai/format-response"
+import type { FsrsState } from "@/lib/learning-ecosystem"
+
 export type View =
   | "dashboard"
-  | "learn"
   | "vault"
   | "feed"
   | "graph"
   | "reviews"
   | "studio"
+  | "canvas"
   | "notes"
   | "docs"
   | "sheets"
   | "slides"
   | "quizzes"
+  | "live"
   | "practice"
   | "games"
   | "ai"
@@ -57,11 +61,6 @@ export interface Note {
   tags?: string[]
 }
 
-export interface QuizChoice {
-  id: string
-  text: string
-}
-
 export interface QuizQuestion {
   id: string
   question: string
@@ -105,6 +104,10 @@ export interface CalendarEvent {
   ends_at: string
   timezone: string
   notes?: string
+  /** Alarm lead in minutes for the exported ICS. `0` is an explicit "no alarm". */
+  reminder_minutes?: number | null
+  allDay?: boolean
+  remote?: { connectionId: string; calendarId: string; eventId: string; etag: string; provider: "google" | "outlook" | "apple"; writable: boolean; recurring?: boolean; recurrenceId?: string }
 }
 
 export interface WorkspaceDocument {
@@ -157,22 +160,12 @@ export interface WorkspaceDeck {
 }
 
 export type StudioKind = "notes" | "docs" | "sheets" | "slides"
-export type StudioAction = "new" | "save" | "undo" | "redo" | "copy" | "duplicate" | "archive" | "download" | "export"
-export type StudioExportFormat = "markdown" | "text" | "csv" | "json" | "outline"
-export type StudioDraftStatus = "saved" | "dirty" | "local-draft" | "saving" | "conflict"
 export interface StudioDirtyBadge {
   kind: StudioKind
   count: number
   latestAt?: string
 }
-export type StudioPaneAction = "split-right" | "split-down" | "close" | "close-others" | "duplicate" | "pin" | "reset"
-export type StudioInsertTarget = "note-block" | "doc-section" | "sheet-rows" | "slide-outline" | "quiz" | "flashcards" | "review-cards" | "ai-note"
-export interface RichDocumentContent {
-  blocks?: unknown
-  html?: string
-  markdown?: string
-  plainText?: string
-}
+export type StudioInsertTarget = "note-block" | "doc-section" | "sheet-rows" | "slide-outline" | "quiz" | "flashcards" | "review-cards" | "ai-note" | "study-activity" | "discussion-space"
 export interface SheetMetadata {
   columnWidths?: number[]
   rowHeights?: number[]
@@ -192,7 +185,7 @@ export interface SlideObject {
   src?: string
   style?: Record<string, unknown>
 }
-export interface AiPromptField {
+interface AiPromptField {
   id: string
   label: string
   required?: boolean
@@ -220,21 +213,6 @@ export interface PracticeAttemptSummary {
   missedQuestionIds: string[]
   nextAction: "retry" | "review" | "save-to-studio" | "rest"
 }
-export type StudioCommand =
-  | StudioAction
-  | "open"
-  | "format"
-  | "insert"
-  | "data"
-  | "review"
-  | "share"
-  | "split-right"
-  | "split-down"
-  | "close-pane"
-  | "close-others"
-  | "pin-pane"
-  | "ask-ai"
-
 export interface StudioTab {
   id: string
   kind: StudioKind
@@ -266,47 +244,41 @@ export interface StudioLayoutState {
   density: "compact" | "comfortable"
 }
 
-export interface StudioContextTarget {
-  type: "record" | "editor" | "cell" | "slide" | "pane"
-  kind?: StudioKind
-  id?: string
-  rowIndex?: number
-  columnIndex?: number
-  paneId?: string
-}
-
-export interface StudioItem {
-  id: string
-  kind: StudioKind
-  title: string
-  updated_at?: string
-  favorite?: boolean
-  summary?: string
-}
-
-export interface DashboardWeakTopic {
+/**
+ * The dashboard snapshot's weak-topic shape, where `accuracy` and `attempts` are
+ * always present because the API computes both (`buildLearningSnapshot`).
+ *
+ * It deliberately differs from the name-sharing `DashboardWeakTopic` in
+ * `@/lib/dashboard-features`, which is a tolerant helper input with optional
+ * fields. The strict shape is load-bearing: it is what makes the snapshot
+ * assignable to `ProgressSnapshotLike`, whose `ProgressWeakTopic.accuracy` is
+ * required. Collapsing the two into one name would either lie about the API
+ * payload or break that assignment, so the component-side type is renamed
+ * instead of merged.
+ */
+interface DashboardSnapshotWeakTopic {
   topic: string
   accuracy: number
   attempts: number
 }
 
-export interface DashboardSnapshot {
+interface DashboardSnapshot {
   goalCompletion?: number
   todayStudyMinutes?: number
-  weakTopics?: DashboardWeakTopic[]
+  weakTopics?: DashboardSnapshotWeakTopic[]
   recommendedFocus?: string[]
   recentNotes?: Array<{ id?: string; title?: string }>
   [key: string]: unknown
 }
 
-export interface DashboardChat {
+interface DashboardChat {
   id: string
   title: string
   updated_at?: string
   updatedAt?: string
 }
 
-export interface DashboardQuizAttempt {
+interface DashboardQuizAttempt {
   id: string
   quiz_title?: string
   title?: string
@@ -316,7 +288,7 @@ export interface DashboardQuizAttempt {
   createdAt?: string
 }
 
-export interface DashboardFile {
+interface DashboardFile {
   id: string
   filename: string
   content_type?: string
@@ -325,7 +297,7 @@ export interface DashboardFile {
   createdAt?: string
 }
 
-export interface DashboardGoal {
+interface DashboardGoal {
   title: string
   completed: boolean
 }
@@ -340,7 +312,7 @@ export interface DashboardData {
   files?: DashboardFile[]
 }
 
-export interface AdminUserRecord {
+interface AdminUserRecord {
   id: string
   username?: string
   email?: string
@@ -349,7 +321,7 @@ export interface AdminUserRecord {
   created_at?: string
 }
 
-export interface AdminProviderRecord {
+interface AdminProviderRecord {
   id?: string
   name?: string
   provider?: string
@@ -364,7 +336,7 @@ export interface AdminProviderRecord {
   [key: string]: unknown
 }
 
-export interface AdminAuditRecord {
+interface AdminAuditRecord {
   id?: string
   action?: string
   entity?: string
@@ -381,7 +353,7 @@ export interface AdminData {
   counters?: Record<string, number>
 }
 
-export interface AutomationJobRecord {
+interface AutomationJobRecord {
   key: string
   label: string
   cadence?: string
@@ -390,7 +362,7 @@ export interface AutomationJobRecord {
   description?: string
 }
 
-export interface AutomationPromptRecord {
+interface AutomationPromptRecord {
   key: string
   title?: string
   label?: string
@@ -403,18 +375,6 @@ export interface AutomationData {
   jobs?: AutomationJobRecord[]
   prompts?: AutomationPromptRecord[]
 }
-
-export interface WorkspaceState {
-  user: User | null
-  notes: Note[]
-  quizzes: Quiz[]
-  dashboard: DashboardData | null
-  adminData: AdminData | null
-  automationData: AutomationData | null
-}
-
-export type VaultMode = "vault" | "graph" | "reviews"
-export type FeedMode = "discover" | "following" | "circles"
 
 export interface KnowledgeNode {
   id: string
@@ -432,13 +392,6 @@ export interface KnowledgeEdge {
   targetId: string
   type: "link" | "prerequisite" | "related" | "extends" | "contradicts"
   strength: number
-}
-
-export interface FsrsState {
-  difficulty: number
-  stability: number
-  retrievability: number
-  dueAt: string
 }
 
 export interface ReviewItem extends FsrsState {
@@ -509,6 +462,10 @@ export interface PublicProfile {
   bio: string
   avatar_url: string
   profile_visibility?: string
+  /** How the requester relates to the owner, decided by the server. */
+  viewer?: "public" | "connections" | "owner"
+  /** True when the owner keeps this profile from the requester: only the name and picture are sent. */
+  restricted?: boolean
   social_links?: {
     facebook?: string
     intro?: string
@@ -516,12 +473,4 @@ export interface PublicProfile {
   }
   metrics: Record<string, number>
   artifacts: KnowledgeNode[]
-}
-
-export interface SocialAction {
-  id: string
-  target_type: string
-  target_id: string
-  action_type: string
-  body?: string
 }

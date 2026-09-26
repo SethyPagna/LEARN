@@ -32,7 +32,7 @@ export type StudioShareOption = {
 }
 
 export type StudioDownloadOption = {
-  id: "html" | "text" | "csv" | "pptx" | "outline" | "json" | "markdown"
+  id: "html" | "text" | "csv" | "xlsx" | "docx" | "pdf" | "pptx" | "outline" | "json" | "markdown"
   label: string
   detail: string
   bestFor: string
@@ -63,7 +63,7 @@ export function createDefaultStudioLayout(kind: StudioKind = "notes", title = st
     version: 1,
     activePaneId: pane.id,
     groups: [{ id: "group_root", direction: "horizontal", panes: [pane] }],
-    inspectorOpen: true,
+    inspectorOpen: false,
     density: "comfortable",
   }
 }
@@ -198,6 +198,7 @@ export function buildStudioDownloadOptions(kind: StudioKind): StudioDownloadOpti
   if (kind === "sheets") {
     return [
       { id: "csv", label: "CSV", detail: "Spreadsheet rows for Excel, Sheets, and imports.", bestFor: "Excel, Sheets, and AI cleanup", sizeHint: "Small", action: "download", suggested: true },
+      { id: "xlsx", label: "XLSX", detail: "Real Excel workbook with typed number and boolean cells.", bestFor: "Excel handoff and grading", sizeHint: "Small", action: "download" },
       { id: "text", label: "Table text", detail: "Readable rows for messages, docs, or quick review.", bestFor: "Fast sharing", sizeHint: "Tiny", action: "export" },
       { id: "json", label: "Sheet JSON", detail: "Cells plus lightweight metadata for LEARN imports.", bestFor: "Backups and automation", sizeHint: "Medium", action: "export" },
     ]
@@ -205,12 +206,15 @@ export function buildStudioDownloadOptions(kind: StudioKind): StudioDownloadOpti
   if (kind === "slides") {
     return [
       { id: "pptx", label: "PPTX", detail: "Editable Microsoft PowerPoint deck.", bestFor: "Presentation handoff", sizeHint: "Medium", action: "export", suggested: true },
+      { id: "pdf", label: "PDF", detail: "One visible slide per page, preserving the deck's aspect ratio without a print dialog.", bestFor: "Sharing and printing", sizeHint: "Small", action: "download" },
       { id: "outline", label: "Speaker outline", detail: "Slide titles, bullets, and notes in a compact script.", bestFor: "Rehearsal", sizeHint: "Tiny", action: "download" },
       { id: "json", label: "Deck JSON", detail: "Slide objects, layouts, theme, and speaker notes.", bestFor: "Studio backup", sizeHint: "Medium", action: "export" },
     ]
   }
   return [
     { id: "html", label: "HTML", detail: "Designed document with headings and formatting.", bestFor: "Reading and publishing", sizeHint: "Small", action: "download", suggested: true },
+    { id: "pdf", label: "PDF", detail: "Real paged PDF built in the app — no print dialog, no plugin.", bestFor: "Sharing and printing", sizeHint: "Small", action: "download" },
+    { id: "docx", label: "DOCX", detail: "Real Word document with headings, lists, and tables.", bestFor: "Word handoff and printing", sizeHint: "Small", action: "download" },
     { id: "markdown", label: "Markdown", detail: "Portable headings, lists, links, and study structure.", bestFor: "Docs, notes, and AI", sizeHint: "Small", action: "export" },
     { id: "text", label: "Plain text", detail: "Clean text for email, AI, and lightweight export.", bestFor: "Fast sharing", sizeHint: "Tiny", action: "export" },
   ]

@@ -24,7 +24,20 @@ export interface LearnNavigationGroup {
   label: string
 }
 
+/**
+ * A launcher entry that opens a surface instead of navigating to a view.
+ *
+ * The launcher lives in the sidebar and can only reach a `View`, but two
+ * entries need to open something that is not a destination: the single Create
+ * control and the "What's where" guide. Rather than inventing two views (and two
+ * more nouns) for them, an entry may name an action; the launcher dispatches it
+ * and `app-nav.tsx` performs it. `view` stays required so every entry still has
+ * a sane fallback and keeps the existing search ranking intact.
+ */
+export type LauncherCommandAction = "create-menu" | "place-guide"
+
 export interface LauncherCommandConfig {
+  action?: LauncherCommandAction
   detail: string
   iconKey: NavigationIconKey
   keywords: readonly string[]
@@ -41,10 +54,20 @@ export interface NavigationTarget {
 }
 
 export const studioViews = ["studio", "notes", "docs", "sheets", "slides"] as const satisfies readonly View[]
-export const studioAliasViews = ["notes", "docs", "sheets", "slides"] as const satisfies readonly View[]
+/**
+ * `canvas` is an alias of Studio rather than a ninth sidebar destination: the
+ * sidebar is capped at eight primary items (see navigation.test.ts), and the
+ * design canvas is reached from Studio's launcher entry and `/canvas`.
+ */
+export const studioAliasViews = ["notes", "docs", "sheets", "slides", "canvas"] as const satisfies readonly View[]
 export const learnAliasViews = ["vault", "feed", "discover", "graph", "progress"] as const satisfies readonly View[]
-export const learnWorkspaceViews = [] as const satisfies readonly View[]
-export const practiceViews = ["practice", "quizzes", "games", "reviews"] as const satisfies readonly View[]
+/**
+ * `live` joins `quizzes`/`games`/`reviews` as an alias of Practice for the same
+ * reason `canvas` is an alias of Studio: the sidebar is capped at eight primary
+ * items (see navigation.test.ts), so a new destination is reached through its
+ * group's launcher entry and its own route (`/live`).
+ */
+export const practiceViews = ["practice", "quizzes", "live", "games", "reviews"] as const satisfies readonly View[]
 export const socialViews = ["social", "chat", "spaces", "rooms", "battles"] as const satisfies readonly View[]
 export const manageAliasViews = ["profile", "admin"] as const satisfies readonly View[]
 
@@ -53,6 +76,7 @@ export const viewRoutes: Record<View, string> = {
   ai: "/ai",
   battles: "/battles",
   calendar: "/calendar",
+  canvas: "/canvas",
   chat: "/chat",
   dashboard: "/dashboard",
   discover: "/discover",
@@ -61,7 +85,7 @@ export const viewRoutes: Record<View, string> = {
   files: "/files",
   games: "/games",
   graph: "/graph",
-  learn: "/learn",
+  live: "/live",
   notes: "/notes",
   practice: "/practice",
   profile: "/profile",
@@ -83,15 +107,16 @@ export const viewLabelKeys: Record<View, keyof Vocabulary> = {
   ai: "aiTutor",
   battles: "battles",
   calendar: "calendar",
+  canvas: "canvas",
   chat: "chat",
-  dashboard: "dashboard",
+  dashboard: "studio",
   discover: "discover",
   docs: "docs",
   feed: "feed",
   files: "files",
   games: "games",
   graph: "graph",
-  learn: "learn",
+  live: "liveQuiz",
   notes: "notes",
   practice: "practice",
   profile: "profile",
@@ -110,21 +135,22 @@ export const viewLabelKeys: Record<View, keyof Vocabulary> = {
 
 const pathViewAliases: Record<string, View> = {
   groups: "spaces",
+  // `/learn` was a real route with a `View` member but no view branch ever
+  // rendered it, so the member was removed. The path keeps working by
+  // resolving to the dashboard, exactly as it did before.
   learn: "dashboard",
-  reviews: "practice",
 }
 
 export const navigationGroups: readonly LearnNavigationGroup[] = [
   {
     label: "Home",
-    caption: "Dashboard and next steps",
-    items: [{ view: "dashboard", labelKey: "dashboard", iconKey: "dashboard" }],
+    caption: "Your projects and creative space",
+    items: [{ view: "dashboard", labelKey: "studio", iconKey: "studio", aliases: ["studio", ...studioAliasViews] }],
   },
   {
     label: "Learn",
     caption: "Studio, AI tutor, files, calendar, and planned learning blocks",
     items: [
-      { view: "studio", labelKey: "studio", iconKey: "studio", aliases: studioAliasViews },
       { view: "ai", labelKey: "aiTutor", iconKey: "ai" },
       { view: "files", labelKey: "files", iconKey: "studio" },
       { view: "calendar", labelKey: "calendar", iconKey: "calendar", aliases: learnAliasViews },
@@ -133,7 +159,7 @@ export const navigationGroups: readonly LearnNavigationGroup[] = [
   {
     label: "Practice",
     caption: "Quizzes, games, retries, and reviews",
-    items: [{ view: "practice", labelKey: "practice", iconKey: "practice", aliases: ["quizzes", "games", "reviews"] }],
+    items: [{ view: "practice", labelKey: "practice", iconKey: "practice", aliases: ["quizzes", "live", "games", "reviews"] }],
   },
   {
     label: "Social",
@@ -148,18 +174,59 @@ export const navigationGroups: readonly LearnNavigationGroup[] = [
 ] as const
 
 export const launcherCommands: readonly LauncherCommandConfig[] = [
+  { label: "Create something new", detail: "Pick from every artifact type and see what each one is", view: "studio", iconKey: "studio", action: "create-menu", keywords: ["create", "new", "make", "start", "note", "doc", "sheet", "deck", "slide", "canvas", "quiz", "live", "artifact"] },
   { label: "Create in Studio", detail: "New note, doc, sheet, or slide", view: "studio", iconKey: "studio", keywords: ["new", "create", "note", "doc", "sheet", "slide", "studio"] },
+  { label: "Open design canvas", detail: "Free-form layout with snapping, layers, and groups", view: "canvas", iconKey: "studio", keywords: ["canvas", "design", "layout", "drag", "layer", "z-order", "rotate", "snap"] },
   { label: "Open files", detail: "Uploads, media, and imports", view: "files", iconKey: "studio", keywords: ["file", "upload", "download", "media", "import"] },
-  { label: "Start reviews", detail: "Open practice and review loops", view: "practice", iconKey: "practice", keywords: ["review", "recall", "flashcard", "practice"] },
+  { label: "Start reviews", detail: "Reveal and grade due review cards", view: "reviews", iconKey: "practice", keywords: ["review", "recall", "flashcard", "practice"] },
   { label: "Practice now", detail: "Quizzes and games", view: "practice", iconKey: "practice", keywords: ["quiz", "game", "practice", "test"] },
+  { label: "Host a live quiz", detail: "Join code, lobby, timer, and live standings", view: "live", iconKey: "practice", keywords: ["live", "quiz", "kahoot", "host", "join", "code", "lobby", "game"] },
   { label: "Ask AI tutor", detail: "Prompt, rewrite, quiz, plan", view: "ai", iconKey: "ai", keywords: ["ai", "tutor", "prompt", "rewrite", "plan"] },
   { label: "Plan calendar", detail: "Study blocks and due dates", view: "calendar", iconKey: "calendar", keywords: ["calendar", "time", "schedule", "plan"] },
   { label: "Open profile", detail: "Identity, public artifacts, and privacy", view: "profile", iconKey: "settings", keywords: ["profile", "identity", "privacy", "public"] },
   { label: "Admin controls", detail: "Providers, users, audit, and health", view: "admin", iconKey: "settings", keywords: ["admin", "provider", "audit", "health", "secret"] },
   { label: "Tune settings", detail: "Theme, language, density, accessibility", view: "settings", iconKey: "settings", keywords: ["settings", "theme", "language", "accessibility", "density"] },
+  { label: "What can LEARN do?", detail: "One sentence on every place in the app", view: "dashboard", iconKey: "workspaces", action: "place-guide", keywords: ["guide", "help", "what", "where", "explain", "tour", "learn", "place", "understand", "confused", "start"] },
 ] as const
 
 export const navigationItems = navigationGroups.flatMap((group) => group.items)
+
+/**
+ * The "divider tab" each area of the app owns. Colours live in globals.css as
+ * `--tab-<key>`; this map only says which tab a primary destination uses.
+ */
+export type SectionTab = "home" | "studio" | "ai" | "files" | "calendar" | "practice" | "social" | "settings"
+
+const sectionTabsByPrimaryView: Partial<Record<View, SectionTab>> = {
+  dashboard: "home",
+  studio: "studio",
+  ai: "ai",
+  files: "files",
+  calendar: "calendar",
+  practice: "practice",
+  social: "social",
+  settings: "settings",
+}
+
+export function sectionTabForView(view: View): SectionTab {
+  return sectionTabsByPrimaryView[resolveNavigationTarget(view).primaryView] ?? "home"
+}
+
+/**
+ * Pages inside a primary destination, shown as indented tabs under it in the
+ * sidebar and as their own entries in the command palette. They are not
+ * primary items: the sidebar stays capped at eight (see navigation.test.ts).
+ */
+export const navigationSubViews: Partial<Record<View, readonly View[]>> = {
+  dashboard: ["notes", "docs", "sheets", "slides", "canvas"],
+  calendar: ["vault", "progress", "graph", "feed"],
+  practice: ["quizzes", "live", "games", "reviews"],
+  social: ["chat", "spaces", "rooms", "battles"],
+  settings: ["profile", "admin"],
+}
+
+/** Sub views only an admin may open. */
+export const adminOnlyViews: readonly View[] = ["admin"]
 
 export function getNavigationItemDetail(item: LearnNavigationItem) {
   const group = navigationGroups.find((entry) => entry.items.some((candidate) => candidate.view === item.view))

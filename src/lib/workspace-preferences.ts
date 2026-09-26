@@ -1,9 +1,11 @@
 export type Density = "compact" | "comfortable"
-export type AppAccent = "teal" | "sky" | "violet" | "rose" | "amber"
+export type AppAccent = "ink" | "teal" | "sky" | "violet" | "rose" | "amber"
 
 export const WORKSPACE_OPTIONS_KEY = "learn_workspace_options"
 
 export type WorkspaceOptions = {
+  workspaceName: string
+  dailyFocus: string
   dashboardDetail: "focused" | "detailed"
   showWeakTopicBars: boolean
   notesAutosave: boolean
@@ -41,7 +43,9 @@ export type WorkspaceOptions = {
 }
 
 export const defaultWorkspaceOptions: WorkspaceOptions = {
-  dashboardDetail: "detailed",
+  workspaceName: "Your personal studio",
+  dailyFocus: "",
+  dashboardDetail: "focused",
   showWeakTopicBars: true,
   notesAutosave: false,
   noteEditorSize: "standard",
@@ -74,7 +78,7 @@ export const defaultWorkspaceOptions: WorkspaceOptions = {
   notificationDraftWarnings: true,
   notificationSocialUpdates: true,
   notificationSystemHealth: true,
-  appAccent: "teal",
+  appAccent: "ink",
 }
 
 const dashboardDetails = ["focused", "detailed"] as const
@@ -87,12 +91,14 @@ const gameModes = ["sprint", "matching", "memory"] as const
 const aiModes = ["coach", "route", "rewrite", "quiz", "flashcards", "translate", "cleanup", "mistake"] as const
 const privacyDefaults = ["private", "connections", "public"] as const
 const restDays = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const
-const appAccents = ["teal", "sky", "violet", "rose", "amber"] as const
+const appAccents = ["ink", "teal", "sky", "violet", "rose", "amber"] as const
 
 export function normalizeWorkspaceOptions(value: unknown): WorkspaceOptions {
   if (!isRecord(value)) return defaultWorkspaceOptions
   return {
     ...defaultWorkspaceOptions,
+    workspaceName: typeof value.workspaceName === "string" ? value.workspaceName.slice(0, 80) : defaultWorkspaceOptions.workspaceName,
+    dailyFocus: typeof value.dailyFocus === "string" ? value.dailyFocus.slice(0, 160) : defaultWorkspaceOptions.dailyFocus,
     dashboardDetail: choice(value.dashboardDetail, dashboardDetails, defaultWorkspaceOptions.dashboardDetail),
     showWeakTopicBars: bool(value.showWeakTopicBars, defaultWorkspaceOptions.showWeakTopicBars),
     notesAutosave: bool(value.notesAutosave, defaultWorkspaceOptions.notesAutosave),

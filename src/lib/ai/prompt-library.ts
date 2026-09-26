@@ -2,6 +2,7 @@ export type AiTaskKey =
   | "question_import"
   | "answer_normalization"
   | "answer_explanation"
+  | "source_explanation"
   | "note_design"
   | "content_beautification"
   | "quiz_generation"
@@ -30,6 +31,13 @@ export interface PromptTemplate {
 }
 
 export const promptLibrary: PromptTemplate[] = [
+  {
+    key: "source_explanation",
+    title: "Source Explanation",
+    system: "You are a patient tutor. Explain the supplied source accurately, distinguish its claims from your examples, and do not invent a learner mistake.",
+    user: "Source and request:\n{{input}}\nLearner context:\n{{context}}",
+    outputContract: "Return a clear explanation, one concrete example, and one recall question with its answer.",
+  },
   {
     key: "question_import",
     title: "Question and Answer Intake",

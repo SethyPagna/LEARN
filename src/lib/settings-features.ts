@@ -163,8 +163,8 @@ export function buildSettingsControlPlan(summary: SettingsOptionSummary): Settin
     },
     {
       id: "experience",
-      label: "Experience",
-      detail: "Theme comfort, density, language, and previews.",
+      label: "Appearance",
+      detail: "Theme, accents, your workspace, and comfort.",
       badge: `${summary.enabledAccessibilityCount}/3 comfort`,
       tone: experienceTone,
     },

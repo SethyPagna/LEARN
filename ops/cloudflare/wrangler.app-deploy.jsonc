@@ -40,6 +40,10 @@
       {
         "name": "PRESENCE_DO",
         "class_name": "PresenceDurableObject"
+      },
+      {
+        "name": "CHAT_DO",
+        "class_name": "ChatDurableObject"
       }
     ]
   },
@@ -52,6 +56,12 @@
       "new_sqlite_classes": [
         "StudyRoomDurableObject",
         "StudyBattleDurableObject"
+      ]
+    },
+    {
+      "tag": "v6_add_chat_durable_object",
+      "new_sqlite_classes": [
+        "ChatDurableObject"
       ]
     }
   ],

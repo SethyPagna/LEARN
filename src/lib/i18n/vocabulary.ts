@@ -51,6 +51,8 @@ export const baseVocabulary = {
   graph: "Graph",
   reviews: "Reviews",
   studio: "Studio",
+  canvas: "Canvas",
+  liveQuiz: "Live quiz",
   discover: "Discover",
   spaces: "Groups",
   rooms: "Rooms",
