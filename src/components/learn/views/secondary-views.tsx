@@ -44,8 +44,8 @@ export function ProgressView({ dashboard, quizzes, setView }: { dashboard: Dashb
   return <section className="learning-page mx-auto grid max-w-4xl gap-4">
     <header className="workspace-header"><h2 className="text-lg font-semibold">Progress</h2><span className="text-xs text-muted-foreground">{progress.momentumLabel === "steady" ? "On track" : progress.momentumLabel === "building" ? "Making progress" : "Let’s get started"}</span></header>
     <div className="progress-overview"><div className="progress-ring" style={{ background: `conic-gradient(var(--primary) ${progress.goalCompletion}%, var(--muted) 0)` }}><span><strong>{progress.goalCompletion}%</strong><small>Daily goal</small></span></div><div className="grid flex-1 grid-cols-2 gap-4">{progress.metrics.filter(metric => metric.id !== "goal").map(metric => <div key={metric.id} title={metric.detail}><p className="text-2xl font-semibold tabular-nums">{metric.value}</p><p className="mt-1 text-xs text-muted-foreground">{metric.label}</p></div>)}</div></div>
-    <div className="grid gap-4 md:grid-cols-2"><Panel className="p-4"><h3 className="mb-3 text-sm font-semibold">Keep going</h3><div className="grid gap-2">{progress.nextActions.slice(0, 3).map(action => <ProgressActionButton key={action.id} action={action} onClick={() => setView?.(action.target)} />)}</div></Panel>
-    <Panel className="p-4"><h3 className="mb-3 text-sm font-semibold">A little more practice</h3>{progress.weakTopics.length ? progress.weakTopics.map(topic => <button key={topic.topic} onClick={() => setView?.("quizzes")} className="block w-full py-2 text-left"><span className="flex justify-between gap-2 text-sm"><span className="truncate">{topic.topic}</span><span className="text-xs text-muted-foreground">{topic.accuracy}%</span></span><span className="mt-2 block h-1.5 rounded-full bg-muted"><span className="block h-full rounded-full bg-primary" style={{ width: `${topic.accuracy}%` }} /></span></button>) : <p className="text-sm text-muted-foreground">Complete a quiz to see your topic strengths.</p>}</Panel></div>
+    <div className="grid gap-4 md:grid-cols-2"><Panel className="p-4"><h3 className="mb-3 text-sm font-semibold">Next</h3><div className="grid gap-2">{progress.nextActions.slice(0, 3).map(action => <ProgressActionButton key={action.id} action={action} onClick={() => setView?.(action.target)} />)}</div></Panel>
+    <Panel className="p-4"><h3 className="mb-3 text-sm font-semibold">Topics</h3>{progress.weakTopics.length ? progress.weakTopics.map(topic => <button key={topic.topic} onClick={() => setView?.("quizzes")} className="block w-full py-2 text-left"><span className="flex justify-between gap-2 text-sm"><span className="truncate">{topic.topic}</span><span className="text-xs text-muted-foreground">{topic.accuracy}%</span></span><span className="mt-2 block h-1.5 rounded-full bg-muted"><span className="block h-full rounded-full bg-primary" style={{ width: `${topic.accuracy}%` }} /></span></button>) : <p className="text-sm text-muted-foreground">No results yet</p>}</Panel></div>
     <details className="workspace-disclosure"><summary>Goal details</summary><p className="pt-3 text-sm text-muted-foreground">{progressPlan.detail}</p><button className="editor-command mt-2" onClick={() => setView?.(progressPlan.target)}><ProgressPlanIcon className="h-4 w-4" />{progressPlan.headline}</button></details>
   </section>
 }
@@ -190,7 +190,7 @@ export function SettingsView({
   return (
     <div className="settings-workspace">
       <header className="workspace-header">
-        <div><h2>Settings</h2><p>{section === "profile" ? "Your profile and account details." : "Make LEARN work your way. Changes save automatically."}</p></div>
+        <h2>Settings</h2>
         {section === "profile" ? <ControlButton onClick={saveProfile} active disabled={saveBusy || !profileDirty}><Save className="h-4 w-4" />{saveBusy ? "Saving…" : "Save profile"}</ControlButton> : null}
       </header>
       <nav aria-label="Settings sections" className="settings-sections">{settingsPlan.guides.map((guide) => <SettingsSectionButton key={guide.id} guide={guide} active={section === guide.id} onClick={() => setSection(guide.id)} />)}</nav>
@@ -218,7 +218,7 @@ export function SettingsView({
                       Clear
                     </button>
                   ) : null}
-                  <p className="mt-2 text-xs leading-5 text-muted-foreground">Small images load fastest.</p>
+
                 </div>
               </div>
             </div>
@@ -300,7 +300,7 @@ export function SettingsView({
             {(automationData?.jobs || []).slice(0, 4).map((job) => (
               <div key={job.key} className="rounded-md border border-border bg-background p-3">
                 <p className="text-sm font-semibold text-foreground">{job.label}</p>
-                <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{job.description}</p>
+                <span className="sr-only">{job.description}</span>
               </div>
             ))}
           </div>
@@ -405,7 +405,7 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
     <div className="grid gap-4">
       <Panel className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div><h2 className="text-lg font-semibold">Admin</h2><p className="mt-1 text-xs text-muted-foreground">{adminPlan.headline}</p></div>
+          <h2 className="text-lg font-semibold" title={adminPlan.headline}>Admin</h2>
           <label className="flex h-10 w-full max-w-sm items-center gap-2 rounded-md border border-border bg-background px-3 focus-within:ring-2 focus-within:ring-primary/25">
             <Search className="h-4 w-4 text-muted-foreground" />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search admin data" className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
@@ -624,7 +624,7 @@ function AdminAccessRequests({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="font-semibold text-foreground">Access requests</p>
-          <p className="mt-1 text-sm text-muted-foreground">Review request-access audit rows and issue invite links without digging through raw logs.</p>
+
           {query ? <p className="mt-1 text-xs text-muted-foreground">Filtered by "{query}"</p> : null}
         </div>
         <SharedStatusPill label={String(items.length)} tone={items.length ? "watch" : "steady"} />
@@ -739,7 +739,7 @@ function AdminModerationQueue({ query }: { query: string }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="font-semibold text-foreground">Moderation queue</p>
-          <p className="mt-1 text-sm text-muted-foreground">Review flagged content and close it out without leaving the admin panel.</p>
+
           {query ? <p className="mt-1 text-xs text-muted-foreground">Filtered by "{query}"</p> : null}
         </div>
         <SharedStatusPill label={String(visibleItems.length)} tone={visibleItems.length ? "watch" : "steady"} />

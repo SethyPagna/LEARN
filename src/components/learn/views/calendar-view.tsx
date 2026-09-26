@@ -278,8 +278,8 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
     <header className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-baseline gap-3"><h2 className="text-xl font-semibold tracking-tight">Calendar</h2><span title={`Times shown in ${timezone}`} className="hidden text-[11px] text-muted-foreground sm:inline">{timezone.split("/").at(-1)?.replaceAll("_", " ")}</span></div>
       <div className="flex items-center gap-2">
-        <button type="button" onClick={() => setConnectionsOpen(true)} aria-label="Calendar connections" className="editor-command"><LinkIcon className="h-4 w-4" /><span className="hidden sm:inline">Connections</span></button>
-        <button type="button" onClick={() => createEventForDay()} className="editor-primary"><Plus className="h-4 w-4" /> Add</button>
+        <button type="button" onClick={() => setConnectionsOpen(true)} aria-label="Calendar connections" className="editor-command"><LinkIcon className="h-4 w-4" /><span className="sr-only">Connections</span></button>
+        <button type="button" onClick={() => createEventForDay()} className="editor-primary" aria-label="Add" title="Add"><Plus className="h-4 w-4" /> </button>
       </div>
     </header>
     <CalendarConnections open={connectionsOpen} onClose={() => setConnectionsOpen(false)} onChange={() => void connected.refresh()} />
@@ -308,7 +308,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
         <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{event.title}</span><span className="mt-1 block text-xs text-muted-foreground">{formatCalendarTimeRange(event)} · {event.remote ? "Connected" : labelCalendarEventType(event.event_type)}</span></span>
         <span className="hidden text-xs text-muted-foreground sm:block">{formatCalendarDuration(calendarEventDurationFromRecord(event))}</span>
       </button></li>)}</ul>
-      {!filteredEvents.length ? <p className="p-10 text-center text-sm text-muted-foreground">No events in this view.</p> : null}
+      {!filteredEvents.length ? <p className="p-10 text-center text-sm text-muted-foreground">No events</p> : null}
     </div> : <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_240px]">
       <div className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
         {mode === "month" ? <>
@@ -327,8 +327,8 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
       <aside className="rounded-xl border border-border bg-card p-4">
         <div className="mb-4 flex items-center justify-between gap-2"><h3 className="text-sm font-semibold">{formatCalendarDayLabel(selectedDayKey)}</h3><button type="button" aria-label="Add event on selected day" onClick={() => createEventForDay()} className="editor-command !px-2"><Plus className="h-4 w-4" /></button></div>
         <ul className="space-y-2" aria-label="Selected day events">{selectedDayEvents.map((event) => <li key={event.id}><button type="button" onClick={() => openEvent(event)} className="flex w-full gap-3 rounded-lg p-2 text-left hover:bg-secondary"><span className={`mt-1 h-8 w-0.5 shrink-0 rounded-full ${calendarDotClass(event.event_type)}`} /><span className="min-w-0"><span className="block truncate text-sm font-medium">{event.title}</span><span className="mt-1 block text-xs text-muted-foreground">{formatCalendarTimeRange(event)}</span></span></button></li>)}</ul>
-        {!selectedDayEvents.length ? <p className="py-6 text-sm text-muted-foreground">Nothing scheduled. Leave room for an idea.</p> : null}
-        <button type="button" onClick={applyPlanSuggestion} className="mt-4 flex w-full items-center gap-2 border-t border-border pt-4 text-left text-xs text-muted-foreground hover:text-foreground"><Sparkles className="h-3.5 w-3.5" /> Suggest a study block</button>
+        {!selectedDayEvents.length ? <p className="py-6 text-sm text-muted-foreground">No events</p> : null}
+        <button type="button" onClick={applyPlanSuggestion} aria-label="Suggest a study block" title="Suggest a study block" className="editor-command mt-4"><Sparkles className="h-4 w-4" /></button>
       </aside>
     </div>}
     <dialog ref={dialogRef} aria-labelledby="calendar-event-title" onCancel={(event) => { if (calendarBusy) event.preventDefault(); else setEditorOpen(false) }} onClose={() => setEditorOpen(false)} className="calendar-event-dialog m-auto max-h-[90dvh] overflow-y-auto rounded-2xl border border-border bg-card p-0 text-foreground shadow-lift backdrop:bg-black/35">
@@ -436,4 +436,3 @@ function moveLocalInputDate(value: string, dayKey: string) {
   if (!Number.isFinite(parsed.getTime())) return toLocalInputValue(new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate(), 9, 0))
   return toLocalInputValue(new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate(), parsed.getHours(), parsed.getMinutes()))
 }
-

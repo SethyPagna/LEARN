@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ComponentType, ReactNode } from "react"
+import { Inbox, Info } from "lucide-react"
 import { controlButtonClasses, statusToneClasses, type UiControlSize, type UiTone } from "@/lib/design-system"
 
 /**
@@ -27,9 +28,10 @@ export function Panel({ children, className = "" }: { children: ReactNode; class
 
 export function EmptyState({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-lg border border-dashed border-border bg-card px-5 py-8 text-center text-sm">
+    <div className="visual-empty rounded-lg border border-dashed border-border bg-card px-5 py-8 text-center text-sm">
+      <Inbox aria-hidden="true" className="mx-auto mb-3 h-8 w-8 text-primary/60" />
       <p className="font-semibold text-foreground">{title}</p>
-      <p className="mt-1 leading-5 text-muted-foreground">{body}</p>
+      <details className="inline-help mt-2"><summary aria-label="More information" title="More information"><Info className="h-4 w-4" /></summary><p className="mt-2 max-w-sm leading-5 text-muted-foreground">{body}</p></details>
     </div>
   )
 }

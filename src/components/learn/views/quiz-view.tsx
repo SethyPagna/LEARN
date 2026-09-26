@@ -647,7 +647,7 @@ function PracticeMenuAction({
       <Icon className="mt-0.5 h-4 w-4 shrink-0" />
       <span className="min-w-0">
         <span className="block truncate">{label}</span>
-        {meta ? <span className={`mt-0.5 block line-clamp-2 text-xs font-medium ${active ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{meta}</span> : null}
+        {meta ? <span className="sr-only">{meta}</span> : null}
       </span>
     </button>
   )

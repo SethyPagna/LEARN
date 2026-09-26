@@ -363,12 +363,10 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
         <div className="grid gap-4 lg:grid-cols-2">
           <Panel className="live-panel p-4 sm:p-5">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <Radio className="h-3.5 w-3.5" /> Host a live quiz
+              <Radio className="h-7 w-7 text-primary" />
             </div>
-            <h2 className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">Start a game</h2>
-            <p className="mt-1 text-sm leading-5 text-muted-foreground">
-              Pick a set. Share the code. Play together.
-            </p>
+            <h2 className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">Host</h2>
+
             {quizzes.length ? (
               <div className="mt-4 grid gap-3">
                 <label className="grid gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -414,12 +412,10 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
 
           <Panel className="live-panel p-4 sm:p-5">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <Users className="h-3.5 w-3.5" /> Join a live quiz
+              <Users className="h-7 w-7 text-primary" />
             </div>
-            <h2 className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">Enter your code</h2>
-            <p className="mt-1 text-sm leading-5 text-muted-foreground">
-              Use the six-character code from your host.
-            </p>
+            <h2 className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">Join</h2>
+
             <div className="mt-4 grid gap-3">
               <input
                 value={joinInput}

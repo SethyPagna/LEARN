@@ -249,6 +249,8 @@ export function VoiceInput({
           disabled={disabled || busy}
           onClick={() => (recording ? stop() : void start())}
           aria-pressed={recording}
+          aria-label={recording ? "Stop recording" : busy ? "Transcribing" : label}
+          title={recording ? "Stop recording" : label}
           className={`flex h-9 items-center gap-2 rounded-md border px-3 text-xs font-semibold transition-colors disabled:opacity-60 ${
             recording
               ? "border-destructive bg-destructive/10 text-destructive"
@@ -262,7 +264,7 @@ export function VoiceInput({
           ) : (
             <Mic className="h-3.5 w-3.5" />
           )}
-          {recording ? `Stop (${formatElapsed(elapsedMs)})` : phase === "transcribing" ? "Transcribing…" : phase === "requesting" ? "Starting…" : label}
+          {recording ? `Stop (${formatElapsed(elapsedMs)})` : phase === "transcribing" ? "Transcribing…" : phase === "requesting" ? "Starting…" : null}
         </button>
 
         {recording ? (

@@ -21,10 +21,10 @@ export function PracticeWorkspaceView({ initialView, options, quizzes, selectedQ
     setView("ai")
   }
   return <PracticeDesign><div className="practice-launches practice-extra">
-    <button onClick={() => setView("quizzes")}><BookOpen /><span>Quiz</span><small>At your pace</small></button>
-    <button onClick={() => setView("games")}><Gamepad2 /><span>Sprint</span><small>Beat the clock</small></button>
-    <button onClick={() => setView("live")}><Radio /><span>Live</span><small>Play together</small></button>
-    <button onClick={createPractice}><Sparkles /><span>Create</span><small>With AI</small></button>
+    <button onClick={() => setView("quizzes")}><BookOpen /><span>Quiz</span></button>
+    <button onClick={() => setView("games")}><Gamepad2 /><span>Sprint</span></button>
+    <button onClick={() => setView("live")}><Radio /><span>Live</span></button>
+    <button onClick={createPractice}><Sparkles /><span>Create</span></button>
   </div>
     {initialView === "games" ? <GamesView quizzes={quizzes} options={options} /> : <QuizView quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={options} />}
     {drafts.length ? <details className="workspace-disclosure practice-extra mt-3"><summary>Saved attempts <span className="text-muted-foreground">{drafts.length}</span></summary><div className="pt-2">{drafts.map(draft => <div key={draft.quizId} className="flex gap-2"><button className="compact-row flex-1" onClick={() => { setSelectedQuizId(draft.quizId); setView("quizzes") }}><BookOpen className="h-4 w-4" /><span className="truncate">{titles[draft.quizId] || "Practice set"}</span><span className="ml-auto text-xs">{draft.answeredCount} answered</span></button><button className="editor-command" aria-label={`Clear attempt for ${titles[draft.quizId] || "practice set"}`} onClick={() => { clearPracticeDraft(draft.quizId); setDrafts(listPracticeDraftCards(readPracticeDrafts(), titles)) }}><Trash2 className="h-4 w-4" /></button></div>)}</div></details> : null}

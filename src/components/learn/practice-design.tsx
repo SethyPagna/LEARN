@@ -28,13 +28,13 @@ export function PracticeDesign({ children, allowFocus = true }: { children: Reac
   }
   return <div className="practice-design" data-design={design} data-focus={focus}>
     <div className="practice-design-toolbar">
-      <span className="text-xs text-muted-foreground">Make it yours</span>
-      <details className="relative ml-auto"><summary className="editor-command"><Palette className="h-4 w-4" />Design</summary>
+
+      <details className="relative ml-auto"><summary className="editor-command" aria-label="Practice design" title="Practice design"><Palette className="h-4 w-4" /></summary>
         <div className="practice-design-picker" role="group" aria-label="Practice designs">{designs.map(item => <button type="button" key={item.id} aria-pressed={design === item.id} onClick={() => chooseDesign(item.id)}>
           <span className="design-swatch" style={{ background: `linear-gradient(125deg, ${item.colors.join(",")})` }}>{design === item.id ? <Check className="h-4 w-4 text-white" /> : null}</span><span>{item.name}</span>
         </button>)}</div>
       </details>
-      {allowFocus ? <button type="button" className="editor-command" aria-pressed={focus} onClick={() => setFocus(!focus)} title="Hide the set list and extra tools"><Maximize2 className="h-4 w-4" />Focus</button> : null}
+      {allowFocus ? <button type="button" className="editor-command" aria-pressed={focus} onClick={() => setFocus(!focus)} aria-label={focus ? "Exit focus" : "Focus"} title={focus ? "Exit focus" : "Focus"}><Maximize2 className="h-4 w-4" /></button> : null}
     </div>
     {children}
   </div>

@@ -545,7 +545,7 @@ export function AiTutorView({
             <h2 className="text-lg font-semibold text-foreground">AI tutor</h2>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <StatusPill label={workflowSummary.statusLabel} tone={readinessTone(workflowSummary.status)} />
-              <StatusPill label={workflowSummary.taskLabel} />
+
               {draftStatus ? <StatusPill label={draftStatus} tone="steady" /> : null}
             </div>
           </div>
@@ -627,8 +627,8 @@ export function AiTutorView({
 
         {sourceScope === "Active Studio item" ? <p className="mt-3 text-sm text-muted-foreground">{sourceContent ? `Source: ${sourceTitle}` : "No Studio source selected. Open Ask AI from the source item."}</p> : null}
         <label className="mt-4 grid gap-2 text-sm font-semibold text-foreground">
-          What would you like to work on?
-          <textarea aria-label="AI prompt" placeholder="Ask a question, explain an idea, or describe what you want to create…" value={message} onChange={(event) => setMessage(event.target.value)} className="min-h-36 w-full rounded-md border border-input bg-background p-4 font-normal text-foreground outline-none focus:border-ring" />
+          <span className="sr-only">What would you like to work on?</span>
+          <textarea aria-label="AI prompt" placeholder="Ask or create…" value={message} onChange={(event) => setMessage(event.target.value)} className="min-h-36 w-full rounded-md border border-input bg-background p-4 font-normal text-foreground outline-none focus:border-ring" />
         </label>
         <VoiceInput
           className="mt-2"
@@ -651,13 +651,11 @@ export function AiTutorView({
         </details>
 
         <div className="mt-3 flex flex-wrap gap-2">
-          <button disabled={primaryActionPlan.disabled} onClick={runPrimaryAction} className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+          <button aria-label={primaryActionPlan.label} title={primaryActionPlan.label} disabled={primaryActionPlan.disabled} onClick={runPrimaryAction} className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
             <Bot className="h-4 w-4" />
-            {primaryActionPlan.label}
           </button>
-          <button onClick={prepareStudioBlockPrompt} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+          <button aria-label="Studio block" title="Studio block" onClick={prepareStudioBlockPrompt} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
             <Plus className="h-4 w-4" />
-            Studio block
           </button>
           <button onClick={resetDraft} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
             Reset draft
@@ -901,7 +899,7 @@ function TutorMenu({
         type="button"
       >
         <Icon className="h-3.5 w-3.5" />
-        <span className="max-w-40 truncate">{label}</span>
+        <span className="sr-only">{label}</span>
         <ChevronDown className="h-3.5 w-3.5 opacity-70" />
       </ControlButton>
       {open ? (
@@ -946,7 +944,7 @@ function TutorMenuAction({
       <Icon className="mt-0.5 h-4 w-4 shrink-0" />
       <span className="min-w-0">
         <span className="block truncate">{label}</span>
-        {meta ? <span className={`mt-0.5 block line-clamp-2 text-xs font-medium ${active ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{meta}</span> : null}
+        {meta ? <span className="sr-only">{meta}</span> : null}
       </span>
     </button>
   )

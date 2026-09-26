@@ -1537,6 +1537,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               {replyThreadId ? "Reply target saved" : draftStatus || ""}
             </p>
             <ToolbarButton
+              iconOnly
               disabled={chatActionById.get("send")?.disabled}
               label={chatActionById.get("send")?.busy ? chatActionById.get("send")?.busyLabel || "Sending" : "Send"}
               onClick={send}

@@ -66,10 +66,10 @@ export function ChatMediaComposer({ onSend, onEmoji }: { onSend: (file: File) =>
   return <details className="rounded-xl border border-border bg-background p-3 text-sm">
     <summary className="cursor-pointer font-semibold">Emoji, stickers, GIFs and memes</summary>
     <fieldset disabled={busy} className="mt-3 grid gap-3">
-      <div><p className="mb-1 text-xs text-muted-foreground">Add emoji to your message</p>
+      <div><h4 className="mb-1 text-xs text-muted-foreground">Emoji</h4>
         <div className="flex flex-wrap gap-2">{CHAT_STICKERS.map((glyph) => <button type="button" key={glyph} aria-label={`Add ${glyph} emoji`} className="rounded border px-2 py-1 text-xl" onClick={() => onEmoji(glyph)}>{glyph}</button>)}</div>
       </div>
-      <div><p className="mb-1 text-xs text-muted-foreground">Send a sticker picture</p>
+      <div><h4 className="mb-1 text-xs text-muted-foreground">Stickers</h4>
         <div className="flex flex-wrap gap-2">{CHAT_STICKERS.map((glyph) => <button type="button" key={glyph} aria-label={`Send ${glyph} sticker`} className="rounded border px-2 py-1 text-2xl" onClick={() => sendPicture(() => sticker(glyph))}>{glyph}</button>)}</div>
       </div>
       <label className="grid gap-1">Send a GIF from your device

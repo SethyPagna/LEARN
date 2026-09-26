@@ -96,7 +96,7 @@ export function VaultView({ notes = [], setView, onOpenNote }: { notes?: Note[];
 
   return (
     <section className="learning-page grid gap-3">
-      <header className="workspace-header"><h2 className="text-lg font-semibold">Vault</h2><button onClick={() => targetNoteId ? onOpenNote(targetNoteId) : setView("notes")} className="editor-primary"><BookOpen className="h-4 w-4" />Open notes</button></header>
+      <header className="workspace-header"><h2 className="text-lg font-semibold">Vault</h2><button onClick={() => targetNoteId ? onOpenNote(targetNoteId) : setView("notes")} className="editor-primary" aria-label="Open notes" title="Open notes"><BookOpen className="h-4 w-4" /></button></header>
       <div className="vault-workbench">
         <aside className="compact-list"><label className="editor-field">Your notes<select aria-label="Vault note" className="editor-input" value={targetNoteId} onChange={event => setBlockNoteId(event.target.value)}>{notes.map(note => <option key={note.id} value={note.id}>{note.title}</option>)}</select></label>
           <div className="mt-3 hidden md:grid">{notes.slice(0, 12).map(note => <button key={note.id} className="compact-row" aria-pressed={targetNoteId === note.id} onClick={() => setBlockNoteId(note.id)}><BookOpen className="h-4 w-4 text-primary" /><span className="truncate">{note.title}</span></button>)}</div>
@@ -110,7 +110,7 @@ export function VaultView({ notes = [], setView, onOpenNote }: { notes?: Note[];
           </div></details>
         </Panel>
       </div>
-      <details className="workspace-disclosure"><summary>Connected topics <span className="text-muted-foreground">{data?.nodes.length || 0}</span></summary><div className="grid gap-2 pt-3 sm:grid-cols-3">{topNodes.map(node => <NodeCard key={node.id} node={node} />)}</div><button className="editor-command mt-2" onClick={() => setView("graph")}><Network className="h-4 w-4" />Explore graph</button></details>
+      <details className="workspace-disclosure"><summary>Connected topics <span className="text-muted-foreground">{data?.nodes.length || 0}</span></summary><div className="grid gap-2 pt-3 sm:grid-cols-3">{topNodes.map(node => <NodeCard key={node.id} node={node} />)}</div><button className="editor-command mt-2" onClick={() => setView("graph")} aria-label="Explore graph" title="Explore graph"><Network className="h-4 w-4" /></button></details>
       {status && status !== "Ready" ? <p className="text-xs text-muted-foreground">{status}</p> : null}
     </section>
   )
@@ -136,7 +136,7 @@ export function GraphView({ setView }: { setView: (view: View) => void }) {
   const width = Math.max(...points.map(point => point.x), 300) - left + 105
   const height = Math.max(...points.map(point => point.y), 205) - top + 80
   return <section className="learning-page grid gap-3">
-    <header className="workspace-header"><h2 className="text-lg font-semibold">Graph <span className="text-xs font-normal text-muted-foreground">{nodes.length} topics</span></h2><button className="editor-command" onClick={() => setView("notes")}><BookOpen className="h-4 w-4" />Notes</button></header>
+    <header className="workspace-header"><h2 className="text-lg font-semibold">Graph <span className="text-xs font-normal text-muted-foreground">{nodes.length} topics</span></h2><button className="editor-command" onClick={() => setView("notes")} aria-label="Notes" title="Notes"><BookOpen className="h-4 w-4" /></button></header>
     <div className="flex flex-wrap gap-1">{(["all", "weak", "orphan", "public"] as GraphFilter[]).map(filter => <button className="calendar-filter" aria-pressed={graphFilter === filter} key={filter} onClick={() => setGraphFilter(filter)}>{graphFilterLabel(filter)}</button>)}</div>
     <div className="graph-workbench"><Panel className="relative overflow-hidden graph-stage">
       {filteredNodes.length ? <svg viewBox={`${left} ${top} ${width} ${height}`} className="w-full" aria-label="Knowledge graph">
@@ -146,9 +146,9 @@ export function GraphView({ setView }: { setView: (view: View) => void }) {
           <text x={point.x} y={point.y + 4} textAnchor="middle" className="fill-primary text-[12px] font-semibold" aria-hidden="true">{node.title.slice(0, 1)}</text>
           <text x={point.x} y={point.y + 41} textAnchor="middle" className="fill-foreground text-[11px]">{node.title.length > 22 ? `${node.title.slice(0, 21)}…` : node.title}</text>
         </g> })}
-      </svg> : <div className="grid min-h-72 place-content-center gap-3 text-center"><Network className="mx-auto h-10 w-10 text-primary/50" /><p className="text-sm text-muted-foreground">{nodes.length ? "No topics match this filter." : "Your ideas will connect here."}</p><button className="editor-primary" onClick={() => setView("notes")}>Open notes</button></div>}
+      </svg> : <div className="grid min-h-72 place-content-center gap-3 text-center"><Network className="mx-auto h-10 w-10 text-primary/50" /><p className="text-sm text-muted-foreground">{nodes.length ? "No topics match this filter." : "No topics yet"}</p><button className="editor-primary" onClick={() => setView("notes")}>Open notes</button></div>}
     </Panel><aside className="compact-list"><h3 className="mb-2 text-xs text-muted-foreground">Topics</h3>{filteredNodes.map(node => <button key={node.id} onClick={() => setSelectedId(node.id)} className="compact-row" aria-pressed={selectedNode?.id === node.id}><span className="truncate flex-1">{node.title}</span><span className="text-xs text-muted-foreground">{Math.round(node.mastery * 100)}%</span></button>)}
-      {selectedNode ? <div className="mt-4 border-t border-border pt-3"><p className="font-medium text-sm">{selectedNode.title}</p><p className="mt-1 text-xs text-muted-foreground">{selectedNode.visibility} · {Math.round(selectedNode.mastery * 100)}% learned</p><button className="editor-command mt-2" onClick={() => setView("reviews")}><Repeat2 className="h-4 w-4" />Review</button></div> : null}
+      {selectedNode ? <div className="mt-4 border-t border-border pt-3"><p className="font-medium text-sm">{selectedNode.title}</p><p className="mt-1 text-xs text-muted-foreground">{selectedNode.visibility} · {Math.round(selectedNode.mastery * 100)}% learned</p><button className="editor-command mt-2" onClick={() => setView("reviews")} aria-label="Review" title="Review"><Repeat2 className="h-4 w-4" /></button></div> : null}
     </aside></div>
     {status && status !== "Ready" ? <p className="text-xs text-muted-foreground">{status}</p> : null}
   </section>
@@ -242,22 +242,15 @@ export function ReviewsView({ setView }: { setView: (view: View) => void }) {
             </p>
           </details>
         </div>
-        <button onClick={applyReviewPlan} className="mt-3 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
+        <button onClick={applyReviewPlan} title={reviewPlan.headline} className="mt-3 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
           <div className="flex items-center justify-between gap-3">
-            <span className="font-semibold text-foreground">{reviewPlan.headline}</span>
+            <span className="font-semibold text-foreground">Next</span>
             <ArrowRight className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {reviewPlan.chips.map((chip) => (
-              <span key={chip} className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">
-                {chip}
-              </span>
-            ))}
           </div>
         </button>
         <details className="mt-3 rounded-md border border-border bg-background p-2">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
-            <span>Why this move</span>
+            <span>Details</span>
             <ChevronDown className="h-4 w-4 text-muted-foreground" />
           </summary>
           <p className="mt-2 border-t border-border pt-2 text-xs leading-5 text-muted-foreground">{reviewPlan.detail}</p>
@@ -269,7 +262,7 @@ export function ReviewsView({ setView }: { setView: (view: View) => void }) {
         </div>
         <details className="mt-3 rounded-md border border-border bg-background p-2">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
-            <span>Queue details</span>
+            <span>Queue</span>
             <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{status}</span>
           </summary>
           <div className="mt-2 grid grid-cols-2 gap-2 border-t border-border pt-2">
@@ -334,11 +327,7 @@ export function ReviewsView({ setView }: { setView: (view: View) => void }) {
                     >
                       {action.busy ? "Saving" : action.label}
                     </button>
-                  )) : (
-                    <span className="inline-flex h-9 items-center rounded-md border border-border bg-muted px-3 text-sm font-semibold text-muted-foreground">
-                      Reveal first
-                    </span>
-                  )}
+                  )) : null}
               </div>
             </div>
             <div className="mt-4 rounded-md border border-border bg-background p-3">
@@ -347,7 +336,7 @@ export function ReviewsView({ setView }: { setView: (view: View) => void }) {
             </div>
             <details className="mt-3 rounded-md border border-border bg-background p-2">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                <span>Memory signal</span>
+                <span>Memory</span>
                 <span>{Math.round(item.retrievability * 100)}%</span>
               </summary>
               <div className="mt-2 flex flex-wrap gap-2 border-t border-border pt-2 text-xs font-semibold text-muted-foreground">
@@ -392,16 +381,16 @@ export function FeedView({ setView }: { setView: (view: View) => void }) {
     finally { setBusy(null) }
   }
   return <section className="learning-page mx-auto grid max-w-3xl gap-3">
-    <header className="workspace-header"><h2 className="text-lg font-semibold">Feed</h2><button onClick={refresh} className="editor-command"><Repeat2 className="h-4 w-4" />Refresh</button></header>
+    <header className="workspace-header"><h2 className="text-lg font-semibold">Feed</h2><button onClick={refresh} className="editor-command" aria-label="Refresh" title="Refresh"><Repeat2 className="h-4 w-4" /></button></header>
     <div className="flex flex-wrap gap-1">{["all", ...topics].map(topic => <button key={topic} aria-pressed={activeFilter === topic} onClick={() => setFilter(topic)} className="calendar-filter">{topic === "all" ? "For you" : topic}</button>)}</div>
     {message ? <p role="alert" className="text-sm text-destructive">{message}</p> : null}
     {lessons.filter(lesson => activeFilter === "all" || (lesson.topic_tags || lesson.topicTags || []).includes(activeFilter)).map((lesson, index) => <article key={lesson.id} className="discovery-card" data-tone={index % 3}>
       <div className="flex items-center gap-2 text-xs text-muted-foreground"><Compass className="h-4 w-4" /><span>{Math.ceil((lesson.duration_seconds || lesson.durationSeconds || 90) / 60)} min</span>{answered[lesson.id] ? <CheckCircle2 className="ml-auto h-4 w-4 text-success" /> : null}</div>
-      <h3 className="mt-3 text-xl font-semibold">{lesson.title}</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">{lesson.summary}</p>
+      <h3 className="mt-3 text-xl font-semibold">{lesson.title}</h3><details className="mt-3"><summary className="inline-flex cursor-pointer items-center gap-2 text-xs font-medium"><BookOpen className="h-4 w-4" />Read</summary><p className="mt-2 text-sm leading-6 text-muted-foreground">{lesson.summary}</p></details>
       <details className="mt-4"><summary className="cursor-pointer text-sm font-medium">Quick question</summary><div className="grid gap-2 pt-3"><p className="text-sm">{lesson.question}</p><div className="grid gap-2 sm:grid-cols-2">{(lesson.choices || []).map(choice => <button key={choice.id} disabled={Boolean(busy || answered[lesson.id])} onClick={() => void answer(lesson, choice.id)} className={`rounded-lg border p-3 text-left text-sm disabled:cursor-default ${answered[lesson.id] === choice.id ? choice.id === lesson.correct_choice_id ? "border-success bg-success/10" : "border-destructive bg-destructive/10" : "border-border bg-card hover:bg-accent"}`}>{choice.text}</button>)}</div>{answered[lesson.id] ? <p role="status" className="text-sm text-muted-foreground">{answered[lesson.id] === lesson.correct_choice_id ? "Correct. " : "Not quite. "}{lesson.explanation}</p> : null}</div></details>
     </article>)}
     {!lessons.length ? <EmptyState title="Nothing to discover yet" body={status && status !== "Ready" ? status : "Try refreshing after your next study session."} /> : null}
-    <button onClick={() => setView("notes")} className="editor-command justify-self-start"><BookOpen className="h-4 w-4" />Open notes</button>
+    <button onClick={() => setView("notes")} className="editor-command justify-self-start" aria-label="Open notes" title="Open notes"><BookOpen className="h-4 w-4" /></button>
   </section>
 }
 
@@ -721,7 +710,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   }
 
   return <section className="social-hub grid gap-3">
-    <header className="workspace-header"><h2 className="text-lg font-semibold">{title}</h2><button type="button" onClick={startNew} className="editor-primary"><Icon className="h-4 w-4" />Add</button></header>
+    <header className="workspace-header"><h2 className="text-lg font-semibold">{title}</h2><button type="button" onClick={startNew} className="editor-primary" aria-label="Add" title="Add"><Icon className="h-4 w-4" /></button></header>
     <div className="social-browser"><aside className="compact-list">
       <input aria-label={`Search ${title}`} className="editor-input w-full" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search…" />
       <div className="my-2 flex flex-wrap gap-1">{filterOptions.map(option => <button key={option} className="calendar-filter" aria-pressed={recordFilter === option} onClick={() => setRecordFilter(option)}>{option === "all" ? "All" : socialFilterLabel(option)}</button>)}</div>
@@ -764,7 +753,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
       <nav className="page-sections mt-3" aria-label={`${title} details`}>{detailTabs.map(tab => <button key={tab.id} aria-current={detailTab === tab.id ? "page" : undefined} onClick={() => setDetailTab(tab.id)}><tab.icon className="h-4 w-4" />{tab.id === "actions" ? "Overview" : tab.id === "safety" ? "Manage" : tab.label}</button>)}</nav>
       {message ? <p role="status" className="mb-3 text-xs text-muted-foreground">{message}</p> : null}
       {detailTab === "actions" ? <Panel className="p-4"><p className="text-sm leading-6 text-muted-foreground">{kind === "spaces" ? draft.description || "A place to learn together." : kind === "rooms" ? `${draft.mode} · ${draft.pomodoroMinutes} min focus · ${draft.breakMinutes} min break` : draft.topic || "Ready for a friendly challenge?"}</p><div className="social-quick-actions mt-4">{(draft.id ? readyActions : []).map(action => { const ActionIcon = socialActionIcon(action.id); return <button key={action.id} disabled={!action.enabled} title={action.detail} onClick={() => action.id === "invite" ? setDetailTab("invite") : void runSocialAction(action.id)}><ActionIcon className="h-5 w-5" /><span>{actionKit.actions.find(item => item.id === action.id)?.label || action.label}</span></button> })}</div>{!draft.id ? <button className="editor-primary mt-4" onClick={() => setEditing(true)}>Set up {noun}</button> : null}</Panel> : null}
-      {detailTab === "invite" ? <Panel className="grid gap-3 p-4"><h3 className="text-sm font-medium">Invite to LEARN</h3><div className="flex flex-wrap gap-2"><input type="email" aria-label="Invite email" className="editor-input min-w-0 flex-1" placeholder="Email address" value={inviteEmail} onChange={event => setInviteEmail(event.target.value)} /><select aria-label="Invite role" className="editor-input" value={inviteRole} onChange={event => setInviteRole(normalizeSocialInviteRole(event.target.value))}>{socialInviteRoleOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div><div className="flex flex-wrap gap-2"><button className="editor-command" onClick={copyInvite}><Copy className="h-4 w-4" />Copy invitation</button><button className="editor-primary ml-auto" disabled={!inviteReadiness.enabled} title={inviteReadiness.message} onClick={createSecureInvite}>{inviteLoading ? "Creating…" : "Create link"}</button></div>{inviteLink ? <a href={inviteLink} className="break-all text-xs text-primary">{inviteLink}</a> : null}</Panel> : null}
+      {detailTab === "invite" ? <Panel className="grid gap-3 p-4"><h3 className="text-sm font-medium">Invite to LEARN</h3><div className="flex flex-wrap gap-2"><input type="email" aria-label="Invite email" className="editor-input min-w-0 flex-1" placeholder="Email address" value={inviteEmail} onChange={event => setInviteEmail(event.target.value)} /><select aria-label="Invite role" className="editor-input" value={inviteRole} onChange={event => setInviteRole(normalizeSocialInviteRole(event.target.value))}>{socialInviteRoleOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div><div className="flex flex-wrap gap-2"><button className="editor-command" onClick={copyInvite} aria-label="Copy invitation" title="Copy invitation"><Copy className="h-4 w-4" /></button><button className="editor-primary ml-auto" disabled={!inviteReadiness.enabled} title={inviteReadiness.message} onClick={createSecureInvite}>{inviteLoading ? "Creating…" : "Create link"}</button></div>{inviteLink ? <a href={inviteLink} className="break-all text-xs text-primary">{inviteLink}</a> : null}</Panel> : null}
       {detailTab === "people" ? <Panel className="p-4"><h3 className="mb-3 text-sm font-medium">Workspace people</h3><input className="editor-input w-full" aria-label="Search people" placeholder="Search people" value={memberQuery} onChange={event => setMemberQuery(event.target.value)} /><div className="mt-2 grid">{filteredMembers.map(member => <div key={member.id || member.email} className="compact-row"><span className="social-avatar">{(member.name || member.email || "?").slice(0, 1)}</span><span className="min-w-0 flex-1"><span className="block truncate">{member.name || member.email}</span><span className="text-xs text-muted-foreground">{member.role || "learner"}</span></span></div>)}</div>{memberPage.hiddenCount ? <button className="editor-command" onClick={() => setMemberLimit(value => value + 10)}>Show more</button> : null}</Panel> : null}
       {detailTab === "activity" ? <Panel className="p-4"><h3 className="mb-3 text-sm font-medium">Workspace activity</h3>{activityPage.items.map((action, index) => { const formatted = formatSocialAction(action); return <div key={action.id || index} className="compact-row"><span className="social-avatar"><MessageSquare className="h-4 w-4" /></span><span className="min-w-0"><span className="block text-sm font-medium">{formatted.label}</span><span className="block text-xs text-muted-foreground">{formatted.detail}</span></span></div> })}{!activityPage.items.length ? <p className="text-sm text-muted-foreground">No activity yet.</p> : null}{activityPage.hiddenCount ? <button className="editor-command" onClick={() => setActivityLimit(value => value + 4)}>Show more</button> : null}</Panel> : null}
       {detailTab === "safety" ? <Panel className="grid gap-3 p-4"><p className="text-xs text-muted-foreground">{socialPlan.safetyCue}</p><div className="flex flex-wrap gap-2"><button className="editor-command" disabled={recordBusy} onClick={() => void toggleDraft()}>{kind === "spaces" ? "Change visibility" : "Change status"}</button><button className="editor-command" onClick={() => { setDraft(selected ? draftFromSocialItem(kind, selected) : createSocialDraft(kind)); setMessage("Changes reset.") }}>Reset changes</button><button className="editor-command text-destructive" disabled={recordBusy} onClick={() => void deleteDraft()}><Trash2 className="h-4 w-4" />{deleteConfirmId === draft.id && draft.id ? "Confirm delete" : "Delete"}</button></div></Panel> : null}
@@ -1012,7 +1001,7 @@ function OwnProfileView({ setView, user }: { setView?: (view: View) => void; use
         </div>
         <h2 className="mt-4 text-2xl font-semibold text-foreground">{profile?.name || user?.name || "Learner"}</h2>
         <p className="text-sm text-muted-foreground">@{profile?.username || username}</p>
-        <p className="mt-4 text-sm leading-6 text-muted-foreground">{profile?.bio || "A private learning portrait that grows from Vault activity."}</p>
+        {profile?.bio ? <p className="mt-4 text-sm leading-6 text-muted-foreground">{profile.bio}</p> : null}
         {profileLinks.length ? (
           <div className="mt-3 flex flex-wrap gap-2">
             {profileLinks.map((link) => (
@@ -1088,7 +1077,7 @@ function OwnProfileView({ setView, user }: { setView?: (view: View) => void; use
           <div className="mt-3 grid gap-3 md:grid-cols-3">
             {(profile?.artifacts ?? []).map((node) => <NodeCard key={node.id} node={node} />)}
           </div>
-          {profile && profile.artifacts.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">No public artifacts yet. Sharing remains opt-in.</p> : null}
+          {profile && profile.artifacts.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">Nothing shared</p> : null}
         </Panel>
         <Panel className="p-4">
           <div className="flex items-center justify-between gap-3">
@@ -1110,7 +1099,7 @@ function AchievementTile({ achievement }: { achievement: Achievement }) {
     <div className={`rounded-md border p-3 ${achievement.unlocked ? "border-success/40 bg-success/10" : "border-border bg-background"}`}>
       <CheckCircle2 className={`h-4 w-4 ${achievement.unlocked ? "text-success" : "text-muted-foreground"}`} />
       <p className="mt-2 font-medium text-foreground">{achievement.name}</p>
-      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{achievement.description}</p>
+      <span className="sr-only">{achievement.description}</span>
       <span className="mt-2 inline-flex rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{achievement.xp_reward} XP</span>
     </div>
   )
