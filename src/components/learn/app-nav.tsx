@@ -21,7 +21,6 @@ import {
   Monitor,
   Moon,
   PanelLeftClose,
-  PanelLeftDashed,
   PanelLeftOpen,
   PhoneMissed,
   Reply,
@@ -229,7 +228,7 @@ export function Sidebar({
         <Navigation compact={compact} practiceDraftSummary={practiceDraftSummary} setView={setView} studioDraftSummary={studioDraftSummary} text={text} user={user} view={view} />
       </div>
 
-      <SidebarFooter compact={compact} modKey={modKey} onModeChange={onModeChange} />
+      <SidebarFooter compact={compact} />
       <div id="sidebar-account" className={`border-t border-sidebar-border p-2 ${compact ? "" : "px-3"}`} />
     </aside>
   )
@@ -276,12 +275,13 @@ function Navigation({
                     active ? "learn-tab-dot learn-tab-on shadow-paper" : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   }`}
                 >
-                  <Icon className="h-5 w-5" />
+                  <span className="relative flex h-6 w-6 items-center justify-center"><Icon className="h-5 w-5" />
                   {badge.count ? (
-                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[0.58rem] font-bold text-warning-foreground ring-2 ring-sidebar" title={badge.title}>
-                      {badge.count}
+                    <span className="sidebar-icon-count" title={badge.title}>
+                      {badge.count > 99 ? "99+" : badge.count}
                     </span>
                   ) : null}
+                  </span>
                 </button>
               </li>
             )
@@ -319,15 +319,15 @@ function Navigation({
                         : "font-medium text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                     }`}
                   >
-                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center ${active ? "text-foreground" : "text-muted-foreground"}`}>
+                    <span className={`relative flex h-6 w-6 shrink-0 items-center justify-center ${active ? "text-foreground" : "text-muted-foreground"}`}>
                       <Icon className="h-4 w-4" />
-                    </span>
-                    <span className="truncate">{text[item.labelKey]}</span>
                     {badge.count ? (
-                      <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-warning px-1.5 text-[0.68rem] font-bold text-warning-foreground" title={badge.title}>
-                        {badge.count}
+                      <span className="sidebar-icon-count" title={badge.title}>
+                        {badge.count > 99 ? "99+" : badge.count}
                       </span>
                     ) : null}
+                    </span>
+                    <span className="truncate">{text[item.labelKey]}</span>
                   </button>
                   {subViews.length ? (
                     <ul className="learn-pop-in ml-[1.4rem] mt-0.5 grid gap-0.5 border-l-2 learn-tab-border pl-2.5">
@@ -378,8 +378,7 @@ function ConnectionStatus({ compact, status }: { compact?: boolean; status: Real
   )
 }
 
-function SidebarFooter({ compact, modKey, onModeChange }: { compact: boolean; modKey: string; onModeChange: (mode: SidebarMode) => void }) {
-  const status = useInboxStatus()
+function SidebarFooter({ compact }: { compact: boolean }) {
 
   if (compact) {
     return (
@@ -387,7 +386,6 @@ function SidebarFooter({ compact, modKey, onModeChange }: { compact: boolean; mo
         <button type="button" onClick={openPlaceGuide} className={ghostIconButton} aria-label="What's where?" title="What's where?">
           <Compass className="h-[18px] w-[18px]" />
         </button>
-        <ConnectionStatus compact status={status} />
       </div>
     )
   }
@@ -402,12 +400,6 @@ function SidebarFooter({ compact, modKey, onModeChange }: { compact: boolean; mo
       >
         <Compass className="h-4 w-4" />
       </button>
-      <div className="ml-auto flex items-center justify-between gap-2">
-        <ConnectionStatus compact status={status} />
-        <button type="button" onClick={() => onModeChange("hidden")} className={`${ghostIconButton} h-8 w-8`} aria-label="Hide sidebar" title={`Hide sidebar (${modKey}+\\)`}>
-          <PanelLeftDashed className="h-4 w-4" />
-        </button>
-      </div>
     </div>
   )
 }
@@ -953,7 +945,7 @@ function NotificationsMenu({ openLink, user, sidebar = false }: { sidebar?: bool
       >
         <Bell className="h-[18px] w-[18px]" />
         {unreadCount ? (
-          <span className="absolute right-0.5 top-0.5 flex h-[1.05rem] min-w-[1.05rem] items-center justify-center rounded-full bg-destructive px-1 text-[0.6rem] font-bold leading-none text-destructive-foreground ring-2 ring-background">
+          <span className="sidebar-icon-count notification-icon-count">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         ) : null}
