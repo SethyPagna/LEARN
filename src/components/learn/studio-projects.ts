@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { FileText, PenTool, Presentation, StickyNote, Table2 } from "lucide-react"
 import { readDesignDrafts, timestampMs } from "@/lib/design/draft"
-import { api } from "./api"
+import { api, PROJECTS_CHANGED_EVENT } from "./api"
 import type { Note } from "./types"
 
 export type ProjectKind = "canvas" | "notes" | "docs" | "slides" | "sheets"
@@ -21,6 +21,12 @@ export function projectHref(project: Project) {
 }
 
 export function useStudioProjects(notes: readonly Note[], revision = "") {
+  const [savedRevision, setSavedRevision] = useState(0)
+  useEffect(() => {
+    const refresh = () => setSavedRevision(value => value + 1)
+    window.addEventListener(PROJECTS_CHANGED_EVENT, refresh)
+    return () => window.removeEventListener(PROJECTS_CHANGED_EVENT, refresh)
+  }, [])
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -48,7 +54,7 @@ export function useStudioProjects(notes: readonly Note[], revision = "") {
     }
     void load()
     return () => { active = false }
-  }, [revision])
+  }, [revision, savedRevision])
 
   const allProjects = useMemo(() => [...projects, ...notes.map((note) => ({ ...note, kind: "notes" as const }))].sort((a, b) => (timestampMs(b.updated_at) ?? 0) - (timestampMs(a.updated_at) ?? 0)), [projects, notes])
   return { projects: allProjects, loading, error }
