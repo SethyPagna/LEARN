@@ -1,0 +1,1053 @@
+{
+  "recordedAt": "2026-09-26T23:12:20.244Z",
+  "baseCommit": "aa3e61b",
+  "environment": "Local Chrome via Playwright CLI 0.1.21; demo admin; Next development server",
+  "routes": {
+    "total": 58,
+    "failed": 0,
+    "shellChecks": [
+      "Add exposes all five project types",
+      "Add has an accessible Canvas choice",
+      "Add has an accessible Note choice",
+      "Add has an accessible Document choice",
+      "Add has an accessible Slides choice",
+      "Add has an accessible Sheet choice",
+      "Add supports arrow-key navigation",
+      "Add restores focus after Escape",
+      "Global search finds a nested learning page",
+      "Notifications dismiss with Escape",
+      "Nested sections remain available with the sidebar minimized"
+    ],
+    "reports": [
+      {
+        "route": "dashboard",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Studio",
+          "Recent"
+        ],
+        "controls": 29,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "studio",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Studio",
+          "Recent"
+        ],
+        "controls": 29,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "canvas",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Studio",
+          "Recent"
+        ],
+        "controls": 15,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "notes",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Projects",
+          "Recent projects"
+        ],
+        "controls": 28,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "docs",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Projects",
+          "Recent projects"
+        ],
+        "controls": 28,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "sheets",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Projects",
+          "Recent projects"
+        ],
+        "controls": 28,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "slides",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Projects",
+          "Recent projects"
+        ],
+        "controls": 28,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "files",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Files 0",
+          "No files yet"
+        ],
+        "controls": 6,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "ai",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "AI tutor"
+        ],
+        "controls": 9,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "calendar",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Calendar",
+          "September 2026",
+          "Sunday, Sep 27"
+        ],
+        "controls": 59,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "vault",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Vault",
+          "Operating Systems Review"
+        ],
+        "controls": 15,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "progress",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Progress",
+          "Next",
+          "Topics"
+        ],
+        "controls": 7,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "graph",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Graph 3 topics"
+        ],
+        "controls": 14,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "feed",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Feed"
+        ],
+        "controls": 14,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "discover",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Feed"
+        ],
+        "controls": 14,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "practice",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Algorithms Practice",
+          "What is the time complexity of binary search?"
+        ],
+        "controls": 21,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "quizzes",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Algorithms Practice",
+          "What is the time complexity of binary search?"
+        ],
+        "controls": 21,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "live",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Host",
+          "Join"
+        ],
+        "controls": 11,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "games",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Flashcard sprint",
+          "What is the time complexity of binary search?"
+        ],
+        "controls": 11,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "reviews",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Reviews",
+          "Explain the central idea in \"Database Indexing\"."
+        ],
+        "controls": 7,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "social",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Messages"
+        ],
+        "controls": 27,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "chat",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Messages"
+        ],
+        "controls": 27,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "spaces",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Groups",
+          "Personal learning circle"
+        ],
+        "controls": 17,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "groups",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Groups",
+          "Personal learning circle"
+        ],
+        "controls": 17,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "rooms",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Rooms",
+          "Focus room"
+        ],
+        "controls": 17,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "battles",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Battles",
+          "Quick study battle"
+        ],
+        "controls": 17,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "profile",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "LEARN Admin",
+          "1 shared"
+        ],
+        "controls": 5,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "settings",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Settings"
+        ],
+        "controls": 10,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "admin",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Admin"
+        ],
+        "controls": 8,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "dashboard",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Recent"
+        ],
+        "controls": 29,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "studio",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Recent"
+        ],
+        "controls": 29,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "canvas",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Recent"
+        ],
+        "controls": 15,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "notes",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Projects",
+          "Recent projects"
+        ],
+        "controls": 19,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "docs",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Projects",
+          "Recent projects"
+        ],
+        "controls": 19,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "sheets",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Projects",
+          "Recent projects"
+        ],
+        "controls": 19,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "slides",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Projects",
+          "Recent projects"
+        ],
+        "controls": 19,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "files",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "No files yet"
+        ],
+        "controls": 6,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "ai",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "AI tutor"
+        ],
+        "controls": 9,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "calendar",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "September 2026",
+          "Sunday, Sep 27"
+        ],
+        "controls": 59,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "vault",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Operating Systems Review"
+        ],
+        "controls": 12,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "progress",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Next",
+          "Topics"
+        ],
+        "controls": 7,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "graph",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [],
+        "controls": 14,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "feed",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [],
+        "controls": 14,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "discover",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [],
+        "controls": 14,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "practice",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Algorithms Practice",
+          "What is the time complexity of binary search?"
+        ],
+        "controls": 17,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "quizzes",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Algorithms Practice",
+          "What is the time complexity of binary search?"
+        ],
+        "controls": 17,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "live",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Host",
+          "Join"
+        ],
+        "controls": 11,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "games",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Flashcard sprint",
+          "What is the time complexity of binary search?"
+        ],
+        "controls": 11,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "reviews",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Explain the central idea in \"Database Indexing\"."
+        ],
+        "controls": 7,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "social",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Messages"
+        ],
+        "controls": 15,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "chat",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Messages"
+        ],
+        "controls": 15,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "spaces",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [],
+        "controls": 10,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "groups",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [],
+        "controls": 10,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "rooms",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [],
+        "controls": 10,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "battles",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [],
+        "controls": 10,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "profile",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "LEARN Admin",
+          "1 shared"
+        ],
+        "controls": 5,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "settings",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Settings"
+        ],
+        "controls": 10,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "admin",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Admin"
+        ],
+        "controls": 8,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      }
+    ]
+  },
+  "learning": {
+    "passed": 21,
+    "checks": [
+      "One review card is displayed",
+      "Ratings remain hidden before reveal",
+      "Next moves to another review",
+      "Failed grading keeps the answer available",
+      "Review sends the selected rating",
+      "Successful grading advances the queue",
+      "A refresh failure cannot expose an already graded card",
+      "Queue refresh can recover without grading twice",
+      "The queue matches remaining reviews",
+      "Empty Vault blocks cannot be saved",
+      "Failed block save preserves the draft",
+      "Retry saves the selected block once",
+      "Successful block save clears the draft",
+      "Vault search narrows the note list",
+      "Graph filter narrows the visible nodes",
+      "Graph nodes support keyboard selection",
+      "Selected topic exposes its mastery visually",
+      "Feed lessons begin collapsed",
+      "Failed answer can be retried",
+      "Answered lessons prevent duplicate submission",
+      "Expanded Feed fits phone width"
+    ]
+  },
+  "practice": {
+    "passed": [
+      "Quiz: answer, progress, next/previous, submit, collapsed review plan, retry missed",
+      "Sprint: 90-second setup label, answer lock, feedback, restart",
+      "Live: mode tiles, selected rules, phone layout, host lobby, empty-lobby guard, end, leave",
+      "Calendar: month/year/week navigation, category filter, connection help, create/open/delete event with notes"
+    ],
+    "screenshots": "output/playwright",
+    "limitations": [
+      "Live multiplayer and external calendar authorization require separate accounts or provider credentials.",
+      "Quiz submission and finished empty live session remain in the local demo history."
+    ]
+  },
+  "social": {
+    "passed": 49,
+    "checks": [
+      "Profile has one set of summary stats",
+      "Badge requirements available on demand",
+      "Profile links are collapsed initially",
+      "Profile links remain editable",
+      "Daily goal remains accessible",
+      "Advanced learning settings collapsed initially",
+      "Calendar defaults remain accessible",
+      "AI limits remain accessible",
+      "Visual accent selection updates",
+      "Dark appearance applies",
+      "Personal workspace settings available",
+      "Settings phone: no horizontal overflow",
+      "Emoji inserts into draft without sending",
+      "Sticker grid opens independently",
+      "Media shows one tool at a time",
+      "GIF picker is available",
+      "Meme captions wait for a picture",
+      "Meme preview becomes editable after selecting a picture",
+      "Media composer phone: no horizontal overflow",
+      "New stories default to only me",
+      "Story composer validates a text draft",
+      "Story can close without publishing",
+      "Phone group selection replaces list with in-page detail",
+      "Group Overview phone: no horizontal overflow",
+      "Group Invite phone: no horizontal overflow",
+      "Group People phone: no horizontal overflow",
+      "Group Activity phone: no horizontal overflow",
+      "Group Manage phone: no horizontal overflow",
+      "Invalid invite cannot create a link",
+      "Phone Back restores group list",
+      "New group opens a compact draft editor",
+      "New group is not replaced by the first saved group",
+      "Draft editor hides unrelated record tabs",
+      "New group creates instead of overwriting an existing group",
+      "Saved group stays selected after refreshing records",
+      "Desktop has no redundant Back control",
+      "Admin Access: no horizontal overflow",
+      "Admin Users: no horizontal overflow",
+      "Admin Audit: no horizontal overflow",
+      "Admin Moderation: no horizontal overflow",
+      "Admin Automation: no horizontal overflow",
+      "Provider test result survives refresh",
+      "Provider deletion waits for confirmation",
+      "Provider deletion errors stay visible",
+      "Provider limits collapsed initially",
+      "Provider limits remain editable",
+      "Provider save errors release pending state",
+      "Provider editor phone: no horizontal overflow",
+      "No uncaught page errors"
+    ],
+    "pageErrors": [],
+    "mutations": "Group and provider writes intercepted locally; no messages, invitations or stories sent"
+  },
+  "editor": {
+    "checks": [
+      "AI renders one formatted answer",
+      "AI original text starts collapsed",
+      "AI filters dismiss with Escape",
+      "AI filters dismiss outside",
+      "Add source opens the import tools",
+      "Failed import keeps the source and displays its error",
+      "File upload creates a local asset",
+      "File preview opens in place",
+      "Closing grid preview restores the file focus",
+      "Mobile file preview scrolls into view",
+      "Deleting the fixture closes the file preview",
+      "A4 fixture uses two vertically stacked pages",
+      "Canvas duplication participates in undo",
+      "Empty outline cannot create blank generated pages",
+      "Magic example fills an editable outline",
+      "Magic only displays the selected tool",
+      "Canvas PDF downloads successfully",
+      "Canvas fits the phone viewport",
+      "Writing fixture keeps two editable sheets",
+      "Writing duplication participates in shared undo",
+      "Writing editor fits the phone viewport",
+      "No unhandled browser exceptions in editor workflows"
+    ],
+    "downloads": [
+      "output/playwright/editor-pages.pdf"
+    ],
+    "screenshots": [
+      "output/playwright/ai-nested-workflow.png",
+      "output/playwright/files-mobile-preview.png",
+      "output/playwright/editor-pages-desktop.png",
+      "output/playwright/editor-pages-phone.png",
+      "output/playwright/writing-pages-phone-audit.png"
+    ],
+    "errors": []
+  },
+  "repositoryChecks": {
+    "typescript": "pass",
+    "unitTests": 1111,
+    "unitFailures": 0,
+    "build": "pass",
+    "emittedCss": "pass"
+  }
+}
