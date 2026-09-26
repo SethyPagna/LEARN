@@ -78,3 +78,14 @@ Evidence: [calendar and preview refinement](../audits/2026-09-25-calendar-connec
 - [x] Verify browser behavior, TypeScript, the test suite and production build.
 
 Evidence: [learning and social usability](../audits/2026-09-25-friendly-learning-social.md).
+
+## Editor and compact workspace follow-up — 2026-09-27
+
+- [x] Restore the last committed source after the user confirmed the recovery.
+- [x] Rebuild the Canvas workspace around contextual properties and Focus.
+- [x] Add preview-first templates and eight editable visual directions.
+- [x] Tighten navigation and Social; refresh project names after saves.
+- [x] Verify editor interactions, desktop/phone layouts, tests and production build.
+- [ ] Activate and verify real calendar provider accounts (existing external dependency).
+
+Evidence and restoration limits: [editor overhaul](../audits/2026-09-27-editor-overhaul.md).
