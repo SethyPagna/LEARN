@@ -164,10 +164,9 @@ export function SharePanel({
         data-active={open ? "true" : "false"}
         onClick={toggle}
         className={triggerClassName || controlButtonClasses({ active: open, size: "compact" })}
-        title="Share this item"
+        title={label} aria-label={label}
       >
         <Share2 className="h-4 w-4" />
-        {label}
       </button>
 
       {open ? (

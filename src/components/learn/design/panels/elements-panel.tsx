@@ -155,7 +155,7 @@ export function ElementsPanel({ api }: { api: DesignEditorApi }) {
               </ItemTile>
             ))}
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">Drop a picture onto a frame to fill it.</p>
+
         </>
       ) : null}
 

@@ -216,7 +216,7 @@ export function Sidebar({
             className="mb-3 flex h-9 w-full items-center gap-2 rounded-lg border border-sidebar-border bg-background/70 px-3 text-sm text-muted-foreground transition hover:border-ring/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Search className="h-4 w-4" />
-            <span className="whitespace-nowrap text-xs">Search or jump</span>
+            <span className="whitespace-nowrap text-xs">Search</span>
             <span className="ml-auto flex items-center gap-0.5">
               <kbd className="learn-kbd">{modKey}</kbd>
               <kbd className="learn-kbd">K</kbd>
@@ -304,7 +304,8 @@ function Navigation({
               const Icon = viewIcons[item.view]
               const tab = sectionTabForView(item.view)
               const badge = draftBadgeFor(item, studioDraftSummary, practiceDraftSummary)
-              const subViews = active && item.view !== "dashboard" ? subViewsFor(item.view, user) : []
+              const hasPageSections = ["dashboard", "calendar", "practice", "social"].includes(item.view)
+              const subViews = active && !hasPageSections ? subViewsFor(item.view, user) : []
               return (
                 <li key={item.view} data-tab={tab}>
                   <button
@@ -392,17 +393,17 @@ function SidebarFooter({ compact, modKey, onModeChange }: { compact: boolean; mo
   }
 
   return (
-    <div className="border-t border-sidebar-border px-3 py-3">
+    <div className="flex items-center gap-2 border-t border-sidebar-border px-3 py-2">
       <button
         type="button"
         onClick={openPlaceGuide}
-        className="flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium text-sidebar-foreground/80 transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label="What's where?" title="Help"
+        className={ghostIconButton}
       >
         <Compass className="h-4 w-4" />
-        What&apos;s where?
       </button>
-      <div className="mt-1.5 flex items-center justify-between gap-2 pl-2.5">
-        <ConnectionStatus status={status} />
+      <div className="ml-auto flex items-center justify-between gap-2">
+        <ConnectionStatus compact status={status} />
         <button type="button" onClick={() => onModeChange("hidden")} className={`${ghostIconButton} h-8 w-8`} aria-label="Hide sidebar" title={`Hide sidebar (${modKey}+\\)`}>
           <PanelLeftDashed className="h-4 w-4" />
         </button>

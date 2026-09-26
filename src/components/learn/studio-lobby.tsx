@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ArrowRight, ChevronDown, ChevronRight, FileText, Loader2, PenTool, Plus, Search, SlidersHorizontal, X } from "lucide-react"
+import { CircleHelp, ArrowRight, ChevronDown, ChevronRight, FileText, Loader2, PenTool, Plus, Search, SlidersHorizontal, X } from "lucide-react"
 import { createDesignDoc } from "@/lib/design/document"
 import { projectHref, projectKinds, useStudioProjects, type ProjectKind, type Project } from "./studio-projects"
 import { formatRelativeTime } from "@/lib/format-time"
@@ -98,7 +98,7 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
     <header className="mb-5 flex items-center justify-between gap-3">
       <div className="min-w-0">
         <h2 className="truncate text-xl font-semibold tracking-tight">{options.workspaceName && options.workspaceName !== "Your personal studio" ? options.workspaceName : "Studio"}</h2>
-        <p className="mt-1 text-xs text-muted-foreground">{options.dailyFocus || "A little space for your next big idea."}</p>
+        {options.dailyFocus ? <p className="mt-1 text-xs text-muted-foreground">{options.dailyFocus}</p> : null}
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <button type="button" aria-label="Workspace appearance" title="Workspace appearance" className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring" onClick={() => onOpen("/settings?section=experience")}><SlidersHorizontal className="h-4 w-4" /></button>
@@ -116,12 +116,12 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
         </div>
       </div>
     </header>
-    {!query && filter === "All" ? <div className="studio-resume mb-5">
+    {recentProject && !query && filter === "All" ? <div className="studio-resume mb-5">
       <div className="min-w-0 py-1">
-        <p className="mb-2 text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{recentProject ? "Pick up where you left off" : "Make something yours"}</p>
-        <h3 className="truncate text-lg font-semibold tracking-tight">{recentProject?.title || "Every good idea starts somewhere."}</h3>
-        <p className="mt-1 text-xs text-muted-foreground">{recentProject ? projectKinds[recentProject.kind].label + (recentProject.updated_at ? " · Edited " + formatRelativeTime(recentProject.updated_at) : "") : "A note, a canvas, a plan. Start with Add."}</p>
-        {recentProject ? <button type="button" onClick={() => openProject(recentProject)} className="mt-3 inline-flex items-center gap-2 text-xs font-medium underline-offset-4 hover:underline">Continue working<ArrowRight className="h-3.5 w-3.5" /></button> : null}
+        <p className="mb-2 text-[11px] font-medium uppercase tracking-widest text-muted-foreground">Recent</p>
+        <h3 className="truncate text-lg font-semibold tracking-tight">{recentProject.title}</h3>
+
+        {recentProject ? <button type="button" onClick={() => openProject(recentProject)} title="Continue working" className="editor-command mt-2"><span className="sr-only">Continue working</span><ArrowRight className="h-3.5 w-3.5" /></button> : null}
       </div>
       <div className="studio-paper-stack" aria-hidden="true"><span className="studio-paper studio-paper-back"><PenTool /></span><span className="studio-paper studio-paper-front"><FileText /><i /><i /><i /></span><span className="studio-paper-spark">✳</span></div>
     </div> : null}
@@ -148,9 +148,9 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
             </button>
           </li>
         })}
-      </ul> : <div className="px-4 py-12 text-center"><p className="text-sm text-muted-foreground">{query || filter !== "All" ? "No matching projects." : "No projects yet. Use Add to start."}</p></div>}
+      </ul> : <div className="px-4 py-12 text-center"><p className="text-sm text-muted-foreground">{query || filter !== "All" ? "No matching projects." : "No projects yet"}</p></div>}
     </div>
     {matches.length > limit ? <button type="button" onClick={() => setLimit((current) => current + PAGE_SIZE)} className="mx-auto mt-3 flex min-h-9 items-center gap-2 rounded-lg px-4 text-xs text-muted-foreground hover:bg-secondary">Show more <ArrowRight className="h-3.5 w-3.5" /></button> : null}
-    <button type="button" onClick={openPlaceGuide} className="mt-4 min-h-9 text-xs text-muted-foreground underline-offset-4 hover:underline">What can LEARN do?</button>
+    <button type="button" onClick={openPlaceGuide} aria-label="What can LEARN do?" title="Help" className="editor-command mt-3"><CircleHelp className="h-4 w-4" /></button>
   </section>
 }

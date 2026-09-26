@@ -54,7 +54,7 @@ export const EditorRail = memo(function EditorRail({ panel, onPanel, compact }: 
       className={
         compact
           ? "flex shrink-0 items-stretch justify-between gap-0.5 overflow-x-auto border-t border-border bg-card px-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-1"
-          : "flex w-[3.75rem] shrink-0 flex-col items-stretch gap-1 overflow-y-auto border-r border-border bg-card px-1.5 py-2"
+          : "flex w-12 shrink-0 flex-col items-stretch gap-1 overflow-y-auto border-r border-border bg-card px-1 py-2"
       }
     >
       {RAIL_ITEMS.map((item) => {
@@ -67,7 +67,7 @@ export const EditorRail = memo(function EditorRail({ panel, onPanel, compact }: 
             data-design-rail={item.id}
             aria-label={item.label}
             aria-pressed={active}
-            title={item.title}
+            title={item.label}
             onClick={() => onPanel(active ? null : item.id)}
             className={`group flex ${compact ? "min-w-[3.25rem]" : "min-w-0"} flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.64rem] font-semibold transition ${
               active ? "bg-primary/12 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -76,7 +76,6 @@ export const EditorRail = memo(function EditorRail({ panel, onPanel, compact }: 
             <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition ${active ? "bg-primary text-primary-foreground shadow-[0_8px_18px_-10px_var(--primary)]" : "group-hover:scale-105"}`}>
               <Icon className="h-[1.1rem] w-[1.1rem]" />
             </span>
-            {item.label}
           </button>
         )
       })}

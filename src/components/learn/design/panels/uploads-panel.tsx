@@ -127,7 +127,7 @@ export function UploadsPanel({ api }: { api: DesignEditorApi }) {
           {busy ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <CloudUpload className="h-4 w-4" aria-hidden="true" />}
           {busy ? `Uploading ${busy}…` : "Upload pictures"}
         </button>
-        <p className="mt-2 text-xs leading-5 text-muted-foreground">Or drop them here or on a page, or paste with Ctrl+V. Big photos are shrunk to 2400px before upload.</p>
+
       </div>
 
       <PanelHeading

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react"
-import { ArrowLeft, ChevronDown, Layers, Link, Plus, Redo2, Save, Undo2, Upload, Scan, NotebookPen } from "lucide-react"
+import { ArrowLeft, Layers, Link, Plus, Redo2, Save, Undo2, Upload, Scan, NotebookPen, Presentation, Settings2 } from "lucide-react"
 import { createElement } from "@/lib/studio/canvas-engine"
 import { sanitizeImageUrl } from "@/lib/studio/canvas-styles"
 import { addPage, duplicatePage, movePage, newDesignId, removePage, updatePage, type DesignDoc } from "@/lib/design/document"
@@ -165,7 +165,7 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
       <button type="button" className="editor-command !px-2" aria-label="Studio home" title="Back to projects" onClick={() => { void save.saveNow().then((saved) => { if (saved) onHome() }) }}><ArrowLeft className="h-4 w-4" /></button>
       <div className="min-w-0 flex-1"><input aria-label="Design title" className="h-9 w-full min-w-0 rounded-md bg-transparent px-2 text-sm font-semibold focus:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring" value={api.design.name} maxLength={200} onChange={(event) => api.update((doc) => ({ ...doc, name: event.target.value }), { coalesce: "title" })} /></div>
       <span role="status" className="hidden text-xs text-muted-foreground sm:block">{save.status === "error" ? "Save failed — draft kept" : save.status === "saving" ? "Saving…" : save.status === "dirty" ? "Unsaved changes" : save.exists ? "Saved" : "New design"}</span>
-      <button type="button" className="editor-command" aria-label="Save" onClick={() => void save.saveNow()}><Save className="h-4 w-4" /><span className="hidden sm:inline">Save</span></button>
+      <button type="button" className="editor-command" aria-label="Save" title="Save" onClick={() => void save.saveNow()}><Save className="h-4 w-4" /></button>
       <SharePanel sourceTable="editor_documents" sourceId={save.exists ? opened.id : ""} triggerClassName="editor-primary" requiresSourceMessage="Save this design before creating a share link." />
       <ExportMenu design={api.design} pageIndex={api.pageIndex} onNotify={notify} onBeforeExport={() => setEditingId(null)} />
     </header>
@@ -179,16 +179,16 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
         <button type="button" className="editor-menu-item" onClick={() => setPanel("elements")}>Shapes & elements</button>
         <button type="button" className="editor-menu-item" onClick={() => { replacement.current = null; upload.current?.click() }}><Upload className="h-4 w-4" /> Upload picture</button>
         <button type="button" className="editor-menu-item" onClick={() => setUrlOpen((value) => !value)}><Link className="h-4 w-4" /> Image or embed URL</button>
-      </div>}><Plus className="h-4 w-4" /> Insert <ChevronDown className="h-3 w-3" /></PopoverButton>
+      </div>}><Plus className="h-4 w-4" /></PopoverButton>
       <ResizeMenu design={api.design} onResize={(target) => resize(target, false)} onResizeCopy={(target) => resize(target, true)} />
       <PopoverButton label="View" buttonClassName="editor-command" width={240} panel={() => <div>
         <button type="button" className="editor-menu-item" aria-pressed={snap} onClick={() => setSnap((value) => !value)}>Snap to objects <span className="ml-auto">{snap ? "On" : "Off"}</span></button>
         <button type="button" className="editor-menu-item" aria-pressed={grid} onClick={() => setGrid((value) => !value)}>Grid <span className="ml-auto">{grid ? "On" : "Off"}</span></button>
         <button type="button" className="editor-menu-item" onClick={() => setPanel("layers")}>Layers</button>
         <button type="button" className="editor-menu-item" onClick={() => setFit(true)}>Fit to screen</button>
-      </div>}>View <ChevronDown className="h-3 w-3" /></PopoverButton>
-      <button type="button" className="editor-command ml-auto" aria-pressed={focus} onClick={() => setFocus(!focus)} title="Focus on the canvas"><Scan className="h-4 w-4" /><span className="hidden sm:inline">Focus</span></button>
-      <button type="button" className="editor-command" onClick={() => { setEditingId(null); setPresenting(true) }}>Present</button>
+      </div>}><Settings2 className="h-4 w-4" /></PopoverButton>
+      <button type="button" className="editor-command ml-auto" aria-label={focus ? "Exit focus" : "Focus"} aria-pressed={focus} onClick={() => setFocus(!focus)} title="Focus"><Scan className="h-4 w-4" /></button>
+      <button type="button" className="editor-command" aria-label="Present" title="Present" onClick={() => { setEditingId(null); setPresenting(true) }}><Presentation className="h-4 w-4" /></button>
     </div>    <input ref={upload} type="file" accept="image/*" multiple className="hidden" aria-label="Upload design pictures" onChange={(event) => { void pickedFiles(Array.from(event.target.files ?? [])); event.target.value = "" }} />
     {urlOpen ? <form className="flex flex-wrap gap-2 p-2" onSubmit={(event) => { event.preventDefault(); insertUrl() }}><select aria-label="URL type" value={urlKind} onChange={(event) => setUrlKind(event.target.value as "image" | "embed")}><option value="image">Picture</option><option value="embed">Embed link</option></select><input aria-label="Image or embed URL" className="min-w-0 flex-1 rounded border px-2" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://…" /><button className="canvas-tool" type="submit">Insert</button></form> : null}
     {save.error ? <p role="alert" className="px-3 py-2 text-sm text-destructive">{save.error}</p> : null}

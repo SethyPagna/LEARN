@@ -234,7 +234,7 @@ export function ExportMenu({ design, pageIndex, onNotify, onBeforeExport, button
       )}
     >
       {running ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Download className="h-4 w-4" aria-hidden="true" />}
-      <span className="hidden text-xs sm:inline">{running ? `${percent}%` : "Download"}</span>
+      {running ? <span className="text-xs">{percent}%</span> : null}
     </PopoverButton>
   )
 }

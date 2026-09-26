@@ -86,7 +86,7 @@ export function LayersPanel({ api }: { api: DesignEditorApi }) {
 
   return (
     <div>
-      <p className="mb-2 text-xs text-muted-foreground">Front-most first. Drag rows to restack.</p>
+      <p className="sr-only">Front-most first. Drag rows to restack.</p>
       <ul className="grid gap-1" aria-label={`Layers on page ${api.pageIndex + 1}`}>
         {rows.map((element) => {
           const isSelected = selected.has(element.id)

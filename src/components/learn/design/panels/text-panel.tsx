@@ -77,7 +77,7 @@ export function TextPanel({ api }: { api: DesignEditorApi }) {
           )
         })}
       </div>
-      <p className="mt-3 text-xs leading-5 text-muted-foreground">
+      <p className="sr-only">
         Tip: double-click any text on the page to type. Press <kbd className="learn-kbd">T</kbd> to add a text box.
       </p>
     </div>

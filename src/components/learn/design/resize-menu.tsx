@@ -152,9 +152,8 @@ export function ResizePanel({ design, onResize, onResizeCopy }: ResizePanelProps
           disabled={!valid || unchanged}
           onClick={() => onResize(target)}
           className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50"
-        >
+          aria-label="Resize" title="Resize">
           <Scaling className="h-4 w-4" aria-hidden="true" />
-          Resize
         </button>
         <button
           type="button"
@@ -192,7 +191,7 @@ export function ResizeMenu({ design, onResize, onResizeCopy, buttonClassName = "
       )}
     >
       <Scaling className="h-4 w-4" aria-hidden="true" />
-      <span className="hidden text-xs lg:inline">Resize</span>
+
     </PopoverButton>
   )
 }
