@@ -98,3 +98,9 @@ Evidence and restoration limits: [editor overhaul](../audits/2026-09-27-editor-o
 - [x] Verify selection changes, history, saves and responsive layouts.
 
 Evidence: [contextual editor](../audits/2026-09-27-contextual-editor.md).
+# Minimal visual interface follow-up
+
+- [x] Reduce repeated instructions and redundant navigation throughout the app.
+- [x] Use icon actions and visual sections while preserving accessible names.
+- [x] Check the main routes at desktop and 390px; verify editor menus still open.
+- [x] Record screenshots and validation in `../audits/2026-09-27-minimal-app-chrome.md`.
