@@ -162,8 +162,8 @@ function filterGraphNodes(nodes: KnowledgeNode[], orphanIds: Set<string>, filter
 }
 
 function graphFilterLabel(filter: GraphFilter) {
-  if (filter === "weak") return "Weak"
-  if (filter === "orphan") return "Orphan"
+  if (filter === "weak") return "Needs practice"
+  if (filter === "orphan") return "Unlinked"
   if (filter === "public") return "Shared"
   return "All"
 }
@@ -392,7 +392,7 @@ export function FeedView({ setView }: { setView: (view: View) => void }) {
     finally { setBusy(null) }
   }
   return <section className="learning-page mx-auto grid max-w-3xl gap-3">
-    <header className="workspace-header"><h2 className="text-lg font-semibold">Discover</h2><button onClick={refresh} className="editor-command"><Repeat2 className="h-4 w-4" />Refresh</button></header>
+    <header className="workspace-header"><h2 className="text-lg font-semibold">Feed</h2><button onClick={refresh} className="editor-command"><Repeat2 className="h-4 w-4" />Refresh</button></header>
     <div className="flex flex-wrap gap-1">{["all", ...topics].map(topic => <button key={topic} aria-pressed={activeFilter === topic} onClick={() => setFilter(topic)} className="calendar-filter">{topic === "all" ? "For you" : topic}</button>)}</div>
     {message ? <p role="alert" className="text-sm text-destructive">{message}</p> : null}
     {lessons.filter(lesson => activeFilter === "all" || (lesson.topic_tags || lesson.topicTags || []).includes(activeFilter)).map((lesson, index) => <article key={lesson.id} className="discovery-card" data-tone={index % 3}>

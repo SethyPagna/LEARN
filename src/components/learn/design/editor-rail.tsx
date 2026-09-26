@@ -50,11 +50,11 @@ interface EditorRailProps {
 export const EditorRail = memo(function EditorRail({ panel, onPanel, compact }: Omit<EditorRailProps, "api">) {
   return (
     <nav
-      aria-label="Design tools"
+      aria-label="Design tools" data-editor-rail="true"
       className={
         compact
           ? "flex shrink-0 items-stretch justify-between gap-0.5 overflow-x-auto border-t border-border bg-card px-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-1"
-          : "flex w-[4.25rem] shrink-0 flex-col items-stretch gap-1 overflow-y-auto border-r border-border bg-card px-1.5 py-2"
+          : "flex w-[3.75rem] shrink-0 flex-col items-stretch gap-1 overflow-y-auto border-r border-border bg-card px-1.5 py-2"
       }
     >
       {RAIL_ITEMS.map((item) => {
@@ -69,7 +69,7 @@ export const EditorRail = memo(function EditorRail({ panel, onPanel, compact }: 
             aria-pressed={active}
             title={item.title}
             onClick={() => onPanel(active ? null : item.id)}
-            className={`group flex min-w-[3.25rem] flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.64rem] font-semibold transition ${
+            className={`group flex ${compact ? "min-w-[3.25rem]" : "min-w-0"} flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.64rem] font-semibold transition ${
               active ? "bg-primary/12 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
           >
@@ -98,10 +98,11 @@ export function EditorPanel({ api, panel, onPanel, compact }: EditorRailProps) {
   return (
     <aside
       aria-label={item.title}
+      data-editor-panel={panel}
       className={
         compact
           ? "learn-pop-in absolute inset-x-0 bottom-0 z-40 flex max-h-[62%] flex-col rounded-t-3xl border-t border-border bg-card shadow-[0_-24px_48px_-28px_rgba(15,23,42,0.55)]"
-          : "flex w-[19.5rem] shrink-0 flex-col border-r border-border bg-card xl:w-[21rem]"
+          : "flex w-[16rem] shrink-0 flex-col border-r border-border bg-card xl:w-[17rem]"
       }
     >
       {compact ? <span className="mx-auto mt-2 h-1.5 w-10 shrink-0 rounded-full bg-border" aria-hidden="true" /> : null}

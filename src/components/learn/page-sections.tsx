@@ -8,7 +8,7 @@ const learningSections = [
   { view: "vault", label: "Vault", icon: FolderHeart },
   { view: "progress", label: "Progress", icon: TrendingUp },
   { view: "graph", label: "Graph", icon: Network },
-  { view: "feed", label: "Discover", icon: Compass },
+  { view: "feed", label: "Feed", icon: Compass },
 ] as const
 const practiceSections = [
   { view: "quizzes", label: "Quizzes", icon: BookOpen },

@@ -16,36 +16,6 @@ export const CANVAS_PRESET_CSS = `
   border-radius: var(--canvas-radius);
   box-shadow: var(--canvas-shadow);
 }
-.learn-canvas-soft .canvas-toolbar {
-  display: flex;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  gap: 4px;
-  padding: 5px 12px;
-  border-radius: 0;
-  border-bottom: 1px solid var(--border);
-  background: var(--card);
-}
-.learn-canvas-soft .canvas-toolbar > * {
-  flex: 0 0 auto;
-}
-/**
- * Below the md breakpoint the bar cannot fit its ~30 tools in one block:
- * wrapped, it fills seven rows and pushes the canvas sheet off the first
- * screen. It keeps its single row and scrolls instead — the same strip, every
- * tool one swipe away, and the sheet stays where it was. The flex: 0 0 auto
- * rule keeps each tool and divider at its natural width, so nothing is crushed
- * to fit.
- */
-@media (max-width: 767px) {
-  .learn-canvas-soft .canvas-toolbar {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-  }
-  .learn-canvas-soft .canvas-toolbar > * {
-    flex: 0 0 auto;
-  }
-}
 .learn-canvas-soft .canvas-tool {
   display: inline-flex;
   align-items: center;

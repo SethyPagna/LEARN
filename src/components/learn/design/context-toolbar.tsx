@@ -328,7 +328,7 @@ export function ContextToolbar({ api, selection, actions, cropping }: ContextToo
   if (!selection.length) {
     return (
       <div className="canvas-toolbar items-center" role="toolbar" aria-label="Page tools">
-        <span className="inline-flex h-9 items-center rounded-[10px] bg-card px-3 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Page {api.pageIndex + 1}</span>
+        <span className="canvas-page-label inline-flex h-9 items-center rounded-[10px] bg-card px-3 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Page {api.pageIndex + 1}</span>
         <ColorButton
           label="Page background"
           value={page.background}

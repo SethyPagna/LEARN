@@ -1276,7 +1276,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     <div className="chat-workspace grid min-h-[580px] overflow-hidden rounded-lg border border-border bg-card lg:h-[calc(100dvh-160px)] lg:grid-cols-[250px_minmax(0,1fr)]" title={options.collaborationPresence ? "Live-ready chats" : "Async chats"}>
       <Panel className={`chat-conversation order-2 min-h-0 min-w-0 flex-col !rounded-none !border-0 !p-0 lg:!border-l lg:!border-border ${conversationOpen ? "flex" : "hidden lg:flex"}`}>
         <div className="chat-header grid gap-0 border-b border-border">
-          <div className="flex min-w-0 items-center gap-3 px-4 py-3"><span className="lg:hidden"><button type="button" aria-label="Back to conversations" onClick={() => setConversationOpen(false)} className="editor-command !px-2"><ArrowLeft className="h-4 w-4" /></button></span>
+          <div className="chat-heading flex min-w-0 items-center gap-3 px-4 py-3"><span className="lg:hidden"><button type="button" aria-label="Back to conversations" onClick={() => setConversationOpen(false)} className="editor-command !px-2"><ArrowLeft className="h-4 w-4" /></button></span>
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground">
               <MessageSquare className="h-5 w-5" />
             </span>
@@ -1327,9 +1327,9 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
                 )}
               </ChatMenuSection>
             </ChatMenu>
-            <span role="status" className="hidden text-xs text-muted-foreground xl:inline">{socketStatus === "open" ? "Live" : socketStatus === "closed" ? "Select a conversation" : "Reconnecting…"}</span>
-            <ToolbarButton iconOnly label="Video" onClick={() => startCall(true)} icon={Video} />
-            <ToolbarButton iconOnly label="Call" onClick={() => startCall(false)} icon={Phone} />
+            <span role="status" aria-label={socketStatus === "open" ? "Live" : socketStatus === "closed" ? "Choose recipients" : "Reconnecting"} title={socketStatus === "open" ? "Live" : socketStatus === "closed" ? "Choose recipients" : "Reconnecting"} className={`chat-connection ${socketStatus === "open" ? "is-live" : ""}`} />
+            <ToolbarButton disabled={!groupChannelId || Boolean(activeCall)} iconOnly label="Video" onClick={() => startCall(true)} icon={Video} />
+            <ToolbarButton disabled={!groupChannelId || Boolean(activeCall)} iconOnly label="Call" onClick={() => startCall(false)} icon={Phone} />
             <ToolbarButton iconOnly label="Download" onClick={exportConversation} icon={Download} />
             <ChatMenu compact icon={Sparkles} label="Compose" menuId="compose" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
               <ChatMenuSection title="Draft intent">
@@ -1424,13 +1424,13 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               )
             }) : (
               <div className="px-4 py-8 text-center text-sm leading-6 text-muted-foreground">
-                <p>{activeThreadBody.replace(/^\[[^\]]+\]\s*/, "")}</p>
+                <p>{!activeThread && !groupChannelId ? "Choose recipients to start a conversation." : activeThreadBody.replace(/^\[[^\]]+\]\s*/, "")}</p>
                 {activeThread?.updated_at ? <p className="mt-1 text-xs">{formatDate(activeThread.updated_at)}</p> : null}
               </div>
             )}
           </div>
         </div>
-        <details className="chat-extras mx-4 mt-2"><summary className="cursor-pointer py-1 text-xs text-muted-foreground">Writing prompts</summary>
+        <details className="chat-extras mx-4 mt-2"><summary className="cursor-pointer py-1 text-xs text-muted-foreground">Creative tools</summary>
         <details className="mx-4 mt-3 rounded-md border border-border bg-background">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
             <span>Starter prompts</span>
@@ -1489,7 +1489,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               event.target.value = ""
             }}
           />
-          <textarea aria-label="Message" rows={2} value={body} onChange={(event) => { setBody(event.target.value); handleDraftActivity(event.target.value) }} className="min-h-14 max-h-40 w-full resize-y bg-transparent text-sm leading-6 text-foreground outline-none" placeholder="Message your study group, mention someone, link Studio, or ask a question..." />
+          <textarea aria-label="Message" rows={2} value={body} onChange={(event) => { setBody(event.target.value); handleDraftActivity(event.target.value) }} className="min-h-14 max-h-40 w-full resize-y bg-transparent text-sm leading-6 text-foreground outline-none" placeholder="Write a message…" />
           <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
             <ChatMenu compact icon={Plus} label="Attach" menuId="attach" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
@@ -1576,7 +1576,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
           <Search className="h-4 w-4 text-muted-foreground" />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search messages" className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
         </div>
-        <div className="mt-3 flex gap-2 overflow-x-auto">
+        <div className="chat-inbox-filters mt-3 flex gap-2 overflow-x-auto" aria-label="Inbox filters">
           {inboxShortcuts.map((shortcut) => (
             <button
               key={shortcut.id}
