@@ -4,10 +4,10 @@ import { useEffect, useMemo, useState } from "react"
 import { FileText, PenTool, Presentation, StickyNote, Table2 } from "lucide-react"
 import { readDesignDrafts, timestampMs } from "@/lib/design/draft"
 import { api, PROJECTS_CHANGED_EVENT } from "./api"
-import type { Note } from "./types"
+import type { Note, WorkspaceDeck } from "./types"
 
 export type ProjectKind = "canvas" | "notes" | "docs" | "slides" | "sheets"
-export type Project = { id: string; title: string; kind: ProjectKind; updated_at?: string | null; content?: unknown }
+export type Project = { id: string; title: string; kind: ProjectKind; updated_at?: string | null; content?: unknown; slides?: WorkspaceDeck["slides"]; cells?: string[][] }
 export const projectKinds = {
   canvas: { label: "Canvas", icon: PenTool, endpoint: "/api/canvas" },
   notes: { label: "Note", icon: StickyNote, endpoint: "/api/notes" },

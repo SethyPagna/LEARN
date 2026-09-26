@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { CircleHelp, ArrowRight, ChevronDown, ChevronRight, FileText, Loader2, PenTool, Plus, Search, SlidersHorizontal, X } from "lucide-react"
+import { CircleHelp, ArrowRight, ChevronDown, ChevronRight, Loader2, Plus, Search, SlidersHorizontal, X } from "lucide-react"
+import { StudioRecents } from "./studio-recents"
 import { createDesignDoc } from "@/lib/design/document"
 import { projectHref, projectKinds, useStudioProjects, type ProjectKind, type Project } from "./studio-projects"
 import { formatRelativeTime } from "@/lib/format-time"
@@ -59,13 +60,12 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
 
   const { projects: allProjects, loading, error: loadError } = useStudioProjects(notes)
   useEffect(() => { if (loadError) setError(loadError) }, [loadError])
-  const recentProject = allProjects[0]
 
   const matches = useMemo(() => {
     return allProjects.filter((project) => {
       const category = project.kind === "notes" || project.kind === "docs" ? "Writing" : project.kind === "canvas" ? "Canvas" : project.kind === "slides" ? "Slides" : "Sheets"
       return (filter === "All" || category === filter) && project.title.toLowerCase().includes(query.toLowerCase().trim())
-    }).sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""))
+    })
   }, [allProjects, filter, query])
 
   function openProject(project: Project) {
@@ -95,12 +95,16 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
   }
 
   return <section className="studio-lobby mx-auto max-w-6xl pb-4" aria-label="Your Studio home">
-    <header className="mb-5 flex items-center justify-between gap-3">
+    <header className="mb-4 flex flex-wrap items-center gap-3">
       <div className="min-w-0">
         <h2 className="truncate text-xl font-semibold tracking-tight">{options.workspaceName && options.workspaceName !== "Your personal studio" ? options.workspaceName : "Studio"}</h2>
         {options.dailyFocus ? <p className="mt-1 text-xs text-muted-foreground">{options.dailyFocus}</p> : null}
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="order-2 flex w-full max-w-full gap-1 overflow-auto sm:order-none sm:w-auto" aria-label="Project filters">
+        {filters.map((value) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => { setFilter(value); setLimit(PAGE_SIZE) }} className={`min-h-9 shrink-0 rounded-lg px-3 text-xs font-medium ${filter === value ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/60"}`}>{value}</button>)}
+      </div>
+      <label className="order-3 flex min-h-9 w-full items-center gap-2 rounded-lg border border-border bg-card px-3 text-muted-foreground sm:order-none sm:ml-auto sm:w-auto"><Search className="h-4 w-4" /><input aria-label="Find a project" placeholder="Find a project" value={query} onChange={(event) => { setQuery(event.target.value); setLimit(PAGE_SIZE) }} className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground sm:w-32" /></label>
+      <div className="ml-auto flex shrink-0 items-center gap-2 sm:ml-0">
         <button type="button" aria-label="Workspace appearance" title="Workspace appearance" className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring" onClick={() => onOpen("/settings?section=experience")}><SlidersHorizontal className="h-4 w-4" /></button>
         <div ref={menuRef} className="relative" onKeyDown={(event) => { menuKeyDown(event); if (event.key === "Escape") addRef.current?.focus() }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setMenuOpen(false) }}>
           <button ref={addRef} type="button" aria-haspopup="menu" aria-expanded={menuOpen} disabled={Boolean(creating)} onClick={() => { setActiveIndex(0); setMenuOpen(!menuOpen) }} className="flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60">
@@ -116,22 +120,8 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
         </div>
       </div>
     </header>
-    {recentProject && !query && filter === "All" ? <div className="studio-resume mb-5">
-      <div className="min-w-0 py-1">
-        <p className="mb-2 text-[11px] font-medium uppercase tracking-widest text-muted-foreground">Recent</p>
-        <h3 className="truncate text-lg font-semibold tracking-tight">{recentProject.title}</h3>
-
-        {recentProject ? <button type="button" onClick={() => openProject(recentProject)} title="Continue working" className="editor-command mt-2"><span className="sr-only">Continue working</span><ArrowRight className="h-3.5 w-3.5" /></button> : null}
-      </div>
-      <div className="studio-paper-stack" aria-hidden="true"><span className="studio-paper studio-paper-back"><PenTool /></span><span className="studio-paper studio-paper-front"><FileText /><i /><i /><i /></span><span className="studio-paper-spark">✳</span></div>
-    </div> : null}
     {error ? <p role="alert" className="mb-4 flex items-center justify-between gap-3 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}<button type="button" aria-label="Dismiss error" onClick={() => setError("")}><X className="h-4 w-4" /></button></p> : null}
-    <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-      <div className="flex max-w-full gap-1 overflow-auto" aria-label="Project filters">
-        {filters.map((value) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => { setFilter(value); setLimit(PAGE_SIZE) }} className={`min-h-9 shrink-0 rounded-lg px-3 text-xs font-medium ${filter === value ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/60"}`}>{value}</button>)}
-      </div>
-      <label className="flex min-h-9 w-full items-center gap-2 rounded-lg border border-border bg-card px-3 text-muted-foreground sm:w-auto"><Search className="h-4 w-4" /><input aria-label="Find a project" placeholder="Find a project" value={query} onChange={(event) => { setQuery(event.target.value); setLimit(PAGE_SIZE) }} className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground sm:w-40" /></label>
-    </div>
+    {!loading ? <StudioRecents projects={matches} onOpen={openProject} /> : null}
     <div className="overflow-hidden rounded-xl border border-border bg-card">
       <div className="hidden grid-cols-[minmax(0,1fr)_7rem_7rem_1rem] gap-4 border-b border-border bg-secondary/35 px-4 py-2.5 text-xs text-muted-foreground sm:grid" aria-hidden="true"><span>Name</span><span>Type</span><span>Last edited</span><span /></div>
       {loading ? <p role="status" className="px-4 py-10 text-center text-sm text-muted-foreground">Loading projects…</p> : matches.length ? <ul aria-label="Projects" className="divide-y divide-border">
