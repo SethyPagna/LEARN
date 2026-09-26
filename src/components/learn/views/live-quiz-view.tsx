@@ -18,10 +18,10 @@ import {
 import type { Quiz, User } from "../types"
 import { api } from "../api"
 import { PracticeDesign } from "../practice-design"
+import { LiveModePicker } from "./live-game-launcher"
 import { ControlButton, EmptyState, Panel, StatusPill } from "../ui"
 import {
   JOIN_CODE_LENGTH,
-  LIVE_QUIZ_MODES,
   LIVE_QUIZ_MODE_LABELS,
   answerWindowOpen,
   currentQuestion,
@@ -384,23 +384,10 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
                     ))}
                   </select>
                 </label>
-                <label className="grid gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Game mode
-                  <select
-                    value={selectedGameMode}
-                    onChange={(event) => setSelectedGameMode(event.target.value as LiveQuizMode)}
-                    className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-normal tracking-normal text-foreground"
-                  >
-                    {LIVE_QUIZ_MODES.map((candidate) => (
-                      <option key={candidate} value={candidate}>
-                        {LIVE_QUIZ_MODE_LABELS[candidate]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <LiveModePicker value={selectedGameMode} onChange={setSelectedGameMode} disabled={busy === "create"} />
                 <ControlButton onClick={createSession} disabled={busy === "create"} className="h-11 w-full">
                   {busy === "create" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                  Create session
+                  Host game
                 </ControlButton>
               </div>
             ) : (
@@ -454,20 +441,20 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <StatusPill label={LIVE_QUIZ_MODE_LABELS[session.mode]} tone="steady" />
-                <StatusPill label={session.code} tone="primary" />
+                {session.phase !== "lobby" ? <StatusPill label={session.code} tone="primary" /> : null}
                 <ControlButton size="compact" onClick={() => void navigator.clipboard?.writeText(session.code).then(() => setCopyLabel("Copied"), () => setCopyLabel("Copy failed"))}>
                   <Copy className="h-3.5 w-3.5" /> {copyLabel}
                 </ControlButton>
-                <ControlButton size="compact" destructive onClick={() => void send("close")} disabled={busy === "close"}>
+                {session.phase !== "finished" ? <ControlButton size="compact" destructive onClick={() => void send("close")} disabled={busy === "close"}>
                   <Flag className="h-3.5 w-3.5" /> End
-                </ControlButton>
+                </ControlButton> : null}
                 <ControlButton size="compact" onClick={detach}>
                   Leave screen
                 </ControlButton>
               </div>
             </div>
 
-            <div className="live-soft mt-4 p-4 sm:p-6">
+            {session.phase === "lobby" ? <div className="live-soft mt-4 p-4 sm:p-6">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Join at this code</p>
               <p className="live-code mt-2 text-4xl font-bold text-foreground sm:text-6xl" data-testid="live-join-code">
                 {session.code}
@@ -482,17 +469,17 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
                   ) : null}
                 </div>
               ) : null}
-            </div>
+            </div> : null}
           </Panel>
 
           {session.phase === "lobby" ? (
             <Panel className="live-panel p-4 sm:p-5">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">In the lobby</p>
-              <RosterList participants={session.participants} emptyLabel="Nobody has joined yet. Read the code out loud." />
+              <RosterList participants={session.participants} emptyLabel="Waiting for players…" />
             </Panel>
           ) : null}
 
-          {question && session.phase !== "lobby" ? (
+          {question && (session.phase === "question" || session.phase === "reveal") ? (
             <Panel className="live-panel p-4 sm:p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">

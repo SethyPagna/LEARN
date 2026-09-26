@@ -1,10 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Gamepad2, Loader2, Play, X } from "lucide-react"
+import { Check, Flame, Gamepad2, Loader2, Play, Shield, X, Zap } from "lucide-react"
 import type { Quiz } from "../types"
 import { api } from "../api"
-import { ControlButton, StatusPill } from "../ui"
+import { ControlButton } from "../ui"
 import { LIVE_QUIZ_MODES, LIVE_QUIZ_MODE_LABELS, type LiveQuizMode } from "@/lib/live/quiz-session"
 
 /**
@@ -22,11 +22,28 @@ import { LIVE_QUIZ_MODES, LIVE_QUIZ_MODE_LABELS, type LiveQuizMode } from "@/lib
  * needing to touch the message box it was launched from.
  */
 
-/** A sentence per mode, so the choice is a rule and not just a name. */
-const MODE_DETAILS: Record<LiveQuizMode, string> = {
-  race: "Everyone answers every question. Base points plus a bonus for speed.",
-  survival: "A wrong answer eliminates you. The last player standing wins.",
-  streak: "Build a multiplier with consecutive correct answers — up to x3.",
+const MODE_DESIGNS = {
+  race: { icon: Zap, tone: "text-sky-600 bg-sky-500/10", rule: "Faster correct answers earn more points." },
+  survival: { icon: Shield, tone: "text-amber-600 bg-amber-500/10", rule: "One wrong answer and you're out." },
+  streak: { icon: Flame, tone: "text-violet-600 bg-violet-500/10", rule: "Correct answers build a multiplier up to ×3." },
+}
+
+export function LiveModePicker({ value, onChange, disabled }: { value: LiveQuizMode; onChange: (mode: LiveQuizMode) => void; disabled?: boolean }) {
+  return <fieldset disabled={disabled} className="min-w-0">
+    <legend className="sr-only">Game mode</legend>
+    <div className="grid grid-cols-3 gap-2">
+      {LIVE_QUIZ_MODES.map(mode => {
+        const design = MODE_DESIGNS[mode]
+        const Icon = design.icon
+        return <button key={mode} type="button" aria-pressed={value === mode} title={design.rule} onClick={() => onChange(mode)} className={`relative flex min-w-0 flex-col items-center gap-2 rounded-xl border px-2 py-3 text-xs font-medium transition disabled:opacity-50 ${value === mode ? "border-primary bg-primary/5" : "border-border hover:bg-secondary"}`}>
+          <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${design.tone}`}><Icon aria-hidden="true" className="h-5 w-5" /></span>
+          <span>{LIVE_QUIZ_MODE_LABELS[mode]}</span>
+          {value === mode ? <Check aria-hidden="true" className="absolute right-1.5 top-1.5 h-3 w-3 text-primary" /> : null}
+        </button>
+      })}
+    </div>
+    <p className="mt-2 text-xs text-muted-foreground" aria-live="polite">{MODE_DESIGNS[value].rule}</p>
+  </fieldset>
 }
 
 export function LiveGameLauncher({
@@ -98,7 +115,7 @@ export function LiveGameLauncher({
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
           <Gamepad2 className="h-4 w-4 text-primary" />
-          <p className="text-sm font-semibold text-foreground">Start a live game</p>
+          <p className="text-sm font-semibold text-foreground">Live game</p>
         </div>
         <button
           type="button"
@@ -109,32 +126,7 @@ export function LiveGameLauncher({
           <X className="h-4 w-4" />
         </button>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">
-        The game is posted into this conversation so everyone here can join with the code.
-      </p>
-
-      <fieldset className="mt-3 grid gap-2" disabled={busy}>
-        <legend className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Game mode</legend>
-        {LIVE_QUIZ_MODES.map((candidate) => (
-          <button
-            key={candidate}
-            type="button"
-            onClick={() => setMode(candidate)}
-            aria-pressed={mode === candidate}
-            className={`flex items-start gap-2 rounded-xl border p-2.5 text-left transition ${
-              mode === candidate ? "border-primary/50 bg-primary/10" : "border-border bg-background hover:bg-accent"
-            }`}
-          >
-            <span className="min-w-0">
-              <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                {LIVE_QUIZ_MODE_LABELS[candidate]}
-                {mode === candidate ? <StatusPill label="Selected" tone="primary" /> : null}
-              </span>
-              <span className="mt-0.5 block text-xs text-muted-foreground">{MODE_DETAILS[candidate]}</span>
-            </span>
-          </button>
-        ))}
-      </fieldset>
+      <div className="mt-3"><LiveModePicker value={mode} onChange={setMode} disabled={busy} /></div>
 
       <label className="mt-3 grid gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         Quiz
@@ -161,7 +153,7 @@ export function LiveGameLauncher({
         <ControlButton onClick={start} disabled={busy || !quizzes.length} active>
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />} Start game
         </ControlButton>
-        <p className="text-right text-xs text-muted-foreground">{status || (selected ? `${LIVE_QUIZ_MODE_LABELS[mode]} on ${selected.title}` : "Pick a quiz")}</p>
+        {status ? <p role="status" className="text-right text-xs text-muted-foreground">{status}</p> : null}
       </div>
     </div>
   )

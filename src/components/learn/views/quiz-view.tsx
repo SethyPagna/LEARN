@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { CheckCircle2, ChevronDown, Clock, Flag, Info, ListFilter, MoreHorizontal, Pause, Play, RotateCcw, Sparkles, Trash2, XCircle } from "lucide-react"
+import { CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock, Flag, Info, ListFilter, MoreHorizontal, Pause, Play, RotateCcw, SlidersHorizontal, Sparkles, Trash2, Trophy, XCircle } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { PracticeAttemptSummary, PracticeMode, Quiz, QuizAttemptResult } from "../types"
 import { api } from "../api"
@@ -157,7 +157,7 @@ export function QuizView({
       setResult(response)
       setAttemptSummary(summary)
       setReviewCardStatus("")
-      setPracticeStatus(`Submitted: ${summary.score}/${summary.total}.`)
+      setPracticeStatus("")
       clearPracticeDraft(quiz.id)
       setDraftStatus("Attempt submitted. Draft cleared.")
     } catch (error) {
@@ -349,7 +349,7 @@ export function QuizView({
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-lg font-semibold text-foreground">{quiz.title}</h2>
                   <details className="group relative">
-                    <summary className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden" title="About this practice set">
+                    <summary className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden" aria-label="About this practice set" title="About this practice set">
                       <Info className="h-3.5 w-3.5" />
                     </summary>
                     <div className={`absolute left-0 top-9 z-40 w-72 text-sm ${menuSurfaceClasses()}`}>
@@ -358,7 +358,6 @@ export function QuizView({
                     </div>
                   </details>
                 </div>
-                <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{visibleQuestions.length} questions - {progressPercent}% complete</p>
               </div>
               <div className="flex flex-wrap gap-2 lg:justify-end">
                 <PracticeMenu label={modeSummary.activeModeLabel} icon={ListFilter}>
@@ -403,8 +402,7 @@ export function QuizView({
               targetMinutes={targetMinutes}
             />
             {practiceStatus ? <p className="mt-3 rounded-md bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground">{practiceStatus}</p> : null}
-            {missedCount ? <div className="mt-3"><StatusPill label={`${missedCount} to repair`} tone="watch" /></div> : null}
-            <div className="mt-4 flex items-center justify-between gap-2"><button type="button" className="editor-command" aria-pressed={showAllQuestions} onClick={() => setShowAllQuestions(value => !value)}><ListFilter className="h-4 w-4" />All questions</button>{!showAllQuestions && filteredQuestions.length ? <div className="flex items-center gap-2"><button type="button" className="editor-command" disabled={activeQuestionIndex === 0} onClick={() => setQuestionIndex(activeQuestionIndex - 1)}>Previous</button><span className="text-xs tabular-nums text-muted-foreground">{activeQuestionIndex + 1} / {filteredQuestions.length}</span><button type="button" className="editor-command" disabled={activeQuestionIndex + 1 >= filteredQuestions.length} onClick={() => setQuestionIndex(activeQuestionIndex + 1)}>Next</button></div> : null}</div>
+            <div className="mt-4 flex items-center justify-between gap-2"><button type="button" className="editor-command" aria-label="Show all questions" title="Show all questions" aria-pressed={showAllQuestions} onClick={() => setShowAllQuestions(value => !value)}><ListFilter className="h-4 w-4" /></button>{!showAllQuestions && filteredQuestions.length ? <div className="flex items-center gap-2"><button type="button" className="editor-command" aria-label="Previous question" title="Previous question" disabled={activeQuestionIndex === 0} onClick={() => setQuestionIndex(activeQuestionIndex - 1)}><ChevronLeft className="h-4 w-4" /></button><span className="text-xs tabular-nums text-muted-foreground">{activeQuestionIndex + 1} / {filteredQuestions.length}</span><button type="button" className="editor-command" aria-label="Next question" title="Next question" disabled={activeQuestionIndex + 1 >= filteredQuestions.length} onClick={() => setQuestionIndex(activeQuestionIndex + 1)}><ChevronRight className="h-4 w-4" /></button></div> : null}</div>
             <div className="mt-3 space-y-3">
               {displayedQuestions.map((question, index) => {
                 const marked = markedQuestionIds.includes(question.id)
@@ -424,6 +422,7 @@ export function QuizView({
                     {question.choices.map((choice) => (
                       <button
                         key={choice.id}
+                        aria-pressed={answers[question.id] === choice.id}
                         onClick={() => setAnswers((current) => ({ ...current, [question.id]: choice.id }))}
                         className={`rounded-md border p-3 text-left text-sm ${
                           answers[question.id] === choice.id ? "border-success bg-accent text-accent-foreground" : "border-border hover:bg-muted"
@@ -444,34 +443,39 @@ export function QuizView({
             </div>
             {attemptSummary ? (
               <div className="mt-4 rounded-md border border-border bg-accent p-3 text-accent-foreground">
-                <p className="font-semibold">Score: {attemptSummary.score} / {attemptSummary.total} - Duration: {formatDuration(attemptSummary.durationSeconds)}</p>
-                <p className="mt-1 text-sm opacity-80">Next: {attemptSummary.nextAction.replace(/-/g, " ")} {attemptSummary.missedQuestionIds.length ? `- ${attemptSummary.missedQuestionIds.length} missed` : ""}</p>
+                <div role="status" className="flex items-center gap-3">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Trophy className="h-6 w-6" /></span>
+                  <div><p className="text-2xl font-semibold tabular-nums" aria-label={`Score ${attemptSummary.score} out of ${attemptSummary.total}`}>{attemptSummary.score}<span className="text-base font-normal text-muted-foreground"> / {attemptSummary.total}</span></p><p className="text-xs text-muted-foreground">{attemptSummary.missedQuestionIds.length ? `${attemptSummary.missedQuestionIds.length} missed` : "All correct"}</p></div>
+                  <span className="ml-auto flex items-center gap-1.5 text-xs tabular-nums text-muted-foreground" title="Duration"><Clock className="h-3.5 w-3.5" />{formatDuration(attemptSummary.durationSeconds)}</span>
+                </div>
                 {reviewPlan ? (
-                  <div className="mt-3 grid gap-2 rounded-md bg-background/90 p-3 text-foreground md:grid-cols-[1fr_auto]">
-                    <div>
-                      <p className="text-sm font-semibold">Repair plan</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{reviewPlan.primaryAction}</p>
+                  <details className="mt-3 rounded-md bg-background/90 p-3 text-foreground">
+                    <summary className="cursor-pointer text-xs font-medium">Review plan</summary>
+                    <div className="mt-3 grid gap-2 md:grid-cols-[1fr_auto]">
+                      <div>
+                        <p className="mt-1 text-xs text-muted-foreground">{reviewPlan.primaryAction}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2 md:justify-end">
+                        <StatusPill label={`${reviewPlan.accuracy}% accuracy`} />
+                        <StatusPill label={`${reviewPlan.durationMinutes} min`} />
+                        <StatusPill label={`${reviewPlan.cardsToCreate} cards`} />
+                      </div>
+                      {reviewPlan.weakTopics.length ? (
+                        <details className="md:col-span-2">
+                          <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs font-semibold text-muted-foreground [&::-webkit-details-marker]:hidden">
+                            <ChevronDown className="h-3.5 w-3.5" />
+                            Weak topics
+                            <span className="rounded bg-secondary px-1.5 py-0.5 text-secondary-foreground">{reviewPlan.weakTopics.length}</span>
+                          </summary>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {reviewPlan.weakTopics.map((topic) => (
+                              <StatusPill key={topic.topic} label={`${topic.topic}: ${topic.missed}`} tone="watch" />
+                            ))}
+                          </div>
+                        </details>
+                      ) : null}
                     </div>
-                    <div className="flex flex-wrap gap-2 md:justify-end">
-                      <StatusPill label={`${reviewPlan.accuracy}% accuracy`} />
-                      <StatusPill label={`${reviewPlan.durationMinutes} min`} />
-                      <StatusPill label={`${reviewPlan.cardsToCreate} cards`} />
-                    </div>
-                    {reviewPlan.weakTopics.length ? (
-                      <details className="md:col-span-2">
-                        <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs font-semibold text-muted-foreground [&::-webkit-details-marker]:hidden">
-                          <ChevronDown className="h-3.5 w-3.5" />
-                          Weak topics
-                          <span className="rounded bg-secondary px-1.5 py-0.5 text-secondary-foreground">{reviewPlan.weakTopics.length}</span>
-                        </summary>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {reviewPlan.weakTopics.map((topic) => (
-                            <StatusPill key={topic.topic} label={`${topic.topic}: ${topic.missed}`} tone="watch" />
-                          ))}
-                        </div>
-                      </details>
-                    ) : null}
-                  </div>
+                  </details>
                 ) : null}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <ControlButton onClick={retryMissed} disabled={runActionById.get("retry-missed")?.disabled} size="compact" title={runActionById.get("retry-missed")?.helper}>
@@ -488,7 +492,6 @@ export function QuizView({
           </>
         ) : (
           <>
-            <QuizTimerControls paused={paused} setPaused={setPracticePaused} targetMinutes={targetMinutes} elapsedSeconds={elapsedSeconds} remainingSeconds={remainingSeconds} resetTimer={resetTimer} setTargetMinutes={setTargetMinutes} />
             <EmptyState title="No quiz selected" body="Choose a set to start." />
           </>
         )}
@@ -518,29 +521,20 @@ function PracticeProgressBar({
   targetMinutes: number
 }) {
   return (
-    <div className="mt-4 rounded-md border border-border bg-card p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground">{session.answeredLabel} answered</p>
-          <p className="truncate text-xs text-muted-foreground">{session.timerLabel}</p>
+    <div className="relative mt-4">
+      <div className="flex items-center gap-3 pr-11">
+        <span className="shrink-0 text-xs tabular-nums text-muted-foreground" title={`${session.answeredLabel} answered`}>{session.answeredLabel}</span>
+        <div role="progressbar" aria-label="Questions answered" aria-valuenow={session.progressPercent} aria-valuemin={0} aria-valuemax={100} className="h-1.5 min-w-8 flex-1 overflow-hidden rounded-full bg-muted">
+          <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${session.progressPercent}%` }} />
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <StatusPill label={session.statusLabel} tone={session.statusTone} />
-          <ControlButton onClick={() => setPaused(!paused)} size="compact">
-            {paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
-            {paused ? "Resume" : "Pause"}
-          </ControlButton>
-        </div>
+        <span className={`flex shrink-0 items-center gap-1.5 text-xs tabular-nums ${session.timerTone === "critical" ? "text-destructive" : "text-muted-foreground"}`} title={session.timerLabel}><Clock className="h-3.5 w-3.5" />{formatDuration(elapsedSeconds)}</span>
+        <button type="button" className="editor-command" aria-label={paused ? "Resume timer" : "Pause timer"} title={paused ? "Resume timer" : "Pause timer"} onClick={() => setPaused(!paused)}>{paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}</button>
       </div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${session.progressPercent}%` }} />
-      </div>
-      <details className="mt-3 rounded-md border border-border bg-background">
-        <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-muted-foreground [&::-webkit-details-marker]:hidden">
-          <ChevronDown className="h-3.5 w-3.5" />
-          Timer, draft, and target
-          <span className={`ml-auto rounded-md px-2 py-0.5 ${session.timerTone === "critical" ? "bg-destructive text-destructive-foreground" : "bg-secondary text-secondary-foreground"}`}>{formatDuration(elapsedSeconds)}</span>
+      <details className="rounded-md bg-background">
+        <summary className="editor-command absolute right-0 top-0 w-fit" aria-label="Practice options" title="Practice options">
+          <SlidersHorizontal className="h-3.5 w-3.5" />
         </summary>
+        <div className="p-2"><StatusPill label={session.statusLabel} tone={session.statusTone} /></div>
         <div className="grid gap-2 border-t border-border p-2 text-xs sm:grid-cols-2 xl:grid-cols-4">
           {session.visibleDetails.map((detail) => (
             <PracticeStat key={detail.label} label={detail.label} value={detail.value} tone={detail.label === "Left" && session.timerTone === "critical" ? "danger" : "neutral"} />
@@ -566,7 +560,7 @@ function PracticeProgressBar({
               Reset
             </ControlButton>
             <ControlButton onClick={onClearDraft} size="compact">
-              Clear
+              Clear draft
             </ControlButton>
           </div>
         </div>
@@ -650,56 +644,6 @@ function PracticeMenuAction({
         {meta ? <span className="sr-only">{meta}</span> : null}
       </span>
     </button>
-  )
-}
-
-function QuizTimerControls({
-  elapsedSeconds,
-  paused,
-  remainingSeconds,
-  resetTimer,
-  setPaused,
-  setTargetMinutes,
-  targetMinutes,
-}: {
-  elapsedSeconds: number
-  paused: boolean
-  remainingSeconds: number
-  resetTimer: () => void
-  setPaused: (paused: boolean) => void
-  setTargetMinutes: (minutes: number) => void
-  targetMinutes: number
-}) {
-  return (
-    <div className="mt-3 flex flex-wrap items-center gap-1.5 rounded-md border border-border bg-card p-2">
-      <span className="inline-flex h-8 items-center gap-1.5 rounded-md bg-muted px-2 text-xs font-semibold text-muted-foreground">
-        <Clock className="h-3.5 w-3.5" />
-        {formatDuration(elapsedSeconds)}
-      </span>
-      <span className={`inline-flex h-8 items-center rounded-md px-2 text-xs font-semibold ${remainingSeconds === 0 ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>
-        {formatDuration(remainingSeconds)} left
-      </span>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {[5, 10, 20, 45].map((minutes) => (
-          <ControlButton
-            key={minutes}
-            onClick={() => setTargetMinutes(minutes)}
-            active={targetMinutes === minutes}
-            size="compact"
-          >
-            {minutes}m
-          </ControlButton>
-        ))}
-      </div>
-      <ControlButton onClick={resetTimer} className="ml-auto" size="compact">
-        <RotateCcw className="h-3.5 w-3.5" />
-        Reset
-      </ControlButton>
-      <ControlButton onClick={() => setPaused(!paused)} size="compact">
-        {paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
-        {paused ? "Resume" : "Pause"}
-      </ControlButton>
-    </div>
   )
 }
 

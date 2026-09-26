@@ -158,7 +158,7 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
     const result = evaluateGameChoice(current, choiceId)
     setFeedback(result)
     if (result.correct) setScore((value) => value + 1)
-    setGameStatus(result.correct ? "Correct. Keep the pace." : "Missed. Review the fix, then continue.")
+    setGameStatus("")
   }
 
   async function nextPrompt() {
@@ -189,7 +189,6 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
   if (!current) {
     return (
       <Panel className="p-4">
-        <GameTimerControls disabled={Boolean(gameAction)} elapsedSeconds={elapsedSeconds} resetRun={resetRun} setTargetSeconds={setTargetSeconds} targetSeconds={targetSeconds} />
         <EmptyState title="No game questions yet" body="Add or open quizzes so question data can power flashcard sprint and matching games." />
       </Panel>
     )
@@ -210,7 +209,6 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
         <div className="flex flex-wrap gap-1.5 lg:justify-end">
           <GameStatusChip label="Score" value={`${score}/${questions.length}`} />
           <GameStatusChip label="Prompt" value={`${index + 1}/${questions.length}`} />
-          <GameStatusChip label="Time" value={formatDuration(elapsedSeconds)} />
         </div>
       </div>
       <GameTimerControls disabled={Boolean(gameAction)} elapsedSeconds={elapsedSeconds} resetRun={resetRun} setTargetSeconds={setTargetSeconds} targetSeconds={targetSeconds} />
@@ -311,11 +309,12 @@ function GameTimerControls({
             <button
               key={seconds}
               onClick={() => setTargetSeconds(seconds)}
+              aria-pressed={targetSeconds === seconds}
               disabled={disabled}
               className={`h-8 rounded-md px-2.5 text-left text-xs font-semibold ${targetSeconds === seconds ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
               type="button"
             >
-              {Math.round(seconds / 60)} min round
+              {formatDuration(seconds)}
             </button>
           ))}
         </div>
@@ -1575,7 +1574,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
         <div className="my-3"><ChatStories currentUserId={currentUserId} groups={myGroups} /></div>
         <div className="mt-4 flex h-11 items-center gap-2 rounded-full bg-muted px-4">
           <Search className="h-4 w-4 text-muted-foreground" />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search messages" className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
+          <input aria-label="Search messages" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search messages" className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
         </div>
         <div className="chat-inbox-filters mt-3 flex gap-2 overflow-x-auto" aria-label="Inbox filters">
           {inboxShortcuts.map((shortcut) => (
