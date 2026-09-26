@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { ImagePlus, Smile, Sticker, Upload } from "lucide-react"
 import { CHAT_STICKERS, MAX_SOCIAL_MEDIA_BYTES } from "@/lib/social-media"
 
 function canvasFile(canvas: HTMLCanvasElement, filename: string): Promise<File> {
@@ -8,6 +9,7 @@ function canvasFile(canvas: HTMLCanvasElement, filename: string): Promise<File> 
 }
 
 export function ChatMediaComposer({ onSend, onEmoji }: { onSend: (file: File) => Promise<boolean>; onEmoji: (emoji: string) => void }) {
+  const [mode, setMode] = useState<"emoji" | "stickers" | "gif" | "meme">("emoji")
   const [background, setBackground] = useState<File | null>(null)
   const [imageUrl, setImageUrl] = useState("")
   const [top, setTop] = useState("")
@@ -64,24 +66,30 @@ export function ChatMediaComposer({ onSend, onEmoji }: { onSend: (file: File) =>
   }
 
   return <details className="rounded-xl border border-border bg-background p-3 text-sm">
-    <summary className="cursor-pointer font-semibold">Emoji, stickers, GIFs and memes</summary>
+    <summary className="flex cursor-pointer items-center gap-2 font-semibold"><Smile className="h-4 w-4 text-primary" />Media</summary>
     <fieldset disabled={busy} className="mt-3 grid gap-3">
-      <div><h4 className="mb-1 text-xs text-muted-foreground">Emoji</h4>
+      <nav className="page-sections" aria-label="Message media">
+        <button type="button" aria-current={mode === "emoji" ? "page" : undefined} onClick={() => setMode("emoji")}><Smile className="h-4 w-4" />Emoji</button>
+        <button type="button" aria-current={mode === "stickers" ? "page" : undefined} onClick={() => setMode("stickers")}><Sticker className="h-4 w-4" />Stickers</button>
+        <button type="button" aria-current={mode === "gif" ? "page" : undefined} onClick={() => setMode("gif")}>GIF</button>
+        <button type="button" aria-current={mode === "meme" ? "page" : undefined} onClick={() => setMode("meme")}><ImagePlus className="h-4 w-4" />Meme</button>
+      </nav>
+      {mode === "emoji" ? <div>
         <div className="flex flex-wrap gap-2">{CHAT_STICKERS.map((glyph) => <button type="button" key={glyph} aria-label={`Add ${glyph} emoji`} className="rounded border px-2 py-1 text-xl" onClick={() => onEmoji(glyph)}>{glyph}</button>)}</div>
-      </div>
-      <div><h4 className="mb-1 text-xs text-muted-foreground">Stickers</h4>
+      </div> : null}
+      {mode === "stickers" ? <div>
         <div className="flex flex-wrap gap-2">{CHAT_STICKERS.map((glyph) => <button type="button" key={glyph} aria-label={`Send ${glyph} sticker`} className="rounded border px-2 py-1 text-2xl" onClick={() => sendPicture(() => sticker(glyph))}>{glyph}</button>)}</div>
-      </div>
-      <label className="grid gap-1">Send a GIF from your device
-        <input type="file" accept="image/gif" onChange={(event) => {
+      </div> : null}
+      {mode === "gif" ? <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border py-6 text-sm"><Upload className="h-5 w-5 text-primary" />Upload GIF
+        <input className="sr-only" type="file" accept="image/gif" onChange={(event) => {
           const file = event.target.files?.[0]; event.target.value = ""
           if (!file) return
           if (file.type !== "image/gif" || file.size > MAX_SOCIAL_MEDIA_BYTES) { setStatus("Choose a GIF under 20 MB."); return }
           void sendPicture(async () => file)
         }} />
-      </label>
-      <label className="grid gap-1">Make a meme: choose a picture
-        <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => {
+      </label> : null}
+      {mode === "meme" ? <><label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border py-6 text-sm"><ImagePlus className="h-5 w-5 text-primary" />{background ? "Replace picture" : "Choose picture"}
+        <input className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => {
           const file = event.target.files?.[0]; event.target.value = ""
           if (!file) return
           if (!/^image\/(png|jpeg|webp)$/.test(file.type) || file.size > MAX_SOCIAL_MEDIA_BYTES) { setStatus("Choose a PNG, JPEG or WebP picture under 20 MB."); return }
@@ -93,9 +101,10 @@ export function ChatMediaComposer({ onSend, onEmoji }: { onSend: (file: File) =>
         <p className="absolute inset-x-2 top-2 text-center text-lg font-black text-white [text-shadow:1px_1px_2px_black]">{top}</p>
         <p className="absolute inset-x-2 bottom-2 text-center text-lg font-black text-white [text-shadow:1px_1px_2px_black]">{bottom}</p>
       </div> : null}
-      <input aria-label="Meme top caption" placeholder="Top caption" maxLength={80} value={top} onChange={(event) => setTop(event.target.value)} className="rounded border bg-background px-3 py-2" />
+      {background ? <><input aria-label="Meme top caption" placeholder="Top caption" maxLength={80} value={top} onChange={(event) => setTop(event.target.value)} className="rounded border bg-background px-3 py-2" />
       <input aria-label="Meme bottom caption" placeholder="Bottom caption" maxLength={80} value={bottom} onChange={(event) => setBottom(event.target.value)} className="rounded border bg-background px-3 py-2" />
       <button type="button" disabled={!background || (!top.trim() && !bottom.trim())} className="justify-self-start rounded-md bg-primary px-3 py-2 text-primary-foreground disabled:opacity-50" onClick={() => sendPicture(meme)}>Send meme</button>
+      </> : null}</> : null}
     </fieldset>
     {status || busy ? <p role="status" className="mt-2 text-xs">{busy ? "Sending picture…" : status}</p> : null}
   </details>

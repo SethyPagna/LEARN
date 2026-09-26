@@ -61,7 +61,7 @@ function ProgressActionButton({ action, onClick }: { action: ProgressNextAction;
         </div>
         <ArrowRight className="h-4 w-4 text-muted-foreground" />
       </div>
-      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{action.detail}</p>
+      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{action.detail}</p>
     </button>
   )
 }
@@ -191,17 +191,15 @@ export function SettingsView({
     <div className="settings-workspace">
       <header className="workspace-header">
         <h2>Settings</h2>
-        {section === "profile" ? <ControlButton onClick={saveProfile} active disabled={saveBusy || !profileDirty}><Save className="h-4 w-4" />{saveBusy ? "Saving…" : "Save profile"}</ControlButton> : null}
+        {section === "profile" ? <ControlButton onClick={saveProfile} active disabled={saveBusy || !profileDirty}><Save className="h-4 w-4" />{saveBusy ? "Saving…" : "Save"}</ControlButton> : null}
       </header>
       <nav aria-label="Settings sections" className="settings-sections">{settingsPlan.guides.map((guide) => <SettingsSectionButton key={guide.id} guide={guide} active={section === guide.id} onClick={() => setSection(guide.id)} />)}</nav>
       <div className="settings-content">
       {status ? <p role="status" className="mb-4 text-sm text-muted-foreground">{status}</p> : null}
       {section === "profile" ? (
         <Panel className="p-4">
-          <SettingsSectionHeader icon={UserRound} title="Profile" body="Edit identity, avatar, privacy, and links." />
           <div className="mt-4 grid gap-4">
             <div className="self-start border-b border-border pb-4">
-              <span className="text-xs font-semibold uppercase text-muted-foreground">Avatar</span>
               <div className="mt-3 flex max-w-sm items-center gap-3">
                 <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-primary text-2xl font-semibold text-primary-foreground">
                   {avatarUrl ? <img src={avatarUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" /> : (name || user?.username || "L").slice(0, 1)}
@@ -226,15 +224,17 @@ export function SettingsView({
               <Field label="Name" value={name} onChange={setName} />
               <Field label="Email" value={email} onChange={setEmail} />
               <SelectField label="Profile visibility" value={profileVisibility} options={["private", "connections", "public"]} onChange={setProfileVisibility} />
-              <Field label="Daily goal minutes" value={String(dailyGoalMinutes)} onChange={(value) => setDailyGoalMinutes(normalizeSettingsNumber({ value, fallback: 45, min: 5, max: 240 }))} />
               <TextAreaField label="About" value={bio} onChange={(value) => setBio(value.slice(0, 800))} />
-              <div className="grid gap-3">
+            </div>
+            <details className="workspace-disclosure"><summary>Links</summary><div className="grid gap-3 pt-3 md:grid-cols-3">
                 <Field label="Facebook" value={facebookUrl} onChange={setFacebookUrl} />
                 <Field label="Website" value={websiteUrl} onChange={setWebsiteUrl} />
                 <Field label="Intro link" value={introUrl} onChange={setIntroUrl} />
+            </div></details>
+            <details className="workspace-disclosure"><summary>Account details</summary><div className="grid gap-3 pt-3 md:grid-cols-2">
+                <Field label="Daily goal minutes" value={String(dailyGoalMinutes)} onChange={(value) => setDailyGoalMinutes(normalizeSettingsNumber({ value, fallback: 45, min: 5, max: 240 }))} />
                 <Info label="Role" value={user?.role} />
-              </div>
-            </div>
+            </div></details>
           </div>
         </Panel>
       ) : null}
@@ -262,23 +262,27 @@ export function SettingsView({
 
       {section === "learning" ? (
         <Panel className="p-4">
-          <SettingsSectionHeader icon={Target} title="Learning workflow" body="Caps, defaults, reviews, and AI limits." />
+          <SettingsSectionHeader icon={Target} title="Practice" body="Defaults for quizzes, games and reviews." />
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <SelectField label="Quiz mode" value={options.quizMode} options={["practice", "exam", "review"]} onChange={(value) => setOptions({ quizMode: value as WorkspaceOptions["quizMode"] })} />
             <SelectField label="Game mode" value={options.gameMode} options={["sprint", "matching", "memory"]} onChange={(value) => setOptions({ gameMode: value as WorkspaceOptions["gameMode"] })} />
             <SelectField label="Rest day" value={options.restDay} options={["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]} onChange={(value) => setOptions({ restDay: value as WorkspaceOptions["restDay"] })} />
-            <Field label="Calendar lead minutes" value={String(options.calendarLeadMinutes)} onChange={(value) => setOptions({ calendarLeadMinutes: normalizeSettingsNumber({ value, fallback: 15, min: 0, max: 240 }) })} />
-            <Field label="Calendar block minutes" value={String(options.calendarDefaultMinutes)} onChange={(value) => setOptions({ calendarDefaultMinutes: normalizeSettingsNumber({ value, fallback: 45, min: 5, max: 240 }) })} />
             <Field label="Game question limit" value={String(options.gameQuestionLimit)} onChange={(value) => setOptions({ gameQuestionLimit: normalizeSettingsNumber({ value, fallback: 12, min: 3, max: 80 }) })} />
             <Field label="Daily review cap" value={String(options.dailyReviewCap)} onChange={(value) => setOptions({ dailyReviewCap: normalizeSettingsNumber({ value, fallback: 30, min: 1, max: 120 }) })} />
-            <Field label="Feed serendipity %" value={String(options.feedSerendipity)} onChange={(value) => setOptions({ feedSerendipity: normalizeSettingsNumber({ value, fallback: 15, min: 15, max: 50 }) })} />
-            <Field label="AI max tokens" value={String(options.aiMaxTokens)} onChange={(value) => setOptions({ aiMaxTokens: normalizeSettingsNumber({ value, fallback: 8192, min: 256, max: 16384 }) })} />
           </div>
           <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-            <Toggle label="Notes autosave" checked={options.notesAutosave} onChange={(checked) => setOptions({ notesAutosave: checked })} />
             <Toggle label="Reveal quiz answers" checked={options.revealAnswers} onChange={(checked) => setOptions({ revealAnswers: checked })} />
-            <Toggle label="AI includes notes" checked={options.aiIncludeNotes} onChange={(checked) => setOptions({ aiIncludeNotes: checked })} />
           </div>
+          <details className="workspace-disclosure mt-4"><summary>Calendar</summary><div className="grid gap-3 pt-3 md:grid-cols-2">
+            <Field label="Reminder · minutes before" value={String(options.calendarLeadMinutes)} onChange={(value) => setOptions({ calendarLeadMinutes: normalizeSettingsNumber({ value, fallback: 15, min: 0, max: 240 }) })} />
+            <Field label="Session · minutes" value={String(options.calendarDefaultMinutes)} onChange={(value) => setOptions({ calendarDefaultMinutes: normalizeSettingsNumber({ value, fallback: 45, min: 5, max: 240 }) })} />
+          </div></details>
+          <details className="workspace-disclosure mt-3"><summary>Notes, AI &amp; feed</summary><div className="grid gap-3 pt-3 md:grid-cols-2">
+            <Toggle label="Notes autosave" checked={options.notesAutosave} onChange={(checked) => setOptions({ notesAutosave: checked })} />
+            <Toggle label="AI includes notes" checked={options.aiIncludeNotes} onChange={(checked) => setOptions({ aiIncludeNotes: checked })} />
+            <Field label="Feed discovery %" value={String(options.feedSerendipity)} onChange={(value) => setOptions({ feedSerendipity: normalizeSettingsNumber({ value, fallback: 15, min: 15, max: 50 }) })} />
+            <Field label="AI max tokens" value={String(options.aiMaxTokens)} onChange={(value) => setOptions({ aiMaxTokens: normalizeSettingsNumber({ value, fallback: 8192, min: 256, max: 16384 }) })} />
+          </div></details>
         </Panel>
       ) : null}
 
@@ -296,14 +300,14 @@ export function SettingsView({
             <Toggle label="System health" checked={options.notificationSystemHealth} onChange={(checked) => setOptions({ notificationSystemHealth: checked })} />
             <Toggle label="Verbose admin" checked={options.adminVerbose} onChange={(checked) => setOptions({ adminVerbose: checked })} />
           </div>
-          <div className="mt-5 grid gap-2 md:grid-cols-2">
+          <details className="workspace-disclosure mt-4"><summary>Automations</summary><div className="mt-3 grid gap-2 md:grid-cols-2">
             {(automationData?.jobs || []).slice(0, 4).map((job) => (
               <div key={job.key} className="rounded-md border border-border bg-background p-3">
                 <p className="text-sm font-semibold text-foreground">{job.label}</p>
                 <span className="sr-only">{job.description}</span>
               </div>
             ))}
-          </div>
+          </div></details>
         </Panel>
       ) : null}
       </div>
@@ -408,7 +412,7 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
           <h2 className="text-lg font-semibold" title={adminPlan.headline}>Admin</h2>
           <label className="flex h-10 w-full max-w-sm items-center gap-2 rounded-md border border-border bg-background px-3 focus-within:ring-2 focus-within:ring-primary/25">
             <Search className="h-4 w-4 text-muted-foreground" />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search admin data" className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
+            <input aria-label="Search admin data" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search admin data" className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
           </label>
         </div>
         <details className="mt-5 rounded-md border border-border bg-background">
@@ -452,8 +456,8 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
       {tab === "users" ? <AdminList title="Users" items={users} emptyLabel="No users match this search." query={query} /> : null}
       {tab === "providers" ? (
         <div className="grid gap-4">
-          <AdminList title="Provider records" items={providers} emptyLabel="No provider records match this search." query={query} accent={adminPlan.riskCount ? "watch" : "good"} />
           <ProviderAdminPanel />
+          <details className="workspace-disclosure"><summary>Provider records</summary><div className="mt-3"><AdminList title="Provider records" items={providers} emptyLabel="No provider records match this search." query={query} accent={adminPlan.riskCount ? "watch" : "good"} /></div></details>
         </div>
       ) : null}
       {tab === "audit" ? <AdminList title="Audit" items={audit} emptyLabel="No audit rows match this search." query={query} /> : null}
@@ -497,8 +501,8 @@ function adminSummaryChipClasses(tone: AdminSummaryChip["tone"]) {
 
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
-    <label className="block rounded-lg bg-muted p-4">
-      <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
+    <label className="block min-w-0">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
       <input value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none" />
     </label>
   )
@@ -506,17 +510,17 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
 
 function TextAreaField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
-    <label className="block rounded-lg bg-muted p-4">
-      <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
-      <textarea value={value} onChange={(event) => onChange(event.target.value)} rows={7} className="mt-2 w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm leading-6 text-foreground outline-none" />
+    <label className="block min-w-0">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <textarea value={value} onChange={(event) => onChange(event.target.value)} rows={3} className="mt-2 w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm leading-6 text-foreground outline-none" />
     </label>
   )
 }
 
 function Info({ label, value }: { label: string; value?: unknown }) {
   return (
-    <div className="rounded-lg bg-muted p-4">
-      <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
+    <div className="rounded-lg bg-muted p-3">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <p className="mt-2 font-medium text-foreground">{String(value ?? "Not set")}</p>
     </div>
   )
@@ -524,8 +528,8 @@ function Info({ label, value }: { label: string; value?: unknown }) {
 
 function SelectField({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
   return (
-    <label className="block rounded-lg bg-muted p-4">
-      <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
+    <label className="block min-w-0">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
       <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none">
         {options.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
@@ -575,6 +579,8 @@ function AdminList<TItem extends AdminListItem>({
   query?: string
   title: string
 }) {
+  const [limit, setLimit] = useState(12)
+  useEffect(() => setLimit(12), [query, title])
   return (
     <Panel className="p-4">
       <div className="flex items-center justify-between gap-3">
@@ -585,12 +591,13 @@ function AdminList<TItem extends AdminListItem>({
         <SharedStatusPill label={String(items.length)} tone={settingsTone(accent)} />
       </div>
       <div className="mt-3 divide-y divide-border">
-        {items.slice(0, 12).map((item, index) => (
-          <div key={item.id || item.key || index} className="py-3 text-sm">
-            <div className="flex items-center justify-between gap-2">
+        {items.slice(0, limit).map((item, index) => (
+          <details key={item.id || item.key || index} className="py-3 text-sm">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
               <span className="truncate font-semibold text-foreground">{item.name || item.username || item.action || item.provider || item.label || item.id || item.key || "Record"}</span>
-            </div>
-            <p className="mt-1 truncate text-xs text-muted-foreground">{String(item.email || item.role || item.entity || item.description || item.default_model || item.details || item.provider_type || item.key || "No detail")}</p>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </summary>
+            <p className="mt-2 whitespace-pre-wrap break-words text-xs leading-5 text-muted-foreground">{String(item.email || item.role || item.entity || item.description || item.default_model || (typeof item.details === "object" ? JSON.stringify(item.details, null, 2) : item.details) || item.provider_type || item.key || "No detail")}</p>
             {item.last_status || item.enabled !== undefined || item.has_key !== undefined ? (
               <div className="mt-2 flex flex-wrap gap-1">
                 {item.last_status ? <SharedStatusPill label={item.last_status} /> : null}
@@ -598,9 +605,10 @@ function AdminList<TItem extends AdminListItem>({
                 {item.has_key !== undefined ? <SharedStatusPill label={item.has_key ? "key stored" : "key missing"} tone={item.has_key ? "steady" : "watch"} /> : null}
               </div>
             ) : null}
-          </div>
+          </details>
         ))}
         {!items.length ? <p className="rounded-md border border-dashed border-border bg-background p-4 text-sm text-muted-foreground md:col-span-2 xl:col-span-4">{emptyLabel}</p> : null}
+        {items.length > limit ? <button className="editor-command mt-2" onClick={() => setLimit(value => value + 12)}>Show more <span className="text-muted-foreground">{items.length - limit}</span></button> : null}
       </div>
     </Panel>
   )

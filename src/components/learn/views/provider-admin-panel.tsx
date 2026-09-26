@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react"
 import { useEffect, useMemo, useState } from "react"
-import { Activity, CheckCircle2, FlaskConical, KeyRound, MoreHorizontal, Plus, Save, Trash2, Wand2 } from "lucide-react"
+import { Activity, CheckCircle2, FlaskConical, KeyRound, MoreHorizontal, Plus, Save, Trash2, Wand2, XCircle } from "lucide-react"
 import { api } from "../api"
 import { Panel } from "../ui"
 import { buildProviderAdminSummaryChips, type ProviderAdminSection, type ProviderAdminSummaryChip } from "@/lib/ai/provider-admin-ui"
@@ -118,6 +118,8 @@ export function ProviderAdminPanel() {
   const [form, setForm] = useState<ProviderForm>(blankForm)
   const [activeSection, setActiveSection] = useState<ProviderAdminSection>("providers")
   const [status, setStatus] = useState("Loading provider console...")
+  const [busy, setBusy] = useState(false)
+  const [deleteConfirmId, setDeleteConfirmId] = useState("")
   const [health, setHealth] = useState<IntegrationHealth | null>(null)
   const [healthStatus, setHealthStatus] = useState("Loading runtime readiness...")
 
@@ -126,11 +128,10 @@ export function ProviderAdminPanel() {
     setProviders(response.items)
     setPresets(response.presets)
     setSummary(response.summary)
-    setStatus("Provider console ready.")
   }
 
   useEffect(() => {
-    refresh().catch((error) => setStatus(error instanceof Error ? error.message : "Unable to load providers."))
+    refresh().then(() => setStatus("")).catch((error) => setStatus(error instanceof Error ? error.message : "Unable to load providers."))
   }, [])
 
   // Runtime readiness comes from the admin-only health route, so a non-admin
@@ -226,28 +227,47 @@ export function ProviderAdminPanel() {
   }
 
   async function saveProvider() {
+    if (busy) return
+    setBusy(true)
     setStatus("Saving encrypted provider config...")
-    const method = form.id ? "PUT" : "POST"
-    await api("/api/ai/providers", { method, body: JSON.stringify(form) })
-    setForm(blankForm)
-    setActiveSection("providers")
-    await refresh()
+    try {
+      const method = form.id ? "PUT" : "POST"
+      await api("/api/ai/providers", { method, body: JSON.stringify(form) })
+      setForm(blankForm)
+      setActiveSection("providers")
+      await refresh()
+      setStatus("Provider saved.")
+    } catch (error) { setStatus(error instanceof Error ? error.message : "Unable to save provider.") }
+    finally { setBusy(false) }
   }
 
   async function testProvider(id: string) {
+    if (busy) return
+    setBusy(true)
     setStatus("Testing stored provider key...")
-    const response = await api<{ success: boolean; message: string }>("/api/ai/providers", {
-      method: "POST",
-      body: JSON.stringify({ action: "test", id }),
-    })
-    setStatus(response.message)
-    await refresh()
+    try {
+      const response = await api<{ success: boolean; message: string }>("/api/ai/providers", {
+        method: "POST",
+        body: JSON.stringify({ action: "test", id }),
+      })
+      await refresh()
+      setStatus(response.message)
+    } catch (error) { setStatus(error instanceof Error ? error.message : "Unable to test provider.") }
+    finally { setBusy(false) }
   }
 
   async function deleteProvider(id: string) {
+    if (busy) return
+    if (deleteConfirmId !== id) { setDeleteConfirmId(id); return }
+    setBusy(true)
     setStatus("Deleting provider config...")
-    await api(`/api/ai/providers?id=${encodeURIComponent(id)}`, { method: "DELETE" })
-    await refresh()
+    try {
+      await api(`/api/ai/providers?id=${encodeURIComponent(id)}`, { method: "DELETE" })
+      setDeleteConfirmId("")
+      await refresh()
+      setStatus("Provider deleted.")
+    } catch (error) { setStatus(error instanceof Error ? error.message : "Unable to delete provider.") }
+    finally { setBusy(false) }
   }
 
   return (
@@ -255,7 +275,7 @@ export function ProviderAdminPanel() {
       <Panel className="p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-lg font-semibold text-foreground">AI provider control center</h3>
+            <h3 className="text-lg font-semibold text-foreground">AI providers</h3>
             <div className="mt-2 flex flex-wrap gap-2">
               {primarySummaryChips.map((chip) => (
                 <ProviderSummaryChipButton key={chip.id} chip={chip} onClick={() => setActiveSection(chip.targetSection)} />
@@ -293,28 +313,25 @@ export function ProviderAdminPanel() {
             ))}
           </div>
         </details>
-        <p className="mt-3 text-sm text-muted-foreground">{status}</p>
+        {status ? <p role="status" className="mt-3 text-sm text-muted-foreground">{status}</p> : null}
       </Panel>
 
-      <Panel className="p-4">
+      <details className="workspace-disclosure">
+        <summary className="flex items-center gap-2"><Activity className="h-4 w-4 text-primary" />Runtime<span className="ml-auto text-xs text-muted-foreground">{readinessItems.filter(item => item.ready).length}/{readinessItems.length}</span></summary>
         <div className="flex flex-wrap items-center gap-2">
-          <Activity className="h-4 w-4 text-primary" />
-          <h4 className="font-semibold text-foreground">Runtime readiness</h4>
           {health ? <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{health.runtime}</span> : null}
         </div>
         {readinessItems.length ? (
           <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {readinessItems.map((item) => (
               <div key={item.id} className={`rounded-md border p-3 ${item.ready ? "border-success/30 bg-success/10" : item.critical ? "border-warning/35 bg-warning/10" : "border-border bg-background"}`}>
-                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{item.label}</p>
-                <p className="mt-1 text-sm font-semibold text-foreground">{item.ready ? "Ready" : "Not configured"}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+                <div className="flex items-center gap-2" title={item.detail}>{item.ready ? <CheckCircle2 className="h-4 w-4 shrink-0 text-success" /> : <XCircle className="h-4 w-4 shrink-0 text-warning" />}<span className="text-sm font-medium">{item.label}</span><span className="sr-only">{item.ready ? "Ready" : "Not configured"}</span></div>
               </div>
             ))}
           </div>
         ) : null}
         {healthStatus ? <p className="mt-3 text-sm text-muted-foreground">{healthStatus}</p> : null}
-      </Panel>
+      </details>
 
       {activeSection === "providers" ? (
         <Panel className="p-4">
@@ -339,19 +356,18 @@ export function ProviderAdminPanel() {
                     {provider.has_key ? "Key stored" : "Key missing"}
                   </span>
                   <details className="relative">
-                    <summary className="inline-flex h-8 cursor-pointer list-none items-center gap-1 rounded-md border border-border bg-secondary px-3 text-xs font-medium text-secondary-foreground">
+                    <summary aria-label={`Actions for ${provider.name}`} className="inline-flex h-8 cursor-pointer list-none items-center gap-1 rounded-md border border-border bg-secondary px-3 text-xs font-medium text-secondary-foreground">
                       <MoreHorizontal className="h-3.5 w-3.5" />
-                      Actions
                     </summary>
                     <div className="absolute right-0 z-30 mt-2 grid min-w-36 gap-1 rounded-md border border-border bg-popover p-1 shadow-lg">
                       <button onClick={() => editProvider(provider)} className="rounded px-3 py-2 text-left text-xs font-medium text-popover-foreground hover:bg-accent">Edit</button>
-                      <button onClick={() => testProvider(provider.id)} className="inline-flex items-center gap-2 rounded px-3 py-2 text-left text-xs font-medium text-popover-foreground hover:bg-accent">
+                      <button disabled={busy} onClick={() => testProvider(provider.id)} className="inline-flex items-center gap-2 rounded px-3 py-2 text-left text-xs font-medium text-popover-foreground hover:bg-accent">
                         <FlaskConical className="h-3.5 w-3.5" />
                         Test
                       </button>
-                      <button onClick={() => deleteProvider(provider.id)} className="inline-flex items-center gap-2 rounded px-3 py-2 text-left text-xs font-medium text-destructive hover:bg-destructive/10">
+                      <button disabled={busy} onClick={() => deleteProvider(provider.id)} className="inline-flex items-center gap-2 rounded px-3 py-2 text-left text-xs font-medium text-destructive hover:bg-destructive/10">
                         <Trash2 className="h-3.5 w-3.5" />
-                        Delete
+                        {deleteConfirmId === provider.id ? "Confirm delete" : "Delete"}
                       </button>
                     </div>
                   </details>
@@ -359,14 +375,14 @@ export function ProviderAdminPanel() {
                 {provider.last_error ? <p className="mt-2 text-xs text-destructive">{provider.last_error}</p> : null}
               </article>
             ))}
-            {!providers.length ? <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">No provider configs stored yet. Use a preset or add one manually.</p> : null}
+            {!providers.length ? <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">No providers yet</p> : null}
           </div>
         </Panel>
       ) : null}
 
       {activeSection === "editor" ? (
         <Panel className="p-4">
-          <h4 className="font-semibold text-foreground">Edit encrypted provider</h4>
+          <h4 className="font-semibold text-foreground">{form.id ? "Edit provider" : "New provider"}</h4>
           <div className="mt-3 grid gap-3 lg:grid-cols-2">
             <Field label="Name" value={form.name} onChange={(value) => setForm({ ...form, name: value })} />
             <SelectField label="Provider" value={form.provider} options={providerOptions} onChange={(value) => setForm({ ...form, provider: value })} />
@@ -374,7 +390,8 @@ export function ProviderAdminPanel() {
             <Field label="API key" value={form.apiKey} type="password" placeholder={form.id ? "Leave blank to keep encrypted key" : "Paste key to encrypt"} onChange={(value) => setForm({ ...form, apiKey: value })} />
             <Field label="Model" value={form.defaultModel} onChange={(value) => setForm({ ...form, defaultModel: value })} />
             <Field label="Endpoint" value={form.endpointOverride} onChange={(value) => setForm({ ...form, endpointOverride: value })} />
-            <textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} className="min-h-20 rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none lg:col-span-2" placeholder="Routing notes, use cases, cooldown notes" />
+            <details className="workspace-disclosure lg:col-span-2"><summary>Routing &amp; limits</summary>
+            <textarea aria-label="Routing notes" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} className="my-3 min-h-20 w-full rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none" placeholder="Notes" />
             <div className="grid grid-cols-2 gap-2 lg:col-span-2 xl:grid-cols-6">
               <NumberField label="Priority" value={form.priority} onChange={(value) => setForm({ ...form, priority: value })} />
               <NumberField label="RPM" value={form.requestsPerMinute} onChange={(value) => setForm({ ...form, requestsPerMinute: value })} />
@@ -383,14 +400,15 @@ export function ProviderAdminPanel() {
               <NumberField label="Timeout ms" value={form.timeoutMs} onChange={(value) => setForm({ ...form, timeoutMs: value })} />
               <NumberField label="Cooldown sec" value={form.cooldownSeconds} onChange={(value) => setForm({ ...form, cooldownSeconds: value })} />
             </div>
+            </details>
             <label className="flex items-center justify-between gap-3 rounded-md bg-muted p-3 text-sm text-foreground lg:col-span-2">
               Enabled for failover
               <input type="checkbox" checked={form.enabled} onChange={(event) => setForm({ ...form, enabled: event.target.checked })} />
             </label>
             <div className="flex flex-wrap gap-2 lg:col-span-2">
-              <button onClick={saveProvider} className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
+              <button disabled={busy} onClick={saveProvider} className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
                 <Save className="h-4 w-4" />
-                Save encrypted config
+                {busy ? "Saving…" : "Save"}
               </button>
               {selectedPreset ? (
                 <button onClick={() => applyPreset(selectedPreset)} className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-medium text-secondary-foreground">

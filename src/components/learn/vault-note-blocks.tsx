@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Sparkles, BookOpen, CalendarDays, MessageSquare } from "lucide-react"
+import { Sparkles, BookOpen, CalendarDays, MessageSquare, Plus } from "lucide-react"
 import { launchAiTutorFromSource } from "@/lib/ai/source-launch"
 import { api } from "./api"
 import type { Note, View } from "./types"
@@ -30,7 +30,7 @@ export function VaultNoteBlocks({ note, revision, setView }: { note?: Note; revi
       if (!current) return
       setBlocks(response.items)
       setLoadedNoteId(note.id)
-      setStatus(response.items.length ? "" : "No saved blocks yet.")
+      setStatus("")
     }).catch((error: unknown) => {
       if (current) setStatus(error instanceof Error ? error.message : "Unable to load saved blocks.")
     })
@@ -57,10 +57,10 @@ export function VaultNoteBlocks({ note, revision, setView }: { note?: Note; revi
       <button className="editor-command border border-border" disabled={!note || loadedNoteId !== note.id} onClick={() => openTutor("activity")} title="Plan a study activity"><CalendarDays className="h-4 w-4 text-primary" />Plan</button>
       <button className="editor-command border border-border" disabled={!note || loadedNoteId !== note.id} onClick={() => openTutor("discussion")} title="Draft a discussion space"><MessageSquare className="h-4 w-4 text-primary" />Discuss</button>
     </div>
+    {!blocks.length && loadedNoteId === note?.id ? <div className="grid justify-items-center gap-2 rounded-lg border border-dashed border-border py-8 text-muted-foreground"><Plus aria-hidden="true" className="h-6 w-6 text-primary/50" /><span className="text-xs">No blocks yet</span></div> : null}
     <ul className="grid gap-2">{blocks.map((block) => <li key={block.id} className="rounded-md bg-muted p-3">
-      <p className="text-xs font-semibold uppercase text-muted-foreground">{block.blockType}</p>
+      <div className="flex items-center justify-between gap-2"><p className="text-xs font-medium text-muted-foreground">{block.blockType.replaceAll("-", " ")}</p><button className="editor-command" aria-label={`Explain ${block.blockType} block`} title="Explain block" onClick={() => openTutor("explain", block)}><Sparkles className="h-4 w-4 text-primary" /></button></div>
       <p className="mt-1 whitespace-pre-wrap text-sm">{blockText(block)}</p>
-      <button className="mt-2 text-sm font-semibold text-primary" onClick={() => openTutor("explain", block)}>Explain block</button>
     </li>)}</ul>
     {blocks.length === 200 ? <p className="mt-2 text-xs text-muted-foreground">Showing the first 200 blocks.</p> : null}
   </section>

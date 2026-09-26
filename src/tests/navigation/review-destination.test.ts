@@ -14,6 +14,6 @@ test("saved review cards land on reveal-and-grade Reviews rather than the quiz f
   const ecosystem = readFileSync("src/components/learn/views/ecosystem-views.tsx", "utf8")
   const review = ecosystem.slice(ecosystem.indexOf("export function ReviewsView("), ecosystem.indexOf("export function FeedView("))
   assert.match(review, /useResource<ReviewPayload>\("\/api\/reviews"\)/)
-  assert.match(review, /if \(!revealed\.has\(item\.id\)\)/)
-  assert.match(review, /JSON\.stringify\(\{ id: item\.id, rating \}\)/)
+  assert.match(review, /if \(!selected \|\| !isRevealed \|\| busyRating\) return/)
+  assert.match(review, /JSON\.stringify\(\{ id: selected\.id, rating \}\)/)
 })
