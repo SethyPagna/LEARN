@@ -89,3 +89,12 @@ Evidence: [learning and social usability](../audits/2026-09-25-friendly-learning
 - [ ] Activate and verify real calendar provider accounts (existing external dependency).
 
 Evidence and restoration limits: [editor overhaul](../audits/2026-09-27-editor-overhaul.md).
+
+## Contextual editor refinement — 2026-09-27
+
+- [x] Replace the permanent inspector with one row of selection-specific tools.
+- [x] Move geometry and secondary actions into contextual popovers.
+- [x] Move Notes beside the page count; keep notes scoped to the current page.
+- [x] Verify selection changes, history, saves and responsive layouts.
+
+Evidence: [contextual editor](../audits/2026-09-27-contextual-editor.md).
