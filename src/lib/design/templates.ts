@@ -23,6 +23,37 @@ export interface DesignTemplate {
 }
 
 export const DESIGN_TEMPLATES: readonly DesignTemplate[] = [
+  { id: "editorial-notes", name: "Editorial notes", description: "A quiet, typographic study journal", group: "document", format: "a4", theme: "minimal", tags: ["journal", "minimal", "notes"], spec: { title: "Field notes", pages: [
+    { layout: "cover", blocks: [{ type: "title", kicker: "FIELD NOTES / 01", text: "A curious mind.", subtitle: "Ideas worth keeping." }] },
+    { layout: "split", blocks: [{ type: "heading", text: "What I noticed" }, { type: "text", text: "Start with one observation. Connect it to something you already know." }, { type: "quote", text: "Better questions make better notes." }] }
+  ] } },
+  { id: "neon-quiz", name: "Neon quiz night", description: "Bold rounds, big questions and clear answers", group: "presentation", format: "presentation", theme: "midnight", tags: ["quiz", "live", "game"], spec: { title: "Quiz night", pages: [
+    { layout: "cover", blocks: [{ type: "title", kicker: "ROUND 01", text: "Ready. Set. Think.", subtitle: "One question. Four possibilities." }] },
+    { layout: "question", blocks: [{ type: "question", question: "Which planet has the most visible rings?", choices: ["Earth", "Saturn", "Mars", "Venus"], answer: 1 }] },
+    { layout: "closing", blocks: [{ type: "title", text: "Nice thinking.", subtitle: "Next round, new possibilities." }] }
+  ] } },
+  { id: "playful-recap", name: "Playful recap", description: "Colorful cards for the ideas that stuck", group: "social", format: "square", theme: "pop", tags: ["recap", "carousel", "color"], spec: { title: "Three things I learned", pages: [
+    { layout: "cover", blocks: [{ type: "title", kicker: "THIS WEEK", text: "Small lessons. Big ideas." }] },
+    { layout: "stats", blocks: [{ type: "heading", text: "The takeaway" }, { type: "stats", items: [{ value: "01", label: "Ask why" }, { value: "02", label: "Try it" }, { value: "03", label: "Share it" }] }] }
+  ] } },
+  { id: "ocean-workshop", name: "Ocean workshop", description: "A clear agenda and a practical activity", group: "presentation", format: "presentation", theme: "ocean", tags: ["workshop", "team", "agenda"], spec: { title: "Make something together", pages: [
+    { layout: "cover", blocks: [{ type: "title", kicker: "THE WORKSHOP", text: "From idea to action.", subtitle: "Explore. Make. Reflect." }] },
+    { layout: "timeline", blocks: [{ type: "heading", text: "Our hour together" }, { type: "timeline", items: [{ label: "10 min", text: "Find a question" }, { label: "35 min", text: "Make a first version" }, { label: "15 min", text: "Share what changed" }] }] }
+  ] } },
+  { id: "garden-focus", name: "Garden focus", description: "A calm visual plan for one meaningful goal", group: "document", format: "a4", theme: "forest", tags: ["plan", "focus", "calm"], spec: { title: "Room to grow", pages: [
+    { layout: "steps", blocks: [{ type: "heading", text: "One thing at a time." }, { type: "steps", items: [{ title: "Choose", text: "What matters today?" }, { title: "Focus", text: "Give it 25 uninterrupted minutes." }, { title: "Reflect", text: "What will you try next?" }] }] }
+  ] } },
+  { id: "sunset-event", name: "Sunset gathering", description: "An expressive poster for your next meetup", group: "poster", format: "poster", theme: "sunset", tags: ["event", "poster", "community"], spec: { title: "Ideas after hours", pages: [
+    { layout: "cover", blocks: [{ type: "title", kicker: "THE LEARNING CLUB", text: "Ideas after hours.", subtitle: "Thursday · 6 PM\nBring a question. Leave inspired." }] }
+  ] } },
+  { id: "candy-challenge", name: "Candy challenge", description: "Friendly flashcards with a playful reveal", group: "fun", format: "flashcard", theme: "candy", tags: ["flashcard", "practice", "challenge"], spec: { title: "Quick thinking", pages: [
+    { layout: "question", blocks: [{ type: "question", question: "What helps a memory stick?", choices: ["Reading it again", "Recalling it yourself"], answer: 1 }] },
+    { layout: "definition", blocks: [{ type: "definition", term: "Active recall", text: "Try to remember before you look at the answer." }] }
+  ] } },
+  { id: "retro-weekly", name: "Retro weekly", description: "A warm, punchy personal update", group: "social", format: "portrait", theme: "retro", tags: ["weekly", "personal", "story"], spec: { title: "This week in ideas", pages: [
+    { layout: "cover", blocks: [{ type: "title", kicker: "VOL. 01", text: "This week in ideas.", subtitle: "A little progress is still progress." }] },
+    { layout: "quote", blocks: [{ type: "quote", text: "Keep the curiosity. Lose the rush.", by: "A note to myself" }] }
+  ] } },
   {
     id: "lesson",
     name: "Lesson deck",

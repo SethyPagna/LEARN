@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { LayoutTemplate } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 
 import { composeFromTemplate, isBlankDesign } from "@/lib/design/compose"
 import type { DesignDoc } from "@/lib/design/document"
@@ -70,6 +70,8 @@ export function TemplatesPanel({ api }: { api: DesignEditorApi }) {
   const [query, setQuery] = useState("")
   const [group, setGroup] = useState<DesignFormatGroup | "all">("all")
   const blank = isBlankDesign(api.design)
+  const [preview, setPreview] = useState<DesignTemplate | null>(null)
+  const [keepStyle, setKeepStyle] = useState(true)
 
   const templates = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -83,7 +85,7 @@ export function TemplatesPanel({ api }: { api: DesignEditorApi }) {
   const use = (template: DesignTemplate) => {
     let summary = ""
     api.update((design) => {
-      const result = composeFromTemplate(design, template, { pageIndex: api.pageIndex, measure: api.measure })
+      const result = composeFromTemplate(design, template, { pageIndex: api.pageIndex, measure: api.measure, preserveTemplateStyle: keepStyle })
       summary = result.replaced
         ? `${template.name} is ready: ${result.added} page${result.added === 1 ? "" : "s"}.`
         : result.added
@@ -92,8 +94,13 @@ export function TemplatesPanel({ api }: { api: DesignEditorApi }) {
       return { doc: result.doc, page: result.index }
     })
     if (summary) api.notify(summary)
+    setPreview(null)
   }
 
+  if (preview) {
+    const doc = templatePreview(preview, api.measure)
+    return <div className="template-preview"><button className="editor-command mb-3" onClick={() => setPreview(null)}><ArrowLeft size={14} />Templates</button><h4 className="text-sm font-semibold">{preview.name}</h4><p className="mt-1 mb-3 text-xs text-muted-foreground">{doc.pages.length} pages · {designFormat(preview.format).label}</p><div className="grid gap-3">{doc.pages.map(page => <FitThumbnail key={page.id} width={doc.width} height={doc.height} theme={doc.theme} page={page} measure={api.measure} maxHeight={240} />)}</div><div className="template-use"><label className="flex gap-2 text-xs"><input type="checkbox" checked={keepStyle} onChange={event => setKeepStyle(event.target.checked)} />Keep template colors</label><button className="editor-primary w-full justify-center" onClick={() => use(preview)}>{blank ? "Use template" : "Add pages"}</button></div></div>
+  }
   return (
     <div>
       <PanelSearch value={query} onChange={setQuery} placeholder="Search templates" label="Search templates" />
@@ -110,14 +117,10 @@ export function TemplatesPanel({ api }: { api: DesignEditorApi }) {
           </button>
         ))}
       </div>
-      <p className="mb-3 flex items-start gap-2 rounded-xl bg-muted/70 px-3 py-2 text-xs leading-5 text-muted-foreground">
-        <LayoutTemplate className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        {blank ? "Pick one to start: it fills this design and sets its theme." : "Its pages are added after the current page, in this design's theme."}
-      </p>
       {templates.length ? (
         <div className="grid grid-cols-2 items-start gap-2.5">
           {templates.map((template) => (
-            <TemplateCard key={template.id} template={template} measure={api.measure} onUse={use} />
+            <TemplateCard key={template.id} template={template} measure={api.measure} onUse={setPreview} />
           ))}
         </div>
       ) : (

@@ -72,9 +72,9 @@ export function composeFromSpec(doc: DesignDoc, spec: DesignSpec, options: { pag
 }
 
 /** Lay out a template into this design. A blank design takes the template's theme and name too. */
-export function composeFromTemplate(doc: DesignDoc, template: DesignTemplate, options: { pageIndex: number; measure?: MeasureText }): ComposeResult {
+export function composeFromTemplate(doc: DesignDoc, template: DesignTemplate, options: { pageIndex: number; measure?: MeasureText; preserveTemplateStyle?: boolean }): ComposeResult {
   const blank = isBlankDesign(doc)
-  const theme = blank ? template.theme : doc.theme
+  const theme = blank || options.preserveTemplateStyle ? template.theme : doc.theme
   const pages = pagesFromSpec(doc, template.spec, { theme, measure: options.measure })
   return compose(doc, pages, options.pageIndex, { name: template.name, theme })
 }
