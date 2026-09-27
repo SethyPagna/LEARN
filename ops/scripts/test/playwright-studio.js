@@ -26,7 +26,7 @@ async (page) => {
   };
   page.on('pageerror', recordError);
   try {
-    await page.goto(`${origin}/dashboard`);
+    await page.goto(`${origin}/studio`);
     await page.getByRole('button', { name: 'Account: LEARN Admin', exact: true }).waitFor();
     await studio.getByRole('list', { name: 'Projects', exact: true }).waitFor();
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -164,7 +164,7 @@ async (page) => {
       localStorage.setItem(key, JSON.stringify({ ...stored, workspaceName: title, dailyFocus: '' }));
     }, personalTitle);
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(`${origin}/dashboard`);
+    await page.goto(`${origin}/studio`);
     const personalHeading = studio.getByRole('heading', { name: personalTitle, exact: true });
     await personalHeading.waitFor();
     verify(await personalHeading.isVisible(), 'Personal workspace title remains visible on mobile without a daily focus');

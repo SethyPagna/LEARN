@@ -13,7 +13,7 @@ async (sourcePage) => {
   const shellChecks = [];
   const checkShell = (condition, message) => { if (!condition) throw new Error(message); shellChecks.push(message); };
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto(`${origin}/dashboard`);
+  await page.goto(`${origin}/studio`);
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   const menu = page.getByRole('menu', { name: 'Add a project' });
   checkShell(await menu.getByRole('menuitem').count() === 5, 'Add exposes all five project types');

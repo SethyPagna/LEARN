@@ -41,7 +41,7 @@ async (sourcePage) => {
   const save = async () => { await page.getByRole('button', { name: 'Save', exact: true }).click(); await page.getByRole('status').filter({ hasText: /^Saved$/ }).waitFor(); };
   const screenshot = async name => { const path = `output/playwright/${name}.png`; await page.screenshot({ path }); report.screenshots.push(path); };
   try {
-    await page.goto(`${origin}/dashboard`);
+    await page.goto(`${origin}/studio`);
     await page.getByRole('button', { name: 'Open Editor edge fixture', exact: true }).waitFor();
     await page.getByRole('button', { name: 'Account: LEARN Admin', exact: true }).waitFor();
     for (const size of [{ width: 320, height: 568 }, { width: 767, height: 600 }, { width: 1023, height: 768 }, { width: 1024, height: 768 }, { width: 2048, height: 1024 }, { width: 2560, height: 1080 }]) {
@@ -56,7 +56,7 @@ async (sourcePage) => {
     const brand = page.getByRole('button', { name: 'Expand sidebar', exact: true });
     verify(await brand.locator('img').count() === 1 && await page.locator('.learn-sidebar').getByRole('button', { name: 'Expand sidebar' }).count() === 1, 'Collapsed rail has one brand expansion control');
     await brand.press('Enter');
-    verify(page.url().endsWith('/dashboard') && await page.getByRole('button', { name: 'Collapse sidebar to icons' }).isVisible(), 'Brand keyboard activation expands without navigating');
+    verify(page.url().endsWith('/studio') && await page.getByRole('button', { name: 'Collapse sidebar to icons' }).isVisible(), 'Brand keyboard activation expands without navigating');
     await screenshot('studio-wide-responsive');
     await page.setViewportSize({ width: 1440, height: 500 });
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
@@ -170,7 +170,7 @@ async (sourcePage) => {
       }
       if (size.height === 320) { await stage.scrollIntoViewIfNeeded(); await screenshot(`editor-short-${size.width}`); }
     }
-    await page.goto(`${origin}/dashboard`);
+    await page.goto(`${origin}/studio`);
     await page.getByRole('button', { name: 'Open Writing pages review', exact: true }).click();
     await page.getByRole('textbox', { name: 'Document content', exact: true }).waitFor();
     await page.getByRole('button', { name: 'Library', exact: true }).click();

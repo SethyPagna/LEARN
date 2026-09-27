@@ -86,7 +86,7 @@ async (page) => {
     uploadedId = '';
 
     await page.setViewportSize({ width: 1440, height: 900 });
-    await go('dashboard');
+    await go('studio');
     await page.getByRole('button', { name: 'Open Page workspace review', exact: true }).click();
     await page.getByRole('application', { name: 'Design page 2', exact: true }).waitFor();
     const pages = page.locator('.design-workspace-page');
@@ -120,7 +120,7 @@ async (page) => {
     await screenshot('editor-pages-phone');
 
     await page.setViewportSize({ width: 1440, height: 900 });
-    await go('dashboard');
+    await go('studio');
     await page.getByRole('button', { name: 'Open Writing pages review', exact: true }).click();
     await page.getByRole('textbox', { name: 'Document content', exact: true }).waitFor();
     const writingPages = page.locator('.writing-page-node');
