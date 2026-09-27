@@ -215,6 +215,13 @@ export function reviewSourceLabel(item: ReviewItem) {
   return item.topic ? `${base} | ${item.topic}` : base
 }
 
+/** The kind of work a review came from, for its colour: notes and their Vault blocks are notes, missed practice questions are quizzes. */
+export function reviewSourceKind(item: ReviewItem): "notes" | "quiz" | null {
+  const sourceType = item.sourceType || "note"
+  if (sourceType === "note" || sourceType === "block") return "notes"
+  return sourceType === "practice_mistake" ? "quiz" : null
+}
+
 export function reviewPromptText(item: ReviewItem) {
   const prompt = item.prompt?.trim()
   if (prompt) return prompt

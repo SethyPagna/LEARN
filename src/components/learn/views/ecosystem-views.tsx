@@ -54,12 +54,13 @@ import { Buddy } from "../buddy"
 import { viewIcons } from "../nav-icons"
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { VoiceInput } from "../voice-input"
-import { buildReviewRatingActions, buildReviewSummaryChips, buildVaultBlockPalette, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeReviewSession, type ReviewRating, type VaultBlockType } from "@/lib/learning-ecosystem"
+import { buildReviewRatingActions, buildReviewSummaryChips, buildVaultBlockPalette, reviewAnswerText, reviewPromptText, reviewSourceKind, reviewSourceLabel, summarizeReviewSession, type ReviewRating, type VaultBlockType } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, buildProfileSummaryChips, type ProfilePlanTarget, type ProfileSummaryChip } from "@/lib/profile-features"
 import { createSocialDraft, parseStoredSocialDraftStore, socialDraftStorageKey, type SocialDraft, type SocialDraftStore, type SocialKind } from "@/lib/social-drafts"
 import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordsPage, buildWorkspaceMembersPage, formatSocialAction, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, type SocialActionLike, type SocialActionTarget, type SocialInviteRole, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
 const NoteIcon = viewIcons.notes
+const QuizIcon = viewIcons.quizzes
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -223,7 +224,7 @@ export function ReviewsView({ setView }: { setView: (view: View) => void }) {
       </div>
     </header>
     {selected ? <article className="review-focus-card" aria-label="Current review">
-      <header className="flex items-center justify-between gap-3 text-xs text-muted-foreground"><span className="flex min-w-0 items-center gap-2"><BookOpen className="h-4 w-4 shrink-0 text-primary" /><span className="truncate">{selected.title}</span></span><span className="shrink-0">{reviewSourceLabel(selected)}</span></header>
+      <header className="flex items-center justify-between gap-3 text-xs text-muted-foreground"><span className="flex min-w-0 items-center gap-2"><ReviewSourceIcon item={selected} /><span className="truncate">{selected.title}</span></span><span className="shrink-0">{reviewSourceLabel(selected)}</span></header>
       <div className="review-question"><Repeat2 aria-hidden="true" className="mb-5 h-7 w-7 text-primary/60" /><h3 className="text-xl font-medium leading-relaxed sm:text-2xl">{reviewPromptText(selected)}</h3></div>
       {isRevealed ? <div className="review-answer" aria-label="Answer"><p className="whitespace-pre-wrap text-sm leading-7">{reviewAnswerText(selected)}</p></div> : null}
       <footer className="mt-5 flex flex-wrap items-center justify-center gap-2">
@@ -238,6 +239,15 @@ export function ReviewsView({ setView }: { setView: (view: View) => void }) {
       {selected ? <dl className="mt-3 grid grid-cols-3 gap-3 border-t border-border pt-3 text-xs text-muted-foreground"><div><dt>Recall</dt><dd className="mt-1 text-base text-foreground">{Math.round(selected.retrievability * 100)}%</dd></div><div><dt>Difficulty</dt><dd className="mt-1 text-base text-foreground">{Math.round(selected.difficulty * 100)}%</dd></div><div><dt>Stability</dt><dd className="mt-1 text-base text-foreground">{Math.round(selected.stability * 10) / 10}</dd></div></dl> : null}
     </details> : null}
   </section>
+}
+
+/** Where a review came from, in its kind's colour when that is a note or a quiz. */
+function ReviewSourceIcon({ item }: { item: ReviewItem }) {
+  const kind = reviewSourceKind(item)
+  // Same box as the coloured well, so the card does not shift between sources.
+  if (!kind) return <span className="shrink-0 p-1 text-primary"><BookOpen className="h-3.5 w-3.5" /></span>
+  const Icon = kind === "quiz" ? QuizIcon : NoteIcon
+  return <span data-project-kind={kind} className="studio-project-icon shrink-0 rounded-md p-1"><Icon className="h-3.5 w-3.5" /></span>
 }
 
 function reviewRatingClassName(rating: ReviewRating) {
