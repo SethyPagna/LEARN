@@ -18,6 +18,7 @@ import {
   findArtifact,
   findPlace,
   groupArtifactTypes,
+  kindForView,
   groupPlaces,
   type ArtifactGroupLabel,
   type NavigationGroupLabel,
@@ -199,4 +200,12 @@ test("discover remains a documented alias of the feed screen", () => {
     shell.includes("documented alias of `feed`"),
     "the shared feed/discover render needs a comment saying why it is shared",
   )
+})
+
+test("each artifact wears its kind colour, and its page wears the same", () => {
+  const kinds = Object.fromEntries(ARTIFACT_TYPES.map((artifact) => [artifact.id, artifact.kind]))
+  assert.deepEqual(kinds, { note: "notes", doc: "docs", sheet: "sheets", deck: "slides", canvas: "canvas", quiz: "quiz", "live-game": "quiz" })
+  for (const artifact of ARTIFACT_TYPES) assert.equal(kindForView(artifact.view), artifact.kind, `${artifact.view} must wear ${artifact.kind}`)
+  assert.equal(kindForView("dashboard"), null, "a page that makes nothing has no kind colour")
+  assert.equal(kindForView("games"), null, "games are not a kind of work")
 })

@@ -17,6 +17,8 @@ import {
   type SectionTab,
 } from "@/lib/navigation"
 import { rankNavigationMatches, type NavigationSearchCandidate } from "@/lib/navigation-features"
+import { kindForView } from "@/lib/ux/artifact-catalog"
+import type { ArtKind } from "./kind-art"
 import { viewIcons } from "./nav-icons"
 import type { Note, Quiz, User, View } from "./types"
 
@@ -45,6 +47,8 @@ interface PaletteItem {
   detail: string
   icon: LucideIcon
   tab?: SectionTab
+  /** A kind of work shows in its kind's colour; anything else stays neutral. */
+  kind?: ArtKind
   keywords: readonly string[]
   run: () => void
 }
@@ -127,6 +131,7 @@ export function CommandPalette({
         detail,
         icon: viewIcons[view],
         tab: sectionTabForView(view),
+        kind: kindForView(view) ?? undefined,
         keywords: [view, label],
         run: () => setView(view),
       })
@@ -147,6 +152,7 @@ export function CommandPalette({
         detail: command.detail,
         icon: viewIcons[command.view],
         tab: sectionTabForView(command.view),
+        kind: kindForView(command.view) ?? undefined,
         keywords: command.keywords,
         run: () => (command.action ? actions[command.action]() : setView(command.view)),
       }))
@@ -178,6 +184,7 @@ export function CommandPalette({
       detail: note.tags?.length ? note.tags.map((tag) => `#${tag}`).join(" ") : "Note",
       icon: StickyNote,
       tab: "studio",
+      kind: "notes",
       keywords: [...(note.tags ?? []), "note"],
       run: () => openNote(note.id),
     }))
@@ -189,6 +196,7 @@ export function CommandPalette({
       detail: quiz.topic || "Quiz",
       icon: ListChecks,
       tab: "practice",
+      kind: "quiz",
       keywords: [quiz.topic, "quiz"].filter(Boolean),
       run: () => openQuiz(quiz.id),
     }))
@@ -299,7 +307,7 @@ export function CommandPalette({
                       onClick={() => run(item)}
                       className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition ${active ? "bg-accent text-accent-foreground" : "hover:bg-accent/60"}`}
                     >
-                      <span className="learn-tab-wash learn-tab-ink flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
+                      <span data-project-kind={item.kind} className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${item.kind ? "palette-kind-icon studio-project-icon" : "learn-tab-wash learn-tab-ink"}`}>
                         <Icon className="h-4 w-4" />
                       </span>
                       <span className="min-w-0 flex-1">

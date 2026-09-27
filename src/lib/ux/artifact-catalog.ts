@@ -211,6 +211,11 @@ export function findArtifact(id: string): ArtifactType | null {
   return ARTIFACT_TYPES.find((artifact) => artifact.id === id) ?? null
 }
 
+/** The kind colour of the page where an artifact is made, or null for a page that makes none. */
+export function kindForView(view: View): ArtKind | null {
+  return ARTIFACT_TYPES.find((artifact) => artifact.view === view)?.kind ?? null
+}
+
 /**
  * Every place a user can be, in navigation-group order so the guide reads like
  * the sidebar: Home, Learn, Practice, Social, Manage.

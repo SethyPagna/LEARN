@@ -818,6 +818,8 @@ html.dark.learn-high-contrast {
 [data-project-kind='sheets'] { --project-color:var(--decor-mint-ink); }
 [data-project-kind='quiz'] { --project-color:var(--decor-pink-ink); }
 .dark .studio-project-icon { color:color-mix(in oklch,var(--project-color) 65%,white); background:color-mix(in oklch,var(--project-color) 18%,var(--card)); }
+/* In the launcher, only kinds of work get a well, so Light and Dark keep every row plain. */
+:is(.light,.dark) .palette-kind-icon.studio-project-icon { color:var(--muted-foreground); background:transparent; }
 .kind-art { display:block; width:100%; height:100%; }
 .kind-art-paper { fill:var(--card); stroke:color-mix(in oklch,var(--project-color) 55%,transparent); stroke-width:1.5; }
 .kind-art-fold { fill:none; stroke:color-mix(in oklch,var(--project-color) 55%,transparent); stroke-width:1.5; stroke-linejoin:round; }
