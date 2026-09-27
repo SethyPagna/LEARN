@@ -82,8 +82,8 @@ export function PracticeWorkspaceView({ initialView, options, quizzes, selectedQ
       {initialView === "games" ? <GamesView quizzes={quizzes} options={options} /> : activeQuizId ? <QuizView key={activeQuizId} quizzes={availableQuizzes} selectedQuizId={activeQuizId} setSelectedQuizId={setSelectedQuizId} options={options} onArchived={onQuizArchived} onBack={() => { setActiveQuizId(null); setView("quizzes") }} onArchive={id => { setArchivedIds(ids => [...ids, id]); setActiveQuizId(null); setView("quizzes") }} /> : <>
         <div className={styles.shortcuts} aria-label="Practice activities">
           <button type="button" data-tone="violet" onClick={() => setView("games")}><span><Zap aria-hidden="true" /></span><strong>Sprint</strong><ArrowRight aria-hidden="true" size={17} /></button>
-          <button type="button" data-tone="coral" onClick={() => setView("live")}><span><Radio aria-hidden="true" /></span><strong>Live</strong><ArrowRight aria-hidden="true" size={17} /></button>
-          <button type="button" data-tone="mint" onClick={() => setView("reviews")}><span><Repeat2 aria-hidden="true" /></span><strong>Review</strong><ArrowRight aria-hidden="true" size={17} /></button>
+          <button type="button" data-tone="pink" onClick={() => setView("live")}><span><Radio aria-hidden="true" /></span><strong>Live</strong><ArrowRight aria-hidden="true" size={17} /></button>
+          <button type="button" data-tone="blue" onClick={() => setView("reviews")}><span><Repeat2 aria-hidden="true" /></span><strong>Review</strong><ArrowRight aria-hidden="true" size={17} /></button>
         </div>
         <div className={styles.libraryTools}>
           <div className={styles.segmented} role="group" aria-label="Practice library filter">

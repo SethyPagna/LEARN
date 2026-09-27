@@ -21,6 +21,7 @@
 .workspace [data-tone='coral'] { --tile-color:var(--decor-coral-ink); }
 .workspace [data-tone='mint'] { --tile-color:var(--decor-mint-ink); }
 .workspace [data-tone='blue'] { --tile-color:var(--decor-blue-ink); }
+.workspace [data-tone='pink'] { --tile-color:var(--decor-pink-ink); }
 .libraryTools { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin-bottom:18px; }
 .segmented { display:flex; gap:4px; }
 .segmented button { display:flex; align-items:center; gap:7px; padding:8px 12px; border-radius:9px; color:var(--muted-foreground); font-size:13px; }

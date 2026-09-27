@@ -1089,6 +1089,11 @@ button.compact-row:hover, .compact-row[aria-pressed='true'] { background:var(--a
 .page-sections button:nth-child(2) svg { color:var(--tab-files); }
 .page-sections button:nth-child(3) svg { color:var(--tab-practice); }
 .page-sections button:nth-child(4) svg { color:var(--tab-social); }
+/* Practice tabs wear the colours of their tiles and cards below: quizzes and
+   live games quiz pink, games violet, reviews blue. */
+.page-sections[data-sections='practice'] button:is([data-section='quizzes'],[data-section='live']) svg { color:var(--decor-pink-ink); }
+.page-sections[data-sections='practice'] button[data-section='games'] svg { color:var(--decor-violet-ink); }
+.page-sections[data-sections='practice'] button[data-section='reviews'] svg { color:var(--decor-blue-ink); }
 .page-sections[data-sections] { min-width:0; }
 @media(max-width:639px) {
   .page-sections[data-sections] { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); overflow:visible; gap:3px; padding-bottom:8px; }

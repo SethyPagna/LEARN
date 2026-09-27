@@ -375,7 +375,7 @@ export function SelectionDock({ userId, view, onOpen, onQuizCreated }: {
 
   const quizOk = snapshot.quizLocally || aiReady
   const offered: Array<DockAction | null> = [
-    quizOk ? { id: "quiz", icon: ListChecks, label: "Quiz", name: "Quiz me", tone: "violet", ai: !snapshot.quizLocally } : null,
+    quizOk ? { id: "quiz", icon: ListChecks, label: "Quiz", name: "Quiz me", tone: "pink", ai: !snapshot.quizLocally } : null,
     snapshot.cardsLocally || aiReady ? { id: "cards", icon: Layers, label: "Cards", name: "Make review cards", tone: "blue", ai: !snapshot.cardsLocally } : null,
     { id: "slides", icon: Presentation, label: "Slides", name: "Make slides", tone: "coral", ai: false },
     chats.length ? { id: "share", icon: Send, label: "Share", name: "Share to a chat", tone: "mint", ai: false } : null,

@@ -169,10 +169,10 @@ export function TodayView({ onOpen }: { onOpen: (href: string) => void }) {
           : <PlanCard icon={Plus} tone="violet" label="Create" title="Start something new" onClick={openCreateMenu} />}
         {data.reviewsDue > 0
           ? <PlanCard icon={Layers} tone="blue" label="Review" title={`${data.reviewsDue} ${data.reviewsDue === 1 ? "card" : "cards"} due`} onClick={() => onOpen("/reviews")} />
-          : <PlanCard icon={Dumbbell} tone="mint" label="Practice" title="Quiz yourself" onClick={() => onOpen("/practice")} />}
+          : <PlanCard icon={Dumbbell} tone="pink" label="Practice" title="Quiz yourself" onClick={() => onOpen("/practice")} />}
         {liveGame
           ? <PlanCard icon={Users} tone="pink" label={`${liveGame.hostName || "A friend"} invited you`} title={liveGame.quizTitle || "Live quiz"} onClick={() => onOpen(`/live?code=${encodeURIComponent(liveGame.code)}`)} />
-          : <PlanCard icon={Gamepad2} tone="coral" label="Play" title="Live quiz" onClick={() => onOpen("/live")} />}
+          : <PlanCard icon={Gamepad2} tone="pink" label="Play" title="Live quiz" onClick={() => onOpen("/live")} />}
       </section>
 
       {older.length ? (
