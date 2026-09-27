@@ -1,7 +1,7 @@
 # LEARN Comprehensive Improvement Progress
 
-Status: Companion redesign: checkpoint 1 done and pushed; checkpoint 2 (visual refresh) done locally, waiting for the owner's review
-Last updated: 2026-09-27
+Status: Companion redesign: checkpoints 1 and 2 done and pushed; checkpoint 3 (navigation in five places) in progress
+Last updated: 2026-09-28
 Current owner: User and maintainer
 Current branch: cleanup/stage-1
 
