@@ -1,8 +1,9 @@
 import Link from "next/link"
-import { ArrowRight, ArrowUpRight, CalendarDays, Check, Layers3, Sparkles, Star } from "lucide-react"
+import { ArrowRight, ArrowUpRight, CalendarDays, Check, Layers3, MousePointer2, Sparkles, Star, Type } from "lucide-react"
 import { PublicIntroControls } from "@/components/public-intro-controls"
 import { ProductPreview } from "@/components/public-product-preview"
 import styles from "./public-experience.module.css"
+import home from "./public-home.module.css"
 
 export function PublicHeader({ signedIn = false }: { signedIn?: boolean }) {
   return <header className={styles.header}>
@@ -19,37 +20,50 @@ export function PublicFooter() {
 }
 
 export function PublicHome() {
-  return <main className={styles.surface}>
-    <div className={styles.wrap}>
+  return <main className={`${styles.surface} ${home.surface}`}>
+    <div className={home.wrap}>
       <PublicHeader />
-      <section className={styles.hero} aria-labelledby="home-title">
-        <div className={styles.heroCopy}>
-          <div className={styles.eyebrow}><span className={styles.smallStar}><Sparkles size={14} /></span>YOUR PERSONAL LEARNING STUDIO</div>
-          <h1 id="home-title">Your ideas,<br />in <span className={styles.colorWord}>full color<svg viewBox="0 0 320 16" aria-hidden="true"><path d="M3 11 Q150 -4 315 8" /></svg></span><span className={styles.period}>.</span></h1>
-          <p className={styles.lead}>Create something. Understand it.<br />Make it yours.</p>
-          <div className={styles.heroActions}><Link href="/login?mode=request" className={styles.primary}>Get started<ArrowRight size={18} /></Link><Link href="/showcase" className={styles.textLink}>Take a look<ArrowUpRight size={17} /></Link></div>
-          <div className={styles.formatRow} aria-label="Notes, canvases and a little structure"><span className={styles.formatIcon}><Layers3 size={15} /></span><span>Your notes. Your canvas. Your pace.</span></div>
-        </div>
-        <div className={styles.heroVisual}><ProductPreview /><span className={styles.previewCaption}>A few possibilities. All in one space.<ArrowUpRight size={15} /></span></div>
+      <section className={home.hero} aria-labelledby="home-title">
+        <span className={home.heroOrbit} aria-hidden="true" />
+        <span className={home.heroFlower} aria-hidden="true">✳</span>
+        <div className={home.eyebrow}><span />YOUR PERSONAL LEARNING STUDIO</div>
+        <h1 id="home-title" aria-label="Learn it. Make it yours.">Learn it.<br /><span>Make it <span className={home.yours}>yours<svg viewBox="0 0 280 18" aria-hidden="true"><path d="M4 12 Q136 1 276 9" /></svg></span>.</span></h1>
+        <p>A space for your notes, your ideas, your next aha.</p>
+        <div className={home.actions}><Link href="/login?mode=request" className={home.primary}>Get started<ArrowRight size={18} /></Link><Link href="/showcase" className={home.secondary}>Take a look<ArrowUpRight size={17} /></Link></div>
+        <span className={home.heroSpark} aria-hidden="true">✦</span>
       </section>
-      <section className={styles.paths} aria-labelledby="paths-title">
-        <div className={styles.sectionTitle}><h2 id="paths-title">Follow your curiosity.</h2><span>There’s more than one way in.</span></div>
-        <div className={styles.pathGrid}>
-          <Link href="/showcase?view=studio" aria-label="Explore Studio" className={`${styles.pathCard} ${styles.pathCreate}`}>
-            <div className={styles.pathArt} aria-hidden="true"><div className={styles.miniPage}><span /><strong>A bright<br />new idea.</strong><i /></div><div className={styles.miniSwatches}><i /><i /><i /></div></div>
-            <div className={styles.pathLabel}><div><span>01 / CREATE</span><h3>Start with a spark.</h3></div><ArrowUpRight size={21} /></div>
-          </Link>
-          <Link href="/showcase?view=practice" aria-label="Explore Practice" className={`${styles.pathCard} ${styles.pathPractice}`}>
-            <div className={styles.pathArt} aria-hidden="true"><div className={styles.miniQuiz}><Star size={26} /><strong>Aha!</strong><div><Check size={16} /><span>You’ve got this.</span></div></div><span className={styles.confettiOne} /><span className={styles.confettiTwo} /></div>
-            <div className={styles.pathLabel}><div><span>02 / PRACTICE</span><h3>Make it click.</h3></div><ArrowUpRight size={21} /></div>
-          </Link>
-          <Link href="/showcase?view=calendar" aria-label="Explore Calendar" className={`${styles.pathCard} ${styles.pathPlan}`}>
-            <div className={styles.pathArt} aria-hidden="true"><div className={styles.miniCalendar}><CalendarDays size={19} /><strong>A little<br />every day.</strong><div>{[0,1,2,3,4].map(day => <span key={day}>{day < 3 ? <Check size={13} /> : null}</span>)}</div></div></div>
-            <div className={styles.pathLabel}><div><span>03 / GROW</span><h3>Find your rhythm.</h3></div><ArrowUpRight size={21} /></div>
-          </Link>
+      <section className={home.workspace} aria-label="Try the workspace">
+        <div className={home.workspaceCaption}><span>FROM “WHAT IF” TO “I MADE THIS.”</span><span>Go on. Try it.<ArrowRight size={15} /></span></div>
+        <div className={home.stage}>
+          <div className={home.ideaCard} aria-hidden="true"><span><Sparkles size={15} /> IDEA NO. 01</span><strong>What if?</strong><i /><i /><div><span /><span /><span /></div></div>
+          <span className={home.stageFlower} aria-hidden="true">✳</span>
+          <div className={home.preview}><ProductPreview /></div>
+          <div className={home.toolsSticker} aria-hidden="true"><MousePointer2 size={18} /><Type size={20} /><Layers3 size={19} /></div>
+          <div className={home.ahaSticker} aria-hidden="true"><Star size={25} /><span>THAT AHA<br />FEELING.</span></div>
+          <span className={home.stageLoop} aria-hidden="true" />
         </div>
       </section>
-      <section className={styles.closing}><span className={styles.closingStar} aria-hidden="true">✳</span><div><h2>A space that feels like you.</h2><p>One idea is a good place to start.</p></div><Link href="/login?mode=request" className={styles.primary}>Make it yours<ArrowRight size={18} /></Link></section>
+      <section className={home.paths} aria-labelledby="paths-title">
+        <div className={home.sectionHeading}><span>YOUR NEXT CHAPTER</span><h2>Follow your curiosity.</h2></div>
+        <div className={home.pathGrid}>
+          <Link href="/showcase?view=studio" aria-label="Explore Studio" className={`${home.pathCard} ${home.create}`}>
+            <div className={home.pathTop}><span><Layers3 size={17} /> Create</span><ArrowUpRight size={20} /></div>
+            <div className={home.createArt} aria-hidden="true"><div /><div /><div><span>an idea,<br />unfolding.</span><i>✳</i></div><span className={home.cursor}><MousePointer2 size={24} /></span></div>
+            <h3>Give it a shape.</h3>
+          </Link>
+          <Link href="/showcase?view=practice" aria-label="Explore Practice" className={`${home.pathCard} ${home.practice}`}>
+            <div className={home.pathTop}><span><Star size={17} /> Practice</span><ArrowUpRight size={20} /></div>
+            <div className={home.practiceArt} aria-hidden="true"><span className={home.practiceBurst}>✳</span><div><span>01 / 03</span><strong>You’ve got this.</strong><div><i>A</i><span /></div><div><i><Check size={13} /></i><span /></div></div><span className={home.correctSticker}><Check size={27} /></span></div>
+            <h3>Make it click.</h3>
+          </Link>
+          <Link href="/showcase?view=calendar" aria-label="Explore Calendar" className={`${home.pathCard} ${home.plan}`}>
+            <div className={home.pathTop}><span><CalendarDays size={17} /> Plan</span><ArrowUpRight size={20} /></div>
+            <div className={home.planArt} aria-hidden="true"><div><span>A LITTLE EVERY DAY</span><div>{["M", "T", "W", "T", "F"].map((day, index) => <span key={index}><small>{day}</small><strong>{12 + index}</strong></span>)}</div><i /><i /></div><span className={home.clock}><i /><i /></span></div>
+            <h3>Find your rhythm.</h3>
+          </Link>
+        </div>
+      </section>
+      <section className={home.closing}><div><span>SMALL STARTS. GOOD THINGS.</span><h2>One idea is enough.</h2></div><Link href="/login?mode=request" className={home.primary}>Make it yours<ArrowRight size={18} /></Link><span className={home.closingFlower} aria-hidden="true">✳</span></section>
       <PublicFooter />
     </div>
   </main>
