@@ -449,6 +449,52 @@ html.dark.learn-high-contrast {
   }
 }
 
+/* The study buddy: a violet blob that keeps its colour in every appearance
+   mode, since it is the app's character rather than a section tint. */
+.learn-buddy {
+  --buddy-body: #7b6cf0;
+  --buddy-shade: #6a5be0;
+  --buddy-cheek: #ffb3c7;
+  --buddy-ink: #1d1a3f;
+  --buddy-spark: #f5b83d;
+  display: inline-block;
+  flex: none;
+  overflow: visible;
+}
+.dark .learn-buddy { --buddy-body: #9b8ff7; --buddy-shade: #8a7df0; --buddy-cheek: #f59ab5; }
+.learn-buddy .buddy-body { fill: var(--buddy-body); }
+.learn-buddy .buddy-tuft { stroke: var(--buddy-body); }
+.learn-buddy .buddy-shade { fill: var(--buddy-shade); opacity: .55; }
+.learn-buddy .buddy-cheek { fill: var(--buddy-cheek); opacity: .85; }
+.learn-buddy .buddy-ink { fill: var(--buddy-ink); }
+.learn-buddy .buddy-line { stroke: var(--buddy-ink); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.learn-buddy .buddy-white { fill: #fff; }
+.learn-buddy .buddy-spark { fill: var(--buddy-spark); }
+.learn-buddy .buddy-hand { fill: var(--buddy-body); stroke: var(--buddy-shade); stroke-width: 1.5; }
+.learn-buddy :is(.buddy-eyes, .buddy-wave, .buddy-spark, .buddy-zzz) { transform-box: fill-box; transform-origin: center; }
+
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.learn-reduced-motion) .learn-buddy[data-animated] { animation: buddy-bob 3.2s ease-in-out infinite; }
+  html:not(.learn-reduced-motion) .learn-buddy[data-animated][data-mood='excited'] { animation: buddy-hop 1.6s cubic-bezier(.3, .7, .4, 1) infinite; }
+  html:not(.learn-reduced-motion) .learn-buddy[data-animated] .buddy-eyes { animation: buddy-blink 4.6s infinite; }
+  html:not(.learn-reduced-motion) .learn-buddy[data-animated] .buddy-wave { transform-origin: 20% 90%; animation: buddy-wave 2.4s ease-in-out infinite; }
+  html:not(.learn-reduced-motion) .learn-buddy[data-animated] .buddy-spark { animation: buddy-twinkle 1.8s ease-in-out infinite; }
+  html:not(.learn-reduced-motion) .learn-buddy[data-animated] .buddy-spark:nth-of-type(2) { animation-delay: .6s; }
+  html:not(.learn-reduced-motion) .learn-buddy[data-animated] .buddy-spark:nth-of-type(3) { animation-delay: 1.2s; }
+  html:not(.learn-reduced-motion) .learn-buddy[data-animated] .buddy-zzz { animation: buddy-drift 3s ease-in-out infinite; }
+}
+@keyframes buddy-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3%); } }
+@keyframes buddy-hop {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  18% { transform: translateY(0) scale(1.04, .96); }
+  45% { transform: translateY(-9%) scale(.97, 1.03); }
+  70% { transform: translateY(0) scale(1.03, .97); }
+}
+@keyframes buddy-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+@keyframes buddy-wave { 0%, 60%, 100% { transform: rotate(0deg); } 15%, 45% { transform: rotate(-18deg); } 30% { transform: rotate(12deg); } }
+@keyframes buddy-twinkle { 0%, 100% { opacity: .25; transform: scale(.6); } 50% { opacity: 1; transform: scale(1); } }
+@keyframes buddy-drift { 0% { opacity: 0; transform: translate(0, 0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(12%, -30%); } }
+
 /* Section colour for anything tagged with data-tab: the tab stripe, tinted
    icon wells and dots all read `--learn-tab`, so one attribute recolours a
    whole row. The ink mix keeps icons at a readable contrast on both themes. */
