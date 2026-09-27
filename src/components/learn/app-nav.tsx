@@ -178,12 +178,9 @@ export function Sidebar({
       className="learn-sidebar fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex"
     >
       {compact ? (
-        <div className="flex flex-col items-center gap-2 px-2 pb-2 pt-4">
-          <button type="button" onClick={() => setView("dashboard")} className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`${text.appName} home`} title={`${text.appName} home`}>
-            <BrandMark />
-          </button>
-          <button type="button" onClick={() => onModeChange("expanded")} className={ghostIconButton} aria-label="Expand sidebar" title={`Expand sidebar (${modKey}+\\)`}>
-            <PanelLeftOpen className="h-[18px] w-[18px]" />
+        <div className="flex items-center justify-center px-2 pb-2 pt-3">
+          <button type="button" onClick={() => onModeChange("expanded")} className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Expand sidebar" title={`Expand sidebar (${modKey}+\\)`}>
+            <BrandMark size="sm" />
           </button>
         </div>
       ) : (

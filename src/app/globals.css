@@ -532,8 +532,7 @@ html.dark.learn-high-contrast {
 
 /* Shared workspace rhythm: navigation, a task toolbar, then the working area. */
 .learn-app { font-size: 14px; }
-.learn-app #learn-main-content { max-width: 1720px; margin-inline: auto; }
-.learn-app:has(.studio-editor-workspace) #learn-main-content { max-width: none; }
+.learn-app #learn-main-content { width: 100%; }
 .learn-panel { min-width: 0; }
 .workspace-screen { display: grid; min-width: 0; gap: 16px; }
 .workspace-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
@@ -577,7 +576,7 @@ html.dark.learn-high-contrast {
   .learn-topbar { padding-top: env(safe-area-inset-top); }
   .learn-app { overscroll-behavior-y: none; }
 }
-@media (max-width: 1199px) {
+@media (max-width: 1279px) {
   .studio-editor-body { display: flex; flex-direction: column; position: relative; }
   .studio-editor-body > nav { flex-direction: row; flex-shrink: 0; max-height: 70px; padding: 4px; border-bottom: 1px solid var(--border); }
   .studio-pane-container { flex: 1; }
@@ -866,6 +865,14 @@ button.compact-row:hover, .compact-row[aria-pressed='true'] { background:var(--a
 }
 .editor-command:has(>svg:only-child):focus-visible,.editor-primary:has(>svg:only-child):focus-visible { outline:2px solid var(--ring); outline-offset:2px; }
 @media(max-width:639px) { .design-context-row { padding:6px 6px 0; } .design-editor-workspace .editor-status-bar { gap:2px; padding-inline:4px; } .design-editor-workspace .editor-status-bar .editor-command { gap:4px; padding-inline:5px; } }
+
+/* Short windows keep a usable canvas; optional tools remain reachable by scrolling. */
+@media (max-height: 600px) {
+  .design-editor-workspace { overflow-y:auto; }
+  .design-editor-workspace [data-editor-body] { flex-shrink:0; min-height:240px; }
+  .design-editor-workspace > :has(> [aria-label='Pages']) { flex-shrink:0; }
+  .design-editor-workspace .editor-status-bar { flex-wrap:nowrap; overflow-x:auto; }
+}
 
 /* A chosen practice palette stays saved while neutral app modes are active. */
 html:is(.light,.dark) .practice-design {

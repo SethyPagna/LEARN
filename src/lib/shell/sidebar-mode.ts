@@ -16,13 +16,6 @@ export type SidebarMode = (typeof SIDEBAR_MODES)[number]
 export const SIDEBAR_COOKIE = "learn_sidebar"
 export const DEFAULT_SIDEBAR_MODE: SidebarMode = "expanded"
 
-/** Pixel widths the layout reserves for each state on large screens. */
-export const SIDEBAR_WIDTH: Record<SidebarMode, number> = {
-  expanded: 264,
-  rail: 76,
-  hidden: 0,
-}
-
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365
 
 export function isSidebarMode(value: unknown): value is SidebarMode {

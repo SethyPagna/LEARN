@@ -243,6 +243,7 @@ export function LearnShell({
     setQuizLaunch(quizId ? { id: quizId } : undefined)
     if (!quizId && (nextView === "practice" || nextView === "quizzes")) setPracticeLibraryRevision(revision => revision + 1)
     setView(nextView)
+    window.scrollTo({ top: 0, behavior: "instant" })
     })
   }, [navigateSafely])
 
@@ -260,6 +261,7 @@ export function LearnShell({
       setLocationSearch("")
       const path = `/quiz/${encodeURIComponent(id)}`
       if (window.location.pathname !== path) window.history.pushState({ learnView: "quizzes" }, "", path)
+      window.scrollTo({ top: 0, behavior: "instant" })
     })
   }, [navigateSafely])
 
@@ -267,7 +269,7 @@ export function LearnShell({
 
   return (
     <EditorNavigationContext.Provider value={editorExitGuard}><AppInstallProvider><RealtimeInboxProvider userId={user?.id}>
-      <div className="learn-app min-h-screen overflow-x-hidden bg-background text-foreground" data-sidebar={effectiveSidebarMode} data-editor={isEditor || undefined} data-density={preferences.density} data-view={view}>
+      <div className="learn-app min-h-dvh overflow-x-clip bg-background text-foreground" data-sidebar={effectiveSidebarMode} data-editor={isEditor || undefined} data-density={preferences.density} data-view={view}>
         {/* WCAG 2.4.1 (bypass blocks): the sidebar and topbar repeat on every view,
             so the first focusable element in the shell is a link that jumps past
             them. It sits just above the viewport until it is focused and only then
@@ -312,7 +314,7 @@ export function LearnShell({
           <main
             id="learn-main-content"
             tabIndex={-1}
-            className={`learn-paper min-h-[calc(100vh-var(--shell-topbar))] min-w-0 pb-28 focus:outline-none lg:pb-10 ${preferences.density === "compact" ? "px-3 pt-4 sm:px-5 lg:px-6" : "px-4 pt-5 sm:px-6 lg:px-8 lg:pt-7"}`}
+            className={`learn-paper min-h-[calc(100dvh-var(--shell-topbar))] min-w-0 pb-28 focus:outline-none lg:pb-10 ${preferences.density === "compact" ? "px-3 pt-4 sm:px-5 lg:px-6" : "px-4 pt-5 sm:px-6 lg:px-8 lg:pt-7"}`}
           >
             {isEditor ? <EditorProjectList notes={notes} view={view} search={locationSearch} onOpen={openLink} /> : null}
             <div className="learn-content-pane min-w-0">

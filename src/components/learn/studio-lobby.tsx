@@ -97,7 +97,7 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
     } finally { creationPending.current = false; setCreating(null) }
   }
 
-  return <section className="studio-lobby mx-auto max-w-6xl pb-4" aria-label="Your Studio home">
+  return <section className="studio-lobby min-w-0 pb-4" aria-label="Your Studio home">
     <header className="studio-lobby-header">
       <div className="studio-lobby-topline">
       <div className="studio-lobby-heading min-w-0" data-personal={workspaceTitle !== "Studio"}>

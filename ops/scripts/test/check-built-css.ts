@@ -5,7 +5,7 @@ const cssDirectory = path.resolve(".next", "static", "css")
 const requiredUtilitySnippets = [
   "display:flex",
   "display:grid",
-  "min-height:100vh",
+  "min-height:100dvh",
 ]
 
 function fail(message: string): never {
