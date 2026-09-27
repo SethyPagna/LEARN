@@ -93,11 +93,11 @@ export function PracticeWorkspaceView({ initialView, options, quizzes, selectedQ
           <label className={styles.search}><Search aria-hidden="true" size={16} /><input aria-label="Find a practice set" placeholder="Find a set" value={query} onChange={event => setQuery(event.target.value)} /></label>
         </div>
         <div className={styles.setGrid} aria-label="Practice sets">
-          {visibleQuizzes.map((quiz, index) => {
+          {visibleQuizzes.map((quiz) => {
             const draft = draftsById.get(quiz.id)
             const questionCount = quiz.question_count ?? quiz.questions?.length ?? 0
             const progress = questionCount && draft ? Math.min(100, draft.answeredCount / questionCount * 100) : 0
-            return <button type="button" key={quiz.id} className={styles.setCard} data-tone={["violet", "mint", "coral", "blue"][index % 4]} onClick={() => openQuiz(quiz.id)} aria-label={`${draft ? "Resume" : "Open"} ${quiz.title}`}>
+            return <button type="button" key={quiz.id} className={styles.setCard} data-tone="pink" onClick={() => openQuiz(quiz.id)} aria-label={`${draft ? "Resume" : "Open"} ${quiz.title}`}>
               <span className={styles.cardArt} aria-hidden="true"><span className={styles.artSheet}><span /><span /><span /></span><span className={styles.artIcon}>{draft ? <Play /> : <Layers3 />}</span></span>
               <span className={styles.cardTopic}>{quiz.topic || "Practice"}</span>
               <strong className={styles.cardTitle}>{quiz.title}</strong>
