@@ -161,7 +161,10 @@ async (page) => {
   try {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(origin);
-    await page.getByRole('heading', { name: /Your ideas,/ }).waitFor();
+    await page.getByRole('heading', { name: 'Learn it. Make it yours.', exact: true }).waitFor();
+    for (const [label, view] of [['Studio', 'studio'], ['Practice', 'practice'], ['Calendar', 'calendar']]) {
+      verify(await page.getByRole('link', { name: `Explore ${label}`, exact: true }).getAttribute('href') === `/showcase?view=${view}`, `Home ${label} card links to its matching interactive tour`);
+    }
     verify(await page.getByRole('link', { name: 'Get started', exact: true }).getAttribute('href') === '/login?mode=request', 'Home primary CTA opens request access');
     await page.getByRole('link', { name: 'Get started', exact: true }).click();
     await page.getByRole('textbox', { name: 'Name', exact: true }).waitFor();
