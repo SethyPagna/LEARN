@@ -28,19 +28,19 @@ Status is one of: **done**, **partly done**, **in progress**, **planned** or **b
 | 6 | AI arranges text and data into fun, editable designs, auto-arranged from identifiers the system recognises, with predetermined layouts. | **partly done**: layout specs build designs (`design/spec`, `design/layout`). No live AI provider is set up locally, so the AI paths are verified only by unit tests |
 | 7 | Resource-saving, smart and optimised. | Standing. The pill reads AI status every 5 minutes and the chat list every minute, and makes quizzes and cards locally when it can |
 | 8 | Real-time group chat with voice and video that is not laggy or fake; uploads, emoji, memes, GIFs, stickers and stories. WhatsApp with Messenger-style mini-games. | **partly done** (unverified): earlier reports claim media, stories, peer calls and real-time games. **planned**: re-verify in the "Chat, calls, mini-games" step |
-| 9 | A great UI that is not monotone or old: friendly and attractive. | **in progress**: Today page and buddy done. **planned**: app-wide visual refresh (design step 2) |
+| 9 | A great UI that is not monotone or old: friendly and attractive. | **in progress**: the Today page and buddy (step 1) are done. The app-wide visual refresh (step 2) is done locally and waits for the owner's review: one colour per kind of work, colour covers, friendly empty states, and no text under 12px |
 | 10 | Go deeper: tests, Playwright and analysis. | **in progress**: unit tests and read-only browser probes at each checkpoint |
 | 11 | `.bat` files to run, test and deploy easily. | **done**: `run.bat`, `test.bat`, `deploy.bat`, `tools.bat` |
 | 12 | Check the FROM CODEX history and GitHub. | **done** |
-| 13 | Use Playwright to redesign the app into a companion for the learner. | **in progress**: design step 1 is done (Today page, buddy and select-to-act pill, checked in read-only browser probes on desktop, phone and dark). Steps 2 to 4 are planned |
+| 13 | Use Playwright to redesign the app into a companion for the learner. | **in progress**: design steps 1 and 2 are done: the Today page, buddy and select-to-act pill, then the visual refresh (local, waiting for review). Both were checked in read-only browser probes on desktop, phone and dark. Steps 3 and 4 are planned |
 | 14 | Buddy: a friendly character whose moods follow the streak. | **done**: violet blob with happy, excited, curious, sleepy and hello moods |
 | 15 | Navigation in five places: Today, Create, Practice, Friends and Me. | **planned** (design step 3) |
 | 16 | Fix what is still open: the sheet formula engine, vault markdown, labelled AI tutor buttons, the import pill, the streak bug, the live answers bug, and the other bugs found. | **planned** (after the design steps). The bug list is in the latest session log |
 
 ## Chosen order
 
-1. Companion home + dock (**done**, committed locally, waiting for the owner's review)
-2. Visual refresh, app-wide
+1. Companion home + dock (**done** and pushed)
+2. Visual refresh, app-wide (**done**, committed locally, waiting for the owner's review)
 3. Navigation in five places
 4. One Canva-style editor
 5. Fix what's still open
