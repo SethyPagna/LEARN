@@ -495,6 +495,109 @@ html.dark.learn-high-contrast {
 @keyframes buddy-twinkle { 0%, 100% { opacity: .25; transform: scale(.6); } 50% { opacity: 1; transform: scale(1); } }
 @keyframes buddy-drift { 0% { opacity: 0; transform: translate(0, 0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(12%, -30%); } }
 
+/* Today: the companion home. Like the buddy, the hero glow and the streak
+   flame keep their colour in every appearance mode; plan cards and covers use
+   the kind and section tints, which the light and dark modes neutralise. */
+.today { --today-flame: #f08a24; display: grid; gap: 18px; width: 100%; max-width: 1040px; margin-inline: auto; }
+.today-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "buddy hello ring" "buddy week ring";
+  align-items: center;
+  column-gap: 20px;
+  row-gap: 10px;
+  padding: 22px 26px;
+  border: 1px solid color-mix(in oklch, #7b6cf0 22%, var(--border));
+  border-radius: 24px;
+  background:
+    radial-gradient(120% 150% at 0% 0%, color-mix(in oklch, #7b6cf0 17%, transparent), transparent 62%),
+    radial-gradient(80% 130% at 100% 100%, color-mix(in oklch, #f5b83d 13%, transparent), transparent 58%),
+    var(--card);
+  box-shadow: var(--shadow-paper);
+}
+.today-buddy { grid-area: buddy; }
+.today-hello { grid-area: hello; align-self: end; }
+.today-greeting { font-family: var(--font-learn-display), var(--font-geist-sans), system-ui, sans-serif; font-size: clamp(1.45rem, 1.1rem + 1.3vw, 2.05rem); font-weight: 700; line-height: 1.1; letter-spacing: -.02em; }
+.today-line { margin-top: 5px; font-size: .92rem; color: var(--muted-foreground); }
+.today-week { grid-area: week; display: flex; gap: 10px; align-self: start; }
+.today-week li { display: grid; justify-items: center; gap: 4px; list-style: none; }
+.today-week-dot { width: 14px; height: 14px; border-radius: 999px; background: color-mix(in oklch, var(--foreground) 11%, transparent); }
+.today-week li[data-active] .today-week-dot { background: var(--today-flame); box-shadow: 0 0 0 3px color-mix(in oklch, var(--today-flame) 22%, transparent); }
+.today-week li[data-today] .today-week-dot { outline: 2px solid var(--foreground); outline-offset: 2px; }
+.today-week-day { font-size: 10px; font-weight: 600; line-height: 1; color: var(--muted-foreground); }
+.today-ring { grid-area: ring; position: relative; width: 76px; height: 76px; }
+.today-ring > svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.today-ring circle { fill: none; stroke-width: 7; stroke-linecap: round; }
+.today-ring-track { stroke: color-mix(in oklch, var(--foreground) 10%, transparent); }
+.today-ring-fill { stroke: var(--today-flame); }
+.today-ring-count { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 2px; font-family: var(--font-learn-display), var(--font-geist-sans), sans-serif; font-size: 1.15rem; font-weight: 700; }
+.today-ring-count svg { color: var(--muted-foreground); }
+.today-ring[data-lit] .today-ring-count svg { color: var(--today-flame); }
+
+.today-plan { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.today-plan-card {
+  --tone: var(--project-color, var(--decor-violet-ink));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 76px;
+  padding: 14px 16px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  transition: border-color .15s, box-shadow .15s, transform .15s;
+}
+.today-plan-card[data-tone='violet'] { --tone: var(--decor-violet-ink); }
+.today-plan-card[data-tone='blue'] { --tone: var(--decor-blue-ink); }
+.today-plan-card[data-tone='mint'] { --tone: var(--decor-mint-ink); }
+.today-plan-card[data-tone='coral'] { --tone: var(--decor-coral-ink); }
+.today-plan-card[data-tone='amber'] { --tone: var(--decor-amber-ink); }
+.today-plan-card[data-tone='pink'] { --tone: var(--decor-pink-ink); }
+.today-plan-card:hover { border-color: color-mix(in oklch, var(--tone) 45%, var(--border)); box-shadow: var(--shadow-lift); }
+.today-plan-card:focus-visible, .today-cover:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.today-plan-icon { display: flex; width: 44px; height: 44px; flex: none; align-items: center; justify-content: center; border-radius: 14px; color: color-mix(in oklch, var(--tone) 80%, black); background: color-mix(in oklch, var(--tone) 14%, var(--card)); }
+.dark .today-plan-icon { color: color-mix(in oklch, var(--tone) 65%, white); background: color-mix(in oklch, var(--tone) 20%, var(--card)); }
+.today-plan-label { display: block; overflow: hidden; font-size: 11px; font-weight: 600; color: var(--muted-foreground); text-overflow: ellipsis; white-space: nowrap; }
+.today-plan-title { display: block; margin-top: 2px; overflow: hidden; font-size: .95rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.today-plan-go { color: var(--muted-foreground); transition: color .15s, transform .15s; }
+.today-plan-card:hover .today-plan-go { color: var(--tone); }
+
+.today-recent { display: grid; gap: 9px; }
+.today-covers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.today-covers > li { min-width: 0; list-style: none; }
+.today-cover { display: block; width: 100%; overflow: hidden; text-align: left; border: 1px solid var(--border); border-radius: 16px; background: var(--card); transition: border-color .15s, box-shadow .15s, transform .15s; }
+.today-cover:hover { border-color: color-mix(in oklch, var(--project-color) 45%, var(--border)); box-shadow: var(--shadow-lift); }
+.today-cover-art { display: block; aspect-ratio: 3 / 2; background: color-mix(in oklch, var(--project-color) 12%, var(--card)); }
+.today-cover-art svg { display: block; width: 100%; height: 100%; }
+.today-art-paper { fill: var(--card); stroke: color-mix(in oklch, var(--project-color) 55%, transparent); stroke-width: 1.5; }
+.today-art-fold { fill: none; stroke: color-mix(in oklch, var(--project-color) 55%, transparent); stroke-width: 1.5; stroke-linejoin: round; }
+.today-art-line { fill: none; stroke: color-mix(in oklch, var(--project-color) 40%, transparent); stroke-width: 3; stroke-linecap: round; }
+.today-art-grid { fill: none; stroke: color-mix(in oklch, var(--project-color) 35%, transparent); stroke-width: 1.5; }
+.today-art-block { fill: color-mix(in oklch, var(--project-color) 70%, transparent); }
+.today-art-shape { fill: color-mix(in oklch, var(--project-color) 45%, transparent); }
+.today-cover-caption { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-top: 1px solid var(--border); }
+.today-skeleton-block { border-radius: 18px; background: var(--muted); }
+
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.learn-reduced-motion) :is(.today-plan-card, .today-cover):hover { transform: translateY(-2px); }
+  html:not(.learn-reduced-motion) .today-plan-card:hover .today-plan-go { transform: translateX(2px); }
+  html:not(.learn-reduced-motion) .today-skeleton-block { animation: today-pulse 1.8s ease-in-out infinite; }
+}
+@keyframes today-pulse { 50% { opacity: .55; } }
+
+@media (max-width: 639px) {
+  .today { gap: 14px; }
+  .today-hero { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "buddy hello" "week ring"; column-gap: 14px; padding: 18px; border-radius: 20px; }
+  .today-buddy { width: 64px; height: 64px; }
+  .today-week { gap: 8px; }
+  .today-ring { width: 60px; height: 60px; justify-self: end; }
+  .today-plan { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .today-plan-card { min-height: 64px; padding: 12px 14px; }
+  .today-covers { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+}
+
 /* Section colour for anything tagged with data-tab: the tab stripe, tinted
    icon wells and dots all read `--learn-tab`, so one attribute recolours a
    whole row. The ink mix keeps icons at a readable contrast on both themes. */
