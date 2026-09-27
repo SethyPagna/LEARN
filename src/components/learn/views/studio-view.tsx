@@ -3,6 +3,8 @@
 import { PopoverButton } from "../design/popover"
 import { useDesignMeasure } from "../design/text-measure"
 import { StudioProjectPreview } from "../studio-project-preview"
+import { KindArt } from "../kind-art"
+import { formatRelativeTime } from "@/lib/format-time"
 import type { Project } from "../studio-projects"
 
 import { Fragment, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
@@ -2245,16 +2247,15 @@ function StudioProjectBrowser({
                       type="button"
                     >
                       <span>{step.label}</span>
-                      <span className={`rounded-md px-1.5 py-0.5 text-[0.65rem] ${browserStep === step.id ? "bg-primary-foreground/20" : "bg-secondary text-secondary-foreground"}`}>{step.count}</span>
+                      <span className={`rounded-md px-1.5 py-0.5 text-xs ${browserStep === step.id ? "bg-primary-foreground/20" : "bg-secondary text-secondary-foreground"}`}>{step.count}</span>
                     </button>
                   ))}
                 </div>
                 {browserStep === "projects" ? (
                 <>
                 <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-xl font-bold text-foreground">Recent projects</h3>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-lg bg-background px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">{recentItems.length} shown</span>
+                  <h3 className="sr-only">Recent projects</h3>
+                  <div className="ml-auto flex items-center gap-2">
                     {dirtyBadges.length ? <span className="rounded-lg bg-warning/15 px-2.5 py-1.5 text-xs font-semibold text-warning-foreground">{dirtyBadges.reduce((total, badge) => total + badge.count, 0)} drafts</span> : null}
                     <ActionMenu compact label={selectedProjects.length ? `${selectedProjects.length} selected` : "Select"} icon={CheckSquare}>
                       <MenuAction icon={CheckSquare} label="Select visible" meta={`${recentItems.length} project${recentItems.length === 1 ? "" : "s"}`} onClick={selectEveryVisibleProject} />
@@ -2270,7 +2271,7 @@ function StudioProjectBrowser({
                   </div>
                 </div>
                 <div className="mt-4 flex gap-4 overflow-x-auto pb-4">
-                  <button onClick={() => setBrowserStep("formats")} className="group flex h-[10.5rem] w-48 shrink-0 flex-col items-center justify-center rounded-xl border border-dashed border-primary/50 bg-background/75 text-center shadow-sm transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground" type="button">
+                  <button onClick={() => setBrowserStep("formats")} className="group flex w-48 shrink-0 flex-col items-center justify-center rounded-xl border border-dashed border-primary/50 bg-background/75 text-center shadow-sm transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground" type="button">
                     <span className="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-sm">
                       <Plus className="h-6 w-6" />
                     </span>
@@ -2282,15 +2283,15 @@ function StudioProjectBrowser({
                     const selected = selectedProjectKeys.has(projectKey)
                     return (
                       <div key={`${item.kind}_${item.id}`} className="group relative w-48 shrink-0 text-left">
-                        <button onClick={() => onOpen(item)} className="block w-full text-left" type="button">
-                        <div aria-hidden="true" className={`studio-recent-preview rounded-xl border ${selected ? "border-primary ring-2 ring-primary/25" : "border-border"}`}>
-                          {item.preview ? <StudioProjectPreview project={item.preview} measure={measure} /> : <Icon className="m-auto h-6 w-6" />}
-                        </div>
-                        <span className="mt-3 block">
-                          <span className="block truncate text-sm font-bold text-foreground" title={item.title}>{item.title}</span>
-                          <span className="mt-1 flex items-center gap-1 truncate text-xs text-muted-foreground">
-                            <span className={`h-2 w-2 rounded-full ${studioKindStyles[item.kind].accent}`} />
-                            {item.updated_at ? `Edited ${formatDate(item.updated_at)}` : buildStudioProjectSubtitle(item)}
+                        <button onClick={() => onOpen(item)} className="studio-card" data-project-kind={item.kind} data-selected={selected || undefined} type="button">
+                        <span aria-hidden="true" className="studio-card-cover">
+                          {item.preview ? <StudioProjectPreview project={item.preview} measure={measure} fallback={<KindArt kind={item.kind} />} /> : <KindArt kind={item.kind} />}
+                        </span>
+                        <span className="studio-card-caption">
+                          <span className="studio-project-icon flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" aria-hidden="true"><Icon className="h-4 w-4" /></span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium text-foreground" title={item.title}>{item.title}</span>
+                            <span className="block truncate text-xs text-muted-foreground">{item.updated_at ? formatRelativeTime(item.updated_at) : buildStudioProjectSubtitle(item)}</span>
                           </span>
                         </span>
                         </button>
