@@ -104,3 +104,13 @@ Evidence: [contextual editor](../audits/2026-09-27-contextual-editor.md).
 - [x] Use icon actions and visual sections while preserving accessible names.
 - [x] Check the main routes at desktop and 390px; verify editor menus still open.
 - [x] Record screenshots and validation in `../audits/2026-09-27-minimal-app-chrome.md`.
+
+## Appearance modes — 2026-09-27
+
+- [x] Add explicit Light, Dark and Color modes with Color as the new-visitor default.
+- [x] Share the choice across landing, auth, Settings and workspace controls.
+- [x] Replace decorative hardcoded palettes while preserving authored content and status colors.
+- [x] Verify responsive layouts, hydration, persistence, cross-tab changes and failed storage writes.
+- [x] Complete TypeScript, automated tests, production build and independent review.
+
+Evidence: [appearance modes](../audits/2026-09-27-appearance-modes.md).

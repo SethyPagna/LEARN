@@ -59,6 +59,7 @@ const allowedJavaScriptFiles = new Set([
   "ops/scripts/test/playwright-responsive.js",
   "ops/scripts/test/playwright-editor.js",
   "ops/scripts/test/playwright-public.js",
+  "ops/scripts/test/playwright-themes.js",
   "ops/scripts/test/playwright-studio.js",
 ])
 

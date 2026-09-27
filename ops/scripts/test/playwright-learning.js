@@ -51,9 +51,9 @@ async (page) => {
     await page.screenshot({ path: 'output/playwright/reviews-desktop.png' });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('summary').filter({ hasText: 'Queue' }).click();
-    await page.getByRole('button', { name: 'Switch to dark theme' }).click();
+    await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption('dark');
     await page.screenshot({ path: 'output/playwright/reviews-phone-dark.png' });
-    await page.getByRole('button', { name: 'Switch to light theme' }).click();
+    await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption('light');
 
     let rejectBlock = true;
     let savedBlock = null;

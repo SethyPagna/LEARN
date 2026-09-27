@@ -13,7 +13,7 @@ async (page) => {
   await page.route('**/api/invites/accept?token=public-qa-ready', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ invite: { email: 'preview@example.com', ready: true, expired: false, role: 'learner', status: 'pending' } }) }));
   await page.route('**/api/invites/accept?token=public-qa-expired', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ invite: { email: 'preview@example.com', ready: false, expired: true, role: 'learner', status: 'expired' } }) }));
   try {
-    for (const theme of ['light', 'dark']) {
+    for (const theme of ['color', 'light', 'dark']) {
       await page.evaluate(theme => localStorage.setItem('theme', theme), theme);
       for (const viewport of [{ width: 1440, height: 900 }, { width: 768, height: 1024 }, { width: 390, height: 844 }, { width: 320, height: 740 }]) {
         await page.setViewportSize(viewport);
@@ -33,7 +33,7 @@ async (page) => {
               return text.left < box.left - 1 || text.right > box.right + 1;
             })).map(element => element.textContent.trim().slice(0, 80));
             return {
-              theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+              theme: ['light', 'dark', 'color'].find(mode => document.documentElement.classList.contains(mode)),
               overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
               mainLandmarks: document.querySelectorAll('main').length,
               headings: [...document.querySelectorAll('h1,h2')].filter(visible).map(element => element.textContent.trim()),
@@ -186,7 +186,7 @@ async (page) => {
     await page.getByText('Finish that project', { exact: true }).waitFor();
     verify(await page.getByRole('button', { name: 'Fri 16', exact: true }).getAttribute('aria-pressed') === 'true', 'Calendar example changes the active day and event');
     const wasDark = await page.evaluate(() => document.documentElement.classList.contains('dark'));
-    await page.getByRole('button', { name: wasDark ? 'Light mode' : 'Dark mode', exact: true }).click();
+    await page.getByRole('button', { name: wasDark ? 'Light' : 'Dark', exact: true }).click();
     await page.waitForFunction(dark => document.documentElement.classList.contains('dark') !== dark, wasDark);
     verify(true, 'Public theme control changes the rendered theme');
     await page.reload();
