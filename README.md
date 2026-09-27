@@ -4,6 +4,19 @@ LEARN is a Cloudflare-first study workspace with notes, native docs, sheets, sli
 
 The deployable app name is `learn`. Each sibling app should use separate Cloudflare resources; this repo only creates or modifies `learn-*` resources.
 
+## Quick Start (Windows)
+
+Double-click a file in the project folder. Needs [Node.js](https://nodejs.org) 20.9 or newer (the LTS version is best).
+
+| File | What it does |
+| --- | --- |
+| `run.bat` | Starts LEARN on this PC and opens it in the browser. Ctrl+C stops it. |
+| `test.bat` | Type check and every test. `test.bat full` adds a production build. |
+| `deploy.bat` | Publishes to Cloudflare or Vercel: every check first, then one question before anything goes live. |
+| `tools.bat` | Health check, clean caches, reinstall packages, reset local data, Cloudflare preview, tunnel. |
+
+Local data (accounts, notes, designs, chats, uploads) lives in `.wrangler\state`. Cleaning caches and deploying never touch it; only **Reset local data** in `tools.bat` deletes it, after you type `RESET`.
+
 ## Default Login
 
 The first database setup seeds two accounts:
@@ -26,8 +39,8 @@ Never commit real Cloudflare, AI, Vercel, or tunnel secrets. If a token was past
 
 ## First Setup
 
-On Windows, double-click `ops\run\learn.bat` for the task menu. Local setup and
-development do not require Cloudflare login. Node.js 24 and Corepack must be installed.
+`run.bat` does the local setup on its first start. Local setup and development
+do not require Cloudflare login. To prepare without starting:
 
 ```powershell
 ops\run\setup-first-time.bat
@@ -60,23 +73,28 @@ For Vercel and Docker, also set:
 Run the app locally with OpenNext's Cloudflare binding integration:
 
 ```powershell
-ops\run\start-local.bat
+run.bat
 ```
 
-This applies local D1 migrations and starts Next dev with D1/R2 bindings available through OpenNext's Cloudflare integration.
+This refreshes packages, applies local D1 migrations and starts Next dev plus the realtime hub with D1/R2 bindings available through OpenNext's Cloudflare integration, then opens the browser once the first page answers. If LEARN is already running it opens that copy; a port another app holds is skipped for the next free one. `run.bat --no-browser` skips the browser; `set PORT=3001` first picks another port.
+
+The root launchers hand over to `ops\run`, where every step also has its own file:
 
 | Windows launcher | Action |
 | --- | --- |
-| `ops\run\learn.bat` | Task menu for setup, development, checks, build, preview and deployment |
-| `ops\run\test.bat` | Run the complete test suite |
+| `ops\run\start-local.bat` | Same as `run.bat` |
+| `ops\run\test.bat` | Same as `test.bat` |
 | `ops\run\check.bat` | Typecheck and run tests |
 | `ops\run\build.bat` | Build production Next.js output |
 | `ops\run\preview-cloudflare.bat` | Build and preview the Worker locally |
-| `ops\run\doctor.bat` | Check types, tests and local D1 migration status |
+| `ops\run\doctor.bat` | Check types, tests, local D1 migration status and Cloudflare sign-in |
+| `ops\run\tools.bat` | Same as `tools.bat` |
+| `ops\run\run-task.bat` | The task engine behind all of them |
 
-Task windows stay open so errors can be read. For automation, set
-`LEARN_NO_PAUSE=1`; launchers preserve the command's exit code. Remote deployments
-are separate, explicitly labelled menu choices and require configured credentials.
+A double-clicked window stays open at the end so results can be read; typed into
+a terminal, launchers end at once. For automation, set `LEARN_NO_PAUSE=1`;
+launchers preserve the command's exit code. Remote deployments ask before going
+live and require Cloudflare sign-in or configured credentials.
 
 For local AI, run Ollama with an installed chat model and set `OLLAMA_BASE_URL`
 to `http://127.0.0.1:11434` and `OLLAMA_MODEL` to its name in
@@ -93,18 +111,22 @@ Direct local call checks do not establish reliability on every external network.
 
 ## Deploy
 
-Cloudflare Workers:
+`deploy.bat` asks for the target; `deploy.bat cloudflare` or `deploy.bat vercel`
+skips the question, and `--yes` after the target skips the confirmations for
+automation.
+
+Cloudflare Workers (signs in through the browser when needed, or uses `CLOUDFLARE_API_TOKEN`):
 
 ```powershell
-ops\run\deploy-cloudflare.bat
+deploy.bat cloudflare
 ```
 
 The Worker name is `learn`, so the default Workers URL is `https://learn.<account-workers-subdomain>.workers.dev`. Cloudflare's workers.dev subdomain is account-level; changing it from `learn-learning-app` to `learn`, `learning`, or `learn-learning` changes workers.dev URLs for other Workers in the same account too. Use a custom domain for a LEARN-only hostname change.
 
-Vercel project `learn`:
+Vercel project `learn` (needs `VERCEL_TOKEN`):
 
 ```powershell
-ops\run\deploy-vercel.bat
+deploy.bat vercel
 ```
 
 Docker/domain self-deploy:
@@ -151,9 +173,16 @@ The included workflows expect these repository or environment secrets:
 ## Verification
 
 ```powershell
-corepack pnpm test
-corepack pnpm lint
-corepack pnpm build
+test.bat
+test.bat full
+```
+
+The same checks as package scripts:
+
+```powershell
+ops\run\bin\pnpm.cmd lint
+ops\run\bin\pnpm.cmd test
+ops\run\bin\pnpm.cmd build
 ```
 
 On Windows, `ops\run\bin\pnpm.cmd <script>` is the preferred local wrapper for repo scripts. It uses the pinned pnpm toolchain directly and avoids npm reading pnpm-only project config.

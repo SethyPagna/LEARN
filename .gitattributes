@@ -1,0 +1,4 @@
+# Windows launchers keep CRLF line endings on every checkout: cmd.exe can
+# misread labels (goto / call :label) in batch files that use bare LF.
+*.bat text eol=crlf
+*.cmd text eol=crlf

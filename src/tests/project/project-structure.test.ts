@@ -6,6 +6,7 @@ import test from "node:test"
 
 const allowedRootFiles = new Set([
   ".dockerignore",
+  ".gitattributes",
   ".gitignore",
   ".npmrc",
   "README.md",
@@ -19,6 +20,11 @@ const allowedRootFiles = new Set([
   "postcss.config.mjs",
   "tsconfig.json",
   "vercel.json",
+  // Double-click launchers; each hands over to ops/run at once.
+  "deploy.bat",
+  "run.bat",
+  "test.bat",
+  "tools.bat",
 ])
 
 const allowedRootDirectories = new Set([
