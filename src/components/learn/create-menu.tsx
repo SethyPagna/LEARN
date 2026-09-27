@@ -79,7 +79,7 @@ export function CreateMenuPanel({
                   title={artifact.oneLine}
                   className={`flex items-center gap-2 rounded-md p-2 text-left transition ${active ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground"}`}
                 >
-                  <Icon className="h-4 w-4 text-primary" />
+                  <span data-project-kind={artifact.kind} className="studio-project-icon rounded-md p-1.5"><Icon className="h-4 w-4" /></span>
                   <span className="text-sm text-foreground">{artifact.label}</span>
                 </button>
               )

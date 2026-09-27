@@ -1,4 +1,5 @@
 import { viewRoutes } from "@/lib/navigation"
+import type { ArtKind } from "@/components/learn/kind-art"
 import type { View } from "@/components/learn/types"
 
 /**
@@ -79,6 +80,8 @@ export interface ArtifactType {
   /** One short hint: when to reach for it instead of a sibling. */
   whenToUse: string
   groupLabel: ArtifactGroupLabel
+  /** The kind whose colour it wears. A live game is a quiz you host, so it wears quiz pink. */
+  kind: ArtKind
   /** The view that opens this artifact for editing. */
   view: View
   /** Always `viewRoutes[view]` — never a retyped literal. */
@@ -110,6 +113,7 @@ export const ARTIFACT_TYPES = [
     oneLine: "A note is a quick capture: a title and the thought in your head right now.",
     whenToUse: "Use a note when you want to get something down and organise it later.",
     groupLabel: "Writing",
+    kind: "notes",
     view: "notes",
     route: viewRoutes.notes,
     keywords: ["note", "quick", "capture", "idea", "jot", "memo", "reminder"],
@@ -120,6 +124,7 @@ export const ARTIFACT_TYPES = [
     oneLine: "A doc is long-form writing with headings and pages.",
     whenToUse: "Use a doc when structure matters more than speed: an essay, a summary, or a study guide.",
     groupLabel: "Writing",
+    kind: "docs",
     view: "docs",
     route: viewRoutes.docs,
     keywords: ["doc", "document", "long", "heading", "page", "essay", "report", "guide"],
@@ -130,6 +135,7 @@ export const ARTIFACT_TYPES = [
     oneLine: "A sheet is a grid of rows and columns you can total, sort, and filter.",
     whenToUse: "Use a sheet when the content is rows and numbers.",
     groupLabel: "Numbers & visuals",
+    kind: "sheets",
     view: "sheets",
     route: viewRoutes.sheets,
     keywords: ["sheet", "spreadsheet", "table", "grid", "rows", "columns", "numbers", "total"],
@@ -140,6 +146,7 @@ export const ARTIFACT_TYPES = [
     oneLine: "A deck is a set of slides you show one screen at a time.",
     whenToUse: "Use a deck when you want to walk someone through an idea out loud, one slide at a time.",
     groupLabel: "Numbers & visuals",
+    kind: "slides",
     view: "slides",
     route: viewRoutes.slides,
     keywords: ["deck", "slide", "slides", "presentation", "present", "pitch", "talk"],
@@ -150,6 +157,7 @@ export const ARTIFACT_TYPES = [
     oneLine: "A canvas is a free-form board where you place shapes, text, and images anywhere.",
     whenToUse: "Use a canvas when the layout itself carries the meaning: a diagram, a mind map, or a poster.",
     groupLabel: "Numbers & visuals",
+    kind: "canvas",
     view: "canvas",
     route: viewRoutes.canvas,
     keywords: ["canvas", "board", "design", "diagram", "layout", "mind map", "drag", "free-form"],
@@ -160,6 +168,7 @@ export const ARTIFACT_TYPES = [
     oneLine: "A quiz is a set of questions you answer and get graded on.",
     whenToUse: "Use a quiz when you want to check what you actually remember.",
     groupLabel: "Practice",
+    kind: "quiz",
     view: "quizzes",
     route: viewRoutes.quizzes,
     keywords: ["quiz", "question", "test", "check", "grade", "score", "exam"],
@@ -170,6 +179,7 @@ export const ARTIFACT_TYPES = [
     oneLine: "A live game is a quiz other people join with a code while you run it.",
     whenToUse: "Use a live game when a group should answer at the same time and watch the standings.",
     groupLabel: "Practice",
+    kind: "quiz",
     view: "live",
     route: viewRoutes.live,
     keywords: ["live", "game", "host", "join", "code", "lobby", "standings", "class", "together"],
