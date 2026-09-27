@@ -34,9 +34,9 @@ Status is one of: **done**, **partly done**, **in progress**, **planned** or **b
 | 12 | Check the FROM CODEX history and GitHub. | **done** |
 | 13 | Use Playwright to redesign the app into a companion for the learner. | **in progress**: design steps 1 and 2 are done and pushed: the Today page, buddy and select-to-act pill, then the visual refresh. Both were checked in read-only browser probes on desktop, phone and dark. Step 3 is in progress; step 4 is planned |
 | 14 | Buddy: a friendly character whose moods follow the streak. | **done**: violet blob with happy, excited, curious, sleepy and hello moods |
-| 15 | Navigation in five places: Today, Create, Practice, Friends and Me. | **in progress** (design step 3, started 2026-09-28) |
+| 15 | Navigation in five places: Today, Create, Practice, Friends and Me. | **built and checked, waiting for the owner's review** (design step 3, checkpoint 3): five places in the sidebar and phone dock, one tab row per place, the top bar names the place. tsc, tests and read-only browser probes pass; committed locally, not pushed |
 | 16 | Fix what is still open: the sheet formula engine, vault markdown, labelled AI tutor buttons, the import pill, the streak bug, the live answers bug, and the other bugs found. | **planned** (after the design steps). The bug list is in the latest session log |
-| 17 | Small screens (2026-09-28): smaller previews or lists instead of big cards, balance buttons against empty space, nothing broken, consistent and easy to use. | **in progress**: taken into checkpoint 3 as its last step (a phone pass over every page) |
+| 17 | Small screens (2026-09-28): smaller previews or lists instead of big cards, balance buttons against empty space, nothing broken, consistent and easy to use. | **built and checked, waiting for the owner's review**: checkpoint 3 step 5. One toolbar row per page, short covers or lists on phones, 36px taps, nothing off-screen at 390 and 320 wide (read-only phone audit of 22 pages). Committed locally, not pushed |
 
 ## Chosen order
 

@@ -14,7 +14,7 @@ export function EditorProjectList({ notes, view, search, onOpen }: { notes: read
   const matches = projects.filter((project) => project.title.toLowerCase().includes(query.trim().toLowerCase()))
   return <aside className="editor-projects" aria-label="Project browser">
     <div className="flex h-[60px] shrink-0 items-center justify-between gap-2 border-b border-border px-4">
-      <button type="button" className="text-sm font-semibold hover:text-primary" onClick={() => onOpen("/studio")}>Studio</button>
+      <button type="button" className="-my-2 py-2 text-sm font-semibold hover:text-primary" onClick={() => onOpen("/studio")}>Studio</button>
       <button type="button" className="editor-projects-toggle editor-command" aria-expanded={mobileOpen} aria-label="Toggle project list" onClick={() => setMobileOpen(!mobileOpen)}>Projects<ChevronDown className="h-3.5 w-3.5" /></button>
       <span className="hidden text-xs text-muted-foreground lg:block">{projects.length} projects</span>
     </div>

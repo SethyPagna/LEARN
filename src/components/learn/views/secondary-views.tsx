@@ -42,8 +42,8 @@ export function ProgressView({ dashboard, quizzes, setView }: { dashboard: Dashb
   const ProgressPlanIcon = progressActionIcons[progressPlan.target]
 
   return <section className="learning-page mx-auto grid max-w-4xl gap-4">
-    <header className="workspace-header"><h2 className="sr-only">Progress</h2><span className="text-xs text-muted-foreground">{progress.momentumLabel === "steady" ? "On track" : progress.momentumLabel === "building" ? "Making progress" : "Let’s get started"}</span></header>
-    <div className="progress-overview"><div className="progress-ring" style={{ background: `conic-gradient(var(--primary) ${progress.goalCompletion}%, var(--muted) 0)` }}><span><strong>{progress.goalCompletion}%</strong><small>Daily goal</small></span></div><div className="grid flex-1 grid-cols-2 gap-4">{progress.metrics.filter(metric => metric.id !== "goal").map(metric => <div key={metric.id} title={metric.detail}><p className="text-2xl font-semibold tabular-nums">{metric.value}</p><p className="mt-1 text-xs text-muted-foreground">{metric.label}</p></div>)}</div></div>
+    <h2 className="sr-only">Progress</h2>
+    <div className="progress-overview"><div className="progress-ring" style={{ background: `conic-gradient(var(--primary) ${progress.goalCompletion}%, var(--muted) 0)` }}><span><strong>{progress.goalCompletion}%</strong><small>Daily goal</small></span></div><div className="grid flex-1 grid-cols-2 gap-4">{progress.metrics.filter(metric => metric.id !== "goal").map(metric => <div key={metric.id} title={metric.detail}><p className="text-2xl font-semibold tabular-nums">{metric.value}</p><p className="mt-1 text-xs text-muted-foreground">{metric.label}</p></div>)}<p className="self-center justify-self-start rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium leading-snug text-secondary-foreground sm:rounded-full">{progress.momentumLabel === "steady" ? "On track" : progress.momentumLabel === "building" ? "Making progress" : "Let’s get started"}</p></div></div>
     <div className="grid gap-4 md:grid-cols-2"><Panel className="p-4"><h3 className="mb-3 text-sm font-semibold">Next</h3><div className="grid gap-2">{progress.nextActions.slice(0, 3).map(action => <ProgressActionButton key={action.id} action={action} onClick={() => setView?.(action.target)} />)}</div></Panel>
     <Panel className="p-4"><h3 className="mb-3 text-sm font-semibold">Topics</h3>{progress.weakTopics.length ? progress.weakTopics.map(topic => <button key={topic.topic} onClick={() => setView?.("quizzes")} className="block w-full py-2 text-left"><span className="flex justify-between gap-2 text-sm"><span className="truncate">{topic.topic}</span><span className="text-xs text-muted-foreground">{topic.accuracy}%</span></span><span className="mt-2 block h-1.5 rounded-full bg-muted"><span className="block h-full rounded-full bg-primary" style={{ width: `${topic.accuracy}%` }} /></span></button>) : <EmptyState bare title="No results yet" action={<button className="editor-command" onClick={() => setView?.("quizzes")}><BookOpen className="h-4 w-4" />Practice</button>} />}</Panel></div>
     <details className="workspace-disclosure"><summary>Goal details</summary><p className="pt-3 text-sm text-muted-foreground">{progressPlan.detail}</p><button className="editor-command mt-2" onClick={() => setView?.(progressPlan.target)}><ProgressPlanIcon className="h-4 w-4" />{progressPlan.headline}</button></details>
@@ -189,10 +189,7 @@ export function SettingsView({
 
   return (
     <div className="settings-workspace">
-      <header className="workspace-header">
-        <h2 className="sr-only">Settings</h2>
-        {section === "profile" ? <ControlButton onClick={saveProfile} active disabled={saveBusy || !profileDirty}><Save className="h-4 w-4" />{saveBusy ? "Saving…" : "Save"}</ControlButton> : null}
-      </header>
+      <h2 className="sr-only">Settings</h2>
       <nav aria-label="Settings sections" className="settings-sections">{settingsPlan.guides.map((guide) => <SettingsSectionButton key={guide.id} guide={guide} active={section === guide.id} onClick={() => setSection(guide.id)} />)}</nav>
       <div className="settings-content">
       {status ? <p role="status" className="mb-4 text-sm text-muted-foreground">{status}</p> : null}
@@ -235,6 +232,7 @@ export function SettingsView({
                 <Field label="Daily goal minutes" value={String(dailyGoalMinutes)} onChange={(value) => setDailyGoalMinutes(normalizeSettingsNumber({ value, fallback: 45, min: 5, max: 240 }))} />
                 <Info label="Role" value={user?.role} />
             </div></details>
+            <div className="settings-save"><ControlButton onClick={saveProfile} active disabled={saveBusy || !profileDirty}><Save className="h-4 w-4" />{saveBusy ? "Saving…" : "Save"}</ControlButton></div>
           </div>
         </Panel>
       ) : null}
@@ -243,7 +241,7 @@ export function SettingsView({
         <Panel className="p-4">
           <AppearanceSettings options={options} setOptions={setOptions} />
           <InstallAppSettings />
-          <details className="mt-7 border-t border-border pt-4"><summary className="cursor-pointer text-sm font-medium">Editor and accessibility preferences</summary>
+          <details className="mt-7 border-t border-border pt-4"><summary className="-my-2 cursor-pointer py-2 text-sm font-medium">Editor and accessibility preferences</summary>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <SelectField label="Files layout" value={options.fileLayout} options={["list", "grid"]} onChange={(value) => setOptions({ fileLayout: value as WorkspaceOptions["fileLayout"] })} />
             <SelectField label="Docs template" value={options.docsTemplate} options={["study", "cornell", "project"]} onChange={(value) => setOptions({ docsTemplate: value as WorkspaceOptions["docsTemplate"] })} />
@@ -337,7 +335,7 @@ function SettingsSectionHeader({ body, icon: Icon, title }: { body: string; icon
 function LanguagePicker({ locale, setLocale }: { locale: SupportedLocale; setLocale: (locale: SupportedLocale) => void }) {
   return (
     <details className="mt-4 rounded-lg border border-border bg-background p-3">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
+      <summary className="-m-3 flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-semibold text-foreground">
         <span className="flex min-w-0 items-center gap-2">
           <Languages className="h-4 w-4 shrink-0 text-[var(--decor-mint-ink)]" />
           <span className="truncate">Language</span>
@@ -593,7 +591,7 @@ function AdminList<TItem extends AdminListItem>({
       <div className="mt-3 divide-y divide-border">
         {items.slice(0, limit).map((item, index) => (
           <details key={item.id || item.key || index} className="py-3 text-sm">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
+            <summary className="-my-3 flex cursor-pointer list-none items-center justify-between gap-2 py-3">
               <span className="truncate font-semibold text-foreground">{item.name || item.username || item.action || item.provider || item.label || item.id || item.key || "Record"}</span>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
             </summary>

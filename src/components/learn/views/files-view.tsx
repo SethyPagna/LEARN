@@ -9,6 +9,7 @@ import { buildFileLibraryEmptyState, buildFileLibraryFilterSummary, filterFileLi
 import { classifyUploadContentType, validateUploadFileShape } from "@/lib/file-security"
 import { FilePreview } from "../file-preview"
 import { EmptyState } from "../ui"
+import { useCompactLayout } from "../design/editor-hooks"
 
 const mediaFilters: FileLibraryFilter[] = ["all", "image", "video", "audio", "pdf", "doc", "sheet", "slides"]
 
@@ -21,6 +22,9 @@ export function FilesView({ options, onPreviewChange }: { options: WorkspaceOpti
   const [selectedId, setSelectedId] = useState("")
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [layout, setLayout] = useState(options.fileLayout)
+  // A phone lists files: rows fit more on a small screen than big previews.
+  const compact = useCompactLayout()
+  const shownLayout = compact ? "list" : layout
   const [query, setQuery] = useState("")
   const [mediaFilter, setMediaFilter] = useState<FileLibraryFilter>("all")
   const [status, setStatus] = useState("Loading files...")
@@ -165,21 +169,19 @@ export function FilesView({ options, onPreviewChange }: { options: WorkspaceOpti
   }
 
   return <section ref={libraryRef} className="workspace-screen file-library" data-preview={detailsOpen || undefined} aria-label="File library">
-    <header className="workspace-header">
-      <h2 className="sr-only">Files, {files.length}</h2>
-      <button type="button" onClick={() => inputRef.current?.click()} className="editor-primary" aria-label="Upload" title="Upload"><Upload className="h-4 w-4" /></button>
-      <input ref={inputRef} type="file" aria-label="Upload files" className="hidden" onChange={(event) => upload(event.target.files?.[0])} />
-    </header>
+    <h2 className="sr-only">Files, {files.length}</h2>
     <div className="workspace-toolbar">
       <label className="workspace-search flex-1 sm:max-w-sm"><Search className="h-4 w-4 shrink-0 text-muted-foreground" /><input aria-label="Search files" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search files" /></label>
       <select aria-label="File type" value={mediaFilter} onChange={(event) => { setMediaFilter(event.target.value as FileLibraryFilter); setPendingDeleteId("") }} className="h-9 rounded-md border border-input bg-card px-3 text-xs">{mediaFilters.map((filter) => <option key={filter} value={filter}>{fileKindLabel(filter)}</option>)}</select>
       {filterSummary.active ? <button type="button" onClick={resetFilters} className="editor-command">Clear filters</button> : null}
-      <div className="ml-auto flex rounded-md border border-border bg-card p-0.5"><button type="button" aria-label="List view" aria-pressed={layout === "list"} className="editor-command !px-2" onClick={() => setLayout("list")}><List className="h-4 w-4" /></button><button type="button" aria-label="Grid view" aria-pressed={layout === "grid"} className="editor-command !px-2" onClick={() => setLayout("grid")}><Grid2X2 className="h-4 w-4" /></button></div>
+      <div className="ml-auto hidden rounded-md border border-border bg-card p-0.5 md:flex"><button type="button" aria-label="List view" aria-pressed={layout === "list"} className="editor-command !px-2" onClick={() => setLayout("list")}><List className="h-4 w-4" /></button><button type="button" aria-label="Grid view" aria-pressed={layout === "grid"} className="editor-command !px-2" onClick={() => setLayout("grid")}><Grid2X2 className="h-4 w-4" /></button></div>
+      <button type="button" onClick={() => inputRef.current?.click()} className="editor-primary ml-auto md:ml-0" aria-label="Upload" title="Upload"><Upload className="h-4 w-4" /></button>
+      <input ref={inputRef} type="file" aria-label="Upload files" className="hidden" onChange={(event) => upload(event.target.files?.[0])} />
     </div>
     {status ? <p role="status" className="text-xs text-muted-foreground">{status}</p> : null}
     <div className={`grid min-w-0 items-start gap-3 ${detailsOpen ? "lg:grid-cols-[minmax(220px,0.7fr)_minmax(0,1.3fr)]" : ""}`}>
       <div onDragOver={(event) => { event.preventDefault(); setDragActive(true) }} onDragLeave={() => setDragActive(false)} onDrop={handleDrop} className={`min-w-0 rounded-lg border bg-card ${dragActive ? "border-primary ring-2 ring-primary/20" : "border-border"}`}>
-        {filteredFiles.length ? layout === "grid" && !detailsOpen ? <div className="grid gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3">{filteredFiles.map((file) => <FileCard key={file.id} file={file} selected={detailsOpen && selectedFile?.id === file.id} preview={options.filePreview} onSelect={(trigger) => openPreview(file, trigger)} />)}</div> : <>
+        {filteredFiles.length ? shownLayout === "grid" && !detailsOpen ? <div className="grid gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3">{filteredFiles.map((file) => <FileCard key={file.id} file={file} selected={detailsOpen && selectedFile?.id === file.id} preview={options.filePreview} onSelect={(trigger) => openPreview(file, trigger)} />)}</div> : <>
           <div className="file-list-heading hidden grid-cols-[minmax(0,1fr)_110px_110px] gap-3 border-b border-border px-4 py-2 text-xs text-muted-foreground md:grid"><span>Name</span><span>Size</span><span>Added</span></div>
           <ul className="divide-y divide-border">{filteredFiles.map((file) => <li key={file.id}><button type="button" data-file-id={file.id} aria-pressed={detailsOpen && selectedFile?.id === file.id} onClick={(event) => openPreview(file, event.currentTarget)} className={`file-list-row grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-left text-sm md:grid-cols-[minmax(0,1fr)_110px_110px] ${detailsOpen && selectedFile?.id === file.id ? "bg-accent" : "hover:bg-secondary/60"}`}><span className="flex min-w-0 items-center gap-3"><FileKindIcon kind={classifyUploadContentType(file.content_type)} className="h-5 w-5 shrink-0 text-muted-foreground" /><span className="truncate">{file.filename}</span></span><span className="text-xs text-muted-foreground">{formatBytes(file.size_bytes)}</span><span className="hidden text-xs text-muted-foreground md:block">{formatDate(file.created_at)}</span></button></li>)}</ul>
         </> : <EmptyState bare title={emptyState.title} action={<button type="button" className="editor-command" onClick={emptyState.action === "clear-filter" ? resetFilters : () => inputRef.current?.click()}>{emptyState.action === "clear-filter" ? "Clear filters" : <><Upload className="h-4 w-4" />Choose a file</>}</button>} />}

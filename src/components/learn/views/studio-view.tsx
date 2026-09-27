@@ -2211,7 +2211,7 @@ function StudioProjectBrowser({
           <section aria-label="Project library" className="min-w-0 p-3 sm:p-4">
             <div className="flex flex-wrap items-center gap-3">
               <h2 className="text-lg font-semibold text-foreground">Projects</h2>
-              <label className="flex h-9 min-w-40 flex-1 items-center gap-2 rounded-lg border border-border bg-background px-3 sm:max-w-sm">
+              <label className="flex h-9 min-w-40 flex-1 items-center gap-2 rounded-lg border border-border bg-background px-3 max-sm:order-last max-sm:basis-full sm:max-w-sm">
                 <Search className="h-5 w-5 text-foreground" />
                 <input value={query} onChange={(event) => onQuery(event.target.value)} aria-label="Search projects" placeholder="Search projects" className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
               </label>
@@ -2265,10 +2265,10 @@ function StudioProjectBrowser({
                 {browserStep === "projects" ? (
                 <>
                 <h3 className="sr-only">Recent projects</h3>
-                <div className="flex gap-4 overflow-x-auto pb-4">
-                  <button onClick={() => setBrowserStep("formats")} className="group flex w-48 shrink-0 flex-col items-center justify-center rounded-xl border border-dashed border-primary/50 bg-background/75 text-center shadow-sm transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground" type="button">
-                    <span className="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-sm">
-                      <Plus className="h-6 w-6" />
+                <div className="grid grid-cols-2 gap-3 pb-4 sm:flex sm:gap-4 sm:overflow-x-auto">
+                  <button onClick={() => setBrowserStep("formats")} className="group flex min-h-32 min-w-0 flex-col sm:w-48 sm:shrink-0 items-center justify-center rounded-xl border border-dashed border-primary/50 bg-background/75 text-center shadow-sm transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground" type="button">
+                    <span className="grid h-10 w-10 place-items-center rounded-full bg-primary text-primary-foreground shadow-sm sm:h-12 sm:w-12">
+                      <Plus className="h-5 w-5 sm:h-6 sm:w-6" />
                     </span>
                     <span className="mt-3 text-sm font-black text-foreground group-hover:text-accent-foreground">New project</span>
                   </button>
@@ -2277,7 +2277,7 @@ function StudioProjectBrowser({
                     const projectKey = `${item.kind}:${item.id}`
                     const selected = selectedProjectKeys.has(projectKey)
                     return (
-                      <div key={`${item.kind}_${item.id}`} className="group relative w-48 shrink-0 text-left">
+                      <div key={`${item.kind}_${item.id}`} className="group relative min-w-0 text-left sm:w-48 sm:shrink-0">
                         <button onClick={() => onOpen(item)} className="studio-card" data-project-kind={item.kind} data-selected={selected || undefined} type="button">
                         <span aria-hidden="true" className="studio-card-cover">
                           {item.preview ? <StudioProjectPreview project={item.preview} measure={measure} fallback={<KindArt kind={item.kind} />} /> : <KindArt kind={item.kind} />}
@@ -2290,10 +2290,10 @@ function StudioProjectBrowser({
                           </span>
                         </span>
                         </button>
-                        <label className={`absolute left-2 top-2 grid h-7 w-7 cursor-pointer place-items-center rounded-lg bg-background/90 text-foreground shadow-sm ring-1 ring-border transition group-hover:opacity-100 ${selected ? "opacity-100" : "opacity-0"}`}>
+                        <label className={`absolute left-2 top-2 grid h-7 w-7 cursor-pointer place-items-center rounded-lg bg-background/90 text-foreground shadow-sm ring-1 ring-border transition group-hover:opacity-100 ${selected ? "opacity-100" : "opacity-0"} ${selectedProjectKeys.size ? "[@media(pointer:coarse)]:opacity-100" : "[@media(pointer:coarse)]:hidden"}`}>
                           <input checked={selected} onChange={(event) => toggleProjectSelection(item, event.target.checked)} className="h-4 w-4 accent-primary" aria-label={`Select ${item.title}`} type="checkbox" />
                         </label>
-                        <div className="absolute right-2 top-2 opacity-0 transition group-hover:opacity-100">
+                        <div className="absolute right-2 top-2 opacity-0 transition group-focus-within:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100">
                           <ActionMenu compact label="Actions" icon={MoreHorizontal}>
                             <MenuAction icon={ArrowRight} label="Open" onClick={() => onOpen(item)} />
                             <MenuAction icon={Edit3} label="Rename" onClick={() => onRename(item)} />

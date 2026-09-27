@@ -236,6 +236,55 @@ test("the top bar names the place; a page title that repeats the active tab is f
   assert.match(css, /\.workspace-header:not\(:has\(> :not\(\.sr-only\)\)\) \{ display: contents; \}/, "a header left with only its title draws no box but keeps the title")
 })
 
+test("small screens: no lone buttons, short previews or lists, and 36px taps", () => {
+  const ecosystem = readSource("src/components/learn/views/ecosystem-views.tsx")
+  assert.match(ecosystem, /<h3 className="min-w-0 truncate font-semibold">\{targetNoteTitle\}<\/h3><button onClick=\{[^}]*\} className="editor-primary shrink-0" aria-label="Open notes"/, "Vault opens the note from the note's own title row")
+  assert.match(ecosystem, /<h2 className="sr-only">Graph, [^<]*<\/h2><div className="flex min-w-0 flex-1 flex-wrap gap-1">/, "Graph's filters and its Notes button share one row")
+  assert.match(ecosystem, /<h2 className="sr-only">Feed<\/h2><div className="flex min-w-0 flex-1 gap-1 overflow-x-auto">/, "Feed's topics and Refresh share one row")
+
+  const files = readSource("src/components/learn/views/files-view.tsx")
+  assert.doesNotMatch(files, /<header className="workspace-header">/, "Files has no row of its own for Upload")
+  assert.match(files, /const shownLayout = compact \? "list" : layout/, "a phone lists files")
+  assert.match(files, /md:flex"><button type="button" aria-label="List view"/, "the list and grid switch waits for a wider screen")
+
+  const secondary = readSource("src/components/learn/views/secondary-views.tsx")
+  assert.match(secondary, /<div className="settings-save"><ControlButton onClick=\{saveProfile\}/, "Save sits at the end of the profile form")
+  assert.doesNotMatch(secondary, /<header className="workspace-header"><h2 className="sr-only">Progress/, "Progress's status line joins the overview")
+
+  const picker = readSource("src/components/learn/views/studio-view.tsx")
+  assert.match(picker, /<div className="grid grid-cols-2 gap-3 pb-4 sm:flex sm:gap-4 sm:overflow-x-auto">/, "the editors' project picker is a two-column grid on phones, not a strip that cuts a card off")
+  assert.match(picker, /group-hover:opacity-100 \[@media\(pointer:coarse\)\]:opacity-100">\s*<ActionMenu compact label="Actions"/, "touch can reach a project's menu")
+
+  const css = readSource("src/app/globals.css")
+  assert.match(css, /\.studio-card-cover \{ aspect-ratio:2 \/ 1;/, "phones get short Studio covers")
+  assert.match(css, /\.today-cover-art \{ aspect-ratio: 2 \/ 1; \}/, "phones get short Recent covers")
+  assert.match(css, /\.calendar-filter \{ min-height: 36px; \}/, "chips are a 36px tap on phones")
+  assert.match(css, /\.workspace-disclosure > summary \{ margin: -12px -14px; padding: 12px 14px; \}/, "a fold-out's whole row is the tap target")
+  assert.match(css, /\.settings-save:has\(button:not\(:disabled\)\) \{ position: sticky;/, "unsaved changes keep Save in reach")
+
+  const community = readSource("src/components/learn/views/social-community.module.css")
+  assert.match(community, /\.card \{ flex-direction: row;/, "phones list groups, rooms and battles as rows")
+
+  assert.match(css, /\.page-sections button \{ gap:5px; min-height:36px;/, "a page's own tabs are a 36px tap on phones")
+  assert.match(css, /\.learning-page \{\s*grid-template-columns: minmax\(0, 1fr\);/, "a sideways chip row cannot widen the page and push its buttons off-screen")
+  assert.doesNotMatch(ecosystem, /className="editor-command justify-self-start" aria-label="Open notes"/, "Feed's notes button sits in the toolbar, not alone under the list")
+
+  const calendar = readSource("src/components/learn/views/calendar-view.tsx")
+  assert.match(calendar, /className=\{`mb-1 flex h-9 w-full items-center justify-center rounded-lg text-xs transition sm:h-7 sm:w-7 sm:rounded-full/, "a phone's calendar day is a full-width 36px tap")
+
+  assert.match(calendar, /calendar-day min-w-0 border-b border-r border-border\/70 p-0\.5 /, "a 320px screen still gets 36px-wide days")
+  const games = readSource("src/components/learn/views/productivity-views.tsx")
+  assert.match(games, /<div className="absolute right-0 top-10 z-40 grid w-48 sm:left-0 sm:right-auto/, "the Games setup menu opens leftward on phones, so it stays on screen")
+
+  for (const file of ["ai-view.tsx", "calendar-view.tsx", "ecosystem-views.tsx", "secondary-views.tsx"]) {
+    const source = readSource(`src/components/learn/views/${file}`)
+    for (const [, classes] of source.matchAll(/<summary className="([^"]*cursor-pointer[^"]*)"/g)) {
+      if (/(^| )h-\d/.test(classes)) continue
+      assert.match(classes, /(^| )(-m-|-my-|p-|py-)\d/, `${file}: a fold-out row without a set height grows its tap area (${classes})`)
+    }
+  }
+})
+
 test("a focused text field keeps its keys: menus never hijack typing", () => {
   const base = { activeIndex: 0, count: 5, open: true }
 

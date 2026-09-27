@@ -125,7 +125,19 @@
   .community { gap: 14px; }
   .toolbar { gap: 8px; flex-wrap: wrap; }
   .toolbar .search { flex: 1; }
-  .cards { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  /* Phones list groups, rooms and battles as rows with a small art tile, not tall cards. */
+  .cards { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .card { flex-direction: row; max-width: none; border-radius: 14px; }
+  .cardArt { width: 72px; height: auto; min-height: 72px; justify-content: center; padding: 0; }
+  .orbit, .artLines, .duration { display: none; }
+  .symbol { width: 42px; height: 42px; border-radius: 13px; }
+  .symbol svg { width: 21px; height: 21px; }
+  .cardBody { padding: 10px 12px; }
+  .cardStatus { margin-bottom: 2px; }
+  .cardBody > p { -webkit-line-clamp: 1; min-height: 0; margin: 2px 0 0; }
+  .cardFooter { padding-top: 6px; border-top: 0; }
+  .filters button { min-height: 36px; }
+  .empty { gap: 14px; padding: 32px 16px; }
   .detailCover { gap: 13px; padding: 20px 16px; }
   .coverIcon { width: 48px; height: 48px; border-radius: 15px; }
   .coverIcon svg { width: 24px; height: 24px; }

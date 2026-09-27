@@ -292,19 +292,19 @@ function GameTimerControls({
 }) {
   return (
     <div className="mb-3 flex flex-wrap items-center gap-1.5 rounded-md border border-border bg-card p-2">
-      <span className="inline-flex h-8 items-center gap-1.5 rounded-md bg-muted px-2 text-xs font-semibold text-muted-foreground">
+      <span className="inline-flex h-9 sm:h-8 items-center gap-1.5 rounded-md bg-muted px-2 text-xs font-semibold text-muted-foreground">
         <Clock className="h-3.5 w-3.5" />
         {formatDuration(elapsedSeconds)}
       </span>
-      <span className={`inline-flex h-8 items-center rounded-md px-2 text-xs font-semibold ${elapsedSeconds > targetSeconds ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>
+      <span className={`inline-flex h-9 sm:h-8 items-center rounded-md px-2 text-xs font-semibold ${elapsedSeconds > targetSeconds ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>
         target {formatDuration(targetSeconds)}
       </span>
       <details className="group relative">
-        <summary className="inline-flex h-8 cursor-pointer list-none items-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden" title="Round setup">
+        <summary className="inline-flex h-9 sm:h-8 cursor-pointer list-none items-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden" title="Round setup">
           <SlidersHorizontal className="h-3.5 w-3.5" />
           Setup
         </summary>
-        <div className="absolute left-0 top-9 z-40 grid w-48 gap-1 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-lg">
+        <div className="absolute right-0 top-10 z-40 grid w-48 sm:left-0 sm:right-auto sm:top-9 gap-1 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-lg">
           <p className="px-1 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Target time</p>
           {[60, 90, 180].map((seconds) => (
             <button
@@ -312,7 +312,7 @@ function GameTimerControls({
               onClick={() => setTargetSeconds(seconds)}
               aria-pressed={targetSeconds === seconds}
               disabled={disabled}
-              className={`h-8 rounded-md px-2.5 text-left text-xs font-semibold ${targetSeconds === seconds ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+              className={`h-9 sm:h-8 rounded-md px-2.5 text-left text-xs font-semibold ${targetSeconds === seconds ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
               type="button"
             >
               {formatDuration(seconds)}
@@ -320,7 +320,7 @@ function GameTimerControls({
           ))}
         </div>
       </details>
-      <button onClick={resetRun} disabled={disabled} className="ml-auto flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60">
+      <button onClick={resetRun} disabled={disabled} className="ml-auto flex h-9 sm:h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60">
         <RotateCcw className="h-3.5 w-3.5" />
         Restart
       </button>

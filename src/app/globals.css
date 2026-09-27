@@ -412,6 +412,12 @@ html.dark.learn-high-contrast {
   .learn-bottom-safe {
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   }
+
+  /* A page's one column never grows past the screen, so a chip row that
+     scrolls sideways cannot widen the page and push its buttons off-screen. */
+  .learning-page {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @keyframes learn-pop-in {
@@ -592,6 +598,7 @@ html.dark.learn-high-contrast {
   .today-plan { grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .today-plan-card { min-height: 64px; padding: 12px 14px; }
   .today-covers { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .today-cover-art { aspect-ratio: 2 / 1; }
 }
 
 /* The select-to-act pill that floats by a passage picked in a note or doc.
@@ -773,7 +780,6 @@ html.dark.learn-high-contrast {
 .workspace-search input { width: 100%; min-width: 0; outline: none; background: transparent; font-size: 13px; }
 .workspace-search:focus-within { outline: 2px solid var(--ring); outline-offset: 1px; }
 .settings-workspace { display: grid; gap: 16px; grid-template-columns: 180px minmax(0,1fr); max-width: 1160px; margin-inline: auto; }
-.settings-workspace > .workspace-header { grid-column: 1 / -1; }
 .settings-sections { display: flex; flex-direction: column; gap: 3px; align-self: start; position: sticky; top: 76px; }
 .settings-section { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-radius: 6px; font-size: 13px; text-align: left; white-space: nowrap; }
 .settings-section[aria-current='page'] { background: var(--accent); color: var(--foreground); font-weight: 600; }
@@ -782,6 +788,15 @@ html.dark.learn-high-contrast {
 .settings-content > .learn-panel { padding: 24px; }
 .settings-content label.block { padding: 0; background: transparent; }
 .settings-content label.block > span { font-size: 12px; text-transform: none; }
+/* Save sits at the end of the form it saves. While there are changes it stays in
+   reach at the bottom of the screen, above the phone dock below 1024px. */
+.settings-save { display: flex; justify-content: flex-end; }
+.settings-save:has(button:not(:disabled)) { position: sticky; bottom: 16px; z-index: 5; }
+@media (max-width: 1023px) { .settings-save:has(button:not(:disabled)) { bottom: calc(68px + max(0.5rem, env(safe-area-inset-bottom))); } }
+/* A closed fold-out is tapped anywhere on its row, not just on its line of text. */
+.workspace-disclosure > summary { margin: -12px -14px; padding: 12px 14px; }
+/* The review pager sits centred above the card it pages through. */
+.review-workspace > .workspace-header:has(> h2.sr-only) { justify-content: center; }
 .learn-app[data-density='comfortable'] .workspace-tab { min-height: 46px; }
 .learn-app[data-density='comfortable'] .settings-section { padding-block: 13px; }
 @media (max-width: 767px) {
@@ -791,6 +806,8 @@ html.dark.learn-high-contrast {
   .settings-content > .learn-panel { padding: 16px; }
   .workspace-tabs { gap: 16px; }
   .workspace-tab { min-height: 44px; }
+  /* Phones: every chip is at least a 36px tap. */
+  .calendar-filter { min-height: 36px; }
 }
 @media (display-mode: standalone) {
   .learn-topbar { padding-top: env(safe-area-inset-top); }
@@ -930,7 +947,7 @@ button.compact-row:hover, .compact-row[aria-pressed='true'] { background:var(--a
 .practice-design .live-code { color:var(--play-ink); }
 .practice-design[data-focus='true'] .practice-extra { display:none; }
 @media(min-width:768px) { .vault-workbench { grid-template-columns:220px minmax(0,1fr); } .graph-workbench { grid-template-columns:minmax(0,1fr) 240px; } }
-@media(max-width:767px) { .page-sections { margin-bottom:10px; } .page-sections button { gap:5px; padding:6px 8px; } .page-sections svg { width:14px; height:14px; } .progress-overview { gap:20px; padding:18px; } .progress-ring { width:104px; height:104px; } .progress-ring > span { width:88px; height:88px; } .progress-ring strong { font-size:23px; } .practice-design-picker { right:-50px; } }
+@media(max-width:767px) { .page-sections { margin-bottom:10px; } .page-sections button { gap:5px; min-height:36px; padding:6px 8px; } .page-sections svg { width:14px; height:14px; } .progress-overview { gap:20px; padding:18px; } .progress-ring { width:104px; height:104px; } .progress-ring > span { width:88px; height:88px; } .progress-ring strong { font-size:23px; } .practice-design-picker { right:-50px; } }
 .story-strip { display:flex; gap:12px; overflow-x:auto; padding:5px 2px; }
 .story-avatar { display:grid; justify-items:center; gap:5px; width:64px; flex-shrink:0; }
 .story-avatar > span { width:44px; height:44px; display:grid; place-items:center; border-radius:50%; padding:3px; border:2px solid color-mix(in oklch,var(--primary) 60%,var(--decor-mint-ink)); background:var(--card); color:var(--primary); font-weight:600; }
@@ -1076,7 +1093,8 @@ button.compact-row:hover, .compact-row[aria-pressed='true'] { background:var(--a
 .sidebar-icon-count { position:absolute; top:-4px; right:-4px; z-index:1; color:#d1273b; font-size:12px; font-weight:750; line-height:1; pointer-events:none; text-shadow:0 0 3px var(--sidebar),0 0 3px var(--sidebar); }
 .dark .sidebar-icon-count { color:#ff7183; }
 .notification-icon-count { top:1px; right:1px; }
-@media(max-width:639px) { .studio-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; } .studio-card-cover { padding:10px 10px 0; } }
+/* Phones: two columns of short covers (2:1), the same size as Today's Recent, so a screen shows more work. */
+@media(max-width:639px) { .studio-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; } .studio-card-cover { aspect-ratio:2 / 1; padding:10px 10px 0; } .studio-card-skeleton { aspect-ratio:5 / 4; } }
 @media(max-width:1199px) {
   .studio-lobby-header { flex-wrap:wrap; gap:10px; }
   .studio-lobby-topline { width:100%; justify-content:space-between; }

@@ -184,7 +184,7 @@ export function MagicPanel({ api }: { api: DesignEditorApi }) {
         <WandSparkles className="h-4 w-4" aria-hidden="true" />
         Create pages
       </button>
-      <details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer">Outline guide</summary><p className="mt-2 leading-5"># starts the cover; ## or --- starts a page. Use lists, quotes, “Term: meaning”, numbers or Q: questions.</p></details>
+      <details className="mt-2 text-xs text-muted-foreground"><summary className="-my-2.5 cursor-pointer py-2.5">Outline guide</summary><p className="mt-2 leading-5"># starts the cover; ## or --- starts a page. Use lists, quotes, “Term: meaning”, numbers or Q: questions.</p></details>
       </> : null}
       {source === "notes" ? <>
       {api.notes.length ? (

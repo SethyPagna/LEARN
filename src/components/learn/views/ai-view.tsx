@@ -646,7 +646,7 @@ export function AiTutorView({
         />
 
         <details className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm">
-          <summary className="cursor-pointer font-semibold text-foreground">Prompt details {promptBuild.ok ? "" : `- ${promptBuild.missing.length} missing`}</summary>
+          <summary className="-m-3 cursor-pointer p-3 font-semibold text-foreground">Prompt details {promptBuild.ok ? "" : `- ${promptBuild.missing.length} missing`}</summary>
         <div className="mt-4 grid gap-2 rounded-lg border border-border bg-muted/30 p-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
           {workflowSummary.overview.map((item) => (
             <AiSummaryChip key={item.id} detail={item.detail} label={item.label} tone={item.tone} value={item.value} />
@@ -699,7 +699,7 @@ export function AiTutorView({
                   </ul>
                 ) : null}
                 <details className="mt-3 border-t border-border pt-3">
-                  <summary className="cursor-pointer text-xs text-muted-foreground">Original text</summary>
+                  <summary className="-my-2.5 cursor-pointer py-2.5 text-xs text-muted-foreground">Original text</summary>
                   <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs leading-5">{reply}</pre>
                 </details>
               </>
@@ -730,7 +730,7 @@ export function AiTutorView({
               <GatewayMetric label="Presets" value={String(providerSummary.presetCount)} tone="neutral" />
             </div>
             <details className="mt-3 rounded-md border border-border bg-background p-3">
-              <summary className="cursor-pointer text-sm font-semibold text-foreground">Provider details</summary>
+              <summary className="-m-3 cursor-pointer p-3 text-sm font-semibold text-foreground">Provider details</summary>
               <p className="mt-2 text-xs leading-5 text-muted-foreground">Keys stay masked. Auto mode follows priority; choosing a provider stays within that family. Local Ollama uses OLLAMA_BASE_URL and OLLAMA_MODEL on the LEARN server, without a key. A hosted deployment cannot reach Ollama on your browser's computer.</p>
               <div className="mt-3 space-y-2">
                 {providers.map((provider) => (
