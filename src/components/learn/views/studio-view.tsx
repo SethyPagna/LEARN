@@ -515,6 +515,7 @@ export function StudioView({
   const lastDraftNoticeKind = useRef<StudioKind | undefined>(undefined)
   const layoutSaveTimeout = useRef<number | null>(null)
   const pendingLayoutSnapshot = useRef("")
+  const inFlightSave = useRef<Promise<boolean> | null>(null)
 
   function notifyDraftSummary() {
     onDraftSummary?.(summarizeStudioDrafts(readStudioDrafts()))
@@ -1039,7 +1040,15 @@ export function StudioView({
     setSlides(blankDeckSlides)
   }
 
-  async function saveActive(silent = false): Promise<boolean> {
+  function saveActive(silent = false): Promise<boolean> {
+    const run = saveActiveNow(silent)
+    inFlightSave.current = run
+    const settle = () => { if (inFlightSave.current === run) inFlightSave.current = null }
+    void run.then(settle, settle)
+    return run
+  }
+
+  async function saveActiveNow(silent: boolean): Promise<boolean> {
     setSaving(true)
     try {
       if (kind === "notes" && noteDraft) {
@@ -1641,7 +1650,13 @@ export function StudioView({
   const hasActiveItem = kind === "notes" ? Boolean(noteDraft) : true
   const projectMenuItems = allItems.slice(0, 12)
 
-  useEditorExitGuard(async () => studioMode !== "editor" || !hasActiveItem ? true : !saving ? saveActive(true) : false)
+  useEditorExitGuard(async () => {
+    if (studioMode !== "editor" || !hasActiveItem) return true
+    // Leaving during an autosave used to do nothing at all. Let that save land,
+    // then save whatever was typed since, and go.
+    if (inFlightSave.current) await inFlightSave.current
+    return saveActive(true)
+  })
 
   if (studioMode === "projects") {
     return (
