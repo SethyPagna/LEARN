@@ -64,12 +64,12 @@ function paragraphText(shape: XmlElement): string {
   return descendants(shape, "p").map((paragraph) => textWithBreaks(paragraph).trim()).filter(Boolean).join("\n")
 }
 
-function relationshipPath(owner: string): string {
+export function relationshipPath(owner: string): string {
   const slash = owner.lastIndexOf("/")
   return `${owner.slice(0, slash + 1)}_rels/${owner.slice(slash + 1)}.rels`
 }
 
-function resolveRelationship(owner: string, relation: XmlElement): string {
+export function resolveRelationship(owner: string, relation: XmlElement): string {
   let target: string
   try { target = decodeURIComponent(attribute(relation, "Target")) }
   catch { throw new Error("PPTX contains an invalid content relationship.") }

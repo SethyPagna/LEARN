@@ -91,6 +91,10 @@ test("every way into slides lands in the one design editor", () => {
   assert.match(lobby, /createDesignDoc\(\{ name: title, format: slidesFormatId\(options\.slidesAspect\)/, "Add > Slides makes a presentation design")
   assert.match(lobby, /onOpen\("\/canvas\?new=1"\)/, "Add > Canvas asks for a size first")
   assert.doesNotMatch(lobby, /"\/api\/slides"|title: "Your first idea"/, "no new decks are made")
+  assert.match(lobby, /const addEntries: AddEntry\[\] = \[\.\.\.projectKindOrder, "pptx"\]/, "Add ends with Import PowerPoint, reachable by keyboard")
+  assert.match(lobby, /onOpen\(await importPowerPoint\(file, setImportStatus\)\)/, "an imported PowerPoint opens as slides")
+  assert.match(read("src/components/learn/design/import-pptx.ts"), /"\/api\/canvas", \{ method: "POST"[\s\S]*`\/slides\?design=\$\{encodeURIComponent\(id\)\}&from=pptx`/)
+  assert.match(read("src/components/learn/views/canvas-editor.tsx"), /params\.get\("from"\) === "pptx"\) setMessage\(importNotice\(id\)\)/, "the editor says what didn't come across")
 
   assert.match(read("src/components/learn/selection-dock.tsx"), /finish\(`\/slides\?design=/)
   assert.match(read("src/components/learn/design/design-editor.tsx"), /const presentation = isPresentationFormat\(api\.design\.format\)/)

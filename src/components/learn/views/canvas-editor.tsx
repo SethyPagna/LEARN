@@ -8,6 +8,7 @@ import type { Note } from "../types"
 import { DesignEditor, type OpenDesign } from "../design/design-editor"
 import { DesignsHome, type DesignSummary } from "../design/designs-home"
 import { CANVAS_PRESET_CSS } from "../design/editor-styles"
+import { importNotice } from "../design/import-pptx"
 import { useDesignMeasure } from "../design/text-measure"
 
 interface DesignRecord { id: string; title?: string; content?: unknown; updated_at?: string | null; page_count?: number }
@@ -56,6 +57,7 @@ export function CanvasEditorView({ notes = [], onHome, designId, picker = false 
     const id = designId || params.get("design")
     if (id) void open(id)
     if (id && params.get("from") === "deck") setMessage("This deck moved to the new slides editor. The original is archived.")
+    if (id && params.get("from") === "pptx") setMessage(importNotice(id))
     return () => { request.current += 1 }
   }, [load, designId])
 

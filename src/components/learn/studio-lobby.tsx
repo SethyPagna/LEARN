@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { CircleHelp, ArrowRight, Plus, Search, SlidersHorizontal, X } from "lucide-react"
+import { CircleHelp, ArrowRight, FileUp, Plus, Search, SlidersHorizontal, X } from "lucide-react"
 import { createDesignDoc } from "@/lib/design/document"
 import { slidesFormatId } from "@/lib/design/formats"
 import type { MeasureText } from "@/lib/design/text"
@@ -10,6 +10,7 @@ import { formatRelativeTime } from "@/lib/format-time"
 import { api } from "./api"
 import { CREATE_MENU_EVENT } from "./create-menu"
 import { useNearViewport } from "./design/editor-hooks"
+import { importPowerPoint, PPTX_ACCEPT } from "./design/import-pptx"
 import { useDesignMeasure } from "./design/text-measure"
 import { KindArt } from "./kind-art"
 import { useMenuKeyboard } from "./menu-keyboard"
@@ -22,6 +23,9 @@ import type { Note } from "./types"
 const filters = ["All", "Canvas", "Writing", "Slides", "Sheets"] as const
 type Filter = (typeof filters)[number]
 const projectKindOrder = Object.keys(projectKinds) as ProjectKind[]
+/** The Add menu: one entry per kind, then bringing in a PowerPoint file. */
+type AddEntry = ProjectKind | "pptx"
+const addEntries: AddEntry[] = [...projectKindOrder, "pptx"]
 const PAGE_SIZE = 12
 
 /** A project as a cover: its first page on the kind colour, or the kind drawing while it is empty. */
@@ -54,7 +58,9 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
   initialFilter?: Filter
 }) {
   const [error, setError] = useState("")
-  const [creating, setCreating] = useState<ProjectKind | null>(null)
+  const [creating, setCreating] = useState<AddEntry | null>(null)
+  const [importStatus, setImportStatus] = useState("")
+  const pptxInput = useRef<HTMLInputElement>(null)
   const [filter, setFilter] = useState<Filter>(initialFilter)
   const [query, setQuery] = useState("")
   const [limit, setLimit] = useState(PAGE_SIZE)
@@ -82,8 +88,8 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
   }, [menuOpen])
 
   const menuKeyDown = useMenuKeyboard({
-    activeIndex, containerRef: menuRef, entries: projectKindOrder,
-    entrySelector: "[role=menuitem]", onChoose: (kind) => void create(kind),
+    activeIndex, containerRef: menuRef, entries: addEntries,
+    entrySelector: "[role=menuitem]", onChoose: (entry) => entry === "pptx" ? choosePowerPoint() : void create(entry),
     open: menuOpen, setActiveIndex, setOpen: setMenuOpen,
   })
 
@@ -129,6 +135,25 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
     } finally { creationPending.current = false; setCreating(null) }
   }
 
+  function choosePowerPoint() {
+    if (creationPending.current) return
+    setMenuOpen(false)
+    addRef.current?.focus()
+    pptxInput.current?.click()
+  }
+
+  async function importFile(file: File | undefined) {
+    if (!file || creationPending.current) return
+    creationPending.current = true
+    setCreating("pptx")
+    setError("")
+    try {
+      onOpen(await importPowerPoint(file, setImportStatus))
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "This file couldn't be imported. Please try again.")
+    } finally { creationPending.current = false; setCreating(null); setImportStatus("") }
+  }
+
   return <section className="studio-lobby min-w-0 pb-4" aria-label="Your Studio home">
     <header className="studio-lobby-header">
       <div className="studio-lobby-topline">
@@ -145,18 +170,22 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
         <button type="button" aria-label="Workspace appearance" title="Workspace appearance" className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring" onClick={() => onOpen("/settings?section=experience")}><SlidersHorizontal className="h-4 w-4" /></button>
         <div ref={menuRef} className="relative shrink-0" onKeyDown={(event) => { menuKeyDown(event); if (event.key === "Escape") addRef.current?.focus() }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setMenuOpen(false) }}>
           <button ref={addRef} type="button" aria-haspopup="menu" aria-expanded={menuOpen} aria-busy={Boolean(creating)} disabled={Boolean(creating)} onClick={() => { setActiveIndex(0); setMenuOpen(!menuOpen) }} className="flex h-9 min-w-14 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60">
-            {creating ? "Adding…" : "Add"}
+            {creating === "pptx" ? "Importing…" : creating ? "Adding…" : "Add"}
           </button>
-          {menuOpen ? <div role="menu" aria-label="Add a project" className="absolute right-0 top-11 z-40 w-48 rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-lift">
+          {menuOpen ? <div role="menu" aria-label="Add a project" className="absolute right-0 top-11 z-40 w-52 rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-lift">
             {projectKindOrder.map((kind, index) => {
               const item = projectKinds[kind]
               const Icon = item.icon
               return <button key={kind} type="button" role="menuitem" aria-label={item.label} disabled={Boolean(creating)} onClick={() => void create(kind)} onMouseEnter={() => setActiveIndex(index)} onFocus={() => setActiveIndex(index)} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${activeIndex === index ? "bg-secondary" : "hover:bg-secondary"}`}><span data-project-kind={kind} className="studio-project-icon rounded-md p-1.5"><Icon className="h-4 w-4" /></span>{item.label}</button>
             })}
+            <div role="separator" className="my-1 h-px bg-border" />
+            <button type="button" role="menuitem" disabled={Boolean(creating)} onClick={choosePowerPoint} onMouseEnter={() => setActiveIndex(projectKindOrder.length)} onFocus={() => setActiveIndex(projectKindOrder.length)} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${activeIndex === projectKindOrder.length ? "bg-secondary" : "hover:bg-secondary"}`}><span data-project-kind="slides" className="studio-project-icon rounded-md p-1.5"><FileUp className="h-4 w-4" /></span>Import PowerPoint</button>
           </div> : null}
+          <input ref={pptxInput} type="file" accept={PPTX_ACCEPT} className="hidden" aria-label="Import a PowerPoint file" onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ""; void importFile(file) }} />
         </div>
       </div>
     </header>
+    {importStatus ? <p role="status" className="mb-3 text-sm text-muted-foreground">{importStatus}</p> : null}
     {error ? <p role="alert" className="mb-4 flex items-center justify-between gap-3 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}<button type="button" aria-label="Dismiss error" onClick={() => setError("")}><X className="h-4 w-4" /></button></p> : null}
     {loading
       ? <ul className="studio-grid" aria-busy="true" aria-label="Loading projects">{Array.from({ length: 4 }, (_, index) => <li key={index} className="studio-card-skeleton" />)}</ul>
