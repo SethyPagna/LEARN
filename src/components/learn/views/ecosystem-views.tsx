@@ -51,12 +51,15 @@ import type {
   View,
 } from "../types"
 import { Buddy } from "../buddy"
+import { viewIcons } from "../nav-icons"
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { VoiceInput } from "../voice-input"
 import { buildReviewRatingActions, buildReviewSummaryChips, buildVaultBlockPalette, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeReviewSession, type ReviewRating, type VaultBlockType } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, buildProfileSummaryChips, type ProfilePlanTarget, type ProfileSummaryChip } from "@/lib/profile-features"
 import { createSocialDraft, parseStoredSocialDraftStore, socialDraftStorageKey, type SocialDraft, type SocialDraftStore, type SocialKind } from "@/lib/social-drafts"
 import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordsPage, buildWorkspaceMembersPage, formatSocialAction, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, type SocialActionLike, type SocialActionTarget, type SocialInviteRole, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
+
+const NoteIcon = viewIcons.notes
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -111,7 +114,7 @@ export function VaultView({ notes = [], setView, onOpenNote }: { notes?: Note[];
       <header className="workspace-header"><h2 className="text-lg font-semibold">Vault</h2><button onClick={() => targetNoteId ? onOpenNote(targetNoteId) : setView("notes")} className="editor-primary" aria-label="Open notes" title="Open notes"><BookOpen className="h-4 w-4" /></button></header>
       <div className="vault-workbench">
         <aside className="compact-list"><select aria-label="Vault note" className="editor-input md:hidden" disabled={savingBlock} value={targetNoteId} onChange={event => setBlockNoteId(event.target.value)}>{notes.map(note => <option key={note.id} value={note.id}>{note.title}</option>)}</select>
-          <div className="hidden md:grid"><input aria-label="Find a Vault note" className="editor-input mb-2" placeholder="Find a note" value={noteQuery} onChange={event => setNoteQuery(event.target.value)} /><div className="max-h-[60dvh] overflow-y-auto">{notes.filter(note => note.title.toLowerCase().includes(noteQuery.trim().toLowerCase())).map(note => <button key={note.id} disabled={savingBlock} className="compact-row" aria-pressed={targetNoteId === note.id} onClick={() => setBlockNoteId(note.id)}><BookOpen className="h-4 w-4 shrink-0 text-primary" /><span className="truncate">{note.title}</span></button>)}</div></div>
+          <div className="hidden md:grid"><input aria-label="Find a Vault note" className="editor-input mb-2" placeholder="Find a note" value={noteQuery} onChange={event => setNoteQuery(event.target.value)} /><div className="max-h-[60dvh] overflow-y-auto">{notes.filter(note => note.title.toLowerCase().includes(noteQuery.trim().toLowerCase())).map(note => <button key={note.id} disabled={savingBlock} className="compact-row" aria-pressed={targetNoteId === note.id} onClick={() => setBlockNoteId(note.id)}><span data-project-kind="notes" className="studio-project-icon shrink-0 rounded-md p-1"><NoteIcon className="h-3.5 w-3.5" /></span><span className="truncate">{note.title}</span></button>)}</div></div>
         </aside>
         <Panel className="min-w-0 p-4"><h3 className="mb-3 font-semibold">{targetNoteTitle}</h3><VaultNoteBlocks note={notes.find(note => note.id === targetNoteId)} revision={blocksRevision} setView={setView} />
           <details className="workspace-disclosure mt-3"><summary>Add a block</summary><div className="grid gap-3 pt-3">
