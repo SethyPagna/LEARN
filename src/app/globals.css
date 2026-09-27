@@ -598,6 +598,80 @@ html.dark.learn-high-contrast {
   .today-covers { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 }
 
+/* The select-to-act pill that floats by a passage picked in a note or doc.
+   Action icons take the section tints; the buddy and people colours stay put. */
+.select-dock {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: calc(100vw - 16px);
+  padding: 4px 5px 4px 7px;
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--popover);
+  box-shadow: var(--shadow-lift);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.select-dock-buddy { margin-right: 3px; }
+.select-dock button { touch-action: manipulation; }
+.select-dock-action {
+  --tone: var(--decor-violet-ink);
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 11px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: 999px;
+  transition: background-color .15s, color .15s;
+}
+.select-dock-action[data-tone='blue'] { --tone: var(--decor-blue-ink); }
+.select-dock-action[data-tone='mint'] { --tone: var(--decor-mint-ink); }
+.select-dock-action[data-tone='coral'] { --tone: var(--decor-coral-ink); }
+.select-dock-action[data-tone='pink'] { --tone: var(--decor-pink-ink); }
+.select-dock-action > svg { flex: none; color: var(--tone); }
+.select-dock-action:hover { background: color-mix(in oklch, var(--tone) 12%, transparent); }
+.select-dock-action .select-dock-ai { position: absolute; top: 3px; right: 3px; width: 10px; height: 10px; color: #e0a526; }
+.select-dock-icon { display: inline-flex; flex: none; width: 30px; height: 30px; align-items: center; justify-content: center; color: var(--muted-foreground); border-radius: 999px; transition: background-color .15s, color .15s; }
+.select-dock-icon:hover { color: var(--foreground); background: var(--accent); }
+.select-dock :is(.select-dock-action, .select-dock-icon, .select-dock-chats button):focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.select-dock-note { display: inline-flex; min-width: 0; max-width: 240px; align-items: center; gap: 7px; padding: 0 8px 0 2px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.select-dock-note > svg { flex: none; }
+.select-dock-note-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.select-dock-note[data-tone='error'] { max-width: 250px; padding-block: 3px; line-height: 1.3; color: var(--destructive); white-space: normal; }
+.select-dock[data-stage='failed'] { border-radius: 20px; }
+
+.select-dock[data-stage='choose'] { padding: 6px; border-radius: 18px; }
+.select-dock-panel { display: grid; gap: 4px; width: 232px; }
+.select-dock-head { display: flex; align-items: center; gap: 6px; padding-right: 4px; font-size: 13px; font-weight: 700; }
+.select-dock-head > span { flex: 1; }
+.select-dock-chats { display: grid; gap: 2px; max-height: 264px; overflow-y: auto; overscroll-behavior: contain; }
+.select-dock-chats > li { list-style: none; }
+.select-dock-chats button { display: flex; width: 100%; min-height: 40px; align-items: center; gap: 10px; padding: 5px 8px; font-size: 13px; font-weight: 600; text-align: left; border-radius: 12px; transition: background-color .15s; }
+.select-dock-chats button:hover { background: var(--accent); }
+.select-dock-avatar { display: inline-flex; flex: none; width: 30px; height: 30px; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; border-radius: 999px; }
+.select-dock-chat-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.learn-reduced-motion) .select-dock { animation: select-dock-in .16s cubic-bezier(.2, .8, .2, 1) both; }
+}
+@keyframes select-dock-in { from { opacity: 0; transform: scale(.94); } }
+
+/* Phones: icons only, at a size a thumb can hit. */
+@media (max-width: 639px) {
+  .select-dock[data-stage='ready'] .select-dock-action { width: 40px; height: 40px; justify-content: center; padding: 0; }
+  .select-dock[data-stage='ready'] .select-dock-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+
 /* Section colour for anything tagged with data-tab: the tab stripe, tinted
    icon wells and dots all read `--learn-tab`, so one attribute recolours a
    whole row. The ink mix keeps icons at a readable contrast on both themes. */
