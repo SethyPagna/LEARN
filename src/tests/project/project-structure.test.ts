@@ -39,6 +39,9 @@ const allowedDocsDirectories = new Set([
   "audits",
   "operations",
   "roadmap",
+  // One dated log per working day, with a "Resume here" block, so work can
+  // pick up again after an interrupted session.
+  "sessions",
   "superpowers",
 ])
 
