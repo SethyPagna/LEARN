@@ -2215,7 +2215,8 @@ function StudioProjectBrowser({
                 <Search className="h-5 w-5 text-foreground" />
                 <input value={query} onChange={(event) => onQuery(event.target.value)} aria-label="Search projects" placeholder="Search projects" className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
               </label>
-              <div className="ml-auto flex flex-wrap gap-2">
+              <div className="ml-auto flex flex-wrap items-center gap-2">
+                {browserStep === "projects" && dirtyBadges.length ? <span className="rounded-lg bg-warning/15 px-2.5 py-1.5 text-xs font-semibold text-warning-foreground">{dirtyBadges.reduce((total, badge) => total + badge.count, 0)} drafts</span> : null}
                 <ActionMenu compact label={projectKindFilter === "all" ? "All designs" : activeTemplateFilter.label} icon={LayoutPanelLeft}>
                   {templateFilterOptions.map((option) => {
                     const Icon = option.value === "all" ? LayoutPanelLeft : studioKindIcons[option.value]
@@ -2232,6 +2233,16 @@ function StudioProjectBrowser({
                   <MenuAction active={projectSort === "newest"} icon={ArrowDown} label="Newest first" onClick={() => setProjectSort("newest")} />
                   <MenuAction active={projectSort === "oldest"} icon={ArrowUp} label="Oldest first" onClick={() => setProjectSort("oldest")} />
                 </ActionMenu>
+                {browserStep === "projects" ? <ActionMenu compact label={selectedProjects.length ? `${selectedProjects.length} selected` : "Select"} icon={CheckSquare}>
+                  <MenuAction icon={CheckSquare} label="Select visible" meta={`${recentItems.length} project${recentItems.length === 1 ? "" : "s"}`} onClick={selectEveryVisibleProject} />
+                  <MenuAction icon={X} label="Clear selection" onClick={clearProjectSelection} />
+                  <div className="my-1 h-px bg-border" />
+                  <MenuAction disabled={selectedProjects.length !== 1} icon={Edit3} label="Rename selected" meta="Available when one project is selected" onClick={() => selectedProjects[0] && onRename(selectedProjects[0])} />
+                  <MenuAction disabled={selectedProjects.length !== 1} icon={Share2} label="Share selected" meta="Copy a share link for one project" onClick={() => selectedProjects[0] && onShare(selectedProjects[0])} />
+                  <MenuAction disabled={!selectedProjects.length} icon={Download} label="Download selected" meta="Download each selected project" onClick={() => selectedProjects.forEach((item) => onDownload(item))} />
+                  <MenuAction disabled={!selectedProjects.length} icon={Copy} label="Duplicate selected" meta="Create editable copies" onClick={() => selectedProjects.forEach((item) => onDuplicate(item))} />
+                  <MenuAction disabled={!selectedProjects.length} danger icon={Archive} label="Archive selected" meta="Move selected projects out of recents" onClick={() => selectedProjects.forEach((item) => onArchive(item))} />
+                </ActionMenu> : null}
               </div>
             </div>
             <div className="mt-4 grid gap-3">
@@ -2253,24 +2264,8 @@ function StudioProjectBrowser({
                 </div>
                 {browserStep === "projects" ? (
                 <>
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="sr-only">Recent projects</h3>
-                  <div className="ml-auto flex items-center gap-2">
-                    {dirtyBadges.length ? <span className="rounded-lg bg-warning/15 px-2.5 py-1.5 text-xs font-semibold text-warning-foreground">{dirtyBadges.reduce((total, badge) => total + badge.count, 0)} drafts</span> : null}
-                    <ActionMenu compact label={selectedProjects.length ? `${selectedProjects.length} selected` : "Select"} icon={CheckSquare}>
-                      <MenuAction icon={CheckSquare} label="Select visible" meta={`${recentItems.length} project${recentItems.length === 1 ? "" : "s"}`} onClick={selectEveryVisibleProject} />
-                      <MenuAction icon={X} label="Clear selection" onClick={clearProjectSelection} />
-                      <div className="my-1 h-px bg-border" />
-                      <MenuAction disabled={selectedProjects.length !== 1} icon={Edit3} label="Rename selected" meta="Available when one project is selected" onClick={() => selectedProjects[0] && onRename(selectedProjects[0])} />
-                      <MenuAction disabled={selectedProjects.length !== 1} icon={Share2} label="Share selected" meta="Copy a share link for one project" onClick={() => selectedProjects[0] && onShare(selectedProjects[0])} />
-                      <MenuAction disabled={!selectedProjects.length} icon={Download} label="Download selected" meta="Download each selected project" onClick={() => selectedProjects.forEach((item) => onDownload(item))} />
-                      <MenuAction disabled={!selectedProjects.length} icon={Copy} label="Duplicate selected" meta="Create editable copies" onClick={() => selectedProjects.forEach((item) => onDuplicate(item))} />
-                      <MenuAction disabled={!selectedProjects.length} danger icon={Archive} label="Archive selected" meta="Move selected projects out of recents" onClick={() => selectedProjects.forEach((item) => onArchive(item))} />
-                    </ActionMenu>
-                    <button onClick={() => setBrowserStep("formats")} className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground" type="button"><Plus className="h-4 w-4" /> New</button>
-                  </div>
-                </div>
-                <div className="mt-4 flex gap-4 overflow-x-auto pb-4">
+                <h3 className="sr-only">Recent projects</h3>
+                <div className="flex gap-4 overflow-x-auto pb-4">
                   <button onClick={() => setBrowserStep("formats")} className="group flex w-48 shrink-0 flex-col items-center justify-center rounded-xl border border-dashed border-primary/50 bg-background/75 text-center shadow-sm transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground" type="button">
                     <span className="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-sm">
                       <Plus className="h-6 w-6" />
