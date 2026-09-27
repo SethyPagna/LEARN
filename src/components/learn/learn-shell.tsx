@@ -22,6 +22,7 @@ import { useWorkspacePreferences } from "./preferences"
 import { FeedView, GraphView, ProfileView, ReviewsView, VaultView } from "./views/ecosystem-views"
 import { LiveQuizView } from "./views/live-quiz-view"
 import { StudioView } from "./views/studio-view"
+import { TodayView } from "./views/today-view"
 import { PracticeWorkspaceView, SocialWorkspaceView } from "./views/workspaces/combined-workspace-views"
 import { PRACTICE_DRAFT_EVENT, readPracticeDrafts, summarizePracticeDrafts, type PracticeDraftSummary } from "@/lib/practice-drafts"
 import { readStudioDrafts, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, type StudioDraftSummary } from "@/lib/studio-drafts"
@@ -263,7 +264,7 @@ export function LearnShell({
     })
   }, [navigateSafely])
 
-  const isStudioLobby = view === "dashboard" || view === "studio" || (view === "canvas" && !new URLSearchParams(locationSearch).has("design"))
+  const isStudioLobby = view === "studio" || (view === "canvas" && !new URLSearchParams(locationSearch).has("design"))
 
   return (
     <EditorNavigationContext.Provider value={editorExitGuard}><AppInstallProvider><RealtimeInboxProvider userId={user?.id}>
@@ -318,6 +319,7 @@ export function LearnShell({
             <div className="learn-content-pane min-w-0">
             <PageSections view={view} setView={chooseView} />
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
+            {view === "dashboard" ? <TodayView onOpen={openLink} /> : null}
             {isStudioLobby ? <StudioLobby key={view} notes={notes} options={preferences.options} onOpen={openLink} onNoteCreated={(note) => setNotes((current) => [note, ...current])} initialFilter={view === "canvas" ? "Canvas" : "All"} /> : null}
             {view === "vault" ? <VaultView setView={chooseView} notes={notes} onOpenNote={openNote} /> : null}
             {/* `discover` is a documented alias of `feed`, not a second screen: both
@@ -329,7 +331,7 @@ export function LearnShell({
             {view === "graph" ? <GraphView setView={chooseView} /> : null}
             {view === "progress" ? <ProgressView dashboard={dashboard} quizzes={quizzes} setView={chooseView} /> : null}
             {view === "calendar" ? <CalendarView options={preferences.options} /> : null}
-            {view === "canvas" && new URLSearchParams(locationSearch).has("design") ? <CanvasEditorView key={locationSearch} designId={new URLSearchParams(locationSearch).get("design") || undefined} notes={notes} onHome={() => chooseView("dashboard")} /> : null}
+            {view === "canvas" && new URLSearchParams(locationSearch).has("design") ? <CanvasEditorView key={locationSearch} designId={new URLSearchParams(locationSearch).get("design") || undefined} notes={notes} onHome={() => chooseView("studio")} /> : null}
             {/* `live` is a Practice alias with a screen of its own; the Practice
                 workspace below is for every other Practice view, so the two never
                 stack on one page. */}

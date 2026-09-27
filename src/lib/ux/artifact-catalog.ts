@@ -215,21 +215,21 @@ export function findArtifact(id: string): ArtifactType | null {
 export const PLACES = [
   {
     id: "dashboard",
-    label: "Studio",
-    oneLine: "Your personal lobby for canvases, writing, slides, sheets, and recent projects.",
+    label: "Today",
+    oneLine: "Your buddy, your streak and today's plan: what to continue, review and play.",
     view: "dashboard",
     route: viewRoutes.dashboard,
     groupLabel: "Home",
-    keywords: ["home", "dashboard", "start", "today", "route", "overview"],
+    keywords: ["home", "dashboard", "start", "today", "streak", "plan", "buddy", "overview"],
   },
   {
     id: "studio",
     label: "Studio",
-    oneLine: "The same personal home lobby, with every project in one place.",
+    oneLine: "Your personal lobby for canvases, writing, slides, sheets, and recent projects.",
     view: "studio",
     route: viewRoutes.studio,
     groupLabel: "Home",
-    keywords: ["studio", "editor", "workspace", "write", "edit", "pane"],
+    keywords: ["studio", "projects", "lobby", "editor", "workspace", "write", "edit", "pane"],
   },
   {
     id: "notes",

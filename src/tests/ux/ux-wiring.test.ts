@@ -38,7 +38,7 @@ const LEARN_SHELL = "src/components/learn/learn-shell.tsx"
 const CREATE_MENU = "src/components/learn/create-menu.tsx"
 const PLACE_GUIDE = "src/components/learn/place-guide.tsx"
 const MENU_KEYBOARD = "src/components/learn/menu-keyboard.ts"
-const DASHBOARD_VIEW = "src/components/learn/studio-lobby.tsx"
+const STUDIO_LOBBY = "src/components/learn/studio-lobby.tsx"
 
 /**
  * The source of one top-level component, from its declaration to the next one.
@@ -140,21 +140,21 @@ test("the launcher offers exactly one create and one guide entry, both keyworded
 })
 
 test("the personal Studio lobby keeps a discoverable guide without a dashboard of setup cards", () => {
-  const lobby = readSource(DASHBOARD_VIEW)
+  const lobby = readSource(STUDIO_LOBBY)
   assert.match(lobby, /onClick=\{openPlaceGuide\}/)
   const guide = launcherCommands.find((command) => command.action === "place-guide")
   assert.ok(guide)
   assert.ok(lobby.includes(guide.label))
 })
 
-test("sidebar keeps stable learning destinations with one Studio home", () => {
+test("sidebar keeps stable learning destinations: Today, then one Studio home", () => {
   assert.deepEqual(
     navigationGroups.map((group) => group.label),
     ["Home", "Learn", "Practice", "Social", "Manage"],
   )
   assert.deepEqual(
     navigationGroups.flatMap((group) => group.items).map((item) => item.view),
-    ["dashboard", "ai", "files", "calendar", "practice", "social", "settings"],
+    ["dashboard", "studio", "ai", "files", "calendar", "practice", "social", "settings"],
   )
 })
 

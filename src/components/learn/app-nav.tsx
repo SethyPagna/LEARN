@@ -80,7 +80,7 @@ export const launcherActions: Record<LauncherCommandAction, () => void> = {
 }
 
 export function titleForView(view: View, text: Text) {
-  if (view === "dashboard" || view === "studio") return "Studio"
+  if (view === "studio") return text.studio
   return text[viewLabelKeys[view]] || text.dashboard
 }
 
@@ -128,7 +128,7 @@ function subViewsFor(view: View, user: User | null) {
 }
 
 function draftBadgeFor(item: LearnNavigationItem, studioDraftSummary: StudioDraftSummary, practiceDraftSummary: PracticeDraftSummary) {
-  const count = item.view === "dashboard" ? studioDraftSummary.count : item.view === "practice" ? practiceDraftSummary.count : 0
+  const count = item.view === "studio" ? studioDraftSummary.count : item.view === "practice" ? practiceDraftSummary.count : 0
   const title = item.view === "practice"
     ? formatNavigationBadge(count, "saved Practice attempt", "saved Practice attempts")
     : formatNavigationBadge(count, "local Studio draft", "local Studio drafts")
@@ -298,7 +298,7 @@ function Navigation({
               const Icon = viewIcons[item.view]
               const tab = sectionTabForView(item.view)
               const badge = draftBadgeFor(item, studioDraftSummary, practiceDraftSummary)
-              const hasPageSections = ["dashboard", "calendar", "practice", "social"].includes(item.view)
+              const hasPageSections = ["studio", "calendar", "practice", "social"].includes(item.view)
               const subViews = active && !hasPageSections ? subViewsFor(item.view, user) : []
               return (
                 <li key={item.view} data-tab={tab}>
@@ -1074,7 +1074,7 @@ function NotificationToasts({
 /* Phone: bottom tabs and the "More" sheet                                   */
 /* ------------------------------------------------------------------------ */
 
-const mobileTabViews: readonly View[] = ["dashboard", "ai", "practice", "social"]
+const mobileTabViews: readonly View[] = ["dashboard", "studio", "practice", "social"]
 
 export function MobileTabBar({
   logout,

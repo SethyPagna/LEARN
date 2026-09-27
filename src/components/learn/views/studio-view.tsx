@@ -1674,7 +1674,7 @@ export function StudioView({
   return (
     <div className="studio-editor-workspace studio-office-workspace">
       <div className="editor-document-header">
-        <button onClick={() => setView("dashboard")} className="editor-command !px-2" aria-label="Back to projects" type="button"><ArrowLeft className="h-4 w-4" /></button>
+        <button onClick={() => setView("studio")} className="editor-command !px-2" aria-label="Back to projects" type="button"><ArrowLeft className="h-4 w-4" /></button>
         <input aria-label="Project title" value={activeTitle()} onChange={(event) => setActiveTitle(event.target.value)} className="h-9 min-w-0 flex-1 rounded-md bg-transparent px-2 text-sm font-semibold outline-none focus:bg-secondary focus:ring-2 focus:ring-ring" />
         <span className="hidden text-xs text-muted-foreground sm:block" role="status">{saving ? "Saving…" : lastSaved ? `Saved ${lastSaved}` : "Draft"}</span>
         <StudioButton label="Save" icon={Save} onClick={() => saveActive()} disabled={!hasActiveItem || saving} primary />

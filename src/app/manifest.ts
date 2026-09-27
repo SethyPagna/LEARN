@@ -34,7 +34,7 @@ export default function manifest(): MetadataRoute.Manifest {
       },
     ],
     shortcuts: [
-      { name: "Projects", url: "/dashboard" },
+      { name: "Projects", url: "/studio" },
       { name: "Calendar", url: "/calendar" },
       { name: "AI tutor", url: "/ai" },
     ],

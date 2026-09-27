@@ -109,7 +109,7 @@ export const viewLabelKeys: Record<View, keyof Vocabulary> = {
   calendar: "calendar",
   canvas: "canvas",
   chat: "chat",
-  dashboard: "studio",
+  dashboard: "today",
   discover: "discover",
   docs: "docs",
   feed: "feed",
@@ -144,8 +144,11 @@ const pathViewAliases: Record<string, View> = {
 export const navigationGroups: readonly LearnNavigationGroup[] = [
   {
     label: "Home",
-    caption: "Your projects and creative space",
-    items: [{ view: "dashboard", labelKey: "studio", iconKey: "studio", aliases: ["studio", ...studioAliasViews] }],
+    caption: "Your day, your buddy and your projects",
+    items: [
+      { view: "dashboard", labelKey: "today", iconKey: "dashboard" },
+      { view: "studio", labelKey: "studio", iconKey: "studio", aliases: studioAliasViews },
+    ],
   },
   {
     label: "Learn",
@@ -218,7 +221,7 @@ export function sectionTabForView(view: View): SectionTab {
  * primary items: the sidebar stays capped at eight (see navigation.test.ts).
  */
 export const navigationSubViews: Partial<Record<View, readonly View[]>> = {
-  dashboard: ["notes", "docs", "sheets", "slides", "canvas"],
+  studio: ["notes", "docs", "sheets", "slides", "canvas"],
   calendar: ["vault", "progress", "graph", "feed"],
   practice: ["quizzes", "live", "games", "reviews"],
   social: ["chat", "spaces", "rooms", "battles"],
