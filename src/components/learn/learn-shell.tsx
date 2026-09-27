@@ -7,6 +7,7 @@ import { PageSections } from "./page-sections"
 import { CommandPalette } from "./command-palette"
 import { PlaceGuide, openPlaceGuide } from "./place-guide"
 import { RealtimeInboxProvider } from "./realtime-inbox"
+import { SelectionDock } from "./selection-dock"
 import type { AdminData, AutomationData, DashboardData, Note, Quiz, User, View } from "./types"
 import { StatusMessage } from "./ui"
 import { AiTutorView } from "./views/ai-view"
@@ -27,6 +28,7 @@ import { PracticeWorkspaceView, SocialWorkspaceView } from "./views/workspaces/c
 import { PRACTICE_DRAFT_EVENT, readPracticeDrafts, summarizePracticeDrafts, type PracticeDraftSummary } from "@/lib/practice-drafts"
 import { readStudioDrafts, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, type StudioDraftSummary } from "@/lib/studio-drafts"
 import { getStudioKind, practiceViews, socialViews, studioViews, viewFromPath, viewRoutes } from "@/lib/navigation"
+import type { SavedQuiz } from "@/lib/select-actions"
 import { cycleSidebarMode, DEFAULT_SIDEBAR_MODE, sidebarModeCookie, type SidebarMode } from "@/lib/shell/sidebar-mode"
 
 /** `/profile/<username>` names someone else's profile; `/profile` is your own. */
@@ -84,6 +86,10 @@ export function LearnShell({
   const [quizLaunch, setQuizLaunch] = useState<{ id: string } | undefined>(initialQuizId ? { id: initialQuizId } : undefined)
   const [practiceLibraryRevision, setPracticeLibraryRevision] = useState(0)
   const removeArchivedQuiz = useCallback((id: string) => setQuizzes(current => current.filter(quiz => quiz.id !== id)), [])
+  const addQuiz = useCallback((quiz: SavedQuiz) => setQuizzes(current => [
+    { ...(quiz as Quiz), question_count: quiz.questions?.length },
+    ...current.filter(item => item.id !== quiz.id),
+  ]), [])
   const [dashboard, setDashboard] = useState<DashboardData | null>(null)
   const [adminData, setAdminData] = useState<AdminData | null>(null)
   const [automationData, setAutomationData] = useState<AutomationData | null>(null)
@@ -362,6 +368,7 @@ export function LearnShell({
           user={user}
         />
         <PlaceGuide setView={chooseView} />
+        <SelectionDock userId={user?.id} view={view} onOpen={openLink} onQuizCreated={addQuiz} />
       </div>
     </RealtimeInboxProvider></AppInstallProvider></EditorNavigationContext.Provider>
   )
