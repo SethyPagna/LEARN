@@ -5,7 +5,7 @@ import test from "node:test"
 import { fileURLToPath } from "node:url"
 
 import { getVocabulary } from "../../lib/i18n/vocabulary"
-import { navigationGroups, viewFromPath, viewLabelKeys, viewRoutes } from "../../lib/navigation"
+import { navigationGroups, resolveNavigationTarget, viewFromPath, viewLabelKeys, viewRoutes } from "../../lib/navigation"
 import {
   ARTIFACT_GROUP_ORDER,
   ARTIFACT_TYPE_IDS,
@@ -84,6 +84,16 @@ test("the place guide covers every navigation group", () => {
     "every sidebar group must be represented in the guide, or the guide silently drops a whole area",
   )
   assert.deepEqual([...coveredGroups].sort(), [...PLACE_GROUP_ORDER].sort(), "PLACE_GROUP_ORDER must match the groups actually used")
+})
+
+test("the guide files each page under the place the sidebar lights for it", () => {
+  for (const place of PLACES) {
+    assert.equal(
+      place.groupLabel,
+      resolveNavigationTarget(place.view).groupLabel,
+      `the guide files ${place.view} under ${place.groupLabel}, but it lives in ${resolveNavigationTarget(place.view).groupLabel}`,
+    )
+  }
 })
 
 test("grouping renders every entry exactly once, in a deterministic order", () => {

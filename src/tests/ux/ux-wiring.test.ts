@@ -147,14 +147,14 @@ test("the personal Studio lobby keeps a discoverable guide without a dashboard o
   assert.ok(lobby.includes(guide.label))
 })
 
-test("sidebar keeps stable learning destinations: Today, then one Studio home", () => {
+test("sidebar keeps the five places: Today, Create, Practice, Friends, Me", () => {
   assert.deepEqual(
     navigationGroups.map((group) => group.label),
-    ["Home", "Learn", "Practice", "Social", "Manage"],
+    ["Today", "Create", "Practice", "Friends", "Me"],
   )
   assert.deepEqual(
     navigationGroups.flatMap((group) => group.items).map((item) => item.view),
-    ["dashboard", "studio", "ai", "files", "calendar", "practice", "social", "settings"],
+    ["dashboard", "studio", "practice", "social", "profile"],
   )
 })
 

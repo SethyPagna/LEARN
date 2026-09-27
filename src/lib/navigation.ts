@@ -15,6 +15,8 @@ export interface LearnNavigationItem {
   aliases?: readonly View[]
   iconKey: NavigationIconKey
   labelKey: keyof Vocabulary
+  /** The place's tab row, in order. */
+  tabs?: readonly View[]
   view: View
 }
 
@@ -53,23 +55,14 @@ export interface NavigationTarget {
   view: View
 }
 
+/**
+ * Render lists: which workspace draws a view. They are not the places a view
+ * belongs to (Reviews is drawn on its own but lives in Today, for example);
+ * membership is `navigationGroups` below.
+ */
 export const studioViews = ["studio", "notes", "docs", "sheets", "slides"] as const satisfies readonly View[]
-/**
- * `canvas` is an alias of Studio rather than a ninth sidebar destination: the
- * sidebar is capped at eight primary items (see navigation.test.ts), and the
- * design canvas is reached from Studio's launcher entry and `/canvas`.
- */
-export const studioAliasViews = ["notes", "docs", "sheets", "slides", "canvas"] as const satisfies readonly View[]
-export const learnAliasViews = ["vault", "feed", "discover", "graph", "progress"] as const satisfies readonly View[]
-/**
- * `live` joins `quizzes`/`games`/`reviews` as an alias of Practice for the same
- * reason `canvas` is an alias of Studio: the sidebar is capped at eight primary
- * items (see navigation.test.ts), so a new destination is reached through its
- * group's launcher entry and its own route (`/live`).
- */
 export const practiceViews = ["practice", "quizzes", "live", "games", "reviews"] as const satisfies readonly View[]
 export const socialViews = ["social", "chat", "spaces", "rooms", "battles"] as const satisfies readonly View[]
-export const manageAliasViews = ["profile", "admin"] as const satisfies readonly View[]
 
 export const viewRoutes: Record<View, string> = {
   admin: "/admin",
@@ -127,7 +120,7 @@ export const viewLabelKeys: Record<View, keyof Vocabulary> = {
   settings: "settings",
   sheets: "sheets",
   slides: "slides",
-  social: "social",
+  social: "friends",
   spaces: "spaces",
   studio: "studio",
   vault: "vault",
@@ -141,38 +134,39 @@ const pathViewAliases: Record<string, View> = {
   learn: "dashboard",
 }
 
+/**
+ * The five places of LEARN, one sidebar item and one phone dock button each.
+ *
+ * Every view belongs to exactly one place: the place's own view or one of its
+ * `aliases`. `tabs` is the place's tab row, in order. The editors (notes, docs,
+ * sheets, slides and the design canvas) belong to Create without a tab: an open
+ * editor shows no tab row.
+ */
 export const navigationGroups: readonly LearnNavigationGroup[] = [
   {
-    label: "Home",
-    caption: "Your day, your buddy and your projects",
-    items: [
-      { view: "dashboard", labelKey: "today", iconKey: "dashboard" },
-      { view: "studio", labelKey: "studio", iconKey: "studio", aliases: studioAliasViews },
-    ],
+    label: "Today",
+    caption: "Your buddy, plan, calendar and reviews",
+    items: [{ view: "dashboard", labelKey: "today", iconKey: "dashboard", aliases: ["calendar", "progress", "reviews"], tabs: ["dashboard", "calendar", "progress", "reviews"] }],
   },
   {
-    label: "Learn",
-    caption: "Studio, AI tutor, files, calendar, and planned learning blocks",
-    items: [
-      { view: "ai", labelKey: "aiTutor", iconKey: "ai" },
-      { view: "files", labelKey: "files", iconKey: "studio" },
-      { view: "calendar", labelKey: "calendar", iconKey: "calendar", aliases: learnAliasViews },
-    ],
+    label: "Create",
+    caption: "Studio, vault and files",
+    items: [{ view: "studio", labelKey: "create", iconKey: "studio", aliases: ["notes", "docs", "sheets", "slides", "canvas", "vault", "files"], tabs: ["studio", "vault", "files"] }],
   },
   {
     label: "Practice",
-    caption: "Quizzes, games, retries, and reviews",
-    items: [{ view: "practice", labelKey: "practice", iconKey: "practice", aliases: ["quizzes", "live", "games", "reviews"] }],
+    caption: "Quizzes, live games, games, AI tutor and graph",
+    items: [{ view: "practice", labelKey: "practice", iconKey: "practice", aliases: ["quizzes", "live", "games", "ai", "graph"], tabs: ["quizzes", "live", "games", "ai", "graph"] }],
   },
   {
-    label: "Social",
-    caption: "Chat, groups, rooms, and battles",
-    items: [{ view: "social", labelKey: "social", iconKey: "social", aliases: socialViews.filter((view) => view !== "social") }],
+    label: "Friends",
+    caption: "Chats, groups, rooms, battles and feed",
+    items: [{ view: "social", labelKey: "friends", iconKey: "social", aliases: ["chat", "spaces", "rooms", "battles", "feed", "discover"], tabs: ["chat", "spaces", "rooms", "battles", "feed"] }],
   },
   {
-    label: "Manage",
-    caption: "Profile, preferences, security, and admin",
-    items: [{ view: "settings", labelKey: "settings", iconKey: "settings", aliases: manageAliasViews }],
+    label: "Me",
+    caption: "Your profile and settings",
+    items: [{ view: "profile", labelKey: "me", iconKey: "settings", aliases: ["settings", "admin"], tabs: ["profile", "settings", "admin"] }],
   },
 ] as const
 
@@ -195,41 +189,52 @@ export const launcherCommands: readonly LauncherCommandConfig[] = [
 export const navigationItems = navigationGroups.flatMap((group) => group.items)
 
 /**
- * The "divider tab" each area of the app owns. Colours live in globals.css as
- * `--tab-<key>`; this map only says which tab a primary destination uses.
+ * The colour each place wears. Colours live in globals.css as `--tab-<key>`;
+ * this map only says which one a place uses.
  */
 export type SectionTab = "home" | "studio" | "ai" | "files" | "calendar" | "practice" | "social" | "settings"
 
 const sectionTabsByPrimaryView: Partial<Record<View, SectionTab>> = {
   dashboard: "home",
   studio: "studio",
-  ai: "ai",
-  files: "files",
-  calendar: "calendar",
   practice: "practice",
   social: "social",
-  settings: "settings",
+  profile: "settings",
 }
 
 export function sectionTabForView(view: View): SectionTab {
   return sectionTabsByPrimaryView[resolveNavigationTarget(view).primaryView] ?? "home"
 }
 
-/**
- * Pages inside a primary destination, shown as indented tabs under it in the
- * sidebar and as their own entries in the command palette. They are not
- * primary items: the sidebar stays capped at eight (see navigation.test.ts).
- */
-export const navigationSubViews: Partial<Record<View, readonly View[]>> = {
-  studio: ["notes", "docs", "sheets", "slides", "canvas"],
-  calendar: ["vault", "progress", "graph", "feed"],
-  practice: ["quizzes", "live", "games", "reviews"],
-  social: ["chat", "spaces", "rooms", "battles"],
-  settings: ["profile", "admin"],
+/** Views only an admin may open. */
+export const adminOnlyViews: readonly View[] = ["admin"]
+
+/** The tab row of the place a view belongs to, without the tabs this person may not open. */
+export function placeTabsForView(view: View, isAdmin = false): readonly View[] {
+  const primaryView = resolveNavigationTarget(view).primaryView
+  const tabs = navigationItems.find((item) => item.view === primaryView)?.tabs ?? []
+  return tabs.filter((tab) => isAdmin || !adminOnlyViews.includes(tab))
 }
 
-/** Sub views only an admin may open. */
-export const adminOnlyViews: readonly View[] = ["admin"]
+/**
+ * Views without a tab of their own that light up a sibling tab: a place's own
+ * view shows its first page, `/discover` is the feed, and the canvas list is
+ * a Studio filter.
+ */
+const tabStandIns: Partial<Record<View, View>> = {
+  canvas: "studio",
+  discover: "feed",
+  practice: "quizzes",
+  social: "chat",
+}
+
+/** The tab a view lights up in its place's tab row, or null for an editor. */
+export function placeTabForView(view: View): View | null {
+  const tabs = placeTabsForView(view, true)
+  if (tabs.includes(view)) return view
+  const standIn = tabStandIns[view]
+  return standIn && tabs.includes(standIn) ? standIn : null
+}
 
 export function getNavigationItemDetail(item: LearnNavigationItem) {
   const group = navigationGroups.find((entry) => entry.items.some((candidate) => candidate.view === item.view))
@@ -264,7 +269,7 @@ export function resolveNavigationTarget(view: View): NavigationTarget {
   }
 
   return {
-    groupLabel: "Home",
+    groupLabel: "Today",
     isAlias: view !== "dashboard",
     primaryView: "dashboard",
     route: viewRoutes[view],

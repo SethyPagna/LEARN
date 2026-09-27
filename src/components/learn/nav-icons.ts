@@ -11,7 +11,7 @@ import {
   MessageCircle,
   MessagesSquare,
   Network,
-  PanelsTopLeft,
+  PenLine,
   Presentation,
   Radio,
   Repeat,
@@ -31,7 +31,11 @@ import {
 } from "lucide-react"
 import type { View } from "./types"
 
-/** One icon per view, shared by the sidebar, the mobile tabs and the command palette. */
+/**
+ * One icon per view, shared by the sidebar, the phone dock, the tab rows and the
+ * command palette. A place wears the icon of its own view: Create is a pen and
+ * Friends are people, so group chats get the speech bubbles.
+ */
 export const viewIcons: Record<View, LucideIcon> = {
   admin: ShieldCheck,
   ai: Sparkles,
@@ -57,8 +61,8 @@ export const viewIcons: Record<View, LucideIcon> = {
   settings: Settings,
   sheets: Sheet,
   slides: Presentation,
-  social: MessagesSquare,
-  spaces: Users,
-  studio: PanelsTopLeft,
+  social: Users,
+  spaces: MessagesSquare,
+  studio: PenLine,
   vault: Library,
 }

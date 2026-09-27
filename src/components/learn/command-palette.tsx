@@ -10,14 +10,13 @@ import {
   getNavigationItemDetail,
   launcherCommands,
   navigationItems,
-  navigationSubViews,
   sectionTabForView,
   viewLabelKeys,
   type LauncherCommandAction,
   type SectionTab,
 } from "@/lib/navigation"
 import { rankNavigationMatches, type NavigationSearchCandidate } from "@/lib/navigation-features"
-import { kindForView } from "@/lib/ux/artifact-catalog"
+import { describePlace, kindForView } from "@/lib/ux/artifact-catalog"
 import type { ArtKind } from "./kind-art"
 import { viewIcons } from "./nav-icons"
 import type { Note, Quiz, User, View } from "./types"
@@ -120,10 +119,9 @@ export function CommandPalette({
     const isAdmin = user?.role === "admin"
     const pages: PaletteItem[] = []
     const seen = new Set<View>()
-    function addPage(view: View, detail: string) {
+    function addPage(view: View, detail: string, label = String(text[viewLabelKeys[view]] || view)) {
       if (seen.has(view) || (adminOnlyViews.includes(view) && !isAdmin)) return
       seen.add(view)
-      const label = String(text[viewLabelKeys[view]] || view)
       pages.push({
         id: `page:${view}`,
         group: "Pages",
@@ -132,14 +130,18 @@ export function CommandPalette({
         icon: viewIcons[view],
         tab: sectionTabForView(view),
         kind: kindForView(view) ?? undefined,
-        keywords: [view, label],
+        keywords: [view, label, String(text[viewLabelKeys[view]] || view)],
         run: () => setView(view),
       })
     }
+    // The five places first, under their sidebar names, then every page of
+    // each place with its one-line description. `/discover` is the feed, so
+    // views without a place of their own are left out.
+    for (const item of navigationItems) addPage(item.view, getNavigationItemDetail(item), String(text[item.labelKey]))
     for (const item of navigationItems) {
-      addPage(item.view, getNavigationItemDetail(item))
-      for (const sub of navigationSubViews[item.view] ?? []) {
-        addPage(sub, `In ${String(text[item.labelKey])}`)
+      for (const view of [...(item.tabs ?? []), ...(item.aliases ?? [])]) {
+        const place = describePlace(view)
+        if (place) addPage(view, place.oneLine)
       }
     }
 

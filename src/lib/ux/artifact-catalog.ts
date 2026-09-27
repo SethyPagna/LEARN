@@ -7,7 +7,7 @@ import type { View } from "@/components/learn/types"
  * guide.
  *
  * LEARN has many competing nouns — Vault, Studio, Notes, Docs, Sheets, Slides,
- * Canvas, Practice, Live, Social, Chat, Calendar, Files, AI — and until now
+ * Canvas, Practice, Live, Friends, Chat, Calendar, Files, AI — and until now
  * nothing in the product explained them, and there was no single "make
  * something" action. This module is the one place that answers two questions in
  * plain language:
@@ -22,7 +22,7 @@ import type { View } from "@/components/learn/types"
 
 /** The navigation group labels a place can belong to. Kept literal so a group
  * that stops being covered is a compile error rather than a silent omission. */
-export type NavigationGroupLabel = "Home" | "Learn" | "Practice" | "Social" | "Manage"
+export type NavigationGroupLabel = "Today" | "Create" | "Practice" | "Friends" | "Me"
 
 /** Group headings used by the Create menu. The order the menu renders them in
  * comes from `ARTIFACT_GROUP_ORDER`, not from this union. */
@@ -40,6 +40,9 @@ export type ArtifactTypeId = (typeof ARTIFACT_TYPE_IDS)[number]
 /** The place ids, in guide order (navigation-group order). Same contract as above. */
 export const PLACE_IDS = [
   "dashboard",
+  "calendar",
+  "progress",
+  "reviews",
   "studio",
   "notes",
   "docs",
@@ -48,23 +51,20 @@ export const PLACE_IDS = [
   "canvas",
   "vault",
   "files",
-  "calendar",
-  "ai",
-  "feed",
-  "graph",
-  "progress",
   "practice",
   "quizzes",
   "live",
   "games",
-  "reviews",
+  "ai",
+  "graph",
   "social",
   "chat",
   "spaces",
   "rooms",
   "battles",
-  "settings",
+  "feed",
   "profile",
+  "settings",
   "admin",
 ] as const
 
@@ -218,7 +218,7 @@ export function kindForView(view: View): ArtKind | null {
 
 /**
  * Every place a user can be, in navigation-group order so the guide reads like
- * the sidebar: Home, Learn, Practice, Social, Manage.
+ * the sidebar: Today, Create, Practice, Friends, Me.
  *
  * `discover` is deliberately absent: `/discover` resolves to the `discover`
  * view, which renders the same `FeedView` as `/feed`, so it is not a distinct
@@ -234,8 +234,35 @@ export const PLACES = [
     oneLine: "Your buddy, your streak and today's plan: what to continue, review and play.",
     view: "dashboard",
     route: viewRoutes.dashboard,
-    groupLabel: "Home",
+    groupLabel: "Today",
     keywords: ["home", "dashboard", "start", "today", "streak", "plan", "buddy", "overview"],
+  },
+  {
+    id: "calendar",
+    label: "Calendar",
+    oneLine: "Study blocks, due dates, and the plan for the days ahead.",
+    view: "calendar",
+    route: viewRoutes.calendar,
+    groupLabel: "Today",
+    keywords: ["calendar", "schedule", "plan", "due", "block", "time"],
+  },
+  {
+    id: "progress",
+    label: "Progress",
+    oneLine: "Scores, streaks, and the topics still giving you trouble.",
+    view: "progress",
+    route: viewRoutes.progress,
+    groupLabel: "Today",
+    keywords: ["progress", "scores", "streak", "stats", "accuracy"],
+  },
+  {
+    id: "reviews",
+    label: "Reviews",
+    oneLine: "Spaced repetition on the cards you have collected.",
+    view: "reviews",
+    route: viewRoutes.reviews,
+    groupLabel: "Today",
+    keywords: ["review", "reviews", "cards", "spaced", "recall", "memory"],
   },
   {
     id: "studio",
@@ -243,7 +270,7 @@ export const PLACES = [
     oneLine: "Your personal lobby for canvases, writing, slides, sheets, and recent projects.",
     view: "studio",
     route: viewRoutes.studio,
-    groupLabel: "Home",
+    groupLabel: "Create",
     keywords: ["studio", "projects", "lobby", "editor", "workspace", "write", "edit", "pane"],
   },
   {
@@ -252,7 +279,7 @@ export const PLACES = [
     oneLine: "Quick captures, opened straight into Studio.",
     view: "notes",
     route: viewRoutes.notes,
-    groupLabel: "Home",
+    groupLabel: "Create",
     keywords: ["note", "notes", "capture", "quick"],
   },
   {
@@ -261,7 +288,7 @@ export const PLACES = [
     oneLine: "Long-form writing with headings and pages, opened in Studio.",
     view: "docs",
     route: viewRoutes.docs,
-    groupLabel: "Home",
+    groupLabel: "Create",
     keywords: ["doc", "docs", "document", "writing", "page"],
   },
   {
@@ -270,7 +297,7 @@ export const PLACES = [
     oneLine: "Grids of rows and numbers, opened in Studio.",
     view: "sheets",
     route: viewRoutes.sheets,
-    groupLabel: "Home",
+    groupLabel: "Create",
     keywords: ["sheet", "sheets", "table", "grid", "numbers"],
   },
   {
@@ -279,7 +306,7 @@ export const PLACES = [
     oneLine: "Slide sets for presenting, opened in Studio.",
     view: "slides",
     route: viewRoutes.slides,
-    groupLabel: "Home",
+    groupLabel: "Create",
     keywords: ["slide", "slides", "deck", "presentation"],
   },
   {
@@ -288,7 +315,7 @@ export const PLACES = [
     oneLine: "A free-form board for diagrams, layouts, and posters.",
     view: "canvas",
     route: viewRoutes.canvas,
-    groupLabel: "Home",
+    groupLabel: "Create",
     keywords: ["canvas", "board", "design", "diagram", "layout"],
   },
   {
@@ -297,7 +324,7 @@ export const PLACES = [
     oneLine: "The material you have saved, ready to reopen and reuse.",
     view: "vault",
     route: viewRoutes.vault,
-    groupLabel: "Learn",
+    groupLabel: "Create",
     keywords: ["vault", "saved", "library", "archive", "reuse"],
   },
   {
@@ -306,58 +333,13 @@ export const PLACES = [
     oneLine: "Uploads, media, and imports that feed the rest of your work.",
     view: "files",
     route: viewRoutes.files,
-    groupLabel: "Learn",
+    groupLabel: "Create",
     keywords: ["file", "files", "upload", "media", "import", "download"],
-  },
-  {
-    id: "calendar",
-    label: "Calendar",
-    oneLine: "Study blocks, due dates, and the plan for the days ahead.",
-    view: "calendar",
-    route: viewRoutes.calendar,
-    groupLabel: "Learn",
-    keywords: ["calendar", "schedule", "plan", "due", "block", "time"],
-  },
-  {
-    id: "ai",
-    label: "AI tutor",
-    oneLine: "Ask, rewrite, quiz, or plan against your own material.",
-    view: "ai",
-    route: viewRoutes.ai,
-    groupLabel: "Learn",
-    keywords: ["ai", "tutor", "prompt", "rewrite", "explain", "plan"],
-  },
-  {
-    id: "feed",
-    label: "Feed",
-    oneLine: "Short lessons and prompts chosen for what you are studying.",
-    view: "feed",
-    route: viewRoutes.feed,
-    groupLabel: "Learn",
-    keywords: ["feed", "discover", "lessons", "prompts", "browse"],
-  },
-  {
-    id: "graph",
-    label: "Graph",
-    oneLine: "Your notes and reviews drawn as connected nodes.",
-    view: "graph",
-    route: viewRoutes.graph,
-    groupLabel: "Learn",
-    keywords: ["graph", "nodes", "connections", "map", "links", "knowledge"],
-  },
-  {
-    id: "progress",
-    label: "Progress",
-    oneLine: "Scores, streaks, and the topics still giving you trouble.",
-    view: "progress",
-    route: viewRoutes.progress,
-    groupLabel: "Learn",
-    keywords: ["progress", "scores", "streak", "stats", "accuracy"],
   },
   {
     id: "practice",
     label: "Practice",
-    oneLine: "Where quizzes, games, retries, and reviews are actually run.",
+    oneLine: "Where quizzes, live games, and games are actually run.",
     view: "practice",
     route: viewRoutes.practice,
     groupLabel: "Practice",
@@ -391,22 +373,31 @@ export const PLACES = [
     keywords: ["game", "games", "timed", "sprint", "streak"],
   },
   {
-    id: "reviews",
-    label: "Reviews",
-    oneLine: "Spaced repetition on the cards you have collected.",
-    view: "reviews",
-    route: viewRoutes.reviews,
+    id: "ai",
+    label: "AI tutor",
+    oneLine: "Ask, rewrite, quiz, or plan against your own material.",
+    view: "ai",
+    route: viewRoutes.ai,
     groupLabel: "Practice",
-    keywords: ["review", "reviews", "cards", "spaced", "recall", "memory"],
+    keywords: ["ai", "tutor", "prompt", "rewrite", "explain", "plan"],
+  },
+  {
+    id: "graph",
+    label: "Graph",
+    oneLine: "Your notes and reviews drawn as connected nodes.",
+    view: "graph",
+    route: viewRoutes.graph,
+    groupLabel: "Practice",
+    keywords: ["graph", "nodes", "connections", "map", "links", "knowledge"],
   },
   {
     id: "social",
-    label: "Social",
-    oneLine: "People, groups, and the study activity happening around you.",
+    label: "Friends",
+    oneLine: "The people you study with: chats, groups, rooms, battles and the feed.",
     view: "social",
     route: viewRoutes.social,
-    groupLabel: "Social",
-    keywords: ["social", "people", "network", "activity"],
+    groupLabel: "Friends",
+    keywords: ["friends", "social", "people", "network", "activity"],
   },
   {
     id: "chat",
@@ -414,7 +405,7 @@ export const PLACES = [
     oneLine: "Messages with study partners and groups.",
     view: "chat",
     route: viewRoutes.chat,
-    groupLabel: "Social",
+    groupLabel: "Friends",
     keywords: ["chat", "message", "dm", "talk", "conversation"],
   },
   {
@@ -423,7 +414,7 @@ export const PLACES = [
     oneLine: "Study groups you belong to, and the people in them.",
     view: "spaces",
     route: viewRoutes.spaces,
-    groupLabel: "Social",
+    groupLabel: "Friends",
     keywords: ["group", "groups", "spaces", "members", "community"],
   },
   {
@@ -432,7 +423,7 @@ export const PLACES = [
     oneLine: "Focus or discussion rooms you sit in together.",
     view: "rooms",
     route: viewRoutes.rooms,
-    groupLabel: "Social",
+    groupLabel: "Friends",
     keywords: ["room", "rooms", "focus", "discussion", "together", "presence"],
   },
   {
@@ -441,17 +432,17 @@ export const PLACES = [
     oneLine: "Head-to-head quiz matches on a single topic.",
     view: "battles",
     route: viewRoutes.battles,
-    groupLabel: "Social",
+    groupLabel: "Friends",
     keywords: ["battle", "battles", "versus", "match", "compete"],
   },
   {
-    id: "settings",
-    label: "Settings",
-    oneLine: "Theme, language, density, and accessibility for your account.",
-    view: "settings",
-    route: viewRoutes.settings,
-    groupLabel: "Manage",
-    keywords: ["settings", "preferences", "theme", "language", "density", "accessibility"],
+    id: "feed",
+    label: "Feed",
+    oneLine: "Short lessons and prompts chosen for what you are studying.",
+    view: "feed",
+    route: viewRoutes.feed,
+    groupLabel: "Friends",
+    keywords: ["feed", "discover", "lessons", "prompts", "browse"],
   },
   {
     id: "profile",
@@ -459,8 +450,17 @@ export const PLACES = [
     oneLine: "Your public identity and the work you have chosen to share.",
     view: "profile",
     route: viewRoutes.profile,
-    groupLabel: "Manage",
+    groupLabel: "Me",
     keywords: ["profile", "identity", "public", "share", "bio"],
+  },
+  {
+    id: "settings",
+    label: "Settings",
+    oneLine: "Theme, language, density, and accessibility for your account.",
+    view: "settings",
+    route: viewRoutes.settings,
+    groupLabel: "Me",
+    keywords: ["settings", "preferences", "theme", "language", "density", "accessibility"],
   },
   {
     id: "admin",
@@ -468,12 +468,12 @@ export const PLACES = [
     oneLine: "Providers, users, audit, and health for whoever operates the workspace.",
     view: "admin",
     route: viewRoutes.admin,
-    groupLabel: "Manage",
+    groupLabel: "Me",
     keywords: ["admin", "providers", "users", "audit", "health", "operator"],
   },
 ] as const satisfies readonly PlaceEntry[]
 
-export const PLACE_GROUP_ORDER: readonly NavigationGroupLabel[] = ["Home", "Learn", "Practice", "Social", "Manage"]
+export const PLACE_GROUP_ORDER: readonly NavigationGroupLabel[] = ["Today", "Create", "Practice", "Friends", "Me"]
 
 export interface PlaceGroup {
   groupLabel: NavigationGroupLabel

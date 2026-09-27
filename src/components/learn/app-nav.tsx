@@ -38,11 +38,10 @@ import { formatRelativeTime } from "@/lib/format-time"
 import { languageNames, supportedLocales, type baseVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
 import { formatNavigationBadge } from "@/lib/navigation-features"
 import {
-  adminOnlyViews,
   getNavigationItemDetail,
   navigationGroups,
   navigationItems,
-  navigationSubViews,
+  placeTabsForView,
   practiceViews,
   resolveNavigationTarget,
   sectionTabForView,
@@ -123,8 +122,7 @@ function usePopover() {
 }
 
 function subViewsFor(view: View, user: User | null) {
-  const isAdmin = user?.role === "admin"
-  return (navigationSubViews[view] ?? []).filter((sub) => isAdmin || !adminOnlyViews.includes(sub))
+  return placeTabsForView(view, user?.role === "admin").filter((sub) => sub !== view)
 }
 
 function draftBadgeFor(item: LearnNavigationItem, studioDraftSummary: StudioDraftSummary, practiceDraftSummary: PracticeDraftSummary) {
