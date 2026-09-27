@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { CircleHelp, ArrowRight, Search, SlidersHorizontal, X } from "lucide-react"
+import { CircleHelp, ArrowRight, Plus, Search, SlidersHorizontal, X } from "lucide-react"
 import { createDesignDoc } from "@/lib/design/document"
 import type { MeasureText } from "@/lib/design/text"
 import { projectHref, projectKinds, useStudioProjects, type ProjectKind, type Project } from "./studio-projects"
@@ -157,7 +157,9 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
       ? <ul className="studio-grid" aria-busy="true" aria-label="Loading projects">{Array.from({ length: 4 }, (_, index) => <li key={index} className="studio-card-skeleton" />)}</ul>
       : matches.length
         ? <ul aria-label="Projects" className="studio-grid">{matches.slice(0, limit).map((project) => <ProjectCard key={`${project.kind}:${project.id}`} project={project} measure={measure} onOpen={openProject} />)}</ul>
-        : <EmptyState title={query || filter !== "All" ? "No matching projects." : "No projects yet"} body={query || filter !== "All" ? "Clear the search or pick All." : "Add a canvas, note, document, slides or sheet to start."} />}
+        : query || filter !== "All"
+          ? <EmptyState title="No matching projects." action={<button type="button" className="editor-command" onClick={() => { setQuery(""); setFilter("All") }}><X className="h-4 w-4" />Clear</button>} />
+          : <EmptyState title="No projects yet" action={<button type="button" className="editor-command" onClick={() => { setActiveIndex(0); setMenuOpen(true) }}><Plus className="h-4 w-4" />Add a project</button>} />}
     {matches.length > limit ? <button type="button" onClick={() => setLimit((current) => current + PAGE_SIZE)} className="mx-auto mt-3 flex min-h-9 items-center gap-2 rounded-lg px-4 text-xs text-muted-foreground hover:bg-secondary">Show more <ArrowRight className="h-3.5 w-3.5" /></button> : null}
     <button type="button" onClick={openPlaceGuide} aria-label="What can LEARN do?" title="Help" className="editor-command mt-3"><CircleHelp className="h-4 w-4" /></button>
   </section>

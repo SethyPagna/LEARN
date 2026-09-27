@@ -91,8 +91,8 @@ async (page) => {
     await search.fill('not-a-real-project-73ac');
     await studio.getByText('No matching projects.', { exact: true }).waitFor();
     verify(await studio.getByRole('list', { name: 'Projects', exact: true }).count() === 0, 'Search filters the project list');
-    await search.fill('');
-    verify(await studio.getByRole('list', { name: 'Projects', exact: true }).locator('li').count() === initialCount, 'Clearing search restores projects');
+    await studio.getByRole('button', { name: 'Clear', exact: true }).click();
+    verify(await search.inputValue() === '' && await studio.getByRole('list', { name: 'Projects', exact: true }).locator('li').count() === initialCount, 'Clear in the empty state restores projects');
     for (const [label, kinds] of [['Canvas', ['canvas']], ['Writing', ['docs', 'notes']], ['Slides', ['slides']], ['Sheets', ['sheets']]]) {
       await studio.locator('[aria-label="Project filters"]').getByRole('button', { name: label, exact: true }).click();
       const visibleKinds = await studio.getByRole('list', { name: 'Projects', exact: true }).locator('[data-project-kind]').evaluateAll(elements => elements.map(element => element.getAttribute('data-project-kind')));
