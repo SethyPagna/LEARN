@@ -2,6 +2,7 @@ import crypto from "node:crypto"
 import { quizQuestions } from "./quiz-data"
 import { hashPassword } from "./auth"
 import { query, type DatabaseClient } from "./db"
+import { starterAccounts } from "./starter-accounts"
 
 let ensurePromise: Promise<void> | null = null
 
@@ -36,22 +37,7 @@ async function seedUser(client: DatabaseClient, input: {
 }
 
 async function seedStarterData(client: DatabaseClient) {
-  await seedUser(client, {
-    id: "user_admin",
-    username: "admin",
-    email: "admin@learn.local",
-    name: "LEARN Admin",
-    password: "Admin123456!",
-    role: "admin",
-  })
-  await seedUser(client, {
-    id: "user_learner",
-    username: "learner",
-    email: "learner@learn.local",
-    name: "Demo Learner",
-    password: "Learn123456!",
-    role: "learner",
-  })
+  for (const account of starterAccounts) await seedUser(client, account)
 
   await client.query(
     `INSERT INTO workspaces (id, owner_user_id, name)
