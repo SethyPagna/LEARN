@@ -14,11 +14,12 @@ export const practiceWorkspaceTabs: Array<WorkspaceTabOption<PracticeWorkspaceTa
   { id: "games", label: "Games", caption: "Fast recall and playful drills" },
 ]
 
+/** Labels match the Friends tab row, which names these pages from the vocabulary. */
 export const socialWorkspaceTabs: Array<WorkspaceTabOption<SocialWorkspaceTab>> = [
-  { id: "chat", label: "Chats", caption: "Search, message, invite, and share" },
+  { id: "chat", label: "Chat", caption: "Search, message, invite, and share" },
   { id: "spaces", label: "Groups", caption: "Group chats and shared study spaces" },
-  { id: "rooms", label: "Calls", caption: "Voice, video, and focus rooms" },
-  { id: "battles", label: "Games", caption: "Quiz battles and mini games" },
+  { id: "rooms", label: "Rooms", caption: "Voice, video, and focus rooms" },
+  { id: "battles", label: "Battles", caption: "Quiz battles and mini games" },
 ]
 
 export function viewFromPracticeWorkspaceTab(tab: PracticeWorkspaceTab): View {

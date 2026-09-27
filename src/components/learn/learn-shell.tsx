@@ -325,7 +325,7 @@ export function LearnShell({
           >
             {isEditor ? <EditorProjectList notes={notes} view={view} search={locationSearch} onOpen={openLink} /> : null}
             <div className="learn-content-pane min-w-0">
-            <PageSections view={view} setView={chooseView} />
+            {isEditor || viewingSomeoneElse ? null : <PageSections isAdmin={user?.role === "admin"} setView={chooseView} text={preferences.text} view={view} />}
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
             {view === "dashboard" ? <TodayView onOpen={openLink} /> : null}
             {isStudioLobby ? <StudioLobby key={view} notes={notes} options={preferences.options} onOpen={openLink} onNoteCreated={(note) => setNotes((current) => [note, ...current])} initialFilter={view === "canvas" ? "Canvas" : "All"} /> : null}

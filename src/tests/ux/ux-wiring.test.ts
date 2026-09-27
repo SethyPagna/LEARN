@@ -7,7 +7,10 @@ import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 
 import { CreateMenuPanel } from "../../components/learn/create-menu"
+import { PageSections } from "../../components/learn/page-sections"
 import { PlaceGuidePanel } from "../../components/learn/place-guide"
+import type { View } from "../../components/learn/types"
+import { getVocabulary } from "../../lib/i18n/vocabulary"
 import { launcherCommands, navigationGroups } from "../../lib/navigation"
 import { resolveMenuKey } from "../../lib/ux/menu-navigation"
 import { ARTIFACT_TYPE_IDS, ARTIFACT_TYPES, PLACE_IDS, PLACES } from "../../lib/ux/artifact-catalog"
@@ -171,6 +174,27 @@ test("the sidebar and the phone dock show the same five places, with no More she
   assert.doesNotMatch(sidebarList, /subViews/, "the sidebar lists places only; each place's pages are its tab row")
   assert.match(componentSource(appNav, "AccountMenu"), /openPlaceGuide\(\)/, "the account menu keeps \"What's where?\" on every screen size")
   assert.match(readSource(LEARN_SHELL), /const placeView: View = viewingSomeoneElse \? "social" : view/, "someone else's profile lights up Friends")
+})
+
+test("every place draws the same tab row, and an open editor draws none", () => {
+  const text = getVocabulary("en")
+  const render = (view: View, isAdmin = false) => renderToStaticMarkup(createElement(PageSections, { isAdmin, setView: () => {}, text, view }))
+
+  const calendar = render("calendar")
+  assert.match(calendar, /aria-label="Today sections"/)
+  assert.deepEqual(renderedIds(calendar, "data-section"), ["dashboard", "calendar", "progress", "reviews"])
+  assert.match(calendar, /data-section="calendar" aria-current="page"/)
+  assert.deepEqual(renderedIds(render("files"), "data-section"), ["studio", "vault", "files"])
+  assert.deepEqual(renderedIds(render("ai"), "data-section"), ["quizzes", "live", "games", "ai", "graph"])
+  assert.match(render("social"), /aria-label="Friends sections"/)
+  assert.match(render("social"), /data-section="chat" aria-current="page"/)
+  assert.deepEqual(renderedIds(render("settings"), "data-section"), ["profile", "settings"], "Admin is not a tab for learners")
+  assert.deepEqual(renderedIds(render("settings", true), "data-section"), ["profile", "settings", "admin"])
+  for (const editor of ["notes", "docs", "sheets", "slides"] as const) assert.equal(render(editor), "", `${editor} is an editor`)
+
+  assert.doesNotMatch(readSource("src/components/learn/views/workspaces/combined-workspace-views.tsx"), /<nav /, "Friends pages use the shared tab row, not their own")
+  assert.doesNotMatch(readSource("src/app/globals.css"), /\.page-sections button:nth-child/, "tab icons wear their meaning, not their position")
+  assert.match(readSource(LEARN_SHELL), /\{isEditor \|\| viewingSomeoneElse \? null : <PageSections /, "the shell leaves the row out on editors and on someone else's profile")
 })
 
 test("a focused text field keeps its keys: menus never hijack typing", () => {
