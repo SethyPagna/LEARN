@@ -24,6 +24,7 @@ import {
   Play,
   Plus,
   Radio,
+  Search,
   Repeat2,
   ShieldCheck,
   SlidersHorizontal,
@@ -31,7 +32,9 @@ import {
   Swords,
   Trash2,
   Users,
+  X,
 } from "lucide-react"
+import communityStyles from "./social-community.module.css"
 import { api } from "../api"
 import type {
   Achievement,
@@ -52,7 +55,7 @@ import { VoiceInput } from "../voice-input"
 import { buildReviewRatingActions, buildReviewSummaryChips, buildVaultBlockPalette, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeReviewSession, type ReviewRating, type VaultBlockType } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, buildProfileSummaryChips, type ProfilePlanTarget, type ProfileSummaryChip } from "@/lib/profile-features"
 import { createSocialDraft, parseStoredSocialDraftStore, socialDraftStorageKey, type SocialDraft, type SocialDraftStore, type SocialKind } from "@/lib/social-drafts"
-import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeSocialWorkspace, type SocialActionLike, type SocialActionTarget, type SocialInviteRole, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordsPage, buildWorkspaceMembersPage, formatSocialAction, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, type SocialActionLike, type SocialActionTarget, type SocialInviteRole, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -282,7 +285,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const [selectedId, setSelectedId] = useState("")
   const [draft, setDraft] = useState(() => createSocialDraft(kind))
   const [editing, setEditing] = useState(false)
-  const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
+  const [detailOpen, setDetailOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [memberQuery, setMemberQuery] = useState("")
   const [recordFilter, setRecordFilter] = useState<SocialRecordFilter>("all")
@@ -299,6 +302,10 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const [recordAction, setRecordAction] = useState<"save" | "toggle" | "delete" | null>(null)
   const draftHydrated = useRef(false)
   const restoredDraftId = useRef<string | null>(null)
+  const recordPending = useRef(false)
+  const invitePending = useRef(false)
+  const detailHeading = useRef<HTMLHeadingElement>(null)
+  const browseHeading = useRef<HTMLHeadingElement>(null)
   const items = useMemo(() => data?.items ?? [], [data?.items])
   const memberItems = useMemo(() => members.data?.items ?? [], [members.data?.items])
   const recentActionItems = useMemo(() => recentActions.data?.items ?? [], [recentActions.data?.items])
@@ -306,15 +313,12 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const Icon = kind === "spaces" ? Users : kind === "rooms" ? Radio : Swords
   const title = kind === "spaces" ? "Groups" : kind === "rooms" ? "Rooms" : "Battles"
   const noun = kind === "spaces" ? "group" : kind === "rooms" ? "room" : "battle"
-  const socialSummary = useMemo(() => summarizeSocialWorkspace(kind, items), [items, kind])
-  const socialPlan = useMemo(() => buildSocialWorkspacePlan(kind, socialSummary), [kind, socialSummary])
-  const recommendedRecord = useMemo(() => findRecommendedSocialRecord(kind, items), [items, kind])
   const recordPage = useMemo(() => buildSocialRecordsPage(items, { query, filter: recordFilter, limit: recordLimit }), [items, query, recordFilter, recordLimit])
   const filteredItems = recordPage.items as Array<LearningSpace | StudyRoom | StudyBattle>
   const recordCards = useMemo(() => filteredItems.map((item) => ({
-    card: buildSocialRecordCard(kind, item, recommendedRecord?.id),
+    card: buildSocialRecordCard(kind, item),
     item,
-  })), [filteredItems, kind, recommendedRecord?.id])
+  })), [filteredItems, kind])
   const memberPage = useMemo(() => buildWorkspaceMembersPage(memberItems, memberQuery, memberLimit), [memberItems, memberLimit, memberQuery])
   const filteredMembers = memberPage.items
   const activityPage = useMemo(() => buildSocialActionsPage(recentActionItems, activityLimit), [activityLimit, recentActionItems])
@@ -353,6 +357,15 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
         ? "Deleting"
         : socialDraftStatus(kind, draft)
   const recordBusy = recordAction !== null
+  const draftIsValid = Boolean((kind === "battles" ? draft.title : draft.name).trim()) && (kind !== "rooms" || [draft.pomodoroMinutes, draft.breakMinutes].every(minutes => Number.isInteger(minutes) && minutes >= 1 && minutes <= 180))
+  const loadFailed = status !== "Loading" && status !== "Ready"
+  const hasUnsavedDraft = draft.id
+    ? Boolean(selected && socialDraftFingerprint(draft) !== socialDraftFingerprint(draftFromSocialItem(kind, selected)))
+    : hasMeaningfulSocialDraft(kind, draft)
+
+  useEffect(() => {
+    if (detailOpen) detailHeading.current?.focus()
+  }, [detailOpen])
 
   useEffect(() => {
     const stored = readSocialDraftStore(kind)
@@ -361,7 +374,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
       setSelectedId(stored.selectedId)
       setDraft(stored.draft)
       setQuery(stored.query)
-      setMessage("Local draft restored.")
+      setMessage("")
     } else {
       restoredDraftId.current = null
       setSelectedId("")
@@ -421,33 +434,53 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   }, [kind, selected?.id])
 
   function startNew() {
-    setMobileDetailOpen(true)
+    if (recordPending.current) return
+    setDetailOpen(true)
     setDetailTab("actions")
     setEditing(true)
     setSelectedId("")
     setDraft(createSocialDraft(kind))
     setDeleteConfirmId(null)
-    setMessage(`Drafting a new ${noun}.`)
+    setMessage("")
   }
 
   function clearRecordFilters() {
     setQuery("")
     setRecordFilter("all")
-    setMessage("Search and filters cleared.")
+    setMessage("")
   }
 
   function selectSocialRecord(item: LearningSpace | StudyRoom | StudyBattle) {
-    setMobileDetailOpen(true)
+    if (recordPending.current) return
+    setDetailOpen(true)
     setEditing(false)
     setSelectedId(item.id)
     setDraft(draftFromSocialItem(kind, item))
     setDeleteConfirmId(null)
     setDetailTab("actions")
-    setMessage(buildSocialRecordSelectionMessage(kind, item))
+    setInviteLink("")
+    setMessage("")
+  }
+
+  function closeDetail() {
+    if (recordPending.current || invitePending.current) return
+    setEditing(false)
+    setDetailOpen(false)
+    setMessage("")
+    requestAnimationFrame(() => browseHeading.current?.focus())
+  }
+
+  function cancelEditing() {
+    if (recordPending.current) return
+    setEditing(false)
+    if (selected) setDraft(draftFromSocialItem(kind, selected))
+    else closeDetail()
+    setMessage("")
   }
 
   async function saveDraft() {
-    if (recordBusy) return
+    if (recordPending.current || !draftIsValid) return
+    recordPending.current = true
     setRecordAction("save")
     setMessage(draft.id ? "Saving changes..." : `Creating ${noun}...`)
     try {
@@ -465,35 +498,38 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
     } catch (error) {
       setMessage(error instanceof Error ? error.message : `Unable to save this ${noun}.`)
     } finally {
+      recordPending.current = false
       setRecordAction(null)
     }
   }
 
-  async function toggleDraft() {
-    if (recordBusy) return
-    const nextDraft = nextSocialToggle(kind, draft)
+  async function updateRecordStatus(value: string) {
+    if (recordPending.current) return
+    const nextDraft = kind === "spaces" ? { ...draft, visibility: value } : { ...draft, status: value }
     setDraft(nextDraft)
     setDeleteConfirmId(null)
     if (!nextDraft.id) {
       setMessage("Draft state updated. Save when ready.")
       return
     }
+    recordPending.current = true
     setRecordAction("toggle")
     setMessage("Updating state...")
     try {
       await api(endpoint, { method: "PUT", body: JSON.stringify(payloadFromSocialDraft(kind, nextDraft)) })
-      setMessage(`${socialTitle(nextDraft)} toggled.`)
+      setMessage("Updated.")
       await refresh()
     } catch (error) {
       setDraft(draft)
       setMessage(error instanceof Error ? error.message : `Unable to update this ${noun}.`)
     } finally {
+      recordPending.current = false
       setRecordAction(null)
     }
   }
 
   async function deleteDraft() {
-    if (recordBusy) return
+    if (recordPending.current) return
     if (!draft.id) {
       startNew()
       return
@@ -503,6 +539,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
       setMessage(`Select Delete again to remove ${socialTitle(draft)}.`)
       return
     }
+    recordPending.current = true
     setRecordAction("delete")
     setMessage(`Deleting ${socialTitle(draft)}...`)
     try {
@@ -511,10 +548,12 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
       setDeleteConfirmId(null)
       setSelectedId("")
       setDraft(createSocialDraft(kind))
+      setDetailOpen(false)
       await refresh()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : `Unable to delete this ${noun}.`)
     } finally {
+      recordPending.current = false
       setRecordAction(null)
     }
   }
@@ -525,6 +564,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   }
 
   async function createSecureInvite() {
+    if (invitePending.current) return
     if (!inviteReadiness.enabled) {
       setMessage(inviteReadiness.message)
       return
@@ -534,6 +574,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
       setMessage(validation.error)
       return
     }
+    invitePending.current = true
     setInviteLoading(true)
     try {
       const response = await api<{ item: { token: string } }>("/api/invites", {
@@ -547,6 +588,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to create secure invite.")
     } finally {
+      invitePending.current = false
       setInviteLoading(false)
     }
   }
@@ -584,59 +626,63 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
     setMessage("Files opened for shared resources.")
   }
 
-  return <section className="social-hub grid gap-3">
-    <header className="workspace-header"><h2 className="text-lg font-semibold">{title}</h2><button type="button" onClick={startNew} className="editor-primary" aria-label={`Add ${noun}`} title={`Add ${noun}`}><Plus className="h-4 w-4" /></button></header>
-    <div className="social-browser"><aside className={`compact-list ${mobileDetailOpen ? "hidden md:block" : ""}`}>
-      <input aria-label={`Search ${title}`} className="editor-input w-full" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search…" />
-      <div className="my-2 flex flex-wrap gap-1">{filterOptions.map(option => <button key={option} className="calendar-filter" aria-pressed={recordFilter === option} onClick={() => setRecordFilter(option)}>{option === "all" ? "All" : socialFilterLabel(option)}</button>)}</div>
-      {recordCards.map(({ card, item }, index) => <button key={item.id} onClick={() => selectSocialRecord(item)} className="social-record" aria-pressed={selectedId === item.id}><span className="social-avatar" data-tone={index % 3}><Icon className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block truncate font-medium">{card.title}</span><span className="block text-xs text-muted-foreground">{card.status}</span></span></button>)}
-      {!filteredItems.length ? <div className="py-6 text-center text-sm text-muted-foreground"><p>{status === "Loading" ? "Loading…" : items.length ? "No matches" : `No ${title.toLowerCase()} yet`}</p>{items.length ? <button className="editor-command mt-2" onClick={clearRecordFilters}>Clear filters</button> : null}</div> : null}
-      {recordPage.hiddenCount ? <button className="editor-command mt-2" onClick={() => setRecordLimit(value => value + 12)}>Show more</button> : null}
-    </aside><div className={`min-w-0 ${mobileDetailOpen ? "" : "hidden md:block"}`}>
-      <div className="mb-2 md:hidden"><button className="editor-command" onClick={() => setMobileDetailOpen(false)} aria-label={`Back to ${title.toLowerCase()}`}><ArrowLeft className="h-4 w-4" />{title}</button></div>
-      <div className="social-cover"><Icon className="h-8 w-8" /><div className="min-w-0 flex-1"><h3 className="truncate text-xl font-semibold">{socialTitle(draft) || `New ${noun}`}</h3><p className="mt-1 text-xs opacity-75">{draft.id ? recordStatus : "Draft"}</p></div><button className="editor-command" aria-label={`Edit ${noun}`} onClick={() => setEditing(!editing)}><Edit3 className="h-4 w-4" /></button></div>
-      {editing ? <Panel className="mt-3 p-4"><div className="grid gap-3">            {kind === "battles" ? (
-              <>
-                <SocialField label="Title" value={draft.title} onChange={(value) => setDraft({ ...draft, title: value })} />
-                <SocialField label="Topic" value={draft.topic} onChange={(value) => setDraft({ ...draft, topic: value })} />
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <SocialSelect label="Mode" value={draft.mode} options={["solo", "team"]} onChange={(value) => setDraft({ ...draft, mode: value })} />
-                  <SocialSelect label="Status" value={draft.status} options={["waiting", "active", "completed"]} onChange={(value) => setDraft({ ...draft, status: value })} />
-                </div>
-              </>
-            ) : kind === "rooms" ? (
-              <>
-                <SocialField label="Room name" value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <SocialSelect label="Mode" value={draft.mode} options={["focus", "discussion", "stage"]} onChange={(value) => setDraft({ ...draft, mode: value })} />
-                  <SocialSelect label="Status" value={draft.status} options={["open", "active", "closed"]} onChange={(value) => setDraft({ ...draft, status: value })} />
-                  <SocialField label="Pomodoro minutes" value={String(draft.pomodoroMinutes)} onChange={(value) => setDraft({ ...draft, pomodoroMinutes: Number(value) || 25 })} />
-                  <SocialField label="Break minutes" value={String(draft.breakMinutes)} onChange={(value) => setDraft({ ...draft, breakMinutes: Number(value) || 5 })} />
-                </div>
-              </>
-            ) : (
-              <>
-                <SocialField label="Group name" value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
-                <SocialField label="Description" value={draft.description} onChange={(value) => setDraft({ ...draft, description: value })} multiline />
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <SocialField label="Topic tags" value={draft.topicTags} onChange={(value) => setDraft({ ...draft, topicTags: value })} />
-                  <SocialSelect label="Visibility" value={draft.visibility} options={["private", "connections", "public"]} onChange={(value) => setDraft({ ...draft, visibility: value })} />
-                </div>
-              </>
-            )}
-        <div className="flex gap-2"><button className="editor-command" onClick={() => setEditing(false)}>Close</button><button className="editor-primary ml-auto" disabled={recordBusy} onClick={() => void saveDraft()}>{recordBusy ? "Saving…" : "Save"}</button></div>
-      </div></Panel> : null}
-      {message ? <p role="status" className="mb-3 text-xs text-muted-foreground">{message}</p> : null}
-      {!editing ? <><nav className="page-sections mt-3" aria-label={`${title} details`}>{detailTabs.map(tab => <button key={tab.id} aria-current={detailTab === tab.id ? "page" : undefined} onClick={() => setDetailTab(tab.id)}><tab.icon className="h-4 w-4" />{tab.label}</button>)}</nav>
-      {detailTab === "actions" ? <Panel className="p-4"><p className="text-sm leading-6 text-muted-foreground">{kind === "spaces" ? draft.description || "A place to learn together." : kind === "rooms" ? `${draft.mode} · ${draft.pomodoroMinutes} min focus · ${draft.breakMinutes} min break` : draft.topic || "Ready for a friendly challenge?"}</p><div className="social-quick-actions mt-4">{(draft.id ? readyActions : []).map(action => { const ActionIcon = socialActionIcon(action.id); return <button key={action.id} disabled={!action.enabled} title={action.detail} onClick={() => action.id === "invite" ? setDetailTab("invite") : void runSocialAction(action.id)}><ActionIcon className="h-5 w-5" /><span>{actionKit.actions.find(item => item.id === action.id)?.label || action.label}</span></button> })}</div>{!draft.id ? <button className="editor-primary mt-4" onClick={() => setEditing(true)}>Set up {noun}</button> : null}</Panel> : null}
-      {detailTab === "invite" ? <Panel className="grid gap-3 p-4"><h3 className="text-sm font-medium">Invite to LEARN</h3><div className="flex flex-wrap gap-2"><input type="email" aria-label="Invite email" className="editor-input min-w-0 flex-1" placeholder="Email address" value={inviteEmail} onChange={event => setInviteEmail(event.target.value)} /><select aria-label="Invite role" className="editor-input" value={inviteRole} onChange={event => setInviteRole(normalizeSocialInviteRole(event.target.value))}>{socialInviteRoleOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div><div className="flex flex-wrap gap-2"><button className="editor-command" onClick={copyInvite} aria-label="Copy invitation" title="Copy invitation"><Copy className="h-4 w-4" /></button><button className="editor-primary ml-auto" disabled={!inviteReadiness.enabled} title={inviteReadiness.message} onClick={createSecureInvite}>{inviteLoading ? "Creating…" : "Create link"}</button></div>{inviteLink ? <a href={inviteLink} className="break-all text-xs text-primary">{inviteLink}</a> : null}</Panel> : null}
-      {detailTab === "people" ? <Panel className="p-4"><h3 className="mb-3 text-sm font-medium">Workspace people</h3><input className="editor-input w-full" aria-label="Search people" placeholder="Search people" value={memberQuery} onChange={event => setMemberQuery(event.target.value)} /><div className="mt-2 grid">{filteredMembers.map(member => <div key={member.id || member.email} className="compact-row"><span className="social-avatar">{(member.name || member.email || "?").slice(0, 1)}</span><span className="min-w-0 flex-1"><span className="block truncate">{member.name || member.email}</span><span className="text-xs text-muted-foreground">{member.role || "learner"}</span></span></div>)}</div>{memberPage.hiddenCount ? <button className="editor-command" onClick={() => setMemberLimit(value => value + 10)}>Show more</button> : null}</Panel> : null}
-      {detailTab === "activity" ? <Panel className="p-4"><h3 className="mb-3 text-sm font-medium">Workspace activity</h3>{activityPage.items.map((action, index) => { const formatted = formatSocialAction(action); return <div key={action.id || index} className="compact-row"><span className="social-avatar"><MessageSquare className="h-4 w-4" /></span><span className="min-w-0"><span className="block text-sm font-medium">{formatted.label}</span><span className="block text-xs text-muted-foreground">{formatted.detail}</span></span></div> })}{!activityPage.items.length ? <p className="text-sm text-muted-foreground">No activity yet.</p> : null}{activityPage.hiddenCount ? <button className="editor-command" onClick={() => setActivityLimit(value => value + 4)}>Show more</button> : null}</Panel> : null}
-      {detailTab === "safety" ? <Panel className="grid gap-3 p-4"><p className="text-xs text-muted-foreground">{socialPlan.safetyCue}</p><div className="flex flex-wrap gap-2"><button className="editor-command" disabled={recordBusy} onClick={() => void toggleDraft()}>{kind === "spaces" ? "Change visibility" : "Change status"}</button><button className="editor-command" onClick={() => { setDraft(selected ? draftFromSocialItem(kind, selected) : createSocialDraft(kind)); setMessage("Changes reset.") }}>Reset changes</button><button className="editor-command text-destructive" disabled={recordBusy} onClick={() => void deleteDraft()}><Trash2 className="h-4 w-4" />{deleteConfirmId === draft.id && draft.id ? "Confirm delete" : "Delete"}</button></div></Panel> : null}
-      </> : null}
-    </div></div>
+  return <section className={communityStyles.community} data-kind={kind} aria-label={title}>
+    {!detailOpen ? <>
+      <header className={communityStyles.toolbar}>
+        <h2 ref={browseHeading} tabIndex={-1}>{title}<span>{items.length}</span></h2>
+        <label className={communityStyles.search}><Search aria-hidden="true" /><input aria-label={`Search ${title}`} value={query} onChange={event => setQuery(event.target.value)} placeholder={`Find a ${noun}`} />{query ? <button type="button" aria-label="Clear search" onClick={() => setQuery("")}><X /></button> : null}</label>
+        <button type="button" onClick={startNew} className="editor-primary" aria-label={`Add ${noun}`}>New</button>
+      </header>
+      <div className={communityStyles.filters} role="group" aria-label={`${title} filters`}>{filterOptions.map(option => <button key={option} aria-pressed={recordFilter === option} onClick={() => setRecordFilter(option)}>{option === "all" ? "All" : socialFilterLabel(option)}</button>)}</div>
+      {hasUnsavedDraft ? <button className={`editor-command ${communityStyles.resume}`} onClick={() => { setEditing(true); setDetailOpen(true) }}><Edit3 className="h-4 w-4" />Resume draft</button> : null}
+      {loadFailed ? <div className={communityStyles.error} role="status"><p>{status}</p><button className="editor-command" onClick={() => void refresh()}><Repeat2 className="h-4 w-4" />Retry</button></div> : null}
+      <div className={communityStyles.cards}>
+        {recordCards.map(({ card, item }, index) => <button key={item.id} onClick={() => selectSocialRecord(item)} className={communityStyles.card} data-tone={index % 4} aria-label={`Open ${card.title}`}>
+          <div className={communityStyles.cardArt} aria-hidden="true"><span className={communityStyles.orbit} /><span className={communityStyles.symbol}><Icon /></span>{"pomodoro_minutes" in item ? <span className={communityStyles.duration}>{item.pomodoro_minutes}<small>min</small></span> : <span className={communityStyles.artLines}><i /><i /><i /></span>}</div>
+          <div className={communityStyles.cardBody}><span className={communityStyles.cardStatus} data-active={card.status === "active" || card.status === "open"}>{card.status}</span><h3>{card.title}</h3><p>{kind === "spaces" && "description" in item ? item.description : kind === "battles" && "topic" in item ? item.topic : "mode" in item ? item.mode : ""}</p><div className={communityStyles.cardFooter}><span>{card.meta.filter(meta => meta.toLowerCase() !== card.status.toLowerCase()).slice(0, 2).join(" · ")}</span><ArrowRight aria-hidden="true" /></div></div>
+        </button>)}
+      </div>
+      {!filteredItems.length && !loadFailed ? <div className={communityStyles.empty}><span className={communityStyles.emptyIcon}><Icon /></span><h3>{status === "Loading" ? "Loading…" : items.length ? "No matches" : `Your first ${noun}`}</h3>{status !== "Loading" ? <button className="editor-command" onClick={items.length ? clearRecordFilters : startNew}>{items.length ? "Clear filters" : `Create ${noun}`}</button> : null}</div> : null}
+      {recordPage.hiddenCount ? <button className={`editor-command ${communityStyles.more}`} onClick={() => setRecordLimit(value => value + 12)}>Show more <ChevronDown className="h-4 w-4" /></button> : null}
+    </> : <>
+      <div className={communityStyles.detailToolbar}><button className="editor-command" disabled={recordBusy || inviteLoading} onClick={closeDetail} aria-label={`Back to ${title.toLowerCase()}`}><ArrowLeft className="h-4 w-4" />{title}</button>{!editing ? <button className="editor-command" disabled={recordBusy || inviteLoading} aria-label={`Edit ${noun}`} title={`Edit ${noun}`} onClick={() => setEditing(true)}><Edit3 className="h-4 w-4" /></button> : null}</div>
+      <div className={communityStyles.detailCover}><span className={communityStyles.coverIcon}><Icon aria-hidden="true" /></span><div><span className={communityStyles.eyebrow}>{draft.id ? recordStatus : `New ${noun}`}</span><h3 ref={detailHeading} tabIndex={-1}>{socialTitle(draft)}</h3></div></div>
+      {message ? <p role="status" className={communityStyles.message}>{message}</p> : null}
+      {editing ? <form className={communityStyles.form} onSubmit={event => { event.preventDefault(); void saveDraft() }}>
+        <fieldset disabled={recordBusy} className={communityStyles.fields}>
+          {kind === "battles" ? <>
+            <SocialField label="Title" value={draft.title} required onChange={value => setDraft({ ...draft, title: value })} />
+            <SocialField label="Topic" value={draft.topic} onChange={value => setDraft({ ...draft, topic: value })} />
+            <div className={communityStyles.fieldPair}><SocialSelect label="Mode" value={draft.mode} options={["solo", "team"]} onChange={value => setDraft({ ...draft, mode: value })} /><SocialSelect label="Status" value={draft.status} options={["waiting", "active", "completed"]} onChange={value => setDraft({ ...draft, status: value })} /></div>
+          </> : kind === "rooms" ? <>
+            <SocialField label="Room name" value={draft.name} required onChange={value => setDraft({ ...draft, name: value })} />
+            <div className={communityStyles.fieldPair}><SocialSelect label="Mode" value={draft.mode} options={["focus", "discussion", "stage"]} onChange={value => setDraft({ ...draft, mode: value })} /><SocialSelect label="Status" value={draft.status} options={["open", "active", "closed"]} onChange={value => setDraft({ ...draft, status: value })} /></div>
+            <div className={communityStyles.fieldPair}><SocialField label="Focus minutes" value={String(draft.pomodoroMinutes)} numeric onChange={value => setDraft({ ...draft, pomodoroMinutes: Number(value) })} /><SocialField label="Break minutes" value={String(draft.breakMinutes)} numeric onChange={value => setDraft({ ...draft, breakMinutes: Number(value) })} /></div>
+          </> : <>
+            <SocialField label="Group name" value={draft.name} required onChange={value => setDraft({ ...draft, name: value })} />
+            <SocialField label="Description" value={draft.description} onChange={value => setDraft({ ...draft, description: value })} multiline />
+            <div className={communityStyles.fieldPair}><SocialField label="Topics" value={draft.topicTags} onChange={value => setDraft({ ...draft, topicTags: value })} /><SocialSelect label="Visibility" value={draft.visibility} options={["private", "connections", "public"]} onChange={value => setDraft({ ...draft, visibility: value })} /></div>
+          </>}
+          <footer className={communityStyles.formFooter}><button type="button" className="editor-command" onClick={cancelEditing}>Cancel</button><button type="submit" className="editor-primary" disabled={!draftIsValid}>{recordBusy ? "Saving…" : draft.id ? "Save" : "Create"}</button></footer>
+        </fieldset>
+      </form> : <>
+        <nav className={communityStyles.detailTabs} aria-label={`${title} details`}>{detailTabs.map(tab => <button key={tab.id} aria-current={detailTab === tab.id ? "page" : undefined} onClick={() => setDetailTab(tab.id)}><tab.icon aria-hidden="true" /><span>{tab.label}</span></button>)}</nav>
+        {detailTab === "actions" ? <div className={communityStyles.overview}>
+          <div className={communityStyles.about}>
+            {kind === "rooms" ? <div className={communityStyles.sessionRhythm} aria-label={`${draft.pomodoroMinutes} minutes focus and ${draft.breakMinutes} minutes break`}><div><strong>{draft.pomodoroMinutes}<small>min</small></strong><span>Focus</span></div><span className={communityStyles.rhythmDivider}><Repeat2 aria-hidden="true" /></span><div><strong>{draft.breakMinutes}<small>min</small></strong><span>Break</span></div></div> : <><h4>{kind === "spaces" ? "About" : "Topic"}</h4><p>{kind === "spaces" ? draft.description || "No description yet." : draft.topic || "Open topic"}</p></>}
+            <div className={communityStyles.tags}>{(kind === "spaces" ? draft.topicTags.split(",").map(tag => tag.trim()).filter(Boolean) : [draft.mode]).map((tag, index) => <span key={`${tag}-${index}`}>{tag}</span>)}{kind === "spaces" && selected && "member_count" in selected && selected.member_count !== undefined ? <span><Users aria-hidden="true" />{selected.member_count}</span> : null}</div>
+          </div>
+          <div className={communityStyles.actions}>{(draft.id ? readyActions : []).map(action => { const ActionIcon = socialActionIcon(action.id); const label = action.id === "invite" ? "Invite" : action.id === "chat" ? "Chat" : action.id === "calendar" ? "Schedule" : action.id === "practice" ? "Practice" : "Files"; return <button key={action.id} disabled={!action.enabled || !setView && action.id !== "invite"} title={action.detail} onClick={() => action.id === "invite" ? setDetailTab("invite") : void runSocialAction(action.id)}><span><ActionIcon aria-hidden="true" /></span>{label}<ArrowRight aria-hidden="true" /></button> })}{!draft.id ? <button className="editor-primary" onClick={() => setEditing(true)}>Set up {noun}</button> : null}</div>
+        </div> : null}
+        {detailTab === "invite" ? <div className={communityStyles.subpanel}><div className={communityStyles.panelHeading}><Mail aria-hidden="true" /><h4>Invite to LEARN</h4></div><p className={communityStyles.hint}>Invite someone to your workspace.</p><form onSubmit={event => { event.preventDefault(); void createSecureInvite() }}><fieldset disabled={inviteLoading} className={communityStyles.fields}><label className={communityStyles.field}><span>Email</span><input type="email" required aria-label="Invite email" placeholder="name@example.com" value={inviteEmail} onChange={event => setInviteEmail(event.target.value)} /></label><SocialSelect label="Role" value={inviteRole} options={socialInviteRoleOptions.map(option => option.value)} onChange={value => setInviteRole(normalizeSocialInviteRole(value))} /><div className={communityStyles.formFooter}><button type="button" className="editor-command" onClick={copyInvite} aria-label="Copy invitation" title="Copy invitation"><Copy className="h-4 w-4" /></button><button type="submit" className="editor-primary" disabled={!inviteReadiness.enabled} title={inviteReadiness.message}>{inviteLoading ? "Creating…" : "Create link"}</button></div></fieldset></form>{inviteLink ? <a href={inviteLink} className={communityStyles.inviteLink}>{inviteLink}</a> : null}</div> : null}
+        {detailTab === "people" ? <div className={communityStyles.subpanel}><div className={communityStyles.panelHeading}><Users aria-hidden="true" /><h4>Workspace people</h4><span>{memberItems.length}</span></div><label className={communityStyles.search}><Search aria-hidden="true" /><input aria-label="Search people" placeholder="Find a person" value={memberQuery} onChange={event => setMemberQuery(event.target.value)} /></label><div className={communityStyles.people}>{filteredMembers.map(member => <div key={member.id || member.email} className={communityStyles.person}><span>{(member.name || member.email || "?").slice(0, 1)}</span><div><strong>{member.name || member.email}</strong><small>{member.role || "learner"}</small></div></div>)}</div>{!filteredMembers.length ? <p className={communityStyles.hint}>{members.status === "Loading" ? "Loading…" : "No people found."}</p> : null}{members.status !== "Ready" && members.status !== "Loading" ? <button className="editor-command" onClick={() => void members.refresh()}>Retry people</button> : null}{memberPage.hiddenCount ? <button className="editor-command" onClick={() => setMemberLimit(value => value + 10)}>Show more</button> : null}</div> : null}
+        {detailTab === "activity" ? <div className={communityStyles.subpanel}><div className={communityStyles.panelHeading}><Repeat2 aria-hidden="true" /><h4>Workspace activity</h4></div>{activityPage.items.map((action, index) => { const formatted = formatSocialAction(action); return <div key={action.id || index} className={communityStyles.activity}><span><MessageSquare aria-hidden="true" /></span><div><strong>{formatted.label}</strong><p>{formatted.detail}</p></div></div> })}{!activityPage.items.length ? <p className={communityStyles.hint}>{recentActions.status === "Loading" ? "Loading…" : "No activity yet."}</p> : null}{recentActions.status !== "Ready" && recentActions.status !== "Loading" ? <button className="editor-command" onClick={() => void recentActions.refresh()}>Retry activity</button> : null}{activityPage.hiddenCount ? <button className="editor-command" onClick={() => setActivityLimit(value => value + 4)}>Show more</button> : null}</div> : null}
+        {detailTab === "safety" ? <div className={communityStyles.subpanel}><div className={communityStyles.panelHeading}><ShieldCheck aria-hidden="true" /><h4>Manage {noun}</h4></div><div className={communityStyles.manageRow}><div><strong>{kind === "spaces" ? "Visibility" : "Status"}</strong><span>{socialDraftStatus(kind, draft)}</span></div><select className={communityStyles.statusSelect} aria-label={kind === "spaces" ? "Group visibility" : "Record status"} disabled={recordBusy} value={socialDraftStatus(kind, draft)} onChange={event => void updateRecordStatus(event.target.value)}>{(kind === "spaces" ? ["private", "connections", "public"] : kind === "rooms" ? ["open", "active", "closed"] : ["waiting", "active", "completed"]).map(value => <option key={value} value={value}>{value}</option>)}</select></div><div className={communityStyles.manageRow}><div><strong>Details</strong><span>Name, {kind === "spaces" ? "topics and description" : "mode and settings"}</span></div><button className="editor-command" disabled={recordBusy} onClick={() => setEditing(true)}>Edit</button></div><div className={communityStyles.manageRow}><div><strong>Delete {noun}</strong><span>This cannot be undone.</span></div><button className="editor-command text-destructive" disabled={recordBusy} onClick={() => void deleteDraft()} aria-label={deleteConfirmId === draft.id && draft.id ? `Confirm delete ${noun}` : `Delete ${noun}`}><Trash2 className="h-4 w-4" />{deleteConfirmId === draft.id && draft.id ? "Confirm" : null}</button></div></div> : null}
+      </>}
+    </>}
   </section>
 }
+
 
 type SocialDetailTab = "actions" | "invite" | "people" | "activity" | "safety"
 
@@ -680,19 +726,6 @@ function payloadFromSocialDraft(kind: "spaces" | "rooms" | "battles", draft: Soc
   return { id: draft.id || undefined, name: draft.name, description: draft.description, visibility: draft.visibility, topicTags: draft.topicTags.split(",").map((tag) => tag.trim()).filter(Boolean) }
 }
 
-function nextSocialToggle(kind: "spaces" | "rooms" | "battles", draft: SocialDraft) {
-  if (kind === "spaces") {
-    const order = ["private", "connections", "public"]
-    return { ...draft, visibility: order[(order.indexOf(draft.visibility) + 1) % order.length] }
-  }
-  if (kind === "rooms") {
-    const order = ["open", "active", "closed"]
-    return { ...draft, status: order[(order.indexOf(draft.status) + 1) % order.length] }
-  }
-  const order = ["waiting", "active", "completed"]
-  return { ...draft, status: order[(order.indexOf(draft.status) + 1) % order.length] }
-}
-
 function socialFilterOptions(kind: SocialKind): SocialRecordFilter[] {
   if (kind === "spaces") return ["all", "private", "public"]
   if (kind === "rooms") return ["all", "active", "focus"]
@@ -727,14 +760,14 @@ function socialActionIcon(target: SocialActionTarget) {
   return FolderOpen
 }
 
-function SocialField({ label, value, onChange, multiline }: { label: string; value: string; onChange: (value: string) => void; multiline?: boolean }) {
+function SocialField({ label, value, onChange, multiline, numeric, required }: { label: string; value: string; onChange: (value: string) => void; multiline?: boolean; numeric?: boolean; required?: boolean }) {
   return (
-    <label className="block min-w-0">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+    <label className={communityStyles.field}>
+      <span>{label}</span>
       {multiline ? (
-        <textarea rows={3} value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full resize-y rounded-md border border-input bg-background p-2 text-sm text-foreground outline-none" />
+        <textarea rows={3} value={value} onChange={(event) => onChange(event.target.value)} />
       ) : (
-        <input value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none" />
+        <input value={value} type={numeric ? "number" : "text"} min={numeric ? 1 : undefined} max={numeric ? 180 : undefined} step={numeric ? 1 : undefined} required={required || numeric} onChange={(event) => onChange(event.target.value)} />
       )}
     </label>
   )
@@ -742,9 +775,9 @@ function SocialField({ label, value, onChange, multiline }: { label: string; val
 
 function SocialSelect({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
   return (
-    <label className="block min-w-0">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none">
+    <label className={communityStyles.field}>
+      <span>{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
     </label>
