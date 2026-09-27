@@ -19,7 +19,7 @@
 .layout { display: grid; grid-template-columns: 1.04fr 1fr; min-height: calc(100dvh - 112px); max-width: 1512px; margin: 0 auto; gap: 32px; }
 .artPanel { position: relative; overflow: hidden; display: flex; flex-direction: column; padding: clamp(28px, 3.7vw, 58px); border-radius: 26px; background: var(--decor-blue-soft); color: var(--auth-ink); min-height: 650px; }
 .artCopy { position: relative; z-index: 2; }
-.artEyebrow { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 650; letter-spacing: 1.8px; }
+.artEyebrow { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 650; letter-spacing: 1.8px; }
 .artEyebrow > span { width: 6px; height: 6px; border-radius: 100%; background: var(--decor-blue-ink); }
 .artCopy > p { margin-top: 24px; font-size: clamp(34px, 3.25vw, 52px); font-weight: 600; letter-spacing: -2px; line-height: 1.07; }
 .artCopy > p > span { color: var(--auth-muted); }
@@ -50,10 +50,10 @@
 .cursor { position: absolute; top: 83%; left: 15%; display: flex; align-items: flex-end; gap: 0; transform: rotate(-3deg); }
 .cursor > svg { fill: var(--decor-mint-soft); stroke: var(--decor-mint-ink); }
 .cursor > span { margin-bottom: -9px; padding: 7px 10px; background: var(--decor-mint-soft); color: var(--decor-mint-ink); border-radius: 6px; font-size: 10px; font-weight: 600; white-space: nowrap; }
-.artFooter { position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 24px; font-size: 8px; letter-spacing: 1.5px; }
+.artFooter { position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 24px; font-size: 12px; letter-spacing: 1.5px; }
 .formColumn { min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px 32px 18px; }
 .formPanel { width: 100%; max-width: 384px; }
-.eyebrow { margin: 0 0 10px; color: var(--auth-blue); font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; font-weight: 650; }
+.eyebrow { margin: 0 0 10px; color: var(--auth-blue); font-size: 12px; letter-spacing: 1.6px; text-transform: uppercase; font-weight: 650; }
 .formHeading h1, .successPanel h1 { margin: 0; font-size: clamp(28px, 2.5vw, 38px); font-weight: 600; line-height: 1.12; letter-spacing: -1.4px; }
 .description { margin: 13px 0 0; color: var(--auth-muted); font-size: 13px; line-height: 1.6; }
 .form { display: grid; gap: 18px; margin-top: 30px; }
@@ -63,9 +63,9 @@
 .field textarea { resize: vertical; }
 .field input:focus, .field textarea:focus { border-color: var(--auth-blue); box-shadow: 0 0 0 3px color-mix(in srgb, var(--auth-blue) 13%, transparent); }
 .field input:disabled, .field textarea:disabled { opacity: .65; }
-.fieldHint { color: var(--auth-muted); font-size: 10px; font-weight: 400; }
+.fieldHint { color: var(--auth-muted); font-size: 12px; font-weight: 400; }
 .labelRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.textButton { color: var(--auth-muted); font-size: 11px; font-weight: 400; }
+.textButton { color: var(--auth-muted); font-size: 12px; font-weight: 400; }
 .textButton:hover { color: var(--auth-blue); }
 .passwordField { position: relative; }
 .passwordField input { padding-right: 49px; }
@@ -78,25 +78,25 @@
 .surface :is(a, button, summary, select):focus-visible { outline: 2px solid var(--auth-blue); outline-offset: 4px; border-radius: 5px; }
 .notice { margin: 0; padding: 12px 14px; border-radius: 8px; background: var(--auth-soft); color: var(--auth-muted); font-size: 12px; line-height: 1.6; }
 .error { margin: 0; padding: 12px 14px; border-radius: 8px; background: color-mix(in oklch, var(--destructive) 10%, var(--auth-bg)); color: var(--destructive); font-size: 12px; line-height: 1.5; }
-.demo { color: var(--auth-muted); font-size: 11px; }
+.demo { color: var(--auth-muted); font-size: 12px; }
 .demo summary { width: fit-content; margin: 0 auto; padding: 3px 0; cursor: pointer; }
 .demoOptions { display: flex; justify-content: center; gap: 8px; margin-top: 12px; }
 .demoOptions button { display: flex; align-items: center; gap: 8px; border: 1px solid var(--auth-line); border-radius: 7px; padding: 9px 12px; color: var(--auth-ink); }
 .demoOptions button:hover { background: var(--auth-soft); }
 .modeSwitch { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 7px; margin: 26px 0 0; border-top: 1px solid var(--auth-line); padding-top: 22px; font-size: 12px; color: var(--auth-muted); }
 .modeSwitch button, .modeSwitch a { display: inline-flex; align-items: center; gap: 4px; color: var(--auth-blue); font-weight: 550; }
-.backLink { display: inline-flex; align-items: center; gap: 7px; margin-top: 38px; color: var(--auth-muted); font-size: 10px; }
+.backLink { display: inline-flex; align-items: center; gap: 7px; margin-top: 38px; color: var(--auth-muted); font-size: 12px; }
 .backLink:hover { color: var(--auth-ink); }
 .roleField { border: 0; padding: 0; margin: 0; min-width: 0; }
 .roleField legend { padding: 0; margin-bottom: 8px; font-size: 12px; font-weight: 550; }
 .roleOptions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .roleOption { position: relative; cursor: pointer; }
 .roleOption input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.roleOption > span { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 11px 3px; border: 1px solid var(--auth-line); border-radius: 9px; font-size: 10px; color: var(--auth-muted); transition: border-color .15s, background .15s; }
+.roleOption > span { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 11px 3px; border: 1px solid var(--auth-line); border-radius: 9px; font-size: 12px; color: var(--auth-muted); transition: border-color .15s, background .15s; }
 .roleOption input:checked + span { color: var(--auth-blue); border-color: var(--auth-blue); background: color-mix(in srgb, var(--auth-blue) 7%, var(--auth-bg)); }
 .roleOption input:focus-visible + span { outline: 2px solid var(--auth-blue); outline-offset: 3px; }
 .roleOption input:disabled + span { opacity: .5; cursor: not-allowed; }
-.approvalNote { margin: -5px 0 0; color: var(--auth-muted); font-size: 10px; text-align: center; }
+.approvalNote { margin: -5px 0 0; color: var(--auth-muted); font-size: 12px; text-align: center; }
 .successPanel { display: grid; gap: 22px; }
 .successSymbol { width: 64px; height: 64px; display: grid; place-items: center; border-radius: 22px; background: var(--decor-mint-soft); color: var(--success); }
 .emailReceipt { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 13px 14px; border: 1px solid var(--auth-line); border-radius: 9px; font-size: 12px; overflow-wrap: anywhere; background: var(--auth-soft); }
@@ -115,7 +115,7 @@
   .header { height: 74px; }
   .layout { grid-template-columns: 1fr; gap: 0; min-height: auto; }
   .artPanel { padding: 22px 25px; min-height: 0; height: 142px; border-radius: 18px; max-width: 560px; width: 100%; margin: 0 auto; }
-  .artEyebrow { font-size: 7px; letter-spacing: 1px; gap: 5px; }
+  .artEyebrow { font-size: 12px; letter-spacing: 1px; gap: 5px; }
   .artEyebrow > span { width: 4px; height: 4px; }
   .artCopy > p { font-size: 25px; letter-spacing: -.9px; margin-top: 12px; }
   .collage { position: absolute; width: 200px; height: 220px; min-height: 0; top: -1px; right: 0; margin: 0; transform: scale(.63); transform-origin: top right; }
@@ -137,5 +137,5 @@
   .header { height: auto; min-height: 126px; padding-block: 16px; flex-direction: column; align-items: flex-start; gap: 14px; }
   .headerControls { align-self: center; }
 }
-@media (max-width: 400px) { .surface { padding-inline: 18px; } .artPanel { padding: 20px; height: 127px; } .artCopy > p { font-size: 22px; } .collage { right: -22px; transform: scale(.56); } .formColumn { padding-top: 28px; } .roleOptions { gap: 5px; } .roleOption > span { font-size: 11px; } }
+@media (max-width: 400px) { .surface { padding-inline: 18px; } .artPanel { padding: 20px; height: 127px; } .artCopy > p { font-size: 22px; } .collage { right: -22px; transform: scale(.56); } .formColumn { padding-top: 28px; } .roleOptions { gap: 5px; } }
 @media (max-width: 360px) { .collage { right: -88px; } }
