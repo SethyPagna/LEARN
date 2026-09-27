@@ -1047,7 +1047,7 @@ function useResource<T>(path: string) {
 function NodeCard({ node }: { node: KnowledgeNode }) {
   return (
     <article className="rounded-md border border-border bg-background p-3">
-      <Network className="h-4 w-4 text-success" />
+      <Network className="h-4 w-4 text-[var(--decor-mint-ink)]" />
       <h4 className="mt-2 font-medium text-foreground">{node.title}</h4>
       <p className="mt-1 text-sm text-muted-foreground">{Math.round(node.mastery * 100)}% mastery | {node.visibility}</p>
     </article>

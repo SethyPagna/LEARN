@@ -710,7 +710,7 @@ export function AiTutorView({
 
       {toolsOpen ? <Panel className="p-4 xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto">
         <div className="flex items-center justify-between gap-3">
-          <p className="flex items-center gap-2 font-semibold text-foreground"><Brain className="h-4 w-4 text-success" /> Tools</p>
+          <p className="flex items-center gap-2 font-semibold text-foreground"><Brain className="h-4 w-4 text-[var(--decor-mint-ink)]" /> Tools</p>
           <button onClick={loadProviders} className="h-8 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
             Refresh
           </button>
@@ -1181,7 +1181,7 @@ function SectionLabel({ body, compact, icon: Icon, title }: { body: string; comp
   return (
     <div className={`${compact ? "mb-3" : "mt-5"} flex items-center justify-between gap-3`}>
       <div className="flex min-w-0 items-center gap-2">
-        <Icon className="h-4 w-4 text-success" />
+        <Icon className="h-4 w-4 text-[var(--decor-mint-ink)]" />
         <p className="font-semibold text-foreground">{title}</p>
       </div>
       <details className="relative">

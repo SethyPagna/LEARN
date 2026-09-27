@@ -201,7 +201,7 @@ function FileCard({ file, selected, preview, onSelect }: { file: MediaFile; sele
         <img src={`/api/files/${file.id}/download`} alt="" loading="lazy" decoding="async" className="mb-3 aspect-video w-full rounded-md object-cover" />
       ) : (
         <div className="mb-3 flex aspect-video items-center justify-center rounded-md bg-muted">
-          <FileKindIcon kind={kind} className="h-7 w-7 text-success" />
+          <FileKindIcon kind={kind} className="h-7 w-7 text-[var(--decor-mint-ink)]" />
         </div>
       )}
       <p className="truncate font-medium text-foreground">{file.filename}</p>

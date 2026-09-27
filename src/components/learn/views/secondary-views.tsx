@@ -55,7 +55,7 @@ function ProgressActionButton({ action, onClick }: { action: ProgressNextAction;
   return (
     <button onClick={onClick} className="group relative rounded-md border border-border bg-background p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
       <div className="flex items-center gap-3">
-        <Icon className="h-5 w-5 text-success" />
+        <Icon className="h-5 w-5 text-[var(--decor-mint-ink)]" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{action.label}</p>
         </div>
@@ -339,7 +339,7 @@ function LanguagePicker({ locale, setLocale }: { locale: SupportedLocale; setLoc
     <details className="mt-4 rounded-lg border border-border bg-background p-3">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
         <span className="flex min-w-0 items-center gap-2">
-          <Languages className="h-4 w-4 shrink-0 text-success" />
+          <Languages className="h-4 w-4 shrink-0 text-[var(--decor-mint-ink)]" />
           <span className="truncate">Language</span>
         </span>
         <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{languageNames[locale]}</span>

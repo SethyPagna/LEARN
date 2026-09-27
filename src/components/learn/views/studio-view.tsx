@@ -218,31 +218,31 @@ const FontSize = Extension.create({
 
 const studioKindStyles: Record<StudioKind, { accent: string; card: string; chip: string; icon: string; label: string }> = {
   notes: {
-    accent: "bg-amber-400",
-    card: "hover:border-amber-400/70 hover:bg-amber-50/70 dark:hover:bg-amber-950/20",
-    chip: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
-    icon: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-200",
+    accent: "bg-[var(--decor-amber-ink)]",
+    card: "hover:border-[var(--decor-amber-ink)] hover:bg-[var(--decor-amber-soft)]",
+    chip: "bg-[var(--decor-amber-soft)] text-[var(--decor-amber-ink)]",
+    icon: "bg-[var(--decor-amber-soft)] text-[var(--decor-amber-ink)]",
     label: "Note",
   },
   docs: {
-    accent: "bg-sky-500",
-    card: "hover:border-sky-500/70 hover:bg-sky-50/70 dark:hover:bg-sky-950/20",
-    chip: "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200",
-    icon: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-200",
+    accent: "bg-[var(--decor-blue-ink)]",
+    card: "hover:border-[var(--decor-blue-ink)] hover:bg-[var(--decor-blue-soft)]",
+    chip: "bg-[var(--decor-blue-soft)] text-[var(--decor-blue-ink)]",
+    icon: "bg-[var(--decor-blue-soft)] text-[var(--decor-blue-ink)]",
     label: "Doc",
   },
   sheets: {
-    accent: "bg-emerald-500",
-    card: "hover:border-emerald-500/70 hover:bg-emerald-50/70 dark:hover:bg-emerald-950/20",
-    chip: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200",
-    icon: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200",
+    accent: "bg-[var(--decor-mint-ink)]",
+    card: "hover:border-[var(--decor-mint-ink)] hover:bg-[var(--decor-mint-soft)]",
+    chip: "bg-[var(--decor-mint-soft)] text-[var(--decor-mint-ink)]",
+    icon: "bg-[var(--decor-mint-soft)] text-[var(--decor-mint-ink)]",
     label: "Sheet",
   },
   slides: {
-    accent: "bg-orange-500",
-    card: "hover:border-orange-500/70 hover:bg-orange-50/70 dark:hover:bg-orange-950/20",
-    chip: "bg-orange-100 text-orange-900 dark:bg-orange-950 dark:text-orange-200",
-    icon: "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-200",
+    accent: "bg-[var(--decor-coral-ink)]",
+    card: "hover:border-[var(--decor-coral-ink)] hover:bg-[var(--decor-coral-soft)]",
+    chip: "bg-[var(--decor-coral-soft)] text-[var(--decor-coral-ink)]",
+    icon: "bg-[var(--decor-coral-soft)] text-[var(--decor-coral-ink)]",
     label: "Slide",
   },
 }
@@ -4029,8 +4029,8 @@ function StudioExportInspector({
             <div key={option.id} className={`group rounded-md border p-2 text-center transition hover:-translate-y-0.5 ${option.primary ? "border-primary bg-primary/10" : "border-border bg-background"}`} title={option.detail}>
               <span className={`mx-auto flex h-10 w-10 items-center justify-center rounded-full ${
                 option.tone === "primary" ? "bg-primary text-primary-foreground" :
-                option.tone === "present" ? "bg-violet-500/15 text-violet-700 dark:text-violet-200" :
-                option.tone === "social" ? "bg-success/15 text-success" :
+                option.tone === "present" ? "bg-[var(--decor-violet-soft)] text-[var(--decor-violet-ink)]" :
+                option.tone === "social" ? "bg-[var(--decor-mint-soft)] text-[var(--decor-mint-ink)]" :
                 "bg-secondary text-secondary-foreground"
               }`}>
                 {(() => {

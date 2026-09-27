@@ -50,11 +50,11 @@ export interface DesignsHomeProps {
 }
 
 const GROUP_TINT: Record<DesignFormatGroup, string> = {
-  presentation: "from-violet-500 to-fuchsia-500",
-  document: "from-sky-500 to-cyan-400",
-  social: "from-pink-500 to-orange-400",
-  poster: "from-amber-400 to-rose-500",
-  fun: "from-emerald-400 to-lime-400",
+  presentation: "from-[var(--decor-violet-ink)] to-[var(--decor-pink-ink)]",
+  document: "from-[var(--decor-blue-ink)] to-[var(--decor-mint-ink)]",
+  social: "from-[var(--decor-pink-ink)] to-[var(--decor-coral-ink)]",
+  poster: "from-[var(--decor-amber-ink)] to-[var(--decor-coral-ink)]",
+  fun: "from-[var(--decor-mint-ink)] to-[var(--decor-amber-ink)]",
 }
 
 function relativeUpdated(value: string | null): string {
@@ -241,15 +241,15 @@ export function DesignsHome({ items, error, notes, measure, openingId, onOpen, o
 
   return (
     <div className="mx-auto w-full max-w-6xl pb-10">
-      <div className="relative mb-6 overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-orange-400 p-6 text-white shadow-[0_30px_60px_-36px_rgba(124,58,237,0.8)] sm:p-8">
-        <div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full bg-white/15 blur-2xl" aria-hidden="true" />
-        <div className="pointer-events-none absolute -bottom-20 left-1/3 h-48 w-48 rounded-full bg-amber-300/30 blur-2xl" aria-hidden="true" />
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/80">Design studio</p>
+      <div className="relative mb-6 overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-[var(--decor-violet-soft)] via-[var(--decor-pink-soft)] to-[var(--decor-coral-soft)] p-6 text-foreground shadow-sm sm:p-8">
+        <div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full bg-[var(--decor-violet-ink)]/10 blur-2xl" aria-hidden="true" />
+        <div className="pointer-events-none absolute -bottom-20 left-1/3 h-48 w-48 rounded-full bg-[var(--decor-amber-ink)]/10 blur-2xl" aria-hidden="true" />
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Design studio</p>
         <h2 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">What will you make today?</h2>
-        <p className="mt-1 max-w-xl text-sm text-white/85">Slides, worksheets, posters, flashcards and memes. Drag things around, or write an outline and let the layouts do the arranging.</p>
-        <label className="mt-5 flex h-11 max-w-lg items-center gap-2 rounded-2xl bg-white/95 px-3 text-slate-900 shadow-lg ring-1 ring-white/40 focus-within:ring-2 focus-within:ring-white">
-          <Search className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your designs" aria-label="Search your designs" className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-500" type="search" />
+        <p className="mt-1 max-w-xl text-sm text-muted-foreground">Slides, worksheets, posters, flashcards and memes. Drag things around, or write an outline and let the layouts do the arranging.</p>
+        <label className="mt-5 flex h-11 max-w-lg items-center gap-2 rounded-2xl bg-card px-3 text-foreground shadow-sm ring-1 ring-border focus-within:ring-2 focus-within:ring-ring">
+          <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your designs" aria-label="Search your designs" className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" type="search" />
         </label>
       </div>
 
@@ -331,7 +331,7 @@ export function DesignsHome({ items, error, notes, measure, openingId, onOpen, o
                 className="flex items-center gap-3 rounded-2xl bg-card px-3 py-2.5 text-left ring-1 ring-border transition hover:-translate-y-0.5 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 title={`Design slides from ${note.title || "this note"}`}
               >
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-lg text-amber-900 dark:bg-amber-400/15 dark:text-amber-200" aria-hidden="true">
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--decor-amber-soft)] text-lg text-[var(--decor-amber-ink)]" aria-hidden="true">
                   {note.icon || <NotebookText className="h-5 w-5" />}
                 </span>
                 <span className="min-w-0 flex-1">

@@ -23,9 +23,9 @@ import { LIVE_QUIZ_MODES, LIVE_QUIZ_MODE_LABELS, type LiveQuizMode } from "@/lib
  */
 
 const MODE_DESIGNS = {
-  race: { icon: Zap, tone: "text-sky-600 bg-sky-500/10", rule: "Faster correct answers earn more points." },
-  survival: { icon: Shield, tone: "text-amber-600 bg-amber-500/10", rule: "One wrong answer and you're out." },
-  streak: { icon: Flame, tone: "text-violet-600 bg-violet-500/10", rule: "Correct answers build a multiplier up to ×3." },
+  race: { icon: Zap, tone: "text-[var(--decor-blue-ink)] bg-[var(--decor-blue-soft)]", rule: "Faster correct answers earn more points." },
+  survival: { icon: Shield, tone: "text-[var(--decor-amber-ink)] bg-[var(--decor-amber-soft)]", rule: "One wrong answer and you're out." },
+  streak: { icon: Flame, tone: "text-[var(--decor-violet-ink)] bg-[var(--decor-violet-soft)]", rule: "Correct answers build a multiplier up to ×3." },
 }
 
 export function LiveModePicker({ value, onChange, disabled }: { value: LiveQuizMode; onChange: (mode: LiveQuizMode) => void; disabled?: boolean }) {

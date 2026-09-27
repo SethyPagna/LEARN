@@ -1,16 +1,13 @@
 .community {
-  --community-accent: #7560ca;
-  --community-soft: #ece7fb;
+  --community-accent: var(--decor-violet-ink);
+  --community-soft: var(--decor-violet-soft);
   min-width: 0;
   display: grid;
   gap: 18px;
   padding: 2px;
 }
-.community[data-kind="rooms"] { --community-accent: #328d7d; --community-soft: #dff3eb; }
-.community[data-kind="battles"] { --community-accent: #cf654f; --community-soft: #fce8df; }
-:global(.dark) .community { --community-soft: #312a45; --community-accent: #b6a2f3; }
-:global(.dark) .community[data-kind="rooms"] { --community-soft: #203c36; --community-accent: #82ccbb; }
-:global(.dark) .community[data-kind="battles"] { --community-soft: #442e2b; --community-accent: #f0ab91; }
+.community[data-kind="rooms"] { --community-accent: var(--decor-mint-ink); --community-soft: var(--decor-mint-soft); }
+.community[data-kind="battles"] { --community-accent: var(--decor-coral-ink); --community-soft: var(--decor-coral-soft); }
 .toolbar { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .toolbar h2 { display: flex; align-items: center; gap: 9px; font-size: 18px; font-weight: 650; margin-right: auto; }
 .toolbar h2 span { font-size: 11px; font-weight: 500; color: var(--muted-foreground); background: var(--secondary); border-radius: 7px; padding: 3px 7px; }

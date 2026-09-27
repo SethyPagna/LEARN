@@ -53,16 +53,14 @@ const TIMER_TICK_MS = 200
 /**
  * Answer-button colours, in the order a question's choices are shown.
  *
- * Four fixed hues mean a returning player learns "top-left is red" without
- * reading, which is the whole point of the format. They are decorative, never
- * the only signal: every button carries its text, and correctness is stated in
- * words on the reveal.
+ * Hues follow the app's appearance mode. Every button also carries its text,
+ * and correctness is stated in words on the reveal.
  */
 const CHOICE_STYLES = [
-  { surface: "border-rose-500/45 bg-rose-500/12", active: "border-rose-500 bg-rose-500 text-white", dot: "bg-rose-500" },
-  { surface: "border-sky-500/45 bg-sky-500/12", active: "border-sky-500 bg-sky-500 text-white", dot: "bg-sky-500" },
-  { surface: "border-amber-500/45 bg-amber-500/12", active: "border-amber-500 bg-amber-500 text-white", dot: "bg-amber-500" },
-  { surface: "border-emerald-500/45 bg-emerald-500/12", active: "border-emerald-500 bg-emerald-500 text-white", dot: "bg-emerald-500" },
+  { surface: "border-[var(--decor-coral-ink)]/45 bg-[var(--decor-coral-soft)]", active: "border-[var(--decor-coral-ink)] bg-[var(--decor-coral-ink)] text-background", dot: "bg-[var(--decor-coral-ink)]" },
+  { surface: "border-[var(--decor-blue-ink)]/45 bg-[var(--decor-blue-soft)]", active: "border-[var(--decor-blue-ink)] bg-[var(--decor-blue-ink)] text-background", dot: "bg-[var(--decor-blue-ink)]" },
+  { surface: "border-[var(--decor-amber-ink)]/45 bg-[var(--decor-amber-soft)]", active: "border-[var(--decor-amber-ink)] bg-[var(--decor-amber-ink)] text-background", dot: "bg-[var(--decor-amber-ink)]" },
+  { surface: "border-[var(--decor-mint-ink)]/45 bg-[var(--decor-mint-soft)]", active: "border-[var(--decor-mint-ink)] bg-[var(--decor-mint-ink)] text-background", dot: "bg-[var(--decor-mint-ink)]" },
 ] as const
 
 const LIVE_PRESET_CSS = `
@@ -604,7 +602,7 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
                         onClick={() => void answer(question.id, choice.id)}
                         disabled={locked || Boolean(busy)}
                         data-picked={picked}
-                        className={`live-choice flex min-h-[68px] items-center gap-2 rounded-2xl border p-3 text-left text-sm font-semibold text-foreground disabled:opacity-60 ${picked ? style.active : style.surface}`}
+                        className={`live-choice flex min-h-[68px] items-center gap-2 rounded-2xl border p-3 text-left text-sm font-semibold disabled:opacity-60 ${picked ? style.active : `${style.surface} text-foreground`}`}
                       >
                         <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${style.dot}`} aria-hidden />
                         <span className="min-w-0">{choice.text}</span>

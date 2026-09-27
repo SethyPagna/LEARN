@@ -199,7 +199,7 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
     <Panel className="p-4">
       <div className="mb-3 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-success/15 text-success">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--decor-mint-soft)] text-[var(--decor-mint-ink)]">
             <Gamepad2 className="h-5 w-5" />
           </span>
           <div className="min-w-0">
