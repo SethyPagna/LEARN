@@ -277,7 +277,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
 
   return <section className="calendar-workspace mx-auto max-w-[1600px]" aria-label="Calendar">
     <header className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex items-baseline gap-3"><h2 className="text-xl font-semibold tracking-tight">Calendar</h2><span title={`Times shown in ${timezone}`} className="hidden text-xs text-muted-foreground sm:inline">{timezone.split("/").at(-1)?.replaceAll("_", " ")}</span></div>
+      <div className="flex items-baseline gap-3"><h2 className="sr-only">Calendar</h2><span title={`Times shown in ${timezone}`} className="hidden text-xs text-muted-foreground sm:inline">{timezone.split("/").at(-1)?.replaceAll("_", " ")}</span></div>
       <div className="flex items-center gap-2">
         <button type="button" onClick={() => setConnectionsOpen(true)} aria-label="Calendar connections" className="editor-command"><LinkIcon className="h-4 w-4" /><span className="sr-only">Connections</span></button>
         <button type="button" onClick={() => createEventForDay()} className="editor-primary" aria-label="Add" title="Add"><Plus className="h-4 w-4" /> </button>

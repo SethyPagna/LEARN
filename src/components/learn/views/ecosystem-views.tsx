@@ -112,7 +112,7 @@ export function VaultView({ notes = [], setView, onOpenNote }: { notes?: Note[];
 
   return (
     <section className="learning-page grid gap-3">
-      <header className="workspace-header"><h2 className="text-lg font-semibold">Vault</h2><button onClick={() => targetNoteId ? onOpenNote(targetNoteId) : setView("notes")} className="editor-primary" aria-label="Open notes" title="Open notes"><BookOpen className="h-4 w-4" /></button></header>
+      <header className="workspace-header"><h2 className="sr-only">Vault</h2><button onClick={() => targetNoteId ? onOpenNote(targetNoteId) : setView("notes")} className="editor-primary" aria-label="Open notes" title="Open notes"><BookOpen className="h-4 w-4" /></button></header>
       <div className="vault-workbench">
         <aside className="compact-list"><select aria-label="Vault note" className="editor-input md:hidden" disabled={savingBlock} value={targetNoteId} onChange={event => setBlockNoteId(event.target.value)}>{notes.map(note => <option key={note.id} value={note.id}>{note.title}</option>)}</select>
           <div className="hidden md:grid"><input aria-label="Find a Vault note" className="editor-input mb-2" placeholder="Find a note" value={noteQuery} onChange={event => setNoteQuery(event.target.value)} /><div className="max-h-[60dvh] overflow-y-auto">{notes.filter(note => note.title.toLowerCase().includes(noteQuery.trim().toLowerCase())).map(note => <button key={note.id} disabled={savingBlock} className="compact-row" aria-pressed={targetNoteId === note.id} onClick={() => setBlockNoteId(note.id)}><span data-project-kind="notes" className="studio-project-icon shrink-0 rounded-md p-1"><NoteIcon className="h-3.5 w-3.5" /></span><span className="truncate">{note.title}</span></button>)}</div></div>
@@ -152,7 +152,7 @@ export function GraphView({ setView }: { setView: (view: View) => void }) {
   const width = Math.max(...points.map(point => point.x), 300) - left + 105
   const height = Math.max(...points.map(point => point.y), 205) - top + 80
   return <section className="learning-page grid gap-3">
-    <header className="workspace-header"><h2 className="text-lg font-semibold">Graph <span className="text-xs font-normal text-muted-foreground">{nodes.length} topics</span></h2><button className="editor-command" onClick={() => setView("notes")} aria-label="Notes" title="Notes"><BookOpen className="h-4 w-4" /></button></header>
+    <header className="workspace-header"><h2 className="sr-only">Graph, {nodes.length} topics</h2><button className="editor-command" onClick={() => setView("notes")} aria-label="Notes" title="Notes"><BookOpen className="h-4 w-4" /></button></header>
     <div className="flex flex-wrap gap-1">{(["all", "weak", "orphan", "public"] as GraphFilter[]).map(filter => <button className="calendar-filter" aria-pressed={graphFilter === filter} key={filter} onClick={() => setGraphFilter(filter)}>{graphFilterLabel(filter)}</button>)}</div>
     <div className="graph-workbench"><Panel className="relative overflow-hidden graph-stage">
       {filteredNodes.length ? <svg viewBox={`${left} ${top} ${width} ${height}`} className="w-full" aria-label="Knowledge graph">
@@ -216,7 +216,7 @@ export function ReviewsView({ setView }: { setView: (view: View) => void }) {
 
   return <section className="learning-page review-workspace mx-auto grid w-full max-w-3xl gap-4">
     <header className="workspace-header">
-      <h2 className="text-lg font-semibold">Reviews</h2>
+      <h2 className="sr-only">Reviews</h2>
       <div className="flex items-center gap-1">
         <button className="editor-command" aria-label="Previous review" title="Previous review" disabled={Boolean(busyRating) || selectedIndex === 0} onClick={() => setSelectedId(items[selectedIndex - 1].id)}><ChevronLeft className="h-4 w-4" /></button>
         <span className="min-w-12 text-center text-xs tabular-nums text-muted-foreground" aria-live="polite">{selected ? selectedIndex + 1 : 0} / {items.length}</span>
@@ -277,7 +277,7 @@ export function FeedView({ setView }: { setView: (view: View) => void }) {
     finally { setBusy(null) }
   }
   return <section className="learning-page mx-auto grid max-w-3xl gap-3">
-    <header className="workspace-header"><h2 className="text-lg font-semibold">Feed</h2><button onClick={refresh} className="editor-command" aria-label="Refresh" title="Refresh"><Repeat2 className="h-4 w-4" /></button></header>
+    <header className="workspace-header"><h2 className="sr-only">Feed</h2><button onClick={refresh} className="editor-command" aria-label="Refresh" title="Refresh"><Repeat2 className="h-4 w-4" /></button></header>
     <div className="flex gap-1 overflow-x-auto pb-1">{["all", ...topics].map(topic => <button key={topic} aria-pressed={activeFilter === topic} onClick={() => setFilter(topic)} className="calendar-filter shrink-0">{topic === "all" ? "For you" : topic}</button>)}</div>
     {message ? <p role="alert" className="text-sm text-destructive">{message}</p> : null}
     {status && status !== "Ready" && status !== "Loading" ? <p role="alert" className="text-sm text-destructive">{status}</p> : null}
@@ -643,7 +643,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   return <section className={communityStyles.community} data-kind={kind} aria-label={title}>
     {!detailOpen ? <>
       <header className={communityStyles.toolbar}>
-        <h2 ref={browseHeading} tabIndex={-1}>{title}<span>{items.length}</span></h2>
+        <h2 ref={browseHeading} tabIndex={-1} className="sr-only">{title}, {items.length}</h2>
         <label className={communityStyles.search}><Search aria-hidden="true" /><input aria-label={`Search ${title}`} value={query} onChange={event => setQuery(event.target.value)} placeholder={`Find a ${noun}`} />{query ? <button type="button" aria-label="Clear search" onClick={() => setQuery("")}><X /></button> : null}</label>
         <button type="button" onClick={startNew} className="editor-primary" aria-label={`Add ${noun}`}>New</button>
       </header>
@@ -888,7 +888,7 @@ function PersonProfileView({ setView, username }: { setView?: (view: View) => vo
 
       {setView ? (
         <button type="button" onClick={() => setView("social")} className="justify-self-start rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-          Back to Social
+          Back to Friends
         </button>
       ) : null}
     </div>

@@ -42,7 +42,7 @@ export function ProgressView({ dashboard, quizzes, setView }: { dashboard: Dashb
   const ProgressPlanIcon = progressActionIcons[progressPlan.target]
 
   return <section className="learning-page mx-auto grid max-w-4xl gap-4">
-    <header className="workspace-header"><h2 className="text-lg font-semibold">Progress</h2><span className="text-xs text-muted-foreground">{progress.momentumLabel === "steady" ? "On track" : progress.momentumLabel === "building" ? "Making progress" : "Let’s get started"}</span></header>
+    <header className="workspace-header"><h2 className="sr-only">Progress</h2><span className="text-xs text-muted-foreground">{progress.momentumLabel === "steady" ? "On track" : progress.momentumLabel === "building" ? "Making progress" : "Let’s get started"}</span></header>
     <div className="progress-overview"><div className="progress-ring" style={{ background: `conic-gradient(var(--primary) ${progress.goalCompletion}%, var(--muted) 0)` }}><span><strong>{progress.goalCompletion}%</strong><small>Daily goal</small></span></div><div className="grid flex-1 grid-cols-2 gap-4">{progress.metrics.filter(metric => metric.id !== "goal").map(metric => <div key={metric.id} title={metric.detail}><p className="text-2xl font-semibold tabular-nums">{metric.value}</p><p className="mt-1 text-xs text-muted-foreground">{metric.label}</p></div>)}</div></div>
     <div className="grid gap-4 md:grid-cols-2"><Panel className="p-4"><h3 className="mb-3 text-sm font-semibold">Next</h3><div className="grid gap-2">{progress.nextActions.slice(0, 3).map(action => <ProgressActionButton key={action.id} action={action} onClick={() => setView?.(action.target)} />)}</div></Panel>
     <Panel className="p-4"><h3 className="mb-3 text-sm font-semibold">Topics</h3>{progress.weakTopics.length ? progress.weakTopics.map(topic => <button key={topic.topic} onClick={() => setView?.("quizzes")} className="block w-full py-2 text-left"><span className="flex justify-between gap-2 text-sm"><span className="truncate">{topic.topic}</span><span className="text-xs text-muted-foreground">{topic.accuracy}%</span></span><span className="mt-2 block h-1.5 rounded-full bg-muted"><span className="block h-full rounded-full bg-primary" style={{ width: `${topic.accuracy}%` }} /></span></button>) : <EmptyState bare title="No results yet" action={<button className="editor-command" onClick={() => setView?.("quizzes")}><BookOpen className="h-4 w-4" />Practice</button>} />}</Panel></div>
@@ -190,7 +190,7 @@ export function SettingsView({
   return (
     <div className="settings-workspace">
       <header className="workspace-header">
-        <h2>Settings</h2>
+        <h2 className="sr-only">Settings</h2>
         {section === "profile" ? <ControlButton onClick={saveProfile} active disabled={saveBusy || !profileDirty}><Save className="h-4 w-4" />{saveBusy ? "Saving…" : "Save"}</ControlButton> : null}
       </header>
       <nav aria-label="Settings sections" className="settings-sections">{settingsPlan.guides.map((guide) => <SettingsSectionButton key={guide.id} guide={guide} active={section === guide.id} onClick={() => setSection(guide.id)} />)}</nav>
@@ -409,7 +409,7 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
     <div className="grid gap-4">
       <Panel className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold" title={adminPlan.headline}>Admin</h2>
+          <h2 className="sr-only">Admin</h2>
           <label className="flex h-10 w-full max-w-sm items-center gap-2 rounded-md border border-border bg-background px-3 focus-within:ring-2 focus-within:ring-primary/25">
             <Search className="h-4 w-4 text-muted-foreground" />
             <input aria-label="Search admin data" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search admin data" className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />

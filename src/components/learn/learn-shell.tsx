@@ -304,6 +304,7 @@ export function LearnShell({
           <Topbar
             hideCreate={isStudioLobby}
             density={preferences.density}
+            editorOpen={isEditor}
             locale={preferences.locale}
             logout={logout}
             onSidebarModeChange={changeSidebarMode}
@@ -316,7 +317,7 @@ export function LearnShell({
             studioDraftSummary={studioDraftSummary}
             text={preferences.text}
             user={user}
-            view={view}
+            view={placeView}
           />
           <main
             id="learn-main-content"

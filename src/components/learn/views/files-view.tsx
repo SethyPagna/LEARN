@@ -166,7 +166,7 @@ export function FilesView({ options, onPreviewChange }: { options: WorkspaceOpti
 
   return <section ref={libraryRef} className="workspace-screen file-library" data-preview={detailsOpen || undefined} aria-label="File library">
     <header className="workspace-header">
-      <h2 title={`${files.length} files · ${formatBytes(storageStats.totalBytes)} used`}>Files <span className="visual-count">{files.length}</span></h2>
+      <h2 className="sr-only">Files, {files.length}</h2>
       <button type="button" onClick={() => inputRef.current?.click()} className="editor-primary" aria-label="Upload" title="Upload"><Upload className="h-4 w-4" /></button>
       <input ref={inputRef} type="file" aria-label="Upload files" className="hidden" onChange={(event) => upload(event.target.files?.[0])} />
     </header>

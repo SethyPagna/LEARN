@@ -236,6 +236,19 @@ export function placeTabForView(view: View): View | null {
   return standIn && tabs.includes(standIn) ? standIn : null
 }
 
+/**
+ * What the top bar names, as vocabulary keys. On a page with a tab, the tab row
+ * names the page, so the bar names the place. An open editor has no row: the
+ * bar names the editor, with its place before it. `editorOpen` covers the
+ * design canvas, which is an editor only when a design is open.
+ */
+export function topbarLabelsForView(view: View, editorOpen = false): { place: keyof Vocabulary | null; title: keyof Vocabulary } {
+  const target = resolveNavigationTarget(view)
+  const placeLabel = navigationItems.find((item) => item.view === target.primaryView)?.labelKey ?? "today"
+  if (!editorOpen && placeTabForView(view)) return { place: null, title: placeLabel }
+  return { place: target.isAlias ? placeLabel : null, title: viewLabelKeys[view] }
+}
+
 export function getNavigationItemDetail(item: LearnNavigationItem) {
   const group = navigationGroups.find((entry) => entry.items.some((candidate) => candidate.view === item.view))
   return group?.caption ?? "Open section"

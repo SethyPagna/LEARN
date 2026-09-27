@@ -128,7 +128,7 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
     <header className="studio-lobby-header">
       <div className="studio-lobby-topline">
       <div className="studio-lobby-heading min-w-0" data-personal={workspaceTitle !== "Studio"}>
-        <h2 className="truncate text-xl font-semibold tracking-tight">{workspaceTitle}</h2>
+        <h2 className={workspaceTitle === "Studio" ? "sr-only" : "truncate text-xl font-semibold tracking-tight"}>{workspaceTitle}</h2>
         {options.dailyFocus ? <p className="mt-1 text-xs text-muted-foreground">{options.dailyFocus}</p> : null}
       </div>
       <div className="studio-project-filters" role="group" aria-label="Project filters">

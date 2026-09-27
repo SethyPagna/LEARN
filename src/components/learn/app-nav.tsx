@@ -43,6 +43,7 @@ import {
   resolveNavigationTarget,
   sectionTabForView,
   studioViews,
+  topbarLabelsForView,
   viewLabelKeys,
   type LauncherCommandAction,
   type LearnNavigationItem,
@@ -347,6 +348,7 @@ function SidebarFooter({ compact }: { compact: boolean }) {
 export function Topbar({
   hideCreate = false,
   density,
+  editorOpen = false,
   locale,
   logout,
   onSidebarModeChange,
@@ -363,6 +365,7 @@ export function Topbar({
 }: {
   hideCreate?: boolean
   density: Density
+  editorOpen?: boolean
   locale: SupportedLocale
   logout: () => void
   onSidebarModeChange: (mode: SidebarMode) => void
@@ -379,10 +382,9 @@ export function Topbar({
 }) {
   const modKey = useModKeyLabel()
   const target = resolveNavigationTarget(view)
-  const primary = navigationItems.find((item) => item.view === target.primaryView)
-  const sectionLabel = primary ? String(text[primary.labelKey]) : ""
-  const title = String(titleForView(view, text))
-  const showSection = target.isAlias && Boolean(sectionLabel) && sectionLabel !== title
+  const labels = topbarLabelsForView(view, editorOpen)
+  const title = String(text[labels.title] || text.dashboard)
+  const placeLabel = labels.place ? String(text[labels.place]) : ""
   const [accountHost, setAccountHost] = useState<HTMLElement | null>(null)
   useEffect(() => {
     const desktop = window.matchMedia("(min-width: 1024px)")
@@ -427,17 +429,17 @@ export function Topbar({
         </button>
 
         <div data-tab={sectionTabForView(view)} className="flex min-w-0 flex-1 items-center gap-1.5 pl-1">
-          {showSection ? (
+          {placeLabel ? (
             <>
               <button
                 type="button"
                 onClick={() => setView(target.primaryView)}
-                className="hidden shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-sm font-medium text-muted-foreground transition hover:bg-accent hover:text-accent-foreground sm:inline-flex"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-sm font-medium text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
               >
                 <span className="learn-tab-dot h-2 w-2 rounded-full" aria-hidden="true" />
-                {sectionLabel}
+                {placeLabel}
               </button>
-              <ChevronRight className="hidden h-4 w-4 shrink-0 text-muted-foreground/60 sm:block" aria-hidden="true" />
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
             </>
           ) : (
             null

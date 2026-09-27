@@ -550,8 +550,8 @@ export function AiTutorView({
       <Panel className="p-4 sm:p-6">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">AI tutor</h2>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
+            <h2 className="sr-only">AI tutor</h2>
+            <div className="flex flex-wrap items-center gap-2">
               <StatusPill label={workflowSummary.statusLabel} tone={readinessTone(workflowSummary.status)} />
 
               {draftStatus ? <StatusPill label={draftStatus} tone="steady" /> : null}

@@ -11,7 +11,7 @@ import { PageSections } from "../../components/learn/page-sections"
 import { PlaceGuidePanel } from "../../components/learn/place-guide"
 import type { View } from "../../components/learn/types"
 import { getVocabulary } from "../../lib/i18n/vocabulary"
-import { launcherCommands, navigationGroups } from "../../lib/navigation"
+import { launcherCommands, navigationGroups, topbarLabelsForView, viewLabelKeys } from "../../lib/navigation"
 import { resolveMenuKey } from "../../lib/ux/menu-navigation"
 import { ARTIFACT_TYPE_IDS, ARTIFACT_TYPES, PLACE_IDS, PLACES } from "../../lib/ux/artifact-catalog"
 
@@ -195,6 +195,45 @@ test("every place draws the same tab row, and an open editor draws none", () => 
   assert.doesNotMatch(readSource("src/components/learn/views/workspaces/combined-workspace-views.tsx"), /<nav /, "Friends pages use the shared tab row, not their own")
   assert.doesNotMatch(readSource("src/app/globals.css"), /\.page-sections button:nth-child/, "tab icons wear their meaning, not their position")
   assert.match(readSource(LEARN_SHELL), /\{isEditor \|\| viewingSomeoneElse \? null : <PageSections /, "the shell leaves the row out on editors and on someone else's profile")
+})
+
+test("the top bar names the place; a page title that repeats the active tab is for screen readers only", () => {
+  const namesPlace = (title: keyof ReturnType<typeof getVocabulary>) => ({ place: null, title })
+  assert.deepEqual(topbarLabelsForView("dashboard"), namesPlace("today"))
+  assert.deepEqual(topbarLabelsForView("calendar"), namesPlace("today"))
+  assert.deepEqual(topbarLabelsForView("vault"), namesPlace("create"))
+  assert.deepEqual(topbarLabelsForView("canvas"), namesPlace("create"), "the canvas list is a Studio filter")
+  assert.deepEqual(topbarLabelsForView("ai"), namesPlace("practice"))
+  assert.deepEqual(topbarLabelsForView("social"), namesPlace("friends"))
+  assert.deepEqual(topbarLabelsForView("discover"), namesPlace("friends"))
+  assert.deepEqual(topbarLabelsForView("admin"), namesPlace("me"))
+  for (const editor of ["notes", "docs", "sheets", "slides"] as const) {
+    assert.deepEqual(topbarLabelsForView(editor), { place: "create", title: viewLabelKeys[editor] }, `${editor} is named after its place`)
+  }
+  assert.deepEqual(topbarLabelsForView("canvas", true), { place: "create", title: "canvas" }, "an open design is an editor")
+
+  const shell = readSource(LEARN_SHELL)
+  assert.match(shell, /<Topbar[^>]*?editorOpen=\{isEditor\}[^>]*?view=\{placeView\}/, "the bar knows about open editors and names Friends on someone else's profile")
+
+  const titles: Array<[string, RegExp]> = [
+    ["src/components/learn/views/calendar-view.tsx", /<h2 className="sr-only">Calendar<\/h2>/],
+    ["src/components/learn/views/secondary-views.tsx", /<h2 className="sr-only">Progress<\/h2>/],
+    ["src/components/learn/views/secondary-views.tsx", /<h2 className="sr-only">Settings<\/h2>/],
+    ["src/components/learn/views/secondary-views.tsx", /<h2 className="sr-only">Admin<\/h2>/],
+    ["src/components/learn/views/ecosystem-views.tsx", /<h2 className="sr-only">Vault<\/h2>/],
+    ["src/components/learn/views/ecosystem-views.tsx", /<h2 className="sr-only">Graph, /],
+    ["src/components/learn/views/ecosystem-views.tsx", /<h2 className="sr-only">Reviews<\/h2>/],
+    ["src/components/learn/views/ecosystem-views.tsx", /<h2 className="sr-only">Feed<\/h2>/],
+    ["src/components/learn/views/ecosystem-views.tsx", /<h2 ref=\{browseHeading\} tabIndex=\{-1\} className="sr-only">/],
+    ["src/components/learn/views/files-view.tsx", /<h2 className="sr-only">Files, /],
+    ["src/components/learn/views/ai-view.tsx", /<h2 className="sr-only">AI tutor<\/h2>/],
+    ["src/components/learn/studio-lobby.tsx", /className=\{workspaceTitle === "Studio" \? "sr-only"/],
+  ]
+  for (const [file, title] of titles) assert.match(readSource(file), title, `${file} keeps its title for screen readers only`)
+
+  const css = readSource("src/app/globals.css")
+  assert.doesNotMatch(css, /h2 \{ ?display: ?none;? ?\}/, "a page title is never display:none; that would hide it from screen readers too")
+  assert.match(css, /\.workspace-header:not\(:has\(> :not\(\.sr-only\)\)\) \{ display: contents; \}/, "a header left with only its title draws no box but keeps the title")
 })
 
 test("a focused text field keeps its keys: menus never hijack typing", () => {

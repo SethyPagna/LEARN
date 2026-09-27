@@ -9,12 +9,14 @@ import styles from "./social-workspace.module.css"
 
 export { PracticeWorkspaceView } from "./practice-workspace-view"
 
-/** Chat, Groups, Rooms and Battles. The Friends tab row above picks which one. */
+/**
+ * Chat, Groups, Rooms and Battles. The Friends tab row above picks which one.
+ * Groups, Rooms and Battles name themselves; Chat gets its title here.
+ */
 export function SocialWorkspaceView({ initialView, options, setView }: { initialView: View; options: WorkspaceOptions; setView: (view: View) => void; user: User | null }) {
   const tab = socialWorkspaceTabFromView(initialView)
   const title = socialWorkspaceTabs.find((item) => item.id === tab)?.label
   return <section className={`social-workspace ${styles.workspace}`}>
-    <h2 className="sr-only">{title}</h2>
-    {tab === "chat" ? <ChatView options={options} /> : <SocialLearningView key={tab} kind={tab} setView={setView} />}
+    {tab === "chat" ? <><h2 className="sr-only">{title}</h2><ChatView options={options} /></> : <SocialLearningView key={tab} kind={tab} setView={setView} />}
   </section>
 }
