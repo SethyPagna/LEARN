@@ -51,7 +51,7 @@ import test from "node:test"
 import { fileURLToPath } from "node:url"
 
 import { formatAiResponse, type ThemedBlock } from "../../lib/ai/format-response"
-import { buildInsertBackPayload } from "../../lib/ai/insert-back"
+import { buildInsertBackPayload, insertBackDeckSlides } from "../../lib/ai/insert-back"
 import { buildDocx } from "../../lib/export/docx"
 import { blocksFromDocumentHtml } from "../../lib/export/html-blocks"
 import { buildPdf } from "../../lib/export/pdf"
@@ -453,7 +453,7 @@ test("slides: the AI deck payload and the manual deck payload agree on what they
     })),
   })
 
-  const aiSlides = buildInsertBackPayload("slide-outline", reply).body.slides as ReturnType<typeof manualDeckPayload>
+  const aiSlides = insertBackDeckSlides(reply) as ReturnType<typeof manualDeckPayload>
   const manualSlides = manualDeckPayload(SLIDE_SPEC)
 
   assert.equal(aiSlides.length, manualSlides.length, "the decks must have the same slide count")

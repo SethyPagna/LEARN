@@ -47,6 +47,11 @@ export interface DesignsHomeProps {
   onArchive: (id: string) => void
   onRetry: () => void
   onNotify: (message: string) => void
+  /**
+   * Studio's "Add > Canvas": only sizes and templates. Slides have their own
+   * entry and Studio lists your projects, so both stay out of the picker.
+   */
+  picker?: boolean
 }
 
 const GROUP_TINT: Record<DesignFormatGroup, string> = {
@@ -208,15 +213,18 @@ function DesignCard({ item, measure, opening, onOpen, onArchive }: { item: Desig
   )
 }
 
-export function DesignsHome({ items, error, notes, measure, openingId, onOpen, onCreate, onArchive, onRetry, onNotify }: DesignsHomeProps) {
+export function DesignsHome({ items, error, notes, measure, openingId, onOpen, onCreate, onArchive, onRetry, onNotify, picker = false }: DesignsHomeProps) {
   const [query, setQuery] = useState("")
   const [group, setGroup] = useState<DesignFormatGroup | "all">("all")
   const [allTemplates, setAllTemplates] = useState(false)
 
-  const formats = group === "all" ? designFormats : designFormats.filter((format) => format.group === group)
+  const offered = picker ? designFormats.filter((format) => format.group !== "presentation") : designFormats
+  const formats = group === "all" ? offered : offered.filter((format) => format.group === group)
+  const groups = picker ? designFormatGroups.filter((entry) => entry.id !== "presentation") : designFormatGroups
+  const templateChoices = picker ? DESIGN_TEMPLATES.filter((template) => template.group !== "presentation") : DESIGN_TEMPLATES
   const needle = query.trim().toLowerCase()
   const filtered = useMemo(() => (items ?? []).filter((item) => !needle || item.title.toLowerCase().includes(needle)), [items, needle])
-  const templates = allTemplates ? DESIGN_TEMPLATES : DESIGN_TEMPLATES.slice(0, 8)
+  const templates = allTemplates ? templateChoices : templateChoices.slice(0, 8)
   const recentNotes = useMemo(
     () =>
       [...notes]
@@ -241,7 +249,7 @@ export function DesignsHome({ items, error, notes, measure, openingId, onOpen, o
 
   return (
     <div className="mx-auto w-full max-w-6xl pb-10">
-      <div className="relative mb-6 overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-[var(--decor-violet-soft)] via-[var(--decor-pink-soft)] to-[var(--decor-coral-soft)] p-6 text-foreground shadow-sm sm:p-8">
+      {picker ? <h2 className="mb-4 text-xl font-semibold tracking-tight">New canvas</h2> : <div className="relative mb-6 overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-[var(--decor-violet-soft)] via-[var(--decor-pink-soft)] to-[var(--decor-coral-soft)] p-6 text-foreground shadow-sm sm:p-8">
         <div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full bg-[var(--decor-violet-ink)]/10 blur-2xl" aria-hidden="true" />
         <div className="pointer-events-none absolute -bottom-20 left-1/3 h-48 w-48 rounded-full bg-[var(--decor-amber-ink)]/10 blur-2xl" aria-hidden="true" />
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Design studio</p>
@@ -251,11 +259,11 @@ export function DesignsHome({ items, error, notes, measure, openingId, onOpen, o
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your designs" aria-label="Search your designs" className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" type="search" />
         </label>
-      </div>
+      </div>}
 
-      <SectionTitle icon={<Plus className="h-4 w-4" />}>Start something new</SectionTitle>
+      <SectionTitle icon={<Plus className="h-4 w-4" />}>{picker ? "Pick a size" : "Start something new"}</SectionTitle>
       <div className="-mx-1 mb-3 flex gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label="Design type">
-        {[{ id: "all" as const, label: "All" }, ...designFormatGroups].map((entry) => (
+        {[{ id: "all" as const, label: "All" }, ...groups].map((entry) => (
           <button
             key={entry.id}
             type="button"
@@ -304,9 +312,9 @@ export function DesignsHome({ items, error, notes, measure, openingId, onOpen, o
       <SectionTitle
         icon={<LayoutTemplate className="h-4 w-4" />}
         action={
-          DESIGN_TEMPLATES.length > 8 ? (
+          templateChoices.length > 8 ? (
             <button type="button" className="text-xs font-semibold text-primary hover:underline" onClick={() => setAllTemplates((current) => !current)}>
-              {allTemplates ? "Show fewer" : `See all ${DESIGN_TEMPLATES.length}`}
+              {allTemplates ? "Show fewer" : `See all ${templateChoices.length}`}
             </button>
           ) : null
         }
@@ -319,7 +327,7 @@ export function DesignsHome({ items, error, notes, measure, openingId, onOpen, o
         ))}
       </div>
 
-      {recentNotes.length ? (
+      {recentNotes.length && !picker ? (
         <>
           <SectionTitle icon={<Sparkles className="h-4 w-4" />}>Turn a note into slides</SectionTitle>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -345,6 +353,7 @@ export function DesignsHome({ items, error, notes, measure, openingId, onOpen, o
         </>
       ) : null}
 
+      {picker ? null : <>
       <SectionTitle icon={<FilePlus2 className="h-4 w-4" />}>Your designs</SectionTitle>
       {error ? (
         <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
@@ -371,6 +380,7 @@ export function DesignsHome({ items, error, notes, measure, openingId, onOpen, o
           {needle ? `No design is called “${query.trim()}”.` : "No designs yet. Pick a size or a template above and it appears here as soon as you edit it."}
         </p>
       )}
+      </>}
     </div>
   )
 }

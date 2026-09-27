@@ -341,7 +341,7 @@ export function SelectionDock({ userId, view, onOpen, onQuizCreated }: {
         setStage({ name: "done", text: count === 1 ? "+1 card" : `+${count} cards`, next: { label: "Review", go: () => finish("/reviews") } })
       } else if (action === "slides") {
         const { id } = await makeSlides(api, current.passage)
-        if (alive()) finish(`/canvas?design=${encodeURIComponent(id)}`)
+        if (alive()) finish(`/slides?design=${encodeURIComponent(id)}`)
       } else if (action === "share" && target) {
         const { threadId } = await shareToChat(api, target, current.passage)
         chatCache = null

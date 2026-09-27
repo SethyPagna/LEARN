@@ -1,14 +1,15 @@
 import type { StudioInsertTarget, WorkspaceDeck } from "@/components/learn/types"
+import { deckToDesign } from "@/lib/design/from-deck"
 import { generatedQuizQuestions, generatedReviewCards } from "./assessment-output"
 import { generatedDiscussionSpace, generatedStudyActivity } from "./workflow-destinations"
 
 export interface InsertBackPayload {
-  endpoint: "/api/notes" | "/api/docs" | "/api/sheets" | "/api/slides" | "/api/quizzes" | "/api/reviews" | "/api/calendar" | "/api/learning-spaces"
+  endpoint: "/api/notes" | "/api/docs" | "/api/sheets" | "/api/canvas" | "/api/quizzes" | "/api/reviews" | "/api/calendar" | "/api/learning-spaces"
   view: "notes" | "docs" | "sheets" | "slides" | "quizzes" | "reviews" | "calendar" | "spaces"
   body: Record<string, unknown>
 }
 
-export function buildInsertBackPayload(target: StudioInsertTarget, reply: string, titlePrefix = "AI result"): InsertBackPayload {
+export function buildInsertBackPayload(target: StudioInsertTarget, reply: string, titlePrefix = "AI result", options: { slidesAspect?: "16:9" | "4:3" } = {}): InsertBackPayload {
   const parsed = parseAiJson(reply)
   const title = cleanTitle(readString(parsed, "title") || `${titlePrefix} - ${new Date().toLocaleDateString()}`)
 
@@ -59,15 +60,10 @@ export function buildInsertBackPayload(target: StudioInsertTarget, reply: string
   }
 
   if (target === "slide-outline") {
-    return {
-      endpoint: "/api/slides",
-      view: "slides",
-      body: {
-        title,
-        slides: toSlides(parsed, reply),
-        speakerNotes: {},
-      },
-    }
+    // Slides are presentation designs: the outline is laid out as a deck, then
+    // opens in the one editor like any other slides.
+    const design = deckToDesign({ title, slides: toSlides(parsed, reply), aspect: options.slidesAspect })
+    return { endpoint: "/api/canvas", view: "slides", body: { id: design.id, title, content: design } }
   }
 
   return {
@@ -119,6 +115,11 @@ function toSheetCells(parsed: Record<string, unknown> | null, reply: string) {
     ["Item", "Detail", "Next step"],
     ...lines.slice(0, 30).map((line, index) => [`${index + 1}`, line, "Review"]),
   ]
+}
+
+/** The slides an AI outline authors, before they are laid out as a design. */
+export function insertBackDeckSlides(reply: string): WorkspaceDeck["slides"] {
+  return toSlides(parseAiJson(reply), reply)
 }
 
 function toSlides(parsed: Record<string, unknown> | null, reply: string): WorkspaceDeck["slides"] {

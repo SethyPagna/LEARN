@@ -12,9 +12,11 @@ test("authored deck objects retain positions, content, notes and hidden pages in
     { title: "Backup", body: "Optional detail", hidden: true },
   ] })
   assert.equal(doc.width / doc.height, 4 / 3)
+  assert.equal(doc.format, "presentation-4-3", "a 4:3 deck opens as 4:3 slides, with the filmstrip")
   assert.equal(doc.pages[0].elements.length, 2)
   assert.equal(doc.pages[0].elements[0].content, "Authored heading")
-  assert.deepEqual([doc.pages[0].elements[0].x, doc.pages[0].elements[0].y, doc.pages[0].elements[0].width, doc.pages[0].elements[0].height], [96, 144, 480, 216])
+  assert.deepEqual([doc.pages[0].elements[0].x, doc.pages[0].elements[0].y, doc.pages[0].elements[0].width, doc.pages[0].elements[0].height], [144, 216, 720, 324])
+  assert.equal(doc.pages[0].elements[0].style.fontSize, 48, "text grows with the page")
   assert.equal(doc.pages[0].elements[0].locked, true)
   assert.equal(doc.pages[0].elements[1].content, "/api/files/photo")
   assert.equal(doc.pages[0].background, "#123456")
@@ -28,8 +30,9 @@ test("authored deck objects retain positions, content, notes and hidden pages in
 
 test("simple decks keep title, accent and body; limits reject instead of silently truncating", () => {
   const slide = { title: "Title", body: "Body", accent: "Topic" }
-  const doc = deckToDesign({ title: "Deck", slides: [slide] })
+  const doc = deckToDesign({ title: "Deck", slides: [slide], id: "design_from_deck_1" })
   assert.equal(doc.width / doc.height, 16 / 9)
+  assert.deepEqual([doc.format, doc.width, doc.height, doc.id], ["presentation", 1920, 1080, "design_from_deck_1"])
   assert.deepEqual(doc.pages[0].elements.map((element) => element.content), ["Topic", "Title", "Body"])
   assert.throws(() => deckToDesign({ title: "Deck", slides: Array.from({ length: 61 }, () => slide) }), /60 pages/)
   assert.throws(() => deckToDesign({ title: "Deck", slides: [{ ...slide, body: "x".repeat(4001) }] }), /text limit/)

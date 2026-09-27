@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { CircleHelp, ArrowRight, Plus, Search, SlidersHorizontal, X } from "lucide-react"
 import { createDesignDoc } from "@/lib/design/document"
+import { slidesFormatId } from "@/lib/design/formats"
 import type { MeasureText } from "@/lib/design/text"
-import { projectHref, projectKinds, useStudioProjects, type ProjectKind, type Project } from "./studio-projects"
+import { projectHref, projectKinds, projectShownKind, useStudioProjects, type ProjectKind, type Project } from "./studio-projects"
 import { formatRelativeTime } from "@/lib/format-time"
 import { api } from "./api"
 import { CREATE_MENU_EVENT } from "./create-menu"
@@ -26,11 +27,12 @@ const PAGE_SIZE = 12
 /** A project as a cover: its first page on the kind colour, or the kind drawing while it is empty. */
 function ProjectCard({ project, measure, onOpen }: { project: Project; measure: MeasureText; onOpen: (project: Project) => void }) {
   const [ref, near] = useNearViewport<HTMLLIElement>()
-  const spec = projectKinds[project.kind]
+  const kind = projectShownKind(project)
+  const spec = projectKinds[kind]
   const Icon = spec.icon
-  const art = <KindArt kind={project.kind} />
+  const art = <KindArt kind={kind} />
   return <li ref={ref}>
-    <button type="button" className="studio-card" data-project-kind={project.kind} onClick={() => onOpen(project)}>
+    <button type="button" className="studio-card" data-project-kind={kind} onClick={() => onOpen(project)}>
       <span className="studio-card-cover" aria-hidden="true">{near ? <StudioProjectPreview project={project} measure={measure} fallback={art} /> : art}</span>
       <span className="studio-card-caption">
         <span className="studio-project-icon flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" aria-hidden="true"><Icon className="h-4 w-4" /></span>
@@ -92,7 +94,8 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
 
   const matches = useMemo(() => {
     return allProjects.filter((project) => {
-      const category = project.kind === "notes" || project.kind === "docs" ? "Writing" : project.kind === "canvas" ? "Canvas" : project.kind === "slides" ? "Slides" : "Sheets"
+      const kind = projectShownKind(project)
+      const category = kind === "notes" || kind === "docs" ? "Writing" : kind === "canvas" ? "Canvas" : kind === "slides" ? "Slides" : "Sheets"
       return (filter === "All" || category === filter) && project.title.toLowerCase().includes(query.toLowerCase().trim())
     })
   }, [allProjects, filter, query])
@@ -106,19 +109,21 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
     creationPending.current = true
     setMenuOpen(false)
     addRef.current?.focus()
+    // A canvas starts with its size, like Canva: the picker makes it once you choose.
+    if (kind === "canvas") { creationPending.current = false; onOpen("/canvas?new=1"); return }
     setCreating(kind)
     setError("")
     try {
       const title = `Untitled ${projectKinds[kind].label.toLowerCase()}`
-      const design = kind === "canvas" ? createDesignDoc({ name: title, format: "presentation", theme: "minimal" }) : null
+      // Slides are presentation designs, in the Settings "Slides aspect".
+      const design = kind === "slides" ? createDesignDoc({ name: title, format: slidesFormatId(options.slidesAspect), theme: "minimal" }) : null
       const payload = design ? { id: design.id, title, content: design }
         : kind === "notes" ? { title, content: "", template: "blank" }
         : kind === "docs" ? { title, content: { text: "<p></p>" } }
-        : kind === "sheets" ? { title, cells: [["", "", ""], ["", "", ""], ["", "", ""]] }
-        : { title, slides: [{ id: crypto.randomUUID(), title: "Your first idea", body: "", layout: "title", theme: "plain", notes: "" }] }
-      const result = await api<{ item: Project & Note }>(projectKinds[kind].endpoint, { method: "POST", body: JSON.stringify(payload) })
+        : { title, cells: [["", "", ""], ["", "", ""], ["", "", ""]] }
+      const result = await api<{ item: Project & Note }>(design ? "/api/canvas" : projectKinds[kind].endpoint, { method: "POST", body: JSON.stringify(payload) })
       if (kind === "notes") onNoteCreated(result.item)
-      openProject({ ...result.item, kind })
+      openProject(design ? { ...result.item, kind: "canvas", content: design } : { ...result.item, kind })
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "This project couldn't be created. Please try again.")
     } finally { creationPending.current = false; setCreating(null) }

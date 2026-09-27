@@ -26,8 +26,11 @@ function withDrafts(items: DesignSummary[]): DesignSummary[] {
   return [...merged.values()].sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""))
 }
 
-/** One route and one editor for both legacy canvases and multi-page designs. */
-export function CanvasEditorView({ notes = [], onHome, designId }: { notes?: readonly Note[]; onHome?: () => void; designId?: string }) {
+/**
+ * One editor for slides, legacy canvases and multi-page designs. `picker` starts
+ * a new canvas: choose a size or a template first, as in Canva.
+ */
+export function CanvasEditorView({ notes = [], onHome, designId, picker = false }: { notes?: readonly Note[]; onHome?: () => void; designId?: string; picker?: boolean }) {
   const measure = useDesignMeasure()
   const [items, setItems] = useState<DesignSummary[] | null>(null)
   const [error, setError] = useState("")
@@ -49,8 +52,10 @@ export function CanvasEditorView({ notes = [], onHome, designId }: { notes?: rea
   }, [])
   useEffect(() => {
     void load()
-    const id = designId || new URL(window.location.href).searchParams.get("design")
+    const params = new URL(window.location.href).searchParams
+    const id = designId || params.get("design")
     if (id) void open(id)
+    if (id && params.get("from") === "deck") setMessage("This deck moved to the new slides editor. The original is archived.")
     return () => { request.current += 1 }
   }, [load, designId])
 
@@ -58,9 +63,11 @@ export function CanvasEditorView({ notes = [], onHome, designId }: { notes?: rea
     const url = new URL(window.location.href)
     if (id) url.searchParams.set("design", id)
     else url.searchParams.delete("design")
+    // One-time hints (a new canvas, a deck that just moved) leave the address once used.
+    for (const hint of ["new", "item", "from"]) url.searchParams.delete(hint)
     // Let Next's history wrapper update its canonical URL. Reusing its internal
     // __NA state skips that update and the next render drops the design query.
-    window.history.replaceState({ learnView: "canvas" }, "", url)
+    window.history.replaceState({ learnView: url.pathname.startsWith("/slides") ? "slides" : "canvas" }, "", url)
   }
   useEffect(() => { if (opened) setDesignUrl(opened.id) }, [opened?.id])
 
@@ -128,7 +135,7 @@ export function CanvasEditorView({ notes = [], onHome, designId }: { notes?: rea
     {message ? <p role="status" className="mb-2 flex justify-between rounded-lg bg-muted px-3 py-2 text-sm">{message}<button type="button" aria-label="Dismiss notice" onClick={() => setMessage("")}>×</button></p> : null}
     {opened ? <DesignEditor key={opened.id} opened={opened} notes={notes} measure={measure} onHome={() => { if (onHome) onHome(); else { setOpened(null); setDesignUrl(null); void load() } }} onCreate={create} /> : <>
       <label className="canvas-tool mb-3 inline-flex cursor-pointer">Import design<input type="file" className="hidden" accept="application/json,.json" aria-label="Import design JSON" onChange={(event) => { void importFile(event.target.files?.[0]); event.target.value = "" }} /></label>
-      <DesignsHome items={items} error={error} notes={notes} measure={measure} openingId={openingId} onOpen={(id) => void open(id)} onCreate={create} onArchive={(id) => void archive(id)} onRetry={() => void load()} onNotify={setMessage} />
+      <DesignsHome items={items} error={error} notes={notes} measure={measure} openingId={openingId} picker={picker} onOpen={(id) => void open(id)} onCreate={create} onArchive={(id) => void archive(id)} onRetry={() => void load()} onNotify={setMessage} />
     </>}
   </section>
 }

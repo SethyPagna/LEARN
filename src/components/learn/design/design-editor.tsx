@@ -6,6 +6,7 @@ import { createElement } from "@/lib/studio/canvas-engine"
 import { sanitizeImageUrl } from "@/lib/studio/canvas-styles"
 import { addPage, duplicatePage, movePage, newDesignId, removePage, updatePage, type DesignDoc } from "@/lib/design/document"
 import { pictureElement, textPresetElement } from "@/lib/design/editing"
+import { isPresentationFormat } from "@/lib/design/formats"
 import { clampZoom, fitZoom, stepZoom, type Point } from "@/lib/design/gestures"
 import { resizeDesign } from "@/lib/design/layout"
 import { normalizeDesignPictureUrl } from "@/lib/design/image-source"
@@ -40,7 +41,7 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
   useEditorExitGuard(async () => save.status === "saved" ? true : save.saveNow())
   const compact = useCompactLayout()
   const [panel, setPanel] = useState<DesignPanelId | null>(null)
-  const presentation = api.design.format === "presentation" || api.design.format === "presentation-4-3"
+  const presentation = isPresentationFormat(api.design.format)
   const [pagesOpen, setPagesOpen] = useState(presentation)
   const [focus, setFocus] = useState(false)
   const [zoom, setZoom] = useState(0.5)

@@ -1,7 +1,8 @@
 import type { SlideObject, WorkspaceDeck } from "@/components/learn/types"
 import { createElement, type CanvasElement } from "@/lib/studio/canvas-engine"
 import { slideDesignPresets } from "@/lib/studio-design"
-import { createDesignDoc, createDesignPage, DESIGN_LIMITS, type DesignDoc } from "./document"
+import { createDesignDoc, createDesignPage, DESIGN_LIMITS, scaleDesign, type DesignDoc } from "./document"
+import { designFormat, slidesFormatId } from "./formats"
 
 type DeckSlide = WorkspaceDeck["slides"][number]
 
@@ -39,16 +40,30 @@ function slideElements(slide: DeckSlide, width: number, height: number): CanvasE
   })
 }
 
-/** The editable Studio slide model, preserving authored objects and slide metadata. */
-export function deckToDesign(input: { title: string; slides: readonly DeckSlide[]; aspect?: "16:9" | "4:3" }): DesignDoc {
+/**
+ * The editable Studio slide model, preserving authored objects and slide metadata.
+ * Slides are laid out at the old 960-point width, then scaled to a presentation
+ * format, so a converted deck opens with the filmstrip like any other slides.
+ */
+export function deckToDesign(input: { title: string; slides: readonly DeckSlide[]; aspect?: "16:9" | "4:3"; id?: string }): DesignDoc {
   if (!input.slides.length) throw new Error("Add a slide before converting this deck.")
   if (input.slides.length > DESIGN_LIMITS.pages) throw new Error(`Designs support up to ${DESIGN_LIMITS.pages} pages. Split this deck before converting.`)
   const width = 960
   const height = input.aspect === "4:3" ? 720 : 540
-  return createDesignDoc({ name: input.title, format: "custom", width, height, pages: input.slides.map((slide, index) => {
+  const doc = createDesignDoc({ id: input.id, name: input.title, format: "custom", width, height, pages: input.slides.map((slide, index) => {
     assertTextFits(slide.speakerNotes, DESIGN_LIMITS.notesLength)
     const palette = slideDesignPresets[slide.theme as keyof typeof slideDesignPresets] ?? slideDesignPresets.midnight
     const transition = slide.transition === "push" || slide.transition === "wipe" ? "slide" : slide.transition === "none" || slide.transition === "zoom" ? slide.transition : "fade"
     return createDesignPage({ id: `slide-${index + 1}`, background: slide.background || palette.background, elements: slideElements(slide, width, height), hidden: slide.hidden, notes: slide.speakerNotes, transition })
   }) })
+  const format = designFormat(slidesFormatId(input.aspect))
+  return scaleDesign(doc, { format: format.id, width: format.width, height: format.height })
+}
+
+/**
+ * The design an old deck becomes. One id per deck, so opening the deck twice,
+ * or in two tabs, finds the same copy instead of making another.
+ */
+export function deckDesignId(deckId: string): string {
+  return `design-${deckId}`.slice(0, 80)
 }

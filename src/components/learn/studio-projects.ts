@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { FileText, PenTool, Presentation, StickyNote, Table2 } from "lucide-react"
 import { readDesignDrafts, timestampMs } from "@/lib/design/draft"
+import { isPresentationFormat } from "@/lib/design/formats"
 import { api, PROJECTS_CHANGED_EVENT } from "./api"
 import type { Note, WorkspaceDeck } from "./types"
 
@@ -16,8 +17,23 @@ export const projectKinds = {
   sheets: { label: "Sheet", icon: Table2, endpoint: "/api/sheets" },
 } as const
 
-export function projectHref(project: Project) {
-  return project.kind === "canvas" ? `/canvas?design=${encodeURIComponent(project.id)}` : `/${project.kind}?item=${encodeURIComponent(`${project.kind}:${project.id}`)}`
+/** A design in a presentation format is Slides; an old deck is Slides too, until it is opened and converted. */
+export function isSlidesProject(project: Pick<Project, "kind" | "content">) {
+  return project.kind === "slides" || (project.kind === "canvas" && isPresentationFormat((project.content as { format?: unknown } | null | undefined)?.format))
+}
+
+/** The kind a person sees: presentation designs show as Slides. */
+export function projectShownKind(project: Pick<Project, "kind" | "content">): ProjectKind {
+  return isSlidesProject(project) ? "slides" : project.kind
+}
+
+/**
+ * Slides and designs open in the one design editor. An old deck opens through
+ * `/slides?item=`, which converts it first (see `views/deck-opener.tsx`).
+ */
+export function projectHref(project: Pick<Project, "kind" | "id"> & { content?: unknown; title?: string }) {
+  if (project.kind === "canvas") return `/${isSlidesProject(project) ? "slides" : "canvas"}?design=${encodeURIComponent(project.id)}`
+  return `/${project.kind}?item=${encodeURIComponent(`${project.kind}:${project.id}`)}`
 }
 
 export function useStudioProjects(notes: readonly Note[], revision = "") {

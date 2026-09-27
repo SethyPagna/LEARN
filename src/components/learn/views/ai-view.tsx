@@ -421,7 +421,7 @@ export function AiTutorView({
   async function insertReply(target: StudioInsertTarget) {
     if (!reply.trim()) return
     try {
-      const payload = buildInsertBackPayload(target, reply, `AI ${activeMode.label}`)
+      const payload = buildInsertBackPayload(target, reply, `AI ${activeMode.label}`, { slidesAspect: options.slidesAspect })
       const response = await api<{ item?: Note | Quiz }>(payload.endpoint, {
         method: "POST",
         body: JSON.stringify(payload.body),

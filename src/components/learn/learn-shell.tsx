@@ -12,6 +12,7 @@ import type { AdminData, AutomationData, DashboardData, Note, Quiz, User, View }
 import { StatusMessage } from "./ui"
 import { AiTutorView } from "./views/ai-view"
 import { CanvasEditorView } from "./views/canvas-editor"
+import { DeckOpener } from "./views/deck-opener"
 import { EditorProjectList } from "./editor-project-list"
 import { EditorNavigationContext, type EditorExitGuard } from "./editor-navigation"
 import { StudioLobby } from "./studio-lobby"
@@ -65,7 +66,12 @@ export function LearnShell({
   const [sidebarMode, setSidebarMode] = useState(initialSidebarMode)
   const [editorSidebarMode, setEditorSidebarMode] = useState<SidebarMode>("rail")
   const [filePreviewOpen, setFilePreviewOpen] = useState(false)
-  const isEditor = ["notes", "docs", "slides", "sheets"].includes(view) || (view === "canvas" && new URLSearchParams(locationSearch).has("design"))
+  const searchParams = new URLSearchParams(locationSearch)
+  // Slides and designs share one editor. Without a design (or an old deck to
+  // convert, or a canvas size to pick) /slides and /canvas are the Studio lobby.
+  const designView = view === "canvas" || view === "slides"
+  const openDeckId = view === "slides" && searchParams.get("item")?.startsWith("slides:") ? searchParams.get("item")!.slice("slides:".length) : ""
+  const isEditor = ["notes", "docs", "sheets"].includes(view) || (designView && (searchParams.has("design") || Boolean(openDeckId) || (view === "canvas" && searchParams.has("new"))))
   const focusedWorkspace = isEditor || (view === "files" && filePreviewOpen)
   const effectiveSidebarMode = focusedWorkspace ? editorSidebarMode : sidebarMode
   useEffect(() => { if (focusedWorkspace) setEditorSidebarMode("rail") }, [focusedWorkspace])
@@ -270,7 +276,17 @@ export function LearnShell({
     })
   }, [navigateSafely])
 
-  const isStudioLobby = view === "studio" || (view === "canvas" && !new URLSearchParams(locationSearch).has("design"))
+  const isStudioLobby = view === "studio" || (designView && !isEditor)
+
+  /** Swap the address without a history step, e.g. an old deck's link for its converted copy. */
+  const replaceLink = useCallback((href: string) => {
+    const url = new URL(href, window.location.origin)
+    const nextView = viewFromPath(url.pathname)
+    if (!nextView) return
+    window.history.replaceState({ learnView: nextView }, "", `${url.pathname}${url.search}${url.hash}`)
+    setLocationSearch(url.search)
+    setView(nextView)
+  }, [])
   // Someone else's profile is a Friends page; only your own lives in Me.
   const viewingSomeoneElse = view === "profile" && Boolean(profileUsername) && profileUsername !== user?.username
   const placeView: View = viewingSomeoneElse ? "social" : view
@@ -329,7 +345,7 @@ export function LearnShell({
             {isEditor || viewingSomeoneElse ? null : <PageSections isAdmin={user?.role === "admin"} setView={chooseView} text={preferences.text} view={view} />}
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
             {view === "dashboard" ? <TodayView onOpen={openLink} /> : null}
-            {isStudioLobby ? <StudioLobby key={view} notes={notes} options={preferences.options} onOpen={openLink} onNoteCreated={(note) => setNotes((current) => [note, ...current])} initialFilter={view === "canvas" ? "Canvas" : "All"} /> : null}
+            {isStudioLobby ? <StudioLobby key={view} notes={notes} options={preferences.options} onOpen={openLink} onNoteCreated={(note) => setNotes((current) => [note, ...current])} initialFilter={view === "canvas" ? "Canvas" : view === "slides" ? "Slides" : "All"} /> : null}
             {view === "vault" ? <VaultView setView={chooseView} notes={notes} onOpenNote={openNote} /> : null}
             {/* `discover` is a documented alias of `feed`, not a second screen: both
                 views render the same FeedView. `/discover` exists as a route (and
@@ -340,13 +356,14 @@ export function LearnShell({
             {view === "graph" ? <GraphView setView={chooseView} /> : null}
             {view === "progress" ? <ProgressView dashboard={dashboard} quizzes={quizzes} setView={chooseView} /> : null}
             {view === "calendar" ? <CalendarView options={preferences.options} /> : null}
-            {view === "canvas" && new URLSearchParams(locationSearch).has("design") ? <CanvasEditorView key={locationSearch} designId={new URLSearchParams(locationSearch).get("design") || undefined} notes={notes} onHome={() => chooseView("studio")} /> : null}
+            {designView && isEditor && openDeckId ? <DeckOpener key={openDeckId} deckId={openDeckId} aspect={preferences.options.slidesAspect} onReady={replaceLink} onHome={() => chooseView("studio")} /> : null}
+            {designView && isEditor && !openDeckId ? <CanvasEditorView key={locationSearch} designId={searchParams.get("design") || undefined} picker={!searchParams.has("design")} notes={notes} onHome={() => chooseView("studio")} /> : null}
             {/* `live` is a Practice alias with a screen of its own; the Practice
                 workspace below is for every other Practice view, so the two never
                 stack on one page. */}
             {view === "live" ? <LiveQuizView quizzes={quizzes} user={user} /> : null}
             {view === "reviews" ? <ReviewsView setView={chooseView} /> : null}
-            {view !== "studio" && studioViews.includes(view as (typeof studioViews)[number]) ? <StudioView key={`${view}:${locationSearch}`} setView={chooseView} initialKind={getStudioKind(view)} notes={notes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} onDraftSummary={setStudioDraftSummary} /> : null}
+            {view !== "studio" && view !== "slides" && studioViews.includes(view as (typeof studioViews)[number]) ? <StudioView key={`${view}:${locationSearch}`} setView={chooseView} initialKind={getStudioKind(view)} notes={notes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} onDraftSummary={setStudioDraftSummary} /> : null}
             {view !== "live" && view !== "reviews" && practiceViews.includes(view as (typeof practiceViews)[number]) ? <PracticeWorkspaceView initialView={view} quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} quizLaunch={quizLaunch} libraryRevision={practiceLibraryRevision} onQuizArchived={removeArchivedQuiz} options={preferences.options} setView={chooseView} /> : null}
             {view === "ai" ? <AiTutorView notes={notes} options={preferences.options} setNotes={setNotes} setQuizzes={setQuizzes} setOptions={preferences.setOptions} setView={chooseView} /> : null}
             {view === "files" ? <FilesView options={preferences.options} onPreviewChange={setFilePreviewOpen} /> : null}

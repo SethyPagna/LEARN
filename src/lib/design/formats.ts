@@ -79,6 +79,19 @@ export function designFormat(id: unknown): DesignFormat {
   return formatsById.get(typeof id === "string" ? id : "") ?? (formatsById.get(DEFAULT_DESIGN_FORMAT) as DesignFormat)
 }
 
+/**
+ * Slides are designs in a presentation format: they open with the filmstrip,
+ * and Studio lists them as Slides. Every other format is a Canvas.
+ */
+export function isPresentationFormat(format: unknown): boolean {
+  return format === "presentation" || format === "presentation-4-3"
+}
+
+/** The presentation format for the Settings "Slides aspect" choice. */
+export function slidesFormatId(aspect: "16:9" | "4:3" | undefined): DesignFormatId {
+  return aspect === "4:3" ? "presentation-4-3" : "presentation"
+}
+
 /** The known format with exactly this size, if there is one. */
 export function formatForSize(width: number, height: number): DesignFormat | null {
   return designFormats.find((format) => format.width === width && format.height === height) ?? null

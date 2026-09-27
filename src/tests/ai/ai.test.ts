@@ -741,9 +741,15 @@ test("AI insert-back maps responses to Studio payloads", () => {
 
   assert.equal(sheet.endpoint, "/api/sheets")
   assert.deepEqual(sheet.body.cells, [["Topic", "Status"], ["React", "Review"]])
-  assert.equal(slides.endpoint, "/api/slides")
-  const slideBody = slides.body as { slides: Array<{ layout?: string }> }
-  assert.equal(slideBody.slides[0]?.layout, "quote")
+  assert.equal(slides.endpoint, "/api/canvas", "slides are presentation designs in the one editor")
+  assert.equal(slides.view, "slides")
+  const slideBody = slides.body as { id: string; title: string; content: { id: string; format: string; pages: Array<{ elements: Array<{ content: string }> }> } }
+  assert.equal(slideBody.content.format, "presentation")
+  assert.equal(slideBody.id, slideBody.content.id)
+  assert.equal(slideBody.title, "Lesson")
+  assert.ok(slideBody.content.pages[0].elements.some((element) => element.content === "Hook"))
+  const classic = buildInsertBackPayload("slide-outline", "Hook", "AI", { slidesAspect: "4:3" }).body.content as { format: string }
+  assert.equal(classic.format, "presentation-4-3", "the Settings slides aspect picks the slide size")
   assert.equal(doc.endpoint, "/api/docs")
   const docBody = doc.body as { content: { text: string } }
   assert.match(docBody.content.text, /Summary/)
