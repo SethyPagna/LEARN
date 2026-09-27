@@ -1,7 +1,9 @@
 "use client"
 
-import { CornerDownLeft, ListChecks, Moon, PanelLeft, Search, StickyNote, Sun, type LucideIcon } from "lucide-react"
+import { CornerDownLeft, ListChecks, PanelLeft, Search, StickyNote, type LucideIcon } from "lucide-react"
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react"
+import { appearanceModes } from "@/components/theme-mode-switcher"
+import type { ThemeMode } from "@/lib/appearance"
 import type { baseVocabulary } from "@/lib/i18n/vocabulary"
 import {
   adminOnlyViews,
@@ -53,11 +55,10 @@ export function CommandPalette({
   actions,
   notes,
   onCycleSidebar,
-  onToggleTheme,
+  setTheme,
   openNote,
   openQuiz,
   quizzes,
-  resolvedTheme,
   setView,
   text,
   user,
@@ -65,11 +66,10 @@ export function CommandPalette({
   actions: Record<LauncherCommandAction, () => void>
   notes: Note[]
   onCycleSidebar: () => void
-  onToggleTheme: () => void
+  setTheme: (mode: ThemeMode) => void
   openNote: (id: string) => void
   openQuiz: (id: string) => void
   quizzes: Quiz[]
-  resolvedTheme?: string
   setView: (view: View) => void
   text: Text
   user: User | null
@@ -151,15 +151,15 @@ export function CommandPalette({
         run: () => (command.action ? actions[command.action]() : setView(command.view)),
       }))
     commands.push(
-      {
-        id: "action:theme",
+      ...appearanceModes.map(({ value, label, icon }): PaletteItem => ({
+        id: `action:theme:${value}`,
         group: "Actions",
-        label: resolvedTheme === "dark" ? "Switch to light (paper)" : "Switch to dark (ink)",
-        detail: "Theme",
-        icon: resolvedTheme === "dark" ? Sun : Moon,
-        keywords: ["theme", "dark", "light", "mode", "paper", "ink"],
-        run: onToggleTheme,
-      },
+        label: `${label} mode`,
+        detail: "Appearance",
+        icon,
+        keywords: ["theme", value, "mode", "appearance"],
+        run: () => setTheme(value),
+      })),
       {
         id: "action:sidebar",
         group: "Actions",
@@ -194,7 +194,7 @@ export function CommandPalette({
     }))
 
     return [...pages, ...commands, ...noteItems, ...quizItems]
-  }, [actions, notes, onCycleSidebar, onToggleTheme, openNote, openQuiz, quizzes, resolvedTheme, setView, text, user?.role])
+  }, [actions, notes, onCycleSidebar, setTheme, openNote, openQuiz, quizzes, setView, text, user?.role])
 
   const grouped = useMemo(() => {
     const needle = query.trim()

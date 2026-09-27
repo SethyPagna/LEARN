@@ -18,8 +18,6 @@ import {
   Mail,
   MailOpen,
   MessageCircle,
-  Monitor,
-  Moon,
   PanelLeftClose,
   PanelLeftOpen,
   PhoneMissed,
@@ -27,7 +25,6 @@ import {
   Search,
   Settings,
   Share2,
-  Sun,
   Trash2,
   UserCheck,
   UserPlus,
@@ -36,6 +33,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react"
+import { ThemeModeSwitcher } from "@/components/theme-mode-switcher"
 import { formatRelativeTime } from "@/lib/format-time"
 import { languageNames, supportedLocales, type baseVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
 import { formatNavigationBadge } from "@/lib/navigation-features"
@@ -70,7 +68,6 @@ import type { User, View } from "./types"
 
 type Text = typeof baseVocabulary
 type Density = "compact" | "comfortable"
-type ThemeChoice = "light" | "dark" | "system"
 
 /**
  * Commands that open a surface rather than navigate. The command palette only
@@ -416,15 +413,12 @@ export function Topbar({
   onSidebarModeChange,
   openLink,
   practiceDraftSummary,
-  resolvedTheme,
   setDensity,
   setLocale,
-  setTheme,
   setView,
   sidebarMode,
   studioDraftSummary,
   text,
-  theme,
   user,
   view,
 }: {
@@ -435,15 +429,12 @@ export function Topbar({
   onSidebarModeChange: (mode: SidebarMode) => void
   openLink: (href: string) => void
   practiceDraftSummary: PracticeDraftSummary
-  resolvedTheme?: string
   setDensity: (density: Density) => void
   setLocale: (locale: SupportedLocale) => void
-  setTheme: (theme: string) => void
   setView: (view: View) => void
   sidebarMode: SidebarMode
   studioDraftSummary: StudioDraftSummary
   text: Text
-  theme?: string
   user: User | null
   view: View
 }) {
@@ -461,19 +452,10 @@ export function Topbar({
     desktop.addEventListener("change", updateHost)
     return () => desktop.removeEventListener("change", updateHost)
   }, [sidebarMode])
-  const ThemeIcon = resolvedTheme === "dark" ? Sun : Moon
 
   const accountControls = (
     <div className={`account-controls ${accountHost ? (sidebarMode === "rail" ? "account-cluster account-cluster-rail" : "account-cluster") : "flex items-center gap-1"}`}>
-          <button
-            type="button"
-            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-            className={ghostIconButton}
-            aria-label={resolvedTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-            title={resolvedTheme === "dark" ? text.lightMode : text.darkMode}
-          >
-            <ThemeIcon className="h-[18px] w-[18px]" />
-          </button>
+          <ThemeModeSwitcher compact />
           <NotificationsMenu openLink={openLink} user={user} sidebar={Boolean(accountHost)} />
           <AccountMenu
             sidebar={Boolean(accountHost)}
@@ -485,11 +467,9 @@ export function Topbar({
             onSidebarModeChange={onSidebarModeChange}
             setDensity={setDensity}
             setLocale={setLocale}
-            setTheme={setTheme}
             setView={setView}
             sidebarMode={sidebarMode}
             text={text}
-            theme={theme}
             user={user}
           />
     </div>
@@ -612,12 +592,6 @@ function Segmented<T extends string>({
   )
 }
 
-const themeOptions: ReadonlyArray<{ value: ThemeChoice; label: string; icon: LucideIcon }> = [
-  { value: "light", label: "Light", icon: Sun },
-  { value: "dark", label: "Dark", icon: Moon },
-  { value: "system", label: "System", icon: Monitor },
-]
-
 const sidebarOptions: ReadonlyArray<{ value: SidebarMode; label: string }> = [
   { value: "expanded", label: "Full" },
   { value: "rail", label: "Icons" },
@@ -634,11 +608,9 @@ function AccountMenu({
   onSidebarModeChange,
   setDensity,
   setLocale,
-  setTheme,
   setView,
   sidebarMode,
   text,
-  theme,
   user,
 }: {
   sidebar?: boolean
@@ -650,11 +622,9 @@ function AccountMenu({
   onSidebarModeChange: (mode: SidebarMode) => void
   setDensity: (density: Density) => void
   setLocale: (locale: SupportedLocale) => void
-  setTheme: (theme: string) => void
   setView: (view: View) => void
   sidebarMode: SidebarMode
   text: Text
-  theme?: string
   user: User | null
 }) {
   const { open, rootRef, setOpen } = usePopover()
@@ -711,7 +681,7 @@ function AccountMenu({
           <div className="grid gap-3 border-t border-border px-2 pb-2 pt-3">
             <div className="grid gap-1.5">
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Theme</p>
-              <Segmented label="Theme" options={themeOptions} value={(theme as ThemeChoice | undefined) ?? "system"} onChange={(next) => setTheme(next)} />
+              <ThemeModeSwitcher />
             </div>
             <div className="hidden gap-1.5 lg:grid">
               <p className="flex items-center justify-between text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">

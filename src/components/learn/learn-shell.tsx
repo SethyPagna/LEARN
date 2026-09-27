@@ -92,7 +92,7 @@ export function LearnShell({
   const [studioDraftSummary, setStudioDraftSummary] = useState<StudioDraftSummary>({ count: 0, labels: [] })
   const [practiceDraftSummary, setPracticeDraftSummary] = useState<PracticeDraftSummary>({ count: 0, quizIds: [] })
   const preferences = useWorkspacePreferences()
-  const { resolvedTheme, setTheme } = preferences
+  const { setTheme } = preferences
 
   const selectedNote = useMemo(() => notes.find((note) => note.id === selectedNoteId) || notes[0], [notes, selectedNoteId])
 
@@ -263,7 +263,6 @@ export function LearnShell({
     })
   }, [navigateSafely])
 
-  const toggleTheme = useCallback(() => setTheme(resolvedTheme === "dark" ? "light" : "dark"), [resolvedTheme, setTheme])
   const isStudioLobby = view === "dashboard" || view === "studio" || (view === "canvas" && !new URLSearchParams(locationSearch).has("design"))
 
   return (
@@ -301,15 +300,12 @@ export function LearnShell({
             onSidebarModeChange={changeSidebarMode}
             openLink={openLink}
             practiceDraftSummary={practiceDraftSummary}
-            resolvedTheme={preferences.resolvedTheme}
             setDensity={preferences.setDensity}
             setLocale={preferences.setLocale}
-            setTheme={preferences.setTheme}
             setView={chooseView}
             sidebarMode={effectiveSidebarMode}
             studioDraftSummary={studioDraftSummary}
             text={preferences.text}
-            theme={preferences.theme}
             user={user}
             view={view}
           />
@@ -355,11 +351,10 @@ export function LearnShell({
           actions={launcherActions}
           notes={notes}
           onCycleSidebar={cycleSidebar}
-          onToggleTheme={toggleTheme}
+          setTheme={setTheme}
           openNote={openNote}
           openQuiz={openQuiz}
           quizzes={quizzes}
-          resolvedTheme={resolvedTheme}
           setView={chooseView}
           text={preferences.text}
           user={user}

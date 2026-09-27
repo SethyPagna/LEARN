@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useTheme } from "next-themes"
+import { applyAppearanceOptions } from "@/lib/appearance"
 import { applyLocaleToDocument, readStoredLocale, writeStoredLocale } from "@/lib/i18n/locale-storage"
 import { getVocabulary, loadVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
 import { WORKSPACE_OPTIONS_KEY, defaultWorkspaceOptions, parseStoredWorkspaceOptions, serializeWorkspaceOptions, type Density, type WorkspaceOptions } from "@/lib/workspace-preferences"
@@ -13,18 +14,18 @@ export type { WorkspaceOptions }
 
 function getStoredValue(key: string) {
   if (typeof window === "undefined") return ""
-  return window.localStorage.getItem(key) || ""
+  try { return window.localStorage.getItem(key) || "" } catch { return "" }
 }
 
 export function useWorkspacePreferences() {
-  const { resolvedTheme, setTheme, theme } = useTheme()
+  const { setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [locale, setLocaleState] = useState<SupportedLocale>("en")
   const [text, setText] = useState(() => getVocabulary("en"))
   const [density, setDensityState] = useState<Density>("compact")
   const [options, setOptionsState] = useState<WorkspaceOptions>(defaultWorkspaceOptions)
-  const optionsSaveTimeout = useRef<number | null>(null)
-  const pendingOptionsSnapshot = useRef("")
+  const optionsRef = useRef<WorkspaceOptions>(defaultWorkspaceOptions)
+  const unsavedOptions = useRef<Partial<WorkspaceOptions>>({})
 
   useEffect(() => {
     setMounted(true)
@@ -32,18 +33,18 @@ export function useWorkspacePreferences() {
     const storedDensity = getStoredValue(DENSITY_KEY)
     if (storedDensity === "comfortable") setDensityState("comfortable")
     const storedOptions = getStoredValue(WORKSPACE_OPTIONS_KEY)
-    if (storedOptions) setOptionsState(parseStoredWorkspaceOptions(storedOptions))
+    optionsRef.current = parseStoredWorkspaceOptions(storedOptions)
+    setOptionsState(optionsRef.current)
   }, [])
 
   useEffect(() => {
-    return () => {
-      if (optionsSaveTimeout.current) {
-        window.clearTimeout(optionsSaveTimeout.current)
-        if (pendingOptionsSnapshot.current) {
-          window.localStorage.setItem(WORKSPACE_OPTIONS_KEY, pendingOptionsSnapshot.current)
-        }
-      }
+    function onStorage(event: StorageEvent) {
+      if (event.key !== WORKSPACE_OPTIONS_KEY && event.key !== null) return
+      optionsRef.current = { ...parseStoredWorkspaceOptions(getStoredValue(WORKSPACE_OPTIONS_KEY)), ...unsavedOptions.current }
+      setOptionsState(optionsRef.current)
     }
+    window.addEventListener("storage", onStorage)
+    return () => window.removeEventListener("storage", onStorage)
   }, [])
 
   useEffect(() => {
@@ -62,11 +63,8 @@ export function useWorkspacePreferences() {
   }, [locale])
 
   useEffect(() => {
-    document.documentElement.classList.toggle("learn-high-contrast", options.highContrast)
-    document.documentElement.classList.toggle("learn-reduced-motion", options.reducedMotion)
-    document.documentElement.classList.toggle("learn-dyslexia", options.dyslexiaFriendly)
-    document.documentElement.dataset.learnAccent = options.appAccent
-  }, [options.appAccent, options.highContrast, options.reducedMotion, options.dyslexiaFriendly])
+    if (mounted) applyAppearanceOptions(options)
+  }, [mounted, options])
 
   function setLocale(nextLocale: SupportedLocale) {
     setLocaleState(nextLocale)
@@ -79,30 +77,29 @@ export function useWorkspacePreferences() {
   }
 
   function setOptions(nextOptions: Partial<WorkspaceOptions>) {
-    setOptionsState((current) => {
-      const merged = { ...current, ...nextOptions }
-      if (typeof window !== "undefined") {
-        pendingOptionsSnapshot.current = serializeWorkspaceOptions(merged)
-        if (optionsSaveTimeout.current) window.clearTimeout(optionsSaveTimeout.current)
-        optionsSaveTimeout.current = window.setTimeout(() => {
-          window.localStorage.setItem(WORKSPACE_OPTIONS_KEY, pendingOptionsSnapshot.current)
-          optionsSaveTimeout.current = null
-        }, 250)
-      }
-      return merged
-    })
+    // Read the latest browser snapshot so another tab's unrelated edits survive.
+    const stored = getStoredValue(WORKSPACE_OPTIONS_KEY)
+    const current = stored ? parseStoredWorkspaceOptions(stored) : optionsRef.current
+    const merged = { ...current, ...unsavedOptions.current, ...nextOptions }
+    optionsRef.current = merged
+    setOptionsState(merged)
+    try {
+      window.localStorage.setItem(WORKSPACE_OPTIONS_KEY, serializeWorkspaceOptions(merged))
+      unsavedOptions.current = {}
+    } catch {
+      // Reads may still work when writes fail (for example, a full storage quota).
+      unsavedOptions.current = { ...unsavedOptions.current, ...nextOptions }
+    }
   }
 
   return {
     density,
     locale,
     options,
-    resolvedTheme: mounted ? resolvedTheme : undefined,
     setDensity,
     setLocale,
     setOptions,
     setTheme,
     text,
-    theme,
   }
 }

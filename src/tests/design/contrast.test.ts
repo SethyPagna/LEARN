@@ -134,9 +134,11 @@ function readTokenBlock(selector: string): Record<string, string> {
   return tokens
 }
 
-const lightTheme = readTokenBlock(":root")
-const darkTheme = readTokenBlock(".dark")
+const colorTheme = readTokenBlock(":root")
+const lightTheme = { ...colorTheme, ...readTokenBlock(".light") }
+const darkTheme = { ...colorTheme, ...readTokenBlock(".dark") }
 const themes: Array<[string, Record<string, string>]> = [
+  ["color", colorTheme],
   ["light", lightTheme],
   ["dark", darkTheme],
 ]
@@ -223,6 +225,21 @@ test("AA and AAA thresholds are the published WCAG constants", () => {
 // --- the guard -------------------------------------------------------------
 
 for (const [theme, tokens] of themes) {
+  test(`${theme} theme: primary action and decorative labels clear WCAG AA`, () => {
+    const resolve = (value: string): Rgb => {
+      const reference = /^var\((--[\w-]+)\)$/.exec(value)
+      return reference ? resolve(token(tokens, reference[1], theme)) : parseCssColor(value)
+    }
+    const pairs = [
+      ["--primary-foreground", "--primary"],
+      ...["violet", "blue", "mint", "coral", "amber", "pink"].map(color => [`--decor-${color}-ink`, `--decor-${color}-soft`]),
+    ]
+    for (const [foreground, background] of pairs) {
+      const ratio = contrastRatio(resolve(token(tokens, foreground, theme)), resolve(token(tokens, background, theme)))
+      assert.ok(ratio >= WCAG_AA_NORMAL_TEXT, `${theme}: ${foreground} on ${background} is ${ratio.toFixed(2)}:1`)
+    }
+  })
+
   test(`${theme} theme: muted-foreground text clears WCAG AA on every surface`, () => {
     const foreground = parseCssColor(token(tokens, "--muted-foreground", theme))
     for (const surface of SURFACE_TOKENS) {

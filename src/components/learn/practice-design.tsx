@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useAppearanceMode } from "@/components/use-appearance-mode"
 import { Palette, Check, Maximize2 } from "lucide-react"
 import styles from "./practice-design.module.css"
 
@@ -15,6 +16,7 @@ const designs = [
 type DesignId = typeof designs[number]["id"]
 
 export function PracticeDesign({ children, allowFocus = true, toolbar }: { children: ReactNode; allowFocus?: boolean; toolbar?: ReactNode }) {
+  const { mode, setMode } = useAppearanceMode()
   const [design, setDesign] = useState<DesignId>("confetti")
   const [focus, setFocus] = useState(false)
   const picker = useRef<HTMLDetailsElement>(null)
@@ -47,8 +49,8 @@ export function PracticeDesign({ children, allowFocus = true, toolbar }: { child
     <div className="practice-design-toolbar">
       {toolbar}
 
-      <details ref={picker} className="relative ml-auto"><summary className="editor-command" aria-label="Practice design" title="Practice design"><Palette className="h-4 w-4" /></summary>
-        <div className={`practice-design-picker ${styles.picker}`} role="group" aria-label="Practice designs">{designs.map(item => <button type="button" key={item.id} aria-pressed={design === item.id} onClick={() => chooseDesign(item.id)}>
+      <details ref={picker} className="relative ml-auto"><summary className="editor-command" aria-label="Practice design" title="Color style"><Palette className="h-4 w-4" /></summary>
+        <div className={`practice-design-picker ${styles.picker}`} role="group" aria-label="Practice designs"><p className="col-span-full px-1 pb-1 text-xs font-medium text-muted-foreground">Color style</p>{mode !== "color" && <button type="button" className="col-span-full" onClick={() => setMode("color")}>Use Color mode</button>}{designs.map(item => <button type="button" key={item.id} disabled={mode !== "color"} className="disabled:opacity-40 disabled:cursor-not-allowed" aria-pressed={design === item.id} onClick={() => chooseDesign(item.id)}>
           <span className="design-swatch" style={{ background: `linear-gradient(125deg, ${item.colors.join(",")})` }}>{design === item.id ? <Check className="h-4 w-4 text-white" /> : null}</span><span>{item.name}</span>
         </button>)}</div>
       </details>

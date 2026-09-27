@@ -36,10 +36,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   // Matches the app's page backgrounds (src/app/page.tsx) so the browser and
   // installed-app chrome do not flash a mismatched colour.
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f8f9fc' },
-    { media: '(prefers-color-scheme: dark)', color: '#171923' },
-  ],
+  themeColor: '#ffffff',
 }
 
 export default function RootLayout({
@@ -55,7 +52,7 @@ export default function RootLayout({
             __html: "globalThis.__name=globalThis.__name||function(fn){return fn}",
           }}
         />
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <ThemeProvider>
           {children}
         </ThemeProvider>
         <PwaRegister />
