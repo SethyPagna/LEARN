@@ -38,11 +38,16 @@ export interface DesignPageViewProps {
   style?: CSSProperties
 }
 
-/** A page at design size (1 CSS px per design px); scale it with a transform. */
+/**
+ * A page at design size (1 CSS px per design px); scale it with a transform.
+ * Pages clip rather than hide their overflow: a hidden box can still be
+ * scrolled by focus, find-in-page or scrollIntoView, which slid the whole
+ * design sideways whenever an element hung off the page edge.
+ */
 export const DesignPageView = memo(function DesignPageView({ width, height, theme, page, measure, editingId = null, placeholders = false, className, style }: DesignPageViewProps) {
   const unit = Math.min(width, height) / 1080
   return (
-    <div className={className} style={{ position: "relative", width, height, overflow: "hidden", background: safeColor(page.background) ?? "#FFFFFF", ...style }}>
+    <div className={className} style={{ position: "relative", width, height, overflow: "clip", background: safeColor(page.background) ?? "#FFFFFF", ...style }}>
       <PatternView pattern={page.pattern} width={width} height={height} background={page.background} accent={designTheme(theme).palette.accent} />
       {page.elements.map((element) => (
         <DesignElementView key={element.id} element={element} unit={unit} measure={measure} editing={element.id === editingId} placeholders={placeholders} />
@@ -61,7 +66,7 @@ export interface DesignThumbnailProps extends Omit<DesignPageViewProps, "editing
 export function DesignThumbnail({ displayWidth, className, ...page }: DesignThumbnailProps) {
   const scale = displayWidth / Math.max(1, page.width)
   return (
-    <div className={className} style={{ position: "relative", width: displayWidth, height: Math.round(page.height * scale * 100) / 100, overflow: "hidden" }}>
+    <div className={className} style={{ position: "relative", width: displayWidth, height: Math.round(page.height * scale * 100) / 100, overflow: "clip" }}>
       <div style={{ position: "absolute", left: 0, top: 0, width: page.width, height: page.height, transform: `scale(${scale})`, transformOrigin: "0 0" }}>
         <DesignPageView {...page} />
       </div>

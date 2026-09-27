@@ -1,6 +1,11 @@
 import assert from "node:assert/strict"
 import test from "node:test"
+import { createElement as reactElement } from "react"
+import { renderToStaticMarkup } from "react-dom/server"
+import { DesignPageView, DesignThumbnail } from "../../components/learn/design/design-renderer"
+import { createDesignDoc } from "../../lib/design/document"
 import { DESIGN_ZOOM, fitZoom, stepZoom } from "../../lib/design/gestures"
+import { estimateMeasure } from "../../lib/design/text"
 
 const slide = { width: 1920, height: 1080 }
 
@@ -24,4 +29,16 @@ test("zooming out never enlarges a design already below the first preset", () =>
   for (const zoom of [0.05, 0.07, 0.1]) assert.equal(stepZoom(zoom, -1), DESIGN_ZOOM.min)
   assert.equal(stepZoom(0.25, -1), 0.1)
   assert.equal(stepZoom(DESIGN_ZOOM.min, 1), 0.1)
+})
+
+test("pages clip their overflow, so nothing can scroll the design sideways", () => {
+  const design = createDesignDoc()
+  const page = { width: design.width, height: design.height, theme: design.theme, page: design.pages[0], measure: estimateMeasure }
+  for (const markup of [
+    renderToStaticMarkup(reactElement(DesignPageView, page)),
+    renderToStaticMarkup(reactElement(DesignThumbnail, { ...page, displayWidth: 160 })),
+  ]) {
+    assert.match(markup, /overflow:clip/)
+    assert.doesNotMatch(markup, /overflow:hidden/)
+  }
 })
