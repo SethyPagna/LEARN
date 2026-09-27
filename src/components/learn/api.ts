@@ -1,11 +1,22 @@
 export const PROJECTS_CHANGED_EVENT = "learn:projects-changed"
 
+/** Shown instead of the browser's own words for a dropped connection. */
+export const OFFLINE_MESSAGE = "No connection. Try again."
+
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const headers = options?.body instanceof FormData
     ? options.headers
     : { "content-type": "application/json", ...(options?.headers || {}) }
 
-  const response = await fetch(path, { ...options, headers })
+  let response: Response
+  try {
+    response = await fetch(path, { ...options, headers })
+  } catch (error) {
+    // Browsers report a dropped connection as a bare TypeError ("Failed to fetch",
+    // "Load failed"). An abort is a DOMException and passes through untouched.
+    if (error instanceof TypeError) throw new Error(OFFLINE_MESSAGE)
+    throw error
+  }
   const json = await response.json().catch(() => ({}))
   if (response.status === 401) {
     const redirect = encodeURIComponent(`${window.location.pathname}${window.location.search}`)

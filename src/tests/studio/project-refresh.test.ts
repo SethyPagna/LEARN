@@ -1,6 +1,18 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { api, PROJECTS_CHANGED_EVENT } from "../../components/learn/api"
+import { api, OFFLINE_MESSAGE, PROJECTS_CHANGED_EVENT } from "../../components/learn/api"
+
+test("a dropped connection reads as plain words, and an abort stays an abort", async () => {
+  const originalFetch = globalThis.fetch
+  try {
+    globalThis.fetch = async () => { throw new TypeError("Failed to fetch") }
+    await assert.rejects(api("/api/notes"), (error: unknown) => error instanceof Error && error.message === OFFLINE_MESSAGE)
+    globalThis.fetch = async () => { throw new DOMException("The user aborted a request.", "AbortError") }
+    await assert.rejects(api("/api/notes"), (error: unknown) => error instanceof DOMException && error.name === "AbortError")
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
 
 test("project lists refresh after successful saves, never after reads or failed writes", async () => {
   const originalFetch = globalThis.fetch
