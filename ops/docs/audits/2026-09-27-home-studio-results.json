@@ -1,0 +1,2010 @@
+{
+  "date": "2026-09-27",
+  "studio": {
+    "checks": 89,
+    "passed": [
+      "Sidebar can enter expanded mode",
+      "320px light: Search, appearance and Add share one ordered row",
+      "320px light: account follows theme and notifications",
+      "320px light: compact named controls fit without Add icons",
+      "320px light: Add menu stays inside viewport",
+      "320px light: Escape returns Add focus",
+      "390px light: Search, appearance and Add share one ordered row",
+      "390px light: account follows theme and notifications",
+      "390px light: compact named controls fit without Add icons",
+      "390px light: Add menu stays inside viewport",
+      "390px light: Escape returns Add focus",
+      "768px light: Search, appearance and Add share one ordered row",
+      "768px light: account follows theme and notifications",
+      "768px light: compact named controls fit without Add icons",
+      "768px light: Add menu stays inside viewport",
+      "768px light: Escape returns Add focus",
+      "1024px light: Search, appearance and Add share one ordered row",
+      "1024px light: account follows theme and notifications",
+      "1024px light: compact named controls fit without Add icons",
+      "1024px light: Add menu stays inside viewport",
+      "1024px light: Escape returns Add focus",
+      "1440px light: Search, appearance and Add share one ordered row",
+      "1440px light: account follows theme and notifications",
+      "1440px light: compact named controls fit without Add icons",
+      "1440px light: Add menu stays inside viewport",
+      "1440px light: Escape returns Add focus",
+      "320px dark: Search, appearance and Add share one ordered row",
+      "320px dark: account follows theme and notifications",
+      "320px dark: compact named controls fit without Add icons",
+      "320px dark: Add menu stays inside viewport",
+      "320px dark: Escape returns Add focus",
+      "390px dark: Search, appearance and Add share one ordered row",
+      "390px dark: account follows theme and notifications",
+      "390px dark: compact named controls fit without Add icons",
+      "390px dark: Add menu stays inside viewport",
+      "390px dark: Escape returns Add focus",
+      "768px dark: Search, appearance and Add share one ordered row",
+      "768px dark: account follows theme and notifications",
+      "768px dark: compact named controls fit without Add icons",
+      "768px dark: Add menu stays inside viewport",
+      "768px dark: Escape returns Add focus",
+      "1024px dark: Search, appearance and Add share one ordered row",
+      "1024px dark: account follows theme and notifications",
+      "1024px dark: compact named controls fit without Add icons",
+      "1024px dark: Add menu stays inside viewport",
+      "1024px dark: Escape returns Add focus",
+      "1440px dark: Search, appearance and Add share one ordered row",
+      "1440px dark: account follows theme and notifications",
+      "1440px dark: compact named controls fit without Add icons",
+      "1440px dark: Add menu stays inside viewport",
+      "1440px dark: Escape returns Add focus",
+      "Add retains five project types",
+      "Add initially focuses Canvas",
+      "ArrowDown focuses Note",
+      "ArrowUp wraps from Canvas to Sheet",
+      "Clicking outside closes Add menu",
+      "Search filters the project list",
+      "Search filters recent previews too",
+      "Clearing search restores projects",
+      "Canvas filters only matching project kinds",
+      "Writing filters only matching project kinds",
+      "Slides filters only matching project kinds",
+      "Sheets filters only matching project kinds",
+      "Recent previews scroll horizontally",
+      "Recent previews return to the newest project",
+      "Notifications still open and dismiss",
+      "Reordered account still opens",
+      "Mobile account popover stays inside viewport",
+      "Sidebar can enter rail mode",
+      "rail: account remains visible",
+      "rail: account dimensions stay usable",
+      "rail: account menu opens",
+      "Sidebar can enter hidden mode",
+      "hidden: account remains visible",
+      "hidden: account dimensions stay usable",
+      "hidden: account menu opens",
+      "Sidebar can enter expanded mode",
+      "expanded: account remains visible",
+      "expanded: account dimensions stay usable",
+      "expanded: account menu opens",
+      "Add disables while a project is being created",
+      "Rapid creation attempts produce only one request",
+      "Creation failure appears without leaving Studio",
+      "Add re-enables after a failed creation",
+      "Failed creation can be retried",
+      "Appearance shortcut opens the intended settings section",
+      "Personal workspace title remains visible on mobile without a daily focus",
+      "Personal workspace title does not overflow a 390px viewport",
+      "No browser page errors during Studio checks"
+    ],
+    "layouts": [
+      {
+        "theme": "light",
+        "width": 320,
+        "search": {
+          "x": 47.66666793823242,
+          "y": 128.6666717529297,
+          "width": 134.6666717529297,
+          "height": 16,
+          "right": 182.3333396911621
+        },
+        "appearance": {
+          "x": 200,
+          "y": 118.66667175292969,
+          "width": 36,
+          "height": 36,
+          "right": 236
+        },
+        "add": {
+          "x": 242,
+          "y": 118.66667175292969,
+          "width": 56,
+          "height": 36,
+          "right": 298
+        },
+        "sameRow": true,
+        "searchBeforeControls": true,
+        "accountAfterNotification": true,
+        "themeBeforeNotification": true,
+        "accountWidth": 40,
+        "overflow": -10,
+        "addSvgCount": 0,
+        "unnamed": 0
+      },
+      {
+        "theme": "light",
+        "width": 390,
+        "search": {
+          "x": 47.66666793823242,
+          "y": 128.6666717529297,
+          "width": 204.6666717529297,
+          "height": 16,
+          "right": 252.3333396911621
+        },
+        "appearance": {
+          "x": 270,
+          "y": 118.66667175292969,
+          "width": 36,
+          "height": 36,
+          "right": 306
+        },
+        "add": {
+          "x": 312,
+          "y": 118.66667175292969,
+          "width": 56,
+          "height": 36,
+          "right": 368
+        },
+        "sameRow": true,
+        "searchBeforeControls": true,
+        "accountAfterNotification": true,
+        "themeBeforeNotification": true,
+        "accountWidth": 40,
+        "overflow": -10,
+        "addSvgCount": 0,
+        "unnamed": 0
+      },
+      {
+        "theme": "light",
+        "width": 768,
+        "search": {
+          "x": 55.66666793823242,
+          "y": 128.6666717529297,
+          "width": 566.6666870117188,
+          "height": 16,
+          "right": 622.3333549499512
+        },
+        "appearance": {
+          "x": 640,
+          "y": 118.66667175292969,
+          "width": 36,
+          "height": 36,
+          "right": 676
+        },
+        "add": {
+          "x": 682,
+          "y": 118.66667175292969,
+          "width": 56,
+          "height": 36,
+          "right": 738
+        },
+        "sameRow": true,
+        "searchBeforeControls": true,
+        "accountAfterNotification": true,
+        "themeBeforeNotification": true,
+        "accountWidth": 40,
+        "overflow": -10,
+        "addSvgCount": 0,
+        "unnamed": 0
+      },
+      {
+        "theme": "light",
+        "width": 1024,
+        "search": {
+          "x": 239.6666717529297,
+          "y": 72,
+          "width": 634.6666870117188,
+          "height": 16,
+          "right": 874.3333587646484
+        },
+        "appearance": {
+          "x": 892,
+          "y": 62,
+          "width": 36,
+          "height": 36,
+          "right": 928
+        },
+        "add": {
+          "x": 934,
+          "y": 62,
+          "width": 56,
+          "height": 36,
+          "right": 990
+        },
+        "sameRow": true,
+        "searchBeforeControls": true,
+        "accountAfterNotification": true,
+        "themeBeforeNotification": true,
+        "accountWidth": 97.33333587646484,
+        "overflow": -10,
+        "addSvgCount": 0,
+        "unnamed": 0
+      },
+      {
+        "theme": "light",
+        "width": 1440,
+        "search": {
+          "x": 640.6146240234375,
+          "y": 26,
+          "width": 624.71875,
+          "height": 16,
+          "right": 1265.3333740234375
+        },
+        "appearance": {
+          "x": 1283,
+          "y": 16,
+          "width": 36,
+          "height": 36,
+          "right": 1319
+        },
+        "add": {
+          "x": 1325,
+          "y": 16,
+          "width": 56,
+          "height": 36,
+          "right": 1381
+        },
+        "sameRow": true,
+        "searchBeforeControls": true,
+        "accountAfterNotification": true,
+        "themeBeforeNotification": true,
+        "accountWidth": 97.33333587646484,
+        "overflow": -10,
+        "addSvgCount": 0,
+        "unnamed": 0
+      },
+      {
+        "theme": "dark",
+        "width": 320,
+        "search": {
+          "x": 47.66666793823242,
+          "y": 128.6666717529297,
+          "width": 134.6666717529297,
+          "height": 16,
+          "right": 182.3333396911621
+        },
+        "appearance": {
+          "x": 200,
+          "y": 118.66667175292969,
+          "width": 36,
+          "height": 36,
+          "right": 236
+        },
+        "add": {
+          "x": 242,
+          "y": 118.66667175292969,
+          "width": 56,
+          "height": 36,
+          "right": 298
+        },
+        "sameRow": true,
+        "searchBeforeControls": true,
+        "accountAfterNotification": true,
+        "themeBeforeNotification": true,
+        "accountWidth": 40,
+        "overflow": -10,
+        "addSvgCount": 0,
+        "unnamed": 0
+      },
+      {
+        "theme": "dark",
+        "width": 390,
+        "search": {
+          "x": 47.66666793823242,
+          "y": 128.6666717529297,
+          "width": 204.6666717529297,
+          "height": 16,
+          "right": 252.3333396911621
+        },
+        "appearance": {
+          "x": 270,
+          "y": 118.66667175292969,
+          "width": 36,
+          "height": 36,
+          "right": 306
+        },
+        "add": {
+          "x": 312,
+          "y": 118.66667175292969,
+          "width": 56,
+          "height": 36,
+          "right": 368
+        },
+        "sameRow": true,
+        "searchBeforeControls": true,
+        "accountAfterNotification": true,
+        "themeBeforeNotification": true,
+        "accountWidth": 40,
+        "overflow": -10,
+        "addSvgCount": 0,
+        "unnamed": 0
+      },
+      {
+        "theme": "dark",
+        "width": 768,
+        "search": {
+          "x": 55.66666793823242,
+          "y": 128.6666717529297,
+          "width": 566.6666870117188,
+          "height": 16,
+          "right": 622.3333549499512
+        },
+        "appearance": {
+          "x": 640,
+          "y": 118.66667175292969,
+          "width": 36,
+          "height": 36,
+          "right": 676
+        },
+        "add": {
+          "x": 682,
+          "y": 118.66667175292969,
+          "width": 56,
+          "height": 36,
+          "right": 738
+        },
+        "sameRow": true,
+        "searchBeforeControls": true,
+        "accountAfterNotification": true,
+        "themeBeforeNotification": true,
+        "accountWidth": 40,
+        "overflow": -10,
+        "addSvgCount": 0,
+        "unnamed": 0
+      },
+      {
+        "theme": "dark",
+        "width": 1024,
+        "search": {
+          "x": 239.6666717529297,
+          "y": 72,
+          "width": 634.6666870117188,
+          "height": 16,
+          "right": 874.3333587646484
+        },
+        "appearance": {
+          "x": 892,
+          "y": 62,
+          "width": 36,
+          "height": 36,
+          "right": 928
+        },
+        "add": {
+          "x": 934,
+          "y": 62,
+          "width": 56,
+          "height": 36,
+          "right": 990
+        },
+        "sameRow": true,
+        "searchBeforeControls": true,
+        "accountAfterNotification": true,
+        "themeBeforeNotification": true,
+        "accountWidth": 97.33333587646484,
+        "overflow": -10,
+        "addSvgCount": 0,
+        "unnamed": 0
+      },
+      {
+        "theme": "dark",
+        "width": 1440,
+        "search": {
+          "x": 640.6146240234375,
+          "y": 26,
+          "width": 624.71875,
+          "height": 16,
+          "right": 1265.3333740234375
+        },
+        "appearance": {
+          "x": 1283,
+          "y": 16,
+          "width": 36,
+          "height": 36,
+          "right": 1319
+        },
+        "add": {
+          "x": 1325,
+          "y": 16,
+          "width": 56,
+          "height": 36,
+          "right": 1381
+        },
+        "sameRow": true,
+        "searchBeforeControls": true,
+        "accountAfterNotification": true,
+        "themeBeforeNotification": true,
+        "accountWidth": 97.33333587646484,
+        "overflow": -10,
+        "addSvgCount": 0,
+        "unnamed": 0
+      }
+    ],
+    "errors": []
+  },
+  "public": {
+    "layoutsPassed": 32,
+    "interactionChecks": 74,
+    "reports": {
+      "layouts": {
+        "layouts": [
+          {
+            "name": "home",
+            "path": "/",
+            "width": 1440,
+            "expectedTheme": "light",
+            "status": 200,
+            "theme": "light",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Learn it.Make it yours.",
+              "Follow your curiosity.",
+              "One idea is enough."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "showcase",
+            "path": "/showcase",
+            "width": 1440,
+            "expectedTheme": "light",
+            "status": 200,
+            "theme": "light",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Find your flow.",
+              "A blank page. Endless possibilities."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "signin",
+            "path": "/login",
+            "width": 1440,
+            "expectedTheme": "light",
+            "status": 200,
+            "theme": "light",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Welcome back."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "request",
+            "path": "/login?mode=request",
+            "width": 1440,
+            "expectedTheme": "light",
+            "status": 200,
+            "theme": "light",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Start something good."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "invite-ready",
+            "path": "/invite/public-qa-ready",
+            "width": 1440,
+            "expectedTheme": "light",
+            "status": 200,
+            "theme": "light",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Make yourself at home."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "invite-expired",
+            "path": "/invite/public-qa-expired",
+            "width": 1440,
+            "expectedTheme": "light",
+            "status": 200,
+            "theme": "light",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Make yourself at home."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "home",
+            "path": "/",
+            "width": 768,
+            "expectedTheme": "light",
+            "status": 200,
+            "theme": "light",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Learn it.Make it yours.",
+              "Follow your curiosity.",
+              "One idea is enough."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "showcase",
+            "path": "/showcase",
+            "width": 768,
+            "expectedTheme": "light",
+            "status": 200,
+            "theme": "light",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Find your flow.",
+              "A blank page. Endless possibilities."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "home",
+            "path": "/",
+            "width": 390,
+            "expectedTheme": "light",
+            "status": 200,
+            "theme": "light",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Learn it.Make it yours.",
+              "Follow your curiosity.",
+              "One idea is enough."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "showcase",
+            "path": "/showcase",
+            "width": 390,
+            "expectedTheme": "light",
+            "status": 200,
+            "theme": "light",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Find your flow.",
+              "A blank page. Endless possibilities."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "signin",
+            "path": "/login",
+            "width": 390,
+            "expectedTheme": "light",
+            "status": 200,
+            "theme": "light",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Welcome back."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "request",
+            "path": "/login?mode=request",
+            "width": 390,
+            "expectedTheme": "light",
+            "status": 200,
+            "theme": "light",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Start something good."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "invite-ready",
+            "path": "/invite/public-qa-ready",
+            "width": 390,
+            "expectedTheme": "light",
+            "status": 200,
+            "theme": "light",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Make yourself at home."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "invite-expired",
+            "path": "/invite/public-qa-expired",
+            "width": 390,
+            "expectedTheme": "light",
+            "status": 200,
+            "theme": "light",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Make yourself at home."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "home",
+            "path": "/",
+            "width": 320,
+            "expectedTheme": "light",
+            "status": 200,
+            "theme": "light",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Learn it.Make it yours.",
+              "Follow your curiosity.",
+              "One idea is enough."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "showcase",
+            "path": "/showcase",
+            "width": 320,
+            "expectedTheme": "light",
+            "status": 200,
+            "theme": "light",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Find your flow.",
+              "A blank page. Endless possibilities."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "home",
+            "path": "/",
+            "width": 1440,
+            "expectedTheme": "dark",
+            "status": 200,
+            "theme": "dark",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Learn it.Make it yours.",
+              "Follow your curiosity.",
+              "One idea is enough."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "showcase",
+            "path": "/showcase",
+            "width": 1440,
+            "expectedTheme": "dark",
+            "status": 200,
+            "theme": "dark",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Find your flow.",
+              "A blank page. Endless possibilities."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "signin",
+            "path": "/login",
+            "width": 1440,
+            "expectedTheme": "dark",
+            "status": 200,
+            "theme": "dark",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Welcome back."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "request",
+            "path": "/login?mode=request",
+            "width": 1440,
+            "expectedTheme": "dark",
+            "status": 200,
+            "theme": "dark",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Start something good."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "invite-ready",
+            "path": "/invite/public-qa-ready",
+            "width": 1440,
+            "expectedTheme": "dark",
+            "status": 200,
+            "theme": "dark",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Make yourself at home."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "invite-expired",
+            "path": "/invite/public-qa-expired",
+            "width": 1440,
+            "expectedTheme": "dark",
+            "status": 200,
+            "theme": "dark",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Make yourself at home."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "home",
+            "path": "/",
+            "width": 768,
+            "expectedTheme": "dark",
+            "status": 200,
+            "theme": "dark",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Learn it.Make it yours.",
+              "Follow your curiosity.",
+              "One idea is enough."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "showcase",
+            "path": "/showcase",
+            "width": 768,
+            "expectedTheme": "dark",
+            "status": 200,
+            "theme": "dark",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Find your flow.",
+              "A blank page. Endless possibilities."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "home",
+            "path": "/",
+            "width": 390,
+            "expectedTheme": "dark",
+            "status": 200,
+            "theme": "dark",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Learn it.Make it yours.",
+              "Follow your curiosity.",
+              "One idea is enough."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "showcase",
+            "path": "/showcase",
+            "width": 390,
+            "expectedTheme": "dark",
+            "status": 200,
+            "theme": "dark",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Find your flow.",
+              "A blank page. Endless possibilities."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "signin",
+            "path": "/login",
+            "width": 390,
+            "expectedTheme": "dark",
+            "status": 200,
+            "theme": "dark",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Welcome back."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "request",
+            "path": "/login?mode=request",
+            "width": 390,
+            "expectedTheme": "dark",
+            "status": 200,
+            "theme": "dark",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Start something good."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "invite-ready",
+            "path": "/invite/public-qa-ready",
+            "width": 390,
+            "expectedTheme": "dark",
+            "status": 200,
+            "theme": "dark",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Make yourself at home."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "invite-expired",
+            "path": "/invite/public-qa-expired",
+            "width": 390,
+            "expectedTheme": "dark",
+            "status": 200,
+            "theme": "dark",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Make yourself at home."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "home",
+            "path": "/",
+            "width": 320,
+            "expectedTheme": "dark",
+            "status": 200,
+            "theme": "dark",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Learn it.Make it yours.",
+              "Follow your curiosity.",
+              "One idea is enough."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          },
+          {
+            "name": "showcase",
+            "path": "/showcase",
+            "width": 320,
+            "expectedTheme": "dark",
+            "status": 200,
+            "theme": "dark",
+            "overflow": 0,
+            "mainLandmarks": 1,
+            "headings": [
+              "Find your flow.",
+              "A blank page. Endless possibilities."
+            ],
+            "unnamed": [],
+            "clippedLabels": []
+          }
+        ],
+        "pageErrors": [],
+        "failures": [],
+        "passed": 32
+      },
+      "explore": {
+        "checks": [
+          "Home Studio card links to its matching interactive tour",
+          "Home Practice card links to its matching interactive tour",
+          "Home Calendar card links to its matching interactive tour",
+          "Home primary CTA opens request access",
+          "Get started reaches the actual access form",
+          "Canvas example switches its palette",
+          "Home preview tabs support arrow keys",
+          "Practice example provides helpful feedback for an incorrect answer",
+          "Practice example recognizes the correct answer",
+          "Calendar example changes the active day and event",
+          "Public theme control changes the rendered theme",
+          "Public theme choice survives reload",
+          "Product tour exposes five visual examples",
+          "Tour tabs support End-key navigation",
+          "Tour tabs support Home-key navigation",
+          "Tutor example expands in place without an AI request",
+          "Tutor example collapses again",
+          "Home path deep link selects the Create tour",
+          "Home path deep link selects the Practice tour",
+          "Home path deep link selects the Plan tour",
+          "Unknown tour deep links safely use Create",
+          "Phone tour can select Create",
+          "Phone Create scene stays within the document width",
+          "Phone tour can select Understand",
+          "Phone Understand scene stays within the document width",
+          "Phone tour can select Practice",
+          "Phone Practice scene stays within the document width",
+          "Phone tour can select Plan",
+          "Phone Plan scene stays within the document width",
+          "Phone tour can select Connect",
+          "Phone Connect scene stays within the document width",
+          "Expanded tutor sample remains readable at 320px",
+          "Expanded tutor sample remains readable at 390px",
+          "Legacy intro routes into the redesigned tour",
+          "Reduced motion disables preview scene animation"
+        ],
+        "pageErrors": [],
+        "externalRequests": []
+      },
+      "auth": {
+        "checks": [
+          "Sign in requires credentials",
+          "Password visibility is explicit",
+          "Password visibility can be restored",
+          "Pending login disables duplicate submission",
+          "Failed login preserves username",
+          "Failed login preserves password for correction",
+          "Transport error returns login to a retryable state",
+          "Rate-limit feedback remains visible without a stuck pending state",
+          "Forgot password explains the actual admin reset workflow",
+          "Switching to access request closes password help",
+          "Access-mode switch updates the URL",
+          "Direct request-access URL opens the form with validation enabled",
+          "Access request rejects an invalid email before submission",
+          "Visual role choices remain accessible radio inputs",
+          "Failed access request preserves the learning goal",
+          "Access-request rate limits remain retryable",
+          "Pending access request prevents duplicate sends",
+          "Pending access request locks the submitted details",
+          "Successful request shows honest admin-review confirmation",
+          "Successful request identifies the submitted email",
+          "Confirmation returns to sign in cleanly",
+          "Successful login preserves a safe in-app return path",
+          "Successful login rejects an external redirect"
+        ],
+        "requests": [
+          {
+            "endpoint": "auth/login",
+            "method": "POST"
+          },
+          {
+            "endpoint": "auth/login",
+            "method": "POST"
+          },
+          {
+            "endpoint": "auth/login",
+            "method": "POST"
+          },
+          {
+            "endpoint": "auth/signup-request",
+            "method": "POST"
+          },
+          {
+            "endpoint": "auth/signup-request",
+            "method": "POST"
+          },
+          {
+            "endpoint": "auth/signup-request",
+            "method": "POST"
+          },
+          {
+            "endpoint": "auth/login",
+            "method": "POST"
+          },
+          {
+            "endpoint": "auth/login",
+            "method": "POST"
+          }
+        ],
+        "pageErrors": []
+      },
+      "invites": {
+        "checks": [
+          "Invalid invitation does not expose account-creation fields",
+          "Invalid invite leads to the actual request-access form",
+          "Rate-limited invite lookup offers Retry instead of treating the token as invalid",
+          "Invite lookup connection failure exposes Retry",
+          "Verified invite email is visible and cannot be edited",
+          "Invite requires a name and valid password",
+          "Invite rejects a short password before submission",
+          "Invite supports password visibility",
+          "Invite submission binds the verified email and current token",
+          "Failed invite submission preserves form details for retry",
+          "Invite submission binds the verified email and current token",
+          "Rejected invite response returns the form to a usable state",
+          "Invite submission binds the verified email and current token",
+          "Pending account creation disables duplicate submission",
+          "Pending account creation locks the submitted details",
+          "Accepted invitation opens onboarding"
+        ],
+        "requests": [
+          {
+            "method": "GET",
+            "mode": "invalid"
+          },
+          {
+            "method": "GET",
+            "mode": "rate-limit"
+          },
+          {
+            "method": "GET",
+            "mode": "offline"
+          },
+          {
+            "method": "GET",
+            "mode": "ready"
+          },
+          {
+            "method": "POST",
+            "mode": "offline"
+          },
+          {
+            "method": "POST",
+            "mode": "rejected"
+          },
+          {
+            "method": "POST",
+            "mode": "success"
+          }
+        ],
+        "pageErrors": []
+      }
+    }
+  },
+  "routes": {
+    "total": 58,
+    "failed": 0,
+    "shellChecks": [
+      "Add exposes all five project types",
+      "Add has an accessible Canvas choice",
+      "Add has an accessible Note choice",
+      "Add has an accessible Document choice",
+      "Add has an accessible Slides choice",
+      "Add has an accessible Sheet choice",
+      "Add supports arrow-key navigation",
+      "Add restores focus after Escape",
+      "Global search finds a nested learning page",
+      "Notifications dismiss with Escape",
+      "Nested sections remain available with the sidebar minimized"
+    ],
+    "reports": [
+      {
+        "route": "dashboard",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Studio",
+          "Recent"
+        ],
+        "controls": 31,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "studio",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Studio",
+          "Recent"
+        ],
+        "controls": 31,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "canvas",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Studio",
+          "Recent"
+        ],
+        "controls": 17,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "notes",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Projects",
+          "Recent projects"
+        ],
+        "controls": 29,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "docs",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Projects",
+          "Recent projects"
+        ],
+        "controls": 29,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "sheets",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Projects",
+          "Recent projects"
+        ],
+        "controls": 29,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "slides",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Projects",
+          "Recent projects"
+        ],
+        "controls": 29,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "files",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Files 0",
+          "No files yet"
+        ],
+        "controls": 6,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "ai",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "AI tutor"
+        ],
+        "controls": 9,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "calendar",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Calendar",
+          "September 2026",
+          "Sunday, Sep 27"
+        ],
+        "controls": 59,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "vault",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Vault",
+          "Operating Systems Review"
+        ],
+        "controls": 15,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "progress",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Progress",
+          "Next",
+          "Topics"
+        ],
+        "controls": 7,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "graph",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Graph 3 topics"
+        ],
+        "controls": 14,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "feed",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Feed"
+        ],
+        "controls": 14,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "discover",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Feed"
+        ],
+        "controls": 14,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "practice",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Algorithms Practice",
+          "What is the time complexity of binary search?"
+        ],
+        "controls": 21,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "quizzes",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Algorithms Practice",
+          "What is the time complexity of binary search?"
+        ],
+        "controls": 21,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "live",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Host",
+          "Join"
+        ],
+        "controls": 11,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "games",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Flashcard sprint",
+          "What is the time complexity of binary search?"
+        ],
+        "controls": 11,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "reviews",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Reviews",
+          "Explain the central idea in \"Database Indexing\"."
+        ],
+        "controls": 7,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "social",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Messages"
+        ],
+        "controls": 27,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "chat",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Messages"
+        ],
+        "controls": 27,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "spaces",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Groups",
+          "Personal learning circle"
+        ],
+        "controls": 17,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "groups",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Groups",
+          "Personal learning circle"
+        ],
+        "controls": 17,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "rooms",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Rooms",
+          "Focus room"
+        ],
+        "controls": 17,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "battles",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Battles",
+          "Quick study battle"
+        ],
+        "controls": 17,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "profile",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "LEARN Admin",
+          "1 shared"
+        ],
+        "controls": 5,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "settings",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Settings"
+        ],
+        "controls": 10,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "admin",
+        "width": 1440,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Admin"
+        ],
+        "controls": 8,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "dashboard",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Recent"
+        ],
+        "controls": 31,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "studio",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Recent"
+        ],
+        "controls": 31,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "canvas",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Recent"
+        ],
+        "controls": 17,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "notes",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Projects",
+          "Recent projects"
+        ],
+        "controls": 19,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "docs",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Projects",
+          "Recent projects"
+        ],
+        "controls": 19,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "sheets",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Projects",
+          "Recent projects"
+        ],
+        "controls": 19,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "slides",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Projects",
+          "Recent projects"
+        ],
+        "controls": 19,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "files",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "No files yet"
+        ],
+        "controls": 6,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "ai",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "AI tutor"
+        ],
+        "controls": 9,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "calendar",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "September 2026",
+          "Sunday, Sep 27"
+        ],
+        "controls": 59,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "vault",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Operating Systems Review"
+        ],
+        "controls": 12,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "progress",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Next",
+          "Topics"
+        ],
+        "controls": 7,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "graph",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [],
+        "controls": 14,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "feed",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [],
+        "controls": 14,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "discover",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [],
+        "controls": 14,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "practice",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Algorithms Practice",
+          "What is the time complexity of binary search?"
+        ],
+        "controls": 17,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "quizzes",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Algorithms Practice",
+          "What is the time complexity of binary search?"
+        ],
+        "controls": 17,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "live",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Host",
+          "Join"
+        ],
+        "controls": 11,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "games",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Flashcard sprint",
+          "What is the time complexity of binary search?"
+        ],
+        "controls": 11,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "reviews",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Explain the central idea in \"Database Indexing\"."
+        ],
+        "controls": 7,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "social",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Messages"
+        ],
+        "controls": 15,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "chat",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Messages"
+        ],
+        "controls": 15,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "spaces",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [],
+        "controls": 10,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "groups",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [],
+        "controls": 10,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "rooms",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [],
+        "controls": 10,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "battles",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [],
+        "controls": 10,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "profile",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "LEARN Admin",
+          "1 shared"
+        ],
+        "controls": 5,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "settings",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Settings"
+        ],
+        "controls": 10,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      },
+      {
+        "route": "admin",
+        "width": 390,
+        "status": 200,
+        "overflow": 0,
+        "headings": [
+          "Admin"
+        ],
+        "controls": 8,
+        "clippedLabels": [],
+        "mainLandmarks": 1,
+        "unnamed": [],
+        "applicationError": false,
+        "pageErrors": []
+      }
+    ]
+  }
+}
