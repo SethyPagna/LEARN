@@ -1,5 +1,5 @@
 // Run in a dedicated local Playwright CLI session signed in as the demo Admin.
-// Requires existing demo projects across all five formats and scrollable recents.
+// Requires existing demo projects across all five formats.
 // Project creation is intercepted with a delayed 503; no project writes are sent.
 // Local preferences, sidebar cookie and viewport are restored after the audit.
 async (page) => {
@@ -91,7 +91,6 @@ async (page) => {
     await search.fill('not-a-real-project-73ac');
     await studio.getByText('No matching projects.', { exact: true }).waitFor();
     verify(await studio.getByRole('list', { name: 'Projects', exact: true }).count() === 0, 'Search filters the project list');
-    verify(await studio.getByRole('region', { name: 'Recent projects' }).count() === 0, 'Search filters recent previews too');
     await search.fill('');
     verify(await studio.getByRole('list', { name: 'Projects', exact: true }).locator('li').count() === initialCount, 'Clearing search restores projects');
     for (const [label, kinds] of [['Canvas', ['canvas']], ['Writing', ['docs', 'notes']], ['Slides', ['slides']], ['Sheets', ['sheets']]]) {
@@ -100,13 +99,8 @@ async (page) => {
       verify(visibleKinds.every(kind => kinds.includes(kind)), `${label} filters only matching project kinds`);
     }
     await studio.locator('[aria-label="Project filters"]').getByRole('button', { name: 'All', exact: true }).click();
-    const recentTrack = studio.getByRole('list', { name: 'Recent project previews, newest first' });
-    await studio.getByRole('button', { name: 'Next recent projects' }).click();
-    await page.waitForTimeout(500);
-    verify(await recentTrack.evaluate(element => element.scrollLeft > 0), 'Recent previews scroll horizontally');
-    await studio.getByRole('button', { name: 'Previous recent projects' }).click();
-    await page.waitForTimeout(500);
-    verify(await recentTrack.evaluate(element => element.scrollLeft < 5), 'Recent previews return to the newest project');
+    const kindColors = await studio.getByRole('list', { name: 'Projects', exact: true }).locator('.studio-card').evaluateAll(elements => new Set(elements.map(element => getComputedStyle(element).getPropertyValue('--project-color').trim())).size);
+    verify(kindColors >= 2, 'Projects show as covers in their kind colours');
     await page.getByRole('button', { name: /^Notifications/ }).click();
     await page.getByRole('dialog', { name: 'Notifications' }).waitFor();
     await page.keyboard.press('Escape');

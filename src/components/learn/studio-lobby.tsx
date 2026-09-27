@@ -1,22 +1,48 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { CircleHelp, ArrowRight, ChevronRight, Search, SlidersHorizontal, X } from "lucide-react"
-import { StudioRecents } from "./studio-recents"
+import { CircleHelp, ArrowRight, Search, SlidersHorizontal, X } from "lucide-react"
 import { createDesignDoc } from "@/lib/design/document"
+import type { MeasureText } from "@/lib/design/text"
 import { projectHref, projectKinds, useStudioProjects, type ProjectKind, type Project } from "./studio-projects"
 import { formatRelativeTime } from "@/lib/format-time"
 import { api } from "./api"
 import { CREATE_MENU_EVENT } from "./create-menu"
+import { useNearViewport } from "./design/editor-hooks"
+import { useDesignMeasure } from "./design/text-measure"
+import { KindArt } from "./kind-art"
 import { useMenuKeyboard } from "./menu-keyboard"
 import { openPlaceGuide } from "./place-guide"
 import type { WorkspaceOptions } from "./preferences"
+import { StudioProjectPreview } from "./studio-project-preview"
+import { EmptyState } from "./ui"
 import type { Note } from "./types"
 
 const filters = ["All", "Canvas", "Writing", "Slides", "Sheets"] as const
 type Filter = (typeof filters)[number]
 const projectKindOrder = Object.keys(projectKinds) as ProjectKind[]
 const PAGE_SIZE = 12
+
+/** A project as a cover: its first page on the kind colour, or the kind drawing while it is empty. */
+function ProjectCard({ project, measure, onOpen }: { project: Project; measure: MeasureText; onOpen: (project: Project) => void }) {
+  const [ref, near] = useNearViewport<HTMLLIElement>()
+  const spec = projectKinds[project.kind]
+  const Icon = spec.icon
+  const art = <KindArt kind={project.kind} />
+  return <li ref={ref}>
+    <button type="button" className="studio-card" data-project-kind={project.kind} onClick={() => onOpen(project)}>
+      <span className="studio-card-cover" aria-hidden="true">{near ? <StudioProjectPreview project={project} measure={measure} fallback={art} /> : art}</span>
+      <span className="studio-card-caption">
+        <span className="studio-project-icon flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" aria-hidden="true"><Icon className="h-4 w-4" /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium">{project.title || "Untitled"}</span>
+          <span className="sr-only">{spec.label}, </span>
+          <span className="block truncate text-xs text-muted-foreground">{project.updated_at ? formatRelativeTime(project.updated_at) : spec.label}</span>
+        </span>
+      </span>
+    </button>
+  </li>
+}
 
 export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilter = "All" }: {
   notes: readonly Note[]
@@ -60,6 +86,7 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
   })
 
 
+  const measure = useDesignMeasure()
   const { projects: allProjects, loading, error: loadError } = useStudioProjects(notes)
   useEffect(() => { if (loadError) setError(loadError) }, [loadError])
 
@@ -126,25 +153,11 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
       </div>
     </header>
     {error ? <p role="alert" className="mb-4 flex items-center justify-between gap-3 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}<button type="button" aria-label="Dismiss error" onClick={() => setError("")}><X className="h-4 w-4" /></button></p> : null}
-    {!loading ? <StudioRecents projects={matches} onOpen={openProject} /> : null}
-    <div className="overflow-hidden rounded-xl border border-border bg-card">
-      <div className="hidden grid-cols-[minmax(0,1fr)_7rem_7rem_1rem] gap-4 border-b border-border bg-secondary/35 px-4 py-2.5 text-xs text-muted-foreground sm:grid" aria-hidden="true"><span>Name</span><span>Type</span><span>Last edited</span><span /></div>
-      {loading ? <p role="status" className="px-4 py-10 text-center text-sm text-muted-foreground">Loading projects…</p> : matches.length ? <ul aria-label="Projects" className="divide-y divide-border">
-        {matches.slice(0, limit).map((project) => {
-          const spec = projectKinds[project.kind]
-          const Icon = spec.icon
-          const edited = project.updated_at ? formatRelativeTime(project.updated_at) : "—"
-          return <li key={`${project.kind}:${project.id}`}>
-            <button type="button" onClick={() => openProject(project)} className="group grid min-h-16 w-full grid-cols-[minmax(0,1fr)_1rem] items-center gap-3 px-4 py-3 text-left transition hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-14 sm:grid-cols-[minmax(0,1fr)_7rem_7rem_1rem] sm:gap-4">
-              <span className="flex min-w-0 items-center gap-3"><span data-project-kind={project.kind} className="studio-project-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"><Icon className="h-4 w-4" /></span><span className="min-w-0"><span className="block truncate text-sm font-medium">{project.title || "Untitled"}</span><span className="mt-0.5 block text-xs text-muted-foreground sm:hidden">{spec.label} · {edited}</span></span></span>
-              <span className="hidden text-xs text-muted-foreground sm:block">{spec.label}</span>
-              <span className="hidden text-xs text-muted-foreground sm:block">{edited}</span>
-              <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-foreground" />
-            </button>
-          </li>
-        })}
-      </ul> : <div className="px-4 py-12 text-center"><p className="text-sm text-muted-foreground">{query || filter !== "All" ? "No matching projects." : "No projects yet"}</p></div>}
-    </div>
+    {loading
+      ? <ul className="studio-grid" aria-busy="true" aria-label="Loading projects">{Array.from({ length: 4 }, (_, index) => <li key={index} className="studio-card-skeleton" />)}</ul>
+      : matches.length
+        ? <ul aria-label="Projects" className="studio-grid">{matches.slice(0, limit).map((project) => <ProjectCard key={`${project.kind}:${project.id}`} project={project} measure={measure} onOpen={openProject} />)}</ul>
+        : <EmptyState title={query || filter !== "All" ? "No matching projects." : "No projects yet"} body={query || filter !== "All" ? "Clear the search or pick All." : "Add a canvas, note, document, slides or sheet to start."} />}
     {matches.length > limit ? <button type="button" onClick={() => setLimit((current) => current + PAGE_SIZE)} className="mx-auto mt-3 flex min-h-9 items-center gap-2 rounded-lg px-4 text-xs text-muted-foreground hover:bg-secondary">Show more <ArrowRight className="h-3.5 w-3.5" /></button> : null}
     <button type="button" onClick={openPlaceGuide} aria-label="What can LEARN do?" title="Help" className="editor-command mt-3"><CircleHelp className="h-4 w-4" /></button>
   </section>

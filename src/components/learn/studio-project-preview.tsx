@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, type ReactNode } from "react"
 import { FileText } from "lucide-react"
 import { designPreview } from "@/lib/design/document"
 import { deckToDesign } from "@/lib/design/from-deck"
@@ -25,8 +25,11 @@ function DocumentBlock({ block }: { block: ThemedBlock }) {
   }
 }
 
-/** Read-only excerpts of stored content, never generated placeholder artwork. */
-export function StudioProjectPreview({ project, measure }: { project: Project; measure: MeasureText }) {
+/**
+ * Read-only excerpts of stored content, never generated placeholder artwork.
+ * With nothing stored yet it shows `fallback`, or says the page is empty.
+ */
+export function StudioProjectPreview({ project, measure, fallback }: { project: Project; measure: MeasureText; fallback?: ReactNode }) {
   const preview = useMemo(() => {
     try {
       if (project.kind === "canvas" && project.content) return designPreview(project.content).preview
@@ -54,5 +57,6 @@ export function StudioProjectPreview({ project, measure }: { project: Project; m
     return <td key={column}>{result?.ok ? result.value : value}</td>
   })}</tr>)}</tbody></table></div>
   if (blocks.length) return <div className="project-document-preview">{blocks.map((block, index) => <DocumentBlock key={index} block={block} />)}</div>
+  if (fallback) return fallback
   return <div className="project-preview-empty"><FileText aria-hidden="true" /><span>{project.kind === "notes" || project.kind === "docs" ? "Empty page" : "No preview"}</span></div>
 }
