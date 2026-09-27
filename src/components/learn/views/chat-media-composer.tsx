@@ -65,9 +65,8 @@ export function ChatMediaComposer({ onSend, onEmoji }: { onSend: (file: File) =>
     return canvasFile(canvas, "study-meme.png")
   }
 
-  return <details className="rounded-xl border border-border bg-background p-3 text-sm">
-    <summary className="flex cursor-pointer items-center gap-2 font-semibold"><Smile className="h-4 w-4 text-primary" />Media</summary>
-    <fieldset disabled={busy} className="mt-3 grid gap-3">
+  return <section aria-label="Message media tools" className="rounded-xl border border-border bg-background p-3 text-sm">
+    <fieldset disabled={busy} className="grid gap-3">
       <nav className="page-sections" aria-label="Message media">
         <button type="button" aria-current={mode === "emoji" ? "page" : undefined} onClick={() => setMode("emoji")}><Smile className="h-4 w-4" />Emoji</button>
         <button type="button" aria-current={mode === "stickers" ? "page" : undefined} onClick={() => setMode("stickers")}><Sticker className="h-4 w-4" />Stickers</button>
@@ -107,5 +106,5 @@ export function ChatMediaComposer({ onSend, onEmoji }: { onSend: (file: File) =>
       </> : null}</> : null}
     </fieldset>
     {status || busy ? <p role="status" className="mt-2 text-xs">{busy ? "Sending picture…" : status}</p> : null}
-  </details>
+  </section>
 }

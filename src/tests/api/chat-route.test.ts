@@ -16,6 +16,25 @@ test("chat handlers enforce conversation destinations and attachment privacy", a
   function reset() { stub.reset(); stubSessionLookup(stub); events.length = 0 }
   const post = (body: Record<string, unknown>) => POST(request("/api/chat", { method: "POST", body: { body: "Private message", ...body } }))
   try {
+    await t.test("thread lists restore only the current actor's saved and helpful flags", async () => {
+      reset()
+      stub.on(/SELECT t\.\*/, { rows: [
+        { id: "saved-thread", saved: 1, helpful: 0 },
+        { id: "helpful-thread", saved: 0, helpful: 1 },
+      ] })
+      const response = await GET(request("/api/chat"))
+      assert.equal(response.status, 200)
+      assert.deepEqual((await response.json()).items, [
+        { id: "saved-thread", saved: true, helpful: false },
+        { id: "helpful-thread", saved: false, helpful: true },
+      ])
+      const lookup = stub.matching(/SELECT t\.\*/)[0]
+      assert.equal((lookup.sql.match(/sa\.actor_user_id\s*=\s*\?/g) || []).length, 2)
+      assert.equal((lookup.sql.match(/sa\.target_id\s*=\s*t\.id/g) || []).length, 2)
+      assert.match(lookup.sql, /sa\.action_type IN \('save', 'bookmark'\)/)
+      assert.ok(lookup.params.length > 0 && lookup.params.every(value => value === TEST_USER_ROW.id))
+      assert.match(lookup.sql, /group_members WHERE user_id/)
+    })
     await t.test("hybrid DM/group targets are rejected without writing a message", async () => {
       reset()
       const response = await post({ groupId: "group-a", targetUserId: "bob" })

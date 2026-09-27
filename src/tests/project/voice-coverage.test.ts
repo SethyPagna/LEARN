@@ -78,7 +78,7 @@ test("the chat composer appends the transcript to the draft and records draft ac
   assert.match(element, /prompt=\{/, "the chat composer must give the model thread context")
   assert.match(
     element,
-    /body\s*&&\s*!\/\\s\$\/\.test\(body\)/,
+    /setBody\(\(current\)\s*=>\s*current\s*&&\s*!\/\\s\$\/\.test\(current\)\s*\?\s*`\$\{current\} \$\{text\}`\s*:\s*`\$\{current\}\$\{text\}`/,
     "the chat composer must only add a separator when the draft is non-empty and does not end in whitespace",
   )
 })

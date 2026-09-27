@@ -1908,6 +1908,8 @@ export async function listChatThreads(user: User) {
   const result = await query(
     `SELECT t.*,
        (SELECT body FROM chat_messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1) AS last_message,
+       EXISTS (SELECT 1 FROM social_actions sa WHERE sa.actor_user_id = $1 AND sa.target_type = 'chat_message' AND sa.target_id = t.id AND sa.action_type IN ('save', 'bookmark')) AS saved,
+       EXISTS (SELECT 1 FROM social_actions sa WHERE sa.actor_user_id = $1 AND sa.target_type = 'chat_message' AND sa.target_id = t.id AND sa.action_type = 'helpful') AS helpful,
        CASE WHEN t.target_user_id IS NOT NULL THEN
          (SELECT name FROM users WHERE id = (CASE WHEN t.created_by_user_id = $1 THEN t.target_user_id ELSE t.created_by_user_id END))
        END AS dm_peer_name,
@@ -1922,7 +1924,7 @@ export async function listChatThreads(user: User) {
      LIMIT 80`,
     [user.id],
   )
-  return result.rows
+  return result.rows.map(row => ({ ...row, saved: Boolean(row.saved), helpful: Boolean(row.helpful) }))
 }
 
 export async function isChatThreadParticipant(user: User, threadId: string) {
