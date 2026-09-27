@@ -400,7 +400,7 @@ function calendarDotClass(type: string) {
   if (type === "deadline") return "bg-destructive"
   if (type === "completed") return "bg-success"
   if (type === "focus") return "bg-primary"
-  return "bg-sky-500"
+  return "bg-info"
 }
 
 function formatCalendarDayLabel(key: string) {

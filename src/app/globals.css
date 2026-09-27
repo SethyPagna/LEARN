@@ -50,6 +50,8 @@
   --success-foreground: oklch(0.99 0 0);
   --warning: oklch(0.82 0.15 80);
   --warning-foreground: oklch(0.2 0.04 70);
+  /* Plain study and connected events in the calendar. Only ever a fill, never text. */
+  --info: oklch(0.685 0.169 237.323);
   --border: oklch(.91 0 0);
   --input: oklch(.83 0 0);
   --ring: oklch(.55 0 0);
@@ -274,6 +276,7 @@ html.dark.learn-high-contrast {
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
