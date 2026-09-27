@@ -79,11 +79,11 @@ async (sourcePage) => {
     await page.goto(`${origin}/chat`);
     await threadButtons.first().waitFor();
     verify(await threadButtons.count() === 3, 'Fixture conversations load');
-    for (const theme of ['light', 'dark']) {
-      const themeButton = page.getByRole('button', { name: `Switch to ${theme} theme`, exact: true });
-      if (await themeButton.isVisible()) await themeButton.click();
+    for (const theme of ['light', 'dark', 'color']) {
       for (const width of [320, 390, 768, 1024, 1440]) {
         await page.setViewportSize({ width, height: width < 768 ? 844 : 900 });
+        await page.locator('select[aria-label="Appearance"]:visible').selectOption(theme);
+        await page.waitForFunction(mode => document.documentElement.classList.contains(mode), theme);
         if (await workspace.getByRole('button', { name: 'Back to conversations', exact: true }).isVisible()) await workspace.getByRole('button', { name: 'Back to conversations', exact: true }).click();
         await page.waitForTimeout(120);
         verify(await inbox.isVisible(), `${theme} ${width}: inbox visible`);

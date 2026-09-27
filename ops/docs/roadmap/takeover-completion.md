@@ -114,3 +114,14 @@ Evidence: [contextual editor](../audits/2026-09-27-contextual-editor.md).
 - [x] Complete TypeScript, automated tests, production build and independent review.
 
 Evidence: [appearance modes](../audits/2026-09-27-appearance-modes.md).
+
+## Editable landing and responsive edges — 2026-09-27
+
+- [x] Replace the public canvas mock with the shared, editable Studio engine.
+- [x] Expand collapsed navigation through the brand icon.
+- [x] Fix wide, short and editor-library breakpoint layouts.
+- [x] Verify canvas gestures, keyboard controls, crop, save failures and queued edits.
+- [x] Run public, Studio and Chat browser regressions in all three modes.
+- [x] Complete automated tests, TypeScript and production build checks.
+
+Evidence: [editable landing and responsive polish](../audits/2026-09-27-editor-responsive-polish.md).

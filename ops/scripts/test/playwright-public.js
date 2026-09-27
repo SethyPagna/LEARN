@@ -170,8 +170,12 @@ async (page) => {
     await page.getByRole('textbox', { name: 'Name', exact: true }).waitFor();
     verify(page.url().includes('mode=request'), 'Get started reaches the actual access form');
     await page.goto(origin);
-    await page.getByRole('button', { name: 'Apricot', exact: true }).click();
-    verify(await page.getByRole('button', { name: 'Apricot', exact: true }).getAttribute('aria-pressed') === 'true', 'Canvas example switches its palette');
+    const demo = page.locator('[data-demo-editor]');
+    await demo.getByRole('application', { name: 'Design page 1', exact: true }).waitFor();
+    verify(await demo.getByRole('link', { name: 'Open Studio workspace', exact: true }).getAttribute('href') === '/dashboard', 'Editable Studio demo leads to the workspace');
+    await demo.getByRole('button', { name: 'Apricot', exact: true }).click();
+    verify(await demo.getByRole('button', { name: 'Apricot', exact: true }).getAttribute('aria-pressed') === 'true' && await demo.getByLabel('Page color', { exact: true }).inputValue() === '#f6c8b6', 'Studio demo updates its actual page color');
+    verify(await demo.getByRole('button', { name: 'Undo', exact: true }).isEnabled(), 'Public page edit is undoable');
     await page.getByRole('tab', { name: 'Create', exact: true }).focus();
     await page.keyboard.press('ArrowRight');
     verify(await page.getByRole('tab', { name: 'Practice', exact: true }).getAttribute('aria-selected') === 'true', 'Home preview tabs support arrow keys');

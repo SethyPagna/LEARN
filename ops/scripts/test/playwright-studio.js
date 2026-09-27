@@ -31,11 +31,11 @@ async (page) => {
     await studio.getByRole('list', { name: 'Projects', exact: true }).waitFor();
     await page.setViewportSize({ width: 1440, height: 900 });
     await setSidebar('expanded');
-    for (const theme of ['light', 'dark']) {
-      const switchTheme = page.getByRole('button', { name: `Switch to ${theme} theme`, exact: true });
-      if (await switchTheme.isVisible()) await switchTheme.click();
+    for (const theme of ['light', 'dark', 'color']) {
       for (const width of [320, 390, 768, 1024, 1440]) {
         await page.setViewportSize({ width, height: width < 768 ? 844 : 900 });
+        await page.locator('select[aria-label="Appearance"]:visible').selectOption(theme);
+        await page.waitForFunction(mode => document.documentElement.classList.contains(mode), theme);
         await page.waitForTimeout(180);
         const layout = await studio.evaluate(element => {
           const box = selector => {
@@ -45,16 +45,16 @@ async (page) => {
           const search = box('[aria-label="Find a project"]');
           const appearance = box('[aria-label="Workspace appearance"]');
           const add = box('button[aria-haspopup="menu"]');
-          const account = document.querySelector('button[aria-label="Account: LEARN Admin"]');
-          const notification = [...document.querySelectorAll('button')].find(button => /^Notifications/.test(button.getAttribute('aria-label') || ''));
-          const theme = [...document.querySelectorAll('button')].find(button => /^Switch to .* theme$/.test(button.getAttribute('aria-label') || ''));
+          const account = [...document.querySelectorAll('button[aria-label="Account: LEARN Admin"]')].find(button => button.checkVisibility());
+          const notification = [...document.querySelectorAll('button')].find(button => button.checkVisibility() && /^Notifications/.test(button.getAttribute('aria-label') || ''));
+          const theme = [...document.querySelectorAll('select[aria-label="Appearance"]')].find(select => select.checkVisibility());
           const visibleButtons = [...element.querySelectorAll('button')].filter(button => button.checkVisibility());
           return {
             search, appearance, add,
             sameRow: Math.abs(search.y + search.height / 2 - add.y - add.height / 2) <= 2 && Math.abs(appearance.y - add.y) <= 2,
             searchBeforeControls: search.right <= appearance.x && appearance.right <= add.x,
-            accountAfterNotification: Boolean(notification.compareDocumentPosition(account) & Node.DOCUMENT_POSITION_FOLLOWING),
-            themeBeforeNotification: Boolean(theme.compareDocumentPosition(notification) & Node.DOCUMENT_POSITION_FOLLOWING),
+            accountAfterNotification: Boolean(account && notification && (notification.compareDocumentPosition(account) & Node.DOCUMENT_POSITION_FOLLOWING)),
+            themeBeforeNotification: Boolean(theme && notification && (theme.compareDocumentPosition(notification) & Node.DOCUMENT_POSITION_FOLLOWING)),
             accountWidth: account.getBoundingClientRect().width,
             overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
             addSvgCount: element.querySelector('button[aria-haspopup="menu"]').querySelectorAll('svg').length,

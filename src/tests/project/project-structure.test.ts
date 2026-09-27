@@ -61,6 +61,8 @@ const allowedJavaScriptFiles = new Set([
   "ops/scripts/test/playwright-public.js",
   "ops/scripts/test/playwright-themes.js",
   "ops/scripts/test/playwright-studio.js",
+  "ops/scripts/test/playwright-demo.js",
+  "ops/scripts/test/playwright-editor-edges.js",
 ])
 
 function listTrackedFiles() {
