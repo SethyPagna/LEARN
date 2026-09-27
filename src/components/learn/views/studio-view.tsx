@@ -2829,7 +2829,7 @@ function StudioPaneSurface({
             <StudioPanePreviewCard preview={panePreview} onOpen={onSelectPane} />
           ) : (
           <div className={`grid min-h-0 flex-1 ${inspectorOpen ? "xl:grid-cols-[1fr_260px]" : ""}`}>
-            <div className="studio-pane-body min-h-0 overflow-auto bg-secondary/50">
+            <div className="studio-pane-body min-h-0 overflow-auto bg-secondary/50" data-source-title={activeTitle} data-source-kind={activeKind}>
               <StudioCanvas
                 activeKind={activeKind}
                 canvasFormat={canvasFormat}
@@ -3719,7 +3719,7 @@ function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: {
   return (
     <div className="studio-writing-surface">
       <RichTextToolbar editor={editor} />
-      <div ref={writingViewport} className="studio-writing-scroll overflow-auto p-4 sm:p-8">
+      <div ref={writingViewport} className="studio-writing-scroll overflow-auto p-4 sm:p-8" data-select-to-act>
         <div
           className="mx-auto"
           style={{ minHeight: pageWidth / Number(canvasFormat.width / canvasFormat.height) * pageScale, width: Math.round(pageWidth * pageScale) }}
