@@ -3,6 +3,7 @@
 import { Plus } from "lucide-react"
 import { viewIcons } from "./nav-icons"
 import { useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { menuSurfaceClasses } from "@/lib/design-system"
 import { groupArtifactTypes, type ArtifactType } from "@/lib/ux/artifact-catalog"
 import { useMenuKeyboard } from "./menu-keyboard"
@@ -100,8 +101,15 @@ export function CreateMenu({
   variant?: CreateMenuVariant
 }) {
   const [open, setOpen] = useState(false)
+  // The launcher and the Today card can ask for this menu while CSS hides the
+  // control (the desktop top bar, or a phone header with no room for it). Then
+  // the menu floats at the top of the screen instead of opening out of sight.
+  const [floating, setFloating] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const rootRef = useRef<HTMLDivElement | null>(null)
+  const panelRef = useRef<HTMLDivElement | null>(null)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const returnFocusRef = useRef<HTMLElement | null>(null)
   const entries = useMemo(() => groupArtifactTypes().flatMap((group) => group.items), [])
 
   function choose(artifact: ArtifactType) {
@@ -109,8 +117,17 @@ export function CreateMenu({
     setOpen(false)
   }
 
+  /** Escape closes and hands focus back to whatever opened the menu. */
+  function closeAndReturnFocus() {
+    setOpen(false)
+    const back = floating ? returnFocusRef.current : triggerRef.current
+    if (back?.isConnected) back.focus()
+  }
+
   useEffect(() => {
     function handleOpen() {
+      returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      setFloating(!rootRef.current?.getClientRects().length)
       setActiveIndex(0)
       setOpen(true)
     }
@@ -122,19 +139,38 @@ export function CreateMenu({
     if (!open) return
     // Pulling focus into the menu is what makes the arrow keys work when the
     // menu was opened from the launcher, where focus started in the search box.
-    rootRef.current?.querySelector<HTMLElement>("[data-artifact-id]")?.focus()
+    // It waits a frame: the launcher hands focus back to its own button as it
+    // closes, and taking focus first would lose it and close this menu.
+    const frame = requestAnimationFrame(() => {
+      const active = document.activeElement
+      if (active instanceof HTMLElement && active !== document.body && !panelRef.current?.contains(active)) returnFocusRef.current = active
+      panelRef.current?.querySelector<HTMLElement>("[data-artifact-id]")?.focus()
+    })
+    return () => cancelAnimationFrame(frame)
   }, [open])
 
   const handleKeyDown = useMenuKeyboard({
     activeIndex,
-    containerRef: rootRef,
+    containerRef: panelRef,
     entries,
     entrySelector: "[data-artifact-id]",
     onChoose: choose,
     open,
     setActiveIndex,
-    setOpen,
+    setOpen: (next) => (next ? setOpen(true) : closeAndReturnFocus()),
   })
+
+  const menu = open ? (
+    <div
+      ref={panelRef}
+      role="menu"
+      aria-label="Create something new"
+      tabIndex={-1}
+      className={`z-[80] outline-none animate-in fade-in zoom-in-95 ${menuSurfaceClasses()} ${floating ? "fixed inset-x-4 top-20 mx-auto max-h-[calc(100dvh-6rem)] max-w-xs overflow-y-auto" : `absolute ${createMenuLayout[variant].panel}`}`}
+    >
+      <CreateMenuPanel activeIndex={activeIndex} onChoose={choose} onHover={setActiveIndex} />
+    </div>
+  ) : null
 
   return (
     <div
@@ -142,14 +178,17 @@ export function CreateMenu({
       className={createMenuLayout[variant].wrapper}
       onKeyDown={handleKeyDown}
       onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false)
+        const next = event.relatedTarget as Node | null
+        if (!event.currentTarget.contains(next) && !panelRef.current?.contains(next)) setOpen(false)
       }}
     >
       <button
+        ref={triggerRef}
         type="button"
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={() => {
+          setFloating(false)
           setActiveIndex(0)
           setOpen(!open)
         }}
@@ -158,15 +197,7 @@ export function CreateMenu({
       >
         {variant === "rail" ? <><Plus className="h-4 w-4" /><span className="sr-only">Add</span></> : <span>Add</span>}
       </button>
-      {open ? (
-        <div
-          role="menu"
-          aria-label="Create something new"
-          className={`absolute z-[80] animate-in fade-in zoom-in-95 ${menuSurfaceClasses()} ${createMenuLayout[variant].panel}`}
-        >
-          <CreateMenuPanel activeIndex={activeIndex} onChoose={choose} onHover={setActiveIndex} />
-        </div>
-      ) : null}
+      {menu && floating ? createPortal(menu, document.body) : menu}
     </div>
   )
 }
