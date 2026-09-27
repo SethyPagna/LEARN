@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { CircleHelp, ArrowRight, ChevronDown, ChevronRight, Loader2, Plus, Search, SlidersHorizontal, X } from "lucide-react"
+import { CircleHelp, ArrowRight, ChevronRight, Search, SlidersHorizontal, X } from "lucide-react"
 import { StudioRecents } from "./studio-recents"
 import { createDesignDoc } from "@/lib/design/document"
 import { projectHref, projectKinds, useStudioProjects, type ProjectKind, type Project } from "./studio-projects"
@@ -34,6 +34,8 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
   const [activeIndex, setActiveIndex] = useState(0)
   const menuRef = useRef<HTMLDivElement>(null)
   const addRef = useRef<HTMLButtonElement>(null)
+  const creationPending = useRef(false)
+  const workspaceTitle = options.workspaceName && options.workspaceName !== "Your personal studio" ? options.workspaceName : "Studio"
 
   useEffect(() => {
     function openMenu() { setActiveIndex(0); setMenuOpen(true) }
@@ -73,7 +75,8 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
   }
 
   async function create(kind: ProjectKind) {
-    if (creating) return
+    if (creationPending.current) return
+    creationPending.current = true
     setMenuOpen(false)
     addRef.current?.focus()
     setCreating(kind)
@@ -91,24 +94,26 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
       openProject({ ...result.item, kind })
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "This project couldn't be created. Please try again.")
-    } finally { setCreating(null) }
+    } finally { creationPending.current = false; setCreating(null) }
   }
 
   return <section className="studio-lobby mx-auto max-w-6xl pb-4" aria-label="Your Studio home">
-    <header className="mb-4 flex flex-wrap items-center gap-3">
-      <div className="min-w-0">
-        <h2 className="truncate text-xl font-semibold tracking-tight">{options.workspaceName && options.workspaceName !== "Your personal studio" ? options.workspaceName : "Studio"}</h2>
+    <header className="studio-lobby-header">
+      <div className="studio-lobby-topline">
+      <div className="studio-lobby-heading min-w-0" data-personal={workspaceTitle !== "Studio"}>
+        <h2 className="truncate text-xl font-semibold tracking-tight">{workspaceTitle}</h2>
         {options.dailyFocus ? <p className="mt-1 text-xs text-muted-foreground">{options.dailyFocus}</p> : null}
       </div>
-      <div className="order-2 flex w-full max-w-full gap-1 overflow-auto sm:order-none sm:w-auto" aria-label="Project filters">
-        {filters.map((value) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => { setFilter(value); setLimit(PAGE_SIZE) }} className={`min-h-9 shrink-0 rounded-lg px-3 text-xs font-medium ${filter === value ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/60"}`}>{value}</button>)}
+      <div className="studio-project-filters" role="group" aria-label="Project filters">
+        {filters.map((value) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => { setFilter(value); setLimit(PAGE_SIZE) }} className={`min-h-9 shrink-0 rounded-lg px-2.5 text-xs font-medium ${filter === value ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/60"}`}>{value}</button>)}
       </div>
-      <label className="order-3 flex min-h-9 w-full items-center gap-2 rounded-lg border border-border bg-card px-3 text-muted-foreground sm:order-none sm:ml-auto sm:w-auto"><Search className="h-4 w-4" /><input aria-label="Find a project" placeholder="Find a project" value={query} onChange={(event) => { setQuery(event.target.value); setLimit(PAGE_SIZE) }} className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground sm:w-32" /></label>
-      <div className="ml-auto flex shrink-0 items-center gap-2 sm:ml-0">
+      </div>
+      <div className="studio-project-tools" role="group" aria-label="Project search and actions">
+      <label className="studio-project-search"><Search className="h-4 w-4 shrink-0" /><input aria-label="Find a project" placeholder="Find a project" value={query} onChange={(event) => { setQuery(event.target.value); setLimit(PAGE_SIZE) }} className="min-w-0 w-full bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground" /></label>
         <button type="button" aria-label="Workspace appearance" title="Workspace appearance" className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring" onClick={() => onOpen("/settings?section=experience")}><SlidersHorizontal className="h-4 w-4" /></button>
-        <div ref={menuRef} className="relative" onKeyDown={(event) => { menuKeyDown(event); if (event.key === "Escape") addRef.current?.focus() }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setMenuOpen(false) }}>
-          <button ref={addRef} type="button" aria-haspopup="menu" aria-expanded={menuOpen} disabled={Boolean(creating)} onClick={() => { setActiveIndex(0); setMenuOpen(!menuOpen) }} className="flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60">
-            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Add <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+        <div ref={menuRef} className="relative shrink-0" onKeyDown={(event) => { menuKeyDown(event); if (event.key === "Escape") addRef.current?.focus() }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setMenuOpen(false) }}>
+          <button ref={addRef} type="button" aria-haspopup="menu" aria-expanded={menuOpen} aria-busy={Boolean(creating)} disabled={Boolean(creating)} onClick={() => { setActiveIndex(0); setMenuOpen(!menuOpen) }} className="flex h-9 min-w-14 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60">
+            {creating ? "Adding…" : "Add"}
           </button>
           {menuOpen ? <div role="menu" aria-label="Add a project" className="absolute right-0 top-11 z-40 w-48 rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-lift">
             {projectKindOrder.map((kind, index) => {

@@ -464,7 +464,17 @@ export function Topbar({
   const ThemeIcon = resolvedTheme === "dark" ? Sun : Moon
 
   const accountControls = (
-    <div className={accountHost ? (sidebarMode === "rail" ? "account-cluster account-cluster-rail" : "account-cluster") : "flex items-center gap-1"}>
+    <div className={`account-controls ${accountHost ? (sidebarMode === "rail" ? "account-cluster account-cluster-rail" : "account-cluster") : "flex items-center gap-1"}`}>
+          <button
+            type="button"
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+            className={ghostIconButton}
+            aria-label={resolvedTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+            title={resolvedTheme === "dark" ? text.lightMode : text.darkMode}
+          >
+            <ThemeIcon className="h-[18px] w-[18px]" />
+          </button>
+          <NotificationsMenu openLink={openLink} user={user} sidebar={Boolean(accountHost)} />
           <AccountMenu
             sidebar={Boolean(accountHost)}
             showName={Boolean(accountHost) && sidebarMode === "expanded"}
@@ -482,16 +492,6 @@ export function Topbar({
             theme={theme}
             user={user}
           />
-          <button
-            type="button"
-            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-            className={ghostIconButton}
-            aria-label={resolvedTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-            title={resolvedTheme === "dark" ? text.lightMode : text.darkMode}
-          >
-            <ThemeIcon className="h-[18px] w-[18px]" />
-          </button>
-          <NotificationsMenu openLink={openLink} user={user} sidebar={Boolean(accountHost)} />
     </div>
   )
 
@@ -667,7 +667,7 @@ function AccountMenu({
   }
 
   return (
-    <div ref={rootRef} className={showName ? "relative min-w-0 flex-1" : "relative"}>
+    <div ref={rootRef} className={`account-profile relative ${showName ? "min-w-0 flex-1" : ""}`}>
       <button
         type="button"
         data-popover-trigger

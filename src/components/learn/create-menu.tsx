@@ -1,6 +1,6 @@
 "use client"
 
-import { ChevronDown, Plus } from "lucide-react"
+import { Plus } from "lucide-react"
 import { viewIcons } from "./nav-icons"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { menuSurfaceClasses } from "@/lib/design-system"
@@ -30,7 +30,7 @@ export type CreateMenuVariant = "sidebar" | "rail" | "header"
 
 const createMenuLayout: Record<CreateMenuVariant, { button: string; panel: string; wrapper: string }> = {
   sidebar: {
-    button: "flex h-10 w-full items-center gap-2 rounded-md border border-primary bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring",
+    button: "flex h-10 w-full items-center justify-center rounded-md border border-primary bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring",
     panel: "left-0 right-0 top-12",
     wrapper: "relative mb-3",
   },
@@ -40,7 +40,7 @@ const createMenuLayout: Record<CreateMenuVariant, { button: string; panel: strin
     wrapper: "relative mb-3 flex justify-center",
   },
   header: {
-    button: "flex h-9 items-center gap-1.5 rounded-md border border-primary bg-primary px-2 text-xs font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring",
+    button: "flex h-9 min-w-14 items-center justify-center rounded-md border border-primary bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring",
     panel: "right-0 top-11 w-72",
     wrapper: "relative",
   },
@@ -156,9 +156,7 @@ export function CreateMenu({
         title="Create something new"
         className={createMenuLayout[variant].button}
       >
-        <Plus className="h-4 w-4" />
-        {variant === "rail" ? <span className="sr-only">Add</span> : <span>Add</span>}
-        {variant === "rail" ? null : <ChevronDown className={`ml-auto h-4 w-4 transition ${open ? "rotate-180" : ""}`} />}
+        {variant === "rail" ? <><Plus className="h-4 w-4" /><span className="sr-only">Add</span></> : <span>Add</span>}
       </button>
       {open ? (
         <div

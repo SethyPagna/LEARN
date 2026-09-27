@@ -41,7 +41,7 @@ export function StudioRecents({ projects, onOpen }: { projects: readonly Project
   }
   if (!projects.length) return null
   return <section aria-label="Recent projects" className="studio-recents">
-    <div className="mb-2 flex items-center justify-between"><h3 className="text-xs font-medium text-muted-foreground">Recent</h3><div className="flex gap-1"><button className="editor-command" aria-label="Previous recent projects" title="Previous" disabled={edges.start} onClick={() => scroll(-1)}><ChevronLeft className="h-4 w-4" /></button><button className="editor-command" aria-label="Next recent projects" title="Next" disabled={edges.end} onClick={() => scroll(1)}><ChevronRight className="h-4 w-4" /></button></div></div>
+    <div className="studio-recents-heading"><h3 className="text-xs font-medium text-muted-foreground">Recent</h3><div className="flex gap-1"><button className="editor-command" aria-label="Previous recent projects" title="Previous" disabled={edges.start} onClick={() => scroll(-1)}><ChevronLeft className="h-4 w-4" /></button><button className="editor-command" aria-label="Next recent projects" title="Next" disabled={edges.end} onClick={() => scroll(1)}><ChevronRight className="h-4 w-4" /></button></div></div>
     <ul ref={track} tabIndex={0} aria-label="Recent project previews, newest first" className="studio-recents-track">{projects.map(project => <RecentCard key={`${project.kind}:${project.id}`} project={project} measure={measure} onOpen={onOpen} />)}</ul>
   </section>
 }
