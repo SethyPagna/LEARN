@@ -39,6 +39,12 @@ function profileUsernameFromPath(pathname: string) {
   }
 }
 
+function quizIdFromPath(pathname: string) {
+  const [section, id] = pathname.split("/").filter(Boolean)
+  if (section !== "quiz" || !id) return undefined
+  try { return decodeURIComponent(id) } catch { return undefined }
+}
+
 export function LearnShell({
   initialView = "dashboard",
   initialNoteId,
@@ -76,6 +82,9 @@ export function LearnShell({
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
   const [selectedNoteId, setSelectedNoteId] = useState(initialNoteId || "")
   const [selectedQuizId, setSelectedQuizId] = useState(initialQuizId || "")
+  const [quizLaunch, setQuizLaunch] = useState<{ id: string } | undefined>(initialQuizId ? { id: initialQuizId } : undefined)
+  const [practiceLibraryRevision, setPracticeLibraryRevision] = useState(0)
+  const removeArchivedQuiz = useCallback((id: string) => setQuizzes(current => current.filter(quiz => quiz.id !== id)), [])
   const [dashboard, setDashboard] = useState<DashboardData | null>(null)
   const [adminData, setAdminData] = useState<AdminData | null>(null)
   const [automationData, setAutomationData] = useState<AutomationData | null>(null)
@@ -143,6 +152,9 @@ export function LearnShell({
       if (new URLSearchParams(window.location.search).get("onboarding") === "1") openPlaceGuide()
       setLocationSearch(window.location.search)
       setProfileUsername(profileUsernameFromPath(window.location.pathname))
+      const quizId = quizIdFromPath(window.location.pathname)
+      setQuizLaunch(quizId ? { id: quizId } : undefined)
+      if (!quizId && (nextView === "practice" || nextView === "quizzes")) setPracticeLibraryRevision(revision => revision + 1)
       setView(nextView)
     }
 
@@ -202,7 +214,10 @@ export function LearnShell({
   const chooseView = useCallback((nextView: View) => {
     void navigateSafely(() => {
     setView(nextView)
+    setQuizLaunch(undefined)
+    if (nextView === "practice" || nextView === "quizzes") setPracticeLibraryRevision(revision => revision + 1)
     setProfileUsername(undefined)
+    window.scrollTo({ top: 0, behavior: "instant" })
     const nextPath = viewRoutes[nextView]
     if (typeof window !== "undefined" && nextPath && window.location.pathname !== nextPath) {
       window.history.pushState({ learnView: nextView }, "", nextPath)
@@ -224,6 +239,9 @@ export function LearnShell({
     window.history.pushState({ learnView: nextView }, "", `${url.pathname}${url.search}${url.hash}`)
     setLocationSearch(url.search)
     setProfileUsername(profileUsernameFromPath(url.pathname))
+    const quizId = quizIdFromPath(url.pathname)
+    setQuizLaunch(quizId ? { id: quizId } : undefined)
+    if (!quizId && (nextView === "practice" || nextView === "quizzes")) setPracticeLibraryRevision(revision => revision + 1)
     setView(nextView)
     })
   }, [navigateSafely])
@@ -234,9 +252,16 @@ export function LearnShell({
   }, [chooseView])
 
   const openQuiz = useCallback((id: string) => {
-    setSelectedQuizId(id)
-    chooseView("quizzes")
-  }, [chooseView])
+    void navigateSafely(() => {
+      setSelectedQuizId(id)
+      setQuizLaunch({ id })
+      setView("quizzes")
+      setProfileUsername(undefined)
+      setLocationSearch("")
+      const path = `/quiz/${encodeURIComponent(id)}`
+      if (window.location.pathname !== path) window.history.pushState({ learnView: "quizzes" }, "", path)
+    })
+  }, [navigateSafely])
 
   const toggleTheme = useCallback(() => setTheme(resolvedTheme === "dark" ? "light" : "dark"), [resolvedTheme, setTheme])
   const isStudioLobby = view === "dashboard" || view === "studio" || (view === "canvas" && !new URLSearchParams(locationSearch).has("design"))
@@ -315,7 +340,7 @@ export function LearnShell({
             {view === "live" ? <LiveQuizView quizzes={quizzes} user={user} /> : null}
             {view === "reviews" ? <ReviewsView setView={chooseView} /> : null}
             {view !== "studio" && studioViews.includes(view as (typeof studioViews)[number]) ? <StudioView key={`${view}:${locationSearch}`} setView={chooseView} initialKind={getStudioKind(view)} notes={notes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} onDraftSummary={setStudioDraftSummary} /> : null}
-            {view !== "live" && view !== "reviews" && practiceViews.includes(view as (typeof practiceViews)[number]) ? <PracticeWorkspaceView initialView={view} quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={preferences.options} setView={chooseView} /> : null}
+            {view !== "live" && view !== "reviews" && practiceViews.includes(view as (typeof practiceViews)[number]) ? <PracticeWorkspaceView initialView={view} quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} quizLaunch={quizLaunch} libraryRevision={practiceLibraryRevision} onQuizArchived={removeArchivedQuiz} options={preferences.options} setView={chooseView} /> : null}
             {view === "ai" ? <AiTutorView notes={notes} options={preferences.options} setNotes={setNotes} setQuizzes={setQuizzes} setOptions={preferences.setOptions} setView={chooseView} /> : null}
             {view === "files" ? <FilesView options={preferences.options} onPreviewChange={setFilePreviewOpen} /> : null}
             {socialViews.includes(view as (typeof socialViews)[number]) ? <SocialWorkspaceView initialView={view} options={preferences.options} setView={chooseView} user={user} /> : null}

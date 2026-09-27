@@ -1,0 +1,24 @@
+.workspace { display:grid; min-width:0; gap:16px; max-width:1440px; margin-inline:auto; }
+.header { display:flex; align-items:center; gap:20px; min-width:0; }
+.title { font-size:22px; font-weight:650; letter-spacing:-.04em; }
+.sections { display:flex; align-items:center; gap:4px; min-width:0; padding:4px; border:1px solid var(--border); border-radius:14px; background:var(--card); }
+.sections button { display:flex; align-items:center; justify-content:center; gap:7px; min-height:36px; padding:7px 13px; border-radius:10px; font-size:12px; font-weight:550; color:var(--muted-foreground); white-space:nowrap; }
+.sections button svg { width:16px; height:16px; flex-shrink:0; color:var(--tab-social); }
+.sections button[data-section='spaces'] svg { color:var(--tab-files); }
+.sections button[data-section='rooms'] svg { color:var(--tab-calendar); }
+.sections button[data-section='battles'] svg { color:var(--tab-practice); }
+.sections button:hover { background:var(--secondary); color:var(--foreground); }
+.sections button[aria-current='page'] { background:var(--secondary); color:var(--foreground); box-shadow:0 1px 3px color-mix(in oklch,var(--foreground) 5%,transparent); }
+.sections button:focus-visible,.profile:focus-visible { outline:2px solid var(--ring); outline-offset:2px; }
+.profile { display:grid; place-items:center; flex-shrink:0; width:36px; height:36px; margin-left:auto; border:1px solid var(--border); border-radius:50%; background:var(--card); color:var(--muted-foreground); }
+.profile svg { width:17px; height:17px; }
+.profile:hover { color:var(--primary); background:var(--accent); }
+@media(max-width:1023px) { .title { display:none; } .workspace { gap:12px; } .header { gap:10px; } }
+@media(max-width:639px) {
+  .header { gap:8px; }
+  .sections { flex:1; gap:2px; padding:3px; border-radius:12px; }
+  .sections button { flex:1; min-width:0; min-height:40px; padding:6px; gap:4px; font-size:11px; }
+  .sections button svg { width:14px; height:14px; }
+  .profile { width:32px; height:32px; }
+}
+@media(max-width:359px) { .sections button svg { display:none; } }

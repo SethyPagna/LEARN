@@ -112,6 +112,14 @@ export function clearPracticeDraft(quizId: string) {
   publishPracticeDraftSummary(store)
 }
 
+/** A delayed submission must not erase another tab's or a newer session's work. */
+export function clearPracticeDraftIfUnchanged(expected: PracticeDraftState) {
+  const current = readPracticeDraft(expected.quizId)
+  if (!current || serializePracticeDrafts({ [expected.quizId]: current }) !== serializePracticeDrafts({ [expected.quizId]: expected })) return false
+  clearPracticeDraft(expected.quizId)
+  return true
+}
+
 export function summarizePracticeDrafts(store: Record<string, unknown>): PracticeDraftSummary {
   const quizIds: string[] = []
   let latestAt: string | undefined

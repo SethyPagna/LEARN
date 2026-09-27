@@ -1,0 +1,5 @@
+.surface { width:100%; }
+.surface[data-focus='true'] { max-width:900px; margin-inline:auto; }
+.surface .picker { right:0; max-width:min(260px,calc(100vw - 32px)); }
+.surface .picker button { min-height:54px; }
+.surface details:not([open]) > .picker { display:none; }

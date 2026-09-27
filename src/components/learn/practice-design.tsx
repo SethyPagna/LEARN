@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { Palette, Check, Maximize2 } from "lucide-react"
+import styles from "./practice-design.module.css"
 
 const designs = [
   { id: "confetti", name: "Confetti", colors: ["#8257d6", "#ef7199", "#edb24d"] },
@@ -13,9 +14,23 @@ const designs = [
 ] as const
 type DesignId = typeof designs[number]["id"]
 
-export function PracticeDesign({ children, allowFocus = true }: { children: ReactNode; allowFocus?: boolean }) {
+export function PracticeDesign({ children, allowFocus = true, toolbar }: { children: ReactNode; allowFocus?: boolean; toolbar?: ReactNode }) {
   const [design, setDesign] = useState<DesignId>("confetti")
   const [focus, setFocus] = useState(false)
+  const picker = useRef<HTMLDetailsElement>(null)
+  useEffect(() => {
+    function closePicker(event: PointerEvent) {
+      if (picker.current && !picker.current.contains(event.target as Node)) picker.current.open = false
+    }
+    function dismissPicker(event: KeyboardEvent) {
+      if (event.key !== "Escape" || !picker.current?.open) return
+      picker.current.open = false
+      picker.current.querySelector("summary")?.focus()
+    }
+    document.addEventListener("pointerdown", closePicker)
+    document.addEventListener("keydown", dismissPicker)
+    return () => { document.removeEventListener("pointerdown", closePicker); document.removeEventListener("keydown", dismissPicker) }
+  }, [])
   useEffect(() => {
     try {
       const saved = localStorage.getItem("learn:practice:design")
@@ -24,13 +39,16 @@ export function PracticeDesign({ children, allowFocus = true }: { children: Reac
   }, [])
   function chooseDesign(value: DesignId) {
     setDesign(value)
+    if (picker.current) picker.current.open = false
+    picker.current?.querySelector("summary")?.focus()
     try { localStorage.setItem("learn:practice:design", value) } catch { /* Keep the current session choice. */ }
   }
-  return <div className="practice-design" data-design={design} data-focus={focus}>
+  return <div className={`practice-design ${styles.surface}`} data-design={design} data-focus={allowFocus && focus}>
     <div className="practice-design-toolbar">
+      {toolbar}
 
-      <details className="relative ml-auto"><summary className="editor-command" aria-label="Practice design" title="Practice design"><Palette className="h-4 w-4" /></summary>
-        <div className="practice-design-picker" role="group" aria-label="Practice designs">{designs.map(item => <button type="button" key={item.id} aria-pressed={design === item.id} onClick={() => chooseDesign(item.id)}>
+      <details ref={picker} className="relative ml-auto"><summary className="editor-command" aria-label="Practice design" title="Practice design"><Palette className="h-4 w-4" /></summary>
+        <div className={`practice-design-picker ${styles.picker}`} role="group" aria-label="Practice designs">{designs.map(item => <button type="button" key={item.id} aria-pressed={design === item.id} onClick={() => chooseDesign(item.id)}>
           <span className="design-swatch" style={{ background: `linear-gradient(125deg, ${item.colors.join(",")})` }}>{design === item.id ? <Check className="h-4 w-4 text-white" /> : null}</span><span>{item.name}</span>
         </button>)}</div>
       </details>
