@@ -59,7 +59,7 @@ export function Popover({ open, anchor, onClose, children, placement = "bottom-s
     left = Math.max(MARGIN, Math.min(left, viewportWidth - panelWidth - MARGIN))
     top = Math.max(MARGIN, Math.min(top, viewportHeight - Math.min(panelHeight, viewportHeight - MARGIN * 2) - MARGIN))
     setPosition((current) => {
-      const next = { left: Math.round(left), top: Math.round(top), maxHeight: Math.max(160, viewportHeight - MARGIN * 2) }
+      const next = { left: Math.round(left), top: Math.round(top), maxHeight: Math.max(0, viewportHeight - MARGIN * 2) }
       return current && current.left === next.left && current.top === next.top && current.maxHeight === next.maxHeight ? current : next
     })
   }, [anchor, placement, width])
@@ -113,7 +113,7 @@ export function Popover({ open, anchor, onClose, children, placement = "bottom-s
       aria-label={label}
       data-keep-editing="true"
       className={`learn-pop-in fixed z-[120] overflow-y-auto rounded-2xl border border-border bg-popover p-3 text-sm text-popover-foreground shadow-[0_24px_60px_-24px_rgba(15,23,42,0.45)] ${className}`}
-      style={{ left: position?.left ?? -9999, top: position?.top ?? -9999, maxHeight: position?.maxHeight, visibility: position ? "visible" : "hidden" }}
+      style={{ left: position?.left ?? -9999, top: position?.top ?? -9999, maxWidth: `calc(100vw - ${MARGIN * 2}px)`, maxHeight: position?.maxHeight, visibility: position ? "visible" : "hidden" }}
     >
       {children}
     </div>,

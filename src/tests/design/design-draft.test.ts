@@ -5,12 +5,15 @@ import { serializeCanvasDraft } from "../../lib/studio/canvas-draft"
 import { createDesignDoc, createDesignPage } from "../../lib/design/document"
 import {
   DESIGN_DRAFT_KEY,
+  clearDesignDraft,
   legacyDraftAsDesign,
   parseStoredDesignDrafts,
   serializeDesignDrafts,
   shouldRestoreDesignDraft,
   timestampMs,
   upsertDraft,
+  writeDesignDraft,
+  readDesignDrafts,
   type DesignDraftRecord,
 } from "../../lib/design/draft"
 
@@ -21,6 +24,32 @@ function draft(id: string, updatedAt = "2026-09-20T10:00:00.000Z", pages = 1): D
 
 test("the draft key is pinned so stored drafts survive upgrades", () => {
   assert.equal(DESIGN_DRAFT_KEY, "learn_design_drafts_v2")
+})
+
+test("an older save cannot clear a newer stored design draft", () => {
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window")
+  const stored = new Map<string, string>()
+  const localStorage = {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: (key: string, value: string) => { stored.set(key, value) },
+    removeItem: (key: string) => { stored.delete(key) },
+  }
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { localStorage } })
+  try {
+    const saved = draft("a")
+    const newer = { ...saved, design: { ...saved.design, name: "Newer work" } }
+    writeDesignDraft(draft("b"))
+    writeDesignDraft(newer)
+    clearDesignDraft("a", saved.design)
+    assert.equal(readDesignDrafts().find(item => item.id === "a")?.design.name, "Newer work")
+    clearDesignDraft("a", newer.design)
+    assert.deepEqual(readDesignDrafts().map(item => item.id), ["b"])
+    clearDesignDraft("b")
+    assert.deepEqual(readDesignDrafts(), [])
+  } finally {
+    if (previousWindow) Object.defineProperty(globalThis, "window", previousWindow)
+    else Reflect.deleteProperty(globalThis, "window")
+  }
 })
 
 test("drafts round-trip, and junk storage or junk entries never throw", () => {

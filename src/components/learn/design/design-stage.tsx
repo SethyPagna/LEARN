@@ -23,6 +23,7 @@ export interface StageProps {
   editingId: string | null
   cropping: boolean
   onEdit: (id: string | null) => void
+  onCrop?: () => void
   onUndo: (redo: boolean) => void
   onInteraction: (busy: boolean) => void
   onContext: (point: Point) => void
@@ -40,7 +41,7 @@ interface ActivePointer {
 
 const HANDLE_POSITION: Record<ResizeHandle, [number, number]> = { nw: [0, 0], n: [0.5, 0], ne: [1, 0], e: [1, 0.5], se: [1, 1], s: [0.5, 1], sw: [0, 1], w: [0, 0.5] }
 
-export function DesignStage({ api, zoom, snap, grid, editingId, cropping, onEdit, onUndo, onInteraction, onContext }: StageProps) {
+export function DesignStage({ api, zoom, snap, grid, editingId, cropping, onEdit, onCrop, onUndo, onInteraction, onContext }: StageProps) {
   const stage = useRef<HTMLDivElement>(null)
   const pointer = useRef<ActivePointer | null>(null)
   const [live, setLive] = useState<CanvasDoc | null>(null)
@@ -161,7 +162,12 @@ export function DesignStage({ api, zoom, snap, grid, editingId, cropping, onEdit
     if (event.key === "Escape" && pointer.current) { pointer.current = null; setLive(null); setMarquee(null); setGuides([]); onInteraction(false); event.stopPropagation() }
   }} onDoubleClick={(event) => {
     const element = pickElement(canvas.elements, pointAt(event))
-    if (element && (element.type === "text" || element.type === "shape")) onEdit(element.id)
+    if (!element || element.locked) return
+    if (element.type === "text" || element.type === "shape") onEdit(element.id)
+    else if (element.type === "image" && element.content) {
+      api.select([element.id])
+      onCrop?.()
+    }
   }} onDragOver={(event) => { if (acceptsDrop(event)) { event.preventDefault(); event.dataTransfer.dropEffect = "copy" } }} onDrop={drop} onContextMenu={(event) => {
     event.preventDefault()
     const hit = pickElement(canvas.elements, pointAt(event))
@@ -179,6 +185,6 @@ export function DesignStage({ api, zoom, snap, grid, editingId, cropping, onEdit
     {editing ? <TextEditorOverlay key={editing.id} element={editing} zoom={zoom} measure={api.measure} select="all" selectToken={0} onChange={(content) => api.update((doc) => {
       const page = pageCanvas(doc, api.pageIndex)
       return withPageCanvas(doc, api.pageIndex, { ...page, elements: page.elements.map((element) => element.id === editing.id ? growText({ ...element, content }, api.measure) : element) })
-    }, { coalesce: `text:${editing.id}` })} onDone={() => { onEdit(null); stage.current?.focus() }} onUndo={onUndo} /> : null}
+    }, { coalesce: `text:${editing.id}` })} onDone={(refocus) => { onEdit(null); if (refocus) stage.current?.focus() }} onUndo={onUndo} /> : null}
   </div>
 }

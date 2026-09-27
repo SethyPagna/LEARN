@@ -90,7 +90,12 @@ export function isTypingTarget(target: EventTarget | null): boolean {
   if (tag === "TEXTAREA" || tag === "SELECT") return true
   if (tag === "INPUT") {
     const type = (target as HTMLInputElement).type
-    return !["button", "checkbox", "radio", "range", "color", "submit", "reset", "file"].includes(type)
+    return !["button", "checkbox", "radio", "submit", "reset", "file"].includes(type)
   }
   return false
+}
+
+/** Native activation/navigation keys belong to the focused toolbar control. */
+export function isEditorControlTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && Boolean(target.closest("button, input, select, textarea, a[href], [role='slider'], [role='menuitem'], [role='radio']"))
 }

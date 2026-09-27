@@ -174,11 +174,14 @@ export function writeDesignDraft(draft: DesignDraftRecord): void {
   }
 }
 
-export function clearDesignDraft(id: string): void {
+export function clearDesignDraft(id: string, savedDesign?: DesignDoc): void {
   const store = storage()
   if (!store) return
   try {
-    const drafts = parseStoredDesignDrafts(store.getItem(DESIGN_DRAFT_KEY)).filter((draft) => draft.id !== id)
+    const saved = savedDesign ? serializeDesign(savedDesign) : null
+    const drafts = parseStoredDesignDrafts(store.getItem(DESIGN_DRAFT_KEY)).filter((draft) =>
+      draft.id !== id || (saved !== null && serializeDesign(draft.design) !== saved),
+    )
     if (drafts.length) store.setItem(DESIGN_DRAFT_KEY, serializeDesignDrafts(drafts))
     else store.removeItem(DESIGN_DRAFT_KEY)
   } catch {

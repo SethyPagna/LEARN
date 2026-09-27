@@ -8,6 +8,7 @@ import { addPage, duplicatePage, movePage, newDesignId, removePage, updatePage, 
 import { pictureElement, textPresetElement } from "@/lib/design/editing"
 import { clampZoom, fitZoom, stepZoom, type Point } from "@/lib/design/gestures"
 import { resizeDesign } from "@/lib/design/layout"
+import { normalizeDesignPictureUrl } from "@/lib/design/image-source"
 import type { MeasureText } from "@/lib/design/text"
 import type { Note } from "../types"
 import { SharePanel } from "../share-panel"
@@ -15,7 +16,7 @@ import { ContextToolbar, type ToolbarActions } from "./context-toolbar"
 import { DesignStage, type StageProps } from "./design-stage"
 import { PageWorkspace } from "./page-workspace"
 import { EditorPanel, EditorRail } from "./editor-rail"
-import { isTypingTarget, useCompactLayout } from "./editor-hooks"
+import { isEditorControlTarget, isTypingTarget, useCompactLayout } from "./editor-hooks"
 import type { DesignPanelId } from "./editor-types"
 import { ExportMenu } from "./export-dialog"
 import { pictureFilesFrom, uploadPicture } from "./image-upload"
@@ -106,13 +107,19 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
   const actions: ToolbarActions = { ...commands, editText, crop: () => setCropping((value) => !value), replacePicture: () => { replacement.current = selection[0]?.id ?? null; upload.current?.click() }, openPanel: setPanel }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (isTypingTarget(event.target) || interacting.current || presenting) return
+    if (event.defaultPrevented || event.nativeEvent.isComposing || presenting) return
     const mod = event.ctrlKey || event.metaKey
     const key = event.key.toLowerCase()
+    if (mod && !event.altKey && key === "s") {
+      event.preventDefault()
+      event.stopPropagation()
+      void save.saveNow()
+      return
+    }
+    if (isTypingTarget(event.target) || interacting.current || (!mod && isEditorControlTarget(event.target))) return
     let handled = true
     if (mod && key === "z") travel(event.shiftKey)
     else if (mod && key === "y") travel(true)
-    else if (mod && key === "s") void save.saveNow()
     else if (mod && key === "a") api.select(api.design.pages[api.pageIndex].elements.filter((element) => !element.hidden && !element.locked).map((element) => element.id))
     else if (mod && key === "d") commands.duplicate()
     else if (mod && key === "g") event.shiftKey ? commands.ungroup() : commands.group()
@@ -135,8 +142,11 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
   }
 
   function insertUrl() {
-    const source = sanitizeImageUrl(url)
-    if (!source) { notify("Use a valid https:// image or embed URL."); return }
+    const source = urlKind === "image" ? normalizeDesignPictureUrl(url, window.location.origin) : sanitizeImageUrl(url)
+    if (!source) {
+      notify(urlKind === "image" ? "Use Uploads for this picture, or paste an image link from this LEARN site." : "Use a valid https:// embed URL.")
+      return
+    }
     const element = urlKind === "image" ? pictureElement(source, null, api.design) : createElement({ type: "embed", content: source, width: Math.min(480, api.design.width / 2), height: Math.min(260, api.design.height / 2) })
     api.insertElements([element]); setUrl(""); setUrlOpen(false)
   }
@@ -165,7 +175,7 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
     onMove: (from, to) => api.update(doc => { const id = doc.pages[api.pageIndex].id; const next = movePage(doc, from, to); return { doc: next, page: next.pages.findIndex(page => page.id === id) } }),
     onToggleHidden: index => api.update(doc => updatePage(doc, index, { hidden: !doc.pages[index].hidden })),
   }
-  const stage: StageProps = { api, zoom, snap, grid, editingId, cropping, onEdit: setEditingId, onUndo: travel, onInteraction: busy => { interacting.current = busy }, onContext: setContext }
+  const stage: StageProps = { api, zoom, snap, grid, editingId, cropping, onEdit: setEditingId, onCrop: () => setCropping(true), onUndo: travel, onInteraction: busy => { interacting.current = busy }, onContext: setContext }
 
   return <div data-focus={focus} className="studio-editor-workspace design-editor-workspace flex min-w-0 flex-col overflow-hidden bg-card" tabIndex={-1} onKeyDown={onKeyDown} onPointerDownCapture={(event) => {
     if (editingId && !(event.target as HTMLElement).closest("[data-keep-editing]")) setEditingId(null)
@@ -208,7 +218,7 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
     {urlOpen ? <form className="flex flex-wrap gap-2 p-2" onSubmit={(event) => { event.preventDefault(); insertUrl() }}><select aria-label="URL type" value={urlKind} onChange={(event) => setUrlKind(event.target.value as "image" | "embed")}><option value="image">Picture</option><option value="embed">Embed link</option></select><input aria-label="Image or embed URL" className="min-w-0 flex-1 rounded border px-2" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://…" /><button className="canvas-tool" type="submit">Insert</button></form> : null}
     {save.error ? <p role="alert" className="px-3 py-2 text-sm text-destructive">{save.error}</p> : null}
     {message ? <p role="status" className="flex items-center justify-between px-3 py-1 text-xs text-muted-foreground">{message}<button aria-label="Dismiss message" onClick={() => setMessage("")}>×</button></p> : null}
-    <div className="relative flex min-h-0 flex-1">
+    <div data-editor-body className="relative flex min-h-0 flex-1">
       {!compact && !focus ? <EditorRail panel={panel} onPanel={setPanel} compact={false} /> : null}
       {!focus ? <EditorPanel api={api} panel={panel} onPanel={setPanel} compact={compact} /> : null}
       <div className="design-workbench flex min-w-0 flex-1 flex-col">

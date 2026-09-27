@@ -306,7 +306,7 @@ export function ContextToolbar({ api, selection, actions, cropping }: ContextToo
         if (!current) return design
         let changed = false
         const elements = current.elements.map((element) => {
-          if (!ids.has(element.id) || (options.filter && !options.filter(element))) return element
+          if (!ids.has(element.id) || element.locked || (options.filter && !options.filter(element))) return element
           const next = fn(element)
           if (next !== element) changed = true
           return next
@@ -360,6 +360,10 @@ export function ContextToolbar({ api, selection, actions, cropping }: ContextToo
   const single = selection.length === 1 ? selection[0] : null
   const grouped = selection.some((element) => element.groupId)
   const clusters = new Set(selection.map((element) => element.groupId ?? element.id)).size
+
+  if (locked) return <div className="canvas-toolbar items-center" role="toolbar" aria-label="Selection tools">
+    <ToolButton label="Unlock selection" onClick={actions.toggleLock}><LockOpen className="h-4 w-4" /><span className="text-xs">Unlock</span></ToolButton>
+  </div>
 
   // Values shown are the first element's of each kind.
   const firstText = typeable[0] ?? null

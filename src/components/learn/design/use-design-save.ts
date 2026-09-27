@@ -134,8 +134,8 @@ export function useDesignSave({ recordId, design, initialSaved, exists: initiall
         existsRef.current = true
         setExists(true)
         setError("")
-        // Only drop the draft if nothing changed while the request was out.
-        if (designRef.current === doc) clearDesignDraft(recordId)
+        // A second editor may have written a newer draft while this save was out.
+        if (designRef.current === doc) clearDesignDraft(recordId, doc)
         onSavedRef.current?.({ id: item?.id ?? recordId, title: item?.title ?? doc.name, updatedAt: item?.updated_at ?? null }, doc)
         return true
     } catch (reason) {

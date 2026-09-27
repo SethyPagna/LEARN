@@ -56,3 +56,11 @@ test("mixed selection shows shared controls instead of stacking unrelated toolse
   assert.match(html, /aria-label="Object actions"/)
   assert.doesNotMatch(html, /aria-label="Font size"|aria-label="Filters"|aria-label="Change shape"/)
 })
+
+test("locked objects offer unlocking without misleading editing tools", () => {
+  for (const type of ["text", "shape", "image"] as const) {
+    const html = renderTools([createElement({ type, locked: true, content: "Locked object" })])
+    assert.match(html, /aria-label="Unlock selection"/)
+    assert.doesNotMatch(html, /aria-label="Font size"|aria-label="Position"|aria-label="Filters"|aria-label="Transparency"|aria-label="Change shape"/)
+  }
+})

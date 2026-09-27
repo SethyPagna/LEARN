@@ -47,7 +47,7 @@ export function ResizePanel({ design, onResize, onResizeCopy }: ResizePanelProps
   const target: ResizeTarget = { format, width: w, height: h, mode }
 
   return (
-    <div className="w-[19.5rem] space-y-3">
+    <div className="space-y-3" style={{ width: "19.5rem", maxWidth: "calc(100vw - 2.75rem)" }}>
       <div>
         <p className="text-sm font-bold">Resize</p>
         <p className="text-[0.72rem] text-muted-foreground">
@@ -101,7 +101,7 @@ export function ResizePanel({ design, onResize, onResizeCopy }: ResizePanelProps
               setPicked("custom")
               setWidth(event.target.value)
             }}
-            className="h-9 w-full rounded-lg border border-border bg-background px-2 text-sm tabular-nums"
+            className="h-9 min-w-0 w-full rounded-lg border border-border bg-background px-2 text-sm tabular-nums"
           />
           <span className="text-muted-foreground">×</span>
           <input
@@ -115,7 +115,7 @@ export function ResizePanel({ design, onResize, onResizeCopy }: ResizePanelProps
               setPicked("custom")
               setHeight(event.target.value)
             }}
-            className="h-9 w-full rounded-lg border border-border bg-background px-2 text-sm tabular-nums"
+            className="h-9 min-w-0 w-full rounded-lg border border-border bg-background px-2 text-sm tabular-nums"
           />
         </div>
         {!valid ? (

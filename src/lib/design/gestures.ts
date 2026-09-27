@@ -303,13 +303,13 @@ export function stepZoom(zoom: number, direction: 1 | -1): number {
   for (let index = ZOOM_STEPS.length - 1; index >= 0; index -= 1) {
     if (ZOOM_STEPS[index] < zoom - 0.001) return ZOOM_STEPS[index]
   }
-  return ZOOM_STEPS[0]
+  return DESIGN_ZOOM.min
 }
 
 /** The zoom that shows a whole page in the viewport with room around it (never above 200%). */
 export function fitZoom(page: { width: number; height: number }, viewport: { width: number; height: number }, margin = 56): number {
   const zoom = Math.min((viewport.width - margin) / page.width, (viewport.height - margin) / page.height)
-  return Number.isFinite(zoom) && zoom > 0 ? clamp(zoom, DESIGN_ZOOM.min, 2) : 1
+  return Number.isFinite(zoom) ? clamp(zoom, DESIGN_ZOOM.min, 2) : DESIGN_ZOOM.min
 }
 
 /** The first page two versions of a design differ on, or -1 (undo shows where it happened). */
