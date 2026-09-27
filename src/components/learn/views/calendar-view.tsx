@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Check, Copy, Link as LinkIcon, Plus, Sparkles, Trash2, X, SlidersHorizontal } from "lucide-react"
+import { Check, Copy, Link as LinkIcon, Plus, Sparkles, Trash2, X, SlidersHorizontal } from "lucide-react"
 import { DEFAULT_ALARM_LEAD_MINUTES } from "@/lib/calendar/ics"
 import { buildCalendarMonthGrid, buildCalendarPlanningSummary, calendarEventTypeOptions, calendarReminderOptions, filterCalendarAgenda, formatCalendarDuration, labelCalendarEventType, normalizeCalendarEventType, type CalendarAgendaFilter, type CalendarEventType } from "@/lib/calendar-features"
 import type { WorkspaceOptions } from "../preferences"
@@ -9,6 +9,7 @@ import type { CalendarEvent } from "../types"
 import { api } from "../api"
 import { CalendarConnections, useConnectedCalendars } from "../calendar-connections"
 import { EmptyState } from "../ui"
+import { CalendarDateBar } from "./calendar-date-bar"
 export function CalendarView({ options }: { options: WorkspaceOptions }) {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [selectedId, setSelectedId] = useState("")
@@ -258,19 +259,11 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
     setStatus("")
   }
 
-  function shiftVisibleMonth(delta: number) {
-    const next = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + delta, 1)
-    setVisibleMonth(next)
-    setSelectedDayKey(localDateKey(next))
-  }
-
-  function movePeriod(direction: number) {
-    if (mode === "week") {
-      const next = dateFromLocalKey(selectedDayKey)
-      next.setDate(next.getDate() + direction * 7)
-      setSelectedDayKey(localDateKey(next))
-      setVisibleMonth(next)
-    } else shiftVisibleMonth(direction)
+  // The date bar and the month grid both go to a day; the grid follows it, so
+  // the bar's "Sep 28, 2026" and the month on screen always agree.
+  function goToDay(key: string) {
+    setVisibleMonth(dateFromLocalKey(key))
+    selectCalendarDay(key)
   }
 
   if (!calendarMounted) return <p role="status" className="p-4 text-sm text-muted-foreground">Loading calendar…</p>
@@ -287,15 +280,14 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
     {!editorOpen && status ? <p role="status" className="mb-3 text-sm text-muted-foreground">{status}</p> : null}
     {connected.errors.length ? <p role="status" className="text-xs text-warning">{connected.errors.join(" ")}</p> : null}
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex items-center gap-1">
-        <button type="button" className="editor-command !hidden !px-1.5 sm:!inline-flex" aria-label="Previous year" onClick={() => shiftVisibleMonth(-12)}><ChevronsLeft className="h-4 w-4" /></button>
-        <button type="button" className="editor-command min-w-9 justify-center !px-1.5 sm:min-w-0" aria-label={mode === "week" ? "Previous week" : "Previous month"} onClick={() => movePeriod(-1)}><ChevronLeft className="h-4 w-4" /></button>
-        <button type="button" className="editor-command min-w-9 justify-center !px-1.5 sm:min-w-0" aria-label={mode === "week" ? "Next week" : "Next month"} onClick={() => movePeriod(1)}><ChevronRight className="h-4 w-4" /></button>
-        <button type="button" className="editor-command !hidden !px-1.5 sm:!inline-flex" aria-label="Next year" onClick={() => shiftVisibleMonth(12)}><ChevronsRight className="h-4 w-4" /></button>
-        <h3 className="ml-2 min-w-0 text-sm font-semibold sm:text-base">{mode === "agenda" ? "Agenda" : mode === "week" ? `${weekDays[0].date.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${weekDays[6].date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}` : visibleMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h3>
-        <button type="button" className="editor-command ml-2" onClick={() => { const now = new Date(); setVisibleMonth(now); setSelectedDayKey(localDateKey(now)); if (mode === "agenda") setAgendaFilter("today") }}>Today</button>
+      {mode === "agenda" ? <h3 className="text-sm font-semibold sm:text-base">Agenda</h3> : <>
+        <h3 className="sr-only">{mode === "week" ? `${weekDays[0].date.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${weekDays[6].date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}` : visibleMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h3>
+        <CalendarDateBar dayKey={selectedDayKey} step={mode} onChange={goToDay} />
+      </>}
+      <div className="flex items-center gap-2">
+        <button type="button" className="editor-command" onClick={() => { goToDay(localDateKey(new Date())); if (mode === "agenda") setAgendaFilter("today") }}>Today</button>
+        <div className="flex rounded-lg bg-secondary p-1" aria-label="Calendar views">{(["month", "week", "agenda"] as const).map((value) => <button key={value} type="button" aria-pressed={mode === value} onClick={() => setMode(value)} className={`min-h-9 rounded-md px-3 py-1.5 text-xs font-medium capitalize sm:min-h-0 ${mode === value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>{value}</button>)}</div>
       </div>
-      <div className="flex rounded-lg bg-secondary p-1" aria-label="Calendar views">{(["month", "week", "agenda"] as const).map((value) => <button key={value} type="button" aria-pressed={mode === value} onClick={() => setMode(value)} className={`min-h-9 rounded-md px-3 py-1.5 text-xs font-medium capitalize sm:min-h-0 ${mode === value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>{value}</button>)}</div>
     </div>
     <details className="calendar-filters-panel"><summary className="editor-command"><SlidersHorizontal className="h-4 w-4" />Filters{hiddenTypes.length + hiddenCalendars.length ? <span className="text-xs text-primary">{hiddenTypes.length + hiddenCalendars.length} hidden</span> : null}</summary><div className="grid gap-2 py-2">
     <div className="flex flex-wrap gap-1.5" aria-label="Event category filters">{[...calendarEventTypeOptions, { value: "external", label: "Connected" }].map(option => <button key={option.value} type="button" className="calendar-filter" aria-pressed={!hiddenTypes.includes(option.value)} onClick={() => setHiddenTypes(current => toggleHidden(current, option.value))}><span className={`h-1.5 w-1.5 rounded-full ${calendarDotClass(option.value)}`} />{option.label}</button>)}</div>
@@ -315,13 +307,13 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
         {mode === "month" ? <>
           <div className="grid grid-cols-7 border-b border-border text-center text-xs text-muted-foreground">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day} className="py-3">{day}</span>)}</div>
           <div className="grid grid-cols-7">{monthDays.map((day) => <div key={day.key} className={`calendar-day min-w-0 border-b border-r border-border/70 p-0.5 last:border-r-0 sm:p-2 ${day.inMonth ? "" : "bg-secondary/35 text-muted-foreground"} ${day.key === selectedDayKey ? "bg-primary/5" : ""}`}>
-            <button type="button" aria-label={formatCalendarDayLabel(day.key)} aria-pressed={day.key === selectedDayKey} onClick={() => selectCalendarDay(day.key)} className={`mb-1 flex h-9 w-full items-center justify-center rounded-lg text-xs transition sm:h-7 sm:w-7 sm:rounded-full hover:bg-secondary ${day.isToday ? "bg-primary font-semibold text-primary-foreground" : day.key === selectedDayKey ? "bg-accent font-semibold" : ""}`}>{day.label}</button>
+            <button type="button" aria-label={formatCalendarDayLabel(day.key)} aria-pressed={day.key === selectedDayKey} onClick={() => goToDay(day.key)} className={`mb-1 flex h-9 w-full items-center justify-center rounded-lg text-xs transition sm:h-7 sm:w-7 sm:rounded-full hover:bg-secondary ${day.isToday ? "bg-primary font-semibold text-primary-foreground" : day.key === selectedDayKey ? "bg-accent font-semibold" : ""}`}>{day.label}</button>
             <div className="hidden space-y-1 sm:block">{day.events.slice(0, 3).map((event) => <button key={event.id} type="button" onClick={() => openEvent(event)} className="flex w-full items-center gap-1.5 rounded-md bg-secondary/70 px-1.5 py-1 text-left text-xs hover:bg-accent"><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${calendarDotClass(event.event_type)}`} /><span className="truncate">{event.title}</span></button>)}</div>
-            {day.events.length > 3 ? <button type="button" onClick={() => selectCalendarDay(day.key)} className="hidden px-1 text-xs text-muted-foreground sm:block">+{day.events.length - 3} more</button> : null}
+            {day.events.length > 3 ? <button type="button" onClick={() => goToDay(day.key)} className="hidden px-1 text-xs text-muted-foreground sm:block">+{day.events.length - 3} more</button> : null}
             <div className="mt-1 flex flex-wrap justify-center gap-1 sm:hidden">{day.events.slice(0, 3).map((event) => <span key={event.id} className={`h-1.5 w-1.5 rounded-full ${calendarDotClass(event.event_type)}`} />)}</div>
           </div>)}</div>
         </> : <div className="grid grid-cols-1 divide-y divide-border sm:grid-cols-7 sm:divide-x sm:divide-y-0">{weekDays.map((day) => <div key={day.key} className="min-w-0 sm:min-h-[360px]">
-          <button type="button" onClick={() => selectCalendarDay(day.key)} aria-pressed={selectedDayKey === day.key} className={`flex w-full items-center justify-between border-b border-border px-3 py-3 text-sm sm:flex-col sm:gap-2 ${selectedDayKey === day.key ? "bg-primary/5 text-primary" : ""}`}><span className="text-xs">{day.date.toLocaleDateString(undefined, { weekday: "short" })}</span><span className="text-lg font-medium">{day.date.getDate()}</span></button>
+          <button type="button" onClick={() => goToDay(day.key)} aria-pressed={selectedDayKey === day.key} className={`flex w-full items-center justify-between border-b border-border px-3 py-3 text-sm sm:flex-col sm:gap-2 ${selectedDayKey === day.key ? "bg-primary/5 text-primary" : ""}`}><span className="text-xs">{day.date.toLocaleDateString(undefined, { weekday: "short" })}</span><span className="text-lg font-medium">{day.date.getDate()}</span></button>
           <div className="space-y-2 p-2">{day.events.map((event) => <button key={event.id} type="button" onClick={() => openEvent(event)} className="block w-full rounded-lg border border-border bg-secondary/45 p-2 text-left hover:bg-accent"><span className={`mb-2 block h-0.5 w-5 ${calendarDotClass(event.event_type)}`} /><span className="block break-words text-xs font-medium">{event.title}</span><span className="mt-1 block text-xs text-muted-foreground">{formatCalendarTimeRange(event)}</span></button>)}{!day.events.length ? <p className="py-2 text-center text-xs text-muted-foreground">Free</p> : null}</div>
         </div>)}</div>}
       </div>

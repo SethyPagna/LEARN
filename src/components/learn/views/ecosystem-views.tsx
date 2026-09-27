@@ -152,7 +152,7 @@ export function GraphView({ setView }: { setView: (view: View) => void }) {
   const width = Math.max(...points.map(point => point.x), 300) - left + 105
   const height = Math.max(...points.map(point => point.y), 205) - top + 80
   return <section className="learning-page grid gap-3">
-    <header className="workspace-header"><h2 className="sr-only">Graph, {nodes.length} topics</h2><div className="flex min-w-0 flex-1 flex-wrap gap-1">{(["all", "weak", "orphan", "public"] as GraphFilter[]).map(filter => <button className="calendar-filter" aria-pressed={graphFilter === filter} key={filter} onClick={() => setGraphFilter(filter)}>{graphFilterLabel(filter)}</button>)}</div><button className="editor-command" onClick={() => setView("notes")} aria-label="Notes" title="Notes"><BookOpen className="h-4 w-4" /></button></header>
+    <header className="workspace-header"><h2 className="page-count">Graph <span>{nodes.length} topics</span></h2><div className="flex min-w-0 flex-1 flex-wrap gap-1 max-sm:order-last max-sm:basis-full">{(["all", "weak", "orphan", "public"] as GraphFilter[]).map(filter => <button className="calendar-filter" aria-pressed={graphFilter === filter} key={filter} onClick={() => setGraphFilter(filter)}>{graphFilterLabel(filter)}</button>)}</div><button className="editor-command" onClick={() => setView("notes")} aria-label="Notes" title="Notes"><BookOpen className="h-4 w-4" /></button></header>
     <div className="graph-workbench"><Panel className="relative overflow-hidden graph-stage">
       {filteredNodes.length ? <svg viewBox={`${left} ${top} ${width} ${height}`} className="w-full" aria-label="Knowledge graph">
         {edges.filter(edge => visibleIds.has(edge.sourceId) && visibleIds.has(edge.targetId)).map(edge => { const source = positions.get(edge.sourceId), target = positions.get(edge.targetId); return source && target ? <line key={edge.id} x1={source.x} y1={source.y} x2={target.x} y2={target.y} stroke="currentColor" className="text-primary/25" strokeWidth="2" /> : null })}
@@ -640,7 +640,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   return <section className={communityStyles.community} data-kind={kind} aria-label={title}>
     {!detailOpen ? <>
       <header className={communityStyles.toolbar}>
-        <h2 ref={browseHeading} tabIndex={-1} className="sr-only">{title}, {items.length}</h2>
+        <h2 ref={browseHeading} tabIndex={-1} className="page-count mr-auto">{title} <span>{items.length}</span></h2>
         <label className={communityStyles.search}><Search aria-hidden="true" /><input aria-label={`Search ${title}`} value={query} onChange={event => setQuery(event.target.value)} placeholder={`Find a ${noun}`} />{query ? <button type="button" aria-label="Clear search" onClick={() => setQuery("")}><X /></button> : null}</label>
         <button type="button" onClick={startNew} className="editor-primary" aria-label={`Add ${noun}`}>New</button>
       </header>

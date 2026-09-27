@@ -221,15 +221,20 @@ test("the top bar names the place; a page title that repeats the active tab is f
     ["src/components/learn/views/secondary-views.tsx", /<h2 className="sr-only">Settings<\/h2>/],
     ["src/components/learn/views/secondary-views.tsx", /<h2 className="sr-only">Admin<\/h2>/],
     ["src/components/learn/views/ecosystem-views.tsx", /<h2 className="sr-only">Vault<\/h2>/],
-    ["src/components/learn/views/ecosystem-views.tsx", /<h2 className="sr-only">Graph, /],
     ["src/components/learn/views/ecosystem-views.tsx", /<h2 className="sr-only">Reviews<\/h2>/],
     ["src/components/learn/views/ecosystem-views.tsx", /<h2 className="sr-only">Feed<\/h2>/],
-    ["src/components/learn/views/ecosystem-views.tsx", /<h2 ref=\{browseHeading\} tabIndex=\{-1\} className="sr-only">/],
-    ["src/components/learn/views/files-view.tsx", /<h2 className="sr-only">Files, /],
     ["src/components/learn/views/ai-view.tsx", /<h2 className="sr-only">AI tutor<\/h2>/],
     ["src/components/learn/studio-lobby.tsx", /className=\{workspaceTitle === "Studio" \? "sr-only"/],
   ]
   for (const [file, title] of titles) assert.match(readSource(file), title, `${file} keeps its title for screen readers only`)
+
+  // The owner's pick at the checkpoint 3 stop: a title that carries a count shows, with its count ("Files 12").
+  const counted: Array<[string, RegExp]> = [
+    ["src/components/learn/views/files-view.tsx", /<h2 className="page-count"[^>]*>Files <span>\{files\.length\}<\/span><\/h2>/],
+    ["src/components/learn/views/ecosystem-views.tsx", /<h2 className="page-count">Graph <span>\{nodes\.length\} topics<\/span><\/h2>/],
+    ["src/components/learn/views/ecosystem-views.tsx", /<h2 ref=\{browseHeading\} tabIndex=\{-1\} className="page-count mr-auto">\{title\} <span>\{items\.length\}<\/span><\/h2>/],
+  ]
+  for (const [file, title] of counted) assert.match(readSource(file), title, `${file} shows its title with the count`)
 
   const css = readSource("src/app/globals.css")
   assert.doesNotMatch(css, /h2 \{ ?display: ?none;? ?\}/, "a page title is never display:none; that would hide it from screen readers too")
@@ -239,13 +244,14 @@ test("the top bar names the place; a page title that repeats the active tab is f
 test("small screens: no lone buttons, short previews or lists, and 36px taps", () => {
   const ecosystem = readSource("src/components/learn/views/ecosystem-views.tsx")
   assert.match(ecosystem, /<h3 className="min-w-0 truncate font-semibold">\{targetNoteTitle\}<\/h3><button onClick=\{[^}]*\} className="editor-primary shrink-0" aria-label="Open notes"/, "Vault opens the note from the note's own title row")
-  assert.match(ecosystem, /<h2 className="sr-only">Graph, [^<]*<\/h2><div className="flex min-w-0 flex-1 flex-wrap gap-1">/, "Graph's filters and its Notes button share one row")
+  assert.match(ecosystem, /<h2 className="page-count">Graph [^\n]*?<\/h2><div className="flex min-w-0 flex-1 flex-wrap gap-1 max-sm:order-last max-sm:basis-full">/, "Graph's count, filters and Notes button share one header; phones give the filters their own line")
   assert.match(ecosystem, /<h2 className="sr-only">Feed<\/h2><div className="flex min-w-0 flex-1 gap-1 overflow-x-auto">/, "Feed's topics and Refresh share one row")
 
   const files = readSource("src/components/learn/views/files-view.tsx")
   assert.doesNotMatch(files, /<header className="workspace-header">/, "Files has no row of its own for Upload")
-  assert.match(files, /const shownLayout = compact \? "list" : layout/, "a phone lists files")
-  assert.match(files, /md:flex"><button type="button" aria-label="List view"/, "the list and grid switch waits for a wider screen")
+  assert.match(files, /<div className="flex rounded-md border border-border bg-card p-0\.5 sm:ml-auto"><button type="button" aria-label="List view"/, "the owner keeps the list and grid switch at every width")
+  assert.match(files, /workspace-search flex-1 max-sm:order-last max-sm:basis-full/, "on phones the title and actions share a row, and search gets the next one")
+  assert.match(files, /layout === "grid" && !detailsOpen \? <div className="grid grid-cols-2 /, "a phone's file grid is two short columns")
 
   const secondary = readSource("src/components/learn/views/secondary-views.tsx")
   assert.match(secondary, /<div className="settings-save"><ControlButton onClick=\{saveProfile\}/, "Save sits at the end of the profile form")
@@ -273,6 +279,14 @@ test("small screens: no lone buttons, short previews or lists, and 36px taps", (
   assert.match(calendar, /className=\{`mb-1 flex h-9 w-full items-center justify-center rounded-lg text-xs transition sm:h-7 sm:w-7 sm:rounded-full/, "a phone's calendar day is a full-width 36px tap")
 
   assert.match(calendar, /calendar-day min-w-0 border-b border-r border-border\/70 p-0\.5 /, "a 320px screen still gets 36px-wide days")
+  // The owner's date bar: « ‹ Sep 28, 2026 › », with the month, the day and the year each a picker.
+  assert.match(calendar, /<CalendarDateBar dayKey=\{selectedDayKey\} step=\{mode\} onChange=\{goToDay\} \/>/, "the calendar uses the date bar")
+  assert.match(calendar, /onClick=\{\(\) => goToDay\(day\.key\)\}/, "a tap on a day in the grid moves the date bar and the month with it")
+  assert.doesNotMatch(calendar, /!hidden !px-1\.5 sm:!inline-flex/, "the year arrows show on phones too")
+  const dateBar = readSource("src/components/learn/views/calendar-date-bar.tsx")
+  for (const label of ["Previous year", "Next year"]) assert.match(dateBar, new RegExp(`aria-label="${label}"`), `${label} is a double arrow`)
+  assert.match(dateBar, /aria-label=\{step === "week" \? "Previous week" : "Previous month"\}/, "the single arrows step a month (a week in the week view)")
+  assert.equal(dateBar.match(/<DatePart label=/g)?.length, 3, "the month, the day and the year each open a picker")
   const games = readSource("src/components/learn/views/productivity-views.tsx")
   assert.match(games, /<div className="absolute right-0 top-10 z-40 grid w-48 sm:left-0 sm:right-auto/, "the Games setup menu opens leftward on phones, so it stays on screen")
 

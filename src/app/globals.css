@@ -762,6 +762,9 @@ html.dark.learn-high-contrast {
 .learn-panel { min-width: 0; }
 .workspace-screen { display: grid; min-width: 0; gap: 16px; }
 .workspace-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+/* A page title that carries a count ("Files 12") stays visible: the owner wants the count. */
+.page-count { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; font-size: 15px; font-weight: 600; white-space: nowrap; }
+.page-count > span { border-radius: 7px; background: var(--secondary); padding: 2px 7px; font-size: 12px; font-weight: 500; color: var(--muted-foreground); }
 /* The tab row names the page, so a title that repeats the active tab is sr-only.
    Its header keeps the page's actions on the right; with nothing else left, the
    header draws no box but keeps the title for screen readers. */
