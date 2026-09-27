@@ -118,7 +118,7 @@ export function LiveGameCard({
       <p className="mt-1 text-xs text-muted-foreground">{MODE_BLURBS[invite.mode]}</p>
 
       <div className="mt-3 rounded-xl bg-muted px-3 py-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Join with code</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Join with code</p>
         <p className="live-code text-2xl font-bold text-foreground" data-testid="live-game-card-code">
           {invite.code}
         </p>
@@ -138,7 +138,7 @@ export function LiveGameCard({
         >
           <Play className="h-4 w-4" /> Join game
         </a>
-        <span className="text-[11px] text-muted-foreground">{formatDate(createdAt)}</span>
+        <span className="text-xs text-muted-foreground">{formatDate(createdAt)}</span>
       </div>
     </div>
   )
@@ -217,7 +217,7 @@ export function LiveGameResultCard({
         <ControlButton size="compact" onClick={playAgain} disabled={busy}>
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Play again
         </ControlButton>
-        <span className="text-[11px] text-muted-foreground">{status || formatDate(createdAt)}</span>
+        <span className="text-xs text-muted-foreground">{status || formatDate(createdAt)}</span>
       </div>
     </div>
   )

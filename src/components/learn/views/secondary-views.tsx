@@ -487,7 +487,7 @@ function AdminSummaryChipButton({ chip, onClick, relaxed = false }: { chip: Admi
       className={`group rounded-md border px-3 py-2 text-left transition hover:-translate-y-0.5 ${adminSummaryChipClasses(chip.tone)} ${relaxed ? "min-h-20" : ""}`}
       title={`${chip.label}: ${chip.value}`}
     >
-      <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.12em] opacity-75">{chip.label}</span>
+      <span className="block text-xs font-semibold uppercase tracking-[0.12em] opacity-75">{chip.label}</span>
       <span className="mt-1 block text-sm font-semibold">{chip.value}</span>
     </button>
   )

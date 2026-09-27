@@ -280,7 +280,7 @@ export function CommandPalette({
           {grouped.length ? (
             grouped.map((entry) => (
               <div key={entry.group} className="mb-1">
-                <p className="px-2 pb-1 pt-2 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{entry.group}</p>
+                <p className="px-2 pb-1 pt-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{entry.group}</p>
                 {entry.items.map((item) => {
                   index += 1
                   const itemIndex = index
@@ -319,7 +319,7 @@ export function CommandPalette({
             </div>
           )}
         </div>
-        <div className="flex items-center justify-between gap-3 border-t border-border bg-muted/50 px-4 py-2 text-[0.7rem] text-muted-foreground">
+        <div className="flex items-center justify-between gap-3 border-t border-border bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <kbd className="learn-kbd">↑</kbd>
             <kbd className="learn-kbd">↓</kbd>

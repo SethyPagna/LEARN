@@ -128,7 +128,7 @@ export function LiveGameLauncher({
       </div>
       <div className="mt-3"><LiveModePicker value={mode} onChange={setMode} disabled={busy} /></div>
 
-      <label className="mt-3 grid gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <label className="mt-3 grid gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         Quiz
         <select
           value={quizId}

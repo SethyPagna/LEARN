@@ -1977,7 +1977,7 @@ function StudioLibrary({
                 </span>
                 <span className="min-w-0 truncate text-sm font-bold text-foreground">{action.label}</span>
               </span>
-              <span className="mt-2 inline-flex rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-secondary-foreground">
+              <span className="mt-2 inline-flex rounded-md bg-secondary px-1.5 py-0.5 text-xs font-semibold uppercase tracking-[0.1em] text-secondary-foreground">
                 {action.canvasAction ? "Page" : action.sheetAction ? "Data" : action.slideObjectType ? "Canvas" : "Insert"}
               </span>
             </button>
@@ -2372,7 +2372,7 @@ function StudioProjectBrowser({
                         <div className="min-w-0">
                           <h4 className="truncate text-sm font-black text-foreground">{group.label}</h4>
                         </div>
-                        <span className="rounded-md bg-secondary px-2 py-1 text-[0.65rem] font-bold text-secondary-foreground">{group.formats.length}</span>
+                        <span className="rounded-md bg-secondary px-2 py-1 text-xs font-bold text-secondary-foreground">{group.formats.length}</span>
                       </div>
                       <div className="grid gap-2">
                         {group.formats.map((format) => {
@@ -2381,7 +2381,7 @@ function StudioProjectBrowser({
                             <button key={format.id} title={format.description} aria-pressed={active} onClick={() => chooseCanvasFormat(format)} className={`group rounded-xl border p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground ${active ? "border-primary bg-primary/10" : "border-border bg-card"}`} type="button">
                               <span className="flex items-center justify-between gap-3">
                                 <span className="truncate text-sm font-bold text-foreground group-hover:text-accent-foreground">{format.label}</span>
-                                <span className={`rounded px-1.5 py-0.5 text-[0.65rem] font-bold ${active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{active ? "Active" : `${format.width}:${format.height}`}</span>
+                                <span className={`rounded px-1.5 py-0.5 text-xs font-bold ${active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{active ? "Active" : `${format.width}:${format.height}`}</span>
                               </span>
                             </button>
                           )
@@ -2434,7 +2434,7 @@ function StudioToolRail({
       {showToolPanels ? studioToolPanels.map((panel) => {
         const Icon = toolIcons[panel.id]
         return (
-          <button key={panel.id} onClick={() => onSelectToolPanel(panel.id)} className={`flex min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-[11px] font-semibold ${activeToolPanel === panel.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`} title={panel.description} type="button">
+          <button key={panel.id} onClick={() => onSelectToolPanel(panel.id)} className={`flex min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-semibold ${activeToolPanel === panel.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`} title={panel.description} type="button">
             <Icon className="h-5 w-5" />
             <span>{panel.label}</span>
           </button>
@@ -2444,7 +2444,7 @@ function StudioToolRail({
       {showKindRail ? studioKindOptions.map((option) => {
         const Icon = studioKindIcons[option.kind]
         return (
-          <button key={option.kind} onClick={() => onSelectKind(option.kind)} className={`flex min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-[11px] font-semibold ${activeKind === option.kind ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`} type="button">
+          <button key={option.kind} onClick={() => onSelectKind(option.kind)} className={`flex min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-semibold ${activeKind === option.kind ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`} type="button">
             <Icon className="h-5 w-5" />
             <span>{studioKindStyles[option.kind].label}</span>
           </button>
@@ -2641,15 +2641,15 @@ function StudioItemButton({
             </span>
           </button>
           <div className="mt-3 flex items-center justify-between gap-2">
-            <span className="min-w-0 truncate text-[0.68rem] font-semibold text-muted-foreground">
+            <span className="min-w-0 truncate text-xs font-semibold text-muted-foreground">
               {pendingAction ? `${pendingAction}...` : archived ? "Archived item" : "Click card to open"}
             </span>
             <ActionMenu align="right" compact label={pendingAction || "More"} icon={MoreHorizontal}>
               {actionGroups.map((group) => (
                 <div key={group.id} className="border-t border-border/70 p-1 first:border-t-0">
                   <div className="mb-1 flex items-center justify-between gap-2 px-2 pt-1">
-                    <span className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground">{group.label}</span>
-                    <span className="truncate text-[0.65rem] font-medium text-muted-foreground">{group.summary}</span>
+                    <span className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">{group.label}</span>
+                    <span className="truncate text-xs font-medium text-muted-foreground">{group.summary}</span>
                   </div>
                   {group.actions.map((actionId) => {
                     const action = actionCatalog[actionId]
@@ -2677,7 +2677,7 @@ function StudioItemButton({
           {actionGroups.map((group, groupIndex) => (
             <Fragment key={group.id}>
               {groupIndex > 0 ? <ContextMenu.Separator className="my-1 h-px bg-border" /> : null}
-              <ContextMenu.Label className="flex items-center justify-between gap-3 px-2 py-1 text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              <ContextMenu.Label className="flex items-center justify-between gap-3 px-2 py-1 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
                 <span>{group.label}</span>
                 <span className="max-w-36 truncate font-medium normal-case tracking-normal">{group.summary}</span>
               </ContextMenu.Label>
@@ -3434,7 +3434,7 @@ function StudioCanvas({
                 ) : null}
                 <div className="grid grid-cols-4 gap-1">
                   {(["x", "y", "w", "h"] as const).map((field) => (
-                    <label key={field} className="grid gap-1 text-[10px] font-semibold uppercase text-muted-foreground">
+                    <label key={field} className="grid gap-1 text-xs font-semibold uppercase text-muted-foreground">
                       {field}
                       <input
                         type="number"
@@ -3597,7 +3597,7 @@ function SlideObjectContextMenu({ children, onAlign, onDelete, onDuplicate, onNu
 
 function SlideStyleInput({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) {
   return (
-    <label className="grid gap-1 text-[10px] font-semibold uppercase text-muted-foreground">
+    <label className="grid gap-1 text-xs font-semibold uppercase text-muted-foreground">
       {label}
       <input value={value} onChange={(event) => onChange(event.target.value)} className="h-8 rounded-md border border-input bg-background px-1 text-xs text-foreground outline-none focus:border-ring" />
     </label>
@@ -3862,7 +3862,7 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
       <ActionMenu label="Insert" icon={Plus} compact>
         {documentInsertGroups.map((group) => (
           <div key={group.label} className="grid gap-1">
-            <p className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground first:pt-0">{group.label}</p>
+            <p className="px-2 pt-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground first:pt-0">{group.label}</p>
             {group.items.map((insertKind) => (
               <MenuAction key={insertKind} icon={FilePlus2} label={insertLabel(insertKind)} onClick={() => run(item => insertKind === "page-break" ? insertWritingPageBreak(item) : item.chain().focus().insertContent(getDocumentInsertBlock(insertKind)).run())} />
             ))}
@@ -4024,10 +4024,10 @@ function StudioExportInspector({
             <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Share design</p>
             <p className="mt-1 text-sm font-semibold text-foreground">Private by default</p>
           </div>
-          <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-bold text-secondary-foreground">0 visitors</span>
+          <span className="rounded-md bg-secondary px-2 py-1 text-xs font-bold text-secondary-foreground">0 visitors</span>
         </div>
         <div className="mt-3 rounded-md border border-border bg-background p-2">
-          <p className="text-[0.68rem] font-bold uppercase tracking-[0.1em] text-muted-foreground">Access level</p>
+          <p className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground">Access level</p>
           <div className="mt-2 flex items-center justify-between gap-2">
             <span className="inline-flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
               <Lock className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -4055,7 +4055,7 @@ function StudioExportInspector({
                 })()}
               </span>
               <p className="mt-2 truncate text-xs font-bold text-foreground">{option.label}</p>
-              <p className="mt-0.5 text-[0.66rem] font-semibold text-muted-foreground">{option.badge}</p>
+              <p className="mt-0.5 text-xs font-semibold text-muted-foreground">{option.badge}</p>
             </div>
           ))}
         </div>
@@ -4066,7 +4066,7 @@ function StudioExportInspector({
             <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Download</p>
             <p className="mt-1 text-sm font-semibold text-foreground">{recommendedDownload?.label || "Best format"} ready</p>
           </div>
-          <span className="rounded-md bg-primary/15 px-2 py-1 text-[0.68rem] font-bold text-primary">Suggested</span>
+          <span className="rounded-md bg-primary/15 px-2 py-1 text-xs font-bold text-primary">Suggested</span>
         </div>
         <div className="mt-3 rounded-md border border-primary/40 bg-primary/10 p-2">
           <div className="flex items-center justify-between gap-2">
@@ -4074,9 +4074,9 @@ function StudioExportInspector({
               <Download className="h-4 w-4 shrink-0 text-primary" />
               <span className="truncate">{recommendedDownload?.label || "Download"}</span>
             </span>
-            <span className="rounded-md bg-background px-2 py-0.5 text-[0.66rem] font-semibold text-muted-foreground">{recommendedDownload?.sizeHint || "Ready"}</span>
+            <span className="rounded-md bg-background px-2 py-0.5 text-xs font-semibold text-muted-foreground">{recommendedDownload?.sizeHint || "Ready"}</span>
           </div>
-          <p className="mt-1 text-[0.7rem] leading-4 text-muted-foreground">{recommendedDownload?.bestFor || "Recommended for this project type."}</p>
+          <p className="mt-1 text-xs leading-4 text-muted-foreground">{recommendedDownload?.bestFor || "Recommended for this project type."}</p>
         </div>
         <div className="mt-3 grid gap-2">
           {downloadOptions.map((option) => (
@@ -4089,10 +4089,10 @@ function StudioExportInspector({
                   })()}
                   <span className="truncate">{option.label}</span>
                 </span>
-                {option.suggested ? <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary">Suggested</span> : null}
+                {option.suggested ? <span className="rounded bg-primary/15 px-1.5 py-0.5 text-xs font-bold text-primary">Suggested</span> : null}
               </span>
-              <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">{option.detail}</span>
-              <span className="mt-2 flex items-center justify-between gap-2 text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              <span className="mt-1 block text-xs leading-4 text-muted-foreground">{option.detail}</span>
+              <span className="mt-2 flex items-center justify-between gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                 <span>{option.bestFor}</span>
                 <span>{option.sizeHint}</span>
               </span>

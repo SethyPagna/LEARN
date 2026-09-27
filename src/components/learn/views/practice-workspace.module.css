@@ -24,7 +24,7 @@
 .libraryTools { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin-bottom:18px; }
 .segmented { display:flex; gap:4px; }
 .segmented button { display:flex; align-items:center; gap:7px; padding:8px 12px; border-radius:9px; color:var(--muted-foreground); font-size:13px; }
-.segmented button>span { opacity:.7; font-size:11px; }
+.segmented button>span { opacity:.7; font-size:12px; }
 .segmented button[aria-pressed='true'] { background:var(--accent); color:var(--foreground); font-weight:600; }
 .search { display:flex; align-items:center; gap:8px; padding:0 11px; width:260px; max-width:100%; height:38px; border:1px solid var(--border); background:var(--card); border-radius:10px; color:var(--muted-foreground); }
 .search input { min-width:0; width:100%; outline:none; background:transparent; color:var(--foreground); font-size:13px; }
@@ -41,9 +41,9 @@
 .artSheet>span:last-child { width:49%; }
 .artIcon { display:grid; place-items:center; position:relative; margin-left:-16px; margin-top:28px; width:45px; height:45px; color:var(--background); background:var(--tile-color); border-radius:14px; transform:rotate(8deg); box-shadow:0 3px 8px #00000012; }
 .artIcon svg { width:22px; }
-.cardTopic { font-size:11px; color:var(--muted-foreground); margin:15px 3px 5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cardTopic { font-size:12px; color:var(--muted-foreground); margin:15px 3px 5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .cardTitle { font-size:15px; color:var(--foreground); font-weight:650; line-height:1.45; margin:0 3px 18px; overflow-wrap:anywhere; }
-.cardMeta { display:flex; gap:8px; justify-content:space-between; margin:auto 3px 4px; color:var(--muted-foreground); font-size:11px; }
+.cardMeta { display:flex; gap:8px; justify-content:space-between; margin:auto 3px 4px; color:var(--muted-foreground); font-size:12px; }
 .cardMeta>span:last-child { display:flex; align-items:center; gap:6px; color:var(--foreground); font-weight:600; }
 .cardProgress { position:absolute; bottom:0; left:0; width:100%; height:3px; background:color-mix(in oklch,var(--tile-color) 12%,var(--card)); }
 .cardProgress>span { display:block; height:100%; background:var(--tile-color); }
@@ -55,10 +55,10 @@
 .player { min-width:0; max-width:980px; margin:0 auto; }
 .sessionHeader { display:flex; align-items:center; gap:10px; margin:7px 0 20px; }
 .sessionTitle { min-width:0; flex:1; }
-.sessionTitle>span { font-size:11px; color:var(--muted-foreground); }
+.sessionTitle>span { font-size:12px; color:var(--muted-foreground); }
 .sessionTitle>h2 { font-size:17px; font-weight:650; color:var(--foreground); line-height:1.4; overflow-wrap:anywhere; }
 .optionsPanel { display:flex; align-items:end; flex-wrap:wrap; gap:12px; padding:16px; border:1px solid var(--border); background:var(--card); border-radius:13px; margin-bottom:16px; }
-.optionsPanel>label { display:flex; flex-direction:column; gap:6px; flex:1; min-width:130px; color:var(--muted-foreground); font-size:11px; }
+.optionsPanel>label { display:flex; flex-direction:column; gap:6px; flex:1; min-width:130px; color:var(--muted-foreground); font-size:12px; }
 .optionsPanel select,.filterLabel select { border:1px solid var(--border); border-radius:8px; min-height:36px; padding:7px 9px; color:var(--foreground); background:var(--card); font-size:12px; width:100%; }
 .optionActions { display:flex; flex-wrap:wrap; align-items:center; gap:5px; }
 .setDescription { width:100%; font-size:12px; line-height:1.6; color:var(--muted-foreground); overflow-wrap:anywhere; }
@@ -70,7 +70,7 @@
 .modeCards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; width:min(100%,480px); margin:27px 0; }
 .modeCards button { display:flex; flex-direction:column; align-items:center; gap:8px; min-width:0; padding:19px 8px 16px; border:1px solid var(--border); border-radius:14px; background:var(--card); color:var(--muted-foreground); }
 .modeCards button>strong { color:var(--foreground); font-size:13px; }
-.modeCards button>small { font-size:10px; line-height:1.3; }
+.modeCards button>small { font-size:12px; line-height:1.3; }
 .modeCards button[aria-pressed='true'] { border-color:var(--play-ink); color:var(--play-ink); background:color-mix(in oklch,var(--play-ink) 7%,var(--card)); box-shadow:0 0 0 1px var(--play-ink); }
 .modeLabel { font-size:12px; margin-bottom:18px; color:var(--play-ink); }
 .actionRow { display:flex; flex-wrap:wrap; gap:9px; align-items:center; justify-content:center; }
@@ -88,7 +88,7 @@
 .questionMap button>svg { position:absolute; top:-3px; right:-3px; color:var(--play-second); fill:var(--play-second); }
 .questionCard { padding:22px 26px 24px; background:var(--card); border:1px solid var(--border); border-radius:18px; }
 .questionEyebrow { display:flex; align-items:center; justify-content:space-between; gap:10px; }
-.questionEyebrow>span { font-size:10px; font-weight:700; letter-spacing:.09em; color:var(--play-ink); }
+.questionEyebrow>span { font-size:12px; font-weight:700; letter-spacing:.09em; color:var(--play-ink); }
 .questionEyebrow>span>span { color:var(--muted-foreground); font-weight:400; }
 .questionEyebrow button[aria-pressed='true'] { color:var(--play-second); background:color-mix(in oklch,var(--play-second) 10%,var(--card)); }
 .questionCard h3 { font-size:clamp(19px,2vw,25px); line-height:1.45; font-weight:600; letter-spacing:-.025em; color:var(--foreground); max-width:800px; margin:9px 0 29px; overflow-wrap:anywhere; outline:none; }
@@ -104,7 +104,7 @@
 .answer[data-result='correct']>svg { color:#369176; }
 .answer[data-result='wrong'] { border-color:#d97561; background:color-mix(in oklch,#d97561 7%,var(--card)); }
 .answer[data-result='wrong']>svg { color:#d97561; }
-.clearAnswer { font-size:11px; color:var(--muted-foreground); margin-top:16px; padding:4px 0; text-decoration:underline; text-underline-offset:4px; }
+.clearAnswer { font-size:12px; color:var(--muted-foreground); margin-top:16px; padding:4px 0; text-decoration:underline; text-underline-offset:4px; }
 .explanation { margin-top:20px; font-size:12px; color:var(--muted-foreground); }
 .explanation summary { cursor:pointer; width:fit-content; font-weight:600; }
 .explanation p { margin-top:10px; color:var(--foreground); line-height:1.7; overflow-wrap:anywhere; }
@@ -124,8 +124,8 @@
 .results h3 { font-size:25px; font-weight:650; letter-spacing:-.04em; }
 .results>p { font-size:12px; color:var(--muted-foreground); margin:9px 0 22px; }
 .resultSecondary { display:flex; gap:18px; flex-wrap:wrap; justify-content:center; margin-top:18px; }
-.resultSecondary button { color:var(--muted-foreground); font-size:11px; text-decoration:underline; text-underline-offset:4px; }
-.draftStatus { font-size:10px; color:var(--muted-foreground); margin:14px 2px 0; text-align:right; }
+.resultSecondary button { color:var(--muted-foreground); font-size:12px; text-decoration:underline; text-underline-offset:4px; }
+.draftStatus { font-size:12px; color:var(--muted-foreground); margin:14px 2px 0; text-align:right; }
 @media(min-width:1450px) { .setGrid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
 @media(max-width:767px) {
   .shortcuts { gap:8px; margin-bottom:19px; }
@@ -141,9 +141,9 @@
   .artIcon { width:36px; height:36px; border-radius:11px; margin-left:-22px; margin-right:10px; }
   .artIcon svg { width:18px; }
   .cardTitle { font-size:13px; margin-bottom:16px; }
-  .cardMeta { font-size:10px; }
+  .cardMeta { font-size:12px; }
   .cardMeta svg { display:none; }
-  .cardTopic { font-size:10px; margin-top:11px; }
+  .cardTopic { font-size:12px; margin-top:11px; }
   .libraryTools { gap:10px; }
   .search { width:210px; }
   .questionCard { padding:18px; }
@@ -161,13 +161,13 @@
   .setup h3 { font-size:22px; }
   .modeCards { gap:7px; }
   .modeCards button { padding:15px 5px; gap:7px; }
-  .modeCards button>small { font-size:9px; }
+  .modeCards button>small { font-size:12px; }
   .answerGrid { grid-template-columns:1fr; }
   .answer { min-height:64px; }
   .answerLetter { height:29px; width:29px; }
   .questionCard { padding:15px; }
   .questionCard h3 { margin-bottom:21px; font-size:20px; }
-  .progressRow { gap:8px; font-size:11px; }
+  .progressRow { gap:8px; font-size:12px; }
   .questionTools .secondaryButton { font-size:12px; padding:8px 10px; }
   .results h3 { font-size:22px; }
 }

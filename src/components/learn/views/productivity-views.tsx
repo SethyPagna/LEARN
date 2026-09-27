@@ -305,7 +305,7 @@ function GameTimerControls({
           Setup
         </summary>
         <div className="absolute left-0 top-9 z-40 grid w-48 gap-1 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-lg">
-          <p className="px-1 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-muted-foreground">Target time</p>
+          <p className="px-1 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Target time</p>
           {[60, 90, 180].map((seconds) => (
             <button
               key={seconds}
@@ -1696,7 +1696,7 @@ function ChatMenu({
 function ChatMenuSection({ children, title }: { children: React.ReactNode; title: string }) {
   return (
     <div className="space-y-1 rounded-md p-1">
-      <p className="px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{title}</p>
+      <p className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{title}</p>
       {children}
     </div>
   )

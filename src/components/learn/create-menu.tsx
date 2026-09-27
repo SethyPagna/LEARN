@@ -62,7 +62,7 @@ export function CreateMenuPanel({
     <div className="grid gap-2">
       {groups.map((group) => (
         <div key={group.groupLabel}>
-          <p className="px-2 pb-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{group.groupLabel}</p>
+          <p className="px-2 pb-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{group.groupLabel}</p>
           <div className="grid gap-1">
             {group.items.map((artifact) => {
               const index = ordered.indexOf(artifact)

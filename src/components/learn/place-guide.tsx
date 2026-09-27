@@ -42,7 +42,7 @@ export function PlaceGuidePanel({
     <div className="grid gap-3 md:grid-cols-2">
       {groups.map((group) => (
         <section key={group.groupLabel}>
-          <h3 className="px-2 pb-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{group.groupLabel}</h3>
+          <h3 className="px-2 pb-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{group.groupLabel}</h3>
           <ul className="grid gap-1">
             {group.items.map((place) => {
               const index = ordered.indexOf(place)
@@ -64,7 +64,7 @@ export function PlaceGuidePanel({
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
                         {place.label}
-                        <span className="font-mono text-[0.68rem] font-normal text-muted-foreground">{place.route}</span>
+                        <span className="font-mono text-xs font-normal text-muted-foreground">{place.route}</span>
                       </span>
                       <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{place.oneLine}</span>
                     </span>
@@ -154,7 +154,7 @@ export function PlaceGuide({ setView }: { setView: (view: View) => void }) {
           </button>
         </header>
         <PlaceGuidePanel activeIndex={activeIndex} onChoose={choose} onHover={setActiveIndex} />
-        <p className="px-2 pt-3 text-[0.68rem] text-muted-foreground">Arrow keys to move, Enter to open, Escape to close.</p>
+        <p className="px-2 pt-3 text-xs text-muted-foreground">Arrow keys to move, Enter to open, Escape to close.</p>
       </section>
     </div>
   )

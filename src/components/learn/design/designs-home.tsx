@@ -116,7 +116,7 @@ function CustomSizeForm({ onCreate }: { onCreate: (width: number, height: number
           <input value={height} onChange={(event) => setHeight(event.target.value.replace(/[^\d]/g, "").slice(0, 4))} inputMode="numeric" className="mt-1 h-9 w-full rounded-lg border border-border bg-background px-2 text-sm tabular-nums outline-none focus:border-primary" />
         </label>
       </div>
-      <p className={`text-[0.7rem] ${valid ? "text-muted-foreground" : "text-destructive"}`}>
+      <p className={`text-xs ${valid ? "text-muted-foreground" : "text-destructive"}`}>
         Pixels, from {MIN_PAGE_EDGE} to {MAX_PAGE_EDGE} on each side.
       </p>
       <button type="submit" disabled={!valid} className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50">
@@ -144,7 +144,7 @@ function TemplateTile({ template, measure, onUse }: { template: DesignTemplate; 
         ) : (
           <span className="block aspect-video w-full animate-pulse bg-muted" />
         )}
-        {doc ? <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[0.65rem] font-semibold text-white">{doc.pages.length} pages</span> : null}
+        {doc ? <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-semibold text-white">{doc.pages.length} pages</span> : null}
       </span>
       <span className="block px-3 py-2.5">
         <span className="block truncate text-sm font-semibold">{template.name}</span>
@@ -279,7 +279,7 @@ export function DesignsHome({ items, error, notes, measure, openingId, onOpen, o
             <FormatShape format={format} />
             <span className="min-w-0">
               <span className="block truncate text-sm font-semibold">{format.label}</span>
-              <span className="block truncate text-[0.7rem] tabular-nums text-muted-foreground">
+              <span className="block truncate text-xs tabular-nums text-muted-foreground">
                 {format.width} × {format.height}
               </span>
             </span>
@@ -296,7 +296,7 @@ export function DesignsHome({ items, error, notes, measure, openingId, onOpen, o
           </span>
           <span className="min-w-0">
             <span className="block text-sm font-semibold">Custom size</span>
-            <span className="block text-[0.7rem] text-muted-foreground">Any width and height</span>
+            <span className="block text-xs text-muted-foreground">Any width and height</span>
           </span>
         </PopoverButton>
       </div>

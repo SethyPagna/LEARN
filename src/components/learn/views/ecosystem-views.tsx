@@ -156,7 +156,7 @@ export function GraphView({ setView }: { setView: (view: View) => void }) {
         {filteredNodes.map(node => { const point = positions.get(node.id)!; return <g key={node.id} role="button" tabIndex={0} aria-label={`Select ${node.title}`} aria-pressed={selectedNode?.id === node.id} onClick={() => setSelectedId(node.id)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedId(node.id) } }} className="graph-node cursor-pointer">
           <circle cx={point.x} cy={point.y} r={selectedNode?.id === node.id ? 27 : 21} className={orphanIds.has(node.id) ? "fill-card stroke-warning" : "fill-card stroke-primary"} strokeWidth={selectedNode?.id === node.id ? 4 : 2} />
           <text x={point.x} y={point.y + 4} textAnchor="middle" className="fill-primary text-[12px] font-semibold" aria-hidden="true">{node.title.slice(0, 1)}</text>
-          <text x={point.x} y={point.y + 41} textAnchor="middle" className="fill-foreground text-[11px]">{node.title.length > 22 ? `${node.title.slice(0, 21)}…` : node.title}</text>
+          <text x={point.x} y={point.y + 41} textAnchor="middle" className="fill-foreground text-xs">{node.title.length > 22 ? `${node.title.slice(0, 21)}…` : node.title}</text>
         </g> })}
       </svg> : <div className="grid min-h-72 place-content-center"><EmptyState bare title={nodes.length ? "No topics match this filter." : "No topics yet"} action={<button className="editor-primary" onClick={() => setView("notes")}>Open notes</button>} /></div>}
     </Panel><aside className="compact-list">
@@ -1000,7 +1000,7 @@ function ProfileSummaryChipButton({ chip, onClick, relaxed = false }: { chip: Pr
       className={`rounded-md border px-3 py-2 text-left transition hover:-translate-y-0.5 ${profileSummaryChipClasses(chip.tone)} ${relaxed ? "min-h-16" : ""}`}
       title={`${chip.label}: ${chip.value}`}
     >
-      <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.12em] opacity-75">{chip.label}</span>
+      <span className="block text-xs font-semibold uppercase tracking-[0.12em] opacity-75">{chip.label}</span>
       <span className="mt-1 block text-sm font-semibold">{chip.value}</span>
     </button>
   )
@@ -1067,7 +1067,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 function CompactMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border border-border bg-background px-3 py-2">
-      <p className="text-[0.65rem] font-semibold uppercase text-muted-foreground">{label}</p>
+      <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
       <p className="text-base font-semibold text-foreground">{value}</p>
     </div>
   )

@@ -873,7 +873,7 @@ function AiSummaryChip({ detail, label, tone = "neutral", value }: { detail?: st
   const uiTone = workflowTone(tone)
   return (
     <div className={`group relative min-w-0 rounded-md border px-3 py-2 ${statusToneClasses(uiTone)}`} title={detail}>
-      <p className="text-[0.66rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
       <p className="mt-0.5 truncate text-sm font-semibold text-foreground">{value}</p>
       {detail ? <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-[120] hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{detail}</p> : null}
     </div>
@@ -944,7 +944,7 @@ function TutorMenu({
 function TutorMenuSection({ children, title }: { children: React.ReactNode; title: string }) {
   return (
     <div className="grid gap-2">
-      <p className="px-1 text-[0.66rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{title}</p>
+      <p className="px-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{title}</p>
       {children}
     </div>
   )
@@ -1147,7 +1147,7 @@ function GatewayMetric({ label, tone, value }: { label: string; tone: "ready" | 
   const uiTone = readinessTone(tone)
   return (
     <div className={`rounded-md border p-3 ${statusToneClasses(uiTone)}`}>
-      <p className="text-[0.66rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">{label}</p>
       <p className={`mt-1 text-xl font-semibold ${toneTextClasses(uiTone)}`}>{value}</p>
     </div>
   )

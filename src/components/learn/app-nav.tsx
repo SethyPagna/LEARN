@@ -365,7 +365,7 @@ function ConnectionStatus({ compact, status }: { compact?: boolean; status: Real
       : "Reconnecting to live updates"
   const tone = status === "open" ? "bg-success" : status === "closed" ? "bg-muted-foreground/50" : "animate-pulse bg-warning"
   return (
-    <span className="inline-flex items-center gap-1.5 text-[0.72rem] font-medium text-muted-foreground" title={detail}>
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground" title={detail}>
       <span className={`h-2 w-2 rounded-full ${tone}`} aria-hidden="true" />
       {compact ? <span className="sr-only">{label}</span> : label}
     </span>
@@ -502,12 +502,12 @@ export function Topbar({
           )}
           <h1 className="truncate text-sm font-semibold tracking-tight">{title}</h1>
           {studioDraftSummary.count && studioViews.includes(view as (typeof studioViews)[number]) ? (
-            <span className="hidden shrink-0 rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] text-muted-foreground sm:inline-flex">
+            <span className="hidden shrink-0 rounded-md bg-secondary px-2 py-0.5 text-xs text-muted-foreground sm:inline-flex">
               {studioDraftSummary.count} draft{studioDraftSummary.count === 1 ? "" : "s"}
             </span>
           ) : null}
           {practiceDraftSummary.count && practiceViews.includes(view as (typeof practiceViews)[number]) ? (
-            <span className="hidden shrink-0 rounded-full bg-warning px-2 py-0.5 text-[0.68rem] font-semibold text-warning-foreground sm:inline-flex">
+            <span className="hidden shrink-0 rounded-full bg-warning px-2 py-0.5 text-xs font-semibold text-warning-foreground sm:inline-flex">
               {practiceDraftSummary.count} saved attempt{practiceDraftSummary.count === 1 ? "" : "s"}
             </span>
           ) : null}
@@ -653,7 +653,7 @@ function AccountMenu({
           className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-background ${status === "open" ? "bg-success" : status === "closed" ? "bg-muted-foreground/50" : "bg-warning"}`}
           aria-hidden="true"
         /></span>
-        {showName ? <span className="min-w-0"><span className="block truncate text-xs font-medium">{user?.name || "Your account"}</span><span className="block truncate text-[10px] text-muted-foreground">Personal workspace</span></span> : null}
+        {showName ? <span className="min-w-0"><span className="block truncate text-xs font-medium">{user?.name || "Your account"}</span><span className="block truncate text-xs text-muted-foreground">Personal workspace</span></span> : null}
       </button>
       {open ? (
         <div
@@ -677,11 +677,11 @@ function AccountMenu({
 
           <div className="grid gap-3 border-t border-border px-2 pb-2 pt-3">
             <div className="grid gap-1.5">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Theme</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Theme</p>
               <ThemeModeSwitcher />
             </div>
             <div className="hidden gap-1.5 lg:grid">
-              <p className="flex items-center justify-between text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              <p className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                 Sidebar
                 <span className="normal-case tracking-normal">
                   <kbd className="learn-kbd">{modKey}</kbd> <kbd className="learn-kbd">\</kbd>
@@ -1022,7 +1022,7 @@ function NotificationRow({
         <span className="min-w-0 flex-1">
           <span className={`block text-sm leading-snug ${unread ? "font-semibold text-foreground" : "text-foreground/85"}`}>{item.title}</span>
           {item.body ? <span className="mt-0.5 line-clamp-2 block text-xs text-muted-foreground">{item.body}</span> : null}
-          <span className="mt-1 block text-[0.7rem] font-medium text-muted-foreground">{formatRelativeTime(item.createdAt)}</span>
+          <span className="mt-1 block text-xs font-medium text-muted-foreground">{formatRelativeTime(item.createdAt)}</span>
         </span>
       </button>
       <span className="flex shrink-0 flex-col items-center gap-1">
@@ -1141,7 +1141,7 @@ export function MobileTabBar({
                   type="button"
                   onClick={() => go(tabView)}
                   aria-current={active ? "page" : undefined}
-                  className="flex w-full flex-col items-center gap-0.5 rounded-xl py-0.5 text-[0.68rem] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex w-full flex-col items-center gap-0.5 rounded-xl py-0.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <span className={`flex h-8 w-14 items-center justify-center rounded-full transition ${active ? "learn-tab-wash-strong learn-tab-ink" : "text-muted-foreground"}`}>
                     <Icon className="h-5 w-5" />
@@ -1158,7 +1158,7 @@ export function MobileTabBar({
               onClick={() => setMoreOpen(true)}
               aria-expanded={moreOpen}
               aria-haspopup="dialog"
-              className="flex w-full flex-col items-center gap-0.5 rounded-xl py-0.5 text-[0.68rem] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex w-full flex-col items-center gap-0.5 rounded-xl py-0.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className={`flex h-8 w-14 items-center justify-center rounded-full transition ${moreActive ? "bg-accent text-accent-foreground" : "text-muted-foreground"}`}>
                 <Ellipsis className="h-5 w-5" />

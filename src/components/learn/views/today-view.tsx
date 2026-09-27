@@ -91,7 +91,7 @@ function RecentCover({ project, onOpen }: { project: TodayProject; onOpen: (proj
           <span className="studio-project-icon rounded-md p-1" aria-hidden="true"><Icon className="h-3.5 w-3.5" /></span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium">{title}</span>
-            <span className="block text-[11px] text-muted-foreground">{formatRelativeTime(project.updatedAt) || projectKinds[project.kind].label}</span>
+            <span className="block text-xs text-muted-foreground">{formatRelativeTime(project.updatedAt) || projectKinds[project.kind].label}</span>
           </span>
         </span>
       </button>

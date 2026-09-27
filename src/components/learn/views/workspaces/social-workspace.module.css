@@ -17,8 +17,8 @@
 @media(max-width:639px) {
   .header { gap:8px; }
   .sections { flex:1; gap:2px; padding:3px; border-radius:12px; }
-  .sections button { flex:1; min-width:0; min-height:40px; padding:6px; gap:4px; font-size:11px; }
-  .sections button svg { width:14px; height:14px; }
+  .sections button { flex:1; flex-direction:column; min-width:0; min-height:46px; padding:5px 2px; gap:3px; font-size:12px; }
+  .sections button svg { width:16px; height:16px; }
   .profile { width:32px; height:32px; }
 }
 @media(max-width:359px) { .sections button svg { display:none; } }

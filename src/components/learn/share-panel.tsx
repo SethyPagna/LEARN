@@ -205,11 +205,11 @@ export function SharePanel({
             <ul className="space-y-1.5">
               {links.map((link) => (
                 <li key={link.id} className="flex flex-wrap items-center gap-2 rounded-[10px] bg-card p-2">
-                  <span className="rounded-full bg-secondary px-2 py-0.5 text-[0.7rem] font-semibold text-secondary-foreground">
+                  <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground">
                     {shareRoleLabel(link.role)}
                   </span>
                   <code className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{shareLinkUrl(link.token)}</code>
-                  <span className={`text-[0.7rem] ${link.active ? "text-muted-foreground" : "text-destructive"}`}>{shareExpiryLabel(link)}</span>
+                  <span className={`text-xs ${link.active ? "text-muted-foreground" : "text-destructive"}`}>{shareExpiryLabel(link)}</span>
                   <button type="button" onClick={() => void copy(link)} className={triggerClassName || controlButtonClasses({ size: "compact" })}>
                     <Copy className="h-3.5 w-3.5" />
                     Copy
