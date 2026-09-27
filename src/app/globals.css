@@ -570,13 +570,6 @@ html.dark.learn-high-contrast {
 .today-cover { display: block; width: 100%; overflow: hidden; text-align: left; border: 1px solid var(--border); border-radius: 16px; background: var(--card); transition: border-color .15s, box-shadow .15s, transform .15s; }
 .today-cover:hover { border-color: color-mix(in oklch, var(--project-color) 45%, var(--border)); box-shadow: var(--shadow-lift); }
 .today-cover-art { display: block; aspect-ratio: 3 / 2; background: color-mix(in oklch, var(--project-color) 12%, var(--card)); }
-.today-cover-art svg { display: block; width: 100%; height: 100%; }
-.today-art-paper { fill: var(--card); stroke: color-mix(in oklch, var(--project-color) 55%, transparent); stroke-width: 1.5; }
-.today-art-fold { fill: none; stroke: color-mix(in oklch, var(--project-color) 55%, transparent); stroke-width: 1.5; stroke-linejoin: round; }
-.today-art-line { fill: none; stroke: color-mix(in oklch, var(--project-color) 40%, transparent); stroke-width: 3; stroke-linecap: round; }
-.today-art-grid { fill: none; stroke: color-mix(in oklch, var(--project-color) 35%, transparent); stroke-width: 1.5; }
-.today-art-block { fill: color-mix(in oklch, var(--project-color) 70%, transparent); }
-.today-art-shape { fill: color-mix(in oklch, var(--project-color) 45%, transparent); }
 .today-cover-caption { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-top: 1px solid var(--border); }
 .today-skeleton-block { border-radius: 18px; background: var(--muted); }
 
@@ -813,7 +806,9 @@ html.dark.learn-high-contrast {
   .editor-status-bar { flex-wrap: wrap; }
 }
 
-/* Studio keeps its project list; color comes from the work, not the shell. */
+/* One colour per kind of work, everywhere it appears: notes amber, docs blue,
+   slides coral, sheets mint, canvas violet, quizzes pink. Light and Dark map
+   the decor inks to neutral greys, so there the colour stays in Color mode. */
 
 .studio-project-icon { color:color-mix(in oklch,var(--project-color) 75%,black); background:color-mix(in oklch,var(--project-color) 13%,var(--card)); }
 [data-project-kind='canvas'] { --project-color:var(--decor-violet-ink); }
@@ -821,7 +816,15 @@ html.dark.learn-high-contrast {
 [data-project-kind='docs'] { --project-color:var(--decor-blue-ink); }
 [data-project-kind='slides'] { --project-color:var(--decor-coral-ink); }
 [data-project-kind='sheets'] { --project-color:var(--decor-mint-ink); }
+[data-project-kind='quiz'] { --project-color:var(--decor-pink-ink); }
 .dark .studio-project-icon { color:color-mix(in oklch,var(--project-color) 65%,white); background:color-mix(in oklch,var(--project-color) 18%,var(--card)); }
+.kind-art { display:block; width:100%; height:100%; }
+.kind-art-paper { fill:var(--card); stroke:color-mix(in oklch,var(--project-color) 55%,transparent); stroke-width:1.5; }
+.kind-art-fold { fill:none; stroke:color-mix(in oklch,var(--project-color) 55%,transparent); stroke-width:1.5; stroke-linejoin:round; }
+.kind-art-line { fill:none; stroke:color-mix(in oklch,var(--project-color) 40%,transparent); stroke-width:3; stroke-linecap:round; }
+.kind-art-grid { fill:none; stroke:color-mix(in oklch,var(--project-color) 35%,transparent); stroke-width:1.5; }
+.kind-art-block { fill:color-mix(in oklch,var(--project-color) 70%,transparent); }
+.kind-art-shape { fill:color-mix(in oklch,var(--project-color) 45%,transparent); }
 
 /* Project browser stays beside the editor, with the app rail still available. */
 .learn-app[data-editor='true'] #learn-main-content { display:grid; grid-template-columns:164px minmax(0,1fr); padding:0; max-width:none; min-height:100dvh; }

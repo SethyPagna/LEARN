@@ -9,6 +9,7 @@ import type { TodayData, TodayProject, TodayProjectKind } from "@/lib/today-data
 import { api } from "../api"
 import { Buddy } from "../buddy"
 import { openCreateMenu } from "../create-menu"
+import { KindArt } from "../kind-art"
 import { openPlaceGuide } from "../place-guide"
 import { projectHref, projectKinds } from "../studio-projects"
 
@@ -79,24 +80,13 @@ function WeekStrip({ week, today }: { week: TodayData["streak"]["week"]; today: 
   )
 }
 
-/** A small drawing of each kind of project, tinted with the kind's colour. */
-function CoverArt({ kind }: { kind: TodayProjectKind }) {
-  switch (kind) {
-    case "notes": return <svg viewBox="0 0 120 80" aria-hidden="true"><path className="today-art-paper" d="M34 10h44l12 12v48H34Z" /><path className="today-art-fold" d="M78 10v12h12" /><path className="today-art-line" d="M43 32h34M43 42h38M43 52h26" /></svg>
-    case "docs": return <svg viewBox="0 0 120 80" aria-hidden="true"><rect className="today-art-paper" x="32" y="8" width="56" height="64" rx="4" /><rect className="today-art-block" x="40" y="17" width="28" height="6" rx="2" /><path className="today-art-line" d="M40 33h40M40 42h40M40 51h32M40 60h36" /></svg>
-    case "slides": return <svg viewBox="0 0 120 80" aria-hidden="true"><rect className="today-art-paper" x="18" y="14" width="84" height="52" rx="5" /><rect className="today-art-block" x="28" y="24" width="36" height="7" rx="2" /><path className="today-art-line" d="M28 40h30M28 49h22" /><circle className="today-art-shape" cx="80" cy="46" r="11" /></svg>
-    case "sheets": return <svg viewBox="0 0 120 80" aria-hidden="true"><rect className="today-art-paper" x="24" y="12" width="72" height="56" rx="4" /><path className="today-art-grid" d="M24 26h72M24 40h72M24 54h72M48 12v56M72 12v56" /><rect className="today-art-block" x="49" y="27" width="22" height="12" /></svg>
-    default: return <svg viewBox="0 0 120 80" aria-hidden="true"><circle className="today-art-shape" cx="46" cy="38" r="18" /><rect className="today-art-block" x="54" y="30" width="30" height="30" rx="4" transform="rotate(-8 69 45)" /><path className="today-art-paper" d="M74 14l14 24H60Z" /></svg>
-  }
-}
-
 function RecentCover({ project, onOpen }: { project: TodayProject; onOpen: (project: TodayProject) => void }) {
   const Icon = projectKinds[project.kind].icon
   const title = project.title || "Untitled"
   return (
     <li>
       <button type="button" className="today-cover" data-project-kind={project.kind} onClick={() => onOpen(project)} aria-label={`Open ${title}`}>
-        <span className="today-cover-art"><CoverArt kind={project.kind} /></span>
+        <span className="today-cover-art"><KindArt kind={project.kind} /></span>
         <span className="today-cover-caption">
           <span className="studio-project-icon rounded-md p-1" aria-hidden="true"><Icon className="h-3.5 w-3.5" /></span>
           <span className="min-w-0 flex-1">
