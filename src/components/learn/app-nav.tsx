@@ -1123,16 +1123,36 @@ export function MobileTabBar({
   view: View
 }) {
   const [moreOpen, setMoreOpen] = useState(false)
+  const moreDialogRef = useRef<HTMLDivElement>(null)
+  const moreTriggerRef = useRef<HTMLButtonElement>(null)
   const activePrimary = resolveNavigationTarget(view).primaryView
   const moreActive = !mobileTabViews.includes(activePrimary)
 
   useEffect(() => {
     if (!moreOpen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    moreDialogRef.current?.querySelector<HTMLButtonElement>("button")?.focus()
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") setMoreOpen(false)
+      if (event.key !== "Tab") return
+      const controls = Array.from(moreDialogRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), a[href], [tabindex='0']") || []).filter(element => element.getClientRects().length)
+      const first = controls[0]
+      const last = controls[controls.length - 1]
+      if (!first || !last) return
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
     }
+    const desktop = window.matchMedia("(min-width: 1024px)")
+    const closeOnDesktop = () => { if (desktop.matches) setMoreOpen(false) }
+    desktop.addEventListener("change", closeOnDesktop)
     document.addEventListener("keydown", onKeyDown)
-    return () => document.removeEventListener("keydown", onKeyDown)
+    return () => {
+      document.removeEventListener("keydown", onKeyDown)
+      desktop.removeEventListener("change", closeOnDesktop)
+      document.body.style.overflow = previousOverflow
+      if (moreTriggerRef.current?.getClientRects().length) moreTriggerRef.current.focus({ preventScroll: true })
+    }
   }, [moreOpen])
 
   function go(next: View) {
@@ -1166,6 +1186,7 @@ export function MobileTabBar({
           })}
           <li>
             <button
+              ref={moreTriggerRef}
               type="button"
               onClick={() => setMoreOpen(true)}
               aria-expanded={moreOpen}
@@ -1182,7 +1203,7 @@ export function MobileTabBar({
       </nav>
 
       {moreOpen ? (
-        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Everything in LEARN">
+        <div ref={moreDialogRef} className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Everything in LEARN">
           <div className="absolute inset-0 bg-foreground/30 backdrop-blur-[2px]" onClick={() => setMoreOpen(false)} aria-hidden="true" />
           <div className="learn-pop-in learn-bottom-safe absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto overscroll-contain rounded-t-3xl border-t border-border bg-popover px-4 pt-2 text-popover-foreground shadow-lift">
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-muted-foreground/30" aria-hidden="true" />

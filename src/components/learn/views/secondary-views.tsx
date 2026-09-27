@@ -288,7 +288,7 @@ export function SettingsView({
 
       {section === "privacy" ? (
         <Panel className="p-4">
-          <SettingsSectionHeader icon={Lock} title="Privacy and notifications" body="Sharing, presence, reminders, and system alerts." />
+          <SettingsSectionHeader icon={Lock} title="Privacy & alerts" body="Sharing, presence, reminders, and system alerts." />
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <SelectField label="Privacy default" value={options.privacyDefault} options={["private", "connections", "public"]} onChange={(value) => setOptions({ privacyDefault: value as WorkspaceOptions["privacyDefault"] })} />
             <Toggle label="Presence hints" checked={options.collaborationPresence} onChange={(checked) => setOptions({ collaborationPresence: checked })} />

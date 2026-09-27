@@ -21,7 +21,7 @@ export function PageSections({ view, setView }: { view: View; setView: (view: Vi
   const activeView = view === "discover" ? "feed" : view === "practice" ? "quizzes" : view
   const sections = learningSections.some(section => section.view === activeView) ? learningSections : practiceSections.some(section => section.view === activeView) ? practiceSections : null
   if (!sections) return null
-  return <nav aria-label={sections === learningSections ? "Learning sections" : "Practice sections"} className="page-sections">
+  return <nav aria-label={sections === learningSections ? "Learning sections" : "Practice sections"} className="page-sections" data-sections={sections === learningSections ? "learning" : "practice"}>
     {sections.map(({ view: destination, label, icon: Icon }) => <button key={destination} type="button" aria-current={activeView === destination ? "page" : undefined} onClick={() => setView(destination)}><Icon aria-hidden="true" className="h-4 w-4" /><span>{label}</span></button>)}
   </nav>
 }
