@@ -1,11 +1,15 @@
 # LEARN Comprehensive Improvement Progress
 
-Status: Takeover complete; draft PR #1 ready for review
-Last updated: 2026-09-24
+Status: Companion redesign in progress (checkpoint 1 of 4 design steps)
+Last updated: 2026-09-27
 Current owner: User and maintainer
 Current branch: cleanup/stage-1
 
-## Current Snapshot
+## Resume here
+
+Every session starts here: the newest dated log in [`ops/docs/sessions/`](../sessions/) has the "Resume here" block, and [requests.md](requests.md) has every owner request with its status and the chosen order of work. Update both as you go (see `~/.claude/CLAUDE.md`).
+
+## Snapshot as of 2026-09-24
 
 - Delivery: [draft PR #1](https://github.com/SethyPagna/LEARN/pull/1). All eight takeover goals are closed with the limits recorded below.
 - The comprehensive 20 phase roadmap is in `ops/docs/roadmap/plan.md`.
