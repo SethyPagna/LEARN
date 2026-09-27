@@ -1,4 +1,4 @@
-import { Anton, Bebas_Neue, Caveat, DM_Serif_Display, Lora, Nunito, Pacifico, Playfair_Display, Poppins, Space_Grotesk } from "next/font/google"
+import { Anton, Bebas_Neue, Bricolage_Grotesque, Caveat, DM_Serif_Display, Lora, Nunito, Pacifico, Playfair_Display, Poppins, Space_Grotesk } from "next/font/google"
 
 /**
  * Loads the design editor's typefaces (ids and CSS variables are listed in
@@ -7,6 +7,8 @@ import { Anton, Bebas_Neue, Caveat, DM_Serif_Display, Lora, Nunito, Pacifico, Pl
  * downloaded once something on screen actually uses it.
  */
 
+// Also the app's display face (the Today greeting), hence the `learn` name.
+const bricolage = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-learn-display", display: "swap", preload: false })
 const poppins = Poppins({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], variable: "--font-design-poppins", display: "swap", preload: false })
 const nunito = Nunito({ subsets: ["latin"], variable: "--font-design-nunito", display: "swap", preload: false })
 const space = Space_Grotesk({ subsets: ["latin"], variable: "--font-design-space", display: "swap", preload: false })
@@ -19,6 +21,6 @@ const caveat = Caveat({ subsets: ["latin"], variable: "--font-design-caveat", di
 const pacifico = Pacifico({ subsets: ["latin"], weight: "400", variable: "--font-design-pacifico", display: "swap", preload: false })
 
 /** Put on any element that renders a design: it defines every `--font-design-*` variable. */
-export const designFontVariables = [poppins, nunito, space, playfair, lora, dmSerif, bebas, anton, caveat, pacifico]
+export const designFontVariables = [bricolage, poppins, nunito, space, playfair, lora, dmSerif, bebas, anton, caveat, pacifico]
   .map((font) => font.variable)
   .join(" ")
