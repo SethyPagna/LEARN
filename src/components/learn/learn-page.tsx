@@ -13,7 +13,6 @@ import type { View } from "./types"
  */
 export async function LearnPage(props: {
   initialView: View
-  initialNoteId?: string
   initialQuizId?: string
   profileUsername?: string
 }) {

@@ -47,13 +47,11 @@ function quizIdFromPath(pathname: string) {
 
 export function LearnShell({
   initialView = "dashboard",
-  initialNoteId,
   initialQuizId,
   initialSidebarMode = DEFAULT_SIDEBAR_MODE,
   profileUsername: initialProfileUsername,
 }: {
   initialView?: View
-  initialNoteId?: string
   initialQuizId?: string
   /** Read from the cookie on the server, so the first paint already has the right width. */
   initialSidebarMode?: SidebarMode
@@ -80,7 +78,7 @@ export function LearnShell({
   const [user, setUser] = useState<User | null>(null)
   const [notes, setNotes] = useState<Note[]>([])
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
-  const [selectedNoteId, setSelectedNoteId] = useState(initialNoteId || "")
+  const [selectedNoteId, setSelectedNoteId] = useState("")
   const [selectedQuizId, setSelectedQuizId] = useState(initialQuizId || "")
   const [quizLaunch, setQuizLaunch] = useState<{ id: string } | undefined>(initialQuizId ? { id: initialQuizId } : undefined)
   const [practiceLibraryRevision, setPracticeLibraryRevision] = useState(0)
@@ -108,7 +106,7 @@ export function LearnShell({
       setDashboard(dashboardData)
       setNotes(notesData.items)
       setQuizzes(quizzesData.items)
-      setSelectedNoteId((current) => current || initialNoteId || notesData.items[0]?.id || "")
+      setSelectedNoteId((current) => current || notesData.items[0]?.id || "")
       setSelectedQuizId((current) => current || initialQuizId || quizzesData.items[0]?.id || "")
       setStatus("")
     } catch (error) {
