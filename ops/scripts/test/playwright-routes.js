@@ -36,7 +36,7 @@ async (sourcePage) => {
   const sidebarMode = await page.locator('.learn-app').getAttribute('data-sidebar');
   await page.keyboard.press('Control+Backslash');
   await page.goto(`${origin}/calendar`);
-  checkShell(await page.getByRole('navigation', { name: 'Learning sections' }).getByRole('button').count() === 5, 'Nested sections remain available with the sidebar minimized');
+  checkShell(await page.getByRole('navigation', { name: 'Today sections' }).getByRole('button').count() === 4, 'Nested sections remain available with the sidebar minimized');
   for (let tries = 0; tries < 3 && await page.locator('.learn-app').getAttribute('data-sidebar') !== sidebarMode; tries++) await page.keyboard.press('Control+Backslash');
   const errors = [];
   const recordError = error => errors.push(error.message);

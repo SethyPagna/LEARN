@@ -177,9 +177,9 @@ async (sourcePage) => {
     const completedBeforeLeaving = completedSends;
     await message.fill('Send before leaving the chat workspace.');
     await workspace.getByRole('button', { name: 'Send message', exact: true }).click();
-    await page.getByRole('navigation', { name: 'Main', exact: true }).getByRole('button', { name: 'Studio', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Main', exact: true }).getByRole('button', { name: 'Create', exact: true }).click();
     await page.getByRole('region', { name: 'Your Studio home', exact: true }).waitFor();
-    await page.getByRole('navigation', { name: 'Main', exact: true }).getByRole('button', { name: 'Social', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Main', exact: true }).getByRole('button', { name: 'Friends', exact: true }).click();
     await threadButtons.first().waitFor();
     await inbox.getByRole('button', { name: 'Open conversation with Maya Chen', exact: true }).click();
     await message.fill('A new draft after reopening the workspace.');

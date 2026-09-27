@@ -38,7 +38,8 @@ async (page) => {
     await page.keyboard.press('Escape');
     verify(await page.getByRole('button', { name: 'Filters', exact: true }).getAttribute('aria-expanded') === 'false', 'AI filters dismiss with Escape');
     await page.getByRole('button', { name: 'Filters', exact: true }).click();
-    await page.getByRole('heading', { name: 'AI tutor', exact: true }).click();
+    // The page title is for screen readers only; click the panel's own padding instead.
+    await page.locator('.ai-workspace > *').first().click({ position: { x: 8, y: 8 } });
     verify(await page.getByRole('button', { name: 'Filters', exact: true }).getAttribute('aria-expanded') === 'false', 'AI filters dismiss outside');
     await page.getByRole('button', { name: 'Filters', exact: true }).click();
     await page.getByRole('combobox', { name: 'Source', exact: true }).selectOption('Uploaded files');

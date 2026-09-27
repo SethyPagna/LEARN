@@ -36,6 +36,7 @@ Status is one of: **done**, **partly done**, **in progress**, **planned** or **b
 | 14 | Buddy: a friendly character whose moods follow the streak. | **done**: violet blob with happy, excited, curious, sleepy and hello moods |
 | 15 | Navigation in five places: Today, Create, Practice, Friends and Me. | **in progress** (design step 3, started 2026-09-28) |
 | 16 | Fix what is still open: the sheet formula engine, vault markdown, labelled AI tutor buttons, the import pill, the streak bug, the live answers bug, and the other bugs found. | **planned** (after the design steps). The bug list is in the latest session log |
+| 17 | Small screens (2026-09-28): smaller previews or lists instead of big cards, balance buttons against empty space, nothing broken, consistent and easy to use. | **in progress**: taken into checkpoint 3 as its last step (a phone pass over every page) |
 
 ## Chosen order
 

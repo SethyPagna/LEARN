@@ -241,8 +241,8 @@ async sourcePage => {
     await page.getByRole('textbox', { name: 'Find a practice set' }).waitFor();
     check(await page.getByRole('button', { name: `Open ${fixture.title}`, exact: true }).count() === 0, 'Archive failure retries and successful archive updates library');
     check(page.url().endsWith('/quizzes'), 'Archiving leaves the deep-linked URL');
-    await navigateWorkspace('Social');
-    await page.getByRole('navigation', { name: 'Social sections' }).waitFor();
+    await navigateWorkspace('Friends');
+    await page.getByRole('navigation', { name: 'Friends sections' }).waitFor();
     await navigateWorkspace('Practice');
     await page.getByRole('textbox', { name: 'Find a practice set' }).waitFor();
     check(await page.getByRole('button', { name: `Open ${fixture.title}`, exact: true }).count() === 0, 'Archived set stays removed after workspace navigation');
@@ -261,8 +261,8 @@ async sourcePage => {
     };
     submitGate = deferred();
     await beginPendingSubmit();
-    await navigateWorkspace('Social');
-    await page.getByRole('navigation', { name: 'Social sections' }).waitFor();
+    await navigateWorkspace('Friends');
+    await page.getByRole('navigation', { name: 'Friends sections' }).waitFor();
     let completedSubmit = page.waitForResponse(response => response.url().endsWith('/api/quizzes/attempts') && response.request().method() === 'POST');
     submitGate.resolve();
     await completedSubmit;
@@ -274,7 +274,7 @@ async sourcePage => {
 
     submitGate = deferred();
     await beginPendingSubmit();
-    await navigateWorkspace('Social');
+    await navigateWorkspace('Friends');
     await navigateWorkspace('Practice');
     await openSet();
     await page.getByRole('button', { name: 'Resume', exact: true }).click();
@@ -296,8 +296,8 @@ async sourcePage => {
     await page.getByRole('button', { name: 'Practice options', exact: true }).click();
     await page.evaluate(() => { window.confirm = () => true; });
     await page.getByRole('button', { name: 'Archive set', exact: true }).click();
-    await navigateWorkspace('Social');
-    await page.getByRole('navigation', { name: 'Social sections' }).waitFor();
+    await navigateWorkspace('Friends');
+    await page.getByRole('navigation', { name: 'Friends sections' }).waitFor();
     const completedArchive = page.waitForResponse(response => response.url().endsWith(`/api/quizzes/${fixture.id}`) && response.request().method() === 'DELETE');
     archiveGate.resolve();
     await completedArchive;
