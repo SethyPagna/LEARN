@@ -11,7 +11,7 @@ Double-click a file in the project folder. Needs [Node.js](https://nodejs.org) 2
 | File | What it does |
 | --- | --- |
 | `run.bat` | Starts LEARN on this PC and opens it in the browser. Ctrl+C stops it. |
-| `test.bat` | Type check and every test. `test.bat full` adds a production build. |
+| `test.bat` | Type check and every test. `test.bat full` adds a production build; `test.bat tour` screenshots every page of a running LEARN. |
 | `deploy.bat` | Publishes to Cloudflare or Vercel: every check first, then one question before anything goes live. |
 | `tools.bat` | Health check, clean caches, reinstall packages, reset local data, Cloudflare preview, tunnel. |
 
@@ -175,7 +175,10 @@ The included workflows expect these repository or environment secrets:
 ```powershell
 test.bat
 test.bat full
+test.bat tour
 ```
+
+`test.bat tour` (or `ops\run\bin\pnpm.cmd test:tour`) needs LEARN running on this PC (`run.bat`) and Chrome or Edge installed. It signs in with the starter admin account, opens every page and saved project at desktop and phone size, and saves screenshots plus layout numbers to `output\visual-tour` (git-ignored). `TOUR_ONLY=canvas,notes` limits it to a few pages.
 
 The same checks as package scripts:
 

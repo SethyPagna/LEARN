@@ -7,6 +7,7 @@ rem   test       every test               lint       type check
 rem   check      type check and tests     full       check plus production build
 rem   build      production build         preview    Cloudflare build on this PC
 rem   doctor     check, local database status and Cloudflare sign-in
+rem   tour       screenshots of every page (start LEARN first)
 rem   clean      delete build caches      reinstall  reinstall every package
 rem   reset      delete ALL local data (accounts, notes, designs, chats, uploads)
 rem PORT picks another port than 3000.
@@ -17,7 +18,7 @@ set "WRANGLER_SEND_METRICS=false"
 if not defined PORT set "PORT=3000"
 set "task=%~1"
 if not defined task goto :unknown
-for %%t in (setup start test lint check full build preview doctor clean reinstall reset) do (
+for %%t in (setup start test lint check full build preview doctor clean reinstall reset tour) do (
   if /i "%task%"=="%%t" goto :accepted
 )
 :unknown
@@ -146,6 +147,14 @@ call :run_check
 if errorlevel 1 exit /b %errorlevel%
 echo   - Production build
 call ops\run\bin\pnpm.cmd build
+exit /b %errorlevel%
+
+:run_tour
+rem Signs in to the LEARN running on this PC and saves a screenshot of every
+rem page to output\visual-tour.
+call :ensure_packages
+if errorlevel 1 exit /b 1
+call ops\run\bin\pnpm.cmd test:tour
 exit /b %errorlevel%
 
 :run_build
