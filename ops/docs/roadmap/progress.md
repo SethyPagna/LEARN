@@ -1,6 +1,6 @@
 # LEARN Comprehensive Improvement Progress
 
-Status: Companion redesign in progress (checkpoint 1 of 4 design steps)
+Status: Companion redesign: checkpoint 1 of 4 design steps done (local, not pushed), waiting for the owner's review
 Last updated: 2026-09-27
 Current owner: User and maintainer
 Current branch: cleanup/stage-1

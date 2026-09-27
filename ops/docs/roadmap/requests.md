@@ -32,14 +32,14 @@ Status is one of: **done**, **partly done**, **in progress**, **planned** or **b
 | 10 | Go deeper: tests, Playwright and analysis. | **in progress**: unit tests and read-only browser probes at each checkpoint |
 | 11 | `.bat` files to run, test and deploy easily. | **done**: `run.bat`, `test.bat`, `deploy.bat`, `tools.bat` |
 | 12 | Check the FROM CODEX history and GitHub. | **done** |
-| 13 | Use Playwright to redesign the app into a companion for the learner. | **in progress**: Today page, buddy and select-to-act pill (design step 1) |
+| 13 | Use Playwright to redesign the app into a companion for the learner. | **in progress**: design step 1 is done (Today page, buddy and select-to-act pill, checked in read-only browser probes on desktop, phone and dark). Steps 2 to 4 are planned |
 | 14 | Buddy: a friendly character whose moods follow the streak. | **done**: violet blob with happy, excited, curious, sleepy and hello moods |
 | 15 | Navigation in five places: Today, Create, Practice, Friends and Me. | **planned** (design step 3) |
 | 16 | Fix what is still open: the sheet formula engine, vault markdown, labelled AI tutor buttons, the import pill, the streak bug, the live answers bug, and the other bugs found. | **planned** (after the design steps). The bug list is in the latest session log |
 
 ## Chosen order
 
-1. Companion home + dock (**in progress**)
+1. Companion home + dock (**done**, committed locally, waiting for the owner's review)
 2. Visual refresh, app-wide
 3. Navigation in five places
 4. One Canva-style editor
