@@ -271,6 +271,9 @@ export function LearnShell({
   }, [navigateSafely])
 
   const isStudioLobby = view === "studio" || (view === "canvas" && !new URLSearchParams(locationSearch).has("design"))
+  // Someone else's profile is a Friends page; only your own lives in Me.
+  const viewingSomeoneElse = view === "profile" && Boolean(profileUsername) && profileUsername !== user?.username
+  const placeView: View = viewingSomeoneElse ? "social" : view
 
   return (
     <EditorNavigationContext.Provider value={editorExitGuard}><AppInstallProvider><RealtimeInboxProvider userId={user?.id}>
@@ -295,8 +298,7 @@ export function LearnShell({
           setView={chooseView}
           studioDraftSummary={studioDraftSummary}
           text={preferences.text}
-          user={user}
-          view={view}
+          view={placeView}
         />
         <div className="learn-app-column">
           <Topbar
@@ -354,7 +356,7 @@ export function LearnShell({
             </div>
           </main>
         </div>
-        <MobileTabBar logout={logout} setView={chooseView} text={preferences.text} user={user} view={view} />
+        <MobileTabBar setView={chooseView} text={preferences.text} view={placeView} />
         <CommandPalette
           actions={launcherActions}
           notes={notes}

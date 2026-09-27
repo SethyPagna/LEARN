@@ -10,7 +10,6 @@ import {
   ChevronDown,
   ChevronRight,
   Compass,
-  Ellipsis,
   Gamepad2,
   Info,
   Languages,
@@ -39,9 +38,7 @@ import { languageNames, supportedLocales, type baseVocabulary, type SupportedLoc
 import { formatNavigationBadge } from "@/lib/navigation-features"
 import {
   getNavigationItemDetail,
-  navigationGroups,
   navigationItems,
-  placeTabsForView,
   practiceViews,
   resolveNavigationTarget,
   sectionTabForView,
@@ -121,10 +118,6 @@ function usePopover() {
   return { open, rootRef, setOpen }
 }
 
-function subViewsFor(view: View, user: User | null) {
-  return placeTabsForView(view, user?.role === "admin").filter((sub) => sub !== view)
-}
-
 function draftBadgeFor(item: LearnNavigationItem, studioDraftSummary: StudioDraftSummary, practiceDraftSummary: PracticeDraftSummary) {
   const count = item.view === "studio" ? studioDraftSummary.count : item.view === "practice" ? practiceDraftSummary.count : 0
   const title = item.view === "practice"
@@ -153,7 +146,6 @@ export function Sidebar({
   setView,
   studioDraftSummary,
   text,
-  user,
   view,
 }: {
   hideCreate?: boolean
@@ -163,7 +155,6 @@ export function Sidebar({
   setView: (view: View) => void
   studioDraftSummary: StudioDraftSummary
   text: Text
-  user: User | null
   view: View
 }) {
   const modKey = useModKeyLabel()
@@ -217,7 +208,7 @@ export function Sidebar({
       </div>
 
       <div className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-3 ${compact ? "px-2" : "px-3"}`}>
-        <Navigation compact={compact} practiceDraftSummary={practiceDraftSummary} setView={setView} studioDraftSummary={studioDraftSummary} text={text} user={user} view={view} />
+        <Navigation compact={compact} practiceDraftSummary={practiceDraftSummary} setView={setView} studioDraftSummary={studioDraftSummary} text={text} view={view} />
       </div>
 
       <SidebarFooter compact={compact} />
@@ -226,13 +217,21 @@ export function Sidebar({
   )
 }
 
+/**
+ * `aria-current` for a place: "page" on the place's own page, "true" on any
+ * other page of the place (its tab row marks the page itself).
+ */
+function placeCurrent(item: LearnNavigationItem, view: View, activePlace: View) {
+  if (item.view !== activePlace) return undefined
+  return item.view === view ? "page" : "true"
+}
+
 function Navigation({
   compact,
   practiceDraftSummary,
   setView,
   studioDraftSummary,
   text,
-  user,
   view,
 }: {
   compact: boolean
@@ -240,116 +239,61 @@ function Navigation({
   setView: (view: View) => void
   studioDraftSummary: StudioDraftSummary
   text: Text
-  user: User | null
   view: View
 }) {
-  const activePrimary = resolveNavigationTarget(view).primaryView
+  const activePlace = resolveNavigationTarget(view).primaryView
 
-  if (compact) {
-    return (
-      <nav aria-label="Sections">
-        <ul className="grid justify-items-center gap-1.5">
-          {navigationItems.map((item) => {
-            const active = item.view === activePrimary
-            const Icon = viewIcons[item.view]
-            const label = String(text[item.labelKey])
-            const badge = draftBadgeFor(item, studioDraftSummary, practiceDraftSummary)
-            return (
-              <li key={item.view}>
+  return (
+    <nav aria-label="Sections">
+      <ul className={compact ? "grid justify-items-center gap-1.5" : "grid gap-0.5"}>
+        {navigationItems.map((item) => {
+          const active = item.view === activePlace
+          const Icon = viewIcons[item.view]
+          const label = String(text[item.labelKey])
+          const badge = draftBadgeFor(item, studioDraftSummary, practiceDraftSummary)
+          const count = badge.count ? (
+            <span className="sidebar-icon-count" title={badge.title}>
+              {badge.count > 99 ? "99+" : badge.count}
+            </span>
+          ) : null
+          return (
+            <li key={item.view} data-tab={sectionTabForView(item.view)}>
+              {compact ? (
                 <button
                   type="button"
-                  data-tab={sectionTabForView(item.view)}
                   onClick={() => setView(item.view)}
-                  aria-current={active ? "page" : undefined}
+                  aria-current={placeCurrent(item, view, activePlace)}
                   aria-label={label}
                   title={`${label}: ${getNavigationItemDetail(item)}`}
                   className={`relative flex h-11 w-11 items-center justify-center rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                     active ? "learn-tab-dot learn-tab-on shadow-paper" : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   }`}
                 >
-                  <span className="relative flex h-6 w-6 items-center justify-center"><Icon className="h-5 w-5" />
-                  {badge.count ? (
-                    <span className="sidebar-icon-count" title={badge.title}>
-                      {badge.count > 99 ? "99+" : badge.count}
-                    </span>
-                  ) : null}
-                  </span>
+                  <span className="relative flex h-6 w-6 items-center justify-center"><Icon className="h-5 w-5" />{count}</span>
                 </button>
-              </li>
-            )
-          })}
-        </ul>
-      </nav>
-    )
-  }
-
-  return (
-    <nav aria-label="Sections" className="grid gap-0.5">
-      {navigationGroups.map((group) => (
-        <div key={group.label}>
-          <p className="sr-only" title={group.caption}>
-            {group.label}
-          </p>
-          <ul className="grid gap-0.5">
-            {group.items.map((item) => {
-              const active = item.view === activePrimary
-              const Icon = viewIcons[item.view]
-              const tab = sectionTabForView(item.view)
-              const badge = draftBadgeFor(item, studioDraftSummary, practiceDraftSummary)
-              const hasPageSections = ["studio", "calendar", "practice", "social"].includes(item.view)
-              const subViews = active && !hasPageSections ? subViewsFor(item.view, user) : []
-              return (
-                <li key={item.view} data-tab={tab}>
-                  <button
-                    type="button"
-                    onClick={() => setView(item.view)}
-                    aria-current={view === item.view ? "page" : undefined}
-                    title={getNavigationItemDetail(item)}
-                    className={`relative flex h-8 w-full items-center gap-1.5 rounded-lg px-2 text-[13px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                      active
-                        ? "learn-tab-marker learn-tab-wash-strong font-semibold text-foreground"
-                        : "font-medium text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                    }`}
-                  >
-                    <span className={`relative flex h-6 w-6 shrink-0 items-center justify-center ${active ? "text-foreground" : "text-muted-foreground"}`}>
-                      <Icon className="h-4 w-4" />
-                    {badge.count ? (
-                      <span className="sidebar-icon-count" title={badge.title}>
-                        {badge.count > 99 ? "99+" : badge.count}
-                      </span>
-                    ) : null}
-                    </span>
-                    <span className="truncate">{text[item.labelKey]}</span>
-                  </button>
-                  {subViews.length ? (
-                    <ul className="learn-pop-in ml-[1.4rem] mt-0.5 grid gap-0.5 border-l-2 learn-tab-border pl-2.5">
-                      {subViews.map((sub) => {
-                        const SubIcon = viewIcons[sub]
-                        const subActive = view === sub
-                        return (
-                          <li key={sub}>
-                            <button
-                              type="button"
-                              onClick={() => setView(sub)}
-                              aria-current={subActive ? "page" : undefined}
-                              className={`flex h-7 w-full items-center gap-2 rounded-md px-2 text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                                subActive ? "learn-tab-wash font-semibold text-foreground" : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                              }`}
-                            >
-                              <SubIcon className={`h-3.5 w-3.5 shrink-0 ${subActive ? "learn-tab-ink" : ""}`} />
-                              <span className="truncate">{text[viewLabelKeys[sub]]}</span>
-                            </button>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  ) : null}
-                </li>
-              )
-            })}
-          </ul>
-        </div>
-      ))}
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setView(item.view)}
+                  aria-current={placeCurrent(item, view, activePlace)}
+                  title={getNavigationItemDetail(item)}
+                  className={`relative flex h-9 w-full items-center gap-2 rounded-lg px-2 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    active
+                      ? "learn-tab-marker learn-tab-wash-strong font-semibold text-foreground"
+                      : "font-medium text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  }`}
+                >
+                  <span className={`relative flex h-6 w-6 shrink-0 items-center justify-center ${active ? "text-foreground" : "text-muted-foreground"}`}>
+                    <Icon className="h-[18px] w-[18px]" />
+                    {count}
+                  </span>
+                  <span className="truncate">{label}</span>
+                </button>
+              )}
+            </li>
+          )
+        })}
+      </ul>
     </nav>
   )
 }
@@ -671,6 +615,7 @@ function AccountMenu({
           <div className="my-1 grid gap-0.5">
             <MenuRow icon={UserRound} label="Your profile" onClick={() => go("profile")} />
             <MenuRow icon={Settings} label={String(text.settings)} onClick={() => go("settings")} />
+            <MenuRow icon={Compass} label="What's where?" onClick={() => { setOpen(false); openPlaceGuide() }} />
           </div>
 
           <div className="grid gap-3 border-t border-border px-2 pb-2 pt-3">
@@ -1069,176 +1014,44 @@ function NotificationToasts({
 }
 
 /* ------------------------------------------------------------------------ */
-/* Phone: bottom tabs and the "More" sheet                                   */
+/* Phone: the dock                                                           */
 /* ------------------------------------------------------------------------ */
 
-const mobileTabViews: readonly View[] = ["dashboard", "studio", "practice", "social"]
-
+/** The five places at the bottom of a phone. Sign out and "What's where?" live in the account menu. */
 export function MobileTabBar({
-  logout,
   setView,
   text,
-  user,
   view,
 }: {
-  logout: () => void
   setView: (view: View) => void
   text: Text
-  user: User | null
   view: View
 }) {
-  const [moreOpen, setMoreOpen] = useState(false)
-  const moreDialogRef = useRef<HTMLDivElement>(null)
-  const moreTriggerRef = useRef<HTMLButtonElement>(null)
-  const activePrimary = resolveNavigationTarget(view).primaryView
-  const moreActive = !mobileTabViews.includes(activePrimary)
-
-  useEffect(() => {
-    if (!moreOpen) return
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = "hidden"
-    moreDialogRef.current?.querySelector<HTMLButtonElement>("button")?.focus()
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setMoreOpen(false)
-      if (event.key !== "Tab") return
-      const controls = Array.from(moreDialogRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), a[href], [tabindex='0']") || []).filter(element => element.getClientRects().length)
-      const first = controls[0]
-      const last = controls[controls.length - 1]
-      if (!first || !last) return
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
-    }
-    const desktop = window.matchMedia("(min-width: 1024px)")
-    const closeOnDesktop = () => { if (desktop.matches) setMoreOpen(false) }
-    desktop.addEventListener("change", closeOnDesktop)
-    document.addEventListener("keydown", onKeyDown)
-    return () => {
-      document.removeEventListener("keydown", onKeyDown)
-      desktop.removeEventListener("change", closeOnDesktop)
-      document.body.style.overflow = previousOverflow
-      if (moreTriggerRef.current?.getClientRects().length) moreTriggerRef.current.focus({ preventScroll: true })
-    }
-  }, [moreOpen])
-
-  function go(next: View) {
-    setMoreOpen(false)
-    setView(next)
-  }
+  const activePlace = resolveNavigationTarget(view).primaryView
 
   return (
-    <>
-      <nav aria-label="Main" className="learn-bottom-safe fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-md lg:hidden">
-        <ul className="mx-auto grid max-w-lg grid-cols-5 px-1 pt-1.5">
-          {mobileTabViews.map((tabView) => {
-            const item = navigationItems.find((entry) => entry.view === tabView)
-            const Icon = viewIcons[tabView]
-            const active = activePrimary === tabView
-            return (
-              <li key={tabView} data-tab={sectionTabForView(tabView)}>
-                <button
-                  type="button"
-                  onClick={() => go(tabView)}
-                  aria-current={active ? "page" : undefined}
-                  className="flex w-full flex-col items-center gap-0.5 rounded-xl py-0.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <span className={`flex h-8 w-14 items-center justify-center rounded-full transition ${active ? "learn-tab-wash-strong learn-tab-ink" : "text-muted-foreground"}`}>
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <span className={active ? "text-foreground" : "text-muted-foreground"}>{item ? text[item.labelKey] : tabView}</span>
-                </button>
-              </li>
-            )
-          })}
-          <li>
-            <button
-              ref={moreTriggerRef}
-              type="button"
-              onClick={() => setMoreOpen(true)}
-              aria-expanded={moreOpen}
-              aria-haspopup="dialog"
-              className="flex w-full flex-col items-center gap-0.5 rounded-xl py-0.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <span className={`flex h-8 w-14 items-center justify-center rounded-full transition ${moreActive ? "bg-accent text-accent-foreground" : "text-muted-foreground"}`}>
-                <Ellipsis className="h-5 w-5" />
-              </span>
-              <span className={moreActive ? "text-foreground" : "text-muted-foreground"}>More</span>
-            </button>
-          </li>
-        </ul>
-      </nav>
-
-      {moreOpen ? (
-        <div ref={moreDialogRef} className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Everything in LEARN">
-          <div className="absolute inset-0 bg-foreground/30 backdrop-blur-[2px]" onClick={() => setMoreOpen(false)} aria-hidden="true" />
-          <div className="learn-pop-in learn-bottom-safe absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto overscroll-contain rounded-t-3xl border-t border-border bg-popover px-4 pt-2 text-popover-foreground shadow-lift">
-            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-muted-foreground/30" aria-hidden="true" />
-            <div className="mb-4 flex items-center gap-3">
-              <Avatar user={user} className="h-11 w-11 text-base" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-display font-semibold">{user?.name || "Learner"}</p>
-                <p className="truncate text-xs text-muted-foreground">@{user?.username || "you"}</p>
-              </div>
-              <button type="button" onClick={() => setMoreOpen(false)} className={ghostIconButton} aria-label="Close" title="Close">
-                <X className="h-5 w-5" />
+    <nav aria-label="Main" className="learn-bottom-safe fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-md lg:hidden">
+      <ul className="mx-auto grid max-w-lg grid-cols-5 px-1 pt-1.5">
+        {navigationItems.map((item) => {
+          const Icon = viewIcons[item.view]
+          const active = activePlace === item.view
+          return (
+            <li key={item.view} data-tab={sectionTabForView(item.view)}>
+              <button
+                type="button"
+                onClick={() => setView(item.view)}
+                aria-current={placeCurrent(item, view, activePlace)}
+                className="flex w-full flex-col items-center gap-0.5 rounded-xl py-0.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className={`flex h-8 w-14 items-center justify-center rounded-full transition ${active ? "learn-tab-wash-strong learn-tab-ink" : "text-muted-foreground"}`}>
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span className={active ? "text-foreground" : "text-muted-foreground"}>{text[item.labelKey]}</span>
               </button>
-            </div>
-
-            <div className="grid gap-2 pb-4">
-              {navigationItems.map((item) => {
-                const Icon = viewIcons[item.view]
-                const subViews = subViewsFor(item.view, user)
-                const active = activePrimary === item.view
-                return (
-                  <div key={item.view} data-tab={sectionTabForView(item.view)} className={`rounded-2xl border p-2 ${active ? "learn-tab-border learn-tab-wash" : "border-border bg-card"}`}>
-                    <button type="button" onClick={() => go(item.view)} aria-current={view === item.view ? "page" : undefined} className="flex w-full items-center gap-3 rounded-xl p-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                      <span className="learn-tab-dot learn-tab-on flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
-                        <Icon className="h-[18px] w-[18px]" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold">{text[item.labelKey]}</span>
-                        <span className="block truncate text-xs text-muted-foreground">{getNavigationItemDetail(item)}</span>
-                      </span>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </button>
-                    {subViews.length ? (
-                      <div className="mt-1 flex flex-wrap gap-1.5 px-1.5 pb-1">
-                        {subViews.map((sub) => {
-                          const SubIcon = viewIcons[sub]
-                          return (
-                            <button
-                              key={sub}
-                              type="button"
-                              onClick={() => go(sub)}
-                              aria-current={view === sub ? "page" : undefined}
-                              className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition ${
-                                view === sub ? "learn-tab-border learn-tab-wash-strong text-foreground" : "border-border bg-background text-muted-foreground hover:text-foreground"
-                              }`}
-                            >
-                              <SubIcon className="h-3.5 w-3.5" />
-                              {text[viewLabelKeys[sub]]}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    ) : null}
-                  </div>
-                )
-              })}
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 border-t border-border py-4">
-              <button type="button" onClick={() => { setMoreOpen(false); openPlaceGuide() }} className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card text-sm font-semibold">
-                <Compass className="h-4 w-4" />
-                What&apos;s where?
-              </button>
-              <button type="button" onClick={logout} className="flex h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card text-sm font-semibold text-destructive">
-                <LogOut className="h-4 w-4" />
-                {text.signOut}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </>
+            </li>
+          )
+        })}
+      </ul>
+    </nav>
   )
 }
