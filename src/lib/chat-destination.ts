@@ -1,3 +1,5 @@
+import { CHAT_DRAFT_KEY } from "./chat-drafts"
+
 export type ChatDestination =
   | { kind: "thread"; threadId: string }
   | { kind: "group"; groupId: string }
@@ -11,6 +13,11 @@ export function chatDestinationPayload(destination: ChatDestination) {
     case "dm": return { targetUserId: destination.targetUserId }
     case "personal": return {}
   }
+}
+
+/** Where the chat view reopens: the learner's last conversation, kept in this browser. */
+export function chatDestinationStorageKey(userId: string) {
+  return `${CHAT_DRAFT_KEY}:${encodeURIComponent(userId)}:destination`
 }
 
 export interface ConversationThread {

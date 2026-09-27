@@ -22,7 +22,7 @@ import { CHAT_DRAFT_KEY, parseStoredChatDraft, serializeChatDraft, type ChatDraf
 import { dmChatChannelId, groupChatChannelId } from "@/lib/chat-channel"
 import { RealtimeSocket, type RealtimeStatus, type RealtimeFrame } from "@/lib/realtime/client"
 import { acceptsCallSignal } from "@/lib/chat-call"
-import { chatDestinationPayload, selectConversationThread, type ChatDestination } from "@/lib/chat-destination"
+import { chatDestinationPayload, chatDestinationStorageKey, selectConversationThread, type ChatDestination } from "@/lib/chat-destination"
 import { buildChatComposerActions, buildChatDraftPayload, buildChatQuickPrompts, buildChatThreadActions, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatIntent, type ChatQuickPrompt, type ChatThreadActionId, type ChatThreadLike } from "@/lib/social-features"
 
 const quizDetailCache = new Map<string, Quiz>()
@@ -1632,13 +1632,13 @@ function removeConversationDraft(userId: string, destination: ChatDestination) {
 
 function writeChatDestination(userId: string, destination: ChatDestination) {
   if (!userId) return
-  try { window.localStorage.setItem(`${CHAT_DRAFT_KEY}:${encodeURIComponent(userId)}:destination`, JSON.stringify(destination)) }
+  try { window.localStorage.setItem(chatDestinationStorageKey(userId), JSON.stringify(destination)) }
   catch { /* Draft navigation remains available without browser storage. */ }
 }
 
 function readChatDestination(userId: string): ChatDestination | null {
   try {
-    const value: unknown = JSON.parse(window.localStorage.getItem(`${CHAT_DRAFT_KEY}:${encodeURIComponent(userId)}:destination`) || "null")
+    const value: unknown = JSON.parse(window.localStorage.getItem(chatDestinationStorageKey(userId)) || "null")
     if (!value || typeof value !== "object" || !("kind" in value)) return null
     if (value.kind === "personal") return { kind: "personal" }
     if (value.kind === "thread" && "threadId" in value && typeof value.threadId === "string") return { kind: "thread", threadId: value.threadId }
