@@ -1,6 +1,9 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { deflateRawSync } from "node:zlib"
+import { createElement as reactElement } from "react"
+import { renderToStaticMarkup } from "react-dom/server"
+import { StudioContentImport } from "../../components/learn/studio-content-import"
 import { createZip, readZip } from "../../lib/export/zip"
 import { importPptx } from "../../lib/export/pptx-import"
 import { importPdf } from "../../lib/export/pdf-import"
@@ -105,4 +108,15 @@ test("PDF enforces its page limit with a real multi-page document", async () => 
     blocks.push({ type: "paragraph", text: `Text on page ${page + 1}` })
   }
   await assert.rejects(importPdf(buildPdf({ title: "Many pages", footer: false, blocks }), engine), /at most 200 pages/)
+})
+
+test("the import picker is a compact button, not a raw browser file field", () => {
+  for (const format of [undefined, "pptx", "pdf"] as const) {
+    const markup = renderToStaticMarkup(reactElement(StudioContentImport, { format, onImport: () => {} }))
+    const label = format ? format.toUpperCase() : "PPTX or PDF"
+    assert.match(markup, /<input type="file" class="sr-only"/)
+    assert.match(markup, new RegExp(`aria-label="Import ${label} content"`))
+    assert.match(markup, new RegExp(`</svg>Import ${label}<input`))
+    assert.doesNotMatch(markup, /<p[ >]/, "no explanation paragraph until there is a status to show")
+  }
 })
