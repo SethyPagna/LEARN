@@ -1,12 +1,13 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ArrowRight, BookOpen, Layers3, Play, Radio, Repeat2, Search, Sparkles, Zap } from "lucide-react"
+import { ArrowRight, Layers3, Play, Radio, Repeat2, Search, Sparkles, Zap } from "lucide-react"
 import type { Quiz, View } from "../../types"
 import type { WorkspaceOptions } from "../../preferences"
 import { PracticeDesign } from "../../practice-design"
 import { GamesView } from "../productivity-views"
 import { QuizView } from "../quiz-view"
+import { EmptyState } from "../../ui"
 import { AI_TUTOR_LAUNCH_KEY, buildPracticeAiTutorLaunch } from "@/lib/ai/tutor-workflow"
 import { listPracticeDraftCards, PRACTICE_DRAFT_EVENT, readPracticeDrafts, type PracticeDraftCard } from "@/lib/practice-drafts"
 import styles from "../practice-workspace.module.css"
@@ -105,7 +106,7 @@ export function PracticeWorkspaceView({ initialView, options, quizzes, selectedQ
             </button>
           })}
         </div>
-        {!visibleQuizzes.length ? <div className={styles.empty}><BookOpen aria-hidden="true" size={34} /><h3>{query ? "No matching sets" : savedOnly ? "No saved attempts" : "Make your first set"}</h3>{query || savedOnly ? <button type="button" className={styles.secondaryButton} onClick={() => { setQuery(""); setSavedOnly(false) }}>Show all</button> : <button type="button" className={styles.primaryButton} onClick={createPractice}><Sparkles aria-hidden="true" size={16} />Create</button>}</div> : null}
+        {!visibleQuizzes.length ? <EmptyState kind="quiz" title={query ? "No matching sets" : savedOnly ? "No saved attempts" : "Make your first set"} action={query || savedOnly ? <button type="button" className={styles.secondaryButton} onClick={() => { setQuery(""); setSavedOnly(false) }}>Show all</button> : <button type="button" className={styles.primaryButton} onClick={createPractice}><Sparkles aria-hidden="true" size={16} />Create</button>} /> : null}
       </>}
     </div>
   </PracticeDesign>

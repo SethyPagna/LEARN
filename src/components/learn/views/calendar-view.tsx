@@ -8,6 +8,7 @@ import type { WorkspaceOptions } from "../preferences"
 import type { CalendarEvent } from "../types"
 import { api } from "../api"
 import { CalendarConnections, useConnectedCalendars } from "../calendar-connections"
+import { EmptyState } from "../ui"
 export function CalendarView({ options }: { options: WorkspaceOptions }) {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [selectedId, setSelectedId] = useState("")
@@ -308,7 +309,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
         <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{event.title}</span><span className="mt-1 block text-xs text-muted-foreground">{formatCalendarTimeRange(event)} · {event.remote ? "Connected" : labelCalendarEventType(event.event_type)}</span></span>
         <span className="hidden text-xs text-muted-foreground sm:block">{formatCalendarDuration(calendarEventDurationFromRecord(event))}</span>
       </button></li>)}</ul>
-      {!filteredEvents.length ? <p className="p-10 text-center text-sm text-muted-foreground">No events</p> : null}
+      {!filteredEvents.length ? <EmptyState bare title="No events" action={<button type="button" className="editor-command" onClick={() => createEventForDay()}><Plus className="h-4 w-4" />Add event</button>} /> : null}
     </div> : <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_240px]">
       <div className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
         {mode === "month" ? <>

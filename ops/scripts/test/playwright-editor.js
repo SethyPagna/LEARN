@@ -81,8 +81,8 @@ async (page) => {
     await preview.getByRole('button', { name: 'Delete file', exact: true }).click();
     await preview.getByRole('button', { name: 'Confirm delete', exact: true }).click();
     await preview.waitFor({ state: 'detached' });
-    await page.getByRole('heading', { name: /^No (matching files|files yet)$/ }).waitFor();
-    verify(await page.getByRole('heading', { name: 'No matching files', exact: true }).count() + await page.getByRole('heading', { name: 'No files yet', exact: true }).count() === 1, 'Deleting the fixture closes the file preview');
+    await page.getByText(/^No (matching files|files yet)$/).waitFor();
+    verify(await page.getByText('No matching files', { exact: true }).count() + await page.getByText('No files yet', { exact: true }).count() === 1, 'Deleting the fixture closes the file preview');
     uploadedId = '';
 
     await page.setViewportSize({ width: 1440, height: 900 });

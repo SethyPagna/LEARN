@@ -116,10 +116,10 @@ async sourcePage => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await visit('practice');
     await page.getByRole('textbox', { name: 'Find a practice set' }).fill('No match audit');
-    await page.getByRole('heading', { name: 'No matching sets' }).waitFor();
+    await page.getByText('No matching sets', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'Show all', exact: true }).click();
     await page.getByRole('button', { name: /^Saved / }).click();
-    await page.getByRole('heading', { name: 'No saved attempts' }).waitFor();
+    await page.getByText('No saved attempts', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'Show all', exact: true }).click();
     report.checks.push('Library search, empty results and saved filter recovery');
     await page.getByLabel('Practice design', { exact: true }).click();

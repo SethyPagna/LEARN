@@ -50,6 +50,7 @@ import type {
   User,
   View,
 } from "../types"
+import { Buddy } from "../buddy"
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { VoiceInput } from "../voice-input"
 import { buildReviewRatingActions, buildReviewSummaryChips, buildVaultBlockPalette, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeReviewSession, type ReviewRating, type VaultBlockType } from "@/lib/learning-ecosystem"
@@ -157,7 +158,7 @@ export function GraphView({ setView }: { setView: (view: View) => void }) {
           <text x={point.x} y={point.y + 4} textAnchor="middle" className="fill-primary text-[12px] font-semibold" aria-hidden="true">{node.title.slice(0, 1)}</text>
           <text x={point.x} y={point.y + 41} textAnchor="middle" className="fill-foreground text-[11px]">{node.title.length > 22 ? `${node.title.slice(0, 21)}…` : node.title}</text>
         </g> })}
-      </svg> : <div className="grid min-h-72 place-content-center gap-3 text-center"><Network className="mx-auto h-10 w-10 text-primary/50" /><p className="text-sm text-muted-foreground">{nodes.length ? "No topics match this filter." : "No topics yet"}</p><button className="editor-primary" onClick={() => setView("notes")}>Open notes</button></div>}
+      </svg> : <div className="grid min-h-72 place-content-center"><EmptyState bare title={nodes.length ? "No topics match this filter." : "No topics yet"} action={<button className="editor-primary" onClick={() => setView("notes")}>Open notes</button>} /></div>}
     </Panel><aside className="compact-list">
       {selectedNode ? <div className="grid gap-3"><div className="flex items-center gap-3"><p className="min-w-0 flex-1 text-sm font-medium">{selectedNode.title}</p><button className="editor-command" onClick={() => setView("reviews")} aria-label="Review" title="Review"><Repeat2 className="h-4 w-4 text-primary" /></button></div><div className="flex items-center gap-3"><meter className="h-2 w-full accent-primary" min={0} max={1} value={selectedNode.mastery} aria-label="Topic mastery" /><span className="text-xs tabular-nums text-muted-foreground">{Math.round(selectedNode.mastery * 100)}%</span></div><span className="text-xs capitalize text-muted-foreground">{selectedNode.visibility}</span></div> : null}
       <details className="mt-3 border-t border-border pt-3"><summary className="cursor-pointer text-xs text-muted-foreground">Topics · {filteredNodes.length}</summary><div className="mt-2 max-h-64 overflow-auto">{filteredNodes.map(node => <button key={node.id} onClick={() => setSelectedId(node.id)} className="compact-row" aria-pressed={selectedNode?.id === node.id}><span className="truncate flex-1">{node.title}</span><span className="text-xs text-muted-foreground">{Math.round(node.mastery * 100)}%</span></button>)}</div></details>
@@ -225,7 +226,7 @@ export function ReviewsView({ setView }: { setView: (view: View) => void }) {
       <footer className="mt-5 flex flex-wrap items-center justify-center gap-2">
         {isRevealed ? buildReviewRatingActions({ busyRating, isBusy: Boolean(busyRating), isRevealed }).map(action => <button key={action.rating} disabled={action.disabled} onClick={() => void record(action.rating)} title={action.helper} className={`review-rating ${reviewRatingClassName(action.rating)}`}>{action.busy ? "Saving…" : action.label}</button>) : <button className="editor-primary" onClick={() => { setRevealedIds(current => [...current, selected.id]); setReviewMessage("") }}><Eye className="h-4 w-4" />Reveal answer</button>}
       </footer>
-    </article> : data ? <div className="grid justify-items-center gap-4 py-10"><CheckCircle2 aria-hidden="true" className="h-12 w-12 text-success" /><p className="font-medium">{data.isRestDay ? "Rest day" : "All caught up"}</p><button className="editor-command" onClick={() => setView("studio")}><BookOpen className="h-4 w-4" />Studio</button></div> : null}
+    </article> : data ? <div className="grid justify-items-center gap-4 py-10"><Buddy mood={data.isRestDay ? "sleepy" : "excited"} size={72} label="" /><p className="font-medium">{data.isRestDay ? "Rest day" : "All caught up"}</p><button className="editor-command" onClick={() => setView("studio")}><BookOpen className="h-4 w-4" />Studio</button></div> : null}
     {reviewMessage || (status && status !== "Ready") ? <p role="status" className="text-center text-xs text-muted-foreground">{reviewMessage || status}</p> : null}
     {gradedIds.length && status !== "Loading" ? <button className="editor-command justify-self-center" disabled={Boolean(busyRating)} onClick={async () => { if (await refresh()) setGradedIds([]) }}><Repeat2 className="h-4 w-4" />Retry refresh</button> : null}
     {items.length ? <details className="workspace-disclosure"><summary>Queue <span className="text-muted-foreground">{summary.totalDue}</span></summary>
