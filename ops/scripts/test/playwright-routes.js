@@ -1,5 +1,9 @@
 // Run in an authenticated local Playwright CLI session with run-code --filename.
-async (page) => {
+async (sourcePage) => {
+  const context = await sourcePage.context().browser().newContext({ storageState: await sourcePage.context().storageState(), serviceWorkers: 'block' });
+  const page = await context.newPage();
+  await page.goto(sourcePage.url());
+  try {
   const { origin, hostname } = await page.evaluate(() => ({ origin: location.origin, hostname: location.hostname }));
   if (!['localhost', '127.0.0.1'].includes(hostname)) {
     throw new Error('Run this audit against the local development server.');
@@ -37,7 +41,7 @@ async (page) => {
   const errors = [];
   const recordError = error => errors.push(error.message);
   page.on('pageerror', recordError);
-  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+  for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1440, height: 900 }]) {
     await page.setViewportSize(viewport);
     for (const route of routes) {
       const errorStart = errors.length;
@@ -64,6 +68,15 @@ async (page) => {
           headings: [...main.querySelectorAll('h1,h2,h3')].filter(visible).map(element => element.textContent.trim()),
           controls: controls.length,
           clippedLabels,
+          outsideContent: [...controls, ...main.querySelectorAll('h1,h2,h3')].filter(visible).filter(element => {
+            if (element.matches('input[type=file], .sr-only') || element.closest('.sr-only')) return false;
+            for (let ancestor = element.parentElement; ancestor && ancestor !== main; ancestor = ancestor.parentElement) {
+              const style = getComputedStyle(ancestor);
+              if (['auto', 'scroll'].includes(style.overflowX) && ancestor.scrollWidth > ancestor.clientWidth) return false;
+            }
+            const rect = element.getBoundingClientRect();
+            return rect.left < main.getBoundingClientRect().left - 1 || rect.right > innerWidth + 1;
+          }).map(element => element.getAttribute('aria-label') || element.textContent.trim().slice(0, 80) || element.tagName),
           mainLandmarks: document.querySelectorAll('main').length,
           unnamed: controls.filter(element => !element.textContent.trim() && !element.getAttribute('aria-label') && !element.getAttribute('title') && !element.getAttribute('aria-labelledby') && !element.labels?.length).map(element => element.outerHTML.slice(0, 240)),
           applicationError: /Application error:|Internal Server Error/.test(main.innerText),
@@ -76,7 +89,8 @@ async (page) => {
     }
   }
   page.off('pageerror', recordError);
-  const failures = reports.filter(report => report.status >= 400 || report.overflow > 1 || report.applicationError || report.pageErrors.length || report.unnamed.length || report.clippedLabels.length || report.mainLandmarks !== 1);
+  const failures = reports.filter(report => report.status >= 400 || report.overflow > 1 || report.applicationError || report.pageErrors.length || report.unnamed.length || report.clippedLabels.length || report.outsideContent.length || report.mainLandmarks !== 1);
   console.log(JSON.stringify({ total: reports.length, failed: failures.length, failures }));
   return { total: reports.length, failed: failures.length, shellChecks, reports };
+  } finally { await context.close(); }
 }

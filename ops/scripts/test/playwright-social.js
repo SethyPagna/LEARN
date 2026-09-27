@@ -1,4 +1,9 @@
-async (page) => {
+// Profile, Settings and Admin regression audit. Chat and community have dedicated audits.
+async (sourcePage) => {
+  const context = await sourcePage.context().browser().newContext({ storageState: await sourcePage.context().storageState(), serviceWorkers: 'block' });
+  const page = await context.newPage();
+  await page.goto(sourcePage.url());
+  try {
   const origin = page.url().match(/^(https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?)(?:\/|$)/)?.[1]
   if (!origin) throw new Error("Run this audit against the local demo only.")
   const results = []
@@ -16,12 +21,8 @@ async (page) => {
   const checkWidth = async label => {
     verify(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${label}: no horizontal overflow`)
   }
-  const groupsPath = "**/api/learning-spaces"
   const achievementsPath = "**/api/achievements"
   const providersPath = "**/api/ai/providers*"
-  const groupFixture = { id: "qa-visual-group", name: "Visual study circle", description: "Ideas worth sharing.", visibility: "private", topic_tags: ["Design"], member_count: 1 }
-  const groupItems = [groupFixture]
-  const groupWrites = []
   const providerFixture = { id: "qa-provider", name: "Audit provider", provider: "openai", provider_type: "chat", default_model: "qa-model", endpoint_override: "", notes: "", enabled: false, priority: 50, requests_per_minute: 10, max_input_chars: 1000, max_completion_tokens: 500, timeout_ms: 1000, cooldown_seconds: 10, last_status: "untested", last_error: "", has_key: false }
   let deleteRequests = 0
   let testRequests = 0
@@ -66,69 +67,6 @@ async (page) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await checkWidth("Settings phone")
     await page.setViewportSize({ width: 1440, height: 900 })
-    await open("/social")
-    await summary("Creative tools").click()
-    await summary("Media").click()
-    const media = page.getByRole("navigation", { name: "Message media" })
-    const emoji = page.getByRole("button", { name: /^Add .+ emoji$/ }).first()
-    const glyph = await emoji.textContent()
-    await emoji.click()
-    verify((await page.getByRole("textbox", { name: "Message", exact: true }).inputValue()).includes(glyph), "Emoji inserts into draft without sending")
-    await media.getByRole("button", { name: "Stickers", exact: true }).click()
-    verify(await page.getByRole("button", { name: /^Send .+ sticker$/ }).first().isVisible(), "Sticker grid opens independently")
-    verify(!await page.getByRole("button", { name: /^Add .+ emoji$/ }).first().isVisible(), "Media shows one tool at a time")
-    await media.getByRole("button", { name: "GIF", exact: true }).click()
-    verify(await page.getByText("Upload GIF", { exact: true }).isVisible(), "GIF picker is available")
-    await media.getByRole("button", { name: "Meme", exact: true }).click()
-    verify(!await page.getByRole("textbox", { name: "Meme top caption" }).isVisible(), "Meme captions wait for a picture")
-    await page.getByLabel("Choose picture", { exact: true }).setInputFiles("public/placeholder.jpg")
-    await page.getByRole("textbox", { name: "Meme top caption" }).fill("A clear idea")
-    verify(await page.getByRole("button", { name: "Send meme", exact: true }).isEnabled(), "Meme preview becomes editable after selecting a picture")
-    await page.setViewportSize({ width: 390, height: 844 })
-    await checkWidth("Media composer phone")
-    await page.setViewportSize({ width: 1440, height: 900 })
-    await page.getByRole("button", { name: "Add a story", exact: true }).click()
-    const story = page.getByRole("dialog", { name: "New story", exact: true })
-    await story.waitFor()
-    verify(await story.getByLabel("Who can see this story?").inputValue() === "private", "New stories default to only me")
-    await story.getByRole("textbox", { name: "Story text" }).fill("Local preview only")
-    verify(await story.getByRole("button", { name: "Share for 24h", exact: true }).isEnabled(), "Story composer validates a text draft")
-    await story.getByRole("button", { name: "Close story", exact: true }).click()
-    verify(!await story.isVisible(), "Story can close without publishing")
-    await page.setViewportSize({ width: 390, height: 844 })
-    await page.route(groupsPath, route => {
-      if (route.request().method() === "GET") return route.fulfill({ json: { items: groupItems } })
-      groupWrites.push(route.request().method())
-      const draft = route.request().postDataJSON()
-      const item = { id: "qa-new-group", name: draft.name, description: draft.description, visibility: draft.visibility, topic_tags: draft.topicTags, member_count: 1 }
-      groupItems.push(item)
-      return route.fulfill({ json: { item } })
-    })
-    await open("/spaces")
-    await page.getByRole("button", { name: /Visual study circle/ }).click()
-    verify(!await page.getByRole("textbox", { name: "Search Groups" }).isVisible(), "Phone group selection replaces list with in-page detail")
-    const details = page.getByRole("navigation", { name: "Groups details" })
-    for (const name of ["Overview", "Invite", "People", "Activity", "Manage"]) {
-      await details.getByRole("button", { name, exact: true }).click()
-      await checkWidth(`Group ${name} phone`)
-    }
-    await details.getByRole("button", { name: "Invite", exact: true }).click()
-    await page.getByRole("textbox", { name: "Invite email" }).fill("invalid")
-    verify(!await page.getByRole("button", { name: "Create link", exact: true }).isEnabled(), "Invalid invite cannot create a link")
-    await page.getByRole("button", { name: "Back to groups", exact: true }).click()
-    verify(await page.getByRole("textbox", { name: "Search Groups" }).isVisible(), "Phone Back restores group list")
-    await page.getByRole("button", { name: "Add group", exact: true }).click()
-    verify(await page.getByLabel("Group name", { exact: true }).isVisible(), "New group opens a compact draft editor")
-    verify(await page.getByLabel("Group name", { exact: true }).inputValue() === "Personal learning circle", "New group is not replaced by the first saved group")
-    verify(!await page.getByRole("navigation", { name: "Groups details" }).isVisible(), "Draft editor hides unrelated record tabs")
-    await page.screenshot({ path: "output/playwright/social-group-phone.png" })
-    await page.getByRole("button", { name: "Save", exact: true }).click()
-    await page.getByRole("status").filter({ hasText: "Personal learning circle saved." }).waitFor()
-    verify(groupWrites.join() === "POST", "New group creates instead of overwriting an existing group")
-    await page.getByRole("button", { name: "Back to groups", exact: true }).click()
-    verify(await page.getByRole("button", { name: /Personal learning circle/ }).getAttribute("aria-pressed") === "true", "Saved group stays selected after refreshing records")
-    await page.setViewportSize({ width: 1440, height: 900 })
-    verify(!await page.getByRole("button", { name: "Back to groups", exact: true }).isVisible(), "Desktop has no redundant Back control")
     await page.route(providersPath, async route => {
       const request = route.request()
       if (request.method() === "GET") return route.fulfill({ json: { items: [providerFixture], presets: [], summary: { totalCount: 1, enabledCount: 0, readyCount: 0, hasDegradedProviders: false, routingOrder: [] } } })
@@ -164,13 +102,13 @@ async (page) => {
     await checkWidth("Provider editor phone")
     await page.screenshot({ path: "output/playwright/admin-provider-phone.png" })
     verify(errors.length === 0, "No uncaught page errors")
-    return { passed: results.length, checks: results, pageErrors: errors, mutations: "Group and provider writes intercepted locally; no messages, invitations or stories sent" }
+    return { passed: results.length, checks: results, pageErrors: errors, mutations: "Provider writes intercepted locally; no account changes saved" }
   } finally {
-    await page.unroute(groupsPath)
     await page.unroute(achievementsPath)
     await page.unroute(providersPath)
     page.off("pageerror", collectError)
     await page.evaluate(saved => { localStorage.clear(); Object.entries(saved).forEach(([key, value]) => localStorage.setItem(key, value)) }, originalStorage)
     if (originalViewport) await page.setViewportSize(originalViewport)
   }
+  } finally { await context.close(); }
 }
