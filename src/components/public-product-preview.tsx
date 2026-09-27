@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useId, useState, type KeyboardEvent } from "react"
-import { ArrowRight, CalendarDays, Check, CheckCheck, FileText, Layers3, MessageCircle, MousePointer2, Plus, Sparkles, Star, Timer, Type } from "lucide-react"
+import { ArrowRight, CalendarDays, Check, CheckCheck, FileText, Layers3, MessageCircle, Sparkles, Star, Timer } from "lucide-react"
+import { PublicDemoEditor } from "@/components/public-demo-editor"
 import styles from "./public-experience.module.css"
 
 export const previewSections = [
@@ -42,29 +43,12 @@ export function ProductPreview({ section, onSectionChange, sections = homeSectio
       {tabs.map(({ id: tab, label, icon: Icon }, index) => <button key={tab} id={`${id}-${tab}`} type="button" role="tab" aria-selected={activeSection === tab} aria-controls={`${id}-panel`} tabIndex={activeSection === tab ? 0 : -1} onClick={() => select(tab)} onKeyDown={event => navigateTabs(event, index)}><Icon size={15} /><span>{label}</span></button>)}
     </div>
     <div id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-${activeSection}`} tabIndex={0} className={styles.previewPanel}>
-      <div className={styles.windowBar}><div className={styles.windowBrand}><img src="/icon.svg" alt="" width={20} height={20} loading="eager" />{activeSection === "studio" ? "Studio" : activeSection === "ai" ? "AI tutor" : previewSections.find(item => item.id === activeSection)?.label}</div><span className={styles.sampleLabel}>EXAMPLE WORKSPACE</span><span className={styles.windowDots} aria-hidden="true">•••</span></div>
-      <div className={styles.scene} key={activeSection}>
-        {activeSection === "studio" ? <StudioScene /> : activeSection === "practice" ? <PracticeScene /> : activeSection === "calendar" ? <CalendarScene /> : activeSection === "ai" ? <TutorScene /> : <SocialScene />}
-      </div>
+      <div className={styles.windowBar}><div className={styles.windowBrand}><img src="/icon.svg" alt="" width={20} height={20} loading="eager" />{activeSection === "studio" ? "Studio" : activeSection === "ai" ? "AI tutor" : previewSections.find(item => item.id === activeSection)?.label}</div><span className={styles.sampleLabel}>{activeSection === "studio" ? "TRY THE EDITOR" : "EXAMPLE WORKSPACE"}</span><span className={styles.windowDots} aria-hidden="true">•••</span></div>
+      <div className={styles.scene} hidden={activeSection !== "studio"} style={{ height: "auto" }}><PublicDemoEditor /></div>
+      {activeSection !== "studio" && <div className={styles.scene} key={activeSection}>
+        {activeSection === "practice" ? <PracticeScene /> : activeSection === "calendar" ? <CalendarScene /> : activeSection === "ai" ? <TutorScene /> : <SocialScene />}
+      </div>}
     </div>
-  </div>
-}
-
-function StudioScene() {
-  const [palette, setPalette] = useState(0)
-  const palettes = ["Periwinkle", "Apricot", "Mint"]
-  return <div className={styles.studioScene}>
-    <div className={styles.canvasToolbar} aria-hidden="true"><MousePointer2 size={15} /><span /><Type size={16} /><Layers3 size={15} /><Plus size={16} /></div>
-    <div className={styles.artBoard} data-palette={palette}>
-      <span className={styles.boardEyebrow}>COLLECTING GOOD IDEAS / 001</span>
-      <strong>Stay<br />curious<span>.</span></strong>
-      <span className={styles.boardFlower} aria-hidden="true">✳</span>
-      <span className={styles.boardStamp}>THINK IT.<br />MAKE IT.</span>
-      <span className={styles.boardFooter}>A little wonder goes a long way.</span>
-    </div>
-    <div className={styles.palette} role="group" aria-label="Try a canvas color">{palettes.map((name, index) => <button key={name} type="button" aria-label={name} aria-pressed={palette === index} onClick={() => setPalette(index)} data-palette={index}>{palette === index ? <Check size={13} /> : null}</button>)}</div>
-    <div className={styles.floatingNote}><span><FileText size={14} /> A thought worth keeping</span><strong>What if I tried<br />something new?</strong><span className={styles.noteLine} /><span className={styles.noteLine} /></div>
-    <span className={styles.demoHint}>Try a color<ArrowRight size={13} /></span>
   </div>
 }
 

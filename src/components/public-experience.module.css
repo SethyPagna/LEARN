@@ -35,29 +35,6 @@
 .windowDots { letter-spacing: 2px; font-size: 11px; }
 .scene { container-type: inline-size; height: 430px; position: relative; animation: preview-in .25s ease-out; }
 .scene:has(> .tutorScene) { height: auto; min-height: 430px; }
-.studioScene { position: relative; width: 100%; height: 100%; background: var(--pub-soft); color: var(--pub-ink); }
-.canvasToolbar { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 19px; background: var(--pub-card); padding: 10px 14px; border: 1px solid var(--pub-line); border-radius: 9px; box-shadow: 0 4px 8px #25244408; color: var(--pub-muted); }
-.canvasToolbar span { width: 1px; height: 17px; background: var(--pub-line); }
-.artBoard { position: absolute; top: 79px; left: 6%; width: 78%; height: 284px; padding: 22px 24px; background: #d5d4f6; color: #252444; overflow: hidden; box-shadow: 0 7px 20px #36345913; transition: background .2s; }
-.artBoard[data-palette="1"] { background: #f6c8b6; }
-.artBoard[data-palette="2"] { background: #c6e5ce; }
-.boardEyebrow { font-size: 7px; letter-spacing: .18em; font-weight: 650; position: relative; z-index: 1; }
-.artBoard strong { display: block; position: relative; z-index: 1; font-size: clamp(46px, 12cqw, 80px); line-height: .92; letter-spacing: -.075em; font-weight: 650; margin-top: 24px; }
-.artBoard strong > span { color: #bd604f; }
-.boardFlower { position: absolute; top: 9px; right: -24px; font-size: 180px; line-height: 1; color: #6a66bf; transform: rotate(-12deg); }
-.boardStamp { position: absolute; right: 15px; top: 45px; width: 74px; height: 74px; display: grid; place-content: center; border-radius: 50%; background: #f9c7b3; font-size: 9px; line-height: 1.35; font-weight: 750; transform: rotate(12deg); letter-spacing: .05em; text-align: center; }
-.boardFooter { position: absolute; bottom: 20px; left: 24px; font-size: 8px; }
-.palette { display: flex; position: absolute; gap: 7px; top: 375px; left: 6%; padding: 6px; background: var(--pub-card); border: 1px solid var(--pub-line); border-radius: 24px; }
-.palette button { display: grid; place-items: center; width: 30px; height: 30px; border: 3px solid #fff; border-radius: 50%; color: #27233f; background: #d5d4f6; }
-.palette button[data-palette="1"] { background: #f6c8b6; }
-.palette button[data-palette="2"] { background: #c6e5ce; }
-.palette button[aria-pressed="true"] { outline: 1px solid #858198; }
-.floatingNote { display: flex; flex-direction: column; gap: 13px; position: absolute; right: 3%; bottom: 31px; width: 192px; padding: 18px; background: var(--pub-card); border: 1px solid var(--pub-line); border-radius: 11px; box-shadow: 0 10px 24px #403a5e13; transform: rotate(5deg); }
-.floatingNote > span:first-child { display: flex; align-items: center; gap: 6px; font-size: 8px; color: var(--pub-muted); }
-.floatingNote strong { font-size: 17px; font-weight: 600; line-height: 1.25; letter-spacing: -.035em; }
-.noteLine { background: var(--pub-line); height: 3px; width: 88%; border-radius: 3px; }
-.noteLine:last-child { width: 55%; margin-top: -6px; }
-.demoHint { display: flex; align-items: center; gap: 5px; position: absolute; top: 391px; left: calc(6% + 125px); font-size: 9px; color: var(--pub-muted); }
 .practiceScene { height: 100%; padding: 26px 36px; background: var(--decor-amber-soft); color: var(--pub-ink); }
 .practiceMeta { display: flex; align-items: center; justify-content: space-between; font-size: 9px; letter-spacing: .07em; color: var(--pub-muted); }
 .practiceMeta > span:first-child { display: flex; align-items: center; gap: 7px; }
@@ -139,11 +116,6 @@
 @keyframes preview-in { from { opacity: .5; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 @media (max-width: 1050px) {
   .wrap { padding-inline: 28px; }
-  .floatingNote { width: 162px; padding: 14px; right: 4%; }
-  .floatingNote strong { font-size: 16px; }
-  .boardStamp { right: 8px; width: 60px; height: 60px; font-size: 8px; }
-  .boardFlower { font-size: 152px; }
-  .demoHint { display: none; }
 }
 @media (max-width: 760px) {
   .wrap { padding-inline: 22px; }
@@ -175,18 +147,6 @@
   .scene:has(> .tutorScene) { min-height: 356px; }
   .windowBar { padding-inline: 14px; }
   .sampleLabel { font-size: 7px; }
-  .artBoard { top: 70px; left: 5%; width: 84%; height: 231px; padding: 18px; }
-  .artBoard strong { font-size: 53px; margin-top: 24px; }
-  .boardEyebrow { font-size: 6px; }
-  .boardFlower { font-size: 137px; right: -28px; }
-  .boardStamp { width: 51px; height: 51px; top: 40px; right: 6px; font-size: 6px; }
-  .boardFooter { font-size: 6px; left: 18px; bottom: 18px; }
-  .floatingNote { right: 4%; bottom: 26px; width: 141px; padding: 12px; gap: 10px; }
-  .floatingNote strong { font-size: 14px; }
-  .floatingNote > span:first-child { font-size: 6px; gap: 4px; }
-  .floatingNote > span:first-child svg { width: 11px; }
-  .palette { top: 309px; left: 5%; gap: 5px; padding: 4px; }
-  .palette button { width: 27px; height: 27px; }
   .previewTabs { gap: 2px; padding: 4px; }
   .previewTabs button { padding: 6px 11px; gap: 6px; }
   .tour .previewTabs { width: 100%; }
@@ -226,6 +186,6 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .scene { animation: none; }
-  .primary, .artBoard { transition: none; }
+  .primary { transition: none; }
   .primary:hover { transform: none; }
 }
