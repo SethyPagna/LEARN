@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { Download, FileImage, FileJson, FileText, LoaderCircle, Presentation } from "lucide-react"
+import { Download, FileImage, FileJson, FileText, LoaderCircle, Presentation, ScrollText } from "lucide-react"
 
 import type { DesignDoc } from "@/lib/design/document"
 import { exportPageIndices, exportPixelScale, type DesignExportFormat, type ExportQuality } from "@/lib/design/export-plan"
@@ -28,6 +28,7 @@ const FORMATS: readonly FormatChoice[] = [
   { id: "jpg", label: "JPG", hint: "Small pictures, good for photos", icon: <FileImage className="h-4 w-4" /> },
   { id: "pdf", label: "PDF", hint: "One file to print or hand in", icon: <FileText className="h-4 w-4" /> },
   { id: "pptx", label: "PowerPoint", hint: "Editable slides with speaker notes", icon: <Presentation className="h-4 w-4" /> },
+  { id: "txt", label: "Outline", hint: "Each page's words, speaker notes and rough time, as text", icon: <ScrollText className="h-4 w-4" /> },
   { id: "json", label: "Design file", hint: "A backup you can open here again", icon: <FileJson className="h-4 w-4" /> },
 ]
 

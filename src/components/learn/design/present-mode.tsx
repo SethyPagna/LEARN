@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
 import { createPortal } from "react-dom"
-import { ChevronLeft, ChevronRight, Expand, NotebookPen, Shrink, Timer, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Expand, NotebookPen, Shrink, Timer, TimerOff, X } from "lucide-react"
 
 import { entrancePlan } from "@/lib/design/animation"
 import type { DesignDoc, PageTransition } from "@/lib/design/document"
 import type { MeasureText } from "@/lib/design/text"
+import { clockElapsed, clockPageElapsed, estimateDesignSeconds, estimatePageSeconds, formatClock, markClockPage, startClock, toggleClock } from "@/lib/design/timing"
 
 import { DesignPageView } from "./design-renderer"
 import { playEntrances } from "./entrances"
@@ -17,9 +18,12 @@ import { playEntrances } from "./entrances"
  * controls fade away while the mouse rests.
  *
  * Keys: → ↓ Space PageDown next; ← ↑ PageUp Backspace back; Home / End; S
- * speaker notes; B black screen; F full screen; Esc leaves. Click the right
- * two thirds of the page to go on and the left third to go back; swipe on
- * touch screens.
+ * speaker notes; B black screen; F full screen; T pauses the timer; Esc
+ * leaves. Click the right two thirds of the page to go on and the left third
+ * to go back; swipe on touch screens.
+ *
+ * The timer is for rehearsing: the time so far against the estimate for the
+ * whole design, and (above the notes) the time on this page against its own.
  */
 
 export interface PresentModeProps {
@@ -51,14 +55,6 @@ function transitionClass(transition: PageTransition, direction: 1 | -1): string 
   return ""
 }
 
-function formatElapsed(ms: number): string {
-  const seconds = Math.max(0, Math.floor(ms / 1000))
-  const minutes = Math.floor(seconds / 60)
-  const hours = Math.floor(minutes / 60)
-  const pad = (value: number) => String(value).padStart(2, "0")
-  return hours ? `${hours}:${pad(minutes % 60)}:${pad(seconds % 60)}` : `${pad(minutes)}:${pad(seconds % 60)}`
-}
-
 /** The design indices that are presented: every visible page, or every page when all are hidden. */
 export function presentOrder(pages: readonly { hidden: boolean }[]): number[] {
   const visible = pages.map((page, index) => (page.hidden ? -1 : index)).filter((index) => index >= 0)
@@ -80,7 +76,7 @@ export function PresentMode({ design, startIndex, measure, onClose }: PresentMod
   const [controls, setControls] = useState(true)
   const [fullscreen, setFullscreen] = useState(false)
   const [size, setSize] = useState({ width: 0, height: 0 })
-  const [startedAt] = useState(() => Date.now())
+  const [clock, setClock] = useState(() => startClock(Date.now()))
   const [now, setNow] = useState(() => Date.now())
   const hideTimer = useRef<number | null>(null)
   const enteredFullscreen = useRef(false)
@@ -90,6 +86,17 @@ export function PresentMode({ design, startIndex, measure, onClose }: PresentMod
   const position = Math.min(view.position, order.length - 1)
   const pageIndex = order[position] ?? 0
   const page = design.pages[pageIndex]
+  const estimate = useMemo(() => estimateDesignSeconds(design, order), [design, order])
+
+  // A page's own time starts when it shows.
+  useEffect(() => {
+    setClock((current) => markClockPage(current, Date.now()))
+  }, [position])
+  const toggleTimer = useCallback(() => {
+    const at = Date.now()
+    setClock((current) => toggleClock(current, at))
+    setNow(at)
+  }, [])
 
   const close = useCallback(() => onClose(pageIndex), [onClose, pageIndex])
   const closeRef = useRef(close)
@@ -201,6 +208,7 @@ export function PresentMode({ design, startIndex, measure, onClose }: PresentMod
       else if (key === "s" || key === "S") setShowNotes((current) => !current)
       else if (key === "b" || key === "B" || key === ".") setBlackout((current) => !current)
       else if (key === "f" || key === "F") toggleFullscreen()
+      else if (key === "t" || key === "T") toggleTimer()
       else if (key === "Tab") {
         pokeControls()
         handled = false
@@ -212,7 +220,7 @@ export function PresentMode({ design, startIndex, measure, onClose }: PresentMod
     }
     window.addEventListener("keydown", onKeyDown, true)
     return () => window.removeEventListener("keydown", onKeyDown, true)
-  }, [go, goTo, order.length, pokeControls, toggleFullscreen])
+  }, [go, goTo, order.length, pokeControls, toggleFullscreen, toggleTimer])
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     swiped.current = false
@@ -254,6 +262,10 @@ export function PresentMode({ design, startIndex, measure, onClose }: PresentMod
   const scale = size.width && size.height ? Math.min(size.width / design.width, size.height / design.height) : 0
   const neighbours = [order[position - 1], order[position + 1]].filter((index): index is number => typeof index === "number")
   const notes = page.notes.trim()
+  const paused = clock.since === null
+  const elapsed = clockElapsed(clock, now)
+  const pageTime = `${formatClock(clockPageElapsed(clock, now))} / ${formatClock(estimatePageSeconds(page) * 1000)}`
+  const timerLabel = `${paused ? "Timer paused at" : "Time presenting"} ${formatClock(elapsed)} of about ${formatClock(estimate * 1000)}. ${paused ? "Go on" : "Pause"} (T)`
 
   return createPortal(
     <div
@@ -298,10 +310,20 @@ export function PresentMode({ design, startIndex, measure, onClose }: PresentMod
               <ChevronRight className="h-5 w-5" />
             </PresentButton>
             <span className="mx-1 h-6 w-px bg-white/15" aria-hidden="true" />
-            <span className="hidden items-center gap-1.5 px-2 text-xs tabular-nums text-white/70 sm:inline-flex" title="Time presenting">
-              <Timer className="h-3.5 w-3.5" aria-hidden="true" />
-              {formatElapsed(now - startedAt)}
-            </span>
+            <button
+              type="button"
+              title={timerLabel}
+              aria-label={timerLabel}
+              onClick={(event) => {
+                event.stopPropagation()
+                toggleTimer()
+              }}
+              className={`hidden h-10 items-center gap-1.5 rounded-xl px-2 text-xs tabular-nums transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:inline-flex ${paused ? "text-white/45" : "text-white/70"}`}
+            >
+              {paused ? <TimerOff className="h-3.5 w-3.5" aria-hidden="true" /> : <Timer className="h-3.5 w-3.5" aria-hidden="true" />}
+              <span className={elapsed > estimate * 1000 ? "text-amber-300" : undefined}>{formatClock(elapsed)}</span>
+              <span className="text-white/40">/ {formatClock(estimate * 1000)}</span>
+            </button>
             <PresentButton label={showNotes ? "Hide speaker notes (S)" : "Show speaker notes (S)"} onClick={() => setShowNotes((current) => !current)} active={showNotes}>
               <NotebookPen className="h-4 w-4" />
             </PresentButton>
@@ -316,7 +338,19 @@ export function PresentMode({ design, startIndex, measure, onClose }: PresentMod
       </div>
       {showNotes ? (
         <div data-present-control className="max-h-[32vh] shrink-0 overflow-y-auto border-t border-white/10 bg-neutral-950 px-6 py-4 [touch-action:pan-y]">
-          <p className="mb-1 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-white/50">Notes · page {pageIndex + 1}</p>
+          <p className="mb-1 flex flex-wrap items-center gap-x-2 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-white/50">
+            <span>Notes · page {pageIndex + 1}</span>
+            <button
+              type="button"
+              title={`Time on this page, of about ${formatClock(estimatePageSeconds(page) * 1000)}. ${paused ? "Go on" : "Pause"} (T)`}
+              aria-label={`Time on this page ${pageTime}. ${paused ? "Go on" : "Pause"} (T)`}
+              onClick={toggleTimer}
+              className={`inline-flex items-center gap-1 rounded-md px-1 tabular-nums tracking-normal hover:bg-white/10 ${paused ? "text-white/35" : ""}`}
+            >
+              {paused ? <TimerOff className="h-3 w-3" aria-hidden="true" /> : <Timer className="h-3 w-3" aria-hidden="true" />}
+              {pageTime}
+            </button>
+          </p>
           <p className="whitespace-pre-wrap text-base leading-7 text-white/90">{notes || "No notes on this page. Add them under the page in the editor."}</p>
         </div>
       ) : null}

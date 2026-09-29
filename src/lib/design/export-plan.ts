@@ -12,10 +12,10 @@ import type { FontSpec } from "./text"
  * (components/learn/design/design-export.ts) draws, encodes and downloads.
  */
 
-export type DesignExportFormat = "png" | "jpg" | "pdf" | "pptx" | "json"
+export type DesignExportFormat = "png" | "jpg" | "pdf" | "pptx" | "txt" | "json"
 export type ExportQuality = "standard" | "high"
 
-export const DESIGN_EXPORT_FORMATS: readonly DesignExportFormat[] = ["png", "jpg", "pdf", "pptx", "json"]
+export const DESIGN_EXPORT_FORMATS: readonly DesignExportFormat[] = ["png", "jpg", "pdf", "pptx", "txt", "json"]
 
 /** Longest output edge, in pixels, per quality. */
 const LONG_EDGE: Record<ExportQuality, number> = { standard: 2880, high: 4800 }

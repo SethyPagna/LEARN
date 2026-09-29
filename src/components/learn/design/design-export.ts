@@ -13,6 +13,7 @@ import {
   type ExportQuality,
 } from "@/lib/design/export-plan"
 import { pagePoints } from "@/lib/design/formats"
+import { designOutline } from "@/lib/design/outline"
 import { buildPptxPlan } from "@/lib/design/pptx"
 import { contextMeasure, designImageSources, drawDesignElement, drawDesignPage, type RasterContext, type RasterImage, type RasterOptions } from "@/lib/design/raster"
 import { buildImagePdf, type ImagePdfPage } from "@/lib/export/image-pdf"
@@ -27,8 +28,9 @@ import { loadDesignFonts, resolvedFontFamily } from "./text-measure"
  * which lays text out with the same rules as the editor, so the file matches
  * the screen. PowerPoint keeps text and simple shapes editable and places a
  * picture only for what PowerPoint cannot draw the same way (the plan in
- * lib/design/pptx.ts decides which). JSON is the design itself, for backup or
- * moving between accounts.
+ * lib/design/pptx.ts decides which). The outline is the pages' words, notes
+ * and rough times as plain text (lib/design/outline.ts). JSON is the design
+ * itself, for backup or moving between accounts.
  *
  * Only same-origin and inline pictures are drawn: anything else would taint
  * the canvas (and the CSP blocks it on screen too, so screen and file agree).
@@ -414,6 +416,11 @@ export async function exportDesign(doc: DesignDoc, options: DesignExportOptions)
   }
   if (options.format === "pptx") return exportPptx(doc, options.pages, base, options)
   const indices = exportPageIndices(doc, options.pages)
+  if (options.format === "txt") {
+    const filename = `${base}.outline.txt`
+    downloadBlob(filename, new Blob([designOutline(doc, indices)], { type: "text/plain;charset=utf-8" }))
+    return { filename, pages: indices.length }
+  }
   if (options.format === "pdf") return exportPdf(doc, indices, base, options)
   return exportPictures(doc, indices, base, options)
 }

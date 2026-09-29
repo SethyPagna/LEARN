@@ -11,6 +11,7 @@ import { clampZoom, fitZoom, stepZoom, type Point } from "@/lib/design/gestures"
 import { resizeDesign } from "@/lib/design/layout"
 import { normalizeDesignPictureUrl } from "@/lib/design/image-source"
 import type { MeasureText } from "@/lib/design/text"
+import { estimateDesignSeconds, estimatePageSeconds, formatDuration } from "@/lib/design/timing"
 import type { Note } from "../types"
 import { SharePanel } from "../share-panel"
 import { ContextToolbar, type TableCellRef, type ToolbarActions } from "./context-toolbar"
@@ -241,6 +242,7 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
       <PopoverButton key={api.design.pages[api.pageIndex].id} label="Page notes" buttonClassName="editor-command" placement="top-start" width={320} panel={() => <div className="design-notes-panel">
         <label htmlFor="design-speaker-notes" className="mb-2 block text-sm font-semibold">Notes · Page {api.pageIndex + 1}</label>
         <textarea id="design-speaker-notes" aria-label="Speaker notes" className="min-h-36 w-full resize-y rounded-lg border border-input bg-background p-3 text-sm" value={api.design.pages[api.pageIndex].notes} onChange={event => api.update(doc => updatePage(doc, api.pageIndex, { notes: event.target.value }), { coalesce: `notes:${api.design.pages[api.pageIndex].id}` })} placeholder="Add speaker notes…" />
+        <p className="mt-1.5 text-xs text-muted-foreground" title="Estimated from the words on the page and in the notes">{api.design.pages[api.pageIndex].hidden ? "Skipped when presenting" : `About ${formatDuration(estimatePageSeconds(api.design.pages[api.pageIndex]))} here`} · {formatDuration(estimateDesignSeconds(api.design))} in all</p>
       </div>}><NotebookPen className="h-4 w-4" /><span>Notes</span></PopoverButton>
       <div className="flex-1" />
 
