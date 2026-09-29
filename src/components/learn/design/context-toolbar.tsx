@@ -34,6 +34,7 @@ import {
   Minus,
   PaintBucket,
   Palette,
+  Play,
   Plus,
   Replace,
   Shapes,
@@ -49,6 +50,7 @@ import {
 } from "lucide-react"
 
 import type { AlignMode, CanvasElement, DistributeAxis, ReorderAction } from "@/lib/studio/canvas-engine"
+import { ELEMENT_ANIMATION_LABELS, ELEMENT_ANIMATIONS, entrancePlan, readElementAnimation, withElementAnimation, type ElementAnimation } from "@/lib/design/animation"
 import { updatePage, withPageElements, pageUnit } from "@/lib/design/document"
 import { growText, setElementStyle } from "@/lib/design/editing"
 import { designFont, designFontStack, designFonts, nearestFontWeight, type DesignFontCategory } from "@/lib/design/fonts"
@@ -80,6 +82,7 @@ import type { ListStyle, TextAlign } from "@/lib/design/text"
 
 import { ColorButton } from "./color-picker"
 import type { DesignEditorApi, DesignPanelId } from "./editor-types"
+import { prefersReducedMotion, previewEntrances } from "./entrances"
 import { PopoverButton } from "./popover"
 import { SelectionGeometry } from "./selection-geometry"
 
@@ -136,6 +139,9 @@ const FONT_CATEGORY_LABELS: Record<DesignFontCategory, string> = {
 const SHADOW_LABELS: Record<ShadowKind, string> = { none: "None", soft: "Soft", lifted: "Lifted", glow: "Glow" }
 const FILTER_LABELS: Record<ImageFilter, string> = { none: "Original", grayscale: "Mono", sepia: "Sepia", warm: "Warm", cool: "Cool", vivid: "Vivid", fade: "Faded", dark: "Moody" }
 const MASK_LABELS: Record<ImageMask, string> = { none: "Square", rounded: "Rounded", circle: "Circle", blob: "Blob", heart: "Heart", star: "Star", hexagon: "Hexagon", arch: "Arch" }
+type AnimationChoice = ElementAnimation | "none"
+const ANIMATION_CHOICES: readonly AnimationChoice[] = ["none", ...ELEMENT_ANIMATIONS]
+const ANIMATION_LABELS: Record<AnimationChoice, string> = { none: "None", ...ELEMENT_ANIMATION_LABELS }
 const ALIGN_ORDER: readonly TextAlign[] = ["left", "center", "right", "justify"]
 const LIST_ORDER: readonly ListStyle[] = ["none", "bullet", "number", "check"]
 
@@ -407,6 +413,30 @@ export function ContextToolbar({ api, selection, actions, cropping, tableCell = 
   const opacity = single ? (single.type === "text" ? readTextStyle(single).opacity : single.type === "image" ? readImageStyle(single).opacity : readShapeStyle(single).opacity) : 1
   const boxShadow = firstShape ? readShapeStyle(firstShape).shadow : firstImage ? readImageStyle(firstImage).shadow : "none"
   const isTable = (element: CanvasElement) => element.type === "table"
+
+  // Entrances: choosing one plays it on the page at once; "Play page" plays
+  // the whole page as it will enter when presented.
+  const animation: AnimationChoice = readElementAnimation(selection[0]) ?? "none"
+  const animate = (choice: AnimationChoice) => {
+    const next = choice === "none" ? null : choice
+    change((element) => withElementAnimation(element, next))
+    if (next && !prefersReducedMotion()) previewEntrances(selection.filter((element) => !element.locked && !element.hidden).map((element) => ({ id: element.id, animation: next, delay: 0 })))
+  }
+  const animatePage = () => {
+    const next = animation === "none" ? null : animation
+    api.update((design) => {
+      const current = design.pages[api.pageIndex]
+      if (!current) return design
+      let changed = false
+      const elements = current.elements.map((element) => {
+        if (element.locked) return element
+        const updated = withElementAnimation(element, next)
+        if (updated !== element) changed = true
+        return updated
+      })
+      return changed ? withPageElements(design, api.pageIndex, elements) : design
+    })
+  }
 
   const setSize = (next: number, coalesce: boolean) => {
     const ratio = next / Math.max(1, typeSize)
@@ -685,6 +715,18 @@ export function ContextToolbar({ api, selection, actions, cropping, tableCell = 
         </div>
       )}>
         <span className="inline-block h-4 w-4 rounded-[4px] border border-current" style={{ background: "repeating-conic-gradient(currentColor 0 25%, transparent 0 50%) 50% / 6px 6px", opacity: 0.8 }} aria-hidden="true" />
+      </PopoverButton>
+
+      <PopoverButton label="Animate (plays when presenting)" buttonClassName="canvas-tool !px-2.5" width={260} active={animation !== "none"} panel={() => (
+        <div className="w-[14rem] space-y-3">
+          <ChoiceGrid label="Entrance" options={ANIMATION_CHOICES} value={animation} labels={ANIMATION_LABELS} columns={2} onChange={animate} />
+          <div className="grid grid-cols-2 gap-1.5">
+            <PanelAction disabled={!entrancePlan(page.elements).length} onClick={() => previewEntrances(entrancePlan(page.elements), { always: true })} icon={<Play className="h-3.5 w-3.5" />}>Play page</PanelAction>
+            <PanelAction onClick={animatePage}>Apply to page</PanelAction>
+          </div>
+        </div>
+      )}>
+        <span className="text-xs">Animate</span>
       </PopoverButton>
 
       <PopoverButton label="Position" buttonClassName="canvas-tool !px-2.5" width={290} panel={(close) => (

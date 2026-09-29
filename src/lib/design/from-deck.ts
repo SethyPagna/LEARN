@@ -1,6 +1,7 @@
 import type { SlideObject, WorkspaceDeck } from "@/components/learn/types"
 import { createElement, type CanvasElement } from "@/lib/studio/canvas-engine"
 import { slideDesignPresets } from "@/lib/studio-design"
+import { isElementAnimation, withElementAnimation } from "./animation"
 import { createDesignDoc, createDesignPage, DESIGN_LIMITS, scaleDesign, type DesignDoc } from "./document"
 import { designFormat, slidesFormatId } from "./formats"
 import { serializeTableCells } from "./table"
@@ -72,6 +73,13 @@ function slideElements(slide: DeckSlide, width: number, height: number): CanvasE
   })
 }
 
+/** A slide's animation becomes each of its elements' entrance (empty text boxes have nothing to show). */
+function withSlideAnimation(elements: CanvasElement[], slide: DeckSlide): CanvasElement[] {
+  const animation = isElementAnimation(slide.animation) ? slide.animation : null
+  if (!animation) return elements
+  return elements.map((element) => (element.type === "text" && !element.content.trim() ? element : withElementAnimation(element, animation)))
+}
+
 /**
  * The editable Studio slide model, preserving authored objects and slide metadata.
  * Slides are laid out at the old 960-point width, then scaled to a presentation
@@ -86,7 +94,7 @@ export function deckToDesign(input: { title: string; slides: readonly DeckSlide[
     assertTextFits(slide.speakerNotes, DESIGN_LIMITS.notesLength)
     const palette = slideDesignPresets[slide.theme as keyof typeof slideDesignPresets] ?? slideDesignPresets.midnight
     const transition = slide.transition === "push" || slide.transition === "wipe" ? "slide" : slide.transition === "none" || slide.transition === "zoom" ? slide.transition : "fade"
-    return createDesignPage({ id: `slide-${index + 1}`, background: slide.background || palette.background, elements: slideElements(slide, width, height), hidden: slide.hidden, notes: slide.speakerNotes, transition })
+    return createDesignPage({ id: `slide-${index + 1}`, background: slide.background || palette.background, elements: withSlideAnimation(slideElements(slide, width, height), slide), hidden: slide.hidden, notes: slide.speakerNotes, transition })
   }) })
   const format = designFormat(slidesFormatId(input.aspect))
   return scaleDesign(doc, { format: format.id, width: format.width, height: format.height })

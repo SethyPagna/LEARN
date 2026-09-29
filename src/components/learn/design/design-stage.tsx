@@ -173,7 +173,7 @@ export function DesignStage({ api, zoom, snap, grid, editingId, cropping, onEdit
   }
 
   const selectionStyle: CSSProperties | undefined = bounds ? { position: "absolute", left: bounds.x * zoom, top: bounds.y * zoom, width: bounds.width * zoom, height: bounds.height * zoom, transform: single ? `rotate(${single.rotation}deg)` : undefined, border: "1px solid #6d5ce8", pointerEvents: "none", zIndex: 3 } : undefined
-  return <div ref={stage} tabIndex={0} role="application" aria-label={`Design page ${api.pageIndex + 1}`} className="relative shrink-0 outline-none shadow-xl" style={{ width: api.design.width * zoom, height: api.design.height * zoom, touchAction: "none" }} onPointerDown={begin} onPointerMove={move} onPointerUp={(event) => finish(event)} onPointerCancel={(event) => finish(event, true)} onLostPointerCapture={(event) => finish(event, true)} onKeyDown={(event) => {
+  return <div ref={stage} data-design-stage="" tabIndex={0} role="application" aria-label={`Design page ${api.pageIndex + 1}`} className="relative shrink-0 outline-none shadow-xl" style={{ width: api.design.width * zoom, height: api.design.height * zoom, touchAction: "none" }} onPointerDown={begin} onPointerMove={move} onPointerUp={(event) => finish(event)} onPointerCancel={(event) => finish(event, true)} onLostPointerCapture={(event) => finish(event, true)} onKeyDown={(event) => {
     if (event.key === "Escape" && pointer.current) { pointer.current = null; setLive(null); setMarquee(null); setGuides([]); onInteraction(false); event.stopPropagation() }
   }} onDoubleClick={(event) => {
     const element = pickElement(canvas.elements, pointAt(event))

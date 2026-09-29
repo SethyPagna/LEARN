@@ -1,17 +1,20 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { ChevronLeft, ChevronRight, Expand, NotebookPen, Shrink, Timer, X } from "lucide-react"
 
+import { entrancePlan } from "@/lib/design/animation"
 import type { DesignDoc, PageTransition } from "@/lib/design/document"
 import type { MeasureText } from "@/lib/design/text"
 
 import { DesignPageView } from "./design-renderer"
+import { playEntrances } from "./entrances"
 
 /**
  * Full-screen presenting. Hidden pages are skipped, each page enters with its
- * own transition, and the controls fade away while the mouse rests.
+ * own transition, its animated elements enter one after another, and the
+ * controls fade away while the mouse rests.
  *
  * Keys: → ↓ Space PageDown next; ← ↑ PageUp Backspace back; Home / End; S
  * speaker notes; B black screen; F full screen; Esc leaves. Click the right
@@ -65,6 +68,7 @@ export function presentOrder(pages: readonly { hidden: boolean }[]): number[] {
 export function PresentMode({ design, startIndex, measure, onClose }: PresentModeProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
+  const pageRef = useRef<HTMLDivElement>(null)
   const order = useMemo(() => presentOrder(design.pages), [design.pages])
   const [view, setView] = useState<{ position: number; direction: 1 | -1 }>(() => {
     const exact = order.indexOf(startIndex)
@@ -235,6 +239,16 @@ export function PresentMode({ design, startIndex, measure, onClose }: PresentMod
     go(event.clientX - rect.left < rect.width / 3 ? -1 : 1)
   }
 
+  // Each time a page shows (going back too), its elements enter again. The page
+  // is only drawn once the stage has a size.
+  const drawn = size.width > 0 && size.height > 0
+  useLayoutEffect(() => {
+    if (!page || !drawn) return
+    const animations = playEntrances(pageRef.current, entrancePlan(page.elements))
+    return () => animations.forEach((animation) => animation.cancel())
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per page shown, not per re-render
+  }, [page?.id, position, drawn])
+
   if (!page || typeof document === "undefined") return null
 
   const scale = size.width && size.height ? Math.min(size.width / design.width, size.height / design.height) : 0
@@ -257,7 +271,7 @@ export function PresentMode({ design, startIndex, measure, onClose }: PresentMod
       <div ref={stageRef} className="relative min-h-0 flex-1 select-none overflow-hidden" onClick={onStageClick}>
         {scale > 0 ? (
           <div className="absolute left-1/2 top-1/2" style={{ width: design.width * scale, height: design.height * scale, transform: "translate(-50%, -50%)" }}>
-            <div key={page.id} className={transitionClass(page.transition, view.direction)} style={{ width: design.width * scale, height: design.height * scale }}>
+            <div key={page.id} ref={pageRef} className={transitionClass(page.transition, view.direction)} style={{ width: design.width * scale, height: design.height * scale }}>
               <div style={{ width: design.width, height: design.height, transform: `scale(${scale})`, transformOrigin: "0 0" }}>
                 <DesignPageView width={design.width} height={design.height} theme={design.theme} page={page} measure={measure} />
               </div>
