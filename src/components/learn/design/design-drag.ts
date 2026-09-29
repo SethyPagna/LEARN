@@ -5,6 +5,7 @@ import {
   pictureElement,
   shapeElement,
   stickerElement,
+  tableElement,
   textPresetElement,
   TEXT_PRESET_IDS,
   type PageBox,
@@ -35,6 +36,7 @@ export type DesignDragItem =
   | { kind: "sticker"; glyph: string }
   | { kind: "frame"; mask: ImageMask }
   | { kind: "card" }
+  | { kind: "table" }
   | { kind: "picture"; src: string; width: number | null; height: number | null }
 
 const MAX_GLYPH = 16
@@ -66,6 +68,8 @@ export function parseDesignDragItem(value: unknown): DesignDragItem | null {
       return typeof input.mask === "string" && (IMAGE_MASKS as readonly string[]).includes(input.mask) ? { kind: "frame", mask: input.mask as ImageMask } : null
     case "card":
       return { kind: "card" }
+    case "table":
+      return { kind: "table" }
     case "picture":
       return isPlaceablePictureSource(input.src) ? { kind: "picture", src: input.src, width: positiveOrNull(input.width), height: positiveOrNull(input.height) } : null
     default:
@@ -106,6 +110,8 @@ export function elementForItem(item: DesignDragItem, theme: DesignTheme, page: P
       return frameElement(item.mask, page)
     case "card":
       return cardElement(theme, page)
+    case "table":
+      return tableElement(theme, page)
     case "picture":
       return pictureElement(item.src, item.width && item.height ? { width: item.width, height: item.height } : null, page)
   }

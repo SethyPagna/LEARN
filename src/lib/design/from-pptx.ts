@@ -7,11 +7,13 @@ import type { DesignFontId } from "./fonts"
 import { designFormat } from "./formats"
 import { PPTX_FONT_FACES } from "./pptx"
 import type { ShapeKind } from "./shapes"
+import { withAlpha } from "./style"
+import { serializeTableCells, TABLE_LIMITS } from "./table"
 
 /**
  * A PowerPoint file as a presentation design, keeping each slide's layout.
  *
- * Text boxes, placeholders, shapes, lines, pictures, groups and backgrounds land
+ * Text boxes, placeholders, shapes, lines, pictures, tables, groups and backgrounds land
  * where they were, at their size, in their colours and fonts, so the slides look
  * like the original and every piece stays editable. Positions, sizes and type
  * are read in EMU (914,400 per inch) and scaled onto the 1920 x 1080 (16:9) or
@@ -253,7 +255,11 @@ interface Line {
 }
 
 function readLine(parent: XmlElement | null, context: ColorContext): Line | null {
-  const line = parent ? childNamed(parent, "ln") : null
+  return readLineNode(parent ? childNamed(parent, "ln") : null, context)
+}
+
+/** A line element itself: `a:ln`, or a table cell's `a:lnL`, `a:lnT`, and so on. */
+function readLineNode(line: XmlElement | null, context: ColorContext): Line | null {
   if (!line) return null
   const fill = readFill(line, context)
   if (fill?.kind === "none") return { paint: null, width: 0, dash: "solid" }
@@ -572,7 +578,7 @@ interface PageBuild {
   elements: CanvasElement[]
   pictures: Array<{ element: CanvasElement; path: string }>
   groups: number
-  counts: { unsupported: number; missingPictures: number; tables: number; truncated: boolean }
+  counts: { unsupported: number; missingPictures: number; mergedTables: number; tablesCut: boolean; truncated: boolean }
 }
 
 interface PartScope {
@@ -581,6 +587,8 @@ interface PartScope {
   context: ColorContext
   inherit: (shape: XmlElement) => Inherited
   related: PptxPackage["related"]
+  /** A table style by its id (`{5C22544A-…}`), or null. */
+  tableStyle: (id: string) => XmlElement | null
 }
 
 interface PlaceOptions {
@@ -758,16 +766,270 @@ function addPicture(picture: XmlElement, name: string, scope: PartScope, map: Ma
   build.pictures.push({ element: push(build, { type: "image", ...pageBox(box), style }, options), path })
 }
 
+// ---------------------------------------------------------------------------
+// Tables
+// ---------------------------------------------------------------------------
+
+/**
+ * PowerPoint's default table style, Medium Style 2 – Accent 1. PowerPoint
+ * writes every style a deck uses into `tableStyles.xml`, but other writers
+ * may name this one without defining it.
+ */
+const DEFAULT_TABLE_STYLE_ID = "{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}"
+const DEFAULT_TABLE_STYLE_XML = (() => {
+  const line = `<ln w="12700"><solidFill><schemeClr val="lt1"/></solidFill></ln>`
+  const borders = ["left", "right", "top", "bottom", "insideH", "insideV"].map((side) => `<${side}>${line}</${side}>`).join("")
+  const fill = (tint: string) => `<fill><solidFill><schemeClr val="accent1">${tint ? `<tint val="${tint}"/>` : ""}</schemeClr></solidFill></fill>`
+  return `<tblStyle styleId="${DEFAULT_TABLE_STYLE_ID}">`
+    + `<wholeTbl><tcTxStyle><schemeClr val="dk1"/></tcTxStyle><tcStyle><tcBdr>${borders}</tcBdr>${fill("20000")}</tcStyle></wholeTbl>`
+    + `<band1H><tcStyle>${fill("40000")}</tcStyle></band1H>`
+    + `<firstRow><tcTxStyle b="on"><schemeClr val="lt1"/></tcTxStyle><tcStyle>${fill("")}</tcStyle></firstRow>`
+    + `</tblStyle>`
+})()
+let defaultTableStyle: XmlElement | null = null
+
+/** The deck's own definition of a table style, else PowerPoint's default when that is the one named. */
+function findTableStyle(pkg: PptxPackage, presentationPath: string, id: string): XmlElement | null {
+  if (!id) return null
+  const path = pkg.related(presentationPath, "tableStyles") ?? "ppt/tableStyles.xml"
+  const own = pkg.parts[path] ? descendants(pkg.xml(path), "tblStyle").find((style) => attribute(style, "styleId") === id) : undefined
+  if (own) return own
+  if (id !== DEFAULT_TABLE_STYLE_ID) return null
+  defaultTableStyle ??= parseXml(DEFAULT_TABLE_STYLE_XML, "default table style")
+  return defaultTableStyle
+}
+
+const COLOR_NODES = new Set(["srgbClr", "schemeClr", "sysClr", "prstClr", "scrgbClr"])
+const TABLE_ALIGN: Record<string, "left" | "center" | "right"> = { l: "left", ctr: "center", r: "right", just: "left", dist: "left" }
+const TABLE_ANCHOR: Record<string, "top" | "middle" | "bottom"> = { t: "top", ctr: "middle", b: "bottom" }
+
+function flagOn(node: XmlElement | null, name: string): boolean {
+  const value = attribute(node, name)
+  return value === "1" || value === "true" || value === "on"
+}
+
+function paintOf(fill: Fill | null): Paint | null {
+  return fill?.kind === "solid" ? fill.paint : fill?.kind === "gradient" ? fill.from : null
+}
+
+function paintColor(paint: Paint | null): string | null {
+  if (!paint) return null
+  return paint.alpha < 0.98 ? withAlpha(paint.hex, Math.max(0.05, paint.alpha)) : paint.hex
+}
+
+function samePaint(a: Paint | null, b: Paint | null): boolean {
+  return (a?.hex ?? "") === (b?.hex ?? "") && Math.abs((a?.alpha ?? 0) - (b?.alpha ?? 0)) < 0.02
+}
+
+/** A cell's paragraphs as one line: a design table cell holds one paragraph. */
+function cellText(cell: XmlElement): string {
+  const body = childNamed(cell, "txBody")
+  return body ? childrenNamed(body, "p").map(paragraphText).join(" ").replace(/\s+/g, " ").trim() : ""
+}
+
+/** The first run with text among these cells, else the first cell's end-of-paragraph look. */
+function firstRunProperties(cells: XmlElement[]): XmlElement | null {
+  let fallback: XmlElement | null = null
+  for (const cell of cells) {
+    const body = childNamed(cell, "txBody")
+    for (const paragraph of body ? childrenNamed(body, "p") : []) {
+      for (const child of childElements(paragraph)) {
+        const isRun = child.name === "r" || child.name === "fld"
+        if (isRun && runText(child).trim()) return childNamed(child, "rPr")
+        if (!fallback && (isRun || child.name === "endParaRPr")) fallback = isRun ? childNamed(child, "rPr") : child
+      }
+    }
+  }
+  return fallback
+}
+
+function textStyleColor(text: XmlElement, context: ColorContext): Paint | null {
+  const colorIn = (node: XmlElement | null) => node ? readColor(childElements(node).find((child) => COLOR_NODES.has(child.name)), context) : null
+  return colorIn(text) ?? colorIn(childNamed(text, "fontRef"))
+}
+
+/** A table style's border side: its own line, or a line from the theme. */
+function styleBorder(side: XmlElement | null, context: ColorContext): Line | null {
+  if (!side) return null
+  const own = readLineNode(childNamed(side, "ln"), context)
+  if (own) return own
+  const reference = childNamed(side, "lnRef")
+  const index = number(attribute(reference, "idx"), 0)
+  const paint = reference && index > 0 ? readColor(childElements(reference)[0], context) : null
+  return paint ? { paint, width: context.theme.lineWidths[index - 1] ?? 9525 * index, dash: "solid" } : null
+}
+
+interface TableRowLook {
+  fill: Paint | null
+  color: Paint | null
+  bold: boolean
+  italic: boolean
+  face: string
+  points: number | null
+  line: Line | null
+  align: "left" | "center" | "right" | null
+  anchor: "top" | "middle" | "bottom"
+  /** Average cell margin, EMU. */
+  margin: number
+}
+
+/**
+ * A PowerPoint table as a design table.
+ *
+ * A design table has one look per kind of row (header, body, banded body) and
+ * one grid line, so each kind takes the look of a sample cell: the cell's own
+ * fill, lines and first run, then the table style's parts for that row. The
+ * first row is a header when it looks different from the next one, and the
+ * body is banded when its first two rows differ. Merged cells come in split,
+ * with the text in the first one.
+ */
 function addFrame(frame: XmlElement, name: string, scope: PartScope, map: Mapper, scale: number, build: PageBuild, options: PlaceOptions) {
   const own = readXfrm(childNamed(frame, "xfrm"))
   const table = findFirst(frame, "tbl")
-  if (!own || !table) { build.counts.unsupported += 1; return }
-  build.counts.tables += 1
-  // Until tables are elements of their own, a table comes in as its text, row by row.
-  const rows = descendants(table, "tr").map((row) => childrenNamed(row, "tc").map((cell) => bodyText(cell).replace(/\n/g, " ")).join("  |  "))
-  const firstRun = findFirst(table, "rPr")
-  const points = attribute(firstRun, "sz") ? number(attribute(firstRun, "sz"), 1800) / 100 : 18
-  push(build, { type: "text", ...pageBox(map(own)), content: fitContent(rows.join("\n"), build), style: { fontFamily: "sans", fontSize: round(points * EMU_PER_POINT * scale), fontWeight: 400, color: schemeColor("tx1", scope.context)?.hex ?? "#000000", fit: "shrink", padding: 0, lineHeight: 1.5, ...(name ? { name } : {}) } }, options)
+  const rowNodes = table ? childrenNamed(table, "tr") : []
+  if (!own || !table || !rowNodes.length) { build.counts.unsupported += 1; return }
+  const context = scope.context
+  const properties = childNamed(table, "tblPr")
+  const styleId = properties ? childNamed(properties, "tableStyleId") : null
+  const style = styleId ? scope.tableStyle(styleId.children.filter((part): part is string => typeof part === "string").join("").trim()) : null
+  const allRows = rowNodes.map((row) => childrenNamed(row, "tc"))
+  const tableGrid = childNamed(table, "tblGrid")
+  const widths = tableGrid ? childrenNamed(tableGrid, "gridCol").map((column) => number(attribute(column, "w"), 0)) : []
+  const allColumns = Math.max(1, widths.length, ...allRows.map((cells) => cells.length))
+  const rows = Math.min(allRows.length, TABLE_LIMITS.rows)
+  const columns = Math.min(allColumns, TABLE_LIMITS.columns)
+  if (rows < allRows.length || columns < allColumns) build.counts.tablesCut = true
+
+  let merged = false
+  const grid = allRows.slice(0, rows).map((cells) => Array.from({ length: columns }, (_, column) => {
+    const cell = cells[column]
+    if (!cell) return ""
+    if (flagOn(cell, "hMerge") || flagOn(cell, "vMerge")) { merged = true; return "" }
+    if (number(attribute(cell, "gridSpan"), 1) > 1 || number(attribute(cell, "rowSpan"), 1) > 1) merged = true
+    return cellText(cell)
+  }))
+  if (merged) build.counts.mergedTables += 1
+
+  // The style's parts for a row, the most specific first. Column parts are left out:
+  // the sample cell is the second one when the first column has a look of its own.
+  const firstRow = flagOn(properties, "firstRow")
+  const lastRow = flagOn(properties, "lastRow")
+  const isLastRow = (row: number) => lastRow && allRows.length > 1 && row === allRows.length - 1
+  const partsFor = (row: number): XmlElement[] => {
+    if (!style) return []
+    const names = ["wholeTbl"]
+    const isHeader = firstRow && row === 0
+    if (flagOn(properties, "bandRow") && !isHeader && !isLastRow(row)) names.push((row - (firstRow ? 1 : 0)) % 2 === 0 ? "band1H" : "band2H")
+    if (isLastRow(row)) names.push("lastRow")
+    if (isHeader) names.push("firstRow")
+    return names.map((part) => childNamed(style, part)).filter((part): part is XmlElement => Boolean(part)).reverse()
+  }
+  const sampleColumn = flagOn(properties, "firstCol") && columns > 1 ? 1 : 0
+
+  const look = (row: number): TableRowLook => {
+    const cells = allRows[row] ?? []
+    const cell = cells[sampleColumn] ?? cells[0] ?? null
+    const cellProperties = cell ? childNamed(cell, "tcPr") : null
+    const parts = partsFor(row)
+    const cellStyles = parts.map((part) => childNamed(part, "tcStyle"))
+    const textStyles = parts.map((part) => childNamed(part, "tcTxStyle"))
+    const styleFill = first(cellStyles, (cellStyle) => {
+      const fill = readFill(childNamed(cellStyle, "fill"), context)
+      if (fill) return fill
+      const reference = childNamed(cellStyle, "fillRef")
+      const paint = reference && number(attribute(reference, "idx"), 0) > 0 ? readColor(childElements(reference)[0], context) : null
+      return paint ? { kind: "solid", paint } as Fill : null
+    })
+    const run = firstRunProperties(cells)
+    const flag = (key: "b" | "i") => {
+      const value = attribute(run, key)
+      if (value) return value === "1" || value === "true"
+      return first(textStyles, (text) => attribute(text, key) === "on" ? true : attribute(text, key) === "off" ? false : null) ?? false
+    }
+    const styleFace = first(textStyles, (text) => ({ major: "+mj-lt", minor: "+mn-lt" } as Record<string, string>)[attribute(childNamed(text, "fontRef"), "idx")])
+    // Four sides set and none shown means no lines, whatever the style says.
+    const sides = ["lnT", "lnB", "lnL", "lnR"].map((side) => readLineNode(cellProperties ? childNamed(cellProperties, side) : null, context))
+    const shown = (line: Line | null) => Boolean(line?.paint && line.width > 0)
+    const styleLine = first(cellStyles, (cellStyle) => {
+      const borders = childNamed(cellStyle, "tcBdr")
+      return borders ? ["insideH", "insideV", "top", "bottom", "left", "right"].map((side) => styleBorder(childNamed(borders, side), context)).find(shown) : null
+    })
+    const body = cell ? childNamed(cell, "txBody") : null
+    const paragraph = body ? childNamed(body, "p") : null
+    const margin = (key: string, fallback: number) => number(attribute(cellProperties, key), fallback)
+    return {
+      fill: paintOf(readFill(cellProperties, context) ?? styleFill),
+      color: paintOf(run ? readFill(run, context) : null) ?? first(textStyles, (text) => textStyleColor(text, context)) ?? schemeColor("tx1", context),
+      bold: flag("b"),
+      italic: flag("i"),
+      face: resolveFace(attribute(run ? childNamed(run, "latin") : null, "typeface") || styleFace || "+mn-lt", context.theme),
+      points: attribute(run, "sz") ? number(attribute(run, "sz"), 1800) / 100 : null,
+      line: sides.find(shown) ?? (sides.every(Boolean) ? null : styleLine ?? null),
+      align: TABLE_ALIGN[attribute(paragraph ? childNamed(paragraph, "pPr") : null, "algn")] ?? null,
+      anchor: TABLE_ANCHOR[attribute(cellProperties, "anchor")] ?? "top",
+      margin: ((margin("marL", 91_440) + margin("marR", 91_440)) / 2 + (margin("marT", 45_720) + margin("marB", 45_720)) / 2) / 2,
+    }
+  }
+
+  const top = look(0)
+  const next = allRows.length > 1 ? look(1) : null
+  // Rows that simply alternate colours are banding, not a header, unless the table says it has one.
+  const alternates = allRows.length > 2 && samePaint(top.fill, look(2).fill)
+  const header = Boolean(next && (top.bold !== next.bold || !samePaint(top.color, next.color) || (!samePaint(top.fill, next.fill) && (firstRow || !alternates))))
+  const bodyStart = header ? 1 : 0
+  const body = header ? next! : top
+  const bandRow = bodyStart + 1
+  const band = bandRow < allRows.length && !isLastRow(bandRow) ? look(bandRow) : null
+  const banded = Boolean(band?.fill && !samePaint(band.fill, body.fill))
+  const anySize = descendants(table, "rPr").map((run) => attribute(run, "sz")).find(Boolean)
+  const points = body.points ?? top.points ?? (anySize ? number(anySize, 1800) / 100 : 18)
+
+  const tableStyle: Record<string, unknown> = {
+    fontFamily: designFontFor(body.face),
+    fontSize: round(Math.min(800, Math.max(6, points * EMU_PER_POINT * scale))),
+    fontWeight: fontWeightFor(body.face, body.bold),
+    color: paintColor(body.color) ?? "#000000",
+    textAlign: body.align ?? top.align ?? "left",
+    verticalAlign: body.anchor,
+    padding: round(Math.min(200, body.margin * scale)),
+  }
+  if (body.italic) tableStyle.italic = true
+  const bodyFill = paintColor(body.fill)
+  if (bodyFill) tableStyle.fill = bodyFill
+  if (header) {
+    tableStyle.header = true
+    const headerFill = paintColor(top.fill)
+    if (headerFill) tableStyle.headerFill = headerFill
+    tableStyle.headerColor = paintColor(top.color) ?? tableStyle.color
+  }
+  if (banded) {
+    tableStyle.banded = true
+    tableStyle.bandFill = paintColor(band!.fill)
+  }
+  if (body.line?.paint) {
+    tableStyle.stroke = paintColor(body.line.paint)
+    tableStyle.strokeWidth = round(Math.min(40, Math.max(1, body.line.width * scale)))
+  }
+  // Column widths and row heights as shares of the table; rows PowerPoint sizes itself (no height) share evenly.
+  const shares = (values: number[]) => {
+    const total = values.reduce((sum, value) => sum + value, 0)
+    return values.length > 1 && values.every((value) => value > 0) ? values.map((value) => Math.round(value / total * 10_000) / 10_000) : null
+  }
+  const columnShares = widths.length >= columns ? shares(widths.slice(0, columns)) : null
+  const rowShares = shares(rowNodes.slice(0, rows).map((row) => number(attribute(row, "h"), 0)))
+  if (columnShares) tableStyle.columns = columnShares
+  if (rowShares) tableStyle.rows = rowShares
+  if (name) tableStyle.name = name
+
+  // Past the character limit, later cells are cut first.
+  let room = TABLE_LIMITS.characters - (rows * columns - 1)
+  const kept = grid.map((cells) => cells.map((cell) => {
+    const text = cell.slice(0, Math.max(0, room))
+    room -= text.length
+    if (text.length < cell.length) build.counts.truncated = true
+    return text
+  }))
+  push(build, { type: "table", ...pageBox(map(own)), content: serializeTableCells(kept), style: tableStyle }, options)
 }
 
 // ---------------------------------------------------------------------------
@@ -892,7 +1154,8 @@ export async function importPptxDesign(bytes: Uint8Array, options: PptxDesignOpt
 
   if (slideIds.length > DESIGN_LIMITS.pages) warnings.push(`Only the first ${DESIGN_LIMITS.pages} of ${slideIds.length} slides came in; a design holds ${DESIGN_LIMITS.pages} pages.`)
   const pictures: PageBuild["pictures"] = []
-  const totals = { unsupported: 0, missingPictures: 0, tables: 0, truncated: false, animated: 0, notesCut: false }
+  const totals = { unsupported: 0, missingPictures: 0, mergedTables: 0, tablesCut: false, truncated: false, animated: 0, notesCut: false }
+  const tableStyle = (id: string) => findTableStyle(pkg, presentationPath, id)
   let firstTitle = ""
 
   const pages: DesignPage[] = slideIds.slice(0, DESIGN_LIMITS.pages).map((slideId, index) => {
@@ -923,7 +1186,7 @@ export async function importPptxDesign(bytes: Uint8Array, options: PptxDesignOpt
       return { layoutShape, masterShape, styles: stylesFor(placeholder) }
     }
 
-    const build: PageBuild = { elements: [], pictures: [], groups: 0, counts: { unsupported: 0, missingPictures: 0, tables: 0, truncated: false } }
+    const build: PageBuild = { elements: [], pictures: [], groups: 0, counts: { unsupported: 0, missingPictures: 0, mergedTables: 0, tablesCut: false, truncated: false } }
     // The first background found (slide, then layout, then master) fills the page.
     const background = readBackground(slide, slidePath, context, pkg)
       ?? (layout ? readBackground(layout.root, layout.path, masterContext, pkg) : null)
@@ -940,9 +1203,9 @@ export async function importPptxDesign(bytes: Uint8Array, options: PptxDesignOpt
     const showsLayout = attribute(slide, "showMasterSp") !== "0"
     const showsMaster = showsLayout && attribute(layout?.root ?? null, "showMasterSp") !== "0"
     const parts: Array<{ root: XmlElement; scope: PartScope; skipPlaceholders: boolean }> = []
-    if (showsMaster && master) parts.push({ root: master.root, scope: { path: master.path, context: masterContext, inherit: decoration, related: pkg.related }, skipPlaceholders: true })
-    if (showsLayout && layout) parts.push({ root: layout.root, scope: { path: layout.path, context: masterContext, inherit: decoration, related: pkg.related }, skipPlaceholders: true })
-    parts.push({ root: slide, scope: { path: slidePath, context, inherit: slideInherit, related: pkg.related }, skipPlaceholders: false })
+    if (showsMaster && master) parts.push({ root: master.root, scope: { path: master.path, context: masterContext, inherit: decoration, related: pkg.related, tableStyle }, skipPlaceholders: true })
+    if (showsLayout && layout) parts.push({ root: layout.root, scope: { path: layout.path, context: masterContext, inherit: decoration, related: pkg.related, tableStyle }, skipPlaceholders: true })
+    parts.push({ root: slide, scope: { path: slidePath, context, inherit: slideInherit, related: pkg.related, tableStyle }, skipPlaceholders: false })
     for (const part of parts) {
       const tree = shapeTree(part.root)
       if (tree) addShapes(tree, part.scope, toPage, scale, build, { skipPlaceholders: part.skipPlaceholders, groupId: null, depth: 0 })
@@ -954,7 +1217,8 @@ export async function importPptxDesign(bytes: Uint8Array, options: PptxDesignOpt
     pictures.push(...build.pictures)
     totals.unsupported += build.counts.unsupported
     totals.missingPictures += build.counts.missingPictures
-    totals.tables += build.counts.tables
+    totals.mergedTables += build.counts.mergedTables
+    totals.tablesCut ||= build.counts.tablesCut
     totals.truncated ||= build.counts.truncated
     if (hasAnimations(slide)) totals.animated += 1
     const notes = readNotes(pkg, slidePath)
@@ -997,7 +1261,8 @@ export async function importPptxDesign(bytes: Uint8Array, options: PptxDesignOpt
 
   if (unshown) warnings.push(plural(unshown, "A picture couldn't be shown (for example an EMF or WMF file) and was left out.", "# pictures couldn't be shown (for example EMF or WMF files) and were left out."))
   if (totals.unsupported) warnings.push(plural(totals.unsupported, "A chart or diagram was left out.", "# charts or diagrams were left out."))
-  if (totals.tables) warnings.push(plural(totals.tables, "A table came in as text.", "# tables came in as text."))
+  if (totals.mergedTables) warnings.push(plural(totals.mergedTables, "A table's merged cells came in as separate cells.", "# tables' merged cells came in as separate cells."))
+  if (totals.tablesCut) warnings.push(`A table holds up to ${TABLE_LIMITS.rows} rows and ${TABLE_LIMITS.columns} columns; the rest was cut.`)
   if (totals.animated) warnings.push("Animations weren't brought in.")
   if (totals.truncated) warnings.push("Some slides held more than a page can; the extra was cut.")
   if (totals.notesCut) warnings.push(`Speaker notes longer than ${DESIGN_LIMITS.notesLength.toLocaleString("en-US")} characters were cut.`)

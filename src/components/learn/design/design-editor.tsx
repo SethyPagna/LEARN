@@ -13,7 +13,7 @@ import { normalizeDesignPictureUrl } from "@/lib/design/image-source"
 import type { MeasureText } from "@/lib/design/text"
 import type { Note } from "../types"
 import { SharePanel } from "../share-panel"
-import { ContextToolbar, type ToolbarActions } from "./context-toolbar"
+import { ContextToolbar, type TableCellRef, type ToolbarActions } from "./context-toolbar"
 import { DesignStage, type StageProps } from "./design-stage"
 import { PageWorkspace } from "./page-workspace"
 import { EditorPanel, EditorRail } from "./editor-rail"
@@ -49,6 +49,7 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
   const [snap, setSnap] = useState(true)
   const [grid, setGrid] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [tableCell, setTableCell] = useState<TableCellRef | null>(null)
   const [cropping, setCropping] = useState(false)
   const [presenting, setPresenting] = useState(false)
   const [context, setContext] = useState<Point | null>(null)
@@ -102,7 +103,7 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
   function goToPage(index: number) { setEditingId(null); setCropping(false); api.goToPage(index) }
   function travel(redo = false) { setEditingId(null); undo(redo) }
   function editText() {
-    const element = selection.find((element) => !element.locked && !element.hidden && (element.type === "text" || element.type === "shape"))
+    const element = selection.find((element) => !element.locked && !element.hidden && (element.type === "text" || element.type === "shape" || element.type === "table"))
     if (element) setEditingId(element.id)
   }
   const actions: ToolbarActions = { ...commands, editText, crop: () => setCropping((value) => !value), replacePicture: () => { replacement.current = selection[0]?.id ?? null; upload.current?.click() }, openPanel: setPanel }
@@ -176,7 +177,7 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
     onMove: (from, to) => api.update(doc => { const id = doc.pages[api.pageIndex].id; const next = movePage(doc, from, to); return { doc: next, page: next.pages.findIndex(page => page.id === id) } }),
     onToggleHidden: index => api.update(doc => updatePage(doc, index, { hidden: !doc.pages[index].hidden })),
   }
-  const stage: StageProps = { api, zoom, snap, grid, editingId, cropping, onEdit: setEditingId, onCrop: () => setCropping(true), onUndo: travel, onInteraction: busy => { interacting.current = busy }, onContext: setContext }
+  const stage: StageProps = { api, zoom, snap, grid, editingId, cropping, tableCell, onTableCell: setTableCell, onEdit: setEditingId, onCrop: () => setCropping(true), onUndo: travel, onInteraction: busy => { interacting.current = busy }, onContext: setContext }
 
   return <div data-focus={focus} className="studio-editor-workspace design-editor-workspace flex min-w-0 flex-col overflow-hidden bg-card" tabIndex={-1} onKeyDown={onKeyDown} onPointerDownCapture={(event) => {
     if (editingId && !(event.target as HTMLElement).closest("[data-keep-editing]")) setEditingId(null)
@@ -224,7 +225,7 @@ export function DesignEditor({ opened, notes, measure, onHome, onCreate }: Desig
       {!focus ? <EditorPanel api={api} panel={panel} onPanel={setPanel} compact={compact} /> : null}
       <div className="design-workbench flex min-w-0 flex-1 flex-col">
         {!focus ? <div className="design-context-row" data-keep-editing="true">
-          <ContextToolbar key={`${api.design.pages[api.pageIndex].id}:${api.selectedIds.join(":")}`} api={api} selection={selection} actions={actions} cropping={cropping} />
+          <ContextToolbar key={`${api.design.pages[api.pageIndex].id}:${api.selectedIds.join(":")}`} api={api} selection={selection} actions={actions} cropping={cropping} tableCell={editingId && selection.some((element) => element.id === editingId && element.type === "table") ? (tableCell?.id === editingId ? tableCell : { id: editingId, row: 0, column: 0 }) : null} onTableCell={setTableCell} />
         </div> : null}
         <div ref={viewport} className="min-h-0 min-w-0 flex-1 overflow-auto">
         {presentation || focus ? <div className="flex min-h-full min-w-full items-center justify-center p-8" style={{ width: api.design.width * zoom + 64, height: api.design.height * zoom + 64 }}>

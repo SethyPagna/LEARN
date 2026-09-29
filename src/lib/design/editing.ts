@@ -16,6 +16,7 @@ import { DESIGN_LIMITS, newDesignId, reidentifyElements } from "./document"
 import { nearestFontWeight } from "./fonts"
 import { isStrokeOnlyShape, type ShapeKind } from "./shapes"
 import { FONT_SIZE_RANGE, readShapeStyle, readTextStyle, type ImageMask } from "./style"
+import { serializeTableCells } from "./table"
 import { naturalTextHeight, naturalTextWidth, type ListStyle, type MeasureText, type TextAlign } from "./text"
 import { themeShapeFill, themeTextStyle, type DesignTheme, type PaletteKey, type TextRole } from "./themes"
 
@@ -154,6 +155,11 @@ export function resizeDesignElement(start: CanvasElement, gesture: ResizeGesture
     const rect = resizeRect(start, gesture.handle, gesture.dx, gesture.dy, minSize)
     return growText({ ...start, ...roundRect(rect) }, gesture.measure)
   }
+  if (start.type === "table" && corner) {
+    // A corner scales the whole table, type and grid lines included (as text boxes do).
+    const { rect, scale } = scaleFromCorner(start, gesture.handle, gesture.dx, gesture.dy, minSize)
+    return { ...start, ...roundRect(rect), style: scaleElementStyle(start.style, scale) }
+  }
   const lockAspect = corner && (start.type === "image" || start.type === "embed" ? !gesture.shift : gesture.shift)
   if (lockAspect) {
     const { rect } = scaleFromCorner(start, gesture.handle, gesture.dx, gesture.dy, minSize)
@@ -271,7 +277,7 @@ export function duplicateSelection(canvas: CanvasDoc, ids: readonly string[], st
 // Style edits
 // ---------------------------------------------------------------------------
 
-const ROLE_KEYS = ["role", "colorRole", "fillRole", "strokeRole", "labelRole", "radiusRole", "look"] as const
+const ROLE_KEYS = ["role", "colorRole", "fillRole", "strokeRole", "labelRole", "radiusRole", "look", "fontRole", "headerFillRole", "headerColorRole"] as const
 
 /**
  * Apply a style change a person made. On a theme-driven element the changed
@@ -409,6 +415,41 @@ export function cardElement(theme: DesignTheme, page: PageBox): CanvasElement {
     width: round2(560 * unit),
     height: round2(360 * unit),
     style: { shape: "rounded", fill: theme.palette.surface, fillRole: "surface", look: "card", shadow: "soft", radiusRole: "theme", borderRadius: round2(theme.radius * unit) },
+  })
+}
+
+/** A 3×3 table in the theme: a header row in the main colour over banded rows. */
+export function tableElement(theme: DesignTheme, page: PageBox): CanvasElement {
+  const unit = unitOf(page)
+  const rows = [["Concept", "Evidence", "Action"], ["", "", ""], ["", "", ""]]
+  return createElement({
+    id: newDesignId("table"),
+    type: "table",
+    width: round2(Math.min(page.width * 0.8, 900 * unit)),
+    height: round2(76 * unit * rows.length),
+    content: serializeTableCells(rows),
+    style: {
+      fontFamily: theme.fonts.body,
+      fontRole: "body",
+      fontSize: round2(26 * unit),
+      fontWeight: nearestFontWeight(theme.fonts.body, 400),
+      color: theme.palette.text,
+      colorRole: "text",
+      textAlign: "left",
+      verticalAlign: "middle",
+      padding: round2(14 * unit),
+      header: true,
+      headerFill: theme.palette.primary,
+      headerFillRole: "primary",
+      headerColor: theme.palette.onPrimary,
+      headerColorRole: "onPrimary",
+      fill: theme.palette.surface,
+      fillRole: "surface",
+      banded: true,
+      stroke: theme.palette.muted,
+      strokeRole: "muted",
+      strokeWidth: round2(1.5 * unit),
+    },
   })
 }
 

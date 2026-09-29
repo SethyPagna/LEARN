@@ -32,7 +32,7 @@ interface RailItem {
 
 export const RAIL_ITEMS: readonly RailItem[] = [
   { id: "templates", label: "Design", title: "Templates and layouts", icon: LayoutTemplate, panel: TemplatesPanel },
-  { id: "elements", label: "Elements", title: "Shapes, frames, stickers and cards", icon: Shapes, panel: ElementsPanel },
+  { id: "elements", label: "Elements", title: "Shapes, tables, frames, stickers and cards", icon: Shapes, panel: ElementsPanel },
   { id: "text", label: "Text", title: "Headings, body text and lists", icon: Type, panel: TextPanel },
   { id: "uploads", label: "Uploads", title: "Your pictures", icon: Upload, panel: UploadsPanel },
   { id: "magic", label: "Magic", title: "Turn text or a note into designed pages", icon: WandSparkles, panel: MagicPanel },

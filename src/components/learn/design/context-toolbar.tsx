@@ -9,6 +9,10 @@ import {
   AlignRight,
   AlignVerticalDistributeCenter,
   ArrowDownToLine,
+  BetweenHorizontalEnd,
+  BetweenHorizontalStart,
+  BetweenVerticalEnd,
+  BetweenVerticalStart,
   ArrowUpToLine,
   Blend,
   Bold,
@@ -28,6 +32,7 @@ import {
   Lock,
   LockOpen,
   Minus,
+  PaintBucket,
   Palette,
   Plus,
   Replace,
@@ -36,6 +41,7 @@ import {
   Sparkles,
   SquareDashed,
   Strikethrough,
+  Table2,
   Trash2,
   Underline,
   Ungroup,
@@ -61,6 +67,15 @@ import {
   type ShadowKind,
   type StrokeDash,
 } from "@/lib/design/style"
+import {
+  insertTableColumn,
+  insertTableRow,
+  parseTableCells,
+  readTableStyle,
+  removeTableColumn,
+  removeTableRow,
+  TABLE_LIMITS,
+} from "@/lib/design/table"
 import type { ListStyle, TextAlign } from "@/lib/design/text"
 
 import { ColorButton } from "./color-picker"
@@ -94,11 +109,20 @@ export interface ToolbarActions {
   toggleLock: () => void
 }
 
+/** The table cell being typed into, when a table is being edited. */
+export interface TableCellRef {
+  id: string
+  row: number
+  column: number
+}
+
 interface ContextToolbarProps {
   api: DesignEditorApi
   selection: readonly CanvasElement[]
   actions: ToolbarActions
   cropping: boolean
+  tableCell?: TableCellRef | null
+  onTableCell?: (cell: TableCellRef) => void
 }
 
 const FONT_CATEGORY_LABELS: Record<DesignFontCategory, string> = {
@@ -292,7 +316,7 @@ function FontSizeControl({ size, onChange }: { size: number; onChange: (next: nu
 // The toolbar
 // ---------------------------------------------------------------------------
 
-export function ContextToolbar({ api, selection, actions, cropping }: ContextToolbarProps) {
+export function ContextToolbar({ api, selection, actions, cropping, tableCell = null, onTableCell }: ContextToolbarProps) {
   const unit = pageUnit(api.design)
   const page = api.design.pages[api.pageIndex]
   const ids = useMemo(() => new Set(selection.map((element) => element.id)), [selection])
@@ -353,6 +377,7 @@ export function ContextToolbar({ api, selection, actions, cropping }: ContextToo
   const texts = uniformSelection.filter((element) => element.type === "text")
   const shapes = uniformSelection.filter((element) => element.type === "shape")
   const images = uniformSelection.filter((element) => element.type === "image")
+  const tables = uniformSelection.filter((element) => element.type === "table")
   const labelled = shapes.filter((element) => element.content.trim())
   const typeable = [...texts, ...labelled]
   const isTypeable = (element: CanvasElement) => element.type === "text" || (element.type === "shape" && Boolean(element.content.trim()))
@@ -381,6 +406,7 @@ export function ContextToolbar({ api, selection, actions, cropping }: ContextToo
   const imageStyle = firstImage ? readImageStyle(firstImage) : null
   const opacity = single ? (single.type === "text" ? readTextStyle(single).opacity : single.type === "image" ? readImageStyle(single).opacity : readShapeStyle(single).opacity) : 1
   const boxShadow = firstShape ? readShapeStyle(firstShape).shadow : firstImage ? readImageStyle(firstImage).shadow : "none"
+  const isTable = (element: CanvasElement) => element.type === "table"
 
   const setSize = (next: number, coalesce: boolean) => {
     const ratio = next / Math.max(1, typeSize)
@@ -477,6 +503,20 @@ export function ContextToolbar({ api, selection, actions, cropping }: ContextToo
               <ToolButton label="Text effects" onClick={() => actions.openPanel("text-effects")}><Sparkles className="h-4 w-4" /></ToolButton>
             </>
           ) : null}
+          <Divider />
+        </>
+      ) : null}
+
+      {tables.length ? (
+        <>
+          <TableTools
+            tables={tables}
+            cell={tableCell}
+            onCell={onTableCell}
+            unit={unit}
+            api={api}
+            change={(fn, coalesce) => change(fn, { coalesce, filter: isTable })}
+          />
           <Divider />
         </>
       ) : null}
@@ -695,14 +735,145 @@ export function ContextToolbar({ api, selection, actions, cropping }: ContextToo
         <button className="editor-menu-item" onClick={() => { actions.duplicate(); close() }}><Copy size={15} />Duplicate</button>
         <button className="editor-menu-item" onClick={() => { actions.remove(); close() }}><Trash2 size={15} />Delete</button>
         {single?.type === "text" ? <button className="editor-menu-item" onClick={() => { actions.editText(); close() }}>Edit text</button> : null}
+        {single?.type === "table" ? <button className="editor-menu-item" onClick={() => { actions.editText(); close() }}><Table2 size={15} />Edit cells</button> : null}
       </div>}><Ellipsis className="h-4 w-4" /></PopoverButton>
     </div>
   )
 }
 
-function PanelAction({ onClick, icon, children }: { onClick: () => void; icon?: ReactNode; children: ReactNode }) {
+// ---------------------------------------------------------------------------
+// Tables
+// ---------------------------------------------------------------------------
+
+const TABLE_ALIGN_ORDER = ["left", "center", "right"] as const
+
+/**
+ * Type, rows and columns, and colours for the selected tables. While a table
+ * is being typed into, rows and columns are added next to (or removed at)
+ * the cell being typed in; otherwise at the end.
+ */
+function TableTools({ tables, cell, onCell, unit, api, change }: {
+  tables: readonly CanvasElement[]
+  cell: TableCellRef | null
+  onCell?: (cell: TableCellRef) => void
+  unit: number
+  api: DesignEditorApi
+  change: (fn: (element: CanvasElement) => CanvasElement, coalesce?: string) => void
+}) {
+  const first = tables[0]
+  const style = readTableStyle(first)
+  const grid = parseTableCells(first.content)
+  const rows = grid.length
+  const columns = grid[0].length
+  const at = tables.length === 1 && cell?.id === first.id ? { row: Math.min(cell.row, rows - 1), column: Math.min(cell.column, columns - 1) } : null
+  const set = (patch: Record<string, unknown>, coalesce?: string) => change((element) => setElementStyle(element, patch), coalesce)
+  const move = (row: number, column: number) => onCell?.({ id: first.id, row, column })
+  const gridWidth = Math.max(1, Math.round(1.5 * unit))
+
   return (
-    <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={onClick} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-muted px-2 py-1.5 text-xs font-semibold transition hover:bg-accent hover:text-accent-foreground">
+    <>
+      <FontPicker value={style.font} onPick={(fontId) => change((element) => setElementStyle(element, { fontFamily: fontId, fontWeight: nearestFontWeight(fontId, readTableStyle(element).weight) }))} />
+      <FontSizeControl size={style.size} onChange={(next, coalesce) => set({ fontSize: round1(next) }, coalesce ? "table-font-size" : undefined)} />
+      <ColorButton label="Text colour" look="text" value={style.color} onChange={(color) => color && set({ color })} theme={api.theme} design={api.design} />
+      <ToolButton label="Bold (the header row is always bold)" active={style.weight >= 600} onClick={() => change((element) => setElementStyle(element, { fontWeight: nearestFontWeight(element.style.fontFamily, style.weight >= 600 ? 400 : 700) }))}>
+        <Bold className="h-4 w-4" />
+      </ToolButton>
+      <ToolButton label="Italic" active={style.italic} onClick={() => set({ italic: !style.italic })}>
+        <Italic className="h-4 w-4" />
+      </ToolButton>
+      <ToolButton label={`Alignment: ${style.align}`} onClick={() => set({ textAlign: TABLE_ALIGN_ORDER[(TABLE_ALIGN_ORDER.indexOf(style.align) + 1) % TABLE_ALIGN_ORDER.length] })}>
+        {style.align === "center" ? <AlignCenter className="h-4 w-4" /> : style.align === "right" ? <AlignRight className="h-4 w-4" /> : <AlignLeft className="h-4 w-4" />}
+      </ToolButton>
+      <PopoverButton label="Rows and columns" buttonClassName="canvas-tool !px-2.5" width={300} panel={() => (
+        <div className="w-[16.5rem] space-y-3">
+          <div>
+            <p className="mb-1.5 text-xs font-semibold">Rows <span className="font-normal text-muted-foreground">({rows})</span></p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {at ? (
+                <>
+                  <PanelAction disabled={rows >= TABLE_LIMITS.rows} onClick={() => change((element) => insertTableRow(element, at.row))} icon={<BetweenHorizontalStart className="h-3.5 w-3.5" />}>Above</PanelAction>
+                  <PanelAction disabled={rows >= TABLE_LIMITS.rows} onClick={() => { change((element) => insertTableRow(element, at.row + 1)); move(at.row + 1, at.column) }} icon={<BetweenHorizontalEnd className="h-3.5 w-3.5" />}>Below</PanelAction>
+                  <PanelAction disabled={rows <= 1} onClick={() => change((element) => removeTableRow(element, at.row))} icon={<Trash2 className="h-3.5 w-3.5" />}>Delete</PanelAction>
+                </>
+              ) : (
+                <>
+                  <PanelAction disabled={rows >= TABLE_LIMITS.rows} onClick={() => change((element) => insertTableRow(element, parseTableCells(element.content).length))} icon={<Plus className="h-3.5 w-3.5" />}>Add</PanelAction>
+                  <PanelAction disabled={rows <= 1} onClick={() => change((element) => removeTableRow(element, parseTableCells(element.content).length - 1))} icon={<Minus className="h-3.5 w-3.5" />}>Last</PanelAction>
+                  <PanelAction onClick={() => set({ rows: null })}>Even</PanelAction>
+                </>
+              )}
+            </div>
+          </div>
+          <div>
+            <p className="mb-1.5 text-xs font-semibold">Columns <span className="font-normal text-muted-foreground">({columns})</span></p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {at ? (
+                <>
+                  <PanelAction disabled={columns >= TABLE_LIMITS.columns} onClick={() => change((element) => insertTableColumn(element, at.column))} icon={<BetweenVerticalStart className="h-3.5 w-3.5" />}>Left</PanelAction>
+                  <PanelAction disabled={columns >= TABLE_LIMITS.columns} onClick={() => { change((element) => insertTableColumn(element, at.column + 1)); move(at.row, at.column + 1) }} icon={<BetweenVerticalEnd className="h-3.5 w-3.5" />}>Right</PanelAction>
+                  <PanelAction disabled={columns <= 1} onClick={() => change((element) => removeTableColumn(element, at.column))} icon={<Trash2 className="h-3.5 w-3.5" />}>Delete</PanelAction>
+                </>
+              ) : (
+                <>
+                  <PanelAction disabled={columns >= TABLE_LIMITS.columns} onClick={() => change((element) => insertTableColumn(element, parseTableCells(element.content)[0].length))} icon={<Plus className="h-3.5 w-3.5" />}>Add</PanelAction>
+                  <PanelAction disabled={columns <= 1} onClick={() => change((element) => removeTableColumn(element, parseTableCells(element.content)[0].length - 1))} icon={<Minus className="h-3.5 w-3.5" />}>Last</PanelAction>
+                  <PanelAction onClick={() => set({ columns: null })}>Even</PanelAction>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <ToolButton label="Header row" active={style.header} onClick={() => set({ header: !style.header })} className="!w-full !justify-center">
+              <span className="text-xs">Header row</span>
+            </ToolButton>
+            <ToolButton label="Banded rows" active={style.banded} onClick={() => set({ banded: !style.banded })} className="!w-full !justify-center">
+              <span className="text-xs">Banded rows</span>
+            </ToolButton>
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-semibold">Vertical position</p>
+            <ChoiceGrid label="Vertical position" options={["top", "middle", "bottom"] as const} value={style.verticalAlign} labels={{ top: "Top", middle: "Middle", bottom: "Bottom" }} onChange={(verticalAlign) => set({ verticalAlign })} />
+          </div>
+          <RangeRow label="Cell spacing" min={0} max={Math.max(24, Math.round(48 * unit))} step={1} value={Math.round(style.padding)} onChange={(value) => set({ padding: value }, "table-padding")} />
+        </div>
+      )}>
+        <Table2 className="h-4 w-4" />
+        <span className="text-xs">Table</span>
+      </PopoverButton>
+      <PopoverButton label="Table colours" buttonClassName="canvas-tool !px-2.5" width={280} panel={() => (
+        <div className="w-[15rem] space-y-2.5">
+          {style.header ? (
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold">Header</span>
+                <ColorButton label="Header colour" value={style.headerFill} allowNone onChange={(color) => set({ headerFill: color ?? null })} theme={api.theme} design={api.design} />
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold">Header text</span>
+                <ColorButton label="Header text colour" look="text" value={style.headerColor} onChange={(color) => color && set({ headerColor: color })} theme={api.theme} design={api.design} />
+              </div>
+            </>
+          ) : null}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold">Cells</span>
+            <ColorButton label="Cell colour" value={style.fill} allowNone onChange={(color) => set({ fill: color ?? null })} theme={api.theme} design={api.design} />
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold">Grid lines</span>
+            <ColorButton label="Grid line colour" look="outline" value={style.stroke} allowNone onChange={(color) => set(color ? { stroke: color, strokeWidth: style.strokeWidth || gridWidth } : { stroke: null })} theme={api.theme} design={api.design} />
+          </div>
+          {style.stroke ? <RangeRow label="Line thickness" min={1} max={Math.max(8, Math.round(12 * unit))} step={0.5} value={style.strokeWidth} onChange={(value) => set({ strokeWidth: value }, "table-grid")} /> : null}
+        </div>
+      )}>
+        <PaintBucket className="h-4 w-4" />
+      </PopoverButton>
+    </>
+  )
+}
+
+function PanelAction({ onClick, icon, children, disabled }: { onClick: () => void; icon?: ReactNode; children: ReactNode; disabled?: boolean }) {
+  return (
+    <button type="button" disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={onClick} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-muted px-2 py-1.5 text-xs font-semibold transition hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-40">
       {icon}
       {children}
     </button>

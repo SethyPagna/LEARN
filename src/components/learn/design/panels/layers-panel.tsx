@@ -1,12 +1,13 @@
 "use client"
 
 import { useState, type DragEvent, type MouseEvent } from "react"
-import { Eye, EyeOff, GripVertical, Image as ImageIcon, Lock, LockOpen, Shapes, Type, Link2 } from "lucide-react"
+import { Eye, EyeOff, GripVertical, Image as ImageIcon, Lock, LockOpen, Shapes, Table2, Type, Link2 } from "lucide-react"
 
 import { moveElementToIndex, type CanvasElement } from "@/lib/studio/canvas-engine"
 import { pageCanvas, withPageCanvas, withPageElements } from "@/lib/design/document"
 import { SHAPE_LABELS } from "@/lib/design/shapes"
 import { readShapeStyle } from "@/lib/design/style"
+import { parseTableCells } from "@/lib/design/table"
 
 import type { DesignEditorApi } from "../editor-types"
 import { EmptyHint } from "./panel-kit"
@@ -29,6 +30,12 @@ export function layerLabel(element: CanvasElement): string {
     const label = element.content.trim().split("\n")[0].slice(0, 28)
     return label ? `${name}: ${label}` : name
   }
+  if (element.type === "table") {
+    const grid = parseTableCells(element.content)
+    const first = grid[0].map((cell) => cell.trim()).filter(Boolean).join(", ").slice(0, 28)
+    const size = `${grid.length}×${grid[0].length}`
+    return first ? `Table ${size}: ${first}` : `Table ${size}`
+  }
   return "Embed"
 }
 
@@ -37,6 +44,7 @@ function LayerIcon({ element }: { element: CanvasElement }) {
   if (element.type === "text") return <Type className={className} aria-hidden="true" />
   if (element.type === "image") return <ImageIcon className={className} aria-hidden="true" />
   if (element.type === "shape") return <Shapes className={className} aria-hidden="true" />
+  if (element.type === "table") return <Table2 className={className} aria-hidden="true" />
   return <Link2 className={className} aria-hidden="true" />
 }
 

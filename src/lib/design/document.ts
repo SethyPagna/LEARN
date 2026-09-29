@@ -5,6 +5,7 @@ import { nearestFontWeight } from "./fonts"
 import { designFormat, formatForSize, isDesignFormatId, MAX_PAGE_EDGE, MIN_PAGE_EDGE, type DesignFormatId } from "./formats"
 import { isPagePattern, type PagePattern } from "./shapes"
 import { LAYOUT_IDS, normalizePageSpec, type LayoutId, type PageSpec } from "./spec"
+import { tablePlainText } from "./table"
 import { designTheme, isPaletteKey, isTextRole, isTextSurface, themeCardLook, themeTextStyle, type DesignTheme, type PaletteKey } from "./themes"
 
 /**
@@ -415,6 +416,19 @@ export function themeElement(element: CanvasElement, theme: DesignTheme, unit: n
     if (style.radiusRole === "theme") patch.borderRadius = Math.round(theme.radius * unit * 100) / 100
   }
 
+  if (element.type === "table") {
+    if (style.fontRole === "body" || style.fontRole === "heading") {
+      const font = theme.fonts[style.fontRole]
+      patch.fontFamily = font
+      patch.fontWeight = nearestFontWeight(font, typeof style.fontWeight === "number" ? style.fontWeight : 400)
+    }
+    if (isPaletteKey(style.colorRole)) patch.color = theme.palette[style.colorRole]
+    if (isPaletteKey(style.fillRole)) patch.fill = theme.palette[style.fillRole]
+    if (isPaletteKey(style.strokeRole)) patch.stroke = theme.palette[style.strokeRole]
+    if (isPaletteKey(style.headerFillRole)) patch.headerFill = theme.palette[style.headerFillRole]
+    if (isPaletteKey(style.headerColorRole)) patch.headerColor = theme.palette[style.headerColorRole]
+  }
+
   // Properties a person set by hand (the editor lists them in `custom`) keep
   // their value through a theme change; everything else follows the theme.
   if (Array.isArray(style.custom)) {
@@ -555,6 +569,10 @@ export function designPlainText(doc: DesignDoc, limit = 4000): string {
   for (const page of doc.pages) {
     for (const element of page.elements) {
       if ((element.type === "text" || element.type === "shape") && element.content.trim()) parts.push(element.content.trim())
+      else if (element.type === "table") {
+        const table = tablePlainText(element.content)
+        if (table) parts.push(table)
+      }
     }
   }
   return parts.join("\n").slice(0, limit)

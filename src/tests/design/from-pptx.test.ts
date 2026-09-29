@@ -3,6 +3,7 @@ import test from "node:test"
 import { createDesignDoc, createDesignPage, designElement, parseDesign, serializeDesign } from "../../lib/design/document"
 import { designFontFor, importPptxDesign, type PptxPicture } from "../../lib/design/from-pptx"
 import { buildPptxPlan } from "../../lib/design/pptx"
+import { readTableStyle } from "../../lib/design/table"
 import { createZip } from "../../lib/export/zip"
 import type { CanvasElement } from "../../lib/studio/canvas-engine"
 
@@ -150,16 +151,56 @@ test("a PowerPoint slide keeps its layout: placeholders from the layout and mast
   assert.deepEqual([second.hidden, second.background, second.transition], [true, "#112233", "fade"])
   assert.equal(second.elements.some((element) => element.style.name === "Brand bar"), false, "showMasterSp=0 hides the master's shapes")
   const table = second.elements.find((element) => element.style.name === "Scores")!
-  assert.deepEqual([table.content, table.style.fontSize, table.x, table.width], ["A  |  B\n1  |  2", 40, 100, 800])
+  assert.deepEqual([table.type, table.content, table.style.fontSize, table.x, table.width, table.style.header, table.style.rows], ["table", "A\tB\n1\t2", 40, 100, 800, undefined, [0.5, 0.5]], "a table with no style and no fills is a plain table")
   assert.equal(second.elements.find((element) => element.style.name === "Microscope again")?.content, "/api/files/file_1/download")
 
   assert.deepEqual(warnings, [
     "A picture couldn't be shown (for example an EMF or WMF file) and was left out.",
     "A chart or diagram was left out.",
-    "A table came in as text.",
     "Animations weren't brought in.",
   ])
   assert.equal(serializeDesign(parseDesign(serializeDesign(design))), serializeDesign(design), "the import is a normal, stable design")
+})
+
+const cell = (text: string, run = "", properties = "", attributes = "", inside = "") => `<a:tc${attributes}><a:txBody><a:bodyPr/><a:lstStyle/>${text.split("/").map((line) => paragraph(line, run)).join("")}</a:txBody><a:tcPr${properties}>${inside}</a:tcPr></a:tc>`
+const tableFrame = (name: string, id: number, y: number, table: string) => `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="${id}" name="${name}"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="${100 * EMU}" y="${y * EMU}"/><a:ext cx="${800 * EMU}" cy="${200 * EMU}"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">${table}</a:graphicData></a:graphic></p:graphicFrame>`
+
+test("a PowerPoint table comes in as a table: grid, header and banded rows from its table style, merged cells split", async () => {
+  // PowerPoint's default style, named but not defined in the file.
+  const organelles = `<a:tbl><a:tblPr firstRow="1" bandRow="1"><a:tableStyleId>{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}</a:tableStyleId></a:tblPr>
+<a:tblGrid><a:gridCol w="${300 * EMU}"/><a:gridCol w="${500 * EMU}"/></a:tblGrid>
+<a:tr h="${60 * EMU}">${cell("Organelles", ' sz="1800"', "", ' gridSpan="2"')}<a:tc hMerge="1"><a:txBody><a:bodyPr/><a:p><a:endParaRPr/></a:p></a:txBody><a:tcPr/></a:tc></a:tr>
+<a:tr h="${70 * EMU}">${cell("Nucleus/(control)", ' sz="2000"', ' anchor="ctr"')}${cell("DNA", ' sz="2000"')}</a:tr>
+<a:tr h="${70 * EMU}">${cell("Ribosome", ' sz="2000"')}${cell("Protein", ' sz="2000"')}</a:tr></a:tbl>`
+  // A style the file defines itself: a grey fill, dark text and a theme line between rows.
+  const plain = `<a:tbl><a:tblPr><a:tableStyleId>{0000TEST}</a:tableStyleId></a:tblPr><a:tblGrid><a:gridCol w="1"/><a:gridCol w="1"/><a:gridCol w="2"/></a:tblGrid>
+<a:tr h="0">${cell("A")}${cell("B")}${cell("C")}</a:tr><a:tr h="0">${cell("1")}${cell("2")}${cell("3")}</a:tr></a:tbl>`
+  const tableStyles = `<a:tblStyleLst def="{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}"><a:tblStyle styleId="{0000TEST}" styleName="Test"><a:wholeTbl><a:tcTxStyle><a:fontRef idx="major"/><a:srgbClr val="333333"/></a:tcTxStyle><a:tcStyle><a:tcBdr><a:insideH><a:lnRef idx="2"><a:schemeClr val="accent2"/></a:lnRef></a:insideH></a:tcBdr><a:fill><a:solidFill><a:srgbClr val="EEEEEE"/></a:solidFill></a:fill></a:tcStyle></a:wholeTbl></a:tblStyle></a:tblStyleLst>`
+  // More rows and columns than a design table holds; each cell's own lines are turned off.
+  const off = ["lnL", "lnR", "lnT", "lnB"].map((side) => `<a:${side} w="0"><a:noFill/></a:${side}>`).join("")
+  const big = `<a:tbl><a:tblPr><a:tableStyleId>{0000TEST}</a:tableStyleId></a:tblPr>${Array.from({ length: 32 }, (_, row) => `<a:tr h="1">${Array.from({ length: 12 }, (_, column) => cell(`${row}.${column}`, "", "", "", off)).join("")}</a:tr>`).join("")}</a:tbl>`
+  const slide = `<p:sld><p:cSld><p:spTree><p:nvGrpSpPr/><p:grpSpPr/>${tableFrame("Organelles", 3, 100, organelles)}${tableFrame("Plain", 4, 400, plain)}${tableFrame("Big", 5, 700, big)}</p:spTree></p:cSld></p:sld>`
+  const { design, warnings } = await importPptxDesign(deck({ "ppt/slides/slide2.xml": slide, "ppt/tableStyles.xml": tableStyles }))
+  const byName = new Map(design.pages[1].elements.map((element) => [element.style.name, element]))
+
+  const organelleTable = byName.get("Organelles")!
+  assert.equal(organelleTable.type, "table")
+  assert.equal(organelleTable.content, "Organelles\t\nNucleus (control)\tDNA\nRibosome\tProtein", "a merged cell keeps its text in the first cell; a cell's paragraphs join into one")
+  const look = organelleTable.style
+  assert.deepEqual([look.header, look.headerFill, look.headerColor, look.fill, look.banded, look.bandFill, look.color], [true, "#4472C4", "#FFFFFF", "#B4C7E7", true, "#DAE3F3", "#000000"], "Medium Style 2: accent header, the first body row the darker band")
+  assert.deepEqual([look.stroke, look.strokeWidth, look.fontSize, look.verticalAlign, look.padding, look.columns, look.rows], ["#FFFFFF", 2, 40, "middle", 10.8, [0.375, 0.625], [0.3, 0.35, 0.35]])
+
+  const plainTable = byName.get("Plain")!
+  assert.deepEqual([plainTable.content, plainTable.style.header, plainTable.style.banded, plainTable.style.fill, plainTable.style.color, plainTable.style.fontFamily], ["A\tB\tC\n1\t2\t3", undefined, undefined, "#EEEEEE", "#333333", "lora"], "the file's own style; its heading font is Georgia")
+  assert.deepEqual([plainTable.style.stroke, plainTable.style.strokeWidth, plainTable.style.columns, plainTable.style.rows, plainTable.style.verticalAlign], ["#ED7D31", 2, [0.25, 0.25, 0.5], undefined, "top"], "a theme line; rows PowerPoint sizes itself share evenly")
+
+  const bigTable = byName.get("Big")!
+  const rows = bigTable.content!.split("\n")
+  assert.deepEqual([rows.length, rows[0].split("\t").length, rows[29].split("\t")[9], bigTable.style.stroke], [30, 10, "29.9", undefined], "cells that turn their lines off have none")
+
+  assert.ok(warnings.includes("A table's merged cells came in as separate cells."))
+  assert.ok(warnings.includes("A table holds up to 30 rows and 10 columns; the rest was cut."))
+  assert.equal(serializeDesign(parseDesign(serializeDesign(design))), serializeDesign(design), "imported tables are normal, stable elements")
 })
 
 test("4:3 slides become 4:3 pages; other shapes are fitted onto the nearer size", async () => {
@@ -193,6 +234,7 @@ test("a design exported to PowerPoint comes back where it was", async () => {
     designElement({ type: "text", x: 120, y: 320, width: 900, height: 400, content: "Light in\nSugar out", style: { fontFamily: "sans", fontSize: 44, color: "#CBD5E1", list: "bullet" } }),
     designElement({ type: "shape", x: 1300, y: 300, width: 400, height: 400, style: { shape: "ellipse", fill: "#22C55E" } }),
     designElement({ type: "shape", x: 1300, y: 760, width: 400, height: 160, style: { shape: "rounded", fill: "#F59E0B", stroke: "#FFFFFF", strokeWidth: 6 } }),
+    designElement({ type: "table", x: 120, y: 760, width: 1000, height: 240, content: "Stage\tWhere\nLight\tThylakoid\nDark\tStroma", style: { fontFamily: "sans", fontSize: 32, color: "#E2E8F0", header: true, headerFill: "#22C55E", headerColor: "#0F172A", fill: "#1E293B", banded: true, bandFill: "#334155", stroke: "#475569", strokeWidth: 2, padding: 12, columns: [0.4, 0.6] } }),
   ] })] })
   const plan = buildPptxPlan(doc, { includeHidden: true })
   const pptx = new PptxGen()
@@ -205,6 +247,7 @@ test("a design exported to PowerPoint comes back where it was", async () => {
     for (const op of slidePlan.ops) {
       if (op.kind === "text") slide.addText(op.text, op.options as never)
       else if (op.kind === "shape") slide.addShape(op.shape as never, op.options as never)
+      else if (op.kind === "table") slide.addTable(op.rows as never, op.options as never)
     }
   }
   const { design, warnings } = await importPptxDesign(await pptx.write({ outputType: "uint8array" }) as Uint8Array)
@@ -212,6 +255,11 @@ test("a design exported to PowerPoint comes back where it was", async () => {
   assert.deepEqual([design.name, design.format, design.pages[0].background], ["Round trip", "presentation", "#0F172A"])
   const look = (element: CanvasElement) => [element.type, Math.round(element.x), Math.round(element.y), Math.round(element.width), Math.round(element.height), element.content, element.style.fontFamily, element.style.fontSize, element.style.color, element.style.list, element.style.shape, element.style.fill, element.style.stroke, element.style.strokeWidth]
   assert.deepEqual(design.pages[0].elements.map(look), doc.pages[0].elements.map(look))
+  const tableLook = (element: CanvasElement) => {
+    const table = readTableStyle(element)
+    return [table.font, table.size, table.weight, table.color, table.align, table.verticalAlign, table.padding, table.header, table.headerFill, table.headerColor, table.fill, table.banded, table.bandFill, table.stroke, table.strokeWidth, element.style.columns]
+  }
+  assert.deepEqual(tableLook(design.pages[0].elements[4]), tableLook(doc.pages[0].elements[4]), "a table keeps its header, bands, lines, spacing and column widths")
 })
 
 test("PowerPoint fonts map to the nearest design font", () => {

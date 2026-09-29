@@ -6,6 +6,7 @@ import { designFontStack } from "@/lib/design/fonts"
 import { dashArray, embedLabel, patternInk, patternRuleWidth, textEffectSpec } from "@/lib/design/paint"
 import { isStrokeOnlyShape, maskPath, patternPaths, shapePath, type PagePattern } from "@/lib/design/shapes"
 import { imageFilterCss, readImageStyle, readShapeStyle, readTextStyle, shadowSpec, type DesignBoxStyle, type TextEffect } from "@/lib/design/style"
+import { layoutTable, tableGridPath, tableRowFills } from "@/lib/design/table"
 import { layoutText, type MeasureText, type TextAlign, type TextLayoutInput } from "@/lib/design/text"
 import { designTheme } from "@/lib/design/themes"
 
@@ -32,6 +33,8 @@ export interface DesignPageViewProps {
   measure: MeasureText
   /** The text element being edited in place: its lines are hidden under the editor's textarea. */
   editingId?: string | null
+  /** With a table being edited: the cell under the editor's textarea ("row:column"). */
+  editingCell?: string | null
   /** Editor hints: an icon in empty picture frames, "Add text" in empty text boxes. */
   placeholders?: boolean
   className?: string
@@ -44,19 +47,19 @@ export interface DesignPageViewProps {
  * scrolled by focus, find-in-page or scrollIntoView, which slid the whole
  * design sideways whenever an element hung off the page edge.
  */
-export const DesignPageView = memo(function DesignPageView({ width, height, theme, page, measure, editingId = null, placeholders = false, className, style }: DesignPageViewProps) {
+export const DesignPageView = memo(function DesignPageView({ width, height, theme, page, measure, editingId = null, editingCell = null, placeholders = false, className, style }: DesignPageViewProps) {
   const unit = Math.min(width, height) / 1080
   return (
     <div className={className} style={{ position: "relative", width, height, overflow: "clip", background: safeColor(page.background) ?? "#FFFFFF", ...style }}>
       <PatternView pattern={page.pattern} width={width} height={height} background={page.background} accent={designTheme(theme).palette.accent} />
       {page.elements.map((element) => (
-        <DesignElementView key={element.id} element={element} unit={unit} measure={measure} editing={element.id === editingId} placeholders={placeholders} />
+        <DesignElementView key={element.id} element={element} unit={unit} measure={measure} editing={element.id === editingId} editingCell={element.id === editingId ? editingCell : null} placeholders={placeholders} />
       ))}
     </div>
   )
 })
 
-export interface DesignThumbnailProps extends Omit<DesignPageViewProps, "editingId" | "placeholders" | "className" | "style"> {
+export interface DesignThumbnailProps extends Omit<DesignPageViewProps, "editingId" | "editingCell" | "placeholders" | "className" | "style"> {
   /** Displayed width in CSS px; the height follows the page's aspect ratio. */
   displayWidth: number
   className?: string
@@ -113,11 +116,12 @@ interface ElementViewProps {
   unit: number
   measure: MeasureText
   editing: boolean
+  editingCell?: string | null
   placeholders: boolean
 }
 
 /** One element in page coordinates. Memoised: an edit re-renders only what it touched. */
-export const DesignElementView = memo(function DesignElementView({ element, unit, measure, editing, placeholders }: ElementViewProps) {
+export const DesignElementView = memo(function DesignElementView({ element, unit, measure, editing, editingCell = null, placeholders }: ElementViewProps) {
   if (element.hidden) return null
   const raw = element.style.opacity
   const opacity = typeof raw === "number" && Number.isFinite(raw) ? Math.max(0.02, Math.min(1, raw)) : 1
@@ -125,6 +129,7 @@ export const DesignElementView = memo(function DesignElementView({ element, unit
   if (element.type === "text") body = <TextElementView element={element} unit={unit} measure={measure} editing={editing} placeholders={placeholders} />
   else if (element.type === "shape") body = <ShapeElementView element={element} unit={unit} measure={measure} editing={editing} />
   else if (element.type === "image") body = <ImageElementView element={element} unit={unit} placeholders={placeholders} />
+  else if (element.type === "table") body = <TableElementView element={element} measure={measure} editingCell={editing ? editingCell : null} />
   else body = <EmbedElementView element={element} measure={measure} />
   return (
     <div
@@ -286,6 +291,35 @@ function TextElementView({ element, unit, measure, editing, placeholders }: { el
       ) : (
         <TextLines content={element.content} width={element.width} height={element.height} input={style} paint={paint} measure={measure} hidden={editing} />
       )}
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Tables
+// ---------------------------------------------------------------------------
+
+/** Row fills, then the grid lines, then each cell's lines (mirrors raster `drawTable`). */
+function TableElementView({ element, measure, editingCell }: { element: CanvasElement; measure: MeasureText; editingCell: string | null }) {
+  const table = layoutTable(element, measure)
+  const { style } = table
+  const width = Math.max(1, element.width)
+  const height = Math.max(1, element.height)
+  return (
+    <>
+      <svg aria-hidden="true" width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ ...layer, overflow: "visible" }}>
+        {tableRowFills(table).map((band) => <rect key={band.y} x={0} y={band.y} width={width} height={band.height} fill={band.fill} />)}
+        {style.stroke && style.strokeWidth > 0 ? <path d={tableGridPath(table)} fill="none" stroke={style.stroke} strokeWidth={style.strokeWidth} /> : null}
+      </svg>
+      {table.cells.map((cell) => {
+        const key = `${cell.row}:${cell.column}`
+        if (!cell.text.trim() || key === editingCell) return null
+        return (
+          <div key={key} style={{ position: "absolute", left: cell.x, top: cell.y, width: cell.width, height: cell.height }}>
+            <TextLines content={cell.text} width={cell.width} height={cell.height} input={cell.input} paint={{ color: cell.color, align: style.align, underline: false, strike: false, effect: "none", effectColor: cell.color }} measure={measure} />
+          </div>
+        )
+      })}
     </>
   )
 }

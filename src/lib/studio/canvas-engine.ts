@@ -17,7 +17,7 @@
 
 export const CANVAS_FORMAT_VERSION = 1 as const
 
-export type CanvasElementType = "text" | "image" | "shape" | "embed"
+export type CanvasElementType = "text" | "image" | "shape" | "embed" | "table"
 
 /** The eight box handles, named as compass points. */
 export type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w"
@@ -100,7 +100,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function isElementType(value: unknown): value is CanvasElementType {
-  return value === "text" || value === "image" || value === "shape" || value === "embed"
+  return value === "text" || value === "image" || value === "shape" || value === "embed" || value === "table"
 }
 
 /** Normalize an angle into [0, 360). */

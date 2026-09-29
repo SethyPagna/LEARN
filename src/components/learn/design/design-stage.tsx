@@ -7,13 +7,16 @@ import { pageCanvas, withPageCanvas } from "@/lib/design/document"
 import { clusteredSelection } from "@/lib/design/editor-state"
 import { previewElementGesture, type ElementGesture } from "@/lib/design/editor-gesture"
 import { adaptDroppedElement, CORNER_HANDLES, elementHandles, growText } from "@/lib/design/editing"
-import { handleCursor, panCrop, pickElement, rectFromPoints, type Point } from "@/lib/design/gestures"
+import { handleCursor, panCrop, pickElement, rectFromPoints, toLocal, type Point } from "@/lib/design/gestures"
 import { readImageStyle } from "@/lib/design/style"
+import { layoutTable, parseTableCells, tableCellAt } from "@/lib/design/table"
 import { DesignPageView } from "./design-renderer"
 import { elementForItem, hasDesignDragItem, readDesignDragItem } from "./design-drag"
 import { dragHasFiles, naturalSize, pictureFilesFrom } from "./image-upload"
+import { TableEditorOverlay } from "./table-editor-overlay"
 import { TextEditorOverlay } from "./text-editor-overlay"
 import type { DesignEditorApi } from "./editor-types"
+import type { TableCellRef } from "./context-toolbar"
 
 export interface StageProps {
   api: DesignEditorApi
@@ -27,6 +30,9 @@ export interface StageProps {
   onUndo: (redo: boolean) => void
   onInteraction: (busy: boolean) => void
   onContext: (point: Point) => void
+  /** The table cell being typed into; the stage keeps its own when the editor does not share one. */
+  tableCell?: TableCellRef | null
+  onTableCell?: (cell: TableCellRef) => void
 }
 
 interface ActivePointer {
@@ -41,13 +47,16 @@ interface ActivePointer {
 
 const HANDLE_POSITION: Record<ResizeHandle, [number, number]> = { nw: [0, 0], n: [0.5, 0], ne: [1, 0], e: [1, 0.5], se: [1, 1], s: [0.5, 1], sw: [0, 1], w: [0, 0.5] }
 
-export function DesignStage({ api, zoom, snap, grid, editingId, cropping, onEdit, onCrop, onUndo, onInteraction, onContext }: StageProps) {
+export function DesignStage({ api, zoom, snap, grid, editingId, cropping, onEdit, onCrop, onUndo, onInteraction, onContext, tableCell: sharedCell, onTableCell }: StageProps) {
   const stage = useRef<HTMLDivElement>(null)
   const pointer = useRef<ActivePointer | null>(null)
   const [live, setLive] = useState<CanvasDoc | null>(null)
   const [marquee, setMarquee] = useState<CanvasRect | null>(null)
   const [guides, setGuides] = useState<SnapGuide[]>([])
   const [pictureSize, setPictureSize] = useState<{ width: number; height: number } | null>(null)
+  const [ownCell, setOwnCell] = useState<TableCellRef | null>(null)
+  const tableCell = sharedCell !== undefined ? sharedCell : ownCell
+  const setTableCell = onTableCell ?? setOwnCell
   const canvas = live ?? pageCanvas(api.design, api.pageIndex)
   const selected = canvas.elements.filter((element) => api.selectedIds.includes(element.id) && !element.hidden)
   const editable = selected.filter((element) => !element.locked)
@@ -55,6 +64,12 @@ export function DesignStage({ api, zoom, snap, grid, editingId, cropping, onEdit
   const bounds = single ?? boundsOf(editable)
   const editing = canvas.elements.find((element) => element.id === editingId && !element.locked && !element.hidden)
   const picture = cropping && selected.length === 1 && selected[0].type === "image" ? selected[0] : null
+  // The cell being typed into: where the table was double-clicked, else its first cell.
+  const cell = editing?.type === "table" ? (() => {
+    const grid = parseTableCells(editing.content)
+    const asked = tableCell?.id === editing.id ? tableCell : { row: 0, column: 0 }
+    return { row: Math.min(asked.row, grid.length - 1), column: Math.min(asked.column, grid[0].length - 1) }
+  })() : null
 
   useEffect(() => {
     if (!pointer.current) return
@@ -164,7 +179,12 @@ export function DesignStage({ api, zoom, snap, grid, editingId, cropping, onEdit
     const element = pickElement(canvas.elements, pointAt(event))
     if (!element || element.locked) return
     if (element.type === "text" || element.type === "shape") onEdit(element.id)
-    else if (element.type === "image" && element.content) {
+    else if (element.type === "table") {
+      const local = toLocal(element, pointAt(event))
+      setTableCell({ id: element.id, ...tableCellAt(layoutTable(element, api.measure), local.x + element.width / 2, local.y + element.height / 2) })
+      api.select([element.id])
+      onEdit(element.id)
+    } else if (element.type === "image" && element.content) {
       api.select([element.id])
       onCrop?.()
     }
@@ -174,7 +194,7 @@ export function DesignStage({ api, zoom, snap, grid, editingId, cropping, onEdit
     if (hit && !api.selectedIds.includes(hit.id)) api.select(clusteredSelection(api.design, api.pageIndex, [hit.id]))
     onContext({ x: event.clientX, y: event.clientY })
   }}>
-    <DesignPageView width={api.design.width} height={api.design.height} theme={api.design.theme} page={{ ...api.design.pages[api.pageIndex], elements: canvas.elements }} measure={api.measure} editingId={editingId} placeholders style={{ transform: `scale(${zoom})`, transformOrigin: "top left", pointerEvents: "none" }} />
+    <DesignPageView width={api.design.width} height={api.design.height} theme={api.design.theme} page={{ ...api.design.pages[api.pageIndex], elements: canvas.elements }} measure={api.measure} editingId={editingId} editingCell={cell ? `${cell.row}:${cell.column}` : null} placeholders style={{ transform: `scale(${zoom})`, transformOrigin: "top left", pointerEvents: "none" }} />
     {grid ? <div className="pointer-events-none absolute inset-0" style={{ backgroundImage: "radial-gradient(#8885 1px, transparent 1px)", backgroundSize: `${8 * zoom}px ${8 * zoom}px` }} /> : null}
     {guides.map((guide, index) => <div key={index} className="pointer-events-none absolute bg-fuchsia-500" style={guide.axis === "x" ? { left: guide.position * zoom, top: 0, height: "100%", width: 1 } : { top: guide.position * zoom, left: 0, width: "100%", height: 1 }} />)}
     {bounds && !editing ? <div style={selectionStyle}>
@@ -182,7 +202,10 @@ export function DesignStage({ api, zoom, snap, grid, editingId, cropping, onEdit
       <button type="button" className="canvas-handle" aria-label="Rotate selection" data-rotate-handle="true" style={{ position: "absolute", left: "50%", top: -28, width: 10, height: 10, pointerEvents: "auto", cursor: "grab", transform: "translateX(-50%)" }} />
     </div> : null}
     {marquee ? <div className="pointer-events-none absolute border border-primary bg-primary/10" style={{ left: marquee.x * zoom, top: marquee.y * zoom, width: marquee.width * zoom, height: marquee.height * zoom }} /> : null}
-    {editing ? <TextEditorOverlay key={editing.id} element={editing} zoom={zoom} measure={api.measure} select="all" selectToken={0} onChange={(content) => api.update((doc) => {
+    {editing && cell ? <TableEditorOverlay key={editing.id} element={editing} zoom={zoom} measure={api.measure} cell={cell} onCell={(next) => setTableCell({ id: editing.id, ...next })} onUpdate={(change, coalesce) => api.update((doc) => {
+      const page = pageCanvas(doc, api.pageIndex)
+      return withPageCanvas(doc, api.pageIndex, { ...page, elements: page.elements.map((element) => element.id === editing.id ? change(element) : element) })
+    }, coalesce ? { coalesce } : undefined)} onDone={(refocus) => { onEdit(null); if (refocus) stage.current?.focus() }} onUndo={onUndo} /> : editing ? <TextEditorOverlay key={editing.id} element={editing} zoom={zoom} measure={api.measure} select="all" selectToken={0} onChange={(content) => api.update((doc) => {
       const page = pageCanvas(doc, api.pageIndex)
       return withPageCanvas(doc, api.pageIndex, { ...page, elements: page.elements.map((element) => element.id === editing.id ? growText({ ...element, content }, api.measure) : element) })
     }, { coalesce: `text:${editing.id}` })} onDone={(refocus) => { onEdit(null); if (refocus) stage.current?.focus() }} onUndo={onUndo} /> : null}

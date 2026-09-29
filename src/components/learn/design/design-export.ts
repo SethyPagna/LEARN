@@ -203,6 +203,8 @@ type PptxSlide = ReturnType<InstanceType<PptxGenConstructor>["addSlide"]>
 type SlideTextOptions = Parameters<PptxSlide["addText"]>[1]
 type SlideShapeName = Parameters<PptxSlide["addShape"]>[0]
 type SlideShapeOptions = Parameters<PptxSlide["addShape"]>[1]
+type SlideTableRows = Parameters<PptxSlide["addTable"]>[0]
+type SlideTableOptions = Parameters<PptxSlide["addTable"]>[1]
 
 let pptxLoading: Promise<PptxGenConstructor> | null = null
 
@@ -314,6 +316,8 @@ async function exportPptx(doc: DesignDoc, requested: readonly number[] | undefin
         slide.addText(op.text, op.options as unknown as SlideTextOptions)
       } else if (op.kind === "shape") {
         slide.addShape(op.shape as SlideShapeName, op.options as unknown as SlideShapeOptions)
+      } else if (op.kind === "table") {
+        slide.addTable(op.rows as unknown as SlideTableRows, op.options as unknown as SlideTableOptions)
       } else {
         const element = page.elements.find((candidate) => candidate.id === op.id)
         if (!element) continue

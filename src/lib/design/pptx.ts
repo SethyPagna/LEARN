@@ -5,13 +5,15 @@ import { pageUnit } from "./document"
 import type { DesignFontId } from "./fonts"
 import { pageInches } from "./formats"
 import { alphaOf, readShapeStyle, readTextStyle, shadowSpec, toHex6 } from "./style"
+import { layoutTable } from "./table"
 import { estimateMeasure, layoutText, type MeasureText } from "./text"
 
 /**
  * A PowerPoint export plan: what to put on each slide, in pptxgenjs terms.
  *
  * Text stays text (editable in PowerPoint, Keynote and Google Slides) at the
- * size the editor actually fitted it to, and simple shapes stay shapes. What
+ * size the editor actually fitted it to, simple shapes stay shapes, and tables
+ * stay tables. What
  * PowerPoint cannot draw the same way — pictures with masks, filters or a focus
  * point, gradients, organic shapes, embeds and patterned backgrounds — is marked
  * `raster`: the editor draws that one element (or the background) with the
@@ -90,9 +92,43 @@ export interface PptxShapeOptions extends PptxBox {
   shadow?: PptxShadow
 }
 
+export interface PptxBorder {
+  type: "solid" | "none"
+  pt?: number
+  color?: string
+}
+
+export interface PptxTableCell {
+  text: string
+  options: {
+    fontFace: string
+    fontSize: number
+    color: string
+    bold: boolean
+    italic: boolean
+    align: "left" | "center" | "right"
+    valign: "top" | "middle" | "bottom"
+    /** Inches, top/right/bottom/left (pptxgenjs reads a first value of 1 or more as points, so each stays below 1). */
+    margin: [number, number, number, number]
+    fill?: { color: string; transparency?: number }
+    border: [PptxBorder, PptxBorder, PptxBorder, PptxBorder]
+  }
+}
+
+export interface PptxTableOptions {
+  x: number
+  y: number
+  w: number
+  h: number
+  colW: number[]
+  rowH: number[]
+}
+
 export type PptxOp =
   | { kind: "text"; id: string; text: string; options: PptxTextOptions }
   | { kind: "shape"; id: string; shape: string; options: PptxShapeOptions }
+  /** A native table: rows of cells, every option spelled out on each cell. */
+  | { kind: "table"; id: string; rows: PptxTableCell[][]; options: PptxTableOptions }
   /** Draw element `id` with the canvas renderer and place the picture in `box` (unrotated size; `rotate` applies). */
   | { kind: "raster"; id: string; box: PptxBox; transparent: boolean }
 
@@ -312,9 +348,43 @@ function shapeOp(element: CanvasElement, scale: Scale, measure: MeasureText): Pp
   return { kind: "text", id: element.id, text: element.content, options: text }
 }
 
+function tableOp(element: CanvasElement, scale: Scale, measure: MeasureText): PptxOp {
+  // PowerPoint cannot turn a table, so a turned one goes over as its picture.
+  if (rotation(element)) return { kind: "raster", id: element.id, box: box(element, scale), transparent: true }
+  const table = layoutTable(element, measure)
+  const { style } = table
+  const place = box(element, scale)
+  const inset = Math.min(0.99, r(style.padding * scale.inch))
+  const line: PptxBorder = style.stroke && style.strokeWidth > 0 ? { type: "solid", pt: r(style.strokeWidth * scale.pt, 2), color: hex(style.stroke) } : { type: "none" }
+  const rows: PptxTableCell[][] = []
+  for (const cell of table.cells) {
+    if (!rows[cell.row]) rows[cell.row] = []
+    const see = cell.fill ? transparency(cell.fill, style.opacity) : undefined
+    rows[cell.row].push({
+      text: cell.text,
+      options: {
+        fontFace: PPTX_FONT_FACES[style.font],
+        fontSize: r(table.size * scale.pt, 1),
+        color: hex(cell.color),
+        bold: cell.input.weight >= 600,
+        italic: style.italic,
+        align: style.align,
+        valign: style.verticalAlign,
+        margin: [inset, inset, inset, inset],
+        ...(cell.fill ? { fill: { color: hex(cell.fill), ...(see ? { transparency: see } : {}) } } : {}),
+        border: [{ ...line }, { ...line }, { ...line }, { ...line }],
+      },
+    })
+  }
+  const widths = table.xs.slice(1).map((edge, index) => r((edge - table.xs[index]) * scale.inch))
+  const heights = table.ys.slice(1).map((edge, index) => r((edge - table.ys[index]) * scale.inch))
+  return { kind: "table", id: element.id, rows, options: { x: place.x, y: place.y, w: place.w, h: place.h, colW: widths, rowH: heights } }
+}
+
 function elementOp(element: CanvasElement, scale: Scale, measure: MeasureText): PptxOp {
   if (element.type === "text") return textOp(element, scale, measure)
   if (element.type === "shape") return shapeOp(element, scale, measure)
+  if (element.type === "table") return tableOp(element, scale, measure)
   // Pictures keep their mask, crop, filter and flips; embeds become their preview card.
   const transparent = element.type !== "image" || String(element.style.mask ?? "none") !== "none" || typeof element.style.borderRadius === "number"
   return { kind: "raster", id: element.id, box: box(element, scale), transparent }

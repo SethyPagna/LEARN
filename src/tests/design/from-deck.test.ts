@@ -38,3 +38,21 @@ test("simple decks keep title, accent and body; limits reject instead of silentl
   assert.throws(() => deckToDesign({ title: "Deck", slides: [{ ...slide, body: "x".repeat(4001) }] }), /text limit/)
   assert.throws(() => deckToDesign({ title: "Deck", slides: [] }), /Add a slide/)
 })
+
+test("an old slide table becomes a real one-row table with its look, and goes to PowerPoint as a table", () => {
+  const doc = deckToDesign({ title: "Tables", slides: [
+    { title: "", body: "", objects: [
+      { id: "grid", type: "table", x: 12, y: 58, w: 60, h: 22, text: "Concept | Evidence | Action", style: { background: "rgba(255,255,255,0.12)", color: "#ffffff", fontSize: 12 } },
+      { id: "blank", type: "table", x: 0, y: 0, w: 50, h: 10 },
+    ] },
+  ] })
+  const [labelled, blank] = doc.pages[0].elements
+  assert.equal(labelled.type, "table")
+  assert.equal(labelled.content, "Concept\tEvidence\tAction")
+  assert.equal(labelled.style.fill, "rgba(255,255,255,0.12)")
+  assert.equal(labelled.style.fontSize, 24, "type grows with the page")
+  assert.equal(blank.content, "Concept\tEvidence\tAction", "an empty old table showed these labels")
+  const op = buildPptxPlan(doc).slides[0].ops[0]
+  assert.equal(op.kind, "table")
+  if (op.kind === "table") assert.deepEqual(op.rows[0].map((cell) => cell.text), ["Concept", "Evidence", "Action"])
+})

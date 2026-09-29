@@ -6,6 +6,7 @@ import { designFont, type DesignFontId } from "./fonts"
 import { dashArray, embedLabel, gradientPoints, imagePlacement, patternInk, patternRuleWidth, textEffectSpec } from "./paint"
 import { isStrokeOnlyShape, maskPath, patternPaths, shapePath } from "./shapes"
 import { imageFilterCss, imageSource, readImageStyle, readShapeStyle, readTextStyle, shadowSpec, type DesignBoxStyle, type DesignImageStyle, type TextEffect } from "./style"
+import { layoutTable, readTableStyle, tableGridPath, tableRowFills } from "./table"
 import { layoutText, type MeasureText, type TextAlign, type TextLayoutInput } from "./text"
 import { designTheme } from "./themes"
 
@@ -368,6 +369,35 @@ function drawEmbed(ctx: RasterContext, element: CanvasElement, options: RasterOp
 }
 
 // ---------------------------------------------------------------------------
+// Tables
+// ---------------------------------------------------------------------------
+
+/** Row fills, then the grid lines, then each cell's lines (mirrors the renderer's `TableElementView`). */
+function drawTable(ctx: RasterContext, element: CanvasElement, options: RasterOptions, measure: MeasureText): void {
+  const table = layoutTable(element, measure)
+  const { style } = table
+  for (const band of tableRowFills(table)) {
+    ctx.fillStyle = band.fill
+    ctx.fillRect(0, band.y, element.width, band.height)
+  }
+  if (style.stroke && style.strokeWidth > 0) {
+    ctx.save()
+    ctx.strokeStyle = style.stroke
+    ctx.lineWidth = style.strokeWidth
+    ctx.setLineDash([])
+    ctx.stroke(options.makePath(tableGridPath(table)) as Path)
+    ctx.restore()
+  }
+  for (const cell of table.cells) {
+    if (!cell.text.trim()) continue
+    ctx.save()
+    ctx.translate(cell.x, cell.y)
+    drawTextLines(ctx, cell.text, cell, cell.input, { color: cell.color, align: style.align, underline: false, strike: false, effect: "none", effectColor: cell.color }, options, measure)
+    ctx.restore()
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Pages
 // ---------------------------------------------------------------------------
 
@@ -404,6 +434,7 @@ export function drawDesignElement(ctx: RasterContext, element: CanvasElement, op
   if (element.type === "text") drawText(ctx, element, options, measure, unit)
   else if (element.type === "shape") drawShape(ctx, element, options, measure, unit)
   else if (element.type === "image") drawImage(ctx, element, options, unit)
+  else if (element.type === "table") drawTable(ctx, element, options, measure)
   else drawEmbed(ctx, element, options, measure)
   ctx.restore()
 }
@@ -436,6 +467,7 @@ export function pageFonts(page: DesignPage): DesignFontId[] {
     if (element.hidden) continue
     if (element.type === "text") fonts.add(readTextStyle(element).font)
     else if (element.type === "shape" && element.content.trim()) fonts.add(readShapeStyle(element).label.font)
+    else if (element.type === "table") fonts.add(readTableStyle(element).font)
   }
   return [...fonts].filter((font) => designFont(font).id === font)
 }

@@ -2,6 +2,7 @@ import type { CanvasElement } from "@/lib/studio/canvas-engine"
 
 import type { DesignDoc, DesignPage } from "./document"
 import { readImageStyle, readShapeStyle, readTextStyle, shadowSpec } from "./style"
+import { readTableStyle } from "./table"
 import type { FontSpec } from "./text"
 
 /**
@@ -92,6 +93,10 @@ export function exportFontSpecs(pages: readonly DesignPage[]): ExportFontSpec[] 
         add({ font: label.font, weight: label.weight, italic: false })
       } else if (element.type === "embed") {
         add({ font: "sans", weight: 600, italic: false })
+      } else if (element.type === "table") {
+        const style = readTableStyle(element)
+        add({ font: style.font, weight: style.weight, italic: style.italic })
+        if (style.header) add({ font: style.font, weight: style.headerWeight, italic: style.italic })
       }
     }
   }
@@ -104,6 +109,10 @@ export function exportFontSpecs(pages: readonly DesignPage[]): ExportFontSpec[] 
  * picture cut to the box would clip them.
  */
 export function rasterPadding(element: CanvasElement, unit: number): number {
+  if (element.type === "table") {
+    const style = readTableStyle(element)
+    return style.stroke && style.strokeWidth > 0 ? Math.ceil(style.strokeWidth / 2 + 1) : 0
+  }
   if (element.type !== "image" && element.type !== "shape") return 0
   const style = element.type === "image" ? readImageStyle(element) : readShapeStyle(element)
   const shadow = shadowSpec(style.shadow, unit)

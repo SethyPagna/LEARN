@@ -3,6 +3,7 @@ import { createElement, type CanvasElement } from "@/lib/studio/canvas-engine"
 import { slideDesignPresets } from "@/lib/studio-design"
 import { createDesignDoc, createDesignPage, DESIGN_LIMITS, scaleDesign, type DesignDoc } from "./document"
 import { designFormat, slidesFormatId } from "./formats"
+import { serializeTableCells } from "./table"
 
 type DeckSlide = WorkspaceDeck["slides"][number]
 
@@ -10,7 +11,38 @@ function assertTextFits(value: string | undefined, limit: number): void {
   if (value && value.length > limit) throw new Error(`A slide exceeds the design text limit (${limit} characters). Split it before converting.`)
 }
 
+/**
+ * The old slides' table was one row of column labels ("Concept | Evidence |
+ * Action") over a see-through fill, split by faint lines. It becomes a real
+ * one-row table with the same look, ready for more rows.
+ */
+function tableElement(object: SlideObject, index: number, width: number, height: number, locked: boolean): CanvasElement {
+  const columns = (object.text || "Concept | Evidence | Action").split("|").map((item) => item.trim())
+  const content = serializeTableCells([columns])
+  assertTextFits(content, DESIGN_LIMITS.contentLength)
+  const style = object.style ?? {}
+  return createElement({
+    id: `object-${index}-${object.id}`, type: "table",
+    x: object.x * width / 100, y: object.y * height / 100,
+    width: object.w * width / 100, height: object.h * height / 100,
+    z: index, content, locked,
+    style: {
+      fontFamily: "sans",
+      fontSize: typeof style.fontSize === "number" ? style.fontSize : 12,
+      fontWeight: 600,
+      color: typeof style.color === "string" ? style.color : "#ffffff",
+      fill: typeof style.background === "string" ? style.background : undefined,
+      stroke: "rgba(255,255,255,0.2)",
+      strokeWidth: 1,
+      padding: 8,
+      verticalAlign: "top",
+      name: object.text?.slice(0, 60) || "Table",
+    },
+  })
+}
+
 function objectElement(object: SlideObject, index: number, width: number, height: number, locked: boolean): CanvasElement {
+  if (object.type === "table") return tableElement(object, index, width, height, locked)
   const content = object.type === "image" ? object.src || "" : object.text || ""
   assertTextFits(content, DESIGN_LIMITS.contentLength)
   return createElement({

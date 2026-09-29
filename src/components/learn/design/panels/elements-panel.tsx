@@ -11,7 +11,7 @@ import type { DesignEditorApi } from "../editor-types"
 import { EmptyHint, ItemTile, PanelHeading, PanelSearch } from "./panel-kit"
 
 /**
- * Shapes, picture frames, cards and stickers. Every tile adds its element to
+ * Shapes, tables, picture frames, cards and stickers. Every tile adds its element to
  * the middle of the current page on click, or wherever it is dropped.
  */
 
@@ -82,6 +82,16 @@ function ShapePreview({ kind, fill, stroke }: { kind: ShapeKind; fill: string; s
   )
 }
 
+function TablePreview({ header, fill, line }: { header: string; fill: string; line: string }) {
+  return (
+    <svg data-drag-preview="true" width={72} height={48} viewBox="0 0 72 48" aria-hidden="true">
+      <rect x={1} y={1} width={70} height={46} fill={fill} />
+      <rect x={1} y={1} width={70} height={15} fill={header} />
+      <path d="M1 1H71V47H1ZM24.3 1V47M47.7 1V47M1 16H71M1 31.5H71" fill="none" stroke={line} strokeWidth={1.2} />
+    </svg>
+  )
+}
+
 function FramePreview({ mask }: { mask: ImageMask }) {
   const tall = mask === "arch"
   const width = 34
@@ -111,7 +121,8 @@ export function ElementsPanel({ api }: { api: DesignEditorApi }) {
     [query],
   )
   const showCard = matches(query, "card panel box sticky note")
-  const nothing = !shapes.length && !frames.length && !stickers.length && !showCard
+  const showTable = matches(query, "table grid rows columns chart compare")
+  const nothing = !shapes.length && !frames.length && !stickers.length && !showCard && !showTable
 
   return (
     <div>
@@ -127,6 +138,17 @@ export function ElementsPanel({ api }: { api: DesignEditorApi }) {
                 <ShapePreview kind={kind} fill={theme.palette.primary} stroke={theme.palette.text} />
               </ItemTile>
             ))}
+          </div>
+        </>
+      ) : null}
+
+      {showTable ? (
+        <>
+          <PanelHeading>Tables</PanelHeading>
+          <div className="grid grid-cols-2 gap-2">
+            <ItemTile item={{ kind: "table" }} label="Table" onPick={pick} className="h-20">
+              <TablePreview header={theme.palette.primary} fill={theme.palette.surface} line={theme.palette.muted} />
+            </ItemTile>
           </div>
         </>
       ) : null}
