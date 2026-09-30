@@ -22,7 +22,6 @@ import {
   MessageSquare,
   Network,
   Play,
-  Plus,
   Radio,
   Search,
   Repeat2,
@@ -35,9 +34,9 @@ import {
   X,
 } from "lucide-react"
 import communityStyles from "./social-community.module.css"
+import { OwnProfileView } from "./personal-profile-view"
 import { api } from "../api"
 import type {
-  Achievement,
   KnowledgeEdge,
   KnowledgeNode,
   LearningSpace,
@@ -55,7 +54,6 @@ import { viewIcons } from "../nav-icons"
 import { EmptyState, Panel, StatusMessage } from "../ui"
 import { VoiceInput } from "../voice-input"
 import { buildReviewRatingActions, buildReviewSummaryChips, buildVaultBlockPalette, reviewAnswerText, reviewPromptText, reviewSourceKind, reviewSourceLabel, summarizeReviewSession, type ReviewRating, type VaultBlockType } from "@/lib/learning-ecosystem"
-import { buildProfileActionPlan, buildProfileSummaryChips, type ProfilePlanTarget, type ProfileSummaryChip } from "@/lib/profile-features"
 import { createSocialDraft, parseStoredSocialDraftStore, socialDraftStorageKey, type SocialDraft, type SocialDraftStore, type SocialKind } from "@/lib/social-drafts"
 import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordsPage, buildWorkspaceMembersPage, formatSocialAction, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, type SocialActionLike, type SocialActionTarget, type SocialInviteRole, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
 
@@ -799,10 +797,10 @@ function SocialSelect({ label, value, options, onChange }: { label: string; valu
  * `/profile` is your own profile; `/profile/<username>` is someone else's, read
  * only and exactly as much of it as they share with you (the server decides).
  */
-export function ProfileView({ setView, user, username }: { setView?: (view: View) => void; user: User | null; username?: string }) {
+export function ProfileView({ setView, user, username, onProfileSaved }: { setView?: (view: View) => void; user: User | null; username?: string; onProfileSaved?: (user: User) => void }) {
   if (!user) return <StatusMessage message="Loading profile…" />
   if (username && username !== user.username) return <PersonProfileView setView={setView} username={username} />
-  return <OwnProfileView setView={setView} user={user} />
+  return <OwnProfileView setView={setView} user={user} onProfileSaved={onProfileSaved} />
 }
 
 function PersonProfileView({ setView, username }: { setView?: (view: View) => void; username: string }) {
@@ -890,147 +888,6 @@ function PersonProfileView({ setView, username }: { setView?: (view: View) => vo
       ) : null}
     </div>
   )
-}
-
-function OwnProfileView({ setView, user }: { setView?: (view: View) => void; user: User }) {
-  const [section, setSection] = useState<"shared" | "achievements">("shared")
-  const username = user.username
-  const { data, status } = useResource<{ item: PublicProfile }>(`/api/profile/public?username=${encodeURIComponent(username)}`)
-  const profile = data?.item
-  const achievements = useResource<{ items: Achievement[] }>("/api/achievements")
-  const achievementItems = achievements.data?.items ?? []
-  const profilePlan = useMemo(() => buildProfileActionPlan({ profile, achievements: achievementItems }), [achievementItems, profile])
-  const profileSummaryChips = useMemo(() => buildProfileSummaryChips(profilePlan), [profilePlan])
-  const unlockedAchievements = achievementItems.filter((achievement) => achievement.unlocked)
-  const lockedAchievements = achievementItems.filter((achievement) => !achievement.unlocked)
-  const sharedArtifacts = (profile?.artifacts ?? []).filter(artifact => artifact.visibility !== "private")
-  const profileAvatarUrl = profile?.avatar_url || user?.avatarUrl || ""
-  const profileLinks = [
-    { href: profile?.social_links?.intro || preferenceString(user?.preferences?.introUrl), label: "Intro" },
-    { href: profile?.social_links?.website || preferenceString(user?.preferences?.websiteUrl), label: "Website" },
-    { href: profile?.social_links?.facebook || preferenceString(user?.preferences?.facebookUrl), label: "Facebook" },
-  ].filter((link) => link.href)
-
-  return (
-    <div className="mx-auto grid max-w-5xl gap-4 lg:grid-cols-[280px_1fr]">
-      <Panel className="self-start p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-md bg-primary text-xl font-semibold text-primary-foreground">
-            {profileAvatarUrl ? <img src={profileAvatarUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" /> : (profile?.name || user?.name || "L").slice(0, 1)}
-          </div>
-          <button className="editor-command" aria-label="Edit profile" title="Edit profile" onClick={() => setView?.("settings")}><Edit3 className="h-4 w-4" /></button>
-        </div>
-        <h2 className="mt-4 text-2xl font-semibold text-foreground">{profile?.name || user?.name || "Learner"}</h2>
-        <p className="text-sm text-muted-foreground">@{profile?.username || username}</p>
-        {profile?.bio ? <p className="mt-4 text-sm leading-6 text-muted-foreground">{profile.bio}</p> : null}
-        {profileLinks.length ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {profileLinks.map((link) => (
-              <a key={link.label} href={link.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-                {link.label}
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            ))}
-          </div>
-        ) : null}
-        <div className="mt-4 grid grid-cols-3 gap-2 border-y border-border py-3">
-          <CompactMetric label="Level" value={String(profile?.metrics.level ?? 1)} />
-          <CompactMetric label="XP" value={String(profile?.metrics.xp ?? 0)} />
-          <CompactMetric label="Streak" value={String(profile?.metrics.streak ?? 0)} />
-        </div>
-        <details className="mt-4 rounded-md border border-border bg-background">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-            <span>More stats</span>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          </summary>
-          <div className="grid grid-cols-2 gap-2 border-t border-border p-2">
-            {profileSummaryChips.map((chip) => (
-              <ProfileSummaryChipButton key={chip.id} chip={chip} onClick={() => setView?.(profileTargetView(chip.target))} relaxed />
-            ))}
-            <Metric label="Reputation" value={String(profile?.metrics.reputation ?? 0)} />
-          </div>
-        </details>
-        <button
-          onClick={() => setView?.(profileTargetView(profilePlan.target))}
-          className="mt-4 flex w-full items-center justify-between gap-3 rounded-md border border-border bg-secondary p-3 text-left text-sm font-semibold text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground"
-        >
-          <span>{profilePlan.nextAction}</span>
-          <Sparkles className="h-4 w-4" />
-        </button>
-      </Panel>
-      <div className="grid content-start gap-3">
-        <nav className="page-sections" aria-label="Profile sections">
-          <button aria-current={section === "shared" ? "page" : undefined} onClick={() => setSection("shared")}><FolderOpen className="h-4 w-4" />Shared</button>
-          <button aria-current={section === "achievements" ? "page" : undefined} onClick={() => setSection("achievements")}><CheckCircle2 className="h-4 w-4" />Achievements<span className="text-xs text-muted-foreground">{unlockedAchievements.length}</span></button>
-        </nav>
-        {status !== "Ready" ? <p role="status" className="text-xs text-muted-foreground">{status}</p> : null}
-        {section === "shared" ? <Panel className="p-4">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold text-foreground">{profilePlan.privacyLabel}</h3>
-            <button onClick={() => setView?.("settings")} className="editor-command" aria-label="Manage sharing" title="Manage sharing">
-              <ShieldCheck className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="mt-3 grid gap-3 md:grid-cols-3">
-            {sharedArtifacts.map((node) => <NodeCard key={node.id} node={node} />)}
-          </div>
-          {profile && sharedArtifacts.length === 0 ? <div className="grid justify-items-center gap-3 py-8"><FolderOpen className="h-8 w-8 text-primary/50" /><button className="editor-command" onClick={() => setView?.("studio")}><Plus className="h-4 w-4" />Create</button></div> : null}
-        </Panel> : null}
-        {section === "achievements" ? <Panel className="p-4">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="font-semibold text-foreground">Achievements</h3>
-            <span className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">{unlockedAchievements.length}/{achievementItems.length}</span>
-          </div>
-          <div className="mt-3 grid gap-2 md:grid-cols-3">
-            {unlockedAchievements.map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} />)}
-          </div>
-          {!unlockedAchievements.length ? <p className="py-4 text-sm text-muted-foreground">No badges yet</p> : null}
-          {lockedAchievements.length ? <details className="workspace-disclosure mt-3"><summary>To unlock <span className="text-muted-foreground">{lockedAchievements.length}</span></summary><div className="mt-3 grid gap-2 sm:grid-cols-2">{lockedAchievements.map(achievement => <AchievementTile key={achievement.id} achievement={achievement} />)}</div></details> : null}
-          {achievements.status !== "Ready" ? <p role="status" className="mt-3 text-xs text-muted-foreground">{achievements.status}</p> : null}
-        </Panel> : null}
-      </div>
-    </div>
-  )
-}
-
-function AchievementTile({ achievement }: { achievement: Achievement }) {
-  return (
-    <details className={`rounded-lg border p-3 ${achievement.unlocked ? "border-success/40 bg-success/10" : "border-border bg-background"}`}>
-      <summary className="-m-3 flex cursor-pointer list-none items-center gap-2 p-3"><CheckCircle2 className={`h-5 w-5 shrink-0 ${achievement.unlocked ? "text-success" : "text-muted-foreground"}`} /><span className="flex-1 text-sm font-medium">{achievement.name}</span><span className="text-xs text-muted-foreground">{achievement.xp_reward} XP</span></summary>
-      <p className="mt-3 text-xs leading-5 text-muted-foreground">{achievement.description}</p>
-    </details>
-  )
-}
-
-function ProfileSummaryChipButton({ chip, onClick, relaxed = false }: { chip: ProfileSummaryChip; onClick: () => void; relaxed?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-md border px-3 py-2 text-left transition hover:-translate-y-0.5 ${profileSummaryChipClasses(chip.tone)} ${relaxed ? "min-h-16" : ""}`}
-      title={`${chip.label}: ${chip.value}`}
-    >
-      <span className="block text-xs font-semibold uppercase tracking-[0.12em] opacity-75">{chip.label}</span>
-      <span className="mt-1 block text-sm font-semibold">{chip.value}</span>
-    </button>
-  )
-}
-
-function profileSummaryChipClasses(tone: ProfileSummaryChip["tone"]) {
-  if (tone === "good") return "border-success/30 bg-success/10 text-success hover:bg-success/15"
-  if (tone === "watch") return "border-warning/35 bg-warning/10 text-warning hover:bg-warning/15"
-  return "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
-}
-
-function profileTargetView(target: ProfilePlanTarget): View {
-  if (target === "settings") return "settings"
-  if (target === "studio") return "studio"
-  if (target === "reviews") return "reviews"
-  return "social"
-}
-
-function preferenceString(value: unknown) {
-  return typeof value === "string" ? value : ""
 }
 
 function useResource<T>(path: string) {
