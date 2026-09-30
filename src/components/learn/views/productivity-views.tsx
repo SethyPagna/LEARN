@@ -1223,6 +1223,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     const draft = readConversationDraft(currentUserId, next) || legacy
     destinationRef.current = next
     setDestination(next)
+    setConversationOpen(next.kind !== "personal")
     if (draft) {
       applyDraft(draft)
       conversationDraftsRef.current.set(chatDestinationKey(next), draft)
