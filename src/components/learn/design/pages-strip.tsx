@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react"
 import * as ContextMenu from "@radix-ui/react-context-menu"
 import { DndContext, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core"
 import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable"
@@ -41,6 +41,7 @@ const THUMB_BOX = { width: 96, height: 60 }
 export function PagesStrip(props: PagesStripProps) {
   const { design, pageIndex, measure } = props
   const latest = useLatest(props)
+  const dragContextId = useId()
   const coarse = useCoarsePointer()
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null)
   const sensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 6 } }), useSensor(TouchSensor, { activationConstraint: { delay: 260, tolerance: 8 } }))
@@ -75,7 +76,7 @@ export function PagesStrip(props: PagesStripProps) {
 
   return (
     <div ref={setScroller} className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto overscroll-x-contain px-1 py-1.5 [scrollbar-width:thin]" aria-label="Pages">
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <DndContext id={dragContextId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={ids} strategy={horizontalListSortingStrategy}>
           <ol className="flex items-center gap-2">
             {design.pages.map((page, index) => (
