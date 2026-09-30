@@ -127,7 +127,7 @@ import {
   createStudioTab,
   deleteColumn,
   deleteRow,
-  evaluateSheetFormula,
+  createSheetFormulaEvaluator,
   fillSheetRange,
   moveColumn,
   moveRow,
@@ -494,6 +494,13 @@ export function StudioView({
   const selectedSheet = sheetId ? sheets.find((item) => item.id === sheetId) : undefined
   const [sheetTitle, setSheetTitle] = useState(blankSheetTitle)
   const [cells, setCells] = useState<string[][]>(blankSheetCells)
+
+  const docImportState = useRef({ kind, id: docId, pane: layout.activePaneId, content: docHistory.present, mounted: true })
+  docImportState.current = { kind, id: docId, pane: layout.activePaneId, content: docHistory.present, mounted: true }
+  useEffect(() => {
+    docImportState.current.mounted = true
+    return () => { docImportState.current.mounted = false }
+  }, [])
 
   // Old decks are listed here; they open (and convert) in the slides editor.
   const [decks, setDecks] = useState<WorkspaceDeck[]>([])
@@ -1625,9 +1632,14 @@ export function StudioView({
           label="Import DOCX"
           note=""
           onFile={async (file) => {
+            const target = docImportState.current
             const imported = await studioDocumentFromDocxFile(file)
             // An empty import must not blank the open document.
             if (!imported.blocks.length) return `No content found in ${file.name}.`
+            const current = docImportState.current
+            if (!current.mounted || current.kind !== target.kind || current.id !== target.id || current.pane !== target.pane || current.content !== target.content) {
+              throw new Error("The project changed while importing. Choose the file again in the intended project.")
+            }
             setDocHistory((current) => pushHistory(current, imported.html))
             return `Imported ${imported.blocks.length} block${imported.blocks.length === 1 ? "" : "s"}${imported.title ? ` from "${imported.title}"` : ""}.`
           }}
@@ -2723,6 +2735,7 @@ function StudioPaneSurface({
           <div className={`grid min-h-0 flex-1 ${inspectorOpen ? "xl:grid-cols-[1fr_260px]" : ""}`}>
             <div className="studio-pane-body min-h-0 overflow-auto bg-secondary/50" data-source-title={activeTitle} data-source-kind={activeKind}>
               <StudioCanvas
+                importKey={`${pane.id}:${pane.activeTabId}`}
                 activeKind={activeKind}
                 canvasFormat={canvasFormat}
                 cells={cells}
@@ -2812,7 +2825,21 @@ function spreadsheetColumnLabel(index: number) {
   for (let value = index + 1; value > 0; value = Math.floor((value - 1) / 26)) label = String.fromCharCode(65 + (value - 1) % 26) + label
   return label
 }
+function revealSheetCell(input: HTMLInputElement) {
+  const table = input.closest("table")
+  const scroller = table?.parentElement
+  if (!table || !scroller) return
+  const viewport = scroller.getBoundingClientRect()
+  const rowNumbersWidth = table.querySelector("tbody th")?.getBoundingClientRect().width || 0
+  const cell = input.getBoundingClientRect()
+  const visibleLeft = viewport.left + rowNumbersWidth
+  // The sticky row numbers cover part of the scrolling table. Keep the text
+  // edge visible when a partially obscured cell receives pointer/keyboard focus.
+  if (cell.left < visibleLeft) scroller.scrollLeft -= visibleLeft - cell.left
+  else if (cell.right > viewport.right) scroller.scrollLeft += cell.right - viewport.right
+}
 function StudioCanvas({
+  importKey,
   activeKind,
   canvasFormat,
   cells,
@@ -2830,6 +2857,7 @@ function StudioCanvas({
   selectedCell,
   updateCell,
 }: {
+  importKey: string
   activeKind: StudioKind
   canvasFormat: StudioCanvasFormat
   cells: string[][]
@@ -2850,6 +2878,13 @@ function StudioCanvas({
   // The one line of feedback the file importers need; the editors themselves are
   // unchanged, so nothing else has to know an import happened.
   const [importNote, setImportNote] = useState("")
+  const sheetImportState = useRef({ key: importKey, cells, mounted: true })
+  sheetImportState.current = { key: importKey, cells, mounted: true }
+  useEffect(() => {
+    sheetImportState.current.mounted = true
+    return () => { sheetImportState.current.mounted = false }
+  }, [])
+  const sheetFormulas = useMemo(() => createSheetFormulaEvaluator(cells), [cells])
 
   if (activeKind === "notes") {
     if (!noteDraft) return <EmptyState title="No note selected" body="Create or choose one to start." />
@@ -2867,9 +2902,9 @@ function StudioCanvas({
   if (activeKind === "sheets") {
     const visibleCells = ensureSheetCells(cells)
     const selectedCellValue = visibleCells[selectedCell.row]?.[selectedCell.column] || ""
-    const formulaPreview = selectedCellValue.trim().startsWith("=") ? evaluateSheetFormula(visibleCells, selectedCellValue) : null
+    const formulaPreview = selectedCellValue.trim().startsWith("=") ? sheetFormulas.evaluateCell(selectedCell) : null
     const applyFormula = (functionName: "SUM" | "AVERAGE" | "MIN" | "MAX" | "COUNT") => {
-      updateCell(selectedCell.row, selectedCell.column, buildSheetFormula(functionName, selectedCell.column, visibleCells.length))
+      updateCell(selectedCell.row, selectedCell.column, buildSheetFormula(functionName, selectedCell.column, { rowCount: visibleCells.length, excludedRow: selectedCell.row }))
     }
     return (
       <div className="studio-sheet-surface flex min-h-full flex-col bg-card">
@@ -2934,9 +2969,14 @@ function StudioCanvas({
               label="Import XLSX"
               note={importNote}
               onFile={async (file) => {
+                const target = sheetImportState.current
                 const imported = await studioSheetFromXlsxFile(file)
                 // An empty workbook must not wipe the grid the user is editing.
                 if (!imported.cells.length) return `No cells found in ${file.name}.`
+                const current = sheetImportState.current
+                if (!current.mounted || current.key !== target.key || current.cells !== target.cells) {
+                  throw new Error("The project changed while importing. Choose the file again in the intended project.")
+                }
                 onSetCells(imported.cells)
                 return `Imported ${imported.rowCount} row${imported.rowCount === 1 ? "" : "s"} x ${imported.columnCount} columns${imported.title ? ` from "${imported.title}"` : ""}.`
               }}
@@ -2951,14 +2991,17 @@ function StudioCanvas({
               {visibleCells.map((row, rowIndex) => (
                 <tr key={rowIndex}>
                   <th scope="row" className="sticky left-0 min-w-12 border border-border bg-secondary text-center text-xs font-medium text-muted-foreground">{rowIndex + 1}</th>
-                  {row.map((cell, cellIndex) => (
+                  {row.map((cell, cellIndex) => {
+                    const isSelected = selectedCell.row === rowIndex && selectedCell.column === cellIndex
+                    const result = !isSelected && cell.trim().startsWith("=") ? sheetFormulas.evaluateCell({ row: rowIndex, column: cellIndex }) : null
+                    return (
                     <ContextMenu.Root key={`${rowIndex}-${cellIndex}`}>
                       <ContextMenu.Trigger asChild>
                         <td className={`border border-border p-0 ${rowIndex === 0 ? "bg-secondary" : "bg-background"}`}>
                           <input
-                            value={cell}
+                            value={result?.ok ? result.value : cell}
                             aria-label={`Spreadsheet cell ${rowIndex + 1}:${cellIndex + 1}`}
-                            onFocus={() => onSetSelectedCell({ row: rowIndex, column: cellIndex })}
+                            onFocus={(event) => { onSetSelectedCell({ row: rowIndex, column: cellIndex }); revealSheetCell(event.currentTarget) }}
                             onChange={(event) => updateCell(rowIndex, cellIndex, event.target.value)}
                             className={`h-10 min-w-36 bg-transparent px-2 outline-none focus:bg-accent focus:text-accent-foreground ${selectedCell.row === rowIndex && selectedCell.column === cellIndex ? "ring-2 ring-inset ring-primary" : ""}`}
                           />
@@ -2971,7 +3014,8 @@ function StudioCanvas({
                         onAskAi={() => onAskAi("explain", cell, `Cell R${rowIndex + 1} C${cellIndex + 1}`)}
                       />
                     </ContextMenu.Root>
-                  ))}
+                    )
+                  })}
                 </tr>
               ))}
             </tbody>

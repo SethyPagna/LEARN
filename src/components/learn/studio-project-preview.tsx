@@ -5,7 +5,7 @@ import { FileText } from "lucide-react"
 import { designPreview } from "@/lib/design/document"
 import { deckToDesign } from "@/lib/design/from-deck"
 import { blocksFromDocumentHtml } from "@/lib/export/html-blocks"
-import { evaluateSheetFormula } from "@/lib/studio-features"
+import { createSheetFormulaEvaluator } from "@/lib/sheet-formulas"
 import { sanitizeImageUrl } from "@/lib/studio/canvas-styles"
 import { formatAiResponse, type ThemedBlock } from "@/lib/ai/format-response"
 import type { MeasureText } from "@/lib/design/text"
@@ -50,10 +50,12 @@ export function StudioProjectPreview({ project, measure, fallback }: { project: 
     return (/<[a-z][a-z0-9]*[\s>]/i.test(text) ? blocksFromDocumentHtml(text) : formatAiResponse({ reply: text }).blocks).slice(0, 8)
   }, [project])
 
+  const sheetFormulas = useMemo(() => createSheetFormulaEvaluator(project.cells ?? []), [project.cells])
+
   if (preview) return <FitThumbnail width={preview.width} height={preview.height} theme={preview.theme} page={preview.pages[0]} measure={measure} />
   if (project.kind === "sheets" && project.cells?.length) return <div className="project-sheet-preview"><table><thead><tr><th />{["A", "B", "C", "D"].map(name => <th key={name}>{name}</th>)}</tr></thead><tbody>{project.cells.slice(0, 7).map((row, index) => <tr key={index}><th>{index + 1}</th>{Array.from({ length: 4 }, (_, column) => {
     const value = row[column] ?? ""
-    const result = value.startsWith("=") ? evaluateSheetFormula(project.cells!, value) : null
+    const result = value.trim().startsWith("=") ? sheetFormulas.evaluateCell({ row: index, column }) : null
     return <td key={column}>{result?.ok ? result.value : value}</td>
   })}</tr>)}</tbody></table></div>
   if (blocks.length) return <div className="project-document-preview">{blocks.map((block, index) => <DocumentBlock key={index} block={block} />)}</div>

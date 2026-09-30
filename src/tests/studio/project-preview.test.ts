@@ -31,6 +31,13 @@ test("sheet previews use real cells and resolve supported formulas", () => {
   assert.doesNotMatch(html, /=SUM/)
 })
 
+test("sheet previews recalculate dependencies and preserve failed formulas for inspection", () => {
+  const html = render({ kind: "sheets", cells: [["7", "Total"], ["9", " =SUM(A1:A2) "], ["=SUM(B2)", "=SUM(B3)"]] })
+  assert.match(html, />16</)
+  assert.doesNotMatch(html, /SUM\(A1:A2\)|SUM\(B2\)/)
+  assert.match(html, /=SUM\(B3\)/)
+})
+
 test("empty or malformed projects have an honest fallback", () => {
   assert.match(render({ content: "" }), /Empty page/)
   assert.match(render({ kind: "slides", slides: [] }), /No preview/)

@@ -11,6 +11,7 @@
  * file be chosen twice in a row.
  */
 
+import { useRef, useState } from "react"
 import { UploadCloud } from "lucide-react"
 import { describeImportFailure } from "@/lib/export/studio-import"
 
@@ -30,30 +31,39 @@ export interface StudioImportFileProps {
 }
 
 export function StudioImportFile({ accept, label, note, onFile, onNote }: StudioImportFileProps) {
+  const [busy, setBusy] = useState(false)
+  const importing = useRef(false)
   return (
-    <div className="rounded-md border border-border bg-card p-2">
-      <label className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-        <UploadCloud className="h-3.5 w-3.5" />
-        {label}
+    <div className="flex min-w-0 flex-wrap items-center gap-2" aria-busy={busy}>
+      <label className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-full border border-border bg-card px-3.5 text-xs font-semibold transition hover:bg-muted focus-within:ring-2 focus-within:ring-ring${busy ? " pointer-events-none opacity-60" : ""}`}>
+        <UploadCloud className="h-4 w-4" aria-hidden="true" />
+        {busy ? "Importing…" : label}
         <input
           type="file"
           accept={accept}
-          className="text-xs font-normal normal-case tracking-normal text-foreground"
+          className="sr-only"
+          aria-label={label}
+          disabled={busy}
           onChange={async (event) => {
             const file = event.target.files?.[0]
             // Cleared before the await, and before the guard: the picker must be
             // reusable for the same file even after a failed import.
             event.target.value = ""
-            if (!file) return
+            if (!file || importing.current) return
+            importing.current = true
+            setBusy(true)
             try {
               onNote(await onFile(file))
             } catch (error) {
               onNote(describeImportFailure(error))
+            } finally {
+              importing.current = false
+              setBusy(false)
             }
           }}
         />
       </label>
-      {note ? <p className="mt-1 text-xs font-semibold text-muted-foreground">{note}</p> : null}
+      {note ? <p role="status" className="text-xs text-muted-foreground">{note}</p> : null}
     </div>
   )
 }
