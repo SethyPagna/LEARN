@@ -2,6 +2,7 @@
 
 ## Resume here
 
+- **Newer checkpoint:** continue from [2026-10-01-codex-fixes.md](2026-10-01-codex-fixes.md). The September 30 history below is preserved; it is no longer the current branch state.
 - Active checkout: `C:/Users/user/Downloads/Projects/LEARN` (the old Downloads/LEARN path no longer exists).
 - Branch `cleanup/stage-1`; takeover began at `aea85b4`, seven commits ahead of origin. Six verified code/QA commits now end at `471633a`, followed by this documentation checkpoint. Expected final state: clean,14 commits ahead of origin `cfd3b8e`. Verify with git status/log rather than assuming a remote update.
 - Claude checkpoint 4 step6 and final checks are complete. See [checkpoint report](../audits/2026-09-30-takeover.md) for defaults and limits; the broader bug/AI/social roadmap remains open.
