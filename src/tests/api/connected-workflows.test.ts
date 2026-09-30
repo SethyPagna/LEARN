@@ -159,17 +159,16 @@ test("activity and private discussion destinations persist content under the aut
   } finally { stub.restore() }
 })
 
-test("graph and review seeding bound the note query before transferring its rows", async () => {
+test("graph seeding bounds the note query before transferring its rows", async () => {
   const stub = installDatabaseStub()
   try {
     await primeDatabase(stub)
-    const { getVaultGraph, listReviewSchedule } = await import("../../lib/data")
+    const { getVaultGraph } = await import("../../lib/data")
     const user = { ...TEST_USER_ROW, role: "learner" as const, preferences: {} }
     await getVaultGraph(user)
-    await listReviewSchedule(user)
     const reads = stub.matching(/FROM notes n/)
-    assert.equal(reads.length, 2)
-    assert.deepEqual(reads.map((read) => read.params), [[TEST_USER_ROW.id, "learner", 5], [TEST_USER_ROW.id, "learner", 6]])
+    assert.equal(reads.length, 1)
+    assert.deepEqual(reads[0].params, [TEST_USER_ROW.id, "learner", 5])
     for (const read of reads) {
       assert.match(read.sql, /LIMIT \?/)
       assert.match(read.sql, /n\.owner_user_id = \? OR \? = 'admin'/)

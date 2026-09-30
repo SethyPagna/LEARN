@@ -1,14 +1,15 @@
 import type { User } from "./data"
 import { query } from "./db"
 import { parseServerTime } from "./format-time"
-import { buildReviewSchedule, type Weekday } from "./learning-ecosystem"
+import { buildReviewSchedule } from "./learning-ecosystem"
+import { MAX_DAILY_REVIEW_CAP, readDailyReviewBudget } from "./review-scheduling"
 import { ensureDatabase } from "./schema"
 import { localDay, localDayModifier, shiftDay, summarizeStreak, type StreakSummary } from "./today"
 
 /**
  * Everything the Today page shows, read in one round of light queries. It is
- * strictly read-only: unlike GET /api/reviews it never seeds review cards, and
- * it never downloads project content (covers are drawn from kind and title).
+ * strictly read-only, and it never downloads project content (covers are
+ * drawn from kind and title).
  */
 
 export type TodayProjectKind = "notes" | "docs" | "canvas" | "sheets" | "slides"
@@ -73,15 +74,17 @@ function isoStamp(value: string) {
 }
 
 async function dueReviews(user: User, now: Date) {
-  const { rows } = await query<{ id: string; due_at: string; retrievability: number }>(
-    `SELECT id, due_at, retrievability FROM review_items
-     WHERE user_id = $1
-     ORDER BY due_at ASC
-     LIMIT 120`,
-    [user.id],
-  )
+  const [{ rows }, budget] = await Promise.all([
+    query<{ id: string; due_at: string; retrievability: number }>(
+      `SELECT id, due_at, retrievability FROM review_items
+       WHERE user_id = $1 AND datetime(due_at) <= datetime($2)
+       ORDER BY datetime(due_at) ASC
+       LIMIT $3`,
+      [user.id, now.toISOString(), MAX_DAILY_REVIEW_CAP],
+    ),
+    readDailyReviewBudget({ userId: user.id, preferences: user.preferences || {}, now }),
+  ])
   // The same rules the Reviews page applies, so the count on Today matches it.
-  const preferences = user.preferences || {}
   const schedule = buildReviewSchedule({
     items: rows.map((row) => ({
       id: String(row.id),
@@ -92,8 +95,7 @@ async function dueReviews(user: User, now: Date) {
       retrievability: Number(row.retrievability ?? 0.9),
     })),
     now,
-    dailyCap: Number(preferences.dailyReviewCap || 30),
-    restDay: String(preferences.restDay || "") as Weekday,
+    ...budget,
   })
   return { due: schedule.items.length, restDay: schedule.isRestDay }
 }

@@ -4,8 +4,8 @@
  * one query at a time, so a five-note knowledge graph cost nine sequential
  * round trips before the user saw anything.
  *
- * These tests drive the *real* seed paths — `getVaultGraph`, `listReviewSchedule`,
- * `listFeed`, `listAchievements` — through the real `query()` and the real SQL
+ * These tests drive the real graph and feed seed paths — `getVaultGraph` and
+ * `listFeed` — through the real `query()` and the real SQL
  * normaliser, and assert on the statements that reached the D1 boundary. They
  * pin the two things that matter and would silently break a revert:
  *
@@ -99,7 +99,7 @@ test("seeding the knowledge graph writes one batched statement per table", async
 
     const { getVaultGraph } = await import("../../lib/data")
 
-    // Five notes is the widest the seed ever gets (`listNotes().slice(0, 5)`).
+    // The graph seed's notes read is limited to five rows.
     for (const count of [1, 2, 3, 4, 5]) {
       stub.reset()
       stub.on(/FROM notes n/, { rows: noteRows(count) })
@@ -148,34 +148,6 @@ test("seeding the knowledge graph writes one batched statement per table", async
   }
 })
 
-test("seeding review items writes one batched statement with the original conflict target", async () => {
-  const stub = installDatabaseStub()
-  try {
-    await primeDatabase(stub)
-    stub.on(/FROM notes n/, { rows: noteRows(6) })
-    stub.on(/INSERT INTO review_items/, { rowCount: 1 })
-
-    const { listReviewSchedule } = await import("../../lib/data")
-    await listReviewSchedule(USER)
-
-    const inserts = stub.matching(/INSERT INTO review_items/)
-    assert.equal(inserts.length, 1, "six notes must not cost six statements")
-    assert.equal(inserts[0].params.length, 6 * 12)
-    assert.equal(placeholderCount(inserts[0].sql), 6 * 12)
-    assert.match(inserts[0].sql, /ON CONFLICT \(user_id, source_type, source_id\) DO NOTHING$/)
-
-    // Row-major binding: every 12th value from index 11 is the metadata column.
-    for (let index = 0; index < 6; index += 1) {
-      assert.equal(inserts[0].params[index * 12 + 2], "note") // source_type
-      assert.match(String(inserts[0].params[index * 12 + 11]), /^\{/)
-    }
-
-    assertWithinParameterBudget(stub)
-  } finally {
-    stub.restore()
-  }
-})
-
 test("seeding micro-lessons batches, and the feed cache batches with DO UPDATE intact", async () => {
   const stub = installDatabaseStub()
   try {
@@ -214,43 +186,6 @@ test("seeding micro-lessons batches, and the feed cache batches with DO UPDATE i
 
     // The stale-cache delete still runs first, exactly once.
     assert.equal(stub.writesMatching(/DELETE FROM feed_rank_cache/).length, 1)
-
-    assertWithinParameterBudget(stub)
-  } finally {
-    stub.restore()
-  }
-})
-
-test("seeding achievements batches its three rows into one statement", async () => {
-  const stub = installDatabaseStub()
-  try {
-    await primeDatabase(stub)
-    stub.on(/INSERT INTO achievements/, { rowCount: 1 })
-
-    // The seed runs when the read comes back empty, then re-reads. Answering the
-    // second read keeps the recursion from seeding forever.
-    let reads = 0
-    stub.on(/FROM achievements a/, () => {
-      reads += 1
-      return reads === 1 ? { rows: [] } : { rows: [{ id: "ach_first_review", unlocked_at: null }] }
-    })
-
-    const { listAchievements } = await import("../../lib/data")
-    await listAchievements(USER)
-
-    const inserts = stub.matching(/INSERT INTO achievements/)
-    assert.equal(inserts.length, 1, "three achievements must not cost three statements")
-    assert.equal(inserts[0].params.length, 3 * 6)
-    assert.equal(placeholderCount(inserts[0].sql), 3 * 6)
-    assert.match(inserts[0].sql, /ON CONFLICT \(id\) DO NOTHING$/)
-    assert.deepEqual(inserts[0].params.slice(0, 6), [
-      "ach_first_review",
-      "First Review",
-      "Complete your first Vault review.",
-      "repeat",
-      20,
-      JSON.stringify({ seeded: true }),
-    ])
 
     assertWithinParameterBudget(stub)
   } finally {

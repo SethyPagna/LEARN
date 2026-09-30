@@ -18,8 +18,8 @@ import {
   type KnowledgeEdge,
   type KnowledgeNode,
   type ReviewItem,
-  type Weekday,
 } from "./learning-ecosystem"
+import { MAX_DAILY_REVIEW_CAP, nextReviewDueAt, readDailyReviewBudget } from "./review-scheduling"
 import { buildGamePracticeSessionDraft, buildQuizPracticeSessionDraft, buildReviewCardsFromPracticeItems, type PracticeSessionDraft, type PracticeSessionQuestion } from "./practice-sessions"
 import { createId, ensureDatabase, logAudit } from "./schema"
 import {
@@ -3106,36 +3106,6 @@ async function seedKnowledgeGraphForUser(user: User) {
   }
 }
 
-async function seedReviewItemsForUser(user: User) {
-  const existing = await query("SELECT count(*) AS count FROM review_items WHERE user_id = $1", [user.id])
-  if (Number(existing.rows[0]?.count || 0) > 0) return
-
-  const notes = await listNotes(user, "active", { limit: 6 })
-  await insertRows(
-    "review_items",
-    [
-      "id", "user_id", "source_type", "source_id", "title", "prompt", "answer", "difficulty",
-      "stability", "retrievability", "due_at", "metadata",
-    ],
-    notes.map((note, index) => [
-      createId("review"),
-      user.id,
-      "note",
-      note.id,
-      note.title,
-      `Explain the central idea in "${note.title}".`,
-      note.content.slice(0, 500),
-      0.45 + index * 0.04,
-      2 + index,
-      0.9 - index * 0.08,
-      new Date(Date.now() - index * 60 * 60 * 1000).toISOString(),
-      JSON.stringify({ icon: note.icon, reviewableBlock: true }),
-    ]),
-    ["metadata"],
-    "ON CONFLICT (user_id, source_type, source_id) DO NOTHING",
-  )
-}
-
 async function seedMicroLessons(user: User) {
   const existing = await query("SELECT count(*) AS count FROM micro_lessons")
   if (Number(existing.rows[0]?.count || 0) > 0) return
@@ -3251,25 +3221,29 @@ export async function saveVaultBlock(user: User, input: Record<string, unknown>)
 
 export async function listReviewSchedule(user: User) {
   await ensureDatabase()
-  await seedReviewItemsForUser(user)
-  const rows = (await query(
-    `SELECT * FROM review_items
-     WHERE user_id = $1
-     ORDER BY due_at ASC
-     LIMIT 120`,
-    [user.id],
-  )).rows
-  const preferences = user.preferences || {}
+  const now = new Date()
+  const [result, budget] = await Promise.all([
+    query(
+      `SELECT * FROM review_items
+       WHERE user_id = $1 AND datetime(due_at) <= datetime($2)
+       ORDER BY datetime(due_at) ASC
+       LIMIT $3`,
+      [user.id, now.toISOString(), MAX_DAILY_REVIEW_CAP],
+    ),
+    readDailyReviewBudget({ userId: user.id, preferences: user.preferences || {}, now }),
+  ])
+  const rows = result.rows
   const items: ReviewItem[] = rows.map((row) => {
     const metadata = parseJsonObject(row.metadata)
+    const dueTime = parseTimestampMs(row.due_at)
     return {
       id: String(row.id),
       title: String(row.title),
       sourceType: String(row.source_type || "note") as ReviewItem["sourceType"],
-      dueAt: String(row.due_at),
-      difficulty: Number(row.difficulty || 0.5),
-      stability: Number(row.stability || 2),
-      retrievability: Number(row.retrievability || 0.9),
+      dueAt: Number.isFinite(dueTime) ? new Date(dueTime).toISOString() : String(row.due_at),
+      difficulty: Number(row.difficulty ?? 0.5),
+      stability: Number(row.stability ?? 2),
+      retrievability: Number(row.retrievability ?? 0.9),
       prompt: String(row.prompt || ""),
       answer: String(row.answer || ""),
       topic: String(metadata.topic || ""),
@@ -3277,9 +3251,8 @@ export async function listReviewSchedule(user: User) {
   })
   return buildReviewSchedule({
     items,
-    now: new Date(),
-    dailyCap: Number(preferences.dailyReviewCap || 30),
-    restDay: String(preferences.restDay || "") as Weekday,
+    now,
+    ...budget,
   })
 }
 
@@ -3360,10 +3333,19 @@ export async function createPracticeReviewItemsFromSession(user: User, sessionId
 export async function recordReviewResult(user: User, input: Record<string, unknown>) {
   await ensureDatabase()
   const id = String(input.id || input.reviewItemId || "")
-  const rating = String(input.rating || "good")
-  const nextIntervalDays = rating === "again" ? 1 : rating === "hard" ? 2 : rating === "easy" ? 7 : 4
-  const nextDueAt = new Date(Date.now() + nextIntervalDays * 24 * 60 * 60 * 1000).toISOString()
-  await query(
+  const rating = input.rating ?? "good"
+  if (rating !== "again" && rating !== "hard" && rating !== "good" && rating !== "easy") {
+    throw new Error("Choose Again, Hard, Good, or Easy.")
+  }
+  const now = new Date()
+  const budget = await readDailyReviewBudget({ userId: user.id, preferences: user.preferences || {}, now })
+  if (buildReviewSchedule({ items: [], now, ...budget }).isRestDay) {
+    throw new Error("Today is your review rest day.")
+  }
+  if (budget.dailyCap === 0) throw new Error("You've reached today's review limit.")
+  const { restDay } = budget
+  const nextDueAt = nextReviewDueAt({ rating, now, restDay })
+  const updated = await query(
     `UPDATE review_items
      SET due_at = $1,
          last_reviewed_at = now(),
@@ -3371,21 +3353,26 @@ export async function recordReviewResult(user: User, input: Record<string, unkno
          lapse_count = lapse_count + $2,
          retrievability = $3,
          updated_at = now()
-     WHERE id = $4 AND user_id = $5`,
-    [nextDueAt, rating === "again" ? 1 : 0, rating === "again" ? 0.35 : 0.9, id, user.id],
+     WHERE id = $4 AND user_id = $5 AND datetime(due_at) <= datetime($6)`,
+    [nextDueAt, rating === "again" ? 1 : 0, rating === "again" ? 0.35 : 0.9, id, user.id, now.toISOString()],
   )
+  if (updated.rowCount === 0) throw new Error("This review is not due or is no longer available.")
   await query(
     "INSERT INTO review_logs (id, user_id, review_item_id, rating, elapsed_ms, next_due_at) VALUES ($1, $2, $3, $4, $5, $6)",
     [createId("reviewlog"), user.id, id, rating, Number(input.elapsedMs || input.elapsed_ms || 0), nextDueAt],
   )
-  const today = new Date().toISOString().slice(0, 10)
+  const currentUser = (await query(
+    "SELECT streak_current, streak_longest, streak_freezes_available, last_learning_activity_at FROM users WHERE id = $1",
+    [user.id],
+  )).rows[0] || {}
+  const today = now.toISOString().slice(0, 10)
   const streak = updateLearningStreak({
-    current: Number((user as unknown as Record<string, unknown>).streak_current || 0),
-    longest: Number((user as unknown as Record<string, unknown>).streak_longest || 0),
-    freezesAvailable: Number((user as unknown as Record<string, unknown>).streak_freezes_available || 0),
-    lastActivityDate: String((user as unknown as Record<string, unknown>).last_learning_activity_at || "").slice(0, 10),
+    current: normalizeInteger(currentUser.streak_current),
+    longest: normalizeInteger(currentUser.streak_longest),
+    freezesAvailable: normalizeInteger(currentUser.streak_freezes_available),
+    lastActivityDate: String(currentUser.last_learning_activity_at || "").slice(0, 10),
     today,
-    restDay: String(user.preferences?.restDay || "") as Weekday,
+    restDay,
   })
   await query(
     "UPDATE users SET streak_current = $1, streak_longest = $2, streak_freezes_available = $3, xp_total = COALESCE(xp_total, 0) + 8, last_learning_activity_at = $4 WHERE id = $5",
