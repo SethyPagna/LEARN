@@ -660,13 +660,13 @@ export function AiTutorView({
 
         <div className="mt-3 flex flex-wrap gap-2">
           <button aria-label={primaryActionPlan.label} title={primaryActionPlan.label} disabled={primaryActionPlan.disabled} onClick={runPrimaryAction} className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
-            <Bot className="h-4 w-4" />
+            <Bot className="h-4 w-4" aria-hidden="true" />{primaryActionPlan.label}
           </button>
           <button aria-label="Studio block" title="Studio block" onClick={prepareStudioBlockPrompt} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4" aria-hidden="true" />Studio block
           </button>
           <button aria-label="Reset draft" title="Reset draft" onClick={resetDraft} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-            <RotateCcw className="h-4 w-4" />
+            <RotateCcw className="h-4 w-4" aria-hidden="true" />Reset
           </button>
         </div>
         {!reply && actionStatus ? <p role="status" className="mt-3 rounded-md border border-border p-3 text-sm">{actionStatus}</p> : null}
