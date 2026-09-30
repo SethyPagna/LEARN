@@ -50,6 +50,8 @@ const securityHeaders = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   devIndicators: false,
+  // Keep static-generation workers bounded on local and CI builds.
+  experimental: { cpus: 2 },
   turbopack: {
     root: __dirname,
   },
