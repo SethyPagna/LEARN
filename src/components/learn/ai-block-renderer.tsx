@@ -3,6 +3,7 @@
 import { AlertTriangle, CheckCircle2, GripVertical, Info } from "lucide-react"
 import { isSafeUrl, type QuizQuestion, type ThemedBlock, type ThemedCalloutTone, type ThemedTableAlign } from "@/lib/ai/format-response"
 import { setBlockDragPayload } from "@/lib/studio/block-drop"
+import { InlineMarkdown } from "./inline-markdown"
 
 /**
  * Themed renderer for `format-response` blocks.
@@ -186,11 +187,14 @@ export interface AiBlockRendererProps {
   blocks: ThemedBlock[]
   className?: string
   /**
-   * Makes each block itself draggable. The handle in the corner is always a
+   * Makes each block itself draggable. The handle in the corner is normally a
    * drag hook (`draggable` + `data-block-id`); this additionally marks the whole
    * surface, which is what a canvas would want once it accepts the drop.
    */
   draggable?: boolean
+  showDragHandles?: boolean
+  inlineMarkdown?: boolean
+  includeStyles?: boolean
   onBlockDragStart?: (blockId: string, index: number) => void
 }
 
@@ -209,12 +213,16 @@ function startBlockDrag(event: React.DragEvent<HTMLElement>, block: ThemedBlock,
   setBlockDragPayload(event.dataTransfer, block, index)
 }
 
-export function AiBlockRenderer({ blocks, className, draggable = false, onBlockDragStart }: AiBlockRendererProps) {
+export function AiBlockStyles() {
+  return <style>{BLOCK_PRESET_CSS}</style>
+}
+
+export function AiBlockRenderer({ blocks, className, draggable = false, showDragHandles = true, inlineMarkdown = false, includeStyles = true, onBlockDragStart }: AiBlockRendererProps) {
   if (!blocks.length) return null
 
   return (
     <div className={`learn-blocks-soft ${className || ""}`.trim()}>
-      <style>{BLOCK_PRESET_CSS}</style>
+      {includeStyles ? <AiBlockStyles /> : null}
       {blocks.map((block, index) => {
         const blockId = aiBlockId(block, index)
         return (
@@ -231,7 +239,7 @@ export function AiBlockRenderer({ blocks, className, draggable = false, onBlockD
               onBlockDragStart?.(blockId, index)
             }}
           >
-            <span
+            {showDragHandles ? <span
               className="learn-block__handle"
               data-block-id={blockId}
               draggable
@@ -240,8 +248,8 @@ export function AiBlockRenderer({ blocks, className, draggable = false, onBlockD
               onDragStart={(event) => startBlockDrag(event, block, index)}
             >
               <GripVertical className="h-3.5 w-3.5" />
-            </span>
-            <BlockBody block={block} />
+            </span> : null}
+            <BlockBody block={block} inlineMarkdown={inlineMarkdown} />
           </section>
         )
       })}
@@ -249,26 +257,27 @@ export function AiBlockRenderer({ blocks, className, draggable = false, onBlockD
   )
 }
 
-function BlockBody({ block }: { block: ThemedBlock }) {
+function BlockBody({ block, inlineMarkdown }: { block: ThemedBlock; inlineMarkdown: boolean }) {
+  const renderText = (text: string) => inlineMarkdown ? <InlineMarkdown text={text} /> : text
   switch (block.type) {
     case "heading":
       return (
         <p className="learn-block__heading" data-level={block.level} role="heading" aria-level={block.level}>
-          {block.text}
+          {renderText(block.text)}
         </p>
       )
     case "paragraph":
-      return <p className="learn-block__paragraph">{block.text}</p>
+      return <p className="learn-block__paragraph">{renderText(block.text)}</p>
     case "list": {
       const ListTag = block.ordered ? "ol" : "ul"
       return (
         <ListTag className="learn-block__list" data-ordered={block.ordered ? "true" : "false"}>
-          {block.items.map((item, index) => <li key={index}>{item}</li>)}
+          {block.items.map((item, index) => <li key={index}>{renderText(item)}</li>)}
         </ListTag>
       )
     }
     case "table":
-      return <BlockTable headers={block.headers} rows={block.rows} align={block.align} />
+      return <BlockTable headers={block.headers} rows={block.rows} align={block.align} inlineMarkdown={inlineMarkdown} />
     case "code":
       return (
         <div className="learn-block__code-scroll">
@@ -279,7 +288,7 @@ function BlockBody({ block }: { block: ThemedBlock }) {
         </div>
       )
     case "quote":
-      return <blockquote className="learn-block__quote">{block.text}</blockquote>
+      return <blockquote className="learn-block__quote">{renderText(block.text)}</blockquote>
     case "divider":
       return <hr className="learn-block__divider" />
     case "image":
@@ -325,7 +334,8 @@ function BlockBody({ block }: { block: ThemedBlock }) {
   }
 }
 
-function BlockTable({ headers, rows, align }: { headers: string[]; rows: string[][]; align?: ThemedTableAlign[] }) {
+function BlockTable({ headers, rows, align, inlineMarkdown }: { headers: string[]; rows: string[][]; align?: ThemedTableAlign[]; inlineMarkdown: boolean }) {
+  const renderText = (text: string) => inlineMarkdown ? <InlineMarkdown text={text} /> : text
   return (
     <div className="learn-block__table-scroll">
       <table className="learn-block__table">
@@ -333,7 +343,7 @@ function BlockTable({ headers, rows, align }: { headers: string[]; rows: string[
           <tr>
             {headers.map((header, column) => (
               <th key={`${column}-${header}`} className={cellClass("learn-block__cell", align?.[column])} scope="col">
-                {header}
+                {renderText(header)}
               </th>
             ))}
           </tr>
@@ -342,7 +352,7 @@ function BlockTable({ headers, rows, align }: { headers: string[]; rows: string[
           {rows.map((row, rowIndex) => (
             <tr key={rowIndex}>
               {row.map((cell, column) => (
-                <td key={column} className={cellClass("learn-block__cell", align?.[column])}>{cell}</td>
+                <td key={column} className={cellClass("learn-block__cell", align?.[column])}>{renderText(cell)}</td>
               ))}
             </tr>
           ))}

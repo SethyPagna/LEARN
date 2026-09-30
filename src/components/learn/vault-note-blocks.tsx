@@ -5,6 +5,8 @@ import { Sparkles, BookOpen, CalendarDays, MessageSquare, Plus } from "lucide-re
 import { launchAiTutorFromSource } from "@/lib/ai/source-launch"
 import { api } from "./api"
 import type { Note, View } from "./types"
+import { VaultBlockContent } from "./vault-block-content"
+import { AiBlockStyles } from "./ai-block-renderer"
 
 interface VaultBlock {
   id: string
@@ -49,7 +51,8 @@ export function VaultNoteBlocks({ note, revision, setView }: { note?: Note; revi
   }
 
   return <section className="vault-blocks" aria-label="Saved Vault blocks">
-
+    <AiBlockStyles />
+    {note?.content.trim() ? <div aria-label="Note content"><VaultBlockContent text={note.content} includeStyles={false} /></div> : null}
     {status ? <p role="status" className="mt-2 text-sm text-muted-foreground">{status}</p> : null}
     <div className="my-3 flex flex-wrap gap-2">
       <button className="editor-command border border-border" disabled={!note || loadedNoteId !== note.id} onClick={() => openTutor("explain")} title="Ask AI about this note"><Sparkles className="h-4 w-4 text-primary" />Explain</button>
@@ -60,7 +63,7 @@ export function VaultNoteBlocks({ note, revision, setView }: { note?: Note; revi
     {!blocks.length && loadedNoteId === note?.id ? <div className="grid justify-items-center gap-2 rounded-lg border border-dashed border-border py-8 text-muted-foreground"><Plus aria-hidden="true" className="h-6 w-6 text-primary/50" /><span className="text-xs">No blocks yet</span></div> : null}
     <ul className="grid gap-2">{blocks.map((block) => <li key={block.id} className="rounded-md bg-muted p-3">
       <div className="flex items-center justify-between gap-2"><p className="text-xs font-medium text-muted-foreground">{block.blockType.replaceAll("-", " ")}</p><button className="editor-command" aria-label={`Explain ${block.blockType} block`} title="Explain block" onClick={() => openTutor("explain", block)}><Sparkles className="h-4 w-4 text-primary" /></button></div>
-      <p className="mt-1 whitespace-pre-wrap text-sm">{blockText(block)}</p>
+      <VaultBlockContent text={blockText(block)} blockType={block.blockType} includeStyles={false} />
     </li>)}</ul>
     {blocks.length === 200 ? <p className="mt-2 text-xs text-muted-foreground">Showing the first 200 blocks.</p> : null}
   </section>
