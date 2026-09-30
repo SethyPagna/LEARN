@@ -428,7 +428,7 @@ export async function getDashboardData(user: User) {
           WHERE nt.note_id = n.id
         ), '[]') AS tags
        FROM notes n
-       WHERE n.owner_user_id = $1 OR $2 = 'admin'
+       WHERE (n.owner_user_id = $1 OR $2 = 'admin') AND n.archived_at IS NULL
        ORDER BY n.updated_at DESC
        LIMIT 8`,
       [user.id, user.role],
@@ -3510,20 +3510,7 @@ export async function listAchievements(user: User) {
      ORDER BY ua.unlocked_at DESC, a.created_at ASC`,
     [user.id],
   )
-  if (result.rowCount) return result.rows.map((row) => ({ ...row, criteria: parseJsonObject(row.criteria), unlocked: Boolean(row.unlocked_at) }))
-  const seeded = [
-    ["ach_first_review", "First Review", "Complete your first Vault review.", "repeat", 20],
-    ["ach_graph_seed", "Graph Seed", "Create your first knowledge edge.", "network", 30],
-    ["ach_feed_answer", "Curiosity Spark", "Answer a feed lesson question.", "sparkles", 15],
-  ]
-  await insertRows(
-    "achievements",
-    ["id", "name", "description", "icon", "xp_reward", "criteria"],
-    seeded.map(([id, name, description, icon, xp]) => [id, name, description, icon, xp, JSON.stringify({ seeded: true })]),
-    ["criteria"],
-    "ON CONFLICT (id) DO NOTHING",
-  )
-  return listAchievements(user)
+  return result.rows.map((row) => ({ ...row, criteria: parseJsonObject(row.criteria), unlocked: Boolean(row.unlocked_at) }))
 }
 
 export type ProfileViewer = "public" | "connections" | "owner"

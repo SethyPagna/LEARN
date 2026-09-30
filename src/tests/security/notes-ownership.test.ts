@@ -225,6 +225,7 @@ test("GET /api/dashboard scopes its notes snapshot to the caller too", async () 
     const listQuery = stub.matching(/FROM notes n/)
     assert.equal(listQuery.length, 1)
     assert.match(listQuery[0].sql, OWNER_PREDICATE, "the dashboard notes read must filter by owner")
+    assert.match(listQuery[0].sql, /n\.archived_at IS NULL/, "the dashboard must exclude archived notes")
     assert.deepEqual(listQuery[0].params, [TEST_USER_ROW.id, TEST_USER_ROW.role])
 
     const payload = await readJson<{ notes: { id: string }[] }>(response)
@@ -238,7 +239,7 @@ test("GET /api/dashboard scopes its notes snapshot to the caller too", async () 
   }
 })
 
-test("the per-user seeds that reuse notes reads pass the user through", async () => {
+test("the graph seed scopes its notes read and review loading never reads notes", async () => {
   const stub = installDatabaseStub()
   try {
     await primeDatabase(stub)
@@ -249,11 +250,11 @@ test("the per-user seeds that reuse notes reads pass the user through", async ()
     await listReviewSchedule(CALLER)
 
     const reads = stub.matching(/FROM notes n/)
-    assert.equal(reads.length, 2, "both seeds read notes once")
-    for (const [index, read] of reads.entries()) {
-      assert.match(read.sql, OWNER_PREDICATE, "the seeds must not fall back to an unscoped read")
-      assert.match(read.sql, /LIMIT \?/, "seed reads should be bounded in the database")
-      assert.deepEqual(read.params, [TEST_USER_ROW.id, TEST_USER_ROW.role, index === 0 ? 5 : 6])
+    assert.equal(reads.length, 1, "only the graph seed reads notes; reviews read existing cards")
+    for (const read of reads) {
+      assert.match(read.sql, OWNER_PREDICATE, "the graph seed must not fall back to an unscoped read")
+      assert.match(read.sql, /LIMIT \?/, "the seed read should be bounded in the database")
+      assert.deepEqual(read.params, [TEST_USER_ROW.id, TEST_USER_ROW.role, 5])
     }
   } finally {
     stub.restore()
@@ -279,8 +280,8 @@ test("the notes read queries keep their owner predicate in the data layer source
   )
   assert.match(
     source,
-    /FROM notes n\r?\n\s+WHERE n\.owner_user_id = \$1 OR \$2 = 'admin'/,
-    "the dashboard notes snapshot must filter by owner",
+    /FROM notes n\r?\n\s+WHERE \(n\.owner_user_id = \$1 OR \$2 = 'admin'\) AND n\.archived_at IS NULL/,
+    "the dashboard notes snapshot must filter by owner and exclude archived notes",
   )
 
   // No caller may go back to the unscoped signature.
