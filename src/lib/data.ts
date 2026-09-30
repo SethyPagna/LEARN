@@ -2169,15 +2169,16 @@ export async function recordGameAttempt(user: User, input: Record<string, unknow
   return { id, practiceSessionId }
 }
 
-export async function listQuizzes() {
+export async function listQuizzes(user: User) {
   await ensureDatabase()
   const result = await query(
     `SELECT q.*, count(qq.id)::int AS question_count
      FROM quizzes q
      LEFT JOIN quiz_questions qq ON qq.quiz_id = q.id
-     WHERE q.archived_at IS NULL
+     WHERE q.archived_at IS NULL AND (q.created_by_user_id = $1 OR q.created_by_user_id IS NULL OR $2 = 'admin')
      GROUP BY q.id
      ORDER BY q.topic ASC`,
+    [user.id, user.role],
   )
   return result.rows
 }
@@ -2257,6 +2258,18 @@ export async function getQuiz(id: string) {
   return { ...quiz.rows[0], questions: questions.rows.map(normalizeQuizQuestion) }
 }
 
+export async function getAccessibleQuiz(user: User, id: string) {
+  const quiz = await getQuiz(id)
+  if (!quiz) return null
+  const source = quiz as Record<string, unknown>
+  if (!source.created_by_user_id || source.created_by_user_id === user.id || user.role === "admin") return quiz
+
+  const contentItem = await getContentItemForSource("quizzes", String(source.id))
+  const role = await resolveContentRole(user, contentItem)
+  if (!canUseContentRole(role, "viewer")) throw new Error("You don't have access to this quiz.")
+  return quiz
+}
+
 export async function archiveQuiz(user: User, id: string) {
   await ensureDatabase()
   const existing = await query("SELECT id FROM quizzes WHERE id = $1 AND archived_at IS NULL LIMIT 1", [id])
@@ -2278,7 +2291,7 @@ export async function recordQuizAttempt(user: User, input: {
   durationSeconds?: number
 }) {
   await ensureDatabase()
-  const quiz = await getQuiz(input.quizId)
+  const quiz = await getAccessibleQuiz(user, input.quizId)
   if (!quiz) throw new Error("Quiz not found")
 
   const questionMap = new Map(quiz.questions.map((question) => [question.id, question]))
@@ -2458,15 +2471,8 @@ async function persistLiveSession(input: {
 
 export async function createLiveSession(user: User, input: { quizId: string; title?: string; mode?: unknown }) {
   await ensureDatabase()
-  const quiz = await getQuiz(String(input.quizId || "").trim())
+  const quiz = await getAccessibleQuiz(user, String(input.quizId || "").trim())
   if (!quiz) throw new Error("Quiz not found")
-
-  const source = quiz as Record<string, unknown>
-  if (source.created_by_user_id && source.created_by_user_id !== user.id && user.role !== "admin") {
-    const contentItem = await getContentItemForSource("quizzes", String(source.id))
-    const role = await resolveContentRole(user, contentItem)
-    if (!canUseContentRole(role, "viewer")) throw new Error("You don't have access to this quiz.")
-  }
 
   const questions = toLiveQuizQuestions(quiz.questions)
   if (!questions.length) throw new Error("That quiz has no questions a live session could ask yet.")

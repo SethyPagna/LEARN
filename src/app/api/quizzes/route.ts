@@ -6,7 +6,7 @@ import { generatedQuizQuestions } from "@/lib/ai/assessment-output"
 export const GET = withApiErrorBoundary(async (request: NextRequest) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
-  return ok({ items: await listQuizzes() })
+  return ok({ items: await listQuizzes(user) })
 })
 
 export const POST = withApiErrorBoundary(async (request: NextRequest) => {
