@@ -25,12 +25,14 @@ interface PopoverProps {
   className?: string
   /** Width in px used for placement before the panel has been measured. */
   width?: number
+  /** Navigation menus move focus inside; editing tools preserve the active text field. */
+  focusOnOpen?: boolean
 }
 
 const GAP = 8
 const MARGIN = 8
 
-export function Popover({ open, anchor, onClose, children, placement = "bottom-start", label, className = "", width = 280 }: PopoverProps) {
+export function Popover({ open, anchor, onClose, children, placement = "bottom-start", label, className = "", width = 280, focusOnOpen = false }: PopoverProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState<{ left: number; top: number; maxHeight: number } | null>(null)
   const closeRef = useRef(onClose)
@@ -74,6 +76,12 @@ export function Popover({ open, anchor, onClose, children, placement = "bottom-s
     const frame = window.requestAnimationFrame(place)
     return () => window.cancelAnimationFrame(frame)
   }, [open, place])
+
+  useEffect(() => {
+    if (!open || !focusOnOpen) return
+    const frame = window.requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>('button:not(:disabled), input, select, summary, a[href]')?.focus())
+    return () => window.cancelAnimationFrame(frame)
+  }, [open, focusOnOpen])
 
   useEffect(() => {
     if (!open) return

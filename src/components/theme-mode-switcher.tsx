@@ -10,9 +10,10 @@ export const appearanceModes = [
   { value: "color", label: "Color", icon: Palette },
 ] as const
 
-export function ThemeModeSwitcher({ compact = false, previews = false, className = "" }: {
+export function ThemeModeSwitcher({ compact = false, previews = false, iconsOnly = false, className = "" }: {
   compact?: boolean
   previews?: boolean
+  iconsOnly?: boolean
   className?: string
 }) {
   const { mode, setMode } = useAppearanceMode()
@@ -25,10 +26,10 @@ export function ThemeModeSwitcher({ compact = false, previews = false, className
     </select>
   </div>
 
-  return <div className={`${previews ? styles.previews : styles.switcher} ${className}`} role="group" aria-label="Appearance">
-    {appearanceModes.map(({ value, label, icon: Icon }) => <button key={value} type="button" aria-pressed={mode === value} onClick={() => setMode(value)}>
+  return <div className={`${previews ? styles.previews : iconsOnly ? styles.icons : styles.switcher} ${className}`} role="group" aria-label="Appearance">
+    {appearanceModes.map(({ value, label, icon: Icon }) => <button key={value} type="button" aria-label={iconsOnly ? `${label} mode` : undefined} title={iconsOnly ? `${label} mode` : undefined} aria-pressed={mode === value} onClick={() => setMode(value)}>
       {previews && <span className={styles.preview} data-mode={value} aria-hidden="true"><i /><span><b /><b /><b /></span></span>}
-      <span className={styles.label}><Icon size={15} aria-hidden="true" />{label}</span>
+      <span className={styles.label}><Icon size={15} aria-hidden="true" />{iconsOnly ? null : label}</span>
     </button>)}
   </div>
 }

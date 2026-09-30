@@ -308,6 +308,7 @@ export function LearnShell({
         </a>
         <Sidebar
           hideCreate
+          isAdmin={user?.role === "admin"}
           mode={effectiveSidebarMode}
           onModeChange={changeSidebarMode}
           practiceDraftSummary={practiceDraftSummary}

@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronRight,
   Compass,
+  Ellipsis,
   Gamepad2,
   Info,
   Languages,
@@ -39,6 +40,8 @@ import { formatNavigationBadge } from "@/lib/navigation-features"
 import {
   getNavigationItemDetail,
   navigationItems,
+  placeTabsForView,
+  placeTabForView,
   practiceViews,
   resolveNavigationTarget,
   sectionTabForView,
@@ -55,6 +58,7 @@ import type { SidebarMode } from "@/lib/shell/sidebar-mode"
 import type { StudioDraftSummary } from "@/lib/studio-drafts"
 import type { RealtimeStatus } from "@/lib/realtime/client"
 import { api } from "./api"
+import { Popover } from "./design/popover"
 import { InstallAppButton } from "./app-install"
 import { openCommandPalette } from "./command-palette"
 import { CreateMenu, openCreateMenu } from "./create-menu"
@@ -141,6 +145,7 @@ function BrandMark({ size = "md" }: { size?: "sm" | "md" }) {
 
 export function Sidebar({
   hideCreate = false,
+  isAdmin = false,
   mode,
   onModeChange,
   practiceDraftSummary,
@@ -150,6 +155,7 @@ export function Sidebar({
   view,
 }: {
   hideCreate?: boolean
+  isAdmin?: boolean
   mode: SidebarMode
   onModeChange: (mode: SidebarMode) => void
   practiceDraftSummary: PracticeDraftSummary
@@ -175,7 +181,7 @@ export function Sidebar({
         </div>
       ) : (
         <div className="flex items-center gap-2 px-3 pb-2 pt-3">
-          <button type="button" onClick={() => setView("dashboard")} className="mr-auto rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`${text.appName} home`} title={`${text.appName} home`}>
+          <button type="button" onClick={() => onModeChange("rail")} className="mr-auto rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Collapse sidebar" title="Collapse sidebar">
             <BrandMark size="sm" />
           </button>
           <button type="button" onClick={() => onModeChange("rail")} className={ghostIconButton} aria-label="Collapse sidebar to icons" title={`Collapse to icons (${modKey}+\\)`}>
@@ -209,10 +215,10 @@ export function Sidebar({
       </div>
 
       <div className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-3 ${compact ? "px-2" : "px-3"}`}>
-        <Navigation compact={compact} practiceDraftSummary={practiceDraftSummary} setView={setView} studioDraftSummary={studioDraftSummary} text={text} view={view} />
+        <Navigation compact={compact} isAdmin={isAdmin} practiceDraftSummary={practiceDraftSummary} setView={setView} studioDraftSummary={studioDraftSummary} text={text} view={view} />
       </div>
 
-      <SidebarFooter compact={compact} />
+      <SidebarFooter compact={compact} isAdmin={isAdmin} setView={setView} text={text} view={view} />
       <div id="sidebar-account" className={`border-t border-sidebar-border p-2 ${compact ? "" : "px-3"}`} />
     </aside>
   )
@@ -229,6 +235,7 @@ function placeCurrent(item: LearnNavigationItem, view: View, activePlace: View) 
 
 function Navigation({
   compact,
+  isAdmin,
   practiceDraftSummary,
   setView,
   studioDraftSummary,
@@ -236,6 +243,7 @@ function Navigation({
   view,
 }: {
   compact: boolean
+  isAdmin: boolean
   practiceDraftSummary: PracticeDraftSummary
   setView: (view: View) => void
   studioDraftSummary: StudioDraftSummary
@@ -248,6 +256,7 @@ function Navigation({
     <nav aria-label="Sections">
       <ul className={compact ? "grid justify-items-center gap-1.5" : "grid gap-0.5"}>
         {navigationItems.map((item) => {
+          if (item.view === "profile") return null
           const active = item.view === activePlace
           const Icon = viewIcons[item.view]
           const label = String(text[item.labelKey])
@@ -291,6 +300,7 @@ function Navigation({
                   <span className="truncate">{label}</span>
                 </button>
               )}
+              {!compact && active ? <SidebarPageLinks isAdmin={isAdmin} label={label} setView={setView} text={text} view={view} /> : null}
             </li>
           )
         })}
@@ -315,7 +325,14 @@ function ConnectionStatus({ compact, status }: { compact?: boolean; status: Real
   )
 }
 
-function SidebarFooter({ compact }: { compact: boolean }) {
+function SidebarPageLinks({ isAdmin, label, setView, text, view }: { isAdmin: boolean; label: string; setView: (view: View) => void; text: Text; view: View }) {
+  return <ul className="sidebar-pages" aria-label={`${label} pages`}>{placeTabsForView(view, isAdmin).map(page => {
+    const Icon = viewIcons[page]
+    return <li key={page}><button type="button" onClick={() => setView(page)} aria-current={placeTabForView(view) === page ? "page" : undefined}><Icon aria-hidden="true" /><span>{text[viewLabelKeys[page]]}</span></button></li>
+  })}</ul>
+}
+
+function SidebarFooter({ compact, isAdmin, setView, text, view }: { compact: boolean; isAdmin: boolean; setView: (view: View) => void; text: Text; view: View }) {
 
   if (compact) {
     return (
@@ -328,7 +345,8 @@ function SidebarFooter({ compact }: { compact: boolean }) {
   }
 
   return (
-    <div className="flex items-center gap-2 border-t border-sidebar-border px-3 py-2">
+    <div className="border-t border-sidebar-border px-3 py-2">
+      {resolveNavigationTarget(view).primaryView === "profile" ? <SidebarPageLinks isAdmin={isAdmin} label={String(text.me)} setView={setView} text={text} view={view} /> : null}
       <button
         type="button"
         onClick={openPlaceGuide}
@@ -395,9 +413,7 @@ export function Topbar({
   }, [sidebarMode])
 
   const accountControls = (
-    <div className={`account-controls ${accountHost ? (sidebarMode === "rail" ? "account-cluster account-cluster-rail" : "account-cluster") : "flex items-center gap-1"}`}>
-          <ThemeModeSwitcher compact />
-          <NotificationsMenu openLink={openLink} user={user} sidebar={Boolean(accountHost)} />
+    <div aria-busy={!user} className={`account-controls ${accountHost ? (sidebarMode === "rail" ? "account-cluster account-cluster-rail" : "account-cluster") : "flex items-center gap-1"}`}>
           <AccountMenu
             sidebar={Boolean(accountHost)}
             showName={Boolean(accountHost) && sidebarMode === "expanded"}
@@ -412,7 +428,10 @@ export function Topbar({
             sidebarMode={sidebarMode}
             text={text}
             user={user}
+            view={view}
           />
+          <ThemeModeSwitcher compact={!accountHost || sidebarMode === "rail"} iconsOnly={Boolean(accountHost) && sidebarMode === "expanded"} className="account-appearance" />
+          <NotificationsMenu openLink={openLink} user={user} sidebar={Boolean(accountHost)} />
     </div>
   )
 
@@ -553,6 +572,7 @@ function AccountMenu({
   sidebarMode,
   text,
   user,
+  view,
 }: {
   sidebar?: boolean
   showName?: boolean
@@ -567,8 +587,10 @@ function AccountMenu({
   sidebarMode: SidebarMode
   text: Text
   user: User | null
+  view: View
 }) {
-  const { open, rootRef, setOpen } = usePopover()
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const [languagesOpen, setLanguagesOpen] = useState(false)
   const status = useInboxStatus()
 
@@ -578,8 +600,13 @@ function AccountMenu({
   }
 
   return (
-    <div ref={rootRef} className={`account-profile relative ${showName ? "min-w-0 flex-1" : ""}`}>
+    <div className={`account-profile relative ${showName ? "min-w-0 flex-1" : ""}`}>
+      <button type="button" onClick={() => go("profile")} aria-label="Your profile" aria-current={view === "profile" ? "page" : resolveNavigationTarget(view).primaryView === "profile" ? "true" : undefined} title="Me" className="account-profile-link">
+        <Avatar user={user} />
+        {showName ? <span className="min-w-0"><strong className="block truncate text-xs font-medium">{user?.name || "Me"}</strong><span className="block truncate text-xs text-muted-foreground">Me</span></span> : null}
+      </button>
       <button
+        ref={triggerRef}
         type="button"
         data-popover-trigger
         onClick={() => {
@@ -588,23 +615,13 @@ function AccountMenu({
         }}
         aria-expanded={open}
         aria-haspopup="dialog"
-        aria-label={`Account: ${user?.name || "you"}`}
-        title={user?.name || "Account"}
-        className={`relative flex items-center gap-2 rounded-lg p-1 text-left hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${showName ? "w-full" : ""}`}
+        aria-label="Account options"
+        title="Account options"
+        className="account-options-trigger"
       >
-        <span className="relative"><Avatar user={user} />
-        <span
-          className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-background ${status === "open" ? "bg-success" : status === "closed" ? "bg-muted-foreground/50" : "bg-warning"}`}
-          aria-hidden="true"
-        /></span>
-        {showName ? <span className="min-w-0"><span className="block truncate text-xs font-medium">{user?.name || "Your account"}</span><span className="block truncate text-xs text-muted-foreground">Personal workspace</span></span> : null}
+        <Ellipsis size={17} aria-hidden="true" />
       </button>
-      {open ? (
-        <div
-          role="dialog"
-          aria-label="Account and preferences"
-          className={`learn-pop-in fixed z-[80] max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-lift ${sidebar ? "bottom-20 left-3 w-80 max-w-[calc(100vw-1.5rem)]" : "inset-x-3 top-[3.75rem] sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:w-80"}`}
-        >
+      <Popover open={open} anchor={triggerRef} onClose={() => setOpen(false)} label="Account and preferences" placement={sidebar ? "top-start" : "bottom-end"} width={280} focusOnOpen className="!w-[280px] !rounded-xl !p-2">
           <div className="flex items-center gap-3 rounded-xl p-2">
             <Avatar user={user} className="h-11 w-11 text-base" />
             <div className="min-w-0 flex-1">
@@ -620,7 +637,7 @@ function AccountMenu({
             <MenuRow icon={Compass} label="What's where?" onClick={() => { setOpen(false); openPlaceGuide() }} />
           </div>
 
-          <div className="grid gap-3 border-t border-border px-2 pb-2 pt-3">
+          <details className="account-preferences border-t border-border px-2 pb-2 pt-2"><summary className="cursor-pointer py-2 text-xs font-medium text-muted-foreground">Appearance & preferences</summary><div className="grid gap-3 py-2">
             <div className="grid gap-1.5">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Theme</p>
               <ThemeModeSwitcher />
@@ -681,13 +698,12 @@ function AccountMenu({
                 </div>
               ) : null}
             </div>
-          </div>
+          </div></details>
 
           <div className="border-t border-border pt-1">
             <MenuRow icon={LogOut} label={String(text.signOut)} onClick={logout} tone="destructive" />
           </div>
-        </div>
-      ) : null}
+      </Popover>
     </div>
   )
 }

@@ -898,10 +898,22 @@ html.dark.learn-high-contrast {
 .learn-sidebar nav[aria-label='Sections'] > ul { gap:4px; }
 .learn-sidebar button[title^='Search or jump'] { height:34px; }
 .learn-sidebar .learn-kbd { padding:1px 3px; }
-.account-cluster { display:flex; align-items:center; gap:1px; }
-.account-cluster > button:not([aria-haspopup]), .account-cluster > div > button { width:28px; height:28px; min-width:28px; padding:4px; }
-.account-cluster-rail { position:relative; min-height:68px; display:grid; grid-template-columns:1fr 1fr; justify-items:center; gap:0; }
-.account-cluster-rail > button:not([aria-haspopup]), .account-cluster-rail > div > button { width:24px; height:24px; min-width:24px; padding:4px; }
+.account-cluster { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:5px; }
+.account-cluster > .account-profile { grid-column:1 / -1; }
+.account-profile { display:flex; align-items:center; gap:3px; min-width:0; }
+.account-profile-link { display:flex; align-items:center; gap:8px; min-width:0; min-height:36px; padding:2px; border-radius:8px; text-align:left; }
+.account-profile-link:hover,.account-profile-link[aria-current],.account-options-trigger:hover { background:var(--accent); }
+.account-profile-link:focus-visible,.account-options-trigger:focus-visible { outline:2px solid var(--ring); outline-offset:2px; }
+.account-options-trigger { display:grid; place-items:center; width:28px; height:32px; flex-shrink:0; border-radius:8px; color:var(--muted-foreground); }
+@media(max-width:1023px) { .account-options-trigger { width:36px; height:36px; } }
+.account-cluster > .account-profile .account-profile-link { flex:1; }
+.account-cluster > div:not(.account-profile) > button { width:32px; height:32px; padding:4px; }
+.account-cluster-rail { grid-template-columns:24px 24px; justify-items:center; gap:3px 0; }
+.account-cluster-rail .account-appearance { width:24px; height:28px; }
+.account-cluster-rail > div:not(.account-profile) > button { width:24px; height:28px; }
+.account-cluster-rail > .account-profile { display:contents; }
+.account-cluster-rail .account-profile-link { grid-column:1 / -1; }
+.account-cluster-rail .account-options-trigger { grid-column:1 / -1; grid-row:3; width:36px; }
 .account-cluster svg { width:15px; height:15px; }
 #sidebar-account [aria-haspopup] .text-\[10px\] { display:none; }
 .learning-page .workspace-header { min-height:36px; }
@@ -960,11 +972,13 @@ button.compact-row:hover, .compact-row[aria-pressed='true'] { background:var(--a
 .story-dialog::backdrop { background:rgb(0 0 0 / .5); }
 .story-text { margin:16px 0; padding:24px 16px; border-radius:12px; background:linear-gradient(130deg,color-mix(in oklch,var(--primary) 12%,var(--card)),color-mix(in oklch,var(--decor-mint-ink) 10%,var(--card))); font-size:20px; white-space:pre-wrap; overflow-wrap:anywhere; }
 .calendar-filters-panel > summary { width:max-content; list-style:none; cursor:pointer; }
-.account-cluster > .account-profile { flex:1; min-width:0; }
-.account-cluster > .account-profile > button { width:100%; height:36px; min-width:0; padding:2px; }
-.account-cluster-rail > .account-profile { grid-column:1 / -1; }
-.account-cluster-rail > .account-profile > button { width:36px; justify-content:center; }
-.account-cluster-rail { min-height:62px; }
+.account-cluster-rail .account-profile-link { width:36px; justify-content:center; }
+.sidebar-pages { display:grid; gap:2px; margin:5px 0 10px 13px; padding-left:10px; border-left:1px solid var(--sidebar-border); }
+.sidebar-pages button { display:flex; align-items:center; gap:8px; width:100%; min-height:32px; padding:5px 7px; border-radius:7px; text-align:left; font-size:12px; color:var(--muted-foreground); }
+.sidebar-pages svg { width:14px; height:14px; flex-shrink:0; }
+.sidebar-pages button:hover,.sidebar-pages button[aria-current='page'] { color:var(--foreground); background:var(--sidebar-accent); }
+.sidebar-pages button[aria-current='page'] { font-weight:600; }
+.sidebar-pages button:focus-visible { outline:2px solid var(--ring); outline-offset:1px; }
 .graph-stage svg { height:400px; max-height:55dvh; }
 .graph-stage circle { fill:color-mix(in oklch,var(--primary) 9%,var(--card)); }
 .practice-design .game-prompt { background:linear-gradient(120deg,var(--play-ink),color-mix(in oklch,var(--play-ink) 75%,#121826)); border-color:var(--play-ink); color:white; border-radius:18px; }

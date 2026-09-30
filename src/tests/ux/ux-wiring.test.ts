@@ -161,7 +161,7 @@ test("sidebar keeps the five places: Today, Create, Practice, Friends, Me", () =
   )
 })
 
-test("the sidebar and the phone dock show the same five places, with no More sheet", () => {
+test("the phone dock keeps five places and desktop Me belongs to the account footer", () => {
   const appNav = readSource(APP_NAV)
   const dock = componentSource(appNav, "MobileTabBar")
   const sidebarList = componentSource(appNav, "Navigation")
@@ -171,7 +171,10 @@ test("the sidebar and the phone dock show the same five places, with no More she
     assert.match(source, /aria-current=\{placeCurrent\(item, view, activePlace\)\}/, "both must mark the active place the same way")
   }
   assert.doesNotMatch(dock, /Everything in LEARN|"More"|>More</, "the phone dock has no More sheet")
-  assert.doesNotMatch(sidebarList, /subViews/, "the sidebar lists places only; each place's pages are its tab row")
+  assert.match(sidebarList, /if \(item\.view === "profile"\) return null/, "Me is reached from the profile footer instead of a repeated main item")
+  assert.match(sidebarList, /<SidebarPageLinks /, "the expanded active place keeps its pages reachable")
+  assert.match(componentSource(appNav, "SidebarFooter"), /<SidebarPageLinks /, "Me keeps Profile and Settings beside the footer account")
+  assert.match(componentSource(appNav, "AccountMenu"), /onClick=\{\(\) => go\("profile"\)\} aria-label="Your profile"/, "the footer opens Me directly")
   assert.match(componentSource(appNav, "AccountMenu"), /openPlaceGuide\(\)/, "the account menu keeps \"What's where?\" on every screen size")
   assert.match(readSource(LEARN_SHELL), /const placeView: View = viewingSomeoneElse \? "social" : view/, "someone else's profile lights up Friends")
 })

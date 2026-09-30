@@ -8,6 +8,10 @@
 .compact:hover { background:var(--secondary); color:var(--foreground); }
 .compact:focus-within { outline:2px solid var(--ring); outline-offset:2px; }
 .compact select { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; }
+.icons { display:flex; align-items:center; gap:2px; }
+.icons button { display:grid; place-items:center; width:30px; height:32px; border-radius:8px; color:var(--muted-foreground); cursor:pointer; }
+.icons button:hover,.icons button[aria-pressed='true'] { background:var(--accent); color:var(--foreground); }
+.icons button:focus-visible { outline:2px solid var(--ring); outline-offset:2px; }
 .previews { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; max-width:36rem; }
 .previews button { min-width:0; border:1px solid var(--border); border-radius:14px; padding:10px; background:var(--card); color:var(--muted-foreground); cursor:pointer; }
 .previews button[aria-pressed='true'] { border-color:var(--primary); box-shadow:0 0 0 1px var(--primary); color:var(--foreground); }
