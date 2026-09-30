@@ -56,7 +56,9 @@ async function activeDays(userId: string, offsetMinutes: number, today: string) 
     `SELECT DISTINCT date(ts, $2) AS day FROM (
        SELECT started_at AS ts FROM practice_sessions WHERE user_id = $1
        UNION ALL SELECT created_at FROM review_logs WHERE user_id = $1
-       UNION ALL SELECT answered_at FROM live_quiz_answers WHERE participant_id = 'lp_' || $1
+       UNION ALL SELECT a.answered_at FROM live_quiz_answers a
+         JOIN live_quiz_participants p ON p.id = a.participant_id AND p.session_id = a.session_id
+         WHERE p.user_id = $1
        UNION ALL SELECT created_at FROM note_versions WHERE user_id = $1
        UNION ALL SELECT created_at FROM content_versions WHERE user_id = $1
      )

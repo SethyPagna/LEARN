@@ -145,9 +145,7 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
   const [mode, setMode] = useState<"choose" | "host" | "play">("choose")
   const [selectedQuizId, setSelectedQuizId] = useState("")
   const [selectedGameMode, setSelectedGameMode] = useState<LiveQuizMode>("race")
-  // Pre-filled from `?code=`, so a card in a thread drops the player into the
-  // lobby without a retype.
-  const [joinInput, setJoinInput] = useState(() => joinCodeFromUrl())
+  const [joinInput, setJoinInput] = useState("")
   const [item, setItem] = useState<LiveItem | null>(null)
   const [status, setStatus] = useState("")
   const [busy, setBusy] = useState("")
@@ -288,7 +286,7 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
       applyItem(response.item)
       setFeedback(null)
       setStatus("")
-      setMode("play")
+      setMode(response.item.viewer.isHost ? "host" : "play")
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "That code did not work.")
     } finally {
@@ -323,11 +321,12 @@ export function LiveQuizView({ quizzes, user }: { quizzes: Quiz[]; user: User | 
    */
   const autoJoinAttemptedRef = useRef(false)
   useEffect(() => {
-    if (autoJoinAttemptedRef.current || item) return
+    if (!user || autoJoinAttemptedRef.current || item) return
     const code = joinCodeFromUrl()
     if (!code) return
+    setJoinInput(code)
     autoJoinAttemptedRef.current = true
-    if (user) void joinSession(code)
+    void joinSession(code)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item, user])
 

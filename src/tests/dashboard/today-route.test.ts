@@ -49,6 +49,8 @@ test("Today reads the caller's own activity, reviews, projects and invites witho
 
     // D1 binds by position, so parameters arrive in the order they appear in the SQL.
     const [activity] = stub.matching(ACTIVITY)
+    assert.match(activity.sql, /p\.id = a\.participant_id AND p\.session_id = a\.session_id/, "live activity includes session-scoped and legacy participant identities")
+    assert.match(activity.sql, /WHERE p\.user_id = \?/, "live answers are counted for their participant's user")
     assert.deepEqual(activity.params, ["+420 minutes", ME, ME, ME, ME, ME, shiftDay(today, -400)], "days are counted in the learner's own time zone, from the caller's rows only")
     for (const statement of [...stub.matching(REVIEWS), ...stub.matching(PROJECT_TABLES)]) {
       assert.equal(statement.params[0], ME, `scoped to the caller: ${statement.sql.slice(0, 60)}`)

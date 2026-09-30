@@ -2400,17 +2400,27 @@ async function loadLiveSessionRecord(codeInput: unknown) {
 
 /**
  * Writes the reducer's output back: the JSON state plus the columns the listing
- * queries filter on, then the roster and any answers that were not already
- * stored. `before` is what makes the answer write a diff rather than a rewrite,
- * so a re-reduce of the same state cannot re-insert rows.
+ * queries filter on, then the roster and any answers missing from storage.
+ * Existing roster ids remain readable; new ids are scoped to this session so
+ * replaying the same quiz cannot replace another session's player or answer.
  */
 async function persistLiveSession(input: {
   id: string
-  before: LiveQuizSession
   after: LiveQuizSession
   effects: LiveEffect[]
 }) {
-  const { id, before, after, effects } = input
+  const { id, after, effects } = input
+  const [roster, storedAnswers] = await Promise.all([
+    query<{ id: string; user_id: string | null }>("SELECT id, user_id FROM live_quiz_participants WHERE session_id = $1", [id]),
+    query<{ participant_id: string; question_id: string }>("SELECT participant_id, question_id FROM live_quiz_answers WHERE session_id = $1", [id]),
+  ])
+  const participantRows = new Map(after.participants.map((participant) => {
+    const userId = participant.id.replace(/^lp_/, "") || null
+    const scopedId = `lqp_${JSON.stringify([id, participant.id])}`
+    const existing = roster.rows.find((row) => row.id === scopedId)
+      || roster.rows.find((row) => row.id === participant.id || (userId && row.user_id === userId))
+    return [participant.id, { id: existing?.id || scopedId, userId }] as const
+  }))
   const stateJson = serializeSession(after)
   if (effects.some((effect) => effect.type === "finalize")) {
     await query(
@@ -2432,34 +2442,35 @@ async function persistLiveSession(input: {
     "live_quiz_participants",
     ["id", "session_id", "user_id", "name", "score", "joined_at"],
     after.participants.map((participant) => [
-      participant.id,
+      participantRows.get(participant.id)!.id,
       id,
-      participant.id.replace(/^lp_/, "") || null,
+      participantRows.get(participant.id)!.userId,
       participant.name,
       participant.score,
       new Date(participant.joinedAt).toISOString(),
     ]),
     [],
-    "ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, score = EXCLUDED.score",
+    "ON CONFLICT (id) DO UPDATE SET session_id = EXCLUDED.session_id, user_id = EXCLUDED.user_id, name = EXCLUDED.name, score = EXCLUDED.score, joined_at = EXCLUDED.joined_at",
   )
 
   const alreadyStored = new Set(
-    before.participants.flatMap((participant) => participant.answers.map((answer) => `${participant.id}:${answer.questionId}`)),
+    storedAnswers.rows.map((answer) => JSON.stringify([answer.participant_id, answer.question_id])),
   )
-  const newAnswers = after.participants.flatMap((participant) =>
-    participant.answers
-      .filter((answer) => !alreadyStored.has(`${participant.id}:${answer.questionId}`))
+  const newAnswers = after.participants.flatMap((participant) => {
+    const participantId = participantRows.get(participant.id)!.id
+    return participant.answers
+      .filter((answer) => !alreadyStored.has(JSON.stringify([participantId, answer.questionId])))
       .map((answer) => [
-        `lqa_${participant.id}_${answer.questionId}`,
+        `lqa_${JSON.stringify([id, participantId, answer.questionId])}`,
         id,
         answer.questionId,
-        participant.id,
+        participantId,
         answer.choiceId,
         answer.correct ? 1 : 0,
         answer.points,
         timestampIso(answer.at),
-      ]),
-  )
+      ])
+  })
   await insertRows(
     "live_quiz_answers",
     ["id", "session_id", "question_id", "participant_id", "choice_id", "correct", "points", "answered_at"],
@@ -2703,7 +2714,7 @@ async function applyLiveEvent(input: {
   if (!result.effects.length) {
     return { accepted: false, id: found.id, session: found.session, effects: [] }
   }
-  await persistLiveSession({ id: found.id, before: found.session, after: result.session, effects: result.effects })
+  await persistLiveSession({ id: found.id, after: result.session, effects: result.effects })
   if (result.effects.some((effect) => effect.type === "finalize")) {
     await recordLiveGameResultMessage(result.session, input.nowMs)
   }
@@ -2711,6 +2722,8 @@ async function applyLiveEvent(input: {
 }
 
 export async function joinLiveSession(user: User, codeInput: unknown) {
+  const found = await loadLiveSessionRecord(codeInput)
+  if (found.session.hostUserId === user.id) return { joined: false, id: found.id, session: found.session }
   const nowMs = Date.now()
   const participantId = liveParticipantId(user.id)
   const result = await applyLiveEvent({
