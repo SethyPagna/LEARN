@@ -5,7 +5,7 @@ import { SESSION_COOKIE } from "@/lib/data"
 import { PublicHome } from "@/components/public-home"
 
 export const metadata: Metadata = {
-  title: "LEARN — Learn it. Make it yours.",
+  title: { absolute: "LEARN — Learn it. Make it yours." },
   description: "A personal studio to create, practice and make progress. Bring your notes, designs and learning together in LEARN.",
 }
 

@@ -3,7 +3,7 @@ const REQUEST_TIMEOUT_MS = 20_000
 const REQUIRED_CSS_SNIPPETS = [
   "display:flex",
   "display:grid",
-  "min-height:100vh",
+  "min-height:100dvh",
 ]
 const REQUIRED_RESPONSE_HEADERS: RequiredResponseHeader[] = [
   { includes: "DENY", name: "x-frame-options" },
@@ -23,31 +23,31 @@ const UNSAFE_RESPONSE_PATTERNS: UnsafeResponsePattern[] = [
 ]
 const ROUTES_TO_CHECK: RouteExpectation[] = [
   {
-    markers: ["LEARN", "Vault to practice", "View workflow"],
+    markers: ["LEARN", "Learn it.", "Try the workspace"],
     path: "/",
   },
   {
-    markers: ["Workspace access", "Sign in", "Request access"],
+    markers: ["Welcome back.", "Sign in", "Request access"],
     path: "/login",
   },
   {
-    markers: ["Dashboard", "Route", "AI suggestion"],
+    markers: ["<title>Today - LEARN</title>"],
     path: "/dashboard",
   },
   {
-    markers: ["Studio", "All projects", "Designs"],
+    markers: ["<title>Studio - LEARN</title>"],
     path: "/studio",
   },
   {
-    markers: ["Chats", "Search or start", "Type a message"],
+    markers: ["<title>Friends - LEARN</title>"],
     path: "/social",
   },
   {
-    markers: ["Practice", "Sets", "Games"],
+    markers: ["<title>Practice - LEARN</title>"],
     path: "/practice",
   },
   {
-    markers: ["AI tutor", "Task", "Gateway"],
+    markers: ["<title>AI tutor - LEARN</title>"],
     path: "/ai",
   },
   {
@@ -220,6 +220,7 @@ async function checkCss(baseUrl: string) {
 async function checkFavicon(baseUrl: string) {
   const response = await fetch(absoluteUrl(baseUrl, "/favicon.ico"), {
     method: "HEAD",
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
   if (response.status !== 200) {
     fail(`/favicon.ico returned ${response.status}`)
