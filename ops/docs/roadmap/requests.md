@@ -8,9 +8,9 @@ Status is one of: **done**, **partly done**, **in progress**, **planned** or **b
 
 | Rule | Where it applies |
 | --- | --- |
-| Stop at each checkpoint and wait for the owner's pick. At each checkpoint, commit locally with `tsc` and the tests green, and give a short visual report. | Every session |
+| Continue work autonomously. Checkpoints save tested focused commits and periodically push all completed work to GitHub; they are not stop/approval gates (owner update2026-10-01). | Every session |
 | Ask when unsure. The owner wants 100% confidence, and reports must contain only verified facts. | Every session |
-| Push only when the owner says so. | Every push |
+| Periodic pushes of completed checkpoints to the current LEARN branch are authorized by the owner (2026-10-01). Never force-push or deploy without authorization. | Every push |
 | Real users only in social, with no fake data. Every button must work, with no placeholders. | The whole app |
 | Minimal text: labels only for sections, visual design everywhere, clean and easy to follow. | Every page |
 | Local only for now (localhost). When deploying later, use Cloudflare's one `learn` worker and leave the other workers alone. | Deploys |
@@ -42,6 +42,8 @@ Status is one of: **done**, **partly done**, **in progress**, **planned** or **b
 | 20 | Fill the expanded sidebar with useful sections; place Me in the account footer, before appearance controls and notifications; brand expansion must preserve the page. | **done locally**: four main sidebar places plus active section links and Me in the footer; phone dock retains all five. Desktop/390/320 checks pass, including URL-preserving expansion |
 | 21 | Thoroughly redesign Me/Profile with compact visual design and working settings. | **done locally**: identity editing, avatar, visibility and links, real learning metrics and visual badges. Mocked failed/successful saves, immediate account updates and draft preservation pass at all3 widths; avatar/link/cancel edge cases pass on desktop |
 | 22 | Improve options popups and apply consistent responsive interaction rules. | **done locally for account options**: shared viewport-clamped popover, keyboard focus/Escape restoration and compact preferences verified on desktop and phones. No other specific popup was identified; future bugs remain in the later fix phase |
+| 23 | Continue without stopping at checkpoints, create a goal, and periodically push completed work. | **in progress** (2026-10-01): goal created; earlier verified25 local commits will be pushed, followed by tested focused checkpoints. This supersedes the earlier stop/push-approval rule |
+| 24 | Remove repeated user buttons and unnecessary account ellipses; integrate profile into the account itself. Continue improving consistent design. | **in progress**: one avatar account panel with inline profile editing, compact shared menus/navigation and phone review |
 
 ## Chosen order
 

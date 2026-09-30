@@ -2,6 +2,7 @@
 
 ## Resume here
 
+- **New owner direction:** continue from [2026-10-01-continuation.md](2026-10-01-continuation.md). Checkpoints are now periodic verified commits/pushes, not stop/approval gates. The earlier pending-push notes below are historical.
 - Active checkout: `C:/Users/user/Downloads/Projects/LEARN`, branch `cleanup/stage-1`; starting HEAD `668318c`, clean and 14 commits ahead of origin. The previous verified editor/demo checkpoint is in [2026-09-30-codex-takeover.md](2026-09-30-codex-takeover.md).
 - The owner asked to continue. Work now covers the next chosen checkpoint, "Fix what's still open" (ledger #16). The preceding push decision remains pending; no push or deploy is authorized by this continuation.
 - Ten reviewed code/QA commits are saved, ending at `28d2a47`, followed by this documentation checkpoint: expected clean branch,25 ahead/0 behind origin `cfd3b8e`. Verify rather than assume. [Report, pictures and limits](../audits/2026-10-01-bugfixes.md) saved. Private quiz reads/attempts are guarded as well as lists; the existing ownerless shared question bank is retained.
