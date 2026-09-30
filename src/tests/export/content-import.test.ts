@@ -112,7 +112,7 @@ test("PDF enforces its page limit with a real multi-page document", async () => 
 
 test("the import picker is a compact button, not a raw browser file field", () => {
   for (const format of [undefined, "pptx", "pdf"] as const) {
-    const markup = renderToStaticMarkup(reactElement(StudioContentImport, { format, onImport: () => {} }))
+    const markup = renderToStaticMarkup(reactElement(StudioContentImport, { format, onImport: () => {}, onPowerPoint: async () => {} }))
     const label = format ? format.toUpperCase() : "PPTX or PDF"
     assert.match(markup, /<input type="file" class="sr-only"/)
     assert.match(markup, new RegExp(`aria-label="Import ${label} content"`))

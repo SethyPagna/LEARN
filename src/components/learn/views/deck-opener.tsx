@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { deckDesignId, deckToDesign } from "@/lib/design/from-deck"
-import { parseDeckSlides } from "@/lib/studio-defaults"
+import { deckDesignId, deckToDesign, legacyDeckSlides } from "@/lib/design/from-deck"
+import { clearStudioDraft, readStudioDrafts } from "@/lib/studio-drafts"
 import { api } from "../api"
 import { designSaveBody } from "../design/use-design-save"
 import type { WorkspaceDeck } from "../types"
@@ -54,9 +54,46 @@ export function openDeck(deckId: string, aspect: "16:9" | "4:3"): Promise<string
   return next
 }
 
+/**
+ * The retired editor kept a deck's unsaved changes in this browser. They become
+ * that deck's design, or a design of their own when the deck has already moved,
+ * so nothing typed there is lost. Returns the design's link, if there was a draft.
+ */
+let rescuingDraft: Promise<string | undefined> | undefined
+
+export function rescueSlidesDraft(aspect: "16:9" | "4:3"): Promise<string | undefined> {
+  if (rescuingDraft) return rescuingDraft
+  rescuingDraft = rescueCurrentDraft(aspect).finally(() => { rescuingDraft = undefined })
+  return rescuingDraft
+}
+
+async function rescueCurrentDraft(aspect: "16:9" | "4:3"): Promise<string | undefined> {
+  const draft = readStudioDrafts().slides
+  if (draft?.kind !== "slides") return undefined
+  const snapshot = JSON.stringify(draft)
+  if (!draft.slides.length) {
+    clearStudioDraft("slides")
+    return undefined
+  }
+  const deckCopy = draft.id ? deckDesignId(draft.id) : ""
+  const title = draft.title.trim() || "Untitled slides"
+  const design = deckCopy && !(await findDeckDesign(deckCopy))
+    ? deckToDesign({ id: deckCopy, title, slides: draft.slides, aspect })
+    : deckToDesign({ title: `${title} (draft)`, slides: draft.slides, aspect })
+  await api("/api/canvas", { method: "PUT", body: designSaveBody(design.id, design) })
+  // A newer draft may have been written while the server was saving this one.
+  if (JSON.stringify(readStudioDrafts().slides) === snapshot) clearStudioDraft("slides")
+  return `/slides?design=${encodeURIComponent(design.id)}`
+}
+
 async function convertDeck(deckId: string, aspect: "16:9" | "4:3"): Promise<string> {
+  // Unsaved changes to this deck go into its design first. A draft that can't
+  // be moved stays in the browser; the deck still opens.
+  await rescueSlidesDraft(aspect).catch(() => undefined)
   const id = deckDesignId(deckId)
-  if (await designExists(id)) {
+  const existing = await findDeckDesign(id)
+  if (existing) {
+    if (existing.archived_at) await api("/api/canvas", { method: "PATCH", body: JSON.stringify({ id, action: "restore" }) })
     // A deck restored after its move leads to the same copy, so it leaves the list again.
     await archiveDeck(deckId)
     return `/slides?design=${encodeURIComponent(id)}`
@@ -64,29 +101,29 @@ async function convertDeck(deckId: string, aspect: "16:9" | "4:3"): Promise<stri
   const { items } = await api<{ items: SavedDeck[] }>("/api/slides")
   const deck = items.find((item) => item.id === deckId)
   if (!deck) throw new Error("This deck isn't in your Studio any more. It may have been archived.")
-  const slides = parseDeckSlides(deck).map((slide, index) => ({ ...slide, speakerNotes: slide.speakerNotes || noteText(deck.speaker_notes?.[String(index)]) }))
+  const slides = legacyDeckSlides(deck)
   const design = deckToDesign({ id, title: deck.title || "Untitled slides", slides, aspect })
   await api("/api/canvas", { method: "PUT", body: designSaveBody(id, design) })
   await archiveDeck(deckId)
   return `/slides?design=${encodeURIComponent(id)}&from=deck`
 }
 
-async function designExists(id: string) {
-  const url = `/api/canvas?id=${encodeURIComponent(id)}`
+async function findDeckDesign(id: string): Promise<{ archived_at?: string | null } | null> {
+  const url = `/api/canvas?id=${encodeURIComponent(id)}&status=all`
   const response = await fetch(url)
-  if (response.ok) return true
-  if (response.status === 404) return false
+  if (response.ok) {
+    const body = await response.json() as { item?: { archived_at?: string | null } }
+    if (!body.item) throw new Error("The saved design could not be checked. Try again.")
+    return body.item
+  }
+  if (response.status === 404) return null
   // Anything else: `api` repeats the request to show the server's reason
   // (and sends someone who is signed out to sign in).
-  await api(url)
-  return true
+  const body = await api<{ item: { archived_at?: string | null } }>(url)
+  return body.item
 }
 
 async function archiveDeck(deckId: string) {
   // The copy is safe either way; a deck left unarchived is archived on its next open.
   await api(`/api/slides?id=${encodeURIComponent(deckId)}`, { method: "DELETE" }).catch(() => undefined)
-}
-
-function noteText(value: unknown) {
-  return typeof value === "string" ? value : ""
 }

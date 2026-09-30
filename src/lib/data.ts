@@ -1474,14 +1474,16 @@ export async function listEditorDocuments(user: User, documentType = "doc", stat
   return result.rows.map((row) => ({ ...row, content: parseJsonObject(row.content), tags: parseJsonArray(row.tags) }))
 }
 
-/** One active document of a type, when the caller owns it (or is an admin). */
-export async function getEditorDocument(user: User, id: string, documentType = "doc") {
+/** One document of a type and archive status, when the caller owns it (or is an admin). */
+export async function getEditorDocument(user: User, id: string, options: { documentType?: string; status?: ArchiveListStatus } = {}) {
   await ensureDatabase()
   const rowId = normalizeId(id)
   if (!rowId) return null
+  const { documentType = "doc", status = "active" } = options
+  const archiveClause = archivedWhereClause()[status]
   const result = await query(
     `SELECT * FROM editor_documents
-     WHERE id = $1 AND document_type = $2 AND archived_at IS NULL AND (owner_user_id = $3 OR $4 = 'admin')
+     WHERE id = $1 AND document_type = $2 AND ${archiveClause} AND (owner_user_id = $3 OR $4 = 'admin')
      LIMIT 1`,
     [rowId, documentType, user.id, user.role],
   )

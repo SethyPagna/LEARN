@@ -139,24 +139,18 @@ test("slide export payload includes presenter outline and timings", () => {
   assert.match(payload.presenterOutline, /Speaker notes/)
 })
 
-test("slide editor toolbar keeps visible controls actionable", () => {
+test("Studio no longer edits slides: decks, new slides and PowerPoints go to the slides editor", () => {
   const source = readFileSync("src/components/learn/views/studio-view.tsx", "utf8")
-  const start = source.indexOf("Clear fill")
-  const end = source.indexOf("<div className=\"mb-2 flex items-center gap-2", start)
-  const toolbarSource = source.slice(start, end)
-
-  assert.ok(start > -1)
-  assert.ok(end > start)
-  assert.match(toolbarSource, /Apply style/)
-  assert.match(toolbarSource, /label="Animate"/)
-  assert.match(toolbarSource, /label="Position"/)
-  assert.match(toolbarSource, /disabled=\{!selectedObject\}/)
-  assert.doesNotMatch(toolbarSource, /setSelectedObjectId\(selectedObject\?\.id/)
-
-  const bottomBarStart = source.indexOf("<FileText className=\"h-3.5 w-3.5\" /> Notes")
-  const bottomBarSource = source.slice(bottomBarStart, source.indexOf("aria-label=\"Slide zoom\"", bottomBarStart))
-  assert.match(bottomBarSource, /Speaker notes/)
-  assert.match(bottomBarSource, /Timer: 5 min/)
+  for (const retired of ["SlideCanvasObject", "SortableSlideThumb", "Slide zoom", "Timer: 5 min", "setSelectedSlideIndex", "exportDeck", "@dnd-kit"]) {
+    assert.ok(!source.includes(retired), `${retired} is gone`)
+  }
+  assert.match(source, /Slides open in the design editor; StudioView never shows them\.\n  return null/)
+  assert.match(source, /function selectItem[^\n]*\n    if \(item\.kind === "slides"\) return openDeck\(item\.id\)/, "opening a deck goes to the slides editor")
+  assert.match(source, /function loadStudioItem[^\n]*\n    if \(item\.kind === "slides"\) return openDeck\(item\.id\)/, "tabs and panes do too")
+  assert.match(source, /if \(targetKind === "slides"\) return openNewSlides\(/, "new slides are a presentation design")
+  assert.match(source, /if \(templateKind === "slides"\) \{\n      void openNewSlides\(/, "so are slides from a template")
+  assert.match(source, /if \(target === "slides"\) return openDeck\(item\.id\)/, "imported text for slides opens as slides")
+  assert.equal(source.match(/onPowerPoint=\{importSlides\}/g)?.length, 2, "a PowerPoint keeps its layout wherever Studio imports one")
 })
 
 test("studio shared button helpers avoid accidental form submits", () => {

@@ -9,9 +9,6 @@ import type { Project } from "../studio-projects"
 
 import { Fragment, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import type React from "react"
-import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core"
-import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
 import * as ContextMenu from "@radix-ui/react-context-menu"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { Extension } from "@tiptap/core"
@@ -63,13 +60,10 @@ import {
   FilePlus2,
   FileText,
   Grid2X2,
-  GripVertical,
   Heading1,
   Heading2,
   Heading3,
   Highlighter,
-  Eye,
-  EyeOff,
   ImageIcon,
   Italic,
   LayoutPanelLeft,
@@ -106,12 +100,15 @@ import {
   X,
 } from "lucide-react"
 import { api, formatDate } from "../api"
-import type { Note, SlideObject, StudioDirtyBadge, StudioKind, StudioLayoutState, StudioPane, StudioTab, View, WorkspaceDeck, WorkspaceDocument, WorkspaceSheet } from "../types"
+import type { Note, StudioDirtyBadge, StudioKind, StudioLayoutState, StudioPane, StudioTab, View, WorkspaceDeck, WorkspaceDocument, WorkspaceSheet } from "../types"
 import { launchAiTutorFromSource, type TutorSource } from "@/lib/ai/source-launch"
-import { deckToDesign } from "@/lib/design/from-deck"
+import { createDesignDoc } from "@/lib/design/document"
+import { slidesFormatId } from "@/lib/design/formats"
+import { deckToDesign, legacyDeckSlides } from "@/lib/design/from-deck"
 import { htmlToDesignSpec } from "@/lib/design/from-content"
 import { designFromSpec } from "@/lib/design/layout"
-import { exportDesign } from "../design/design-export"
+import { importPowerPoint } from "../design/import-pptx"
+import { rescueSlidesDraft } from "./deck-opener"
 import { StudioContentImport, type ImportedStudioContent } from "../studio-content-import"
 import type { WorkspaceOptions } from "../preferences"
 import { EmptyState, Panel } from "../ui"
@@ -130,12 +127,10 @@ import {
   createStudioTab,
   deleteColumn,
   deleteRow,
-  duplicateSlide,
   evaluateSheetFormula,
   fillSheetRange,
   moveColumn,
   moveRow,
-  moveSlide,
   normalizeStudioLayout,
   pinStudioPane,
   recommendedStudioDownloadOption,
@@ -148,10 +143,10 @@ import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, re
 import { canRestoreStudioDraft, clearStudioDraft, readStudioDrafts, shouldAnnounceStudioDraftSave, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
 import { studioFontOptions, studioFontSizeOptions, studioHighlightColorOptions, studioTextColorOptions } from "@/lib/studio-formatting"
 import { getStudioKindOption, getStudioViewModeOption, studioEmptyTabLabels, studioInspectorTabs, studioKindOptions, studioSectionFilters, studioViewModeOptions, type StudioViewMode } from "@/lib/studio-navigation"
-import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, blankNoteTitle, blankRichText, blankSheetCells, blankSheetFingerprint, blankSheetTitle, ensureSheetCells, parseDeckSlides, parseSheetCells, studioCreateLabels, studioDraftSummary, studioFallbackTitle, studioNoItemSummary } from "@/lib/studio-defaults"
+import { blankDocTitle, blankNoteTitle, blankRichText, blankSheetCells, blankSheetFingerprint, blankSheetTitle, ensureSheetCells, parseSheetCells, studioCreateLabels, studioDraftSummary, studioFallbackTitle, studioNoItemSummary } from "@/lib/studio-defaults"
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
-import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
-import { canvasAspectRatio, canvasPreviewWidth, getAnyStudioCanvasFormat, getStudioCanvasFormat, getStudioKindForCanvasFormat, listAllStudioCanvasFormatGroups, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
+import { buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, documentInsertGroups, getDocumentInsertBlock, richTemplateDesignFor, sheetTemplateDesignFor, slideDesignPresets, type DocumentInsertKind } from "@/lib/studio-design"
+import { canvasPreviewWidth, getAnyStudioCanvasFormat, getStudioCanvasFormat, getStudioKindForCanvasFormat, listAllStudioCanvasFormatGroups, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
 import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplateSubtitle, filterStudioProjectsByDraftStatus, getStudioProjectFilterOption, listStudioProjectFilterOptions, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, type StudioProjectKindFilter, type StudioProjectStatusFilter } from "@/lib/studio-project-browser"
 import { useEditorExitGuard } from "../editor-navigation"
 import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
@@ -339,7 +334,7 @@ function cellsFromSheet(sheet?: WorkspaceSheet) {
 }
 
 function slidesFromDeck(deck?: WorkspaceDeck) {
-  return parseDeckSlides(deck).map((slide) => ({
+  return legacyDeckSlides(deck).map((slide) => ({
     ...slide,
     accent: slide.accent || "Slide",
     layout: slide.layout || "title",
@@ -442,6 +437,7 @@ export function StudioView({
   setNotes,
   setSelectedNoteId,
   onDraftSummary,
+  onOpenLink,
   setView,
 }: {
   initialKind: StudioKind
@@ -451,6 +447,8 @@ export function StudioView({
   setNotes: React.Dispatch<React.SetStateAction<Note[]>>
   setSelectedNoteId: (id: string) => void
   onDraftSummary?: (summary: StudioDraftSummary) => void
+  /** Goes to an in-app link, e.g. a deck in the slides editor. */
+  onOpenLink: (href: string) => void
   setView: (view: View) => void
 }) {
   const [kind, setKind] = useState<StudioKind>(initialKind)
@@ -474,7 +472,6 @@ export function StudioView({
   const [dirtyBadges, setDirtyBadges] = useState<StudioDirtyBadge[]>([])
   const [inspectorTab, setInspectorTab] = useState("Info")
   const [selectedCell, setSelectedCell] = useState({ row: 0, column: 0 })
-  const [selectedSlideIndex, setSelectedSlideIndex] = useState(0)
   const [archivedNotes, setArchivedNotes] = useState<Note[]>([])
   const [archivedDocs, setArchivedDocs] = useState<WorkspaceDocument[]>([])
   const [archivedSheets, setArchivedSheets] = useState<WorkspaceSheet[]>([])
@@ -498,11 +495,8 @@ export function StudioView({
   const [sheetTitle, setSheetTitle] = useState(blankSheetTitle)
   const [cells, setCells] = useState<string[][]>(blankSheetCells)
 
+  // Old decks are listed here; they open (and convert) in the slides editor.
   const [decks, setDecks] = useState<WorkspaceDeck[]>([])
-  const [deckId, setDeckId] = useState("")
-  const selectedDeck = deckId ? decks.find((item) => item.id === deckId) : undefined
-  const [deckTitle, setDeckTitle] = useState(blankDeckTitle)
-  const [slides, setSlides] = useState<WorkspaceDeck["slides"]>(blankDeckSlides)
   const deferredQuery = useDeferredValue(query)
   const hydratedDraftKinds = useRef<Set<StudioKind>>(new Set())
   const draftReady = useRef(false)
@@ -656,19 +650,21 @@ export function StudioView({
           setSheetId(deepLinkId!)
           setKind("sheets")
           setStudioMode("editor")
-        } else if (deepLinkKind === "slides" && decksResponse.items.some((item) => item.id === deepLinkId)) {
-          setDeckId(deepLinkId!)
-          setKind("slides")
-          setStudioMode("editor")
+        } else if (deepLinkKind === "slides" && deepLinkId) {
+          openDeck(deepLinkId)
         } else {
           setDocId(docsResponse.items[0]?.id || "")
           setSheetId(sheetsResponse.items[0]?.id || "")
-          setDeckId(decksResponse.items[0]?.id || "")
         }
 
         draftReady.current = true
         notifyDraftSummary()
         setStatus("")
+        // Unsaved changes left by the retired slides editor become slides.
+        rescueSlidesDraft(options.slidesAspect).then(
+          (href) => { if (href) setStatus("Unsaved slides moved to Slides.") },
+          () => undefined,
+        )
       })
       .catch((error) => setStatus(error.message))
   }, [])
@@ -707,23 +703,6 @@ export function StudioView({
     setSheetTitle(selectedSheet.title)
     setCells(cellsFromSheet(selectedSheet))
   }, [selectedSheet?.id])
-
-  useEffect(() => {
-    hydratingDraftKinds.current.add("slides")
-    const stored = readStudioDrafts().slides
-    if (!hydratedDraftKinds.current.has("slides") && stored?.kind === "slides" && canRestoreStudioDraft(stored, new URLSearchParams(window.location.search).get("item"), selectedDeck?.id)) {
-      hydratedDraftKinds.current.add("slides")
-      setDeckId(stored.id || "")
-      setDeckTitle(stored.title)
-      setSlides(stored.slides)
-      setSelectedSlideIndex(0)
-      return
-    }
-    if (!selectedDeck) return
-    setDeckTitle(selectedDeck.title)
-    setSlides(slidesFromDeck(selectedDeck))
-    setSelectedSlideIndex(0)
-  }, [selectedDeck?.id])
 
   useEffect(() => {
     if (!options.notesAutosave || kind !== "notes" || !noteDraft?.id) return
@@ -770,8 +749,6 @@ export function StudioView({
 
   const cellsFingerprint = useMemo(() => JSON.stringify(cells), [cells])
   const selectedSheetFingerprint = useMemo(() => selectedSheet ? JSON.stringify(cellsFromSheet(selectedSheet)) : blankSheetFingerprint, [selectedSheet?.cells, selectedSheet?.id])
-  const slidesFingerprint = useMemo(() => JSON.stringify(slides), [slides])
-  const selectedDeckFingerprint = useMemo(() => selectedDeck ? JSON.stringify(slidesFromDeck(selectedDeck)) : blankDeckFingerprint, [selectedDeck?.id, selectedDeck?.slides])
 
   useEffect(() => {
     if (hydratingDraftKinds.current.delete("sheets") || !draftReady.current) return
@@ -789,27 +766,6 @@ export function StudioView({
       updatedAt: new Date().toISOString(),
     }))
   }, [cells, cellsFingerprint, selectedSheet?.id, selectedSheet?.title, selectedSheetFingerprint, sheetTitle])
-
-  useEffect(() => {
-    if (hydratingDraftKinds.current.delete("slides") || !draftReady.current) return
-    const title = deckTitle || blankDeckTitle
-    const changed = selectedDeck
-      ? title !== selectedDeck.title || slidesFingerprint !== selectedDeckFingerprint
-      : title !== blankDeckTitle || slidesFingerprint !== blankDeckFingerprint
-    if (!changed) return
-    const fingerprint = ["slides", selectedDeck?.id || "", title, slidesFingerprint].join("\u001f")
-    return scheduleStudioDraft("slides", fingerprint, () => ({
-      kind: "slides",
-      id: selectedDeck?.id,
-      title,
-      slides,
-      updatedAt: new Date().toISOString(),
-    }))
-  }, [deckTitle, selectedDeck?.id, selectedDeck?.title, selectedDeckFingerprint, slides, slidesFingerprint])
-
-  useEffect(() => {
-    if (selectedSlideIndex >= slides.length) setSelectedSlideIndex(Math.max(0, slides.length - 1))
-  }, [selectedSlideIndex, slides.length])
 
   const activeTab = getStudioKindOption(kind)
   const canvasFormat = getStudioCanvasFormat(canvasFormatId, kind)
@@ -873,23 +829,20 @@ export function StudioView({
     if (kind === "notes") return noteDraft?.title || blankNoteTitle
     if (kind === "docs") return docTitle
     if (kind === "sheets") return sheetTitle
-    return deckTitle
+    return ""
   }
 
   function setActiveTitle(value: string) {
     if (kind === "notes" && noteDraft) setNoteDraft({ ...noteDraft, title: value })
     if (kind === "docs") setDocTitle(value)
     if (kind === "sheets") setSheetTitle(value)
-    if (kind === "slides") setDeckTitle(value)
   }
 
   function currentPayload(format: "download" | "export" = "download") {
     if (kind === "notes") return noteHistory.present
     if (kind === "docs") return format === "export" ? plainTextFromHtml(docHistory.present) : docHistory.present
     if (kind === "sheets") return exportSheetToCsv({ cells: ensureSheetCells(cells) })
-    return format === "export"
-      ? JSON.stringify(buildSlideExportPayload(deckTitle || "Slides", slides), null, 2)
-      : buildSlidePresenterOutline(slides)
+    return ""
   }
 
   const activeSummaryText = useMemo(() => {
@@ -899,8 +852,8 @@ export function StudioView({
       const safeCells = ensureSheetCells(cells)
       return `${safeCells.length} rows x ${safeCells[0]?.length || 0} columns`
     }
-    return `${slides.length} slides`
-  }, [cells, docHistory.present, kind, noteHistory.present, slides.length])
+    return ""
+  }, [cells, docHistory.present, kind, noteHistory.present])
 
   function selectKind(nextKind: StudioKind) {
     setKind(nextKind)
@@ -909,6 +862,10 @@ export function StudioView({
 
   function applyTemplateForKind(templateKind: StudioKind, template: StudioTemplate) {
     const applied = buildAppliedTemplate(templateKind, template)
+    if (templateKind === "slides") {
+      void openNewSlides(applied.title, ensureTwoSlidePages(buildDesignedSlideTemplateDeck(applied.body, template.label)))
+      return
+    }
     selectKind(templateKind)
     setCanvasFormatId((current) => getStudioCanvasFormat(current, templateKind).id)
     setStudioMode("editor")
@@ -925,11 +882,7 @@ export function StudioView({
     if (templateKind === "sheets") {
       setSheetTitle(applied.title)
       setCells(importCsvToSheet(applied.body).cells)
-      return
     }
-    setDeckTitle(applied.title)
-    setSlides(ensureTwoSlidePages(buildDesignedSlideTemplateDeck(applied.body, template.label)))
-    setSelectedSlideIndex(0)
   }
 
   function appendRichToolContentForKind(targetKind: StudioKind, html: string) {
@@ -955,35 +908,6 @@ export function StudioView({
         setStatus(`${action.label} added.`)
         return
       }
-      if (targetKind === "slides") {
-        if (action.canvasAction === "duplicate-page") {
-          setSlides((current) => duplicateSlide(current, selectedSlideIndex))
-          setSelectedSlideIndex(selectedSlideIndex + 1)
-        } else {
-          setSlides((current) => [...current, createBlankStudioSlide(current.length + 1)])
-          setSelectedSlideIndex(slides.length)
-        }
-        setStatus(`${action.label} added.`)
-        return
-      }
-    }
-    if (targetKind === "slides" && (action.slideAnimation || action.slideLayout || action.slideTheme || action.slideTransition)) {
-      const themeKey = action.slideTheme as keyof typeof slideDesignPresets | undefined
-      const palette = themeKey ? slideDesignPresets[themeKey] : undefined
-      setSlides((current) => current.map((slide, index) => (
-        index === selectedSlideIndex
-          ? {
-              ...slide,
-              animation: action.slideAnimation || slide.animation,
-              background: palette?.background || slide.background,
-              layout: action.slideLayout || slide.layout,
-              theme: action.slideTheme || slide.theme,
-              transition: action.slideTransition || slide.transition,
-            }
-          : slide
-      )))
-      setStatus(`${action.label} applied.`)
-      return
     }
     if ((targetKind === "notes" || targetKind === "docs") && action.richHtml) {
       appendRichToolContentForKind(targetKind, action.richHtml)
@@ -995,19 +919,11 @@ export function StudioView({
       if (action.sheetAction === "add-column") setCells((current) => addColumn(ensureSheetCells(current), selectedCell.column))
       if (action.sheetAction === "table") setCells((current) => ensureSheetCells(current).map((row, rowIndex) => row.map((cell, columnIndex) => cell || (rowIndex === 0 ? ["Item", "Detail", "Status"][columnIndex] || "" : ""))))
       setStatus(`${action.label} added.`)
-      return
-    }
-    if (targetKind === "slides" && action.slideObjectType) {
-      setSlides((current) => current.map((slide, index) => (
-        index === selectedSlideIndex
-          ? { ...slide, objects: [...(slide.objects || []), createSlideDesignObject(action.slideObjectType || "text")] }
-          : slide
-      )))
-      setStatus(`${action.label} added.`)
     }
   }
 
   async function createActive(targetKind: StudioKind = kind) {
+    if (targetKind === "slides") return openNewSlides("Untitled slides")
     setStudioMode("editor")
     if (targetKind !== kind) {
       setKind(targetKind)
@@ -1035,11 +951,7 @@ export function StudioView({
       setSheetId("")
       setSheetTitle(blankSheetTitle)
       setCells(blankSheetCells)
-      return
     }
-    setDeckId("")
-    setDeckTitle(blankDeckTitle)
-    setSlides(blankDeckSlides)
   }
 
   function saveActive(silent = false): Promise<boolean> {
@@ -1092,17 +1004,6 @@ export function StudioView({
         onDraftSummary?.(clearStudioDraft("sheets"))
       }
 
-      if (kind === "slides") {
-        const response = await api<{ item: WorkspaceDeck }>("/api/slides", {
-          method: selectedDeck?.id ? "PUT" : "POST",
-          body: JSON.stringify({ id: selectedDeck?.id, title: deckTitle, slides, speakerNotes: Object.fromEntries(slides.map((slide, index) => [index, slide.speakerNotes || ""])) }),
-        })
-        setDecks((current) => [response.item, ...current.filter((item) => item.id !== response.item.id)])
-        setDeckId(response.item.id)
-        syncActivePaneTab("slides", response.item.id, response.item.title)
-        onDraftSummary?.(clearStudioDraft("slides"))
-      }
-
       setLastSaved(new Date().toLocaleTimeString())
       if (!silent) setStatus("Saved.")
       return true
@@ -1145,12 +1046,6 @@ export function StudioView({
       setSheetId(response.item.id)
       syncActivePaneTab("sheets", response.item.id, response.item.title)
     }
-    if (kind === "slides") {
-      const response = await api<{ item: WorkspaceDeck }>("/api/slides", { method: "POST", body: JSON.stringify({ title, slides, speakerNotes: {} }) })
-      setDecks((current) => [response.item, ...current])
-      setDeckId(response.item.id)
-      syncActivePaneTab("slides", response.item.id, response.item.title)
-    }
   }
 
   async function organizeImport() {
@@ -1188,6 +1083,7 @@ export function StudioView({
   }
 
   function applyImportedItem(target: ImportTarget, item: Note | WorkspaceDocument | WorkspaceSheet | WorkspaceDeck) {
+    if (target === "slides") return openDeck(item.id)
     const nextKind = importTargetToKind(target)
     setKind(nextKind)
     updateActivePaneKind(nextKind, item.id, item.title)
@@ -1213,25 +1109,19 @@ export function StudioView({
       setSheetId(sheet.id)
       setSheetTitle(sheet.title)
       setCells(cellsFromSheet(sheet))
-      return
     }
-    const deck = item as WorkspaceDeck
-    setDecks((current) => [deck, ...current.filter((entry) => entry.id !== deck.id)])
-    setDeckId(deck.id)
-    setDeckTitle(deck.title)
-    setSlides(slidesFromDeck(deck))
   }
 
   async function importOfficeContent(content: ImportedStudioContent) {
-    if (content.kind === "slides") {
-      const response = await api<{ item: WorkspaceDeck }>("/api/slides", { method: "POST", body: JSON.stringify({ title: content.title, slides: content.slides }) })
-      applyImportedItem("slides", response.item)
-    } else {
-      const response = await api<{ item: WorkspaceDocument }>("/api/docs", { method: "POST", body: JSON.stringify({ title: content.title, content: { text: content.html } }) })
-      applyImportedItem("doc", response.item)
-    }
+    const response = await api<{ item: WorkspaceDocument }>("/api/docs", { method: "POST", body: JSON.stringify({ title: content.title, content: { text: content.html } }) })
+    applyImportedItem("doc", response.item)
     setStudioMode("editor")
     setStatus(`Imported ${content.title}. ${content.warnings.join(" ")}`)
+  }
+
+  /** A PowerPoint keeps its layout: it becomes slides in the design editor. */
+  async function importSlides(file: File) {
+    onOpenLink(await importPowerPoint(file))
   }
 
   async function refreshArchivedItems() {
@@ -1352,8 +1242,6 @@ export function StudioView({
       const speakerNotes = Object.fromEntries(deckSlides.map((slide, index) => [index, slide.speakerNotes || ""]))
       const response = await api<{ item: WorkspaceDeck }>("/api/slides", { method: "PUT", body: JSON.stringify({ id: item.id, title: nextTitle, slides: deckSlides, speakerNotes }) })
       setDecks((current) => current.map((entry) => (entry.id === response.item.id ? response.item : entry)))
-      if (deckId === response.item.id) setDeckTitle(response.item.title)
-      syncActivePaneTab("slides", response.item.id, response.item.title)
     }
 
     setStatus(`Renamed ${item.title} to ${nextTitle}.`)
@@ -1391,11 +1279,8 @@ export function StudioView({
       setStatus("Duplicated sheet.")
       return
     }
-    const deck = source as WorkspaceDeck
-    const response = await api<{ item: WorkspaceDeck }>("/api/slides", { method: "POST", body: JSON.stringify({ title, slides: slidesFromDeck(deck), speakerNotes: {} }) })
-    setDecks((current) => [response.item, ...current])
-    selectItem({ id: response.item.id, kind: "slides", title: response.item.title })
-    setStatus("Duplicated deck.")
+    // The copy is made as slides in the design editor, not as another old deck.
+    await openNewSlides(title, slidesFromDeck(source as WorkspaceDeck))
   }
 
   function closeArchivedStudioTabs(item: Pick<StudioRecordItem, "id" | "kind">) {
@@ -1465,11 +1350,6 @@ export function StudioView({
     if (item.kind === "slides") {
       await api(`/api/slides?id=${item.id}`, { method: "DELETE" })
       setDecks((current) => current.filter((entry) => entry.id !== item.id))
-      if (deckId === item.id) {
-        setDeckId("")
-        setDeckTitle(blankDeckTitle)
-        setSlides(blankDeckSlides)
-      }
     }
     keepArchivedItem(item, source)
     closeArchivedStudioTabs(item)
@@ -1502,7 +1382,6 @@ export function StudioView({
     if (kind === "notes" && noteDraft?.id) return { id: noteDraft.id, kind, title: noteDraft.title }
     if (kind === "docs" && selectedDoc?.id) return { id: selectedDoc.id, kind, title: docTitle || selectedDoc.title }
     if (kind === "sheets" && selectedSheet?.id) return { id: selectedSheet.id, kind, title: sheetTitle || selectedSheet.title }
-    if (kind === "slides" && selectedDeck?.id) return { id: selectedDeck.id, kind, title: deckTitle || selectedDeck.title }
     return null
   }
 
@@ -1532,26 +1411,12 @@ export function StudioView({
       downloadBytes(`${base}.pdf`, documentHtmlToPdf({ title: activeTitle(), html: docHistory.present }), PDF_MIME)
       return
     }
-    if (format === "pdf" && kind === "slides") {
-      return exportDeck("pdf")
-    }
     if (format === "xlsx" && kind === "sheets") {
       downloadBytes(`${base}.xlsx`, sheetCellsToXlsx({ title: activeTitle(), cells: ensureSheetCells(cells) }), XLSX_MIME)
       return
     }
     if (kind === "sheets") return downloadText(`${base}.csv`, currentPayload("download"), "text/csv")
-    if (kind === "slides" && exportMode) return exportDeck("pptx")
-    if (kind === "slides") return downloadText(`${base}.outline.txt`, currentPayload("download"), "text/plain")
     downloadText(`${base}.${exportMode ? "txt" : "html"}`, currentPayload(exportMode ? "export" : "download"), exportMode ? "text/plain" : "text/html")
-  }
-
-  async function exportDeck(format: "pdf" | "pptx") {
-    try {
-      const result = await exportDesign(deckToDesign({ title: activeTitle(), slides, aspect: options.slidesAspect }), { format })
-      setStatus(`Exported ${result.pages} pages as ${result.filename}.`)
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "The deck could not be exported.")
-    }
   }
 
   function askAi(task: TutorSource["task"] = "explain", content = currentPayload("export"), title = activeTitle()) {
@@ -1575,8 +1440,7 @@ export function StudioView({
 
   async function copyToDesign() {
     try {
-      const doc = kind === "slides" ? deckToDesign({ title: activeTitle(), slides, aspect: options.slidesAspect })
-        : designFromSpec(htmlToDesignSpec(kind === "notes" ? noteHistory.present : docHistory.present, { title: activeTitle() }), { name: activeTitle(), format: "presentation" })
+      const doc = designFromSpec(htmlToDesignSpec(kind === "notes" ? noteHistory.present : docHistory.present, { title: activeTitle() }), { name: activeTitle(), format: "presentation" })
       await api("/api/canvas", { method: "POST", body: JSON.stringify({ id: doc.id, title: doc.name, content: doc }) })
       setView("canvas")
       window.history.replaceState({ learnView: "canvas" }, "", `/canvas?design=${encodeURIComponent(doc.id)}`)
@@ -1586,18 +1450,45 @@ export function StudioView({
     }
   }
 
+  // Slides live in the design editor. An old deck converts as it opens there.
+  function openDeck(deckId: string) {
+    onOpenLink(`/slides?item=${encodeURIComponent(`slides:${deckId}`)}`)
+  }
+
+  /** New slides (blank, from a template or a copy) are made as a presentation design. */
+  async function openNewSlides(title: string, slides?: WorkspaceDeck["slides"]) {
+    // A 4:3 or 16:9 size picked here wins; other shapes use the Settings aspect.
+    const aspect = canvasFormatId === "presentation-4-3" ? "4:3" : canvasFormatId === "presentation-16-9" ? "16:9" : options.slidesAspect
+    try {
+      const design = slides ? deckToDesign({ title, slides, aspect })
+        : createDesignDoc({ name: title, format: slidesFormatId(aspect), theme: "minimal" })
+      await api("/api/canvas", { method: "POST", body: JSON.stringify({ id: design.id, title, content: design }) })
+      onOpenLink(`/slides?design=${encodeURIComponent(design.id)}`)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "These slides could not be made.")
+    }
+  }
+
   function loadStudioItem(item: { id: string; kind: StudioKind }) {
+    if (item.kind === "slides") return openDeck(item.id)
     setKind(item.kind)
     setStudioMode("editor")
     if (item.kind === "notes") setSelectedNoteId(item.id)
     if (item.kind === "docs") setDocId(item.id)
     if (item.kind === "sheets") setSheetId(item.id)
-    if (item.kind === "slides") setDeckId(item.id)
   }
 
   function selectItem(item: { id: string; kind: StudioKind; title: string }) {
+    if (item.kind === "slides") return openDeck(item.id)
     loadStudioItem(item)
     updateActivePaneKind(item.kind, item.id, item.title)
+  }
+
+  /** A pane's tab: its item, or a slides tab with none goes to the slides list. */
+  function openTab(tab: StudioTab) {
+    if (tab.itemId) loadStudioItem({ id: tab.itemId, kind: tab.kind })
+    else if (tab.kind === "slides") onOpenLink("/slides")
+    else setKind(tab.kind)
   }
 
   function paneActiveTab(pane: StudioPane) {
@@ -1617,8 +1508,8 @@ export function StudioView({
 
   function activatePane(pane: StudioPane) {
     const tab = paneActiveTab(pane)
-    if (tab?.itemId) loadStudioItem({ id: tab.itemId, kind: tab.kind })
-    else if (tab) setKind(tab.kind)
+    if (tab?.kind === "slides") return openTab(tab)
+    if (tab) openTab(tab)
     setLayout((current) => ({ ...current, activePaneId: pane.id }))
   }
 
@@ -1627,6 +1518,7 @@ export function StudioView({
       setStatus("Restore this item before opening it in a split pane.")
       return
     }
+    if (item.kind === "slides") return openDeck(item.id)
     loadStudioItem(item)
     setLayout((current) => {
       const group = current.groups[0]
@@ -1663,7 +1555,8 @@ export function StudioView({
   if (studioMode === "projects") {
     return (
       <div className="grid gap-3">
-      <StudioContentImport onImport={importOfficeContent} />
+      {status ? <div role="status" className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground">{status}</div> : null}
+      <StudioContentImport onImport={importOfficeContent} onPowerPoint={importSlides} />
       <StudioProjectBrowser
         activeKind={kind}
         canvasFormat={getAnyStudioCanvasFormat(canvasFormatId)}
@@ -1726,7 +1619,7 @@ export function StudioView({
       </div>
       <div className="shrink-0">        {importOpen ? (
           <div className="grid max-h-72 gap-2 overflow-auto border-b border-border bg-background p-3 md:grid-cols-[1fr_160px_160px_auto]">
-            {(kind === "docs" || kind === "slides") ? <div className="md:col-span-4"><StudioContentImport format={kind === "slides" ? "pptx" : "pdf"} onImport={importOfficeContent} /></div> : null}
+            {kind === "docs" ? <div className="md:col-span-4"><StudioContentImport format="pdf" onImport={importOfficeContent} onPowerPoint={importSlides} /></div> : null}
             {kind === "docs" ? <div className="md:col-span-4"><StudioImportFile
           accept={DOCX_ACCEPT}
           label="Import DOCX"
@@ -1833,8 +1726,8 @@ export function StudioView({
                     onRenamePane={(label) => setLayout((current) => normalizeStudioLayout({ ...current, groups: [{ ...current.groups[0], panes: current.groups[0].panes.map((item) => item.id === pane.id ? { ...item, label } : item) }] }))}
                     onSelectPane={() => activatePane(pane)}
                     onSelectTab={(tab) => {
-                      if (tab.itemId) loadStudioItem({ id: tab.itemId, kind: tab.kind })
-                      else setKind(tab.kind)
+                      if (tab.kind === "slides") return openTab(tab)
+                      openTab(tab)
                       setLayout((current) => {
                         const group = current.groups[0]
                         const panes = group.panes.map((item) => item.id === pane.id ? { ...item, activeTabId: tab.id } : item)
@@ -1846,8 +1739,6 @@ export function StudioView({
                     onSetInspectorTab={setInspectorTab}
                     onSetNoteHistory={setNoteHistory}
                     onSetSelectedCell={setSelectedCell}
-                    onSetSelectedSlideIndex={setSelectedSlideIndex}
-                    onSetSlides={setSlides}
                     canvasFormat={canvasFormat}
                     onSplitDown={() => setLayout((current) => splitStudioPane(current, pane.id, "vertical"))}
                     onSplitRight={() => setLayout((current) => splitStudioPane(current, pane.id, "horizontal"))}
@@ -1856,8 +1747,6 @@ export function StudioView({
                     panePreview={previewForPane(pane)}
                     saving={saving}
                     selectedCell={selectedCell}
-                    selectedSlideIndex={selectedSlideIndex}
-                    slides={slides}
                     status={status}
                     updateCell={updateCell}
                   />
@@ -2730,8 +2619,6 @@ function StudioPaneSurface({
   onSetInspectorTab,
   onSetNoteHistory,
   onSetSelectedCell,
-  onSetSelectedSlideIndex,
-  onSetSlides,
   onSplitDown,
   onSplitRight,
   options,
@@ -2739,8 +2626,6 @@ function StudioPaneSurface({
   panePreview,
   saving,
   selectedCell,
-  selectedSlideIndex,
-  slides,
   status,
   updateCell,
 }: {
@@ -2774,8 +2659,6 @@ function StudioPaneSurface({
   onSetInspectorTab: (value: string) => void
   onSetNoteHistory: React.Dispatch<React.SetStateAction<HistoryState<string>>>
   onSetSelectedCell: (value: { row: number; column: number }) => void
-  onSetSelectedSlideIndex: (value: number) => void
-  onSetSlides: React.Dispatch<React.SetStateAction<WorkspaceDeck["slides"]>>
   onSplitDown: () => void
   onSplitRight: () => void
   options: WorkspaceOptions
@@ -2783,8 +2666,6 @@ function StudioPaneSurface({
   panePreview: StudioPanePreview
   saving: boolean
   selectedCell: { row: number; column: number }
-  selectedSlideIndex: number
-  slides: WorkspaceDeck["slides"]
   status: string
   updateCell: (rowIndex: number, cellIndex: number, value: string) => void
 }) {
@@ -2855,12 +2736,8 @@ function StudioPaneSurface({
                 onSetDocHistory={onSetDocHistory}
                 onSetNoteHistory={onSetNoteHistory}
                 onSetSelectedCell={onSetSelectedCell}
-                onSetSelectedSlideIndex={onSetSelectedSlideIndex}
-                onSetSlides={onSetSlides}
                 options={options}
                 selectedCell={selectedCell}
-                selectedSlideIndex={selectedSlideIndex}
-                slides={slides}
                 updateCell={updateCell}
               />
             </div>
@@ -2878,8 +2755,6 @@ function StudioPaneSurface({
                   onExport={onExport}
                   onSetInspectorTab={onSetInspectorTab}
                   selectedCell={selectedCell}
-                  selectedSlideIndex={selectedSlideIndex}
-                  slides={slides}
                 />
               </aside>
             ) : null}
@@ -2951,12 +2826,8 @@ function StudioCanvas({
   onSetDocHistory,
   onSetNoteHistory,
   onSetSelectedCell,
-  onSetSelectedSlideIndex,
-  onSetSlides,
   options,
   selectedCell,
-  selectedSlideIndex,
-  slides,
   updateCell,
 }: {
   activeKind: StudioKind
@@ -2972,35 +2843,13 @@ function StudioCanvas({
   onSetDocHistory: React.Dispatch<React.SetStateAction<HistoryState<string>>>
   onSetNoteHistory: React.Dispatch<React.SetStateAction<HistoryState<string>>>
   onSetSelectedCell: (value: { row: number; column: number }) => void
-  onSetSelectedSlideIndex: (value: number) => void
-  onSetSlides: React.Dispatch<React.SetStateAction<WorkspaceDeck["slides"]>>
   options: WorkspaceOptions
   selectedCell: { row: number; column: number }
-  selectedSlideIndex: number
-  slides: WorkspaceDeck["slides"]
   updateCell: (rowIndex: number, cellIndex: number, value: string) => void
 }) {
-  const [selectedObjectId, setSelectedObjectId] = useState("")
-  const [slideZoom, setSlideZoom] = useState(86)
-  const [slideInspectorOpen, setSlideInspectorOpen] = useState(false)
   // The one line of feedback the file importers need; the editors themselves are
   // unchanged, so nothing else has to know an import happened.
   const [importNote, setImportNote] = useState("")
-  const activeSlide = activeKind === "slides" ? slides[selectedSlideIndex] || slides[0] : undefined
-  useEffect(() => {
-    if (activeKind !== "slides") {
-      if (selectedObjectId) setSelectedObjectId("")
-      return
-    }
-    const objects = activeSlide?.objects || []
-    if (!objects.length && selectedObjectId) {
-      setSelectedObjectId("")
-      return
-    }
-    if (objects.length && !objects.some((object) => object.id === selectedObjectId)) {
-      setSelectedObjectId(objects[0]?.id || "")
-    }
-  }, [activeKind, activeSlide?.objects, selectedObjectId])
 
   if (activeKind === "notes") {
     if (!noteDraft) return <EmptyState title="No note selected" body="Create or choose one to start." />
@@ -3132,532 +2981,8 @@ function StudioCanvas({
     )
   }
 
-  const selectedSlide = activeSlide
-  const selectedObject = selectedSlide?.objects?.find((object) => object.id === selectedObjectId) || null
-  const slideShowSummary = summarizeSlideShow(slides)
-  const selectedTransition = slideTransitionPresets[selectedSlide?.transition || "none"]
-  const selectedAnimation = slideAnimationPresets[selectedSlide?.animation || "none"]
-  const selectedPalette = slideDesignPresets[(selectedSlide?.theme || "midnight") as keyof typeof slideDesignPresets] || slideDesignPresets.midnight
-  const updateSelectedSlide = (updater: (slide: WorkspaceDeck["slides"][number]) => WorkspaceDeck["slides"][number]) => {
-    onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? updater(item) : item))
-  }
-  const addSlideObject = (type: SlideObject["type"]) => {
-    const object = createSlideDesignObject(type)
-    updateSelectedSlide((slide) => ({ ...slide, objects: [...(slide.objects || []), object] }))
-    setSelectedObjectId(object.id)
-  }
-  const updateSelectedObject = (object: SlideObject, patch: Partial<SlideObject>) => {
-    updateSelectedSlide((slide) => updateSlideDesignObject(slide, object.id, patch))
-  }
-  const updateSelectedObjectStyle = (object: SlideObject, patch: Record<string, unknown>) => {
-    updateSelectedObject(object, { style: { ...(object.style || {}), ...patch } })
-  }
-  const duplicateSelectedObject = (object: SlideObject) => {
-    updateSelectedSlide((slide) => duplicateSlideDesignObject(slide, object.id))
-  }
-  const nudgeSelectedObject = (object: SlideObject, direction: "up" | "down" | "left" | "right") => {
-    updateSelectedSlide((slide) => nudgeSlideDesignObject(slide, object.id, direction))
-  }
-  const reorderSelectedObject = (object: SlideObject, direction: "front" | "back" | "forward" | "backward") => {
-    updateSelectedSlide((slide) => reorderSlideDesignObject(slide, object.id, direction))
-  }
-  const resizeSelectedObject = (object: SlideObject, preset: "wide" | "tall" | "compact" | "hero") => {
-    updateSelectedSlide((slide) => resizeSlideDesignObject(slide, object.id, preset))
-  }
-  const alignSelectedObject = (object: SlideObject, alignment: "left" | "center" | "right" | "top" | "middle" | "bottom") => {
-    updateSelectedSlide((slide) => alignSlideDesignObject(slide, object.id, alignment))
-  }
-  const slideIds = slides.map((_, index) => `slide-${index}`)
-  const handleSlideDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    const from = slideIds.indexOf(String(active.id))
-    const to = slideIds.indexOf(String(over.id))
-    if (from < 0 || to < 0) return
-    onSetSlides((current) => arrayMove(current, from, to))
-    onSetSelectedSlideIndex(to)
-  }
-  const goToSlide = (direction: -1 | 1) => {
-    onSetSelectedSlideIndex(Math.min(Math.max(selectedSlideIndex + direction, 0), Math.max(0, slides.length - 1)))
-  }
-  const toggleSelectedSlideHidden = () => updateSelectedSlide((slide) => ({ ...slide, hidden: !slide.hidden }))
-  const toggleSelectedSlideLocked = () => updateSelectedSlide((slide) => ({ ...slide, locked: !slide.locked }))
-  const applyQuickSlideColor = (color: string) => {
-    if (selectedObject) {
-      updateSelectedObjectStyle(selectedObject, { background: color })
-      return
-    }
-    updateSelectedSlide((slide) => ({ ...slide, background: color }))
-  }
-  return (
-    <div className="studio-slides-surface grid min-h-full grid-rows-[auto_1fr] gap-0">
-      <div className="border-b border-border bg-card p-2">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <button onClick={() => { onSetSlides([...slides, createBlankStudioSlide(slides.length + 1)]); onSetSelectedSlideIndex(slides.length) }} className="flex h-16 w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-primary/50 bg-primary/10 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground" type="button">
-            <Plus className="h-4 w-4" /> Page
-          </button>
-          <DndContext collisionDetection={closestCenter} onDragEnd={handleSlideDragEnd}>
-            <SortableContext items={slideIds} strategy={horizontalListSortingStrategy}>
-              <div className="flex items-stretch gap-2">
-                {slides.map((slide, index) => (
-                  <SortableSlideThumb
-                    key={`slide-${index}`}
-                    id={`slide-${index}`}
-                    active={selectedSlideIndex === index}
-                    index={index}
-                    onArchive={() => {
-                      onSetSlides((current) => current.length > 1 ? current.filter((_, next) => next !== index) : current)
-                      onSetSelectedSlideIndex(Math.max(0, Math.min(selectedSlideIndex, slides.length - 2)))
-                    }}
-                    onAskAi={() => onAskAi("explain", `${slide.title}\n${slide.body}\n${slide.objects?.map((object) => object.text || "").join("\n") || ""}`, slide.title)}
-                    onCopy={() => navigator.clipboard?.writeText(`${slide.title}\n${slide.body}`)}
-                    onDuplicate={() => {
-                      onSetSlides((current) => duplicateSlide(current, index))
-                      onSetSelectedSlideIndex(index + 1)
-                    }}
-                    onSelect={() => onSetSelectedSlideIndex(index)}
-                    slide={slide}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-        </div>
-      </div>
-      <div className={`grid min-w-0 gap-4 p-4 sm:p-6 ${slideInspectorOpen ? "xl:grid-cols-[minmax(0,1fr)_260px]" : ""}`}>
-      <div className="min-w-0">
-        <div className="mb-3 flex justify-center">
-          <div className="flex max-w-full items-center gap-1 overflow-x-auto [&>*]:shrink-0 rounded-xl border border-border bg-card/95 px-2 py-1.5 text-sm shadow-lg backdrop-blur">
-            <button type="button" className="editor-command" aria-pressed={slideInspectorOpen} onClick={() => setSlideInspectorOpen(!slideInspectorOpen)}><Settings2 className="h-4 w-4" /> Properties</button>
-            <ActionMenu compact label="Edit" icon={Settings2}>
-              <MenuAction icon={Type} label="Text box" onClick={() => addSlideObject("text")} />
-              <MenuAction icon={ImageIcon} label="Image frame" onClick={() => addSlideObject("image")} />
-              <MenuAction icon={Grid2X2} label="Shape" onClick={() => addSlideObject("shape")} />
-              <MenuAction icon={Table2} label="Table" onClick={() => addSlideObject("table")} />
-            </ActionMenu>
-            <button onClick={() => selectedObject ? updateSelectedObjectStyle(selectedObject, { background: "transparent" }) : updateSelectedSlide((slide) => ({ ...slide, background: "#ffffff" }))} className="h-8 rounded-md px-2 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground" title="Clear object fill or reset the page background" type="button">Clear fill</button>
-            <ToolbarIcon icon={Scissors} label="Erase selected object" onClick={() => selectedObject ? updateSelectedSlide((slide) => removeSlideDesignObject(slide, selectedObject.id)) : updateSelectedSlide((slide) => ({ ...slide, body: "" }))} />
-            <span className="mx-1 h-6 w-px bg-border" />
-            {["#24305e", "#64748b", "#a7794f", "#b7e4dc"].map((color) => (
-              <button key={color} onClick={() => applyQuickSlideColor(color)} className="h-6 w-6 rounded-full border border-border shadow-sm transition hover:scale-105" style={{ background: color }} title={`Apply ${color}`} type="button" />
-            ))}
-            <ActionMenu compact label="Move / size" icon={RotateCcw}>
-              <MenuAction disabled={!selectedObject} icon={ArrowLeft} label="Nudge left" onClick={() => selectedObject ? nudgeSelectedObject(selectedObject, "left") : undefined} />
-              <MenuAction disabled={!selectedObject} icon={ArrowRight} label="Nudge right" onClick={() => selectedObject ? nudgeSelectedObject(selectedObject, "right") : undefined} />
-              <MenuAction disabled={!selectedObject} icon={Rows3} label="Tall crop" onClick={() => selectedObject ? resizeSelectedObject(selectedObject, "tall") : undefined} />
-              <MenuAction disabled={!selectedObject} icon={Columns3} label="Wide crop" onClick={() => selectedObject ? resizeSelectedObject(selectedObject, "wide") : undefined} />
-            </ActionMenu>
-            <ActionMenu compact label="Effects" icon={Highlighter}>
-              <MenuAction disabled={!selectedObject} icon={Paintbrush} label="Soft card" onClick={() => selectedObject ? updateSelectedObjectStyle(selectedObject, { background: "rgba(255,255,255,0.18)", boxShadow: "0 20px 50px rgba(15,23,42,0.22)" }) : undefined} />
-              <MenuAction disabled={!selectedObject} icon={Highlighter} label="Transparent" onClick={() => selectedObject ? updateSelectedObjectStyle(selectedObject, { opacity: 0.72 }) : undefined} />
-              <MenuAction icon={Paintbrush} label="Apply theme to all" onClick={() => onSetSlides((current) => applySlideDesignPresetToDeck(current, (selectedSlide?.theme || "midnight") as keyof typeof slideDesignPresets))} />
-            </ActionMenu>
-            <ActionMenu compact label="Animate" icon={RotateCcw}>
-              <MenuSelect label="Transition" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, transition: value as WorkspaceDeck["slides"][number]["transition"] } : item))} options={Object.keys(slideTransitionPresets).map((value) => ({ label: value, value }))} />
-              <MenuSelect label="Element" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, animation: value as WorkspaceDeck["slides"][number]["animation"] } : item))} options={Object.keys(slideAnimationPresets).map((value) => ({ label: value, value }))} />
-            </ActionMenu>
-            <ActionMenu compact label="Position" icon={Maximize2}>
-              <MenuAction disabled={!selectedObject} icon={AlignLeft} label="Align left" onClick={() => selectedObject ? alignSelectedObject(selectedObject, "left") : undefined} />
-              <MenuAction disabled={!selectedObject} icon={AlignCenter} label="Align center" onClick={() => selectedObject ? alignSelectedObject(selectedObject, "center") : undefined} />
-              <MenuAction disabled={!selectedObject} icon={AlignRight} label="Align right" onClick={() => selectedObject ? alignSelectedObject(selectedObject, "right") : undefined} />
-              <MenuAction disabled={!selectedObject} icon={Maximize2} label="Bring to front" onClick={() => selectedObject ? reorderSelectedObject(selectedObject, "front") : undefined} />
-            </ActionMenu>
-            <ToolbarIcon
-              icon={Paintbrush}
-              label="Apply style"
-              onClick={() => selectedObject
-                ? updateSelectedObjectStyle(selectedObject, { borderRadius: 18, boxShadow: "0 18px 45px rgba(15,23,42,0.20)" })
-                : updateSelectedSlide((slide) => ({ ...slide, background: "#f8fafc" }))}
-            />
-          </div>
-        </div>
-        <div className="mb-2 flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm">
-          <span className="font-bold text-foreground">Page {selectedSlideIndex + 1}</span>
-          <input value={selectedSlide?.title || ""} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, title: event.target.value } : item))} disabled={selectedSlide?.locked} className="min-w-0 flex-1 bg-transparent text-muted-foreground outline-none disabled:opacity-60" placeholder="Add page title" />
-          <button onClick={() => goToSlide(-1)} disabled={selectedSlideIndex <= 0} className="icon-button disabled:opacity-40" title="Previous page" type="button"><ArrowUp className="h-4 w-4" /></button>
-          <button onClick={() => goToSlide(1)} disabled={selectedSlideIndex >= slides.length - 1} className="icon-button disabled:opacity-40" title="Next page" type="button"><ArrowDown className="h-4 w-4" /></button>
-          <button onClick={toggleSelectedSlideHidden} className={`icon-button ${selectedSlide?.hidden ? "bg-primary text-primary-foreground" : ""}`} title={selectedSlide?.hidden ? "Show page" : "Hide page"} type="button">{selectedSlide?.hidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
-          <button onClick={toggleSelectedSlideLocked} className={`icon-button ${selectedSlide?.locked ? "bg-primary text-primary-foreground" : ""}`} title={selectedSlide?.locked ? "Unlock page" : "Lock page"} type="button"><Lock className="h-4 w-4" /></button>
-          <button onClick={() => { onSetSlides((current) => duplicateSlide(current, selectedSlideIndex)); onSetSelectedSlideIndex(selectedSlideIndex + 1) }} className="icon-button" title="Duplicate page" type="button"><Copy className="h-4 w-4" /></button>
-          <button onClick={() => { onSetSlides((current) => current.length > 1 ? current.filter((_, index) => index !== selectedSlideIndex) : current); onSetSelectedSlideIndex(Math.max(0, Math.min(selectedSlideIndex, slides.length - 2))) }} className="icon-button text-destructive" title="Delete page" type="button"><Trash2 className="h-4 w-4" /></button>
-          <button onClick={() => { onSetSlides([...slides, createBlankStudioSlide(slides.length + 1)]); onSetSelectedSlideIndex(slides.length) }} className="icon-button" title="Add page" type="button"><Plus className="h-4 w-4" /></button>
-        </div>
-        <div
-          className={`relative mx-auto w-full overflow-hidden rounded-lg border border-border p-8 text-white shadow-sm transition-all ${selectedSlide?.objects?.length ? "" : "min-h-80"} ${selectedSlide?.transition === "fade" ? "hover:opacity-90" : selectedSlide?.transition === "zoom" ? "hover:shadow-lg" : ""} ${selectedSlide?.animation === "rise" ? "hover:-translate-y-1" : selectedSlide?.animation === "emphasis" ? "hover:scale-[1.01]" : ""}`}
-          style={{ aspectRatio: canvasAspectRatio(canvasFormat), background: selectedSlide?.background || slideDesignPresets[(selectedSlide?.theme || "midnight") as keyof typeof slideDesignPresets]?.background || "#111827", maxWidth: Math.round(canvasPreviewWidth(canvasFormat) * (slideZoom / 100)), opacity: selectedSlide?.hidden ? 0.35 : 1 }}
-        >
-        {selectedSlide && !(selectedSlide.objects?.length) ? (
-          <div className="relative z-10 flex h-full flex-col">
-            <input value={selectedSlide.accent || ""} aria-label="Slide accent label" onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, accent: event.target.value } : item))} readOnly={selectedSlide.locked} className="mb-3 w-full bg-transparent text-xs font-semibold uppercase tracking-[0.16em] outline-none read-only:opacity-60" style={{ color: selectedPalette.accent }} />
-            <textarea rows={2} value={selectedSlide.title} aria-label="Slide title" onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, title: event.target.value } : item))} readOnly={selectedSlide.locked} className="min-h-[2.5em] w-full shrink-0 resize-none bg-transparent text-2xl font-semibold leading-tight outline-none read-only:opacity-60 sm:text-4xl" style={{ color: selectedPalette.foreground }} />
-            <textarea value={selectedSlide.body} aria-label="Slide body" onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, body: event.target.value } : item))} readOnly={selectedSlide.locked} className="mt-5 min-h-32 flex-1 resize-none bg-transparent text-lg leading-8 outline-none read-only:opacity-60" style={{ color: selectedPalette.foreground }} />
-          </div>
-        ) : null}
-        {selectedSlide?.objects?.map((object) => (
-          <SlideCanvasObject
-            key={object.id}
-            active={object.id === selectedObjectId}
-            object={object}
-            onAlign={(alignment) => alignSelectedObject(object, alignment)}
-            onDelete={() => {
-              updateSelectedSlide((slide) => removeSlideDesignObject(slide, object.id))
-              if (selectedObjectId === object.id) setSelectedObjectId("")
-            }}
-            onDuplicate={() => duplicateSelectedObject(object)}
-            onNudge={(direction) => nudgeSelectedObject(object, direction)}
-            onReorder={(direction) => reorderSelectedObject(object, direction)}
-            onResize={(preset) => resizeSelectedObject(object, preset)}
-            onSelect={() => setSelectedObjectId(object.id)}
-            onTextChange={(text) => updateSelectedObject(object, { text })}
-          />
-        ))}
-        </div>
-        <div className="mt-2 flex flex-wrap items-center justify-end gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
-          <details className="mr-auto">
-            <summary className="inline-flex h-8 cursor-pointer list-none items-center gap-1 rounded-md border border-border bg-secondary px-2 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-              <FileText className="h-3.5 w-3.5" /> Notes
-            </summary>
-            <textarea value={selectedSlide?.speakerNotes || ""} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, speakerNotes: event.target.value } : item))} className="absolute z-40 mt-2 h-32 w-72 rounded-lg border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl" placeholder="Speaker notes" />
-          </details>
-          <button onClick={() => updateSelectedSlide((slide) => ({ ...slide, speakerNotes: slide.speakerNotes || "Timer: 5 min explain, 2 min question, 1 min recap." }))} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-secondary px-2 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" title="Add a timing note" type="button">
-            <Clock className="h-3.5 w-3.5" /> Timer
-          </button>
-          <input value={slideZoom} onChange={(event) => setSlideZoom(Number(event.target.value))} min={50} max={140} type="range" className="w-28 accent-primary" aria-label="Slide zoom" />
-          <span className="w-10 text-right font-semibold text-foreground">{slideZoom}%</span>
-          <span className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 font-semibold text-secondary-foreground"><LayoutPanelLeft className="h-3.5 w-3.5" /> Pages</span>
-          <span className="font-semibold text-foreground">{selectedSlideIndex + 1} / {slides.length}</span>
-          <Grid2X2 className="h-4 w-4" />
-          <Maximize2 className="h-4 w-4" />
-        </div>
-      </div>
-      {slideInspectorOpen ? <div className="grid content-start gap-3 rounded-xl border border-border bg-card p-3">
-        <div className="grid grid-cols-3 gap-2 rounded-md border border-border bg-card p-2 text-center text-xs">
-          <span className="rounded-md bg-secondary px-2 py-1 text-secondary-foreground">{slideShowSummary.slideCount} slides</span>
-          <span className="rounded-md bg-secondary px-2 py-1 text-secondary-foreground">{slideShowSummary.totalMinutes} min</span>
-          <span className="rounded-md bg-secondary px-2 py-1 text-secondary-foreground">{Math.ceil((slideShowSummary.slideTimings[selectedSlideIndex]?.durationMs || 0) / 1000)}s here</span>
-        </div>
-        <ActionMenu label="Design" icon={LayoutPanelLeft}>
-          <MenuSelect label="Layout" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, layout: value as WorkspaceDeck["slides"][number]["layout"] } : item))} options={["title", "two-column", "image", "quote"].map((value) => ({ label: value, value }))} />
-          <MenuSelect label="Theme" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? applySlideDesignPreset(item, value as keyof typeof slideDesignPresets) : item))} options={Object.keys(slideDesignPresets).map((value) => ({ label: value, value }))} />
-          <MenuAction icon={Paintbrush} label="Apply theme to all" onClick={() => onSetSlides((current) => applySlideDesignPresetToDeck(current, (selectedSlide?.theme || "midnight") as keyof typeof slideDesignPresets))} />
-          <label className="grid gap-1 px-2 py-1 text-xs font-semibold text-muted-foreground">
-            Background
-            <input value={selectedSlide?.background || "#111827"} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, background: event.target.value } : item))} className="h-8 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
-          </label>
-        </ActionMenu>
-        <ActionMenu label="Motion" icon={Maximize2}>
-          <MenuSelect label="Transition" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, transition: value as WorkspaceDeck["slides"][number]["transition"] } : item))} options={Object.keys(slideTransitionPresets).map((value) => ({ label: value, value }))} />
-          <p className="mx-2 rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{selectedTransition.description}</p>
-          <MenuSelect label="Animation" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, animation: value as WorkspaceDeck["slides"][number]["animation"] } : item))} options={Object.keys(slideAnimationPresets).map((value) => ({ label: value, value }))} />
-          <p className="mx-2 rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{selectedAnimation.description}</p>
-        </ActionMenu>
-        <ActionMenu label="Insert" icon={Plus}>
-          <MenuAction icon={Type} label="Text box" onClick={() => addSlideObject("text")} />
-          <MenuAction icon={LayoutPanelLeft} label="Shape" onClick={() => addSlideObject("shape")} />
-          <MenuAction icon={ImageIcon} label="Image" onClick={() => addSlideObject("image")} />
-          <MenuAction icon={Table2} label="Table" onClick={() => addSlideObject("table")} />
-        </ActionMenu>
-        <ActionMenu label="Arrange" icon={Scissors}>
-          <MenuAction icon={ChevronDown} label="Move up" onClick={() => { onSetSlides((current) => moveSlide(current, selectedSlideIndex, -1)); goToSlide(-1) }} />
-          <MenuAction icon={ChevronDown} label="Move down" onClick={() => { onSetSlides((current) => moveSlide(current, selectedSlideIndex, 1)); goToSlide(1) }} />
-          <MenuAction icon={Copy} label="Duplicate slide" onClick={() => { onSetSlides((current) => duplicateSlide(current, selectedSlideIndex)); onSetSelectedSlideIndex(selectedSlideIndex + 1) }} />
-          <MenuAction danger icon={Trash2} label="Delete slide" onClick={() => { onSetSlides((current) => current.length > 1 ? current.filter((_, index) => index !== selectedSlideIndex) : current); onSetSelectedSlideIndex(Math.max(0, Math.min(selectedSlideIndex, slides.length - 2))) }} />
-        </ActionMenu>
-        <details className="rounded-md border border-border bg-background p-2">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Speaker notes
-            <ChevronDown className="h-3.5 w-3.5" />
-          </summary>
-          <textarea value={selectedSlide?.speakerNotes || ""} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, speakerNotes: event.target.value } : item))} placeholder="Speaker notes" className="mt-2 min-h-32 w-full rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none focus:border-ring" />
-        </details>
-        {selectedSlide?.objects?.length ? (
-          <div className="grid gap-2 rounded-md border border-border bg-background p-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Objects</p>
-              <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{selectedSlide.objects.length}</span>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {selectedSlide.objects.map((object, index) => (
-                <button
-                  key={object.id}
-                  onClick={() => setSelectedObjectId(object.id)}
-                  className={`rounded-md border px-2 py-1 text-xs font-semibold ${object.id === selectedObjectId ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
-                  type="button"
-                >
-                  {index + 1}. {object.type}
-                </button>
-              ))}
-            </div>
-            {selectedObject ? (
-              <div className="grid gap-2 rounded-md border border-border bg-card p-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{selectedObject.type}</span>
-                  <ActionMenu align="right" compact label="Object" icon={Settings2}>
-                    <MenuAction icon={Copy} label="Duplicate" onClick={() => duplicateSelectedObject(selectedObject)} />
-                    <MenuAction icon={ArrowUp} label="Nudge up" onClick={() => nudgeSelectedObject(selectedObject, "up")} />
-                    <MenuAction icon={ArrowDown} label="Nudge down" onClick={() => nudgeSelectedObject(selectedObject, "down")} />
-                    <MenuAction icon={ArrowLeft} label="Nudge left" onClick={() => nudgeSelectedObject(selectedObject, "left")} />
-                    <MenuAction icon={ArrowRight} label="Nudge right" onClick={() => nudgeSelectedObject(selectedObject, "right")} />
-                    <MenuAction icon={AlignLeft} label="Align left" onClick={() => alignSelectedObject(selectedObject, "left")} />
-                    <MenuAction icon={AlignCenter} label="Align center" onClick={() => alignSelectedObject(selectedObject, "center")} />
-                    <MenuAction icon={AlignRight} label="Align right" onClick={() => alignSelectedObject(selectedObject, "right")} />
-                    <MenuAction icon={ArrowUp} label="Align top" onClick={() => alignSelectedObject(selectedObject, "top")} />
-                    <MenuAction icon={ArrowDown} label="Align bottom" onClick={() => alignSelectedObject(selectedObject, "bottom")} />
-                    <MenuAction icon={Maximize2} label="Bring to front" onClick={() => reorderSelectedObject(selectedObject, "front")} />
-                    <MenuAction icon={Minus} label="Send to back" onClick={() => reorderSelectedObject(selectedObject, "back")} />
-                    <MenuAction icon={Columns3} label="Wide size" onClick={() => resizeSelectedObject(selectedObject, "wide")} />
-                    <MenuAction icon={Rows3} label="Tall size" onClick={() => resizeSelectedObject(selectedObject, "tall")} />
-                    <MenuAction danger icon={Trash2} label="Delete" onClick={() => {
-                      updateSelectedSlide((slide) => removeSlideDesignObject(slide, selectedObject.id))
-                      setSelectedObjectId("")
-                    }} />
-                  </ActionMenu>
-                </div>
-                <input
-                  value={selectedObject.text || ""}
-                  onChange={(event) => updateSelectedObject(selectedObject, { text: event.target.value })}
-                  placeholder="Label or text"
-                  className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus:border-ring"
-                />
-                {selectedObject.type === "image" ? (
-                  <input
-                    value={selectedObject.src || ""}
-                    onChange={(event) => updateSelectedObject(selectedObject, { src: event.target.value })}
-                    placeholder="Image URL"
-                    className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus:border-ring"
-                  />
-                ) : null}
-                <div className="grid grid-cols-4 gap-1">
-                  {(["x", "y", "w", "h"] as const).map((field) => (
-                    <label key={field} className="grid gap-1 text-xs font-semibold uppercase text-muted-foreground">
-                      {field}
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={selectedObject[field]}
-                        onChange={(event) => updateSelectedObject(selectedObject, { [field]: Number(event.target.value) })}
-                        className="h-8 rounded-md border border-input bg-background px-1 text-xs text-foreground outline-none focus:border-ring"
-                      />
-                    </label>
-                  ))}
-                </div>
-                <div className="grid grid-cols-3 gap-1">
-                  <SlideStyleInput label="Text" value={styleValue(selectedObject, "color", "#ffffff")} onChange={(value) => updateSelectedObjectStyle(selectedObject, { color: value })} />
-                  <SlideStyleInput label="Fill" value={styleValue(selectedObject, "background", "rgba(255,255,255,0.14)")} onChange={(value) => updateSelectedObjectStyle(selectedObject, { background: value })} />
-                  <SlideStyleInput label="Size" value={styleValue(selectedObject, "fontSize", "14")} onChange={(value) => updateSelectedObjectStyle(selectedObject, { fontSize: Number(value) || 14 })} />
-                </div>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div> : null}
-    </div>
-    </div>
-  )
-}
-
-type SlideObjectAlignment = "left" | "center" | "right" | "top" | "middle" | "bottom"
-type SlideObjectNudgeDirection = "up" | "down" | "left" | "right"
-type SlideObjectOrderDirection = "front" | "back" | "forward" | "backward"
-type SlideObjectSizePreset = "wide" | "tall" | "compact" | "hero"
-
-type SlideObjectActionProps = {
-  onAlign: (alignment: SlideObjectAlignment) => void
-  onDelete: () => void
-  onDuplicate: () => void
-  onNudge: (direction: SlideObjectNudgeDirection) => void
-  onReorder: (direction: SlideObjectOrderDirection) => void
-  onResize: (preset: SlideObjectSizePreset) => void
-  onSelect: () => void
-  onTextChange: (value: string) => void
-}
-
-function SlideCanvasObject({
-  active,
-  object,
-  onAlign,
-  onDelete,
-  onDuplicate,
-  onNudge,
-  onReorder,
-  onResize,
-  onSelect,
-  onTextChange,
-}: {
-  active: boolean
-  object: SlideObject
-} & SlideObjectActionProps) {
-  const style = object.style || {}
-  const canvasStyle: React.CSSProperties = {
-    left: `${object.x}%`,
-    top: `${object.y}%`,
-    width: `${object.w}%`,
-    height: `${object.h}%`,
-    color: readStyleValue(style, "color", "#ffffff"),
-    background: readStyleValue(style, "background", object.type === "text" ? "transparent" : "rgba(255,255,255,0.14)"),
-    borderRadius: Number(readStyleValue(style, "borderRadius", "8")),
-    boxShadow: readStyleValue(style, "boxShadow", "none"),
-    fontSize: Number(readStyleValue(style, "fontSize", "14")),
-    fontWeight: readStyleValue(style, "fontWeight", object.type === "text" ? "600" : "500"),
-    lineHeight: readStyleValue(style, "lineHeight", "1.15"),
-    opacity: Number(readStyleValue(style, "opacity", "1")),
-  }
-  const sharedProps = {
-    className: `absolute z-20 overflow-hidden border ${active ? "border-white shadow-[0_0_0_2px_rgba(255,255,255,0.45)]" : "border-white/20"}`,
-    onClick: onSelect,
-    onContextMenu: onSelect,
-    style: canvasStyle,
-    type: "button" as const,
-  }
-  if (object.type === "text") {
-    return (
-      <SlideObjectContextMenu onAlign={onAlign} onDelete={onDelete} onDuplicate={onDuplicate} onNudge={onNudge} onReorder={onReorder} onResize={onResize}>
-        <textarea
-          aria-label="Slide text block"
-          className={`${sharedProps.className} resize-none p-2 text-left font-semibold leading-tight outline-none focus:ring-2 focus:ring-white/70`}
-          onChange={(event) => onTextChange(event.target.value)}
-          onClick={onSelect}
-          onContextMenu={onSelect}
-          onFocus={onSelect}
-          style={canvasStyle}
-          value={object.text || ""}
-        />
-      </SlideObjectContextMenu>
-    )
-  }
-  if (object.type === "image") {
-    return (
-      <SlideObjectContextMenu onAlign={onAlign} onDelete={onDelete} onDuplicate={onDuplicate} onNudge={onNudge} onReorder={onReorder} onResize={onResize}>
-        <button {...sharedProps} className={`${sharedProps.className} text-xs`}>
-          {object.src ? <img src={object.src} alt={object.text || "Slide image"} loading="lazy" decoding="async" className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center p-2 text-center">{object.text || "Image"}</span>}
-        </button>
-      </SlideObjectContextMenu>
-    )
-  }
-  if (object.type === "table") {
-    const columns = (object.text || "Concept | Evidence | Action").split("|").map((item) => item.trim())
-    return (
-      <SlideObjectContextMenu onAlign={onAlign} onDelete={onDelete} onDuplicate={onDuplicate} onNudge={onNudge} onReorder={onReorder} onResize={onResize}>
-        <button {...sharedProps} className={`${sharedProps.className} grid text-xs font-semibold`} style={{ ...canvasStyle, gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}>
-          {columns.map((column, index) => <span key={`${column}-${index}`} className="border-r border-white/20 p-2 last:border-r-0">{column}</span>)}
-        </button>
-      </SlideObjectContextMenu>
-    )
-  }
-  return (
-    <SlideObjectContextMenu onAlign={onAlign} onDelete={onDelete} onDuplicate={onDuplicate} onNudge={onNudge} onReorder={onReorder} onResize={onResize}>
-      <button {...sharedProps} className={`${sharedProps.className} p-2 text-left ${object.type === "shape" ? "flex items-center justify-center text-center font-semibold" : ""}`}>
-        {object.text || object.type}
-      </button>
-    </SlideObjectContextMenu>
-  )
-}
-
-function SlideObjectContextMenu({ children, onAlign, onDelete, onDuplicate, onNudge, onReorder, onResize }: { children: React.ReactNode } & Omit<SlideObjectActionProps, "onSelect" | "onTextChange">) {
-  return (
-    <ContextMenu.Root>
-      <ContextMenu.Trigger asChild>{children}</ContextMenu.Trigger>
-      <ContextMenu.Portal>
-        <ContextMenu.Content className="z-50 min-w-52 rounded-md border border-border bg-popover p-1 text-sm text-popover-foreground shadow-xl">
-          <ContextMenu.Item onClick={onDuplicate} className="context-item"><Copy className="h-4 w-4" /> Duplicate</ContextMenu.Item>
-          <ContextMenu.Separator className="my-1 h-px bg-border" />
-          <ContextMenu.Item onClick={() => onNudge("up")} className="context-item"><ArrowUp className="h-4 w-4" /> Nudge up</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onNudge("down")} className="context-item"><ArrowDown className="h-4 w-4" /> Nudge down</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onNudge("left")} className="context-item"><ArrowLeft className="h-4 w-4" /> Nudge left</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onNudge("right")} className="context-item"><ArrowRight className="h-4 w-4" /> Nudge right</ContextMenu.Item>
-          <ContextMenu.Separator className="my-1 h-px bg-border" />
-          <ContextMenu.Item onClick={() => onAlign("left")} className="context-item"><AlignLeft className="h-4 w-4" /> Align left</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onAlign("center")} className="context-item"><AlignCenter className="h-4 w-4" /> Align center</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onAlign("right")} className="context-item"><AlignRight className="h-4 w-4" /> Align right</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onAlign("top")} className="context-item"><ArrowUp className="h-4 w-4" /> Align top</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onAlign("middle")} className="context-item"><Minus className="h-4 w-4" /> Align middle</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onAlign("bottom")} className="context-item"><ArrowDown className="h-4 w-4" /> Align bottom</ContextMenu.Item>
-          <ContextMenu.Separator className="my-1 h-px bg-border" />
-          <ContextMenu.Item onClick={() => onReorder("forward")} className="context-item"><ArrowUp className="h-4 w-4" /> Bring forward</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onReorder("backward")} className="context-item"><ArrowDown className="h-4 w-4" /> Send backward</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onReorder("front")} className="context-item"><Maximize2 className="h-4 w-4" /> Bring to front</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onReorder("back")} className="context-item"><Minus className="h-4 w-4" /> Send to back</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onResize("compact")} className="context-item"><Minus className="h-4 w-4" /> Make compact</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onResize("wide")} className="context-item"><Columns3 className="h-4 w-4" /> Make wide</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onResize("tall")} className="context-item"><Rows3 className="h-4 w-4" /> Make tall</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onResize("hero")} className="context-item"><Rows3 className="h-4 w-4" /> Make hero</ContextMenu.Item>
-          <ContextMenu.Separator className="my-1 h-px bg-border" />
-          <ContextMenu.Item onClick={onDelete} className="context-item text-destructive"><Trash2 className="h-4 w-4" /> Delete object</ContextMenu.Item>
-        </ContextMenu.Content>
-      </ContextMenu.Portal>
-    </ContextMenu.Root>
-  )
-}
-
-function SlideStyleInput({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) {
-  return (
-    <label className="grid gap-1 text-xs font-semibold uppercase text-muted-foreground">
-      {label}
-      <input value={value} onChange={(event) => onChange(event.target.value)} className="h-8 rounded-md border border-input bg-background px-1 text-xs text-foreground outline-none focus:border-ring" />
-    </label>
-  )
-}
-
-function styleValue(object: SlideObject, key: string, fallback: string) {
-  return readStyleValue(object.style || {}, key, fallback)
-}
-
-function readStyleValue(style: Record<string, unknown>, key: string, fallback: string) {
-  const value = style[key]
-  return value === undefined || value === null ? fallback : String(value)
-}
-
-function SortableSlideThumb({
-  active,
-  id,
-  index,
-  onArchive,
-  onAskAi,
-  onCopy,
-  onDuplicate,
-  onSelect,
-  slide,
-}: {
-  active: boolean
-  id: string
-  index: number
-  onArchive: () => void
-  onAskAi: (task?: TutorSource["task"], content?: string, title?: string) => void
-  onCopy: () => void
-  onDuplicate: () => void
-  onSelect: () => void
-  slide: WorkspaceDeck["slides"][number]
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id })
-  return (
-    <ContextMenu.Root>
-      <ContextMenu.Trigger asChild>
-        <button
-          ref={setNodeRef}
-          style={{ transform: CSS.Transform.toString(transform), transition }}
-          onClick={onSelect}
-          className={`grid h-16 w-36 shrink-0 grid-cols-[auto_1fr] gap-2 rounded-md border p-2 text-left ${active ? "border-primary bg-primary/10" : "border-border bg-background hover:bg-accent"}`}
-          type="button"
-          {...attributes}
-        >
-          <span
-            className="flex h-8 w-6 cursor-grab items-center justify-center rounded-md bg-secondary text-secondary-foreground active:cursor-grabbing"
-            onClick={(event) => event.stopPropagation()}
-            title="Drag to reorder"
-            {...listeners}
-          >
-            <GripVertical className="h-4 w-4" />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-xs font-semibold text-muted-foreground">Slide {index + 1}</span>
-            <span className="line-clamp-2 text-sm font-medium text-foreground">{slide.title || "Untitled slide"}</span>
-          </span>
-        </button>
-      </ContextMenu.Trigger>
-      <StudioContextContent onCopy={onCopy} onDuplicate={onDuplicate} onArchive={onArchive} onAskAi={() => onAskAi()} />
-    </ContextMenu.Root>
-  )
+  // Slides open in the design editor; StudioView never shows them.
+  return null
 }
 
 function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: { canvasFormat: StudioCanvasFormat; large?: boolean; onChange: (value: string) => void; placeholder: string; value: string }) {
@@ -3938,8 +3263,6 @@ function StudioInspector({
   onExport,
   onSetInspectorTab,
   selectedCell,
-  selectedSlideIndex,
-  slides,
 }: {
   activeKind: StudioKind
   activeSummary: string
@@ -3952,8 +3275,6 @@ function StudioInspector({
   onExport: (format?: StudioDownloadOption["id"]) => void
   onSetInspectorTab: (value: string) => void
   selectedCell: { row: number; column: number }
-  selectedSlideIndex: number
-  slides: WorkspaceDeck["slides"]
 }) {
   return (
     <div className="p-3">
@@ -3968,7 +3289,6 @@ function StudioInspector({
         <InspectorCard title="Type" body={activeKind} />
         <InspectorCard title="State" body={activeSummary} />
         {activeKind === "sheets" ? <InspectorCard title="Cell" body={`R${selectedCell.row + 1} C${selectedCell.column + 1}: ${cells[selectedCell.row]?.[selectedCell.column] || "blank"}`} /> : null}
-        {activeKind === "slides" ? <InspectorCard title="Slide" body={`${selectedSlideIndex + 1} / ${slides.length}: ${slides[selectedSlideIndex]?.layout || "title"}`} /> : null}
         {inspectorTab === "AI" ? <div className="grid gap-2" aria-label="AI actions">{([['explain', 'Explain source'], ['rewrite', 'Rewrite as note'], ['quiz', 'Create quiz'], ['flashcards', 'Create review cards'], ['activity', 'Schedule activity'], ['discussion', 'Create discussion space']] as const).map(([task, label]) => <button type="button" key={task} onClick={() => onAskAi(task)} className="min-h-9 rounded-md border border-border px-3 py-2 text-left">{label}</button>)}</div> : null}
         {inspectorTab === "History" ? <InspectorCard title="History" body="Undo/redo is local; saved versions and audit entries stay tied to the record APIs." /> : null}
         {inspectorTab === "Export" ? <StudioExportInspector activeKind={activeKind} onCopyLink={onCopyLink} onDownload={onDownload} onExport={onExport} /> : null}

@@ -4,6 +4,7 @@ import path from "node:path"
 import test from "node:test"
 import { fileURLToPath } from "node:url"
 import type { ThemedBlock } from "../../lib/ai/format-response"
+import { DESIGN_EXPORT_FORMATS } from "../../lib/design/export-plan"
 import { buildDocx } from "../../lib/export/docx"
 import { blocksFromDocumentHtml } from "../../lib/export/html-blocks"
 import { documentHtmlToDocx, documentHtmlToPdf, deckSlidesToPdf, sheetCellsToXlsx } from "../../lib/export/studio-export"
@@ -551,9 +552,10 @@ test("Studio offers PDF for decks and the seam builds it from the slides", () =>
   assert.ok(deckOptions.includes("pdf"), `the deck menu offers PDF, got ${JSON.stringify(deckOptions)}`)
   assert.ok(deckOptions.includes("pptx"), `the deck menu keeps PPTX, got ${JSON.stringify(deckOptions)}`)
 
-  assert.match(view, /format === "pdf" && kind === "slides"/, "the PDF branch is scoped to decks")
-  assert.match(view, /return exportDeck\("pdf"\)/, "deck PDF uses the same object-preserving design conversion as PPTX")
-  assert.match(view, /PDF_MIME/, "the deck PDF is served as application/pdf")
+  // Decks are edited and downloaded in the slides (design) editor, which keeps
+  // each slide's objects in both PDF and PPTX. Studio sends every deck there.
+  assert.match(view, /\/slides\?item=\$\{encodeURIComponent\(`slides:\$\{deckId\}`\)\}/, "Studio opens a deck in the slides editor")
+  assert.ok(DESIGN_EXPORT_FORMATS.includes("pdf") && DESIGN_EXPORT_FORMATS.includes("pptx"), "the slides editor downloads PDF and PPTX")
 })
 
 test("the Studio deck seam produces a landscape PDF, one page per slide", () => {

@@ -40,9 +40,10 @@ export interface ResourceRouteDescriptor {
   restore: (user: User, id: string) => Promise<unknown>
   /**
    * Optional single read: `GET ?id=` answers `{ item }`, or 404 when the row
-   * does not exist or the caller may not read it.
+   * does not exist or the caller may not read it. Archive status defaults to
+   * active, as it does for a list.
    */
-  get?: (user: User, id: string) => Promise<unknown | null>
+  get?: (user: User, id: string, status: ArchiveListStatus) => Promise<unknown | null>
   /**
    * Optional light listing: `GET ?view=summary` passes every row through
    * this, so a picker can show many items without downloading each full body.
@@ -66,11 +67,12 @@ export function createResourceRoute(descriptor: ResourceRouteDescriptor) {
     if (isApiResponse(user)) return user
     const params = new URL(request.url).searchParams
     const id = params.get("id")
+    const status = normalizeArchiveStatus(params.get("status"))
     if (get && id !== null) {
-      const item = await get(user, id)
+      const item = await get(user, id, status)
       return item ? ok({ item }) : fail(`That ${name} was not found.`, 404)
     }
-    const items = await list(user, normalizeArchiveStatus(params.get("status")))
+    const items = await list(user, status)
     return ok({ items: summarize && params.get("view") === "summary" ? items.map(summarize) : items })
   })
 

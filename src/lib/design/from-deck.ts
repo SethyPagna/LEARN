@@ -1,12 +1,21 @@
 import type { SlideObject, WorkspaceDeck } from "@/components/learn/types"
 import { createElement, type CanvasElement } from "@/lib/studio/canvas-engine"
 import { slideDesignPresets } from "@/lib/studio-design"
+import { parseDeckSlides } from "@/lib/studio-defaults"
 import { isElementAnimation, withElementAnimation } from "./animation"
 import { createDesignDoc, createDesignPage, DESIGN_LIMITS, scaleDesign, type DesignDoc } from "./document"
 import { designFormat, slidesFormatId } from "./formats"
 import { serializeTableCells } from "./table"
 
 type DeckSlide = WorkspaceDeck["slides"][number]
+
+/** Older records keep presenter notes beside the slides rather than inside them. */
+export function legacyDeckSlides(deck?: WorkspaceDeck & { speaker_notes?: Record<string, unknown> }): DeckSlide[] {
+  return parseDeckSlides(deck).map((slide, index) => {
+    const note = deck?.speaker_notes?.[String(index)]
+    return { ...slide, speakerNotes: slide.speakerNotes || (typeof note === "string" ? note : "") }
+  })
+}
 
 function assertTextFits(value: string | undefined, limit: number): void {
   if (value && value.length > limit) throw new Error(`A slide exceeds the design text limit (${limit} characters). Split it before converting.`)

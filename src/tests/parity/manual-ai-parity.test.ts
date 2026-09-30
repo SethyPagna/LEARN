@@ -489,11 +489,12 @@ test("slides: the AI deck payload and the manual deck payload agree on what they
 })
 
 test("slides: the PPTX writer is browser-only, so the outline is the export compared here", () => {
-  // Studio and Designs share the browser writer. The pure plan is covered by
-  // design/from-deck tests; binary download still requires the browser runtime.
-  const studioView = fs.readFileSync(path.join(PROJECT_ROOT, "src", "components", "learn", "views", "studio-view.tsx"), "utf8")
+  // A deck becomes a design as it opens, so slides share the design writer. The
+  // pure plan is covered by design/from-deck tests; binary download still
+  // requires the browser runtime.
+  const deckOpener = fs.readFileSync(path.join(PROJECT_ROOT, "src", "components", "learn", "views", "deck-opener.tsx"), "utf8")
   const exporter = fs.readFileSync(path.join(PROJECT_ROOT, "src", "components", "learn", "design", "design-export.ts"), "utf8")
-  assert.match(studioView, /exportDesign\(deckToDesign\(/)
+  assert.match(deckOpener, /deckToDesign\(/)
   assert.match(exporter, /\/vendor\/pptxgen\.min\.js/)
   assert.match(exporter, /pptx\.writeFile\(/)
 
