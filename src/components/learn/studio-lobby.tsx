@@ -5,6 +5,7 @@ import { CircleHelp, ArrowRight, FileUp, Plus, Search, SlidersHorizontal, X } fr
 import { createDesignDoc } from "@/lib/design/document"
 import { slidesFormatId } from "@/lib/design/formats"
 import type { MeasureText } from "@/lib/design/text"
+import type { StudioCreationIntent } from "@/lib/studio-creation"
 import { projectHref, projectKinds, projectShownKind, useStudioProjects, type ProjectKind, type Project } from "./studio-projects"
 import { formatRelativeTime } from "@/lib/format-time"
 import { api } from "./api"
@@ -50,12 +51,14 @@ function ProjectCard({ project, measure, onOpen }: { project: Project; measure: 
   </li>
 }
 
-export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilter = "All" }: {
+export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilter = "All", creationIntent, onCreationConsumed }: {
   notes: readonly Note[]
   options: WorkspaceOptions
   onOpen: (href: string) => void
   onNoteCreated: (note: Note) => void
   initialFilter?: Filter
+  creationIntent?: StudioCreationIntent | null
+  onCreationConsumed?: (intent: StudioCreationIntent) => boolean
 }) {
   const [error, setError] = useState("")
   const [creating, setCreating] = useState<AddEntry | null>(null)
@@ -69,7 +72,11 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
   const menuRef = useRef<HTMLDivElement>(null)
   const addRef = useRef<HTMLButtonElement>(null)
   const creationPending = useRef(false)
+  const mounted = useRef(true)
+  const consumedCreation = useRef<number | null>(null)
   const workspaceTitle = options.workspaceName && options.workspaceName !== "Your personal studio" ? options.workspaceName : "Studio"
+
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
 
   useEffect(() => {
     function openMenu() { setActiveIndex(0); setMenuOpen(true) }
@@ -111,7 +118,7 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
   }
 
   async function create(kind: ProjectKind) {
-    if (creationPending.current) return
+    if (!mounted.current || creationPending.current) return
     creationPending.current = true
     setMenuOpen(false)
     addRef.current?.focus()
@@ -129,11 +136,19 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
         : { title, cells: [["", "", ""], ["", "", ""], ["", "", ""]] }
       const result = await api<{ item: Project & Note }>(design ? "/api/canvas" : projectKinds[kind].endpoint, { method: "POST", body: JSON.stringify(payload) })
       if (kind === "notes") onNoteCreated(result.item)
-      openProject(design ? { ...result.item, kind: "canvas", content: design } : { ...result.item, kind })
+      if (mounted.current) openProject(design ? { ...result.item, kind: "canvas", content: design } : { ...result.item, kind })
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "This project couldn't be created. Please try again.")
-    } finally { creationPending.current = false; setCreating(null) }
+      if (mounted.current) setError(reason instanceof Error ? reason.message : "This project couldn't be created. Please try again.")
+    } finally { creationPending.current = false; if (mounted.current) setCreating(null) }
   }
+
+  useEffect(() => {
+    if (!creationIntent || consumedCreation.current === creationIntent.id) return
+    consumedCreation.current = creationIntent.id
+    if (!onCreationConsumed?.(creationIntent)) return
+    if (creationPending.current) { setError("Another project is still being created. Try Add again."); return }
+    void create(creationIntent.kind)
+  }, [creationIntent, onCreationConsumed, create])
 
   function choosePowerPoint() {
     if (creationPending.current) return
@@ -143,15 +158,19 @@ export function StudioLobby({ notes, options, onOpen, onNoteCreated, initialFilt
   }
 
   async function importFile(file: File | undefined) {
-    if (!file || creationPending.current) return
+    if (!file || !mounted.current || creationPending.current) return
     creationPending.current = true
     setCreating("pptx")
     setError("")
     try {
-      onOpen(await importPowerPoint(file, setImportStatus))
+      const href = await importPowerPoint(file, (status) => { if (mounted.current) setImportStatus(status) })
+      if (mounted.current) onOpen(href)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "This file couldn't be imported. Please try again.")
-    } finally { creationPending.current = false; setCreating(null); setImportStatus("") }
+      if (mounted.current) setError(reason instanceof Error ? reason.message : "This file couldn't be imported. Please try again.")
+    } finally {
+      creationPending.current = false
+      if (mounted.current) { setCreating(null); setImportStatus("") }
+    }
   }
 
   return <section className="studio-lobby min-w-0 pb-4" aria-label="Your Studio home">

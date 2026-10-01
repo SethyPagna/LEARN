@@ -2,7 +2,7 @@
 
 import { Plus } from "lucide-react"
 import { viewIcons } from "./nav-icons"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { createPortal } from "react-dom"
 import { menuSurfaceClasses } from "@/lib/design-system"
 import { groupArtifactTypes, type ArtifactType } from "@/lib/ux/artifact-catalog"
@@ -73,10 +73,12 @@ export function CreateMenuPanel({
                 <button
                   key={artifact.id}
                   type="button"
+                  role="menuitem"
                   data-artifact-id={artifact.id}
                   data-active={active ? "true" : undefined}
                   onClick={() => onChoose(artifact)}
                   onMouseEnter={() => onHover?.(index)}
+                  onFocus={() => onHover?.(index)}
                   title={artifact.oneLine}
                   className={`flex items-center gap-2 rounded-md p-2 text-left transition ${active ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground"}`}
                 >
@@ -93,9 +95,11 @@ export function CreateMenuPanel({
 }
 
 export function CreateMenu({
+  onCreate,
   setView,
   variant = "sidebar",
 }: {
+  onCreate?: (artifact: ArtifactType) => void
   setView: (view: View) => void
   /** Where the control is mounted. "rail" is the icon-only sidebar, "header" the mobile bar. */
   variant?: CreateMenuVariant
@@ -113,7 +117,8 @@ export function CreateMenu({
   const entries = useMemo(() => groupArtifactTypes().flatMap((group) => group.items), [])
 
   function choose(artifact: ArtifactType) {
-    setView(artifact.view)
+    if (onCreate) onCreate(artifact)
+    else setView(artifact.view)
     setOpen(false)
   }
 
@@ -126,6 +131,9 @@ export function CreateMenu({
 
   useEffect(() => {
     function handleOpen() {
+      const triggers = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-create-menu-trigger]"))
+      const owner = triggers.find(trigger => trigger.getClientRects().length > 0) || triggers[0]
+      if (owner !== triggerRef.current) return
       returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
       setFloating(!rootRef.current?.getClientRects().length)
       setActiveIndex(0)
@@ -160,6 +168,17 @@ export function CreateMenu({
     setOpen: (next) => (next ? setOpen(true) : closeAndReturnFocus()),
   })
 
+  function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.defaultPrevented) return
+    if (event.key === "Enter") {
+      const target = event.target as HTMLElement
+      const row = target.closest<HTMLElement>("[data-artifact-id]")
+      const focused = row && panelRef.current?.contains(row) ? entries.find(entry => entry.id === row.dataset.artifactId) : undefined
+      if (focused) { event.preventDefault(); choose(focused); return }
+    }
+    handleKeyDown(event)
+  }
+
   const menu = open ? (
     <div
       ref={panelRef}
@@ -176,7 +195,7 @@ export function CreateMenu({
     <div
       ref={rootRef}
       className={createMenuLayout[variant].wrapper}
-      onKeyDown={handleKeyDown}
+      onKeyDown={handleMenuKeyDown}
       onBlur={(event) => {
         const next = event.relatedTarget as Node | null
         if (!event.currentTarget.contains(next) && !panelRef.current?.contains(next)) setOpen(false)
@@ -184,6 +203,7 @@ export function CreateMenu({
     >
       <button
         ref={triggerRef}
+        data-create-menu-trigger
         type="button"
         aria-expanded={open}
         aria-haspopup="menu"

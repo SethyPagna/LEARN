@@ -93,7 +93,7 @@ test("every way into slides lands in the one design editor", () => {
   assert.match(lobby, /onOpen\("\/canvas\?new=1"\)/, "Add > Canvas asks for a size first")
   assert.doesNotMatch(lobby, /"\/api\/slides"|title: "Your first idea"/, "no new decks are made")
   assert.match(lobby, /const addEntries: AddEntry\[\] = \[\.\.\.projectKindOrder, "pptx"\]/, "Add ends with Import PowerPoint, reachable by keyboard")
-  assert.match(lobby, /onOpen\(await importPowerPoint\(file, setImportStatus\)\)/, "an imported PowerPoint opens as slides")
+  assert.match(lobby, /const href = await importPowerPoint\(file,[\s\S]*if \(mounted\.current\) onOpen\(href\)/, "an imported PowerPoint opens as slides while its lobby is still mounted")
   assert.match(read("src/components/learn/design/import-pptx.ts"), /"\/api\/canvas", \{ method: "POST"[\s\S]*`\/slides\?design=\$\{encodeURIComponent\(id\)\}&from=pptx`/)
   assert.match(read("src/components/learn/views/canvas-editor.tsx"), /params\.get\("from"\) === "pptx"\) setMessage\(importNotice\(id\)\)/, "the editor says what didn't come across")
 

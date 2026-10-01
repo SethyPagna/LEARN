@@ -175,7 +175,7 @@ export const ARTIFACT_TYPES = [
   },
   {
     id: "live-game",
-    label: "Live game",
+    label: "Host live game",
     oneLine: "A live game is a quiz other people join with a code while you run it.",
     whenToUse: "Use a live game when a group should answer at the same time and watch the standings.",
     groupLabel: "Practice",

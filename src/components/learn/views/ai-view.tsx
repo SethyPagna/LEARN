@@ -233,6 +233,11 @@ export function AiTutorView({
   }, [])
 
   useEffect(() => {
+    const clearDraftStatus = () => {
+      if (draftStatusTimer.current !== null) window.clearTimeout(draftStatusTimer.current)
+      draftStatusTimer.current = null
+    }
+    if (draftHydrated.current) return clearDraftStatus
     const launch = readAiTutorLaunchPreset()
     const draft = launch ? null : readAiTutorDraft()
     if (draft) {
@@ -275,9 +280,7 @@ export function AiTutorView({
       clearAiTutorLaunchPreset()
     }
     draftHydrated.current = true
-    return () => {
-      if (draftStatusTimer.current) window.clearTimeout(draftStatusTimer.current)
-    }
+    return clearDraftStatus
   }, [])
 
   useEffect(() => {
