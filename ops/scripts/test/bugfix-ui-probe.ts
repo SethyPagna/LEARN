@@ -159,7 +159,9 @@ async function main() {
           const primary = page.locator(".ai-workspace button.bg-primary").first()
           check(Boolean((await primary.innerText()).trim()), "AI primary action has a visible label")
           check((await page.getByRole("button", { name: "Studio block", exact: true }).innerText()).includes("Studio block"), "AI Studio action has a visible label")
-          check((await page.getByRole("button", { name: "Reset draft", exact: true }).innerText()).includes("Reset"), "AI reset has a visible label")
+          await page.getByRole("button", { name: "Draft actions", exact: true }).click()
+          check((await page.getByRole("button", { name: "Reset draft", exact: true }).innerText()).includes("Reset"), "AI reset has a visible label in draft actions")
+          await page.keyboard.press("Escape")
           await fits("AI"); await picture("ai")
         })
         await run("Chat", async () => {

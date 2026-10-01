@@ -7,9 +7,10 @@ import type { Note, Quiz, StudioInsertTarget, View } from "../types"
 import { api } from "../api"
 import { useEditorExitGuard } from "../editor-navigation"
 import { AiBlockRenderer } from "../ai-block-renderer"
+import { Popover } from "../design/popover"
 import { ControlButton, Panel, StatusPill } from "../ui"
 import { VoiceInput } from "../voice-input"
-import { menuSurfaceClasses, statusToneClasses, toneTextClasses, type UiTone } from "@/lib/design-system"
+import { controlButtonClasses, statusToneClasses, toneTextClasses, type UiTone } from "@/lib/design-system"
 import { formatAiResponse } from "@/lib/ai/format-response"
 import { buildAiGatewayReadiness, isProviderReady, type AiGatewayProviderCatalogItem, type AiGatewayProviderPresetItem, type AiGatewayProviderStatus } from "@/lib/ai/gateway-readiness"
 import { buildGuidedPrompt, listInsertActions, normalizeStudioInsertTarget, promptContracts, studioInsertTargets, type GuidedPromptResult } from "@/lib/ai/prompt-builder"
@@ -68,7 +69,7 @@ const tutorModeIcons: Record<AiTaskKey, React.ComponentType<{ className?: string
 }
 
 const DEFAULT_AI_MESSAGE = "Create a study plan from my recent notes."
-type TutorMenuId = "task" | "filters" | "gateway"
+type TutorMenuId = "task" | "options" | "draft" | "result-insert" | "result-create"
 type AiTutorProviderStatus = AiGatewayProviderStatus & { id?: string }
 type AiTutorProviderCatalogItem = AiGatewayProviderCatalogItem & { id?: string }
 type AiTutorProviderPresetItem = AiGatewayProviderPresetItem & { max_tokens?: number }
@@ -171,7 +172,7 @@ export function AiTutorView({
   }, [])
 
   function applyDraft(draft: AiTutorDraft) {
-    setMessage(draft.message || DEFAULT_AI_MESSAGE)
+    setMessage(draft.message)
     setReply(draft.reply || "")
     setSourceTitle(draft.sourceTitle || "")
     setSourceContent(draft.sourceContent || "")
@@ -187,24 +188,54 @@ export function AiTutorView({
     setLanguage(normalizeChoice(draft.language, aiTutorLanguages, aiTutorLanguages[0]))
     setProviderFamily(draft.providerFamily || "auto")
     setInsertTarget(normalizeStudioInsertTarget(draft.insertTarget))
-    setTargetAudience(draft.targetAudience || "Self-directed learner")
-    setRequiredOutput(draft.requiredOutput || "Clear sections, compact examples, and one next action.")
+    setTargetAudience(draft.targetAudience)
+    setRequiredOutput(draft.requiredOutput)
     const task = getAiTutorModeOption(draft.activeTaskKey)
     setActiveTaskKey(task.id)
     setModeGroup(getAiTutorModeGroupForTask(task.id))
   }
 
+  function transitionDraft(update: (current: AiTutorDraft) => AiTutorDraft, actionMessage?: string, savedMessage = "Draft saved") {
+    const current = latestDraft.current
+    if (generationPending.current || insertPending.current || importPending.current || !current) {
+      setActionStatus("Wait for the current activity to finish.")
+      return false
+    }
+    const outgoing = current
+    const next = { ...update(current), updatedAt: new Date().toISOString() }
+    try {
+      archiveAiTutorDraft(window.localStorage, outgoing)
+      persistAiTutorDraft(window.localStorage, next)
+    } catch {
+      setDraftStatus("Browser storage is unavailable.")
+      setActionStatus("Your current prompt and result are still here.")
+      return false
+    }
+    latestDraft.current = next
+    setPreviousDraft(outgoing)
+    applyDraft(next)
+    setDraftStatus(savedMessage)
+    if (actionMessage !== undefined) setActionStatus(actionMessage)
+    return true
+  }
+
   function restorePreviousDraft() {
-    if (!previousDraft || insertPending.current || generationPending.current || importPending.current || !latestDraft.current) return
+    if (!previousDraft || insertPending.current || generationPending.current || importPending.current || !latestDraft.current) return false
     try {
       const outgoing = latestDraft.current
       archiveAiTutorDraft(window.localStorage, outgoing)
       persistAiTutorDraft(window.localStorage, previousDraft)
-      applyDraft(previousDraft)
       latestDraft.current = previousDraft
+      applyDraft(previousDraft)
       setPreviousDraft(outgoing)
+      setDraftStatus("Draft saved")
       setActionStatus("Previous draft restored. Your outgoing draft is also preserved.")
-    } catch { setDraftStatus("The previous draft could not be restored. Your current draft is still here.") }
+      return true
+    } catch {
+      setDraftStatus("Browser storage is unavailable.")
+      setActionStatus("Your current prompt and result are still here.")
+      return false
+    }
   }
 
   const activeMode = useMemo(() => getAiTutorModeOption(activeTaskKey), [activeTaskKey])
@@ -365,29 +396,33 @@ export function AiTutorView({
     return () => window.clearTimeout(timeout)
   }, [activeTaskKey, difficulty, importTarget, importText, importTitle, insertTarget, language, lastImport, lastImportText, message, outputLength, providerFamily, reply, sourceScope, sourceTitle, sourceContent, targetAudience, requiredOutput, tone])
 
+  useEffect(() => {
+    if (loading || insertBusy || importLoading) setOpenTutorMenu(null)
+  }, [loading, insertBusy, importLoading])
+
   function resetDraft() {
-    setMessage(DEFAULT_AI_MESSAGE)
-    setSourceTitle("")
-    setSourceContent("")
-    setReply("")
-    setImportText("")
-    setImportTitle("")
-    setImportTarget("auto")
-    setLastImport(null)
-    setLastImportText("")
-    setSourceScope(aiTutorSourceScopes[0])
-    setDifficulty(aiTutorDifficulties[0])
-    setTone(aiTutorTones[0])
-    setOutputLength(aiTutorOutputLengths[1])
-    setLanguage(aiTutorLanguages[0])
-    setProviderFamily("auto")
-    setInsertTarget("ai-note")
-    setTargetAudience("Self-directed learner")
-    setRequiredOutput("Clear sections, compact examples, and one next action.")
-    setActiveTaskKey(aiTutorModeOptions[0].id)
-    setModeGroup("tutor")
-    try { clearAiTutorDraft(); setDraftStatus("Draft reset") }
-    catch { setDraftStatus("Draft reset here. Browser storage could not remove its saved copy.") }
+    return transitionDraft((current) => ({
+      ...current,
+      message: DEFAULT_AI_MESSAGE,
+      reply: "",
+      importText: "",
+      importTitle: "",
+      importTarget: "auto",
+      lastImport: null,
+      lastImportText: "",
+      sourceScope: aiTutorSourceScopes[0],
+      sourceTitle: "",
+      sourceContent: "",
+      difficulty: aiTutorDifficulties[0],
+      tone: aiTutorTones[0],
+      outputLength: aiTutorOutputLengths[1],
+      language: aiTutorLanguages[0],
+      providerFamily: "auto",
+      insertTarget: "ai-note",
+      targetAudience: "Self-directed learner",
+      requiredOutput: "Clear sections, compact examples, and one next action.",
+      activeTaskKey: aiTutorModeOptions[0].id,
+    }), "", "Draft reset")
   }
 
   async function ask() {
@@ -579,12 +614,15 @@ export function AiTutorView({
 
   function prepareStudioBlockPrompt() {
     const instruction = "Return a Studio-ready block with title, summary, action steps, and review questions."
-    setActiveTaskKey("document_formatter")
-    setModeGroup("studio")
-    setInsertTarget("doc-section")
-    setOptions({ aiMode: "cleanup" })
-    setMessage((current) => current.includes(instruction) ? current : `${current.trimEnd()}\n\n${instruction}`)
-    setActionStatus("Studio block output selected.")
+    const changed = transitionDraft((current) => ({
+      ...current,
+      activeTaskKey: "document_formatter",
+      insertTarget: "doc-section",
+      message: current.message.includes(instruction) ? current.message : `${current.message.trimEnd()}\n\n${instruction}`,
+      reply: "",
+    }), "Studio block output selected.")
+    if (changed) setOptions({ aiMode: "cleanup" })
+    return changed
   }
 
   function chooseOutputLength(value: string) {
@@ -594,26 +632,32 @@ export function AiTutorView({
 
   function useReplyAsPrompt(taskKey: AiTaskKey, instruction: string, target: StudioInsertTarget) {
     const nextMode = getAiTutorModeOption(taskKey)
-    setActiveTaskKey(taskKey)
-    setModeGroup(getAiTutorModeGroupForTask(taskKey))
-    setInsertTarget(target)
-    setSourceScope("Manual only")
-    if (nextMode) setOptions({ aiMode: nextMode.mode as WorkspaceOptions["aiMode"] })
-    setMessage(`${instruction}\n\n${reply}`)
-    setActionStatus(`Loaded result into ${nextMode?.label || "AI"} with ${target} output.`)
+    const changed = transitionDraft((current) => ({
+      ...current,
+      activeTaskKey: taskKey,
+      insertTarget: target,
+      sourceScope: "Manual only",
+      message: `${instruction}\n\n${reply}`,
+      reply: "",
+    }), `Loaded result into ${nextMode?.label || "AI"} with ${target} output.`)
+    if (changed && nextMode) setOptions({ aiMode: nextMode.mode as WorkspaceOptions["aiMode"] })
+    return changed
   }
 
   function loadImportFollowup(kind: ImportFollowupKind) {
     if (!lastImport) return
     const action = buildImportFollowupAction({ kind, title: lastImport.title, target: lastImport.target })
-    setActiveTaskKey(action.taskKey)
-    setModeGroup(getAiTutorModeGroupForTask(action.taskKey))
+    const changed = transitionDraft((current) => ({
+      ...current,
+      activeTaskKey: action.taskKey,
+      sourceScope: action.sourceScope,
+      insertTarget: action.insertTarget,
+      message: action.message,
+      reply: "",
+    }), action.status)
+    if (!changed) return
     setOptions({ aiMode: action.aiMode as WorkspaceOptions["aiMode"] })
-    setSourceScope(action.sourceScope)
-    setInsertTarget(action.insertTarget)
-    setMessage(action.message)
     setSidePanel("gateway")
-    setActionStatus(action.status)
   }
 
   return (
@@ -628,9 +672,9 @@ export function AiTutorView({
               {draftStatus ? <StatusPill label={draftStatus} tone="steady" /> : null}
             </div>
           </div>
-          <div className="relative z-30 flex flex-wrap items-center gap-2 self-start rounded-lg border border-border bg-background p-1.5 shadow-sm lg:justify-end">
-            <TutorMenu label={`Task: ${activeMode.label}`} icon={CheckSquare} align="right" menuId="task" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
-              <TutorMenuSection title="Task">
+          <div className="relative z-30 flex min-w-0 flex-wrap items-center gap-2 self-start rounded-lg border border-border bg-background p-1.5 shadow-sm lg:justify-end">
+            <TutorMenu label={`Task: ${activeMode.label}`} icon={CheckSquare} menuId="task" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu} width={512} panelClassName="w-[min(32rem,calc(100vw-2rem))]" disabled={loading || insertBusy || importLoading}>
+              {(close) => <TutorMenuSection title="Task">
                 <div className="grid gap-1.5 sm:grid-cols-2">
                   {aiTutorModeOptions.map((item) => {
                     const group = visibleAiTutorModeGroups.find((option) => option.modes.includes(item.id))
@@ -638,68 +682,79 @@ export function AiTutorView({
                       <TutorMenuAction
                         key={item.id}
                         active={activeMode.id === item.id}
+                        disabled={loading || insertBusy || importLoading}
                         icon={tutorModeIcons[item.id]}
                         label={item.label}
                         meta={group ? `${group.label} · ${item.prompt}` : item.prompt}
                         onClick={() => {
-                          setActiveTaskKey(item.id)
-                          setModeGroup(getAiTutorModeGroupForTask(item.id))
+                          if (activeMode.id === item.id) {
+                            close()
+                            return
+                          }
+                          const changed = transitionDraft((current) => ({
+                            ...current,
+                            activeTaskKey: item.id,
+                            message: item.prompt,
+                            reply: "",
+                          }), "")
+                          if (!changed) return
                           setOptions({ aiMode: item.mode as WorkspaceOptions["aiMode"] })
-                          setMessage(item.prompt)
-                          setOpenTutorMenu(null)
+                          close()
                         }}
                       />
                     )
                   })}
                 </div>
-              </TutorMenuSection>
+              </TutorMenuSection>}
             </TutorMenu>
-            <TutorMenu label="Filters" icon={ListFilter} align="right" menuId="filters" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
-              <TutorMenuSection title="Context">
-                <TutorMenuSelect label="Source" value={sourceScope} values={aiTutorSourceScopes} onChange={setSourceScope} />
-                <TutorMenuSelect label="Difficulty" value={difficulty} values={aiTutorDifficulties} onChange={setDifficulty} />
-                <TutorMenuSelect label="Tone" value={tone} values={aiTutorTones} onChange={setTone} />
-                <TutorMenuSelect label="Length" value={outputLength} values={aiTutorOutputLengths} onChange={chooseOutputLength} />
-                <TutorMenuSelect label="Language" value={language} values={aiTutorLanguages} onChange={setLanguage} />
-                <TutorMenuSelect label="Insert" value={insertTarget} values={availableInsertTargets} onChange={(value) => setInsertTarget(value as StudioInsertTarget)} />
-                <TutorMenuToggle checked={options.aiIncludeNotes} label="Include recent notes" onChange={(checked) => setOptions({ aiIncludeNotes: checked })} />
-              </TutorMenuSection>
-              <TutorMenuSection title="Requirements">
-                <label className="grid gap-1 text-sm text-foreground">
-                  <span className="font-semibold">Audience</span>
-                  <input value={targetAudience} onChange={(event) => setTargetAudience(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
-                </label>
-                <label className="grid gap-1 text-sm text-foreground">
-                  <span className="font-semibold">Requirements</span>
-                  <textarea value={requiredOutput} onChange={(event) => setRequiredOutput(event.target.value)} className="min-h-20 rounded-md border border-input bg-background px-2 py-2 text-foreground outline-none focus:border-ring" />
-                </label>
-              </TutorMenuSection>
+            <TutorMenu label="AI options" triggerText="Options" icon={ListFilter} menuId="options" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu} width={384} panelClassName="w-[min(24rem,calc(100vw-2rem))]">
+              {() => <div className="grid gap-3">
+                <TutorMenuSection title="Context">
+                  <div className="grid min-w-0 grid-cols-2 gap-2">
+                    <TutorMenuSelect label="Source" value={sourceScope} values={aiTutorSourceScopes} onChange={setSourceScope} />
+                    <TutorMenuSelect label="Difficulty" value={difficulty} values={aiTutorDifficulties} onChange={setDifficulty} />
+                    <TutorMenuSelect label="Tone" value={tone} values={aiTutorTones} onChange={setTone} />
+                    <TutorMenuSelect label="Length" value={outputLength} values={aiTutorOutputLengths} onChange={chooseOutputLength} />
+                    <TutorMenuSelect label="Language" value={language} values={aiTutorLanguages} onChange={setLanguage} />
+                    <TutorMenuSelect label="Insert" value={insertTarget} values={availableInsertTargets} onChange={(value) => setInsertTarget(value as StudioInsertTarget)} />
+                  </div>
+                  <TutorMenuToggle checked={options.aiIncludeNotes} label="Include recent notes" onChange={(checked) => setOptions({ aiIncludeNotes: checked })} />
+                </TutorMenuSection>
+                <TutorMenuSection title="Prompt">
+                  <label className="grid gap-1 text-sm text-foreground">
+                    <span className="font-semibold">Audience</span>
+                    <input value={targetAudience} onChange={(event) => setTargetAudience(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
+                  </label>
+                  <label className="grid gap-1 text-sm text-foreground">
+                    <span className="font-semibold">Requirements</span>
+                    <textarea value={requiredOutput} onChange={(event) => setRequiredOutput(event.target.value)} className="min-h-20 rounded-md border border-input bg-background px-2 py-2 text-foreground outline-none focus:border-ring" />
+                  </label>
+                </TutorMenuSection>
+                <TutorMenuSection title="Provider">
+                  <TutorMenuSelect label="Provider family" value={providerFamily} values={providerFamilyOptions} labels={providerFamilyLabels} onChange={setProviderFamily} />
+                  <div className="grid gap-1">
+                    <span className="text-xs font-semibold text-muted-foreground">Max tokens</span>
+                    <div className="grid grid-cols-4 gap-1">
+                      {aiTutorTokenPresets.map((tokens) => (
+                        <button key={tokens} onClick={() => setOptions({ aiMaxTokens: tokens })} className={`h-8 rounded-md border px-2 text-xs font-semibold ${options.aiMaxTokens === tokens ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} type="button">
+                          {tokens}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+                    Creativity <span className="text-foreground">{options.aiTemperature.toFixed(2)}</span>
+                    <input className="w-full accent-primary" type="range" min="0" max="1.2" step="0.05" value={options.aiTemperature} onChange={(event) => setOptions({ aiTemperature: Number(event.target.value) })} />
+                  </label>
+                </TutorMenuSection>
+              </div>}
             </TutorMenu>
             <button type="button" className="editor-command" aria-expanded={toolsOpen} onClick={() => setToolsOpen(!toolsOpen)}>Tools</button>
-            <TutorMenu label="Gateway" icon={Gauge} align="right" menuId="gateway" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu}>
-              <TutorMenuSection title="Gateway">
-                <TutorMenuSelect
-                  label="Family"
-                  value={providerFamily}
-                  values={providerFamilyOptions}
-                  labels={providerFamilyLabels}
-                  onChange={setProviderFamily}
-                />
-                <div className="grid gap-1">
-                  <span className="text-xs font-semibold text-muted-foreground">Max tokens</span>
-                  <div className="grid grid-cols-4 gap-1">
-                    {aiTutorTokenPresets.map((tokens) => (
-                      <button key={tokens} onClick={() => setOptions({ aiMaxTokens: tokens })} className={`h-8 rounded-md border px-2 text-xs font-semibold ${options.aiMaxTokens === tokens ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} type="button">
-                        {tokens}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
-                  Creativity <span className="text-foreground">{options.aiTemperature.toFixed(2)}</span>
-                  <input className="w-full accent-primary" type="range" min="0" max="1.2" step="0.05" value={options.aiTemperature} onChange={(event) => setOptions({ aiTemperature: Number(event.target.value) })} />
-                </label>
-              </TutorMenuSection>
+            <TutorMenu label="Draft actions" triggerText="Draft" icon={MoreHorizontal} menuId="draft" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu} width={240} panelClassName="w-60" disabled={loading || insertBusy || importLoading}>
+              {(close) => <div className="grid gap-1">
+                {previousDraft ? <TutorMenuAction disabled={loading || insertBusy || importLoading} icon={RotateCcw} label="Restore previous AI draft" onClick={() => { if (restorePreviousDraft()) close() }} /> : null}
+                <TutorMenuAction disabled={loading || insertBusy || importLoading} icon={RotateCcw} label="Reset draft" onClick={() => { if (resetDraft()) close() }} />
+              </div>}
             </TutorMenu>
           </div>
         </div>
@@ -733,12 +788,8 @@ export function AiTutorView({
           <button aria-label={primaryActionPlan.label} title={primaryActionPlan.label} disabled={primaryActionPlan.disabled || insertBusy || importLoading} onClick={runPrimaryAction} className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
             <Bot className="h-4 w-4" aria-hidden="true" />{primaryActionPlan.label}
           </button>
-          <button aria-label="Studio block" title="Studio block" onClick={prepareStudioBlockPrompt} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+          <button aria-label="Studio block" title="Studio block" disabled={loading || insertBusy || importLoading} onClick={prepareStudioBlockPrompt} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-60">
             <Plus className="h-4 w-4" aria-hidden="true" />Studio block
-          </button>
-          {previousDraft ? <button type="button" aria-label="Restore previous AI draft" title="Restore previous AI draft" disabled={loading || insertBusy || importLoading} onClick={restorePreviousDraft} className="editor-command"><RotateCcw className="h-4 w-4" /><span className="hidden sm:inline">Previous draft</span></button> : null}
-          <button aria-label="Reset draft" title="Reset draft" disabled={loading || insertBusy || importLoading} onClick={resetDraft} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-            <RotateCcw className="h-4 w-4" aria-hidden="true" />Reset
           </button>
         </div>
         {!reply && actionStatus ? <p role="status" className="mt-3 rounded-md border border-border p-3 text-sm">{actionStatus}</p> : null}
@@ -749,17 +800,19 @@ export function AiTutorView({
               <legend className="sr-only">AI result actions</legend>
               <ResultAction label="Save as note" icon={Save} onClick={saveReplyAsNote} />
               <ResultAction label="Copy result" icon={Copy} onClick={copyReply} />
-              <ResultMenu label="Insert">
-                {insertActions.map((action) => <ResultMenuAction key={action.target} label={action.label} onClick={() => insertReply(action.target)} />)}
+              <ResultMenu label="Insert" menuId="result-insert" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu} disabled={insertBusy || loading || importLoading}>
+                {(close) => insertActions.map((action) => <ResultMenuAction key={action.target} disabled={insertBusy || loading || importLoading} label={action.label} onClick={() => { close(); void insertReply(action.target) }} />)}
               </ResultMenu>
-              <ResultMenu label="Create">
-                <ResultMenuAction label="Quiz prompt" onClick={() => useReplyAsPrompt("quiz_generation", "Turn this result into a mixed quiz with answers and explanations.", "quiz")} />
-                <ResultMenuAction label="Flashcards" onClick={() => useReplyAsPrompt("flashcard_generation", "Turn this result into active-recall flashcards and matching pairs.", "flashcards")} />
-                <ResultMenuAction label="Practice" onClick={() => useReplyAsPrompt("practice_generator", "Create targeted practice from this result with explanations and retry guidance.", "quiz")} />
-                <ResultMenuAction label="Review cards" onClick={() => useReplyAsPrompt("flashcard_generation", "Create review cards from this result with active-recall prompts.", "review-cards")} />
-                <ResultMenuAction label="Studio format" onClick={() => useReplyAsPrompt("document_formatter", "Format this result into clean Studio blocks with headings and next actions.", "doc-section")} />
-                <ResultMenuAction label="Schedule study activity" onClick={() => useReplyAsPrompt("study_plan", "Create one study activity from this result. Ask me for its start, end and timezone before producing the calendar output.", "study-activity")} />
-                <ResultMenuAction label="Private discussion space" onClick={() => useReplyAsPrompt("personalized_prompt", "Create a discussion protocol from this result for a private learning space.", "discussion-space")} />
+              <ResultMenu label="Create" menuId="result-create" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu} disabled={insertBusy || loading || importLoading}>
+                {(close) => <>
+                  <ResultMenuAction disabled={insertBusy || loading || importLoading} label="Quiz prompt" onClick={() => { if (useReplyAsPrompt("quiz_generation", "Turn this result into a mixed quiz with answers and explanations.", "quiz")) close() }} />
+                  <ResultMenuAction disabled={insertBusy || loading || importLoading} label="Flashcards" onClick={() => { if (useReplyAsPrompt("flashcard_generation", "Turn this result into active-recall flashcards and matching pairs.", "flashcards")) close() }} />
+                  <ResultMenuAction disabled={insertBusy || loading || importLoading} label="Practice" onClick={() => { if (useReplyAsPrompt("practice_generator", "Create targeted practice from this result with explanations and retry guidance.", "quiz")) close() }} />
+                  <ResultMenuAction disabled={insertBusy || loading || importLoading} label="Review cards" onClick={() => { if (useReplyAsPrompt("flashcard_generation", "Create review cards from this result with active-recall prompts.", "review-cards")) close() }} />
+                  <ResultMenuAction disabled={insertBusy || loading || importLoading} label="Studio format" onClick={() => { if (useReplyAsPrompt("document_formatter", "Format this result into clean Studio blocks with headings and next actions.", "doc-section")) close() }} />
+                  <ResultMenuAction disabled={insertBusy || loading || importLoading} label="Schedule study activity" onClick={() => { if (useReplyAsPrompt("study_plan", "Create one study activity from this result. Ask me for its start, end and timezone before producing the calendar output.", "study-activity")) close() }} />
+                  <ResultMenuAction disabled={insertBusy || loading || importLoading} label="Private discussion space" onClick={() => { if (useReplyAsPrompt("personalized_prompt", "Create a discussion protocol from this result for a private learning space.", "discussion-space")) close() }} />
+                </>}
               </ResultMenu>
             </fieldset>
             {insertBusy ? <p role="status" className="mb-3 text-sm text-muted-foreground">Saving result…</p> : null}
@@ -955,63 +1008,53 @@ function AiSummaryChip({ detail, label, tone = "neutral", value }: { detail?: st
 }
 
 function TutorMenu({
-  align = "left",
   children,
+  disabled = false,
   icon: Icon,
   label,
   menuId,
   openMenu,
+  panelClassName = "",
   setOpenMenu,
+  triggerText,
+  width,
 }: {
-  align?: "left" | "right"
-  children: React.ReactNode
+  children: (close: () => void) => React.ReactNode
+  disabled?: boolean
   icon: React.ComponentType<{ className?: string }>
   label: string
   menuId: TutorMenuId
   openMenu: TutorMenuId | null
+  panelClassName?: string
   setOpenMenu: (menuId: TutorMenuId | null) => void
+  triggerText?: string
+  width?: number
 }) {
-  const container = useRef<HTMLDivElement>(null)
+  const anchor = useRef<HTMLButtonElement>(null)
   const open = openMenu === menuId
-  useEffect(() => {
-    if (!open) return
-    const closeOutside = (event: PointerEvent) => {
-      if (event.target instanceof Node && !container.current?.contains(event.target)) setOpenMenu(null)
-    }
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return
-      setOpenMenu(null)
-      container.current?.querySelector<HTMLButtonElement>("button")?.focus()
-    }
-    document.addEventListener("pointerdown", closeOutside)
-    document.addEventListener("keydown", closeOnEscape)
-    return () => {
-      document.removeEventListener("pointerdown", closeOutside)
-      document.removeEventListener("keydown", closeOnEscape)
-    }
-  }, [open, setOpenMenu])
-  const panelPosition = align === "right"
-    ? "left-1/2 top-20 -translate-x-1/2"
-    : "left-4 top-20"
+  const close = () => setOpenMenu(null)
   return (
-    <div ref={container} className="relative inline-block">
-      <ControlButton
+    <>
+      <button
+        ref={anchor}
+        aria-label={label}
         aria-expanded={open}
+        aria-haspopup="dialog"
+        disabled={disabled}
+        onMouseDown={(event) => event.preventDefault()}
         onClick={() => setOpenMenu(open ? null : menuId)}
-        size="compact"
+        className={controlButtonClasses({ active: open, size: "compact" })}
         title={label}
         type="button"
       >
         <Icon className="h-3.5 w-3.5" />
-        <span className="sr-only">{label}</span>
+        {triggerText ? <span>{triggerText}</span> : <span className="sr-only">{label}</span>}
         <ChevronDown className="h-3.5 w-3.5 opacity-70" />
-      </ControlButton>
-      {open ? (
-        <div className={`fixed ${panelPosition} z-[140] max-h-[min(34rem,calc(100vh-8rem))] w-[min(46rem,calc(100vw-2rem))] overflow-y-auto ${menuSurfaceClasses()}`}>
-          {children}
-        </div>
-      ) : null}
-    </div>
+      </button>
+      <Popover open={open} anchor={anchor} onClose={close} label={label} placement="bottom-end" width={width} className={panelClassName} focusOnOpen>
+        {children(close)}
+      </Popover>
+    </>
   )
 }
 
@@ -1026,12 +1069,14 @@ function TutorMenuSection({ children, title }: { children: React.ReactNode; titl
 
 function TutorMenuAction({
   active,
+  disabled = false,
   icon: Icon,
   label,
   meta,
   onClick,
 }: {
   active?: boolean
+  disabled?: boolean
   icon: React.ComponentType<{ className?: string }>
   label: string
   meta?: string
@@ -1039,8 +1084,10 @@ function TutorMenuAction({
 }) {
   return (
     <button
+      aria-label={label}
+      disabled={disabled}
       onClick={onClick}
-      className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm font-semibold ${
+      className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm font-semibold disabled:pointer-events-none disabled:opacity-50 ${
         active ? "bg-primary text-primary-foreground" : "text-popover-foreground hover:bg-accent hover:text-accent-foreground"
       }`}
       type="button"
@@ -1068,9 +1115,9 @@ function TutorMenuSelect({
   values: string[]
 }) {
   return (
-    <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+    <label className="grid min-w-0 gap-1 text-xs font-semibold text-muted-foreground">
       {label}
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground">
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="h-9 min-w-0 rounded-md border border-input bg-background px-2 text-sm text-foreground">
         {values.map((item) => <option key={item} value={item}>{labels?.[item] || item}</option>)}
       </select>
     </label>
@@ -1099,11 +1146,6 @@ function readAiTutorLaunchPreset(): AiTutorLaunchPreset | null {
 function clearAiTutorLaunchPreset() {
   if (typeof window === "undefined") return
   window.localStorage.removeItem(AI_TUTOR_LAUNCH_KEY)
-}
-
-function clearAiTutorDraft() {
-  if (typeof window === "undefined") return
-  window.localStorage.removeItem(AI_TUTOR_DRAFT_KEY)
 }
 
 function normalizeChoice(value: string, options: string[], fallback: string) {
@@ -1186,24 +1228,48 @@ function ResultAction({ label, icon: Icon, onClick }: { label: string; icon: Rea
   )
 }
 
-function ResultMenu({ children, label }: { children: React.ReactNode; label: string }) {
+function ResultMenu({ children, disabled = false, label, menuId, openMenu, setOpenMenu }: {
+  children: (close: () => void) => React.ReactNode
+  disabled?: boolean
+  label: string
+  menuId: TutorMenuId
+  openMenu: TutorMenuId | null
+  setOpenMenu: (menuId: TutorMenuId | null) => void
+}) {
+  const open = openMenu === menuId
+  const anchor = useRef<HTMLButtonElement>(null)
+  const dialogLabel = `${label} result`
+  const close = () => setOpenMenu(null)
   return (
-    <details className="group relative inline-block">
-      <summary className="flex h-9 cursor-pointer list-none items-center gap-2 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden">
+    <>
+      <button
+        ref={anchor}
+        type="button"
+        aria-label={dialogLabel}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        disabled={disabled}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => setOpenMenu(open ? null : menuId)}
+        className={controlButtonClasses({ active: open, size: "compact" })}
+        title={dialogLabel}
+      >
         <MoreHorizontal className="h-3.5 w-3.5" />
         {label}
-      </summary>
-      <div className={`absolute left-0 top-10 z-40 w-56 ${menuSurfaceClasses()}`}>
-        {children}
-      </div>
-    </details>
+        <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+      </button>
+      <Popover open={open} anchor={anchor} onClose={close} label={dialogLabel} placement="bottom-start" width={224} className="w-[min(14rem,calc(100vw-2rem))]" focusOnOpen>
+        <div className="grid gap-1">{children(close)}</div>
+      </Popover>
+    </>
   )
 }
 
-function ResultMenuAction({ label, onClick }: { label: string; onClick: () => void }) {
+function ResultMenuAction({ disabled = false, label, onClick }: { disabled?: boolean; label: string; onClick: () => void }) {
   return (
     <button
-      className="flex w-full rounded-md px-2 py-2 text-left text-sm font-semibold text-popover-foreground hover:bg-accent hover:text-accent-foreground"
+      disabled={disabled}
+      className="flex w-full rounded-md px-2 py-2 text-left text-sm font-semibold text-popover-foreground hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
       onClick={onClick}
       type="button"
     >
