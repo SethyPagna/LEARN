@@ -1,0 +1,132 @@
+[
+  {
+    "width": 1280,
+    "theme": "color",
+    "mode": "expanded",
+    "checks": [
+      "one visible account trigger",
+      "no duplicated navigation Help outside account",
+      "one account-menu guide entry",
+      "guide receives keyboard focus",
+      "guide replaces account popover",
+      "guide arrow navigation retains focus",
+      "guide closes with Escape",
+      "guide returns focus to account trigger",
+      "guide close button also restores focus",
+      "expanded Me footer retains section links",
+      "rail omits extra footer",
+      "brand expansion preserves current page",
+      "expansion restores Me links",
+      "guide opens the chosen page",
+      "navigation fits viewport",
+      "no page errors or API writes"
+    ],
+    "errors": [],
+    "writes": []
+  },
+  {
+    "width": 1280,
+    "theme": "color",
+    "mode": "rail",
+    "checks": [
+      "one visible account trigger",
+      "no duplicated navigation Help outside account",
+      "one account-menu guide entry",
+      "guide receives keyboard focus",
+      "guide replaces account popover",
+      "guide arrow navigation retains focus",
+      "guide closes with Escape",
+      "guide returns focus to account trigger",
+      "guide close button also restores focus",
+      "guide opens the chosen page",
+      "navigation fits viewport",
+      "no page errors or API writes"
+    ],
+    "errors": [],
+    "writes": []
+  },
+  {
+    "width": 1280,
+    "theme": "color",
+    "mode": "hidden",
+    "checks": [
+      "one visible account trigger",
+      "no duplicated navigation Help outside account",
+      "one account-menu guide entry",
+      "guide receives keyboard focus",
+      "guide replaces account popover",
+      "guide arrow navigation retains focus",
+      "guide closes with Escape",
+      "guide returns focus to account trigger",
+      "guide close button also restores focus",
+      "guide opens the chosen page",
+      "navigation fits viewport",
+      "no page errors or API writes"
+    ],
+    "errors": [],
+    "writes": []
+  },
+  {
+    "width": 390,
+    "theme": "light",
+    "mode": "expanded",
+    "checks": [
+      "one visible account trigger",
+      "no duplicated navigation Help outside account",
+      "one account-menu guide entry",
+      "guide receives keyboard focus",
+      "guide replaces account popover",
+      "guide arrow navigation retains focus",
+      "guide closes with Escape",
+      "guide returns focus to account trigger",
+      "guide close button also restores focus",
+      "guide opens the chosen page",
+      "navigation fits viewport",
+      "no page errors or API writes"
+    ],
+    "errors": [],
+    "writes": []
+  },
+  {
+    "width": 320,
+    "theme": "dark",
+    "mode": "expanded",
+    "checks": [
+      "one visible account trigger",
+      "no duplicated navigation Help outside account",
+      "one account-menu guide entry",
+      "guide receives keyboard focus",
+      "guide replaces account popover",
+      "guide arrow navigation retains focus",
+      "guide closes with Escape",
+      "guide returns focus to account trigger",
+      "guide close button also restores focus",
+      "guide opens the chosen page",
+      "navigation fits viewport",
+      "no page errors or API writes"
+    ],
+    "errors": [],
+    "writes": []
+  },
+  {
+    "width": 740,
+    "theme": "dark",
+    "mode": "expanded",
+    "checks": [
+      "one visible account trigger",
+      "no duplicated navigation Help outside account",
+      "one account-menu guide entry",
+      "guide receives keyboard focus",
+      "guide replaces account popover",
+      "guide arrow navigation retains focus",
+      "guide closes with Escape",
+      "guide returns focus to account trigger",
+      "guide close button also restores focus",
+      "guide opens the chosen page",
+      "navigation fits viewport",
+      "no page errors or API writes"
+    ],
+    "errors": [],
+    "writes": []
+  }
+]

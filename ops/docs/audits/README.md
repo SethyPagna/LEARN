@@ -3,7 +3,7 @@
 Audit outputs for the LEARN app. Each report is reproducible from the revision it
 names; re-run after any structural change.
 
-Current refinement: [AI result recovery](./2026-10-01-ai-result-recovery.md); push status in its session log.
+Current refinement: [navigation/demo polish](./2026-10-01-navigation-polish.md); push status in its session log. [AI result recovery](./2026-10-01-ai-result-recovery.md) is delivered with green CI.
 
 Historical takeover closure: [September 24 takeover verification](./2026-09-24-takeover-verification.md)
 and [completion goals](../roadmap/takeover-completion.md).

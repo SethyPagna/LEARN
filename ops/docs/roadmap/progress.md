@@ -1,6 +1,6 @@
 # LEARN Comprehensive Improvement Progress
 
-Status: AI result recovery delivered at62c188c with green CI; final receipt and compact navigation/demo polish follow
+Status: Navigation/demo polish verified at99c8df1; documentation/integrity/push/CI in progress
 Last updated: 2026-10-01
 Current owner: User and maintainer
 Current branch: cleanup/stage-1
@@ -9,7 +9,7 @@ Current branch: cleanup/stage-1
 
 Every session starts here: the newest dated log in [`ops/docs/sessions/`](../sessions/) has the "Resume here" block, and [requests.md](requests.md) has every owner request with its status and the chosen order of work. Update both as you go (see `~/.claude/CLAUDE.md`).
 
-Current evidence: [AI result recovery](../audits/2026-10-01-ai-result-recovery.md), full type check/1,355 tests/build/CSS, 69recovery checks,312AI checks across all themes/widths and108workflow regression checks. [Compact AI workspace](../audits/2026-10-01-ai-workspace.md) and [prior workflow](../audits/2026-10-01-learning-workflow.md) remain delivered. Duplicate sidebar Help/demo tour wording, provider-dependent live verification and source-specific review provenance remain follow-ons; historical phase labels below do not establish their completion.
+Current evidence: [navigation/demo polish](../audits/2026-10-01-navigation-polish.md), type/1,355tests/build/CSS,76navigation checks and93demo checks across9layouts. [AI result recovery](../audits/2026-10-01-ai-result-recovery.md) is delivered at326dba6 with green latest CI (69recovery/312AI/108workflow checks). Provider-dependent live verification, relocated guide-opener focus and source-specific review provenance remain follow-ons; historical phase labels below do not establish their completion.
 
 ## Snapshot as of 2026-09-24
 
