@@ -1,0 +1,103 @@
+{
+  "revision": "62c188c1008f36e41290a925cbacccc6aaa65d79",
+  "base": "66d6cc91351c11a5f4b7b5627226f8183e3cfd66",
+  "verifiedAt": "2026-10-01T03:59:41.005Z",
+  "records": [
+    {
+      "file": "ops/docs/audits/2026-10-01-ai-result-recovery.md",
+      "sha256": "e1f3dd431b6360e1ec9888d9cb5deed7004e28f4dc2fd5ebe8dbe5b086dc0293",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-ai-result-recovery/baseline-results.json",
+      "sha256": "732cb7727292f8ac0c6a7d135009afa40bc193b7721d3a91fae419bdd334450a",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-ai-result-recovery/evidence-hashes.json",
+      "sha256": "d315aceba01e5cc9e752b853dbe5689aa8b56bc36286e860f0a1eb612efc70d9",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-ai-result-recovery/learning-results.json",
+      "sha256": "860b7b2aeb4401ba927d11492c9f2366d91422748fd402b542a3b3cee84ed390",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-ai-result-recovery/result-menu-320-dark.jpg",
+      "sha256": "161d6e636ba4173311a5be1acc8e969603bcfd098be2946c6c440abcd2c1d689",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-ai-result-recovery/results.json",
+      "sha256": "74d981cb50d953e69d738a4b24a9c7e6043c7480a6d95424c0be79d3b79869e7",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-ai-result-recovery/workspace-390-light.jpg",
+      "sha256": "84e43e07f444712a7f30e8594e23e29c00fd05763886d894ffb87ef7989c6221",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-ai-result-recovery/workspace-results.json",
+      "sha256": "c1cfe7aa150431a03503dcdb3018ffd558852a0b6c034397433f5bedd9e5ae26",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/audits/README.md",
+      "sha256": "03bf3319ce917d1e8b9d5c64b3056e238403227a657857911bf2b293b2f4716b",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/roadmap/progress.md",
+      "sha256": "7cc74e198a3d29f31971a2b3e9a7dd9f3787f776cad1a578827fb2eb1bf8348c",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/roadmap/requests.md",
+      "sha256": "4db2c483fb34da575678d58a9a4bf06f19470d86ffdc06a8335b9373867ed049",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/sessions/2026-10-01-ai-result-recovery.md",
+      "sha256": "b3c5fa61d81450b8c0da8f74950de7ca2a2b6954b70ce0cf96309607270515dc",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/sessions/2026-10-01-ai-workspace.md",
+      "sha256": "6ffa5d41ec4fbe9b16ee702bce9f482c16c52faf5fa86210762435bfb498d880",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/scripts/test/ai-result-recovery-probe.ts",
+      "sha256": "096ca3aebeb4c33e8b0d4641957dc9ddaf733a36454ead953959b74febc3d9de",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/scripts/test/ai-workspace-probe.ts",
+      "sha256": "0a1f186edeaa6d2e9d645c99e24fe1a63f16d161ce0c92c2cdc54043f8c71c5c",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "src/components/learn/views/ai-view.tsx",
+      "sha256": "322d363bfc5e57bdea1bcd08408290619877008ef0c89fbd954d2101836a62fa",
+      "reads": 2,
+      "committedBytesMatched": true
+    }
+  ]
+}

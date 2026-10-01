@@ -4,6 +4,8 @@ The tutor keeps the previous result while a request is pending, fails or becomes
 
 Source: `2b21252`; probes: `f255759`, on `cleanup/stage-1`. The preceding compact workspace is delivered at `66d6cc9`. No dependency or draft-schema change.
 
+Three focused commits are pushed at `62c188c`; [exact-head CI](https://github.com/SethyPagna/LEARN/actions/runs/36813051011) passes. Sixteen changed files match two SHA256 reads and committed Git bytes: [code receipt](./2026-10-01-ai-result-recovery/code-62c188c-hashes.json). Git fsck passes twice; two remote reads and the GitHub commit API agree with that revision. This receipt update is a subsequent documentation commit.
+
 ## Evidence
 
 - Compiled baseline `66d6cc9` failed the first recovery assertion: starting a held request hid the previous result. [Baseline fixture record](./2026-10-01-ai-result-recovery/baseline-results.json); raw failure log remains in `.cache/design-review/ai-result-recovery-baseline.log`.
