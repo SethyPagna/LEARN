@@ -3,10 +3,11 @@
 ## Resume here
 
 - Checkout C:/Users/user/Downloads/Projects/LEARN, cleanup/stage-1. Result recovery goal completed in four commits at326dba6bb6fd82f7e58409129d85f4f9e4f69c88; latest [CI36813282859](https://github.com/SethyPagna/LEARN/actions/runs/36813282859) passes,17changed files match two reads/Git, two remote reads/API agree. Clean tree before this log. [Recovery report](../audits/2026-10-01-ai-result-recovery.md).
-- Active goal: remove duplicate sidebar Help controls while retaining the account guide, preserve expanded Me section links, and clarify two public demo tour instructions. Build run run-5addb54e-6977-4500-a46e-b5e53945b42c, learn/navigation-polish.
+- Implementation goal complete and delivered at `8327053`: duplicate sidebar Help removed, expanded Me links retained, connected-opener focus restored, and two public demo tour instructions clarified. Build run run-5addb54e-6977-4500-a46e-b5e53945b42c, learn/navigation-polish; final receipt verification remains before closing the run.
 - Source discovery: SidebarFooter renders Help in rail/expanded, while the account popover also renders that action. The public tour says to select text after it has already selected a heading and suggests keeping the design without specifying the current-page download. No redesign/engine replacement is needed for these bounded defects.
-- Source/probes committed locally at579a9c0,1a36f91,99c8df1. Independent final source review finds no material blocker; type/full1355tests/build4CSS/navigation76/demo93 checks pass. Five exported evidence files match two original/copy reads. Root inspected two downscaled demo captures; report ops/docs/audits/2026-10-01-navigation-polish.md.
-- Preview PID23320/session40070 serves frozen source from these commits, log .cache/design-review/navigation-polish-server.log. All heavy jobs serial, Node4096MB; delegates source-only. Next: commit docs, compare changed files twice against Git, fsck twice, push current branch and verify remote/CI. Focused periodic pushes remain authorized; checkpoints are not stop gates.
+- Four focused commits through `8327053cedbd4162420e7bb0f39b785c8653f8c5` are pushed. Independent source/evidence reviews find no material blocker; type, 1,355 tests, build/four CSS, 76 navigation and 93 demo checks pass. Five exported evidence files match two original/copy reads. Root inspected two downscaled demo captures; report ops/docs/audits/2026-10-01-navigation-polish.md.
+- All 17 changed files match two reads against Git at `8327053`; [receipt](../audits/2026-10-01-navigation-polish/code-8327053-hashes.json). Fsck passes twice with existing dangling recovery objects preserved. Two remote reads and GitHub API agree. [Exact-head CI 36816116528](https://github.com/SethyPagna/LEARN/actions/runs/36816116528) passes tests, typecheck and build in 1m49s. This log and receipt are the final documentation commit; source stays frozen.
+- Preview PID23320/session40070 serves frozen source, log .cache/design-review/navigation-polish-server.log. Heavy jobs ran serially, Node 4,096 MB; delegates source-only. Next: push this receipt, verify final remote/integrity/CI, then close the run with the exact final head in its harness checkpoint. Further work is source-specific review provenance and live provider verification. Focused periodic pushes remain authorized; checkpoints are not stop gates.
 
 ## Request and choices
 
@@ -22,9 +23,9 @@
 | --- | --- |
 | Prior AI result recovery | Done, four commits pushed and latest CI passes |
 | Navigation/demo investigation | Done, source-only |
-| Source/probe edits | Done, three focused local commits |
+| Source/probe edits | Done, three focused commits pushed |
 | Independent review / type / tests / build / browser | Done, 1355tests/76navigation/93demo checks |
-| Focused commits / integrity / push / CI | Source committed; docs/integrity/push/CI pending |
+| Focused commits / integrity / push / CI | Four commits delivered with passing integrity and exact-head CI; final documentation receipt follows |
 
 ## Checkpoints
 
@@ -34,3 +35,5 @@
 - Full suite passes1355/1355, no skips,53.5seconds. .cache/design-review/navigation-polish-type.log and -tests.log. Preparing production build after stopping verified own PID45784; delegates continue source-only review and no heavy jobs.
 - Build and4CSS checks pass. Restarted own previewPID23320/session40070. Navigation76checks pass after correcting connected-events.results fixture and stubbing realtime sockets; app source remained frozen. Demo93checks/9layouts pass, no errors/server writes; decoded1920×1200PNG hashes match twice. Final type check passes after fixture changes. Independent final source review finds no blocker; detached-opener focus limitation is recorded in the report.
 - Source commits579a9c0 and1a36f91; probe commit99c8df1. Two downscaled demo captures inspected. Five evidence files twice verified. Preparing documentation/integrity/push receipts; no merge/deploy or original-data changes.
+- Independent evidence review confirmed the counts and limits; narrowed report wording to guide focus containment and ArrowDown retention, rather than asserting a specific focused row. Four commits pushed at `8327053`; 17 changed files twice match Git, fsck passes twice, two remote reads/API agree. CI is running; final delivery receipt follows only after a passing result.
+- CI `36816116528` at `8327053` completed successfully: tests, typecheck and build pass. Final documentation receipt prepared; final branch-head verification and CI will be recorded in the harness completion checkpoint to avoid a recursive receipt-commit cycle. This entry does not assert those subsequent checks before execution.
