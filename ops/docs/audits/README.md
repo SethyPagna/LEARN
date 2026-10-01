@@ -3,7 +3,9 @@
 Audit outputs for the LEARN app. Each report is reproducible from the revision it
 names; re-run after any structural change.
 
-Latest delivery: [September 24 takeover verification](./2026-09-24-takeover-verification.md)
+Current refinement: [AI result recovery](./2026-10-01-ai-result-recovery.md); push status in its session log.
+
+Historical takeover closure: [September 24 takeover verification](./2026-09-24-takeover-verification.md)
 and [completion goals](../roadmap/takeover-completion.md).
 Continuity source: [September 24 assistant history reconciliation](./2026-09-24-assistant-history-reconciliation.md).
 It records the pushed checkpoints, interrupted launcher work, remaining P2b–P6

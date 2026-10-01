@@ -1,0 +1,11 @@
+[
+  {
+    "width": 1280,
+    "theme": "color",
+    "checks": [],
+    "writes": [
+      "POST /api/ai/chat"
+    ],
+    "errors": []
+  }
+]

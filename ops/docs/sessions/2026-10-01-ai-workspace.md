@@ -2,6 +2,8 @@
 
 ## Resume here
 
+- This goal is complete. Latest active work: [AI result recovery](2026-10-01-ai-result-recovery.md). Final compact-AI HEAD66d6cc9 is pushed, exact-head CI36811040443 passes and all21 files match two hashes/Git. Below is the earlier delivery chronology.
+
 - Actual checkout: C:/Users/user/Downloads/Projects/LEARN, cleanup/stage-1. Prior goal delivered in five commits at 8b938f8d876c5755a16ede99b954bbef037e130d; exact-head CI 36807356398 passed. Local/two remote reads/GitHub API agree, clean tree before this new log. All 36 changed files matched two SHA-256 reads and committed Git bytes, fsck twice. [Prior receipt](../audits/2026-10-01-learning-workflow.md).
 - New active goal: compact AI task/options/draft/result controls using shared bounded menus, retain edited prompts when choosing tasks, preserve validated asynchronous source/request/draft guards, and run responsive visual/keyboard/workflow checks before focused commits and periodic pushes.
 - Build run run-b179711d-bf14-4bac-8385-b9560d14bda2 in learn/ai-workspace. Root loaded core/Build and Investigate skill; read-only Luna audit loaded applicable workflow and source. No visual skill activation claimed from source-only review.

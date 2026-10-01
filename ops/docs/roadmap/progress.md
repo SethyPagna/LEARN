@@ -1,6 +1,6 @@
 # LEARN Comprehensive Improvement Progress
 
-Status: Compact AI workspace delivered through a1ff56e with green CI; next reliability slice is failed-generation result retention
+Status: AI result recovery verified locally at f255759; report/integrity/push/CI in progress
 Last updated: 2026-10-01
 Current owner: User and maintainer
 Current branch: cleanup/stage-1
@@ -9,7 +9,7 @@ Current branch: cleanup/stage-1
 
 Every session starts here: the newest dated log in [`ops/docs/sessions/`](../sessions/) has the "Resume here" block, and [requests.md](requests.md) has every owner request with its status and the chosen order of work. Update both as you go (see `~/.claude/CLAUDE.md`).
 
-Current evidence: [compact AI workspace](../audits/2026-10-01-ai-workspace.md), full type check/1,355 tests/build/CSS, 312 AI checks across all themes/widths, 108 workflow regression checks and 18 older AI checks. [Prior workflow](../audits/2026-10-01-learning-workflow.md) remains delivered. Provider-dependent live verification, failed-generation result retention and source-specific review provenance remain follow-ons; historical phase labels below do not establish their completion.
+Current evidence: [AI result recovery](../audits/2026-10-01-ai-result-recovery.md), full type check/1,355 tests/build/CSS, 69recovery checks,312AI checks across all themes/widths and108workflow regression checks. [Compact AI workspace](../audits/2026-10-01-ai-workspace.md) and [prior workflow](../audits/2026-10-01-learning-workflow.md) remain delivered. Duplicate sidebar Help/demo tour wording, provider-dependent live verification and source-specific review provenance remain follow-ons; historical phase labels below do not establish their completion.
 
 ## Snapshot as of 2026-09-24
 

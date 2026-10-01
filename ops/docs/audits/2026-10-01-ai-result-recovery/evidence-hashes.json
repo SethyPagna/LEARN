@@ -1,0 +1,47 @@
+{
+  "verifiedAt": "2026-10-01T03:56:34.641Z",
+  "records": [
+    {
+      "source": ".cache/design-review/ai-result-recovery/results.json",
+      "file": "results.json",
+      "sha256": "74d981cb50d953e69d738a4b24a9c7e6043c7480a6d95424c0be79d3b79869e7",
+      "sourceReads": 2,
+      "copyReads": 2
+    },
+    {
+      "source": ".cache/design-review/ai-workspace/results.json",
+      "file": "workspace-results.json",
+      "sha256": "c1cfe7aa150431a03503dcdb3018ffd558852a0b6c034397433f5bedd9e5ae26",
+      "sourceReads": 2,
+      "copyReads": 2
+    },
+    {
+      "source": ".cache/design-review/learning-workflow/results.json",
+      "file": "learning-results.json",
+      "sha256": "860b7b2aeb4401ba927d11492c9f2366d91422748fd402b542a3b3cee84ed390",
+      "sourceReads": 2,
+      "copyReads": 2
+    },
+    {
+      "source": ".cache/design-review/ai-result-recovery-baseline-results.json",
+      "file": "baseline-results.json",
+      "sha256": "732cb7727292f8ac0c6a7d135009afa40bc193b7721d3a91fae419bdd334450a",
+      "sourceReads": 2,
+      "copyReads": 2
+    },
+    {
+      "source": ".cache/design-review/ai-workspace/workspace-390-light.jpg",
+      "file": "workspace-390-light.jpg",
+      "sha256": "84e43e07f444712a7f30e8594e23e29c00fd05763886d894ffb87ef7989c6221",
+      "sourceReads": 2,
+      "copyReads": 2
+    },
+    {
+      "source": ".cache/design-review/ai-workspace/result-menu-320-dark.jpg",
+      "file": "result-menu-320-dark.jpg",
+      "sha256": "161d6e636ba4173311a5be1acc8e969603bcfd098be2946c6c440abcd2c1d689",
+      "sourceReads": 2,
+      "copyReads": 2
+    }
+  ]
+}
