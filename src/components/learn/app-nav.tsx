@@ -1,7 +1,7 @@
 "use client"
 
 import { createPortal } from "react-dom"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useId, useRef, useState } from "react"
 import {
   AtSign,
   Bell,
@@ -10,7 +10,7 @@ import {
   ChevronDown,
   ChevronRight,
   Compass,
-  Ellipsis,
+  Edit3,
   Gamepad2,
   Info,
   Languages,
@@ -28,7 +28,6 @@ import {
   Trash2,
   UserCheck,
   UserPlus,
-  UserRound,
   Users,
   X,
   type LucideIcon,
@@ -37,6 +36,7 @@ import { ThemeModeSwitcher } from "@/components/theme-mode-switcher"
 import { formatRelativeTime } from "@/lib/format-time"
 import { languageNames, supportedLocales, type baseVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
 import { formatNavigationBadge } from "@/lib/navigation-features"
+import type { ArtifactType } from "@/lib/ux/artifact-catalog"
 import {
   getNavigationItemDetail,
   navigationItems,
@@ -64,6 +64,7 @@ import { openCommandPalette } from "./command-palette"
 import { CreateMenu, openCreateMenu } from "./create-menu"
 import { viewIcons } from "./nav-icons"
 import { openPlaceGuide } from "./place-guide"
+import { ProfileIdentityEditor, useProfileIdentityEditor, type ProfileIdentityEditorState } from "./profile-identity-editor"
 import { useInboxEvent, useInboxStatus } from "./realtime-inbox"
 import type { User, View } from "./types"
 
@@ -148,6 +149,7 @@ export function Sidebar({
   isAdmin = false,
   mode,
   onModeChange,
+  onCreate,
   practiceDraftSummary,
   setView,
   studioDraftSummary,
@@ -158,6 +160,7 @@ export function Sidebar({
   isAdmin?: boolean
   mode: SidebarMode
   onModeChange: (mode: SidebarMode) => void
+  onCreate?: (artifact: ArtifactType) => void
   practiceDraftSummary: PracticeDraftSummary
   setView: (view: View) => void
   studioDraftSummary: StudioDraftSummary
@@ -191,7 +194,7 @@ export function Sidebar({
       )}
 
       <div className={compact ? "px-2" : "px-3"}>
-        {hideCreate ? null : <CreateMenu variant={compact ? "rail" : "sidebar"} setView={setView} />}
+        {hideCreate ? null : <CreateMenu variant={compact ? "rail" : "sidebar"} setView={setView} onCreate={onCreate} />}
         {compact ? (
           <div className="mb-3 flex justify-center">
             <button type="button" onClick={openCommandPalette} className={`${ghostIconButton} h-11 w-11 rounded-xl border border-sidebar-border bg-background/60`} aria-label="Search or jump" title={`Search or jump (${modKey}+K)`}>
@@ -369,6 +372,8 @@ export function Topbar({
   editorOpen = false,
   locale,
   logout,
+  onCreate,
+  onProfileSaved,
   onSidebarModeChange,
   openLink,
   practiceDraftSummary,
@@ -386,6 +391,8 @@ export function Topbar({
   editorOpen?: boolean
   locale: SupportedLocale
   logout: () => void
+  onCreate?: (artifact: ArtifactType) => void
+  onProfileSaved: (user: User) => void
   onSidebarModeChange: (mode: SidebarMode) => void
   openLink: (href: string) => void
   practiceDraftSummary: PracticeDraftSummary
@@ -404,6 +411,7 @@ export function Topbar({
   const title = String(text[labels.title] || text.dashboard)
   const placeLabel = labels.place ? String(text[labels.place]) : ""
   const [accountHost, setAccountHost] = useState<HTMLElement | null>(null)
+  const identityEditor = useProfileIdentityEditor({ user, onSaved: onProfileSaved })
   useEffect(() => {
     const desktop = window.matchMedia("(min-width: 1024px)")
     const updateHost = () => setAccountHost(desktop.matches && sidebarMode !== "hidden" ? document.getElementById("sidebar-account") : null)
@@ -418,6 +426,7 @@ export function Topbar({
             sidebar={Boolean(accountHost)}
             showName={Boolean(accountHost) && sidebarMode === "expanded"}
             density={density}
+            editor={identityEditor}
             locale={locale}
             logout={logout}
             modKey={modKey}
@@ -428,7 +437,6 @@ export function Topbar({
             sidebarMode={sidebarMode}
             text={text}
             user={user}
-            view={view}
           />
           <ThemeModeSwitcher compact={!accountHost || sidebarMode === "rail"} iconsOnly={Boolean(accountHost) && sidebarMode === "expanded"} className="account-appearance" />
           <NotificationsMenu openLink={openLink} user={user} sidebar={Boolean(accountHost)} />
@@ -493,7 +501,7 @@ export function Topbar({
             <Search className="h-[18px] w-[18px]" />
           </button>
           <div className="hidden sm:block">
-            {hideCreate ? null : <CreateMenu variant="header" setView={setView} />}
+            {hideCreate ? null : <CreateMenu variant="header" setView={setView} onCreate={onCreate} />}
           </div>
           <div className="hidden xl:block"><InstallAppButton /></div>
           {accountHost ? createPortal(accountControls, accountHost) : accountControls}
@@ -562,6 +570,7 @@ function AccountMenu({
   sidebar = false,
   showName = false,
   density,
+  editor,
   locale,
   logout,
   modKey,
@@ -572,11 +581,11 @@ function AccountMenu({
   sidebarMode,
   text,
   user,
-  view,
 }: {
   sidebar?: boolean
   showName?: boolean
   density: Density
+  editor: ProfileIdentityEditorState
   locale: SupportedLocale
   logout: () => void
   modKey: string
@@ -587,11 +596,11 @@ function AccountMenu({
   sidebarMode: SidebarMode
   text: Text
   user: User | null
-  view: View
 }) {
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const [languagesOpen, setLanguagesOpen] = useState(false)
+  const panelId = useId()
   const status = useInboxStatus()
 
   function go(next: View) {
@@ -601,10 +610,6 @@ function AccountMenu({
 
   return (
     <div className={`account-profile relative ${showName ? "min-w-0 flex-1" : ""}`}>
-      <button type="button" onClick={() => go("profile")} aria-label="Your profile" aria-current={view === "profile" ? "page" : resolveNavigationTarget(view).primaryView === "profile" ? "true" : undefined} title="Me" className="account-profile-link">
-        <Avatar user={user} />
-        {showName ? <span className="min-w-0"><strong className="block truncate text-xs font-medium">{user?.name || "Me"}</strong><span className="block truncate text-xs text-muted-foreground">Me</span></span> : null}
-      </button>
       <button
         ref={triggerRef}
         type="button"
@@ -614,34 +619,36 @@ function AccountMenu({
           setOpen(!open)
         }}
         aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
         aria-haspopup="dialog"
-        aria-label="Account options"
-        title="Account options"
-        className="account-options-trigger"
+        aria-label="Your account"
+        title="Your account"
+        disabled={!user}
+        className="account-profile-link"
       >
-        <Ellipsis size={17} aria-hidden="true" />
+        <Avatar user={user} />
+        {showName ? <><span className="min-w-0 flex-1"><strong className="block truncate text-xs font-medium">{user?.name || "Learner"}</strong><span className="block truncate text-xs text-muted-foreground">@{user?.username || "you"}</span></span><ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" /></> : null}
       </button>
-      <Popover open={open} anchor={triggerRef} onClose={() => setOpen(false)} label="Account and preferences" placement={sidebar ? "top-start" : "bottom-end"} width={280} focusOnOpen className="!w-[280px] !rounded-xl !p-2">
-          <div className="flex items-center gap-3 rounded-xl p-2">
+      <Popover open={open} anchor={triggerRef} onClose={() => setOpen(false)} label="Account and preferences" placement={sidebar ? "top-start" : "bottom-end"} width={320} focusOnOpen={!editor.editing} className="account-panel !w-[320px] !rounded-xl !p-3">
+        <div id={panelId}>
+          <div className="flex items-center gap-2 rounded-xl">
             <Avatar user={user} className="h-11 w-11 text-base" />
             <div className="min-w-0 flex-1">
               <p className="truncate font-display font-semibold">{user?.name || "Learner"}</p>
               <p className="truncate text-xs text-muted-foreground">@{user?.username || "you"} · <span className="capitalize">{user?.role || "learner"}</span></p>
             </div>
+            {!editor.editing ? <button ref={editor.editButton} type="button" className={ghostIconButton} aria-label="Edit profile" title="Edit profile" onClick={editor.startEditing}><Edit3 className="h-4 w-4" aria-hidden="true" /></button> : null}
             <ConnectionStatus status={status} />
           </div>
 
-          <div className="my-1 grid gap-0.5">
-            <MenuRow icon={UserRound} label="Your profile" onClick={() => go("profile")} />
+          {editor.editing ? <ProfileIdentityEditor editor={editor} /> : editor.status ? <p className="account-save-status" role="status">{editor.status}</p> : null}
+
+          <div className="account-links my-2 grid gap-0.5">
             <MenuRow icon={Settings} label={String(text.settings)} onClick={() => go("settings")} />
             <MenuRow icon={Compass} label="What's where?" onClick={() => { setOpen(false); openPlaceGuide() }} />
           </div>
 
-          <details className="account-preferences border-t border-border px-2 pb-2 pt-2"><summary className="cursor-pointer py-2 text-xs font-medium text-muted-foreground">Appearance & preferences</summary><div className="grid gap-3 py-2">
-            <div className="grid gap-1.5">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Theme</p>
-              <ThemeModeSwitcher />
-            </div>
+          <details className="account-preferences border-t border-border pb-2 pt-1"><summary className="cursor-pointer py-2 text-xs font-medium text-muted-foreground">Preferences</summary><div className="grid gap-3 py-2">
             <div className="hidden gap-1.5 lg:grid">
               <p className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                 Sidebar
@@ -703,6 +710,7 @@ function AccountMenu({
           <div className="border-t border-border pt-1">
             <MenuRow icon={LogOut} label={String(text.signOut)} onClick={logout} tone="destructive" />
           </div>
+        </div>
       </Popover>
     </div>
   )
@@ -1049,8 +1057,8 @@ export function MobileTabBar({
 
   return (
     <nav aria-label="Main" className="learn-bottom-safe fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-md lg:hidden">
-      <ul className="mx-auto grid max-w-lg grid-cols-5 px-1 pt-1.5">
-        {navigationItems.map((item) => {
+      <ul className="mx-auto grid max-w-lg grid-cols-4 px-1 pt-1.5">
+        {navigationItems.filter(item => item.view !== "profile").map((item) => {
           const Icon = viewIcons[item.view]
           const active = activePlace === item.view
           return (

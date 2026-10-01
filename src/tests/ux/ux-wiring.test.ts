@@ -161,21 +161,25 @@ test("sidebar keeps the five places: Today, Create, Practice, Friends, Me", () =
   )
 })
 
-test("the phone dock keeps five places and desktop Me belongs to the account footer", () => {
+test("the phone dock keeps four places and one avatar opens the account editor", () => {
   const appNav = readSource(APP_NAV)
   const dock = componentSource(appNav, "MobileTabBar")
   const sidebarList = componentSource(appNav, "Navigation")
 
-  for (const source of [dock, sidebarList]) {
-    assert.match(source, /navigationItems\.map\(/, "both must list the places from the navigation contract")
-    assert.match(source, /aria-current=\{placeCurrent\(item, view, activePlace\)\}/, "both must mark the active place the same way")
-  }
+  assert.match(dock, /navigationItems\.filter\(item => item\.view !== "profile"\)\.map\(/, "Me is reached from the avatar instead of a second phone destination")
+  assert.match(dock, /grid-cols-4/, "four phone destinations share the available width")
+  assert.match(sidebarList, /navigationItems\.map\(/, "desktop uses the navigation contract")
+  for (const source of [dock, sidebarList]) assert.match(source, /aria-current=\{placeCurrent\(item, view, activePlace\)\}/, "both mark the active place consistently")
   assert.doesNotMatch(dock, /Everything in LEARN|"More"|>More</, "the phone dock has no More sheet")
   assert.match(sidebarList, /if \(item\.view === "profile"\) return null/, "Me is reached from the profile footer instead of a repeated main item")
   assert.match(sidebarList, /<SidebarPageLinks /, "the expanded active place keeps its pages reachable")
   assert.match(componentSource(appNav, "SidebarFooter"), /<SidebarPageLinks /, "Me keeps Profile and Settings beside the footer account")
-  assert.match(componentSource(appNav, "AccountMenu"), /onClick=\{\(\) => go\("profile"\)\} aria-label="Your profile"/, "the footer opens Me directly")
-  assert.match(componentSource(appNav, "AccountMenu"), /openPlaceGuide\(\)/, "the account menu keeps \"What's where?\" on every screen size")
+  const account = componentSource(appNav, "AccountMenu")
+  assert.match(account, /aria-label="Your account"/, "the avatar opens the shared account panel")
+  assert.match(account, /<ProfileIdentityEditor editor=\{editor\}/, "editing happens inside the account panel")
+  assert.doesNotMatch(account, /account-options-trigger|<Ellipsis|go\("profile"\)/, "no second account trigger or mandatory profile navigation remains")
+  assert.match(account, /openPlaceGuide\(\)/, "the account menu keeps \"What's where?\" on every screen size")
+  assert.match(readSource(LEARN_SHELL), /onProfileSaved=\{setUser\}/, "saved identity updates the shell immediately")
   assert.match(readSource(LEARN_SHELL), /const placeView: View = viewingSomeoneElse \? "social" : view/, "someone else's profile lights up Friends")
 })
 
@@ -257,7 +261,7 @@ test("small screens: no lone buttons, short previews or lists, and 36px taps", (
   assert.match(files, /layout === "grid" && !detailsOpen \? <div className="grid grid-cols-2 /, "a phone's file grid is two short columns")
 
   const secondary = readSource("src/components/learn/views/secondary-views.tsx")
-  assert.match(secondary, /<div className="settings-save"><ControlButton onClick=\{saveProfile\}/, "Save sits at the end of the profile form")
+  assert.match(secondary, /<div className="settings-save"><ControlButton onClick=\{saveSettings\}/, "settings Save stays at the end of every section")
   assert.doesNotMatch(secondary, /<header className="workspace-header"><h2 className="sr-only">Progress/, "Progress's status line joins the overview")
 
   const picker = readSource("src/components/learn/views/studio-view.tsx")

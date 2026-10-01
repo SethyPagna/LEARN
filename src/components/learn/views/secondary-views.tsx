@@ -2,8 +2,9 @@
 
 import { AppearanceSettings } from "../appearance-settings"
 import { InstallAppSettings } from "../app-install"
-import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, ArrowRight, BookOpen, Bot, CalendarPlus, Camera, Check, ChevronRight, FileText, Filter, Gauge, Languages, Link as LinkIcon, Lock, Palette, Repeat2, Save, Search, ShieldCheck, Sparkles, Target, UserPlus, UserRound, Users, X } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { AlertTriangle, ArrowRight, BookOpen, Bot, CalendarPlus, Check, ChevronRight, CircleHelp, FileText, Filter, Gauge, Languages, Link as LinkIcon, Lock, Palette, Repeat2, Save, Search, ShieldCheck, Sparkles, Target, UserPlus, UserRound, Users, X } from "lucide-react"
+import { PopoverButton } from "../design/popover"
 import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
 import { buildProgressCommandPlan, summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
 import { buildSettingsControlPlan, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
@@ -14,6 +15,8 @@ import { api, formatDate } from "../api"
 import { ControlButton, EmptyState, Panel, StatusPill as SharedStatusPill } from "../ui"
 import { ProviderAdminPanel } from "./provider-admin-panel"
 import { toneSurfaceClasses } from "@/lib/design-system"
+import { beginProfileIdentitySave } from "@/lib/profile-identity"
+import { ProfileIdentityEditor, useProfileIdentityEditor } from "../profile-identity-editor"
 
 const progressActionIcons: Record<ProgressActionTarget, typeof Target> = {
   ai: Sparkles,
@@ -91,6 +94,8 @@ export function SettingsView({
   automationData,
   locale,
   options,
+  locationSearch,
+  onProfileSaved,
   setLocale,
   setOptions,
 }: {
@@ -98,91 +103,93 @@ export function SettingsView({
   automationData: AutomationData | null
   locale: SupportedLocale
   options: WorkspaceOptions
+  locationSearch?: string
+  onProfileSaved: (user: User) => void
   setLocale: (locale: SupportedLocale) => void
   setOptions: (options: Partial<WorkspaceOptions>) => void
 }) {
-  const [name, setName] = useState(user?.name || "")
   const [email, setEmail] = useState(user?.email || "")
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || "")
-  const [bio, setBio] = useState(user?.bio || "")
-  const [profileVisibility, setProfileVisibility] = useState(user?.profileVisibility || "private")
-  const [facebookUrl, setFacebookUrl] = useState(preferenceString(user?.preferences?.facebookUrl))
-  const [websiteUrl, setWebsiteUrl] = useState(preferenceString(user?.preferences?.websiteUrl))
-  const [introUrl, setIntroUrl] = useState(preferenceString(user?.preferences?.introUrl))
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState(Number(user?.preferences?.dailyGoalMinutes || 45))
   const [section, setSection] = useState<SettingsSectionId>("profile")
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("section") === "experience") setSection("experience")
-  }, [])
+    function syncSection() {
+      const requested = new URLSearchParams(window.location.search).get("section")
+      const next = (Object.keys(settingsSectionIcons) as SettingsSectionId[]).find(id => id === requested)
+      setSection(next || "profile")
+    }
+    syncSection()
+    window.addEventListener("popstate", syncSection)
+    return () => window.removeEventListener("popstate", syncSection)
+  }, [locationSearch])
   const [status, setStatus] = useState("")
   const [saveBusy, setSaveBusy] = useState(false)
+  const savePending = useRef(false)
+  const currentUser = useRef(user)
+  const reconciledUser = useRef(user)
+  currentUser.current = user
+  const editor = useProfileIdentityEditor({ user, onSaved: onProfileSaved })
   const settingsSummary = useMemo(() => summarizeSettingsOptions(options), [options])
   const settingsPlan = useMemo(() => buildSettingsControlPlan(settingsSummary), [settingsSummary])
-  const profileDirty = name !== (user?.name || "")
-    || email !== (user?.email || "")
-    || avatarUrl !== (user?.avatarUrl || "")
-    || bio !== (user?.bio || "")
-    || profileVisibility !== (user?.profileVisibility || "private")
-    || facebookUrl !== preferenceString(user?.preferences?.facebookUrl)
-    || websiteUrl !== preferenceString(user?.preferences?.websiteUrl)
-    || introUrl !== preferenceString(user?.preferences?.introUrl)
+  const storedOptions = user?.preferences?.workspaceOptions
+  const optionsDirty = !storedOptions || typeof storedOptions !== "object" || Array.isArray(storedOptions)
+    || Object.entries(options).some(([key, value]) => (storedOptions as Record<string, unknown>)[key] !== value)
+  const settingsDirty = email.trim() !== (user?.email || "")
     || dailyGoalMinutes !== Number(user?.preferences?.dailyGoalMinutes || 45)
+    || optionsDirty
+    || options.restDay !== user?.preferences?.restDay
+    || options.dailyReviewCap !== user?.preferences?.dailyReviewCap
 
   useEffect(() => {
-    setName(user?.name || "")
-    setEmail(user?.email || "")
-    setAvatarUrl(user?.avatarUrl || "")
-    setBio(user?.bio || "")
-    setProfileVisibility(user?.profileVisibility || "private")
-    setFacebookUrl(preferenceString(user?.preferences?.facebookUrl))
-    setWebsiteUrl(preferenceString(user?.preferences?.websiteUrl))
-    setIntroUrl(preferenceString(user?.preferences?.introUrl))
-    setDailyGoalMinutes(Number(user?.preferences?.dailyGoalMinutes || 45))
-  }, [user?.id])
+    const previous = reconciledUser.current
+    reconciledUser.current = user
+    if (!user || !previous || previous.id !== user.id) {
+      setEmail(user?.email || "")
+      setDailyGoalMinutes(Number(user?.preferences?.dailyGoalMinutes || 45))
+      setStatus("")
+      return
+    }
+    setEmail(current => current === previous.email ? user.email : current)
+    const previousGoal = Number(previous.preferences.dailyGoalMinutes || 45)
+    setDailyGoalMinutes(current => current === previousGoal ? Number(user.preferences.dailyGoalMinutes || 45) : current)
+  }, [user])
 
-  function handleAvatarFile(file?: File | null) {
-    if (!file) return
-    if (!file.type.startsWith("image/")) {
-      setStatus("Choose an image file for the avatar.")
-      return
-    }
-    if (file.size > 256 * 1024) {
-      setStatus("Use an avatar image under 256 KB.")
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = () => {
-      setAvatarUrl(typeof reader.result === "string" ? reader.result : "")
-      setStatus("Avatar draft ready. Save to apply it.")
-    }
-    reader.onerror = () => setStatus("Unable to read that image.")
-    reader.readAsDataURL(file)
+  function chooseSection(next: SettingsSectionId) {
+    setSection(next)
+    const url = new URL(window.location.href)
+    url.searchParams.set("section", next)
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`)
   }
 
-  async function saveProfile() {
-    if (saveBusy) return
+  async function saveSettings() {
+    if (!user || savePending.current || !settingsDirty) return
+    if (!email.trim()) { setStatus("Enter your email address."); return }
+    const userId = user.id
+    const releaseSave = beginProfileIdentitySave(userId)
+    if (!releaseSave) { setStatus("Your profile is already saving. Try again in a moment."); return }
+    savePending.current = true
     setSaveBusy(true)
-    setStatus("Saving settings...")
+    setStatus("Saving settings…")
     try {
-      await api("/api/profile", {
+      const { user: savedUser } = await api<{ user: User }>("/api/profile", {
         method: "PUT",
         body: JSON.stringify({
-          name,
-          email,
-          avatarUrl,
-          bio,
-          profileVisibility,
-          preferences: { dailyGoalMinutes, facebookUrl, websiteUrl, introUrl },
+          ...(email.trim() !== user.email ? { email: email.trim() } : {}),
+          preferences: {
+            dailyGoalMinutes, localeReady: supportedLocales.length, workspaceOptions: options,
+            restDay: options.restDay, dailyReviewCap: options.dailyReviewCap,
+          },
         }),
       })
-      await api("/api/preferences", {
-        method: "PUT",
-        body: JSON.stringify({ dailyGoalMinutes, facebookUrl, websiteUrl, introUrl, localeReady: supportedLocales.length, workspaceOptions: options }),
-      })
-      setStatus("Saved profile and preferences.")
+      if (currentUser.current?.id !== userId) return
+      onProfileSaved(savedUser)
+      setEmail(savedUser.email)
+      setDailyGoalMinutes(Number(savedUser.preferences.dailyGoalMinutes || 45))
+      setStatus("Settings saved.")
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to save settings.")
+      if (currentUser.current?.id === userId) setStatus(error instanceof Error ? error.message : "Unable to save settings.")
     } finally {
+      releaseSave()
+      savePending.current = false
       setSaveBusy(false)
     }
   }
@@ -190,49 +197,24 @@ export function SettingsView({
   return (
     <div className="settings-workspace">
       <h2 className="sr-only">Settings</h2>
-      <nav aria-label="Settings sections" className="settings-sections">{settingsPlan.guides.map((guide) => <SettingsSectionButton key={guide.id} guide={guide} active={section === guide.id} onClick={() => setSection(guide.id)} />)}</nav>
+      <nav aria-label="Settings sections" className="settings-sections">{settingsPlan.guides.map((guide) => <SettingsSectionButton key={guide.id} guide={guide} active={section === guide.id} onClick={() => chooseSection(guide.id)} />)}</nav>
       <div className="settings-content">
       {status ? <p role="status" className="mb-4 text-sm text-muted-foreground">{status}</p> : null}
       {section === "profile" ? (
         <Panel className="p-4">
-          <div className="mt-4 grid gap-4">
-            <div className="self-start border-b border-border pb-4">
-              <div className="mt-3 flex max-w-sm items-center gap-3">
-                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-primary text-2xl font-semibold text-primary-foreground">
-                  {avatarUrl ? <img src={avatarUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" /> : (name || user?.username || "L").slice(0, 1)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground">
-                    <Camera className="h-4 w-4" />
-                    Upload
-                    <input type="file" accept="image/*" className="sr-only" onChange={(event) => handleAvatarFile(event.target.files?.[0])} />
-                  </label>
-                  {avatarUrl ? (
-                    <button type="button" onClick={() => setAvatarUrl("")} className="ml-2 inline-flex items-center gap-1 rounded-md border border-border px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                      <X className="h-4 w-4" />
-                      Clear
-                    </button>
-                  ) : null}
-
-                </div>
+          <div className="grid gap-4">
+            <div className="grid gap-3 border-b border-border pb-4" onKeyDown={event => { if (event.key === "Escape" && editor.editing) { event.stopPropagation(); editor.cancelEditing() } }}>
+              <div className="flex min-w-0 items-center justify-between gap-3">
+                <div className="min-w-0"><p className="truncate font-semibold">{user?.name || "Your profile"}</p><p className="truncate text-xs text-muted-foreground">{user?.username ? `@${user.username}` : ""}</p></div>
+                <button ref={editor.editButton} type="button" className="editor-command shrink-0" aria-label="Edit profile" aria-expanded={editor.editing} aria-controls="settings-profile-editor" disabled={!user || saveBusy || editor.saveBusy} onClick={() => editor.editing ? editor.cancelEditing() : editor.startEditing()}><UserRound className="h-4 w-4" />{editor.editing ? "Close" : "Edit"}</button>
               </div>
+              {editor.editing ? <ProfileIdentityEditor id="settings-profile-editor" editor={editor} /> : editor.status ? <p role="status" className="text-xs text-muted-foreground">{editor.status}</p> : null}
             </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <Field label="Name" value={name} onChange={setName} />
-              <Field label="Email" value={email} onChange={setEmail} />
-              <SelectField label="Profile visibility" value={profileVisibility} options={["private", "connections", "public"]} onChange={setProfileVisibility} />
-              <TextAreaField label="About" value={bio} onChange={(value) => setBio(value.slice(0, 800))} />
-            </div>
-            <details className="workspace-disclosure"><summary>Links</summary><div className="grid gap-3 pt-3 md:grid-cols-3">
-                <Field label="Facebook" value={facebookUrl} onChange={setFacebookUrl} />
-                <Field label="Website" value={websiteUrl} onChange={setWebsiteUrl} />
-                <Field label="Intro link" value={introUrl} onChange={setIntroUrl} />
-            </div></details>
-            <details className="workspace-disclosure"><summary>Account details</summary><div className="grid gap-3 pt-3 md:grid-cols-2">
+            <fieldset disabled={saveBusy} className="grid gap-3 md:grid-cols-2">
+                <Field label="Email" value={email} onChange={setEmail} />
                 <Field label="Daily goal minutes" value={String(dailyGoalMinutes)} onChange={(value) => setDailyGoalMinutes(normalizeSettingsNumber({ value, fallback: 45, min: 5, max: 240 }))} />
                 <Info label="Role" value={user?.role} />
-            </div></details>
-            <div className="settings-save"><ControlButton onClick={saveProfile} active disabled={saveBusy || !profileDirty}><Save className="h-4 w-4" />{saveBusy ? "Saving…" : "Save"}</ControlButton></div>
+            </fieldset>
           </div>
         </Panel>
       ) : null}
@@ -266,7 +248,7 @@ export function SettingsView({
             <SelectField label="Game mode" value={options.gameMode} options={["sprint", "matching", "memory"]} onChange={(value) => setOptions({ gameMode: value as WorkspaceOptions["gameMode"] })} />
             <SelectField label="Rest day" value={options.restDay} options={["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]} onChange={(value) => setOptions({ restDay: value as WorkspaceOptions["restDay"] })} />
             <Field label="Game question limit" value={String(options.gameQuestionLimit)} onChange={(value) => setOptions({ gameQuestionLimit: normalizeSettingsNumber({ value, fallback: 12, min: 3, max: 80 }) })} />
-            <Field label="Daily review cap" value={String(options.dailyReviewCap)} onChange={(value) => setOptions({ dailyReviewCap: normalizeSettingsNumber({ value, fallback: 30, min: 1, max: 120 }) })} />
+            <Field label="Daily review cap" value={String(options.dailyReviewCap)} onChange={(value) => setOptions({ dailyReviewCap: normalizeSettingsNumber({ value, fallback: 30, min: 0, max: 200 }) })} />
           </div>
           <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
             <Toggle label="Reveal quiz answers" checked={options.revealAnswers} onChange={(checked) => setOptions({ revealAnswers: checked })} />
@@ -308,6 +290,7 @@ export function SettingsView({
           </div></details>
         </Panel>
       ) : null}
+      <div className="settings-save"><ControlButton onClick={saveSettings} active disabled={!user || saveBusy || !settingsDirty}><Save className="h-4 w-4" />{saveBusy ? "Saving…" : "Save settings"}</ControlButton></div>
       </div>
     </div>
   )
@@ -322,12 +305,7 @@ function SettingsSectionHeader({ body, icon: Icon, title }: { body: string; icon
         </div>
         <h3 className="truncate text-lg font-semibold text-foreground">{title}</h3>
       </div>
-      <details className="relative">
-        <summary className="flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${title}`}>
-          <Filter className="h-4 w-4" />
-        </summary>
-        <p className="absolute right-0 top-10 z-[80] w-64 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">{body}</p>
-      </details>
+      <PopoverButton label={`About ${title}`} placement="bottom-end" width={256} buttonClassName="canvas-tool h-9 w-9 shrink-0" panel={() => <p className="max-w-60 text-sm leading-6">{body}</p>}><CircleHelp className="h-4 w-4" /></PopoverButton>
     </div>
   )
 }
@@ -363,10 +341,6 @@ function settingsTone(tone: "good" | "watch" | "neutral") {
   if (tone === "good") return "steady"
   if (tone === "watch") return "watch"
   return "neutral"
-}
-
-function preferenceString(value: unknown) {
-  return typeof value === "string" ? value : ""
 }
 
 export function AdminView({ user, adminData, automationData, options }: { user: User | null; adminData: AdminData | null; automationData: AutomationData | null; options: WorkspaceOptions }) {
@@ -502,15 +476,6 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
     <label className="block min-w-0">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
       <input value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none" />
-    </label>
-  )
-}
-
-function TextAreaField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  return (
-    <label className="block min-w-0">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <textarea value={value} onChange={(event) => onChange(event.target.value)} rows={3} className="mt-2 w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm leading-6 text-foreground outline-none" />
     </label>
   )
 }

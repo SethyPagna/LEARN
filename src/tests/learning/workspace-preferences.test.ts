@@ -78,6 +78,14 @@ test("workspace preference parser recovers from invalid saved JSON", () => {
   assert.deepEqual(parseStoredWorkspaceOptions(JSON.stringify(["bad"])), defaultWorkspaceOptions)
 })
 
+test("saved review settings retain a paused dose and the server maximum", () => {
+  for (const dailyReviewCap of [0, 200]) {
+    const restored = parseStoredWorkspaceOptions(serializeWorkspaceOptions({ dailyReviewCap, restDay: "monday" }))
+    assert.equal(restored.dailyReviewCap, dailyReviewCap)
+    assert.equal(restored.restDay, "monday")
+  }
+})
+
 test("workspace preference serializer writes normalized options", () => {
   const parsed = JSON.parse(serializeWorkspaceOptions({
     appAccent: "violet",

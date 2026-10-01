@@ -5,7 +5,8 @@ import { useTheme } from "next-themes"
 import { applyAppearanceOptions } from "@/lib/appearance"
 import { applyLocaleToDocument, readStoredLocale, writeStoredLocale } from "@/lib/i18n/locale-storage"
 import { getVocabulary, loadVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
-import { WORKSPACE_OPTIONS_KEY, defaultWorkspaceOptions, parseStoredWorkspaceOptions, serializeWorkspaceOptions, type Density, type WorkspaceOptions } from "@/lib/workspace-preferences"
+import { WORKSPACE_OPTIONS_KEY, defaultWorkspaceOptions, normalizeWorkspaceOptions, parseStoredWorkspaceOptions, serializeWorkspaceOptions, type Density, type WorkspaceOptions } from "@/lib/workspace-preferences"
+import type { User } from "./types"
 
 const DENSITY_KEY = "learn_density"
 
@@ -17,7 +18,7 @@ function getStoredValue(key: string) {
   try { return window.localStorage.getItem(key) || "" } catch { return "" }
 }
 
-export function useWorkspacePreferences() {
+export function useWorkspacePreferences(user: User | null = null) {
   const { setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [locale, setLocaleState] = useState<SupportedLocale>("en")
@@ -26,6 +27,7 @@ export function useWorkspacePreferences() {
   const [options, setOptionsState] = useState<WorkspaceOptions>(defaultWorkspaceOptions)
   const optionsRef = useRef<WorkspaceOptions>(defaultWorkspaceOptions)
   const unsavedOptions = useRef<Partial<WorkspaceOptions>>({})
+  const remoteHydratedUser = useRef<string | null>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -36,6 +38,26 @@ export function useWorkspacePreferences() {
     optionsRef.current = parseStoredWorkspaceOptions(storedOptions)
     setOptionsState(optionsRef.current)
   }, [])
+
+  useEffect(() => {
+    if (!mounted || !user || remoteHydratedUser.current === user.id) return
+    // A saved browser choice takes precedence, including edits made before the user loaded.
+    try { if (window.localStorage.getItem(WORKSPACE_OPTIONS_KEY) !== null) { remoteHydratedUser.current = user.id; return } }
+    catch { return }
+    const remote = { ...normalizeWorkspaceOptions(user.preferences.workspaceOptions) }
+    const scheduling = normalizeWorkspaceOptions(user.preferences)
+    const cap = user.preferences.dailyReviewCap
+    if (typeof cap === "number" && Number.isFinite(cap) && cap >= 0 && cap <= 200) remote.dailyReviewCap = scheduling.dailyReviewCap
+    if (typeof user.preferences.restDay === "string" && user.preferences.restDay === scheduling.restDay) remote.restDay = scheduling.restDay
+    const merged = { ...remote, ...unsavedOptions.current }
+    remoteHydratedUser.current = user.id
+    optionsRef.current = merged
+    setOptionsState(merged)
+    try {
+      window.localStorage.setItem(WORKSPACE_OPTIONS_KEY, serializeWorkspaceOptions(merged))
+      unsavedOptions.current = {}
+    } catch { /* Keep the hydrated options and any unsaved local edits in memory. */ }
+  }, [mounted, user])
 
   useEffect(() => {
     function onStorage(event: StorageEvent) {

@@ -125,7 +125,7 @@ export function normalizeWorkspaceOptions(value: unknown): WorkspaceOptions {
     reducedMotion: bool(value.reducedMotion, defaultWorkspaceOptions.reducedMotion),
     dyslexiaFriendly: bool(value.dyslexiaFriendly, defaultWorkspaceOptions.dyslexiaFriendly),
     privacyDefault: choice(value.privacyDefault, privacyDefaults, defaultWorkspaceOptions.privacyDefault),
-    dailyReviewCap: intRange(value.dailyReviewCap, 1, 200, defaultWorkspaceOptions.dailyReviewCap),
+    dailyReviewCap: intRange(value.dailyReviewCap, 0, 200, defaultWorkspaceOptions.dailyReviewCap),
     restDay: choice(value.restDay, restDays, defaultWorkspaceOptions.restDay),
     feedSerendipity: intRange(value.feedSerendipity, 0, 50, defaultWorkspaceOptions.feedSerendipity),
     notificationReviewReminders: bool(value.notificationReviewReminders, defaultWorkspaceOptions.notificationReviewReminders),

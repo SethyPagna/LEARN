@@ -3,9 +3,9 @@
 .hero { position: relative; overflow: hidden; padding: 24px; }
 .hero::before { position: absolute; content: ""; inset: 0 0 auto; height: 5px; background: linear-gradient(90deg, var(--decor-blue-ink), var(--decor-violet-ink), var(--decor-mint-ink)); }
 .identityRow { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; align-items: center; gap: 16px; min-width: 0; }
-.avatar, .draftAvatar { display: grid; place-items: center; flex-shrink: 0; border-radius: 50%; background: var(--primary); color: var(--primary-foreground); overflow: hidden; font-weight: 600; }
+.avatar { display: grid; place-items: center; flex-shrink: 0; border-radius: 50%; background: var(--primary); color: var(--primary-foreground); overflow: hidden; font-weight: 600; }
 .avatar { width: 76px; height: 76px; font-size: 28px; box-shadow: 0 0 0 5px var(--secondary); }
-.avatar img, .draftAvatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
 .identity { min-width: 0; }
 .identity h2 { font-size: clamp(22px, 2.5vw, 28px); line-height: 1.25; font-weight: 650; overflow-wrap: anywhere; }
 .identity > p { color: var(--muted-foreground); font-size: 13px; margin-top: 4px; overflow-wrap: anywhere; }
@@ -97,33 +97,16 @@ button.metric:hover { border-color: color-mix(in oklch, var(--metric-ink) 45%, v
 .empty { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 24px 12px; }
 .empty > svg { width: 35px; height: 35px; color: var(--decor-violet-ink); }
 .empty p { color: var(--muted-foreground); font-size: 12px; }
-.primaryButton, .secondaryButton, .uploadButton { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; border-radius: 9px; padding: 7px 12px; font-size: 12px; font-weight: 550; }
+.primaryButton, .secondaryButton { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; border-radius: 9px; padding: 7px 12px; font-size: 12px; font-weight: 550; }
 .primaryButton { color: var(--primary-foreground); background: var(--primary); }
-.secondaryButton, .uploadButton { background: var(--secondary); color: var(--foreground); }
-.primaryButton svg, .secondaryButton svg, .uploadButton svg { width: 14px; height: 14px; }
-.secondaryButton:hover, .uploadButton:hover { background: var(--accent); }
+.secondaryButton { background: var(--secondary); color: var(--foreground); }
+.primaryButton svg, .secondaryButton svg { width: 14px; height: 14px; }
+.secondaryButton:hover { background: var(--accent); }
 .primaryButton:hover { opacity: .9; }
 .status { color: var(--muted-foreground); font-size: 12px; line-height: 1.6; margin-top: 8px; overflow-wrap: anywhere; }
 .retryButton { min-height: 36px; margin-left: 8px; padding: 5px 8px; color: var(--foreground); text-decoration: underline; text-underline-offset: 3px; }
-.editForm { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
-.editForm fieldset { min-width: 0; }
-.avatarEditor { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
-.draftAvatar { width: 44px; height: 44px; font-size: 17px; }
-.uploadButton { cursor: pointer; }
-.uploadButton:focus-within { outline: 2px solid var(--ring); outline-offset: 2px; }
-.fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
-.fields label, .linkFields label { display: grid; gap: 6px; min-width: 0; font-size: 12px; color: var(--muted-foreground); }
-.fields input, .fields select, .fields textarea, .linkFields input { width: 100%; min-width: 0; border: 1px solid var(--border); border-radius: 9px; background: var(--background); color: var(--foreground); padding: 8px 10px; min-height: 36px; font-size: 12px; }
-.fields textarea { resize: vertical; }
-.bioField { grid-column: 1 / -1; }
-.linkEditor { margin-top: 12px; }
-.linkEditor summary { display: flex; align-items: center; gap: 6px; cursor: pointer; min-height: 36px; font-size: 12px; }
-.linkEditor summary svg { width: 12px; height: 12px; }
-.linkEditor[open] summary svg { transform: rotate(180deg); }
-.linkFields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 6px; }
-.formActions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .workspace button:focus-visible, .workspace a:focus-visible, .workspace summary:focus-visible, .workspace input:focus-visible, .workspace textarea:focus-visible, .workspace select:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-.workspace button:disabled, .editForm fieldset:disabled .uploadButton { cursor: default; opacity: .55; }
+.workspace button:disabled { cursor: default; opacity: .55; }
 @media (max-width: 760px) {
   .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .overview { grid-template-columns: minmax(0, 1fr); }
@@ -143,7 +126,6 @@ button.metric:hover { border-color: color-mix(in oklch, var(--metric-ink) 45%, v
   .metric > strong { font-size: 24px; }
   .metricLabel { font-size: 12px; }
   .panel { padding: 14px; }
-  .fields, .linkFields { grid-template-columns: minmax(0, 1fr); }
   .sections button { padding-inline: 10px; }
   .allBadges { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .badgeGrid { gap: 6px; }

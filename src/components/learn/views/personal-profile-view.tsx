@@ -1,28 +1,17 @@
 "use client"
 
-import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react"
-import { ArrowRight, Award, BookOpen, Camera, Check, ChevronDown, ChevronRight, Edit3, ExternalLink, Flame, FolderOpen, Globe, Lock, Network, Repeat2, ShieldCheck, Sparkles, Users, X, Zap, type LucideIcon } from "lucide-react"
+import { useEffect, useId, useRef, useState, type ReactNode } from "react"
+import { ArrowRight, Award, BookOpen, Check, ChevronDown, ChevronRight, Edit3, ExternalLink, Flame, FolderOpen, Globe, Lock, Network, Repeat2, ShieldCheck, Sparkles, Users, Zap, type LucideIcon } from "lucide-react"
 import { calculateLevelFromXp } from "@/lib/learning-ecosystem"
 import { buildProfileActionPlan, type ProfilePlanTarget } from "@/lib/profile-features"
+import { isProfileExternalLink as safeExternalLink, normalizeProfileVisibility as normalizeVisibility, profilePreferenceString as preferenceString, profileWithSavedIdentity as profileWithIdentity, type ProfileVisibility } from "@/lib/profile-identity"
 import { api } from "../api"
+import { ProfileIdentityEditor, useProfileIdentityEditor } from "../profile-identity-editor"
 import type { Achievement, KnowledgeNode, PublicProfile, User, View } from "../types"
 import styles from "./profile-workspace.module.css"
 
 type ProfileSection = "overview" | "shared" | "achievements"
-type ProfileVisibility = "private" | "connections" | "public"
 type BadgeFilter = "all" | "earned" | "next"
-type ProfileDraft = {
-  name: string
-  bio: string
-  avatarUrl: string
-  visibility: ProfileVisibility
-  introUrl: string
-  websiteUrl: string
-  facebookUrl: string
-}
-
-const MAX_AVATAR_BYTES = 256 * 1024
-const MAX_BIO_LENGTH = 800
 const badgeIcons: Record<string, LucideIcon> = { repeat: Repeat2, network: Network, sparkles: Sparkles }
 const visibilityIcons: Record<ProfileVisibility, LucideIcon> = { private: Lock, connections: Users, public: Globe }
 const visibilityLabels: Record<ProfileVisibility, string> = { private: "Private", connections: "Connections", public: "Public" }
@@ -43,18 +32,18 @@ export function OwnProfileView({ setView, user, onProfileSaved }: { setView?: (v
   const [achievements, setAchievements] = useState<Achievement[]>([])
   const [achievementStatus, setAchievementStatus] = useState("Loading")
   const [resourceRevision, setResourceRevision] = useState(0)
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState<ProfileDraft>(() => profileDraft(user))
-  const [saveBusy, setSaveBusy] = useState(false)
-  const [avatarBusy, setAvatarBusy] = useState(false)
-  const [saveStatus, setSaveStatus] = useState("")
-  const nameInput = useRef<HTMLInputElement>(null)
-  const avatarReader = useRef<FileReader | null>(null)
   const savedIdentity = useRef<User | null>(null)
   const identityRevision = useRef(0)
   const editFormId = useId()
+  const editor = useProfileIdentityEditor({ user: identity, profile, onSaved: saveIdentity })
+  const { editing, saveBusy, startEditing, cancelEditing } = editor
 
-  useEffect(() => { setIdentity(user) }, [user])
+  useEffect(() => {
+    setIdentity(user)
+    identityRevision.current += 1
+    savedIdentity.current = user
+    setProfile(current => current ? profileWithIdentity(current, user) : null)
+  }, [user])
   useEffect(() => {
     const controller = new AbortController()
     const requestedIdentityRevision = identityRevision.current
@@ -72,12 +61,6 @@ export function OwnProfileView({ setView, user, onProfileSaved }: { setView?: (v
       .catch(error => { if (!controller.signal.aborted) setAchievementStatus(error instanceof Error ? error.message : "Unable to load badges.") })
     return () => controller.abort()
   }, [user.username, resourceRevision])
-  useEffect(() => { if (editing) nameInput.current?.focus() }, [editing])
-  useEffect(() => () => {
-    const reader = avatarReader.current
-    avatarReader.current = null
-    reader?.abort()
-  }, [])
 
   const name = profile?.name || identity.name
   const bio = profile?.bio ?? identity.bio ?? ""
@@ -104,78 +87,19 @@ export function OwnProfileView({ setView, user, onProfileSaved }: { setView?: (v
     { label: "Facebook", href: profile?.social_links?.facebook || preferenceString(identity.preferences.facebookUrl) },
   ].filter(link => safeExternalLink(link.href))
 
-  function startEditing() {
-    if (editing) { nameInput.current?.focus(); return }
-    setDraft(profileDraft(identity, profile))
-    setSaveStatus("")
-    setEditing(true)
-  }
-
-  function cancelEditing() {
-    if (saveBusy) return
-    avatarReader.current?.abort()
-    avatarReader.current = null
-    setAvatarBusy(false)
-    setEditing(false)
-    setSaveStatus("")
-  }
-
-  function updateDraft<K extends keyof ProfileDraft>(field: K, value: ProfileDraft[K]) {
-    setDraft(current => ({ ...current, [field]: value }))
-  }
-
-  function selectAvatar(file?: File) {
-    if (!file) return
-    if (!file.type.startsWith("image/")) { setSaveStatus("Choose an image file."); return }
-    if (file.size > MAX_AVATAR_BYTES) { setSaveStatus("Use an avatar under 256 KB."); return }
-    const reader = new FileReader()
-    avatarReader.current = reader
-    setAvatarBusy(true)
-    reader.onload = () => {
-      if (typeof reader.result !== "string" || avatarReader.current !== reader) return
-      updateDraft("avatarUrl", reader.result)
-      setSaveStatus("")
-    }
-    reader.onerror = () => setSaveStatus("Unable to read that image.")
-    reader.onloadend = () => { if (avatarReader.current === reader) { avatarReader.current = null; setAvatarBusy(false) } }
-    reader.readAsDataURL(file)
-  }
-
-  async function saveProfile(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (saveBusy || avatarBusy || !draft.name.trim()) return
-    if ([draft.introUrl, draft.websiteUrl, draft.facebookUrl].some(value => value.trim() && !safeExternalLink(value.trim()))) {
-      setSaveStatus("Links need to start with https:// or http://.")
-      event.currentTarget.querySelector("details")?.setAttribute("open", "")
-      return
-    }
-    setSaveBusy(true)
-    setSaveStatus("")
-    try {
-      const { user: savedUser } = await api<{ user: User }>("/api/profile", {
-        method: "PUT",
-        body: JSON.stringify({
-          name: draft.name.trim(), bio: draft.bio, avatarUrl: draft.avatarUrl, profileVisibility: draft.visibility,
-          preferences: { introUrl: draft.introUrl.trim(), websiteUrl: draft.websiteUrl.trim(), facebookUrl: draft.facebookUrl.trim() },
-        }),
-      })
-      identityRevision.current += 1
-      savedIdentity.current = savedUser
-      setIdentity(savedUser)
-      setProfile(current => current ? profileWithIdentity(current, savedUser) : null)
-      onProfileSaved?.(savedUser)
-      setEditing(false)
-      setSaveStatus("Profile saved.")
-    } catch (error) {
-      setSaveStatus(error instanceof Error ? error.message : "Unable to save profile.")
-    } finally { setSaveBusy(false) }
+  function saveIdentity(savedUser: User) {
+    identityRevision.current += 1
+    savedIdentity.current = savedUser
+    setIdentity(savedUser)
+    setProfile(current => current ? profileWithIdentity(current, savedUser) : null)
+    onProfileSaved?.(savedUser)
   }
 
   function goTo(view: View) { setView?.(view) }
 
   return (
     <section className={styles.workspace} aria-label="Your profile">
-      <header className={styles.hero}>
+      <header className={styles.hero} onKeyDown={event => { if (editing && event.key === "Escape") cancelEditing() }}>
         <div className={styles.identityRow}>
           <ProfileAvatar name={name} url={avatarUrl} className={styles.avatar} />
           <div className={styles.identity}>
@@ -183,28 +107,12 @@ export function OwnProfileView({ setView, user, onProfileSaved }: { setView?: (v
             <p>@{identity.username}</p>
             <button type="button" className={styles.visibility} onClick={startEditing} disabled={saveBusy} aria-label={`Profile visibility: ${visibilityLabels[visibility]}. Edit profile`}><VisibilityIcon aria-hidden="true" />{visibilityLabels[visibility]}</button>
           </div>
-          <button type="button" className={styles.iconButton} aria-label="Edit profile" title="Edit profile" aria-expanded={editing} aria-controls={editFormId} onClick={() => editing ? cancelEditing() : startEditing()} disabled={saveBusy}><Edit3 aria-hidden="true" /></button>
+          <button ref={editor.editButton} type="button" className={styles.iconButton} aria-label="Edit profile" title="Edit profile" aria-expanded={editing} aria-controls={editFormId} onClick={() => editing ? cancelEditing() : startEditing()} disabled={saveBusy}><Edit3 aria-hidden="true" /></button>
         </div>
         {bio ? <p className={styles.bio}>{bio}</p> : !editing ? <button type="button" className={styles.addBio} onClick={startEditing}><Edit3 aria-hidden="true" />Add a little about you</button> : null}
         {links.length ? <div className={styles.links}>{links.map(link => <a key={link.label} href={link.href} target="_blank" rel="noreferrer">{link.label}<ExternalLink aria-hidden="true" /></a>)}</div> : null}
-        {editing ? <form id={editFormId} className={styles.editForm} onSubmit={event => void saveProfile(event)} onKeyDown={event => { if (event.key === "Escape") cancelEditing() }}>
-          <fieldset disabled={saveBusy || avatarBusy}>
-            <legend className="sr-only">Edit profile</legend>
-            <div className={styles.avatarEditor}>
-              <ProfileAvatar name={draft.name} url={draft.avatarUrl} className={styles.draftAvatar} />
-              <label className={styles.uploadButton}><Camera aria-hidden="true" /><span>Photo</span><input type="file" accept="image/*" className="sr-only" onChange={event => { selectAvatar(event.target.files?.[0]); event.target.value = "" }} /></label>
-              {draft.avatarUrl ? <button type="button" className={styles.iconButton} title="Remove photo" aria-label="Remove photo" onClick={() => updateDraft("avatarUrl", "")}><X aria-hidden="true" /></button> : null}
-            </div>
-            <div className={styles.fields}>
-              <label><span>Name</span><input ref={nameInput} autoComplete="name" required value={draft.name} onChange={event => updateDraft("name", event.target.value)} /></label>
-              <label><span>Visibility</span><select aria-label="Visibility" value={draft.visibility} onChange={event => updateDraft("visibility", normalizeVisibility(event.target.value))}><option value="private">Private</option><option value="connections">Connections</option><option value="public">Public</option></select></label>
-              <label className={styles.bioField}><span>About</span><textarea rows={3} maxLength={MAX_BIO_LENGTH} value={draft.bio} onChange={event => updateDraft("bio", event.target.value)} /></label>
-            </div>
-            <details className={styles.linkEditor}><summary>Links<ChevronDown aria-hidden="true" /></summary><div className={styles.linkFields}>{(["introUrl", "websiteUrl", "facebookUrl"] as const).map(field => <label key={field}><span>{field === "introUrl" ? "Intro" : field === "websiteUrl" ? "Website" : "Facebook"}</span><input type="url" placeholder="https://" value={draft[field]} onInvalid={event => event.currentTarget.closest("details")?.setAttribute("open", "")} onChange={event => updateDraft(field, event.target.value)} /></label>)}</div></details>
-          </fieldset>
-          <div className={styles.formActions}><button type="button" className={styles.secondaryButton} disabled={saveBusy} onClick={cancelEditing}>Cancel</button><button type="submit" className={styles.primaryButton} disabled={saveBusy || avatarBusy || !draft.name.trim()}>{saveBusy ? "Saving…" : "Save"}<Check aria-hidden="true" /></button></div>
-        </form> : null}
-        {saveStatus ? <p className={styles.status} role="status">{saveStatus}</p> : null}
+        {editing ? <ProfileIdentityEditor id={editFormId} editor={editor} /> : null}
+        {!editing && editor.status ? <p className={styles.status} role="status">{editor.status}</p> : null}
       </header>
 
       <div className={styles.metrics}>
@@ -286,17 +194,4 @@ function ProfileResourceStatus({ status, loadingLabel, onRetry }: { status: stri
   return <p role="status" className={styles.status}>{status === "Loading" ? loadingLabel : <>{status}<button type="button" className={styles.retryButton} onClick={onRetry}>Retry</button></>}</p>
 }
 
-function profileDraft(user: User, profile?: PublicProfile | null): ProfileDraft {
-  return { name: profile?.name ?? user.name, bio: profile?.bio ?? user.bio ?? "", avatarUrl: profile?.avatar_url ?? user.avatarUrl ?? "", visibility: normalizeVisibility(profile?.profile_visibility ?? user.profileVisibility), introUrl: profile?.social_links?.intro ?? preferenceString(user.preferences.introUrl), websiteUrl: profile?.social_links?.website ?? preferenceString(user.preferences.websiteUrl), facebookUrl: profile?.social_links?.facebook ?? preferenceString(user.preferences.facebookUrl) }
-}
-
-function profileWithIdentity(profile: PublicProfile, user: User): PublicProfile {
-  return { ...profile, name: user.name, bio: user.bio ?? "", avatar_url: user.avatarUrl ?? "", profile_visibility: user.profileVisibility, social_links: { intro: preferenceString(user.preferences.introUrl), website: preferenceString(user.preferences.websiteUrl), facebook: preferenceString(user.preferences.facebookUrl) } }
-}
-
-function normalizeVisibility(value: unknown): ProfileVisibility { return value === "public" || value === "connections" ? value : "private" }
-function preferenceString(value: unknown): string { return typeof value === "string" ? value : "" }
 function normalizedMastery(value: number): number { return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0 }
-function safeExternalLink(href: string): boolean {
-  try { return ["https:", "http:"].includes(new URL(href).protocol) } catch { return false }
-}
