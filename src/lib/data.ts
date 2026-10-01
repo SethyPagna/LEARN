@@ -3300,18 +3300,20 @@ export async function listReviewSchedule(user: User) {
   })
 }
 
+const MAX_REVIEW_CARD_CREATION_ITEMS = 40
+
 export async function createPracticeReviewItems(user: User, input: Record<string, unknown>) {
   await ensureDatabase()
   const cards = Array.isArray(input.items) ? input.items : []
+  if (cards.length > MAX_REVIEW_CARD_CREATION_ITEMS) {
+    throw new Error(`Save at most ${MAX_REVIEW_CARD_CREATION_ITEMS} review cards at a time.`)
+  }
   const dueAt = new Date().toISOString()
   const created = []
+  const statements: DatabaseStatement[] = []
 
-  // Deliberately left as a per-row loop rather than folded into `insertRows`.
-  // The conflict target is `(user_id, source_type, source_id)`, and `sourceId`
-  // comes straight from the request body with no de-duplication, so two cards
-  // in one call can collide on it. A multi-row upsert makes the winner among
-  // colliding rows engine-defined; the sequential form is unambiguously
-  // last-wins. Collapsing this would be a behaviour change, not an optimisation.
+  // Ordered statements retain the last-wins content update for duplicate IDs;
+  // D1 commits all card changes and the audit together.
   for (const card of cards) {
     if (!card || typeof card !== "object") continue
     const record = card as Record<string, unknown>
@@ -3322,25 +3324,38 @@ export async function createPracticeReviewItems(user: User, input: Record<string
     const title = String(record.title || "Practice mistake").slice(0, 160)
     const answer = String(record.answer || "").slice(0, 2000)
     const topic = String(record.topic || "General").slice(0, 80)
-    await query(
-      `INSERT INTO review_items (
+    // Resolve old random AI IDs inside the transaction, retaining their row
+    // identity and review logs even when simultaneous saves use a new pair ID.
+    const savedSourceId = sourceId.startsWith("ai:")
+      ? `COALESCE((SELECT source_id FROM review_items
+           WHERE user_id = $2 AND source_type = 'practice_mistake'
+             AND (source_id = $3 OR (source_id LIKE 'ai:%' AND prompt = $5 AND answer = $6))
+           ORDER BY CASE WHEN source_id = $3 THEN 0 ELSE 1 END,
+             review_count DESC, datetime(created_at) ASC, id ASC
+           LIMIT 1), $3)`
+      : "$3"
+    statements.push({
+      sql: `INSERT INTO review_items (
          id, user_id, source_type, source_id, title, prompt, answer, difficulty, stability, retrievability, due_at, metadata
        )
-       VALUES ($1, $2, 'practice_mistake', $3, $4, $5, $6, 0.7, 1.5, 0.55, $7, $8::jsonb)
+       VALUES ($1, $2, 'practice_mistake', ${savedSourceId}, $4, $5, $6, 0.7, 1.5, 0.55, $7, $8::jsonb)
        ON CONFLICT (user_id, source_type, source_id) DO UPDATE SET
          title = EXCLUDED.title,
          prompt = EXCLUDED.prompt,
          answer = EXCLUDED.answer,
-         due_at = EXCLUDED.due_at,
-         retrievability = 0.45,
          updated_at = now()`,
-      [id, user.id, sourceId, title, prompt, answer, dueAt, JSON.stringify({ topic, source: "practice" })],
-    )
+      params: [id, user.id, sourceId, title, prompt, answer, dueAt, JSON.stringify({ topic, source: "practice" })],
+    })
     created.push({ sourceId, title, topic })
   }
 
   if (created.length) {
-    await logAudit({ userId: user.id, action: "create", entity: "review_items", entityId: "practice_mistakes", details: { count: created.length } })
+    statements.push({
+      sql: `INSERT INTO audit_logs (id, user_id, action, entity, entity_id, details)
+            VALUES ($1, $2, 'create', 'review_items', 'practice_mistakes', $3::jsonb)`,
+      params: [createId("audit"), user.id, JSON.stringify({ count: created.length })],
+    })
+    await queryBatch(statements)
   }
   return { created, count: created.length }
 }
