@@ -1,6 +1,6 @@
 # Notes and Vault activities — 2026-10-01
 
-Status: verified in three focused code commits through `d1c748a`; evidence checkpoint and push receipt follow.
+Status: verified and pushed in four focused commits through `9721e2e`. [Exact-head GitHub CI passed](https://github.com/SethyPagna/LEARN/actions/runs/36807013394); this delivery receipt follows.
 
 Selecting a passage in Vault now offers the same compact quiz, cards, slides and chat tools as Studio. Whole-note AI actions share one Ask AI menu. Studio Ask AI uses the selected excerpt when one belongs to the active item. Source handoff waits for the outgoing editor's save guard before writing a preset.
 
@@ -18,6 +18,7 @@ Creating the same review cards again updates their content while preserving card
 - Final production build and four CSS checks pass. Compiled browser pass: **108/108**, at 1280/color, 390/light and 320/dark; zero page errors or unexpected writes, including identical-passage keyboard source switching. [Detailed results](2026-10-01-learning-workflow/results.json).
 - Checks include selected-only content, local destination flows, keyboard focus, source removal, cancellation, duplicate clicks, failed host retry, failed saves, draft round trips, refused storage writes, late AI insert/generation and capped HTML tails. Toolbar bounds and page widths are asserted.
 - All 20 code/test files match two SHA-256 reads and their committed Git bytes. [Code receipt](2026-10-01-learning-workflow/code-d1c748a-hashes.json). All seven copied browser evidence files match two original reads and two copy reads. [Evidence receipt](2026-10-01-learning-workflow/evidence-hashes.json). `git fsck --full` passes twice; existing unreachable recovery objects are preserved.
+- All 35 code/evidence/checkpoint files at `9721e2e` also match two working reads and committed Git bytes. [Checkpoint receipt](2026-10-01-learning-workflow/code-9721e2e-hashes.json). Local HEAD, two `ls-remote` reads and the independent GitHub commits API agree. No merge or deployment was performed.
 
 ## Pictures
 

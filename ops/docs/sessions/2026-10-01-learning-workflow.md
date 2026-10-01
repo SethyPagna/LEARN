@@ -3,10 +3,10 @@
 ## Resume here
 
 - Checkout: C:/Users/user/Downloads/Projects/LEARN, cleanup/stage-1. Verified delivered baseline7be05153a6d3bbf9648d3f1233aa05cf975165ca; exact-head CI36800450049 passed. Previous scoped goal is complete; [its receipt](2026-10-01-continuation.md) remains historical evidence.
-- New goal active: complete Notes/Vault → AI or local activities → saved Practice/Studio, compact contextual controls, original/draft preservation and tested focused pushes. Provider-dependent live verification stays separate.
+- Scoped implementation delivered: Notes/Vault → AI or local activities → saved Practice/Studio, compact contextual controls, source/draft preservation and tested focused pushes. Provider-dependent live verification stays separate.
 - Harness audit run run-de96f6d5-623f-4005-b741-fec0a60b7628 complete with confirmed source findings. Build run run-88449de5-189e-4f58-bd48-cddba8dc0860 active in learn/learning-workflow. Root/delegates explicitly loaded applicable modes and core/team workflow.
-- Current: three focused code commits0263fd6 (atomic card history), bef587e (AI draft/context), d1c748a (Vault/Studio contextual flows). Final type check,1355/1355suite, production build/4CSS and108/108browser checks all pass; no page errors or unexpected writes. All3contextual screenshots inspected. Browser/evidence/docs still uncommitted; push pending. Current compiled preview session90649 active. Node4096MB; one heavy job at a time.
-- Next: finish evidence checkpoint, verify changed files twice against committed Git bytes and fsck twice, push current branch, independently compare remote/local head and check exact-head CI. Preserve .wrangler/state; browser API traffic fully intercepted, no real data/provider writes.
+- Current: four focused commits0263fd6,bef587e,d1c748a,9721e2e pushed. Local9721e2e7d28e9f78f6fccb6328646ce0c2946437 matches two ls-remote reads and independent GitHub API. All35checkpoint files match two reads and committed blobs; fsck passes twice. Final type/suite1355/build/4CSS/browser108 all pass. Exact-head CI36807013394 passed. Delivery receipt is the only pending commit; preview60488/session90649 active. Node4096MB; one heavy job at a time.
+- Next: commit/push receipt, verify latest remote head/CI and close this goal/run. Continue the compact AI workspace design audit; source-specific review provenance and live-provider/social delivery remain explicit follow-ons. Preserve .wrangler/state; browser API traffic fully intercepted, no real data/provider writes.
 
 ## Requests and decisions
 
@@ -25,7 +25,7 @@
 | Confirmed fixes and appropriate tests | Done; full type/suite/build/CSS pass |
 | Responsive browser verification | Done;108/108 and inspected downscaled screenshots |
 | Focused code commits | Done;0263fd6,bef587e,d1c748a |
-| Evidence/integrity/push/CI | In progress |
+| Evidence/integrity/push/CI | Done through9721e2e; receipt commit follows |
 
 ## Checkpoint history
 
@@ -41,3 +41,5 @@
 - Final full type check passes. Final suite1355/1355 passes, zero failures/skips,53.9s. Preview59160 identity reverified before stopping. Final rebuild46517 active; no source edits planned unless final browser finds an actual defect.
 - Final production rebuild/type and4CSS pass; final compiled probe108/108 passes at1280/color390/light320/dark with no errors/unexpected mutations. Three focused code commits saved. Copied evidence/integrity/push next; source frozen.
 - Evidence saved in ops/docs/audits/2026-10-01-learning-workflow:7browser files each match two original/two copy SHA-256 reads;20code/test files atd1c748a match two working reads and committed Git blobs. git fsck --full exits0twice; existing unreachable recovery objects preserved. Browser source/evidence/docs checkpoint now prepared; push/independent remote comparison/CI next.
+- Four focused commits pushed through9721e2e; all35changed files match two SHA-256 reads and independent committed Git bytes, fsck exits0twice. Clean tree at push. Local head, two ls-remote reads and GitHub commits API independently agree; exact-head CI36807013394 in progress. No deployment/merge/provider calls performed.
+- Exact-head GitHub CI36807013394 passed (tests/typecheck/build). Four-commit source/evidence delivery verified. This final receipt commit follows; no source changes after final checks.

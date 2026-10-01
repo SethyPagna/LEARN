@@ -1,6 +1,6 @@
 # LEARN Comprehensive Improvement Progress
 
-Status: Shared editor, account/navigation and public demo delivered; Notes/Vault activity workflow verified through d1c748a, evidence/push in progress
+Status: Shared editor, account/navigation, public demo and Notes/Vault activity repairs delivered through9721e2e; exact-head CI passed
 Last updated: 2026-10-01
 Current owner: User and maintainer
 Current branch: cleanup/stage-1
