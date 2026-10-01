@@ -1,6 +1,6 @@
 # Compact AI workspace — 2026-10-01
 
-Status: **verified locally**, source committed through `849c68b`. Evidence commit, integrity verification, authorized push and CI are next.
+Status: **verified and pushed** through `a1ff56e` on `cleanup/stage-1`. [Exact-head CI passes](https://github.com/SethyPagna/LEARN/actions/runs/36810726142).
 
 ## Change
 
@@ -22,6 +22,8 @@ The compiled baseline at `8b938f8` reproduced the task-switch defect: an immedia
 - Independent source review found empty-string fallback and independently opened result menus. Both corrections were applied and re-reviewed. Source review does not establish rendered behavior.
 
 Root and independent rendered review inspected downscaled screenshots; Task discoverability and the lone phone Draft row were corrected and checked in the final browser matrix. Ten copied evidence files match two original reads and two copied reads. [Evidence hashes](2026-10-01-ai-workspace/evidence-hashes.json).
+
+Three focused commits delivered the tutor menus/recovery, phone layout and operational verification evidence. All 20 changed files at `a1ff56e` match two SHA-256 reads and committed Git bytes. [Code hashes](2026-10-01-ai-workspace/code-a1ff56e-hashes.json). `git fsck --full` passes twice; recovery objects were preserved. Local HEAD, two remote reads and the independent GitHub commit API agree. CI independently passes install, tests, type check and production build on that revision. This delivery receipt is the next documentation commit; no merge or manual deployment was performed.
 
 Raw local logs and probe artifacts: `.cache/design-review/ai-workspace-*` and `.cache/design-review/ai-workspace/`. Operational probe: `ops/scripts/test/ai-workspace-probe.ts`.
 
