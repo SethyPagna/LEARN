@@ -17,6 +17,10 @@ const API_ROOT = path.join(PROJECT_ROOT, "src", "app", "api")
  */
 const UNWIRED_ROUTES = new Map<string, string>([
   [
+    "/api/preferences",
+    "Published Settings clients still PUT here; retain compatibility while current Settings saves profile and preferences once through /api/profile",
+  ],
+  [
     "/api/notes/[id]/versions",
     "No UI restores a note version yet — Studio's History inspector says saved versions stay behind the record APIs until a restore flow ships",
   ],

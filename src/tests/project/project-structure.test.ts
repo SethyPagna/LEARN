@@ -10,6 +10,8 @@ const allowedRootFiles = new Set([
   ".gitignore",
   ".npmrc",
   "README.md",
+  // Explicitly loaded project binding for the user's shared recovery workflow.
+  "META-HARNESS.md",
   "components.json",
   "next-env.d.ts",
   "next.config.mjs",

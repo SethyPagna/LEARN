@@ -1,0 +1,926 @@
+{
+  "layoutsPassed": 48,
+  "interactionChecks": 76,
+  "reports": {
+    "layouts": {
+      "layouts": [
+        {
+          "name": "home",
+          "path": "/",
+          "width": 1440,
+          "expectedTheme": "color",
+          "status": 200,
+          "theme": "color",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Learn it.Make it yours.",
+            "Follow your curiosity.",
+            "One idea is enough."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "showcase",
+          "path": "/showcase",
+          "width": 1440,
+          "expectedTheme": "color",
+          "status": 200,
+          "theme": "color",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Find your flow.",
+            "A blank page. Endless possibilities."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "signin",
+          "path": "/login",
+          "width": 1440,
+          "expectedTheme": "color",
+          "status": 200,
+          "theme": "color",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Welcome back."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "request",
+          "path": "/login?mode=request",
+          "width": 1440,
+          "expectedTheme": "color",
+          "status": 200,
+          "theme": "color",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Start something good."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "invite-ready",
+          "path": "/invite/public-qa-ready",
+          "width": 1440,
+          "expectedTheme": "color",
+          "status": 200,
+          "theme": "color",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Make yourself at home."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "invite-expired",
+          "path": "/invite/public-qa-expired",
+          "width": 1440,
+          "expectedTheme": "color",
+          "status": 200,
+          "theme": "color",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Make yourself at home."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "home",
+          "path": "/",
+          "width": 768,
+          "expectedTheme": "color",
+          "status": 200,
+          "theme": "color",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Learn it.Make it yours.",
+            "Follow your curiosity.",
+            "One idea is enough."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "showcase",
+          "path": "/showcase",
+          "width": 768,
+          "expectedTheme": "color",
+          "status": 200,
+          "theme": "color",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Find your flow.",
+            "A blank page. Endless possibilities."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "home",
+          "path": "/",
+          "width": 390,
+          "expectedTheme": "color",
+          "status": 200,
+          "theme": "color",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Learn it.Make it yours.",
+            "Follow your curiosity.",
+            "One idea is enough."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "showcase",
+          "path": "/showcase",
+          "width": 390,
+          "expectedTheme": "color",
+          "status": 200,
+          "theme": "color",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Find your flow.",
+            "A blank page. Endless possibilities."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "signin",
+          "path": "/login",
+          "width": 390,
+          "expectedTheme": "color",
+          "status": 200,
+          "theme": "color",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Welcome back."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "request",
+          "path": "/login?mode=request",
+          "width": 390,
+          "expectedTheme": "color",
+          "status": 200,
+          "theme": "color",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Start something good."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "invite-ready",
+          "path": "/invite/public-qa-ready",
+          "width": 390,
+          "expectedTheme": "color",
+          "status": 200,
+          "theme": "color",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Make yourself at home."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "invite-expired",
+          "path": "/invite/public-qa-expired",
+          "width": 390,
+          "expectedTheme": "color",
+          "status": 200,
+          "theme": "color",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Make yourself at home."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "home",
+          "path": "/",
+          "width": 320,
+          "expectedTheme": "color",
+          "status": 200,
+          "theme": "color",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Learn it.Make it yours.",
+            "Follow your curiosity.",
+            "One idea is enough."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "showcase",
+          "path": "/showcase",
+          "width": 320,
+          "expectedTheme": "color",
+          "status": 200,
+          "theme": "color",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Find your flow.",
+            "A blank page. Endless possibilities."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "home",
+          "path": "/",
+          "width": 1440,
+          "expectedTheme": "light",
+          "status": 200,
+          "theme": "light",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Learn it.Make it yours.",
+            "Follow your curiosity.",
+            "One idea is enough."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "showcase",
+          "path": "/showcase",
+          "width": 1440,
+          "expectedTheme": "light",
+          "status": 200,
+          "theme": "light",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Find your flow.",
+            "A blank page. Endless possibilities."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "signin",
+          "path": "/login",
+          "width": 1440,
+          "expectedTheme": "light",
+          "status": 200,
+          "theme": "light",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Welcome back."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "request",
+          "path": "/login?mode=request",
+          "width": 1440,
+          "expectedTheme": "light",
+          "status": 200,
+          "theme": "light",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Start something good."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "invite-ready",
+          "path": "/invite/public-qa-ready",
+          "width": 1440,
+          "expectedTheme": "light",
+          "status": 200,
+          "theme": "light",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Make yourself at home."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "invite-expired",
+          "path": "/invite/public-qa-expired",
+          "width": 1440,
+          "expectedTheme": "light",
+          "status": 200,
+          "theme": "light",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Make yourself at home."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "home",
+          "path": "/",
+          "width": 768,
+          "expectedTheme": "light",
+          "status": 200,
+          "theme": "light",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Learn it.Make it yours.",
+            "Follow your curiosity.",
+            "One idea is enough."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "showcase",
+          "path": "/showcase",
+          "width": 768,
+          "expectedTheme": "light",
+          "status": 200,
+          "theme": "light",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Find your flow.",
+            "A blank page. Endless possibilities."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "home",
+          "path": "/",
+          "width": 390,
+          "expectedTheme": "light",
+          "status": 200,
+          "theme": "light",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Learn it.Make it yours.",
+            "Follow your curiosity.",
+            "One idea is enough."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "showcase",
+          "path": "/showcase",
+          "width": 390,
+          "expectedTheme": "light",
+          "status": 200,
+          "theme": "light",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Find your flow.",
+            "A blank page. Endless possibilities."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "signin",
+          "path": "/login",
+          "width": 390,
+          "expectedTheme": "light",
+          "status": 200,
+          "theme": "light",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Welcome back."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "request",
+          "path": "/login?mode=request",
+          "width": 390,
+          "expectedTheme": "light",
+          "status": 200,
+          "theme": "light",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Start something good."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "invite-ready",
+          "path": "/invite/public-qa-ready",
+          "width": 390,
+          "expectedTheme": "light",
+          "status": 200,
+          "theme": "light",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Make yourself at home."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "invite-expired",
+          "path": "/invite/public-qa-expired",
+          "width": 390,
+          "expectedTheme": "light",
+          "status": 200,
+          "theme": "light",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Make yourself at home."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "home",
+          "path": "/",
+          "width": 320,
+          "expectedTheme": "light",
+          "status": 200,
+          "theme": "light",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Learn it.Make it yours.",
+            "Follow your curiosity.",
+            "One idea is enough."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "showcase",
+          "path": "/showcase",
+          "width": 320,
+          "expectedTheme": "light",
+          "status": 200,
+          "theme": "light",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Find your flow.",
+            "A blank page. Endless possibilities."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "home",
+          "path": "/",
+          "width": 1440,
+          "expectedTheme": "dark",
+          "status": 200,
+          "theme": "dark",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Learn it.Make it yours.",
+            "Follow your curiosity.",
+            "One idea is enough."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "showcase",
+          "path": "/showcase",
+          "width": 1440,
+          "expectedTheme": "dark",
+          "status": 200,
+          "theme": "dark",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Find your flow.",
+            "A blank page. Endless possibilities."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "signin",
+          "path": "/login",
+          "width": 1440,
+          "expectedTheme": "dark",
+          "status": 200,
+          "theme": "dark",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Welcome back."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "request",
+          "path": "/login?mode=request",
+          "width": 1440,
+          "expectedTheme": "dark",
+          "status": 200,
+          "theme": "dark",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Start something good."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "invite-ready",
+          "path": "/invite/public-qa-ready",
+          "width": 1440,
+          "expectedTheme": "dark",
+          "status": 200,
+          "theme": "dark",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Make yourself at home."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "invite-expired",
+          "path": "/invite/public-qa-expired",
+          "width": 1440,
+          "expectedTheme": "dark",
+          "status": 200,
+          "theme": "dark",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Make yourself at home."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "home",
+          "path": "/",
+          "width": 768,
+          "expectedTheme": "dark",
+          "status": 200,
+          "theme": "dark",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Learn it.Make it yours.",
+            "Follow your curiosity.",
+            "One idea is enough."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "showcase",
+          "path": "/showcase",
+          "width": 768,
+          "expectedTheme": "dark",
+          "status": 200,
+          "theme": "dark",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Find your flow.",
+            "A blank page. Endless possibilities."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "home",
+          "path": "/",
+          "width": 390,
+          "expectedTheme": "dark",
+          "status": 200,
+          "theme": "dark",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Learn it.Make it yours.",
+            "Follow your curiosity.",
+            "One idea is enough."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "showcase",
+          "path": "/showcase",
+          "width": 390,
+          "expectedTheme": "dark",
+          "status": 200,
+          "theme": "dark",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Find your flow.",
+            "A blank page. Endless possibilities."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "signin",
+          "path": "/login",
+          "width": 390,
+          "expectedTheme": "dark",
+          "status": 200,
+          "theme": "dark",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Welcome back."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "request",
+          "path": "/login?mode=request",
+          "width": 390,
+          "expectedTheme": "dark",
+          "status": 200,
+          "theme": "dark",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Start something good."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "invite-ready",
+          "path": "/invite/public-qa-ready",
+          "width": 390,
+          "expectedTheme": "dark",
+          "status": 200,
+          "theme": "dark",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Make yourself at home."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "invite-expired",
+          "path": "/invite/public-qa-expired",
+          "width": 390,
+          "expectedTheme": "dark",
+          "status": 200,
+          "theme": "dark",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Make yourself at home."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "home",
+          "path": "/",
+          "width": 320,
+          "expectedTheme": "dark",
+          "status": 200,
+          "theme": "dark",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Learn it.Make it yours.",
+            "Follow your curiosity.",
+            "One idea is enough."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        },
+        {
+          "name": "showcase",
+          "path": "/showcase",
+          "width": 320,
+          "expectedTheme": "dark",
+          "status": 200,
+          "theme": "dark",
+          "overflow": 0,
+          "mainLandmarks": 1,
+          "headings": [
+            "Find your flow.",
+            "A blank page. Endless possibilities."
+          ],
+          "unnamed": [],
+          "clippedLabels": []
+        }
+      ],
+      "pageErrors": [],
+      "failures": [],
+      "passed": 48
+    },
+    "explore": {
+      "checks": [
+        "Home Studio card links to its matching interactive tour",
+        "Home Practice card links to its matching interactive tour",
+        "Home Calendar card links to its matching interactive tour",
+        "Home primary CTA opens request access",
+        "Get started reaches the actual access form",
+        "Editable Studio demo leads to the workspace",
+        "Studio demo updates its actual page color",
+        "Public page edit is undoable",
+        "Home preview tabs support arrow keys",
+        "Practice example provides helpful feedback for an incorrect answer",
+        "Practice example recognizes the correct answer",
+        "Calendar example changes the active day and event",
+        "Public theme control changes the rendered theme",
+        "Public theme choice survives reload",
+        "Product tour exposes five visual examples",
+        "Tour tabs support End-key navigation",
+        "Tour tabs support Home-key navigation",
+        "Tutor example expands in place without an AI request",
+        "Tutor example collapses again",
+        "Home path deep link selects the Create tour",
+        "Home path deep link selects the Practice tour",
+        "Home path deep link selects the Plan tour",
+        "Unknown tour deep links safely use Create",
+        "Phone tour can select Create",
+        "Phone Create scene stays within the document width",
+        "Phone tour can select Understand",
+        "Phone Understand scene stays within the document width",
+        "Phone tour can select Practice",
+        "Phone Practice scene stays within the document width",
+        "Phone tour can select Plan",
+        "Phone Plan scene stays within the document width",
+        "Phone tour can select Connect",
+        "Phone Connect scene stays within the document width",
+        "Expanded tutor sample remains readable at 320px",
+        "Expanded tutor sample remains readable at 390px",
+        "Legacy intro routes into the redesigned tour",
+        "Reduced motion disables preview scene animation"
+      ],
+      "pageErrors": [],
+      "externalRequests": []
+    },
+    "auth": {
+      "checks": [
+        "Sign in requires credentials",
+        "Password visibility is explicit",
+        "Password visibility can be restored",
+        "Pending login disables duplicate submission",
+        "Failed login preserves username",
+        "Failed login preserves password for correction",
+        "Transport error returns login to a retryable state",
+        "Rate-limit feedback remains visible without a stuck pending state",
+        "Forgot password explains the actual admin reset workflow",
+        "Switching to access request closes password help",
+        "Access-mode switch updates the URL",
+        "Direct request-access URL opens the form with validation enabled",
+        "Access request rejects an invalid email before submission",
+        "Visual role choices remain accessible radio inputs",
+        "Failed access request preserves the learning goal",
+        "Access-request rate limits remain retryable",
+        "Pending access request prevents duplicate sends",
+        "Pending access request locks the submitted details",
+        "Successful request shows honest admin-review confirmation",
+        "Successful request identifies the submitted email",
+        "Confirmation returns to sign in cleanly",
+        "Successful login preserves a safe in-app return path",
+        "Successful login rejects an external redirect"
+      ],
+      "requests": [
+        {
+          "endpoint": "auth/login",
+          "method": "POST"
+        },
+        {
+          "endpoint": "auth/login",
+          "method": "POST"
+        },
+        {
+          "endpoint": "auth/login",
+          "method": "POST"
+        },
+        {
+          "endpoint": "auth/signup-request",
+          "method": "POST"
+        },
+        {
+          "endpoint": "auth/signup-request",
+          "method": "POST"
+        },
+        {
+          "endpoint": "auth/signup-request",
+          "method": "POST"
+        },
+        {
+          "endpoint": "auth/login",
+          "method": "POST"
+        },
+        {
+          "endpoint": "auth/login",
+          "method": "POST"
+        }
+      ],
+      "pageErrors": []
+    },
+    "invites": {
+      "checks": [
+        "Invalid invitation does not expose account-creation fields",
+        "Invalid invite leads to the actual request-access form",
+        "Rate-limited invite lookup offers Retry instead of treating the token as invalid",
+        "Invite lookup connection failure exposes Retry",
+        "Verified invite email is visible and cannot be edited",
+        "Invite requires a name and valid password",
+        "Invite rejects a short password before submission",
+        "Invite supports password visibility",
+        "Invite submission binds the verified email and current token",
+        "Failed invite submission preserves form details for retry",
+        "Invite submission binds the verified email and current token",
+        "Rejected invite response returns the form to a usable state",
+        "Invite submission binds the verified email and current token",
+        "Pending account creation disables duplicate submission",
+        "Pending account creation locks the submitted details",
+        "Accepted invitation opens onboarding"
+      ],
+      "requests": [
+        {
+          "method": "GET",
+          "mode": "invalid"
+        },
+        {
+          "method": "GET",
+          "mode": "rate-limit"
+        },
+        {
+          "method": "GET",
+          "mode": "offline"
+        },
+        {
+          "method": "GET",
+          "mode": "ready"
+        },
+        {
+          "method": "POST",
+          "mode": "offline"
+        },
+        {
+          "method": "POST",
+          "mode": "rejected"
+        },
+        {
+          "method": "POST",
+          "mode": "success"
+        }
+      ],
+      "pageErrors": []
+    }
+  },
+  "blockedWrites": []
+}

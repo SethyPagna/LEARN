@@ -1,0 +1,60 @@
+{
+  "method": "Two SHA-256 reads of each original and each copied file; originals preserved",
+  "files": [
+    {
+      "file": "takeover-ui-results.json",
+      "sha256": "09f42b8e9f4fe2fc8060faf1676a4cd45238ee268b9b9ec29324cd18e9ee282b",
+      "bytes": 1469
+    },
+    {
+      "file": "public-results.json",
+      "sha256": "aba6b0a09ecd734a9da4505fb4a19c450a03650c929da338cfa89b179798dfeb",
+      "bytes": 25838
+    },
+    {
+      "file": "demo-results.json",
+      "sha256": "2b398b6b013f2f306ad2370b1cd7200873eda4acb881965d7df86fef7a8430d2",
+      "bytes": 8252
+    },
+    {
+      "file": "results.json",
+      "sha256": "b50f51ea0681d6032d56d1695e46cda6921139c66a5f1df966735d7503d5d2bd",
+      "bytes": 6164
+    },
+    {
+      "file": "account-edit-1280-color.jpg",
+      "sha256": "947d6d2b5c0987ad89d9564d24b9e7932ad9ae87fd0b54703f0c6d800bbac705",
+      "bytes": 21130
+    },
+    {
+      "file": "account-edit-390-light.jpg",
+      "sha256": "ccaa95063c23ccfe2535a2d6ed33cc8331aae686442520b2a70976355024d30d",
+      "bytes": 24084
+    },
+    {
+      "file": "account-320-dark.jpg",
+      "sha256": "4a9e7aa0c3b947bd76b101031d4245a0e7531afe96a454ae470b7b597f01ad0b",
+      "bytes": 22915
+    },
+    {
+      "file": "profile-320-dark.jpg",
+      "sha256": "cff2e43960cc6cc322bdf796bc2116f9b29c11708484ef678b51dbbfd4c965fd",
+      "bytes": 19641
+    },
+    {
+      "file": "demo-1280-color.jpg",
+      "sha256": "0bcd6c5dd34b19f8b282c518967adced89f8180bd091dbc30268ed8dbefb49ff",
+      "bytes": 33641
+    },
+    {
+      "file": "demo-390-light.jpg",
+      "sha256": "6d22de801800d93ae043330eceec5aa4d7e0319449bd5cbe63b68409a22cae1c",
+      "bytes": 26314
+    },
+    {
+      "file": "demo-320-dark.jpg",
+      "sha256": "198ce85e7e1df6c00be20fa1a3e91cbabd63691459ba960b30f54d607d26a275",
+      "bytes": 24187
+    }
+  ]
+}
