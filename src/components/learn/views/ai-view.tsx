@@ -5,6 +5,7 @@ import { Bot, Brain, CheckCircle2, CheckSquare, ChevronDown, Copy, FileText, Gau
 import type { WorkspaceOptions } from "../preferences"
 import type { Note, Quiz, StudioInsertTarget, View } from "../types"
 import { api } from "../api"
+import { useEditorExitGuard } from "../editor-navigation"
 import { AiBlockRenderer } from "../ai-block-renderer"
 import { ControlButton, Panel, StatusPill } from "../ui"
 import { VoiceInput } from "../voice-input"
@@ -15,7 +16,7 @@ import { buildGuidedPrompt, listInsertActions, normalizeStudioInsertTarget, prom
 import { buildInsertBackPayload } from "@/lib/ai/insert-back"
 import { assessmentOutputInstruction } from "@/lib/ai/assessment-output"
 import { workflowOutputInstruction } from "@/lib/ai/workflow-destinations"
-import { AI_TUTOR_DRAFT_KEY, parseStoredAiTutorDraft, parseStoredAiTutorLaunchPreset, type AiTutorDraft } from "@/lib/ai/tutor-drafts"
+import { AI_TUTOR_DRAFT_KEY, archiveAiTutorDraft, parseStoredAiTutorDraft, parseStoredAiTutorLaunchPreset, persistAiTutorDraft, readPreviousAiTutorDraft, type AiTutorDraft } from "@/lib/ai/tutor-drafts"
 import {
   aiTutorDifficulties,
   aiTutorLanguages,
@@ -80,6 +81,7 @@ type AiTutorChatResponse = {
 }
 
 export function AiTutorView({
+  userId,
   notes,
   options,
   setNotes,
@@ -87,6 +89,7 @@ export function AiTutorView({
   setOptions,
   setView,
 }: {
+  userId?: string
   notes: Note[]
   options: WorkspaceOptions
   setNotes?: (updater: (current: Note[]) => Note[]) => void
@@ -127,6 +130,82 @@ export function AiTutorView({
   const [sidePanel, setSidePanel] = useState<"gateway" | "import" | "presets">("gateway")
   const draftHydrated = useRef(false)
   const draftStatusTimer = useRef<number | null>(null)
+  const latestDraft = useRef<AiTutorDraft | null>(null)
+  const aiMounted = useRef(false)
+  const insertPending = useRef(false)
+  const generationPending = useRef(false)
+  const importPending = useRef(false)
+  const currentContext = useRef("")
+  const currentReply = useRef(reply)
+  const currentOwner = useRef(userId)
+  currentOwner.current = userId
+  currentReply.current = reply
+  const [insertBusy, setInsertBusy] = useState(false)
+  const [previousDraft, setPreviousDraft] = useState<AiTutorDraft | null>(null)
+  if (draftHydrated.current) latestDraft.current = {
+    message, reply, importText, importTitle, importTarget, lastImport, lastImportText,
+    sourceScope, sourceTitle, sourceContent, difficulty, tone, outputLength, language,
+    providerFamily, insertTarget, targetAudience, requiredOutput, activeTaskKey,
+    updatedAt: new Date().toISOString(),
+  }
+
+  function flushDraft(announce = true) {
+    if (!latestDraft.current) return true
+    try {
+      persistAiTutorDraft(window.localStorage, latestDraft.current)
+      if (announce) setDraftStatus("Draft saved")
+      return true
+    } catch {
+      if (announce) setDraftStatus("Browser storage is unavailable. Keep this page open to preserve your draft.")
+      return false
+    }
+  }
+
+  useEditorExitGuard(async () => flushDraft())
+
+  useEffect(() => {
+    aiMounted.current = true
+    const flush = () => flushDraft()
+    window.addEventListener("pagehide", flush)
+    return () => { aiMounted.current = false; window.removeEventListener("pagehide", flush); flushDraft(false) }
+  }, [])
+
+  function applyDraft(draft: AiTutorDraft) {
+    setMessage(draft.message || DEFAULT_AI_MESSAGE)
+    setReply(draft.reply || "")
+    setSourceTitle(draft.sourceTitle || "")
+    setSourceContent(draft.sourceContent || "")
+    setImportText(draft.importText || "")
+    setImportTitle(draft.importTitle || "")
+    setImportTarget(normalizeImportTargetSelection(draft.importTarget))
+    setLastImport(draft.lastImport || null)
+    setLastImportText(draft.lastImportText || "")
+    setSourceScope(normalizeChoice(draft.sourceScope, aiTutorSourceScopes, aiTutorSourceScopes[0]))
+    setDifficulty(normalizeChoice(draft.difficulty, aiTutorDifficulties, aiTutorDifficulties[0]))
+    setTone(normalizeChoice(draft.tone, aiTutorTones, aiTutorTones[0]))
+    setOutputLength(normalizeChoice(draft.outputLength, aiTutorOutputLengths, aiTutorOutputLengths[1]))
+    setLanguage(normalizeChoice(draft.language, aiTutorLanguages, aiTutorLanguages[0]))
+    setProviderFamily(draft.providerFamily || "auto")
+    setInsertTarget(normalizeStudioInsertTarget(draft.insertTarget))
+    setTargetAudience(draft.targetAudience || "Self-directed learner")
+    setRequiredOutput(draft.requiredOutput || "Clear sections, compact examples, and one next action.")
+    const task = getAiTutorModeOption(draft.activeTaskKey)
+    setActiveTaskKey(task.id)
+    setModeGroup(getAiTutorModeGroupForTask(task.id))
+  }
+
+  function restorePreviousDraft() {
+    if (!previousDraft || insertPending.current || generationPending.current || importPending.current || !latestDraft.current) return
+    try {
+      const outgoing = latestDraft.current
+      archiveAiTutorDraft(window.localStorage, outgoing)
+      persistAiTutorDraft(window.localStorage, previousDraft)
+      applyDraft(previousDraft)
+      latestDraft.current = previousDraft
+      setPreviousDraft(outgoing)
+      setActionStatus("Previous draft restored. Your outgoing draft is also preserved.")
+    } catch { setDraftStatus("The previous draft could not be restored. Your current draft is still here.") }
+  }
 
   const activeMode = useMemo(() => getAiTutorModeOption(activeTaskKey), [activeTaskKey])
   const recentContext = useMemo(() => notes.slice(0, 5).map((note) => `${note.title}: ${note.content}`).join("\n\n"), [notes])
@@ -224,6 +303,13 @@ export function AiTutorView({
     [catalog],
   )
 
+  currentContext.current = JSON.stringify({
+    task: activeMode.id, message, prompt: promptBuild.user, system: promptBuild.system,
+    sourceContext, sourceScope, sourceTitle, sourceContent, importText, importTitle, importTarget, lastImportText,
+    targetAudience, requiredOutput, difficulty, tone, outputLength, language, providerFamily, insertTarget,
+    temperature: options.aiTemperature, maxTokens: effectiveMaxTokens, slidesAspect: options.slidesAspect,
+  })
+
   useEffect(() => {
     if (!availableInsertTargets.includes(insertTarget)) setInsertTarget(availableInsertTargets[0] || "ai-note")
   }, [availableInsertTargets, insertTarget])
@@ -238,32 +324,19 @@ export function AiTutorView({
       draftStatusTimer.current = null
     }
     if (draftHydrated.current) return clearDraftStatus
-    const launch = readAiTutorLaunchPreset()
-    const draft = launch ? null : readAiTutorDraft()
-    if (draft) {
-      setMessage(draft.message || DEFAULT_AI_MESSAGE)
-      setReply(draft.reply || "")
-      setSourceTitle(draft.sourceTitle || "")
-      setSourceContent(draft.sourceContent || "")
-      setImportText(draft.importText || "")
-      setImportTitle(draft.importTitle || "")
-      setImportTarget(normalizeImportTargetSelection(draft.importTarget))
-      setLastImport(draft.lastImport || null)
-      setLastImportText(draft.lastImportText || "")
-      setSourceScope(normalizeChoice(draft.sourceScope, aiTutorSourceScopes, aiTutorSourceScopes[0]))
-      setDifficulty(normalizeChoice(draft.difficulty, aiTutorDifficulties, aiTutorDifficulties[0]))
-      setTone(normalizeChoice(draft.tone, aiTutorTones, aiTutorTones[0]))
-      setOutputLength(normalizeChoice(draft.outputLength, aiTutorOutputLengths, aiTutorOutputLengths[1]))
-      setLanguage(normalizeChoice(draft.language, aiTutorLanguages, aiTutorLanguages[0]))
-      setProviderFamily(draft.providerFamily || "auto")
-      setInsertTarget(normalizeStudioInsertTarget(draft.insertTarget))
-      setTargetAudience(draft.targetAudience || "Self-directed learner")
-      setRequiredOutput(draft.requiredOutput || "Clear sections, compact examples, and one next action.")
-      const restoredTask = getAiTutorModeOption(draft.activeTaskKey)
-      if (restoredTask.id === draft.activeTaskKey) {
-        setActiveTaskKey(restoredTask.id)
-        setModeGroup(getAiTutorModeGroupForTask(restoredTask.id))
-      }
+    let launch: AiTutorLaunchPreset | null = null
+    let draft: AiTutorDraft | null = null
+    try {
+      launch = readAiTutorLaunchPreset()
+      draft = readAiTutorDraft()
+      if (launch && draft) archiveAiTutorDraft(window.localStorage, draft)
+      setPreviousDraft(launch ? draft || readPreviousAiTutorDraft(window.localStorage) : readPreviousAiTutorDraft(window.localStorage, draft))
+    } catch {
+      launch = null
+      setDraftStatus("The new source could not replace your saved draft safely. Check browser storage and try again.")
+    }
+    if (draft && !launch) {
+      applyDraft(draft)
     } else if (launch) {
       const restoredTask = getAiTutorModeOption(launch.activeTaskKey)
       setMessage(launch.message || DEFAULT_AI_MESSAGE)
@@ -277,40 +350,17 @@ export function AiTutorView({
       setModeGroup(launch.modeGroup || getAiTutorModeGroupForTask(restoredTask.id))
       setOptions({ aiMode: restoredTask.mode as WorkspaceOptions["aiMode"], aiMaxTokens: getRecommendedAiTutorTokens(launch.outputLength) })
       setActionStatus(launch.status)
-      clearAiTutorLaunchPreset()
+      try { clearAiTutorLaunchPreset() }
+      catch { setDraftStatus("The source opened, but browser storage could not clear its handoff.") }
     }
     draftHydrated.current = true
     return clearDraftStatus
   }, [])
 
   useEffect(() => {
-    if (!draftHydrated.current) return
+    if (!draftHydrated.current || !latestDraft.current) return
     const timeout = window.setTimeout(() => {
-      writeAiTutorDraft({
-        message,
-        reply,
-        importText,
-        importTitle,
-        importTarget,
-        lastImport,
-        lastImportText,
-        sourceScope,
-        sourceTitle,
-        sourceContent,
-        difficulty,
-        tone,
-        outputLength,
-        language,
-        providerFamily,
-        insertTarget,
-        targetAudience,
-        requiredOutput,
-        activeTaskKey,
-        updatedAt: new Date().toISOString(),
-      })
-      setDraftStatus("Draft saved")
-      if (draftStatusTimer.current) window.clearTimeout(draftStatusTimer.current)
-      draftStatusTimer.current = window.setTimeout(() => setDraftStatus(""), 1400)
+      flushDraft()
     }, 500)
     return () => window.clearTimeout(timeout)
   }, [activeTaskKey, difficulty, importTarget, importText, importTitle, insertTarget, language, lastImport, lastImportText, message, outputLength, providerFamily, reply, sourceScope, sourceTitle, sourceContent, targetAudience, requiredOutput, tone])
@@ -336,11 +386,12 @@ export function AiTutorView({
     setRequiredOutput("Clear sections, compact examples, and one next action.")
     setActiveTaskKey(aiTutorModeOptions[0].id)
     setModeGroup("tutor")
-    clearAiTutorDraft()
-    setDraftStatus("Draft reset")
+    try { clearAiTutorDraft(); setDraftStatus("Draft reset") }
+    catch { setDraftStatus("Draft reset here. Browser storage could not remove its saved copy.") }
   }
 
   async function ask() {
+    if (generationPending.current || insertPending.current || importPending.current) return
     if (sourceScope === "Active Studio item" && !sourceContent.trim()) {
       setActionStatus("Open Ask AI from a Studio item or Vault note first, or choose another source.")
       return
@@ -349,6 +400,9 @@ export function AiTutorView({
       setActionStatus(`Missing: ${promptBuild.missing.join(", ")}`)
       return
     }
+    generationPending.current = true
+    const owner = userId
+    const context = currentContext.current
     setLoading(true)
     setReply("")
     setActionStatus("")
@@ -375,6 +429,7 @@ export function AiTutorView({
           provider: providerFamily,
         }),
       })
+      if (!aiMounted.current || currentOwner.current !== owner || currentContext.current !== context) return
       if (response.status !== "ok") {
         setActionStatus(response.text || "The tutor could not produce a result. Check the provider setup.")
         setSidePanel("gateway")
@@ -384,9 +439,10 @@ export function AiTutorView({
       setReply(response.text)
       setActionStatus(`Generated with ${response.provider || "configured provider"}${response.model ? ` · ${response.model}` : ""}.`)
     } catch (error) {
-      setActionStatus(error instanceof Error ? error.message : "The tutor request failed. Try again.")
+      if (aiMounted.current && currentOwner.current === owner && currentContext.current === context) setActionStatus(error instanceof Error ? error.message : "The tutor request failed. Try again.")
     } finally {
-      setLoading(false)
+      generationPending.current = false
+      if (aiMounted.current) setLoading(false)
     }
   }
 
@@ -422,13 +478,19 @@ export function AiTutorView({
   }
 
   async function insertReply(target: StudioInsertTarget) {
-    if (!reply.trim()) return
+    if (!reply.trim() || insertPending.current || generationPending.current || importPending.current) return
+    const submittedReply = reply
+    const owner = userId
+    const context = currentContext.current
+    insertPending.current = true
+    setInsertBusy(true)
     try {
       const payload = buildInsertBackPayload(target, reply, `AI ${activeMode.label}`, { slidesAspect: options.slidesAspect })
       const response = await api<{ item?: Note | Quiz }>(payload.endpoint, {
         method: "POST",
         body: JSON.stringify(payload.body),
       })
+      if (!aiMounted.current || currentOwner.current !== owner || currentReply.current !== submittedReply || currentContext.current !== context) return
       if (payload.endpoint === "/api/notes" && response.item) setNotes?.((current) => [response.item as Note, ...current])
       if (payload.endpoint === "/api/quizzes" && response.item) {
         const createdQuiz = { ...response.item as Quiz, question_count: Array.isArray(payload.body.questions) ? payload.body.questions.length : (response.item as Quiz).question_count }
@@ -437,16 +499,20 @@ export function AiTutorView({
       setActionStatus(`Created ${payload.view} item from AI result.`)
       setView?.(payload.view)
     } catch (error) {
-      setActionStatus(error instanceof Error ? error.message : "Unable to save the result. Your response is still here.")
-    }
+      if (aiMounted.current && currentOwner.current === owner && currentReply.current === submittedReply && currentContext.current === context) setActionStatus(error instanceof Error ? error.message : "Unable to save the result. Your response is still here.")
+    } finally { insertPending.current = false; if (aiMounted.current) setInsertBusy(false) }
   }
 
   async function organizeImport() {
+    if (importPending.current || insertPending.current || generationPending.current) return
     const importedText = importText.trim()
     if (!importedText) {
       setImportStatus("Paste learning material first.")
       return
     }
+    importPending.current = true
+    const owner = userId
+    const context = currentContext.current
     setImportLoading(true)
     try {
       const response = await api<{ target: ImportTarget; item?: Note; note?: Note }>("/api/import", {
@@ -457,6 +523,7 @@ export function AiTutorView({
           target: importTarget,
         }),
       })
+      if (!aiMounted.current || currentOwner.current !== owner || currentContext.current !== context) return
       if (response.target === "note" && (response.item || response.note)) {
         const note = (response.item || response.note) as Note
         setNotes?.((current) => [note, ...current])
@@ -468,9 +535,10 @@ export function AiTutorView({
       setImportTitle("")
       setImportStatus(`Created ${labelImportTarget(response.target)} in Studio. Uploaded files selected for AI.`)
     } catch (error) {
-      setImportStatus(error instanceof Error ? error.message : "Import failed. Your source is still here.")
+      if (aiMounted.current && currentOwner.current === owner && currentContext.current === context) setImportStatus(error instanceof Error ? error.message : "Import failed. Your source is still here.")
     } finally {
-      setImportLoading(false)
+      importPending.current = false
+      if (aiMounted.current) setImportLoading(false)
     }
   }
 
@@ -662,13 +730,14 @@ export function AiTutorView({
         </details>
 
         <div className="mt-3 flex flex-wrap gap-2">
-          <button aria-label={primaryActionPlan.label} title={primaryActionPlan.label} disabled={primaryActionPlan.disabled} onClick={runPrimaryAction} className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+          <button aria-label={primaryActionPlan.label} title={primaryActionPlan.label} disabled={primaryActionPlan.disabled || insertBusy || importLoading} onClick={runPrimaryAction} className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
             <Bot className="h-4 w-4" aria-hidden="true" />{primaryActionPlan.label}
           </button>
           <button aria-label="Studio block" title="Studio block" onClick={prepareStudioBlockPrompt} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
             <Plus className="h-4 w-4" aria-hidden="true" />Studio block
           </button>
-          <button aria-label="Reset draft" title="Reset draft" onClick={resetDraft} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
+          {previousDraft ? <button type="button" aria-label="Restore previous AI draft" title="Restore previous AI draft" disabled={loading || insertBusy || importLoading} onClick={restorePreviousDraft} className="editor-command"><RotateCcw className="h-4 w-4" /><span className="hidden sm:inline">Previous draft</span></button> : null}
+          <button aria-label="Reset draft" title="Reset draft" disabled={loading || insertBusy || importLoading} onClick={resetDraft} className="flex h-10 items-center gap-2 rounded-md border border-border bg-secondary px-4 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
             <RotateCcw className="h-4 w-4" aria-hidden="true" />Reset
           </button>
         </div>
@@ -676,7 +745,8 @@ export function AiTutorView({
         {reply ? (
           <div className="mt-5 rounded-md border border-border bg-muted p-4">
             <SectionLabel icon={CheckCircle2} title="Result" body="Insert, save, copy, or turn this into practice." compact />
-            <div className="mb-3 flex flex-wrap items-center gap-2">
+            <fieldset disabled={insertBusy || loading || importLoading} aria-busy={insertBusy} className="mb-3 flex flex-wrap items-center gap-2">
+              <legend className="sr-only">AI result actions</legend>
               <ResultAction label="Save as note" icon={Save} onClick={saveReplyAsNote} />
               <ResultAction label="Copy result" icon={Copy} onClick={copyReply} />
               <ResultMenu label="Insert">
@@ -691,7 +761,8 @@ export function AiTutorView({
                 <ResultMenuAction label="Schedule study activity" onClick={() => useReplyAsPrompt("study_plan", "Create one study activity from this result. Ask me for its start, end and timezone before producing the calendar output.", "study-activity")} />
                 <ResultMenuAction label="Private discussion space" onClick={() => useReplyAsPrompt("personalized_prompt", "Create a discussion protocol from this result for a private learning space.", "discussion-space")} />
               </ResultMenu>
-            </div>
+            </fieldset>
+            {insertBusy ? <p role="status" className="mb-3 text-sm text-muted-foreground">Saving result…</p> : null}
             {actionStatus ? <p className="mb-3 rounded-md bg-background px-3 py-2 text-xs font-semibold text-muted-foreground">{actionStatus}</p> : null}
             {formattedReply && formattedReply.blocks.length ? (
               <>
@@ -801,7 +872,7 @@ export function AiTutorView({
               <p className="mt-2" title={`${importPreview.title} · ${importPreview.destinationView}`}>{importPreview.itemLabel}</p>
               {importPreview.warnings.length ? <p className="mt-2 text-warning-foreground">{importPreview.warnings.join(" ")}</p> : null}
             </div>
-            <button onClick={organizeImport} disabled={importLoading || !importPreview.ok} className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+            <button onClick={organizeImport} disabled={importLoading || loading || insertBusy || !importPreview.ok} className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-60">
               {importLoading ? "Organizing" : "Organize into Studio"}
             </button>
             {importStatus ? <p role="status" className="rounded-md bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground">{importStatus}</p> : null}
@@ -1028,11 +1099,6 @@ function readAiTutorLaunchPreset(): AiTutorLaunchPreset | null {
 function clearAiTutorLaunchPreset() {
   if (typeof window === "undefined") return
   window.localStorage.removeItem(AI_TUTOR_LAUNCH_KEY)
-}
-
-function writeAiTutorDraft(draft: AiTutorDraft) {
-  if (typeof window === "undefined") return
-  window.localStorage.setItem(AI_TUTOR_DRAFT_KEY, JSON.stringify(draft))
 }
 
 function clearAiTutorDraft() {
