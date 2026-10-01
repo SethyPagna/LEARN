@@ -5,15 +5,15 @@
 - Checkout: `C:/Users/user/Downloads/Projects/LEARN`, branch `cleanup/stage-1`; began clean at `827f54c`,25 ahead/0 behind origin `cfd3b8e`. Prior verified fixes are preserved in [the bug-fix report](../audits/2026-10-01-bugfixes.md).
 - Owner explicitly changed the checkpoint rule: continue autonomously; checkpoints periodically commit and push completed work. Periodic pushes to this branch are authorized. No force-push/deploy. This supersedes previous pending-push/stop notes.
 - Active goal: consolidate account/profile controls, improve shared menu/navigation design and phone layouts, repair recorded live/review concurrency defects, verify affected workflows and whole-app navigation, commit/push tested checkpoints and keep recovery logs.
-- Source agents own: account/profile controls (`app-nav`, account CSS, shared profile editor and Topbar callback); live/review concurrency (`data.ts`, related helpers/tests/additive migration if needed). A third agent audits design read-only. Root owns integration, shared menu changes, sequential verification and commits/pushes. Never overlap heavy jobs.
-- Next: focused commits, repeated Git/source integrity checks, authorized push and exact-head CI. Final1,328 tests/build/CSS,66page visits/346account/Add/Settings interactions and local smoke pass. Public48layouts/76interactions, demo93checks/9layouts and regression123 pass on unchanged public/regression source. Own preview session1810/PID27312 serves latest compiled app on127.0.0.1:3000. Preserve `.wrangler/state`, credentials and original assets.
+- Source lanes are complete/frozen; independent review found no blocker. Root owns delivery/CI and further integration. Delegates never ran heavy checks. Check the actual run checkpoint before resuming; no writer ownership is inferred from old role names.
+- Next: inspect the latest GitHub Actions result and harness checkpoint for this branch, then continue the chosen Notes ↔ AI ↔ activities and chat/calls/game roadmap. Account/Settings/Add/atomic-write work is verified and pushed at737c78a; this delivery receipt follows as a documentation commit. Final1,328 tests/build/CSS,66page visits/346interactions and local smoke pass. Own compiled preview session1810/PID27312 remains on127.0.0.1:3000. Preserve `.wrangler/state`, credentials and original assets.
 
 ## Requests and decisions
 
 | Request | State |
 | --- | --- |
 | Keep working and create a goal | Goal active; no checkpoint stop gate |
-| Periodically push completed work to GitHub | Authorized; initial verified push completed at e97a801 |
+| Periodically push completed work to GitHub | Done: earlier26 commits to e97a801, then6 verified commits to737c78a; authorization continues |
 | Remove repeated user/account/profile triggers and ellipses | Verified: one avatar trigger, inline shared profile editor |
 | Improve design consistency and compactness | Verified shared controls: compact menus/Practice/help and phone layouts |
 | Finish recorded reliability defects | Atomic live/review defects verified; broader adaptive/AI/social roadmap remains open |
@@ -29,7 +29,7 @@
 | Shared UI/menu/navigation polish | Verified at1280/color,390/light,320/dark |
 | Atomic live answers/review budget | Verified: isolated SQLite/D1 cases and full suite |
 | Independent review and sequential checks | Done: source reviews,1,328 tests/build/CSS,346browser interactions and local smoke |
-| Tested commits/pushes and final report | Evidence saved; focused commits/integrity/push/CI next |
+| Tested commits/pushes and final report | Done: source/QA pushed737c78a;58 files stable and match Git blobs, fsck twice; exact-head CI is recorded externally |
 
 ## Evidence and notes
 
@@ -88,3 +88,17 @@
 - Phone light390 and dark320 probe passes22routes/110interactions each; all3widths total343. Local compiled smoke passes. A screenshot exposed incomplete anonymous profile metrics in the fixture (not a server/API defect); fixture now matches real zero-valued metrics and adds a zero-XP assertion. Final346-interaction matrix reruns once to produce accurate pictures/report. Shared harness checkpoint temporarily failed due another live writer lock; leave state intact and retry later.
 
 - Final compiled matrix passes66page visits/346interactions (1280/color124,390/light111,320/dark111), zero page errors/unexpected writes. Local production smoke passes. Anonymous QA results and11 downscaled pictures/result files copied to the new audit folder; originals/copies each hashed twice and match. Source is unchanged after the green1328suite/build. Harness checkpoint retry succeeded without touching another writer lock. Next: focused commits, Git/source integrity, authorized push and exact-head CI.
+
+## Delivery receipt
+
+- Six focused commits pushed frome97a801 to737c78a655d4c0e66198f2f1b459b8c906246c34. Local HEAD and independent `git ls-remote origin refs/heads/cleanup/stage-1` matched; working tree was clean.58 files read twice with SHA-256 and compared to committed Git bytes; `git fsck --full` passed twice. [Hash receipt](../audits/2026-10-01-account-and-atomic-writes/code-737c78a-hashes.json). Originals, exports and local DB state are retained.
+- CI started for737c78a: [run36800120885](https://github.com/SethyPagna/LEARN/actions/runs/36800120885). A documentation receipt follows; inspect [latest branch CI](https://github.com/SethyPagna/LEARN/actions/workflows/ci.yml?query=branch%3Acleanup%2Fstage-1) and the final harness checkpoint for the exact delivered HEAD and completed result. This avoids treating an earlier CI result as verification of a later commit.
+
+| Commit | Purpose |
+| --- | --- |
+|115aeff|Atomic live answers and daily review budgets|
+|2eacc7a|Shared profile editing and save coordination|
+|7b716c2|Single-use Add and guarded navigation|
+|0f6deda|One account control and persisted Settings|
+|11f5f5a|Compact Practice/editor/calendar controls|
+|737c78a|Browser evidence, workflow pointer and recovery logs|

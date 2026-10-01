@@ -1,6 +1,6 @@
 # Account, Add and atomic writes — 2026-10-01
 
-Status: verified locally; focused commits and authorized push follow. Previous verified remote checkpoint: `e97a801`.
+Status: verified and pushed in six focused commits at `737c78a`; this delivery receipt follows. Earlier26 verified commits are preserved on the same branch.
 
 The account avatar now owns the profile editor, preferences and account actions. The duplicate account ellipsis and primary phone profile destination are removed. The direct profile route and Settings use the same identity form. Failed drafts survive closing the panel and switching its desktop/phone placement; saves update all surfaces. A per-user browser lease prevents overlapping identity/settings writes, and newer identity changes survive a delayed public-profile response.
 
@@ -19,7 +19,7 @@ Live answers now compare the stored state and commit dependent roster/answer wri
 
 - Sequential pinned Node24.15/4096MB verification: `ops/run/bin/pnpm.cmd test`, `ops/run/bin/pnpm.cmd build`, `node --import tsx ops/scripts/test/takeover-ui-probe.ts`, and local `smoke-cloudflare.ts`. No concurrent heavy jobs.
 - Public/demo/regression checks ran against the preceding compiled build; their source is unchanged by the final Settings-only changes. [Public results](2026-10-01-account-and-atomic-writes/public-results.json), [demo results](2026-10-01-account-and-atomic-writes/demo-results.json), [regression results](2026-10-01-account-and-atomic-writes/results.json).
-- Demo PNG export decoded1920x1200; no writes/errors. Screenshots are anonymous and downscaled. Original/copied evidence hashes were read twice and match [the receipt](2026-10-01-account-and-atomic-writes/evidence-hashes.json). Git/remote integrity receipt follows the push in the session log.
+- Demo PNG export decoded1920x1200; no writes/errors. Screenshots are anonymous and downscaled. Original/copied evidence hashes were read twice and match [the receipt](2026-10-01-account-and-atomic-writes/evidence-hashes.json). All58 checkpoint files also matched two SHA-256 reads and committed Git bytes; `git fsck --full` passed twice. [Committed checkpoint receipt](2026-10-01-account-and-atomic-writes/code-737c78a-hashes.json). Remote/local737c78a matched. Latest CI status is linked in the session delivery receipt.
 
 ## Pictures
 
