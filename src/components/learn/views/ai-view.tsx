@@ -435,11 +435,19 @@ export function AiTutorView({
       setActionStatus(`Missing: ${promptBuild.missing.join(", ")}`)
       return
     }
+    if (!draftHydrated.current || !latestDraft.current) {
+      setActionStatus("Your draft is still loading. Try again in a moment.")
+      return
+    }
+    if (!flushDraft(false)) {
+      setDraftStatus("Browser storage is unavailable.")
+      setActionStatus("Your current prompt and result are still here.")
+      return
+    }
     generationPending.current = true
     const owner = userId
     const context = currentContext.current
     setLoading(true)
-    setReply("")
     setActionStatus("")
     try {
       const contextParts = [
@@ -471,7 +479,25 @@ export function AiTutorView({
         setToolsOpen(true)
         return
       }
+      if (typeof response.text !== "string" || !response.text.trim()) {
+        setActionStatus("No usable result came back. Try again; your previous result is still here.")
+        return
+      }
+      const outgoing = latestDraft.current
+      if (!outgoing) return
+      const next = { ...outgoing, reply: response.text, updatedAt: new Date().toISOString() }
+      try {
+        archiveAiTutorDraft(window.localStorage, outgoing)
+        persistAiTutorDraft(window.localStorage, next)
+      } catch {
+        setDraftStatus("Browser storage is unavailable.")
+        setActionStatus("The new result could not be saved. Your previous result is still here.")
+        return
+      }
+      latestDraft.current = next
+      setPreviousDraft(outgoing)
       setReply(response.text)
+      setDraftStatus("Draft saved")
       setActionStatus(`Generated with ${response.provider || "configured provider"}${response.model ? ` · ${response.model}` : ""}.`)
     } catch (error) {
       if (aiMounted.current && currentOwner.current === owner && currentContext.current === context) setActionStatus(error instanceof Error ? error.message : "The tutor request failed. Try again.")
@@ -796,7 +822,7 @@ export function AiTutorView({
         {reply ? (
           <div className="mt-5 rounded-md border border-border bg-muted p-4">
             <SectionLabel icon={CheckCircle2} title="Result" body="Insert, save, copy, or turn this into practice." compact />
-            <fieldset disabled={insertBusy || loading || importLoading} aria-busy={insertBusy} className="mb-3 flex flex-wrap items-center gap-2">
+            <fieldset disabled={insertBusy || loading || importLoading} aria-busy={insertBusy || loading || importLoading} className="mb-3 flex flex-wrap items-center gap-2">
               <legend className="sr-only">AI result actions</legend>
               <ResultAction label="Save as note" icon={Save} onClick={saveReplyAsNote} />
               <ResultAction label="Copy result" icon={Copy} onClick={copyReply} />
@@ -816,7 +842,7 @@ export function AiTutorView({
               </ResultMenu>
             </fieldset>
             {insertBusy ? <p role="status" className="mb-3 text-sm text-muted-foreground">Saving result…</p> : null}
-            {actionStatus ? <p className="mb-3 rounded-md bg-background px-3 py-2 text-xs font-semibold text-muted-foreground">{actionStatus}</p> : null}
+            {actionStatus ? <p role="status" className="mb-3 rounded-md bg-background px-3 py-2 text-xs font-semibold text-muted-foreground">{actionStatus}</p> : null}
             {formattedReply && formattedReply.blocks.length ? (
               <>
                 <AiBlockRenderer blocks={formattedReply.blocks} />
