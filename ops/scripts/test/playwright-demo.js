@@ -261,12 +261,12 @@ async (sourcePage) => {
     const tour = editor.getByRole('region', { name: 'Studio guided tour', exact: true });
     verify((await tour.innerText()).includes('Pick a project.'), 'Quick tour opens at its first instruction');
     await editor.getByRole('button', { name: 'Next tutorial step', exact: true }).click();
-    verify((await tour.innerText()).includes('Select text. Try the tools.') && await layers.inputValue() === 'demo-heading', 'Tutorial step two selects the heading and explains the tools');
+    verify((await tour.innerText()).includes('Try the text tools.') && await layers.inputValue() === 'demo-heading', 'Tutorial step two selects the heading and explains the tools');
     await editor.getByRole('button', { name: 'Next tutorial step', exact: true }).click();
     await editor.getByRole('region', { name: 'Elements library', exact: true }).waitFor();
     verify(await editor.getByRole('region', { name: 'Elements library', exact: true }).isVisible(), 'Tutorial step three opens the visual element library');
     await editor.getByRole('button', { name: 'Next tutorial step', exact: true }).click();
-    verify((await tour.innerText()).includes('Make a page. Keep your design.'), 'Tutorial step four explains pages and keeping the design');
+    verify((await tour.innerText()).includes('Add a page. Download it.'), 'Tutorial step four explains adding and downloading a page');
     await editor.getByRole('button', { name: 'Finish tutorial', exact: true }).click();
     verify(await tour.count() === 0, 'The guided tutorial can be completed');
     await button('Start guided Studio tour').click();
