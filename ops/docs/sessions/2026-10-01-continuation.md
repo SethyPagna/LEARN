@@ -2,6 +2,8 @@
 
 ## Resume here
 
+- **New active goal:** continue from [2026-10-01-learning-workflow.md](2026-10-01-learning-workflow.md). Account/Add/Settings/atomic-write delivery is complete at7be0515 with exact-head CI36800450049 passed; final completion is also saved in the harness checkpoint. The following milestone history is preserved.
+
 - Checkout: `C:/Users/user/Downloads/Projects/LEARN`, branch `cleanup/stage-1`; began clean at `827f54c`,25 ahead/0 behind origin `cfd3b8e`. Prior verified fixes are preserved in [the bug-fix report](../audits/2026-10-01-bugfixes.md).
 - Owner explicitly changed the checkpoint rule: continue autonomously; checkpoints periodically commit and push completed work. Periodic pushes to this branch are authorized. No force-push/deploy. This supersedes previous pending-push/stop notes.
 - Active goal: consolidate account/profile controls, improve shared menu/navigation design and phone layouts, repair recorded live/review concurrency defects, verify affected workflows and whole-app navigation, commit/push tested checkpoints and keep recovery logs.

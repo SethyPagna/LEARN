@@ -1,0 +1,47 @@
+{
+  "createdAt": "2026-10-01T02:40:04.753Z",
+  "evidence": [
+    {
+      "name": "results.json",
+      "sha256": "860b7b2aeb4401ba927d11492c9f2366d91422748fd402b542a3b3cee84ed390",
+      "originalReads": 2,
+      "copyReads": 2
+    },
+    {
+      "name": "selection-1280-color.jpg",
+      "sha256": "045e4cfb1393fbcd51150c4d6b472c6208ea1b0b42da193f26cc86c83c51f510",
+      "originalReads": 2,
+      "copyReads": 2
+    },
+    {
+      "name": "vault-1280-color.jpg",
+      "sha256": "a686c3c2ff1da285cb70e91fdbe312cce38974aea1501b3fe25ecfc23d1eb534",
+      "originalReads": 2,
+      "copyReads": 2
+    },
+    {
+      "name": "selection-390-light.jpg",
+      "sha256": "64db7a2d2c62ed1332ad53fb9052d53f7c355f39c475d9ccda8bc0fa63e290e6",
+      "originalReads": 2,
+      "copyReads": 2
+    },
+    {
+      "name": "vault-390-light.jpg",
+      "sha256": "811ac3339ba48def1bb0019ac7ac718fc017a9ab2c42c7be3f51594ad8c12996",
+      "originalReads": 2,
+      "copyReads": 2
+    },
+    {
+      "name": "selection-320-dark.jpg",
+      "sha256": "f2f05b2eee0f922e49208e779b68efba40766ee08254ac0ca9d02be694e641f3",
+      "originalReads": 2,
+      "copyReads": 2
+    },
+    {
+      "name": "vault-320-dark.jpg",
+      "sha256": "8136156171dc5a27e50093b1d87eef09124884360ffc4df188cbbc9498e07d9e",
+      "originalReads": 2,
+      "copyReads": 2
+    }
+  ]
+}

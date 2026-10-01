@@ -1,13 +1,15 @@
 # LEARN Comprehensive Improvement Progress
 
-Status: Companion redesign: checkpoints 1 and 2 done and pushed; checkpoint 3 (navigation in five places) in progress
-Last updated: 2026-09-28
+Status: Shared editor, account/navigation and public demo delivered; Notes/Vault activity workflow verified through d1c748a, evidence/push in progress
+Last updated: 2026-10-01
 Current owner: User and maintainer
 Current branch: cleanup/stage-1
 
 ## Resume here
 
 Every session starts here: the newest dated log in [`ops/docs/sessions/`](../sessions/) has the "Resume here" block, and [requests.md](requests.md) has every owner request with its status and the chosen order of work. Update both as you go (see `~/.claude/CLAUDE.md`).
+
+Current evidence: [Notes/Vault activity workflow](../audits/2026-10-01-learning-workflow.md), full type check/1,355 tests/build/CSS and108 browser checks at desktop and narrow phone widths. Provider-dependent live verification and source-specific review provenance remain follow-ons; historical phase labels below are not completion evidence for them.
 
 ## Snapshot as of 2026-09-24
 
