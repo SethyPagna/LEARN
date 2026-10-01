@@ -2,6 +2,8 @@
 
 ## Resume here
 
+This goal is complete. Latest active work: [compact AI workspace](2026-10-01-ai-workspace.md). Final receipt8b938f8 and exact-head CI36807356398 passed;36files match two reads/Git bytes and fsck passes twice. The entries below retain the delivery chronology.
+
 - Checkout: C:/Users/user/Downloads/Projects/LEARN, cleanup/stage-1. Verified delivered baseline7be05153a6d3bbf9648d3f1233aa05cf975165ca; exact-head CI36800450049 passed. Previous scoped goal is complete; [its receipt](2026-10-01-continuation.md) remains historical evidence.
 - Scoped implementation delivered: Notes/Vault → AI or local activities → saved Practice/Studio, compact contextual controls, source/draft preservation and tested focused pushes. Provider-dependent live verification stays separate.
 - Harness audit run run-de96f6d5-623f-4005-b741-fec0a60b7628 complete with confirmed source findings. Build run run-88449de5-189e-4f58-bd48-cddba8dc0860 active in learn/learning-workflow. Root/delegates explicitly loaded applicable modes and core/team workflow.

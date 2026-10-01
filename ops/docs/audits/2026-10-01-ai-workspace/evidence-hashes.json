@@ -1,0 +1,86 @@
+{
+  "createdAt": "2026-10-01T03:26:55.124Z",
+  "sourceRevision": "849c68b",
+  "files": [
+    {
+      "source": ".cache/design-review/ai-workspace/results.json",
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/results.json",
+      "bytes": 14592,
+      "sha256": "b26158234cda5625aa13beb8539505be3566c9908ad3b95b6ea67dae7058be50",
+      "sourceReads": 2,
+      "copyReads": 2
+    },
+    {
+      "source": ".cache/design-review/learning-workflow/results.json",
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/learning-results.json",
+      "bytes": 6991,
+      "sha256": "860b7b2aeb4401ba927d11492c9f2366d91422748fd402b542a3b3cee84ed390",
+      "sourceReads": 2,
+      "copyReads": 2
+    },
+    {
+      "source": ".cache/design-review/ai-workspace-older-probe/results.json",
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/older-probe-results.json",
+      "bytes": 1067,
+      "sha256": "7017c2d8a55314e55520cea1c1d44d8d1285445a75bc31c4a558825c5171543b",
+      "sourceReads": 2,
+      "copyReads": 2
+    },
+    {
+      "source": ".cache/design-review/ai-baseline-results.json",
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/baseline-results.json",
+      "bytes": 148,
+      "sha256": "ab33ca3fb4077b99f3bd04c5e1ab403600819db9c08457d19d80fc10f36d0644",
+      "sourceReads": 2,
+      "copyReads": 2
+    },
+    {
+      "source": ".cache/design-review/ai-workspace/workspace-1280-color.jpg",
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/workspace-1280-color.jpg",
+      "bytes": 22525,
+      "sha256": "44f8b526711e3db9f5c9168aa888315f73b72f9471a6e08199ea2658980c8598",
+      "sourceReads": 2,
+      "copyReads": 2
+    },
+    {
+      "source": ".cache/design-review/ai-workspace/workspace-390-light.jpg",
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/workspace-390-light.jpg",
+      "bytes": 30789,
+      "sha256": "84e43e07f444712a7f30e8594e23e29c00fd05763886d894ffb87ef7989c6221",
+      "sourceReads": 2,
+      "copyReads": 2
+    },
+    {
+      "source": ".cache/design-review/ai-workspace/workspace-320-dark.jpg",
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/workspace-320-dark.jpg",
+      "bytes": 23391,
+      "sha256": "d011ba2b83a6871e00887dc466a073a58aa5d05dd9630e5def246c60393b3ba0",
+      "sourceReads": 2,
+      "copyReads": 2
+    },
+    {
+      "source": ".cache/design-review/ai-workspace/options-390-light.jpg",
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/options-390-light.jpg",
+      "bytes": 37083,
+      "sha256": "5aebd772e8e2a7f6b9bafefaa76eeae380c2c4ea455fe8f50317b5d75e5187e6",
+      "sourceReads": 2,
+      "copyReads": 2
+    },
+    {
+      "source": ".cache/design-review/ai-workspace/tasks-320-dark.jpg",
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/tasks-320-dark.jpg",
+      "bytes": 18006,
+      "sha256": "cc84c8a09bcce770a8542fa9957ead3fbb335a7ae05618df7ede4204a5a54bb2",
+      "sourceReads": 2,
+      "copyReads": 2
+    },
+    {
+      "source": ".cache/design-review/ai-workspace/result-menu-320-dark.jpg",
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/result-menu-320-dark.jpg",
+      "bytes": 24731,
+      "sha256": "b890a8b79d91c85343d0e49f4a1a62ff728765be098c055a5b0a248f389c9f4a",
+      "sourceReads": 2,
+      "copyReads": 2
+    }
+  ]
+}

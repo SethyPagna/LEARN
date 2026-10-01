@@ -1,6 +1,6 @@
 # LEARN Comprehensive Improvement Progress
 
-Status: Shared editor, account/navigation, public demo and Notes/Vault activity repairs delivered through9721e2e; exact-head CI passed
+Status: Prior workflow delivered through 8b938f8 with green CI; compact AI workspace verified locally through 849c68b, delivery in progress
 Last updated: 2026-10-01
 Current owner: User and maintainer
 Current branch: cleanup/stage-1
@@ -9,7 +9,7 @@ Current branch: cleanup/stage-1
 
 Every session starts here: the newest dated log in [`ops/docs/sessions/`](../sessions/) has the "Resume here" block, and [requests.md](requests.md) has every owner request with its status and the chosen order of work. Update both as you go (see `~/.claude/CLAUDE.md`).
 
-Current evidence: [Notes/Vault activity workflow](../audits/2026-10-01-learning-workflow.md), full type check/1,355 tests/build/CSS and108 browser checks at desktop and narrow phone widths. Provider-dependent live verification and source-specific review provenance remain follow-ons; historical phase labels below are not completion evidence for them.
+Current evidence: [compact AI workspace](../audits/2026-10-01-ai-workspace.md), full type check/1,355 tests/build/CSS, 312 AI checks across all themes/widths, 108 workflow regression checks and 18 older AI checks. [Prior workflow](../audits/2026-10-01-learning-workflow.md) remains delivered. Provider-dependent live verification, failed-generation result retention and source-specific review provenance remain follow-ons; historical phase labels below do not establish their completion.
 
 ## Snapshot as of 2026-09-24
 
