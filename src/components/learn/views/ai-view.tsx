@@ -672,8 +672,8 @@ export function AiTutorView({
               {draftStatus ? <StatusPill label={draftStatus} tone="steady" /> : null}
             </div>
           </div>
-          <div className="relative z-30 flex min-w-0 flex-wrap items-center gap-2 self-start rounded-lg border border-border bg-background p-1.5 shadow-sm lg:justify-end">
-            <TutorMenu label={`Task: ${activeMode.label}`} icon={CheckSquare} menuId="task" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu} width={512} panelClassName="w-[min(32rem,calc(100vw-2rem))]" disabled={loading || insertBusy || importLoading}>
+          <div className="relative z-30 grid min-w-0 grid-cols-2 items-center gap-2 self-start rounded-lg border border-border bg-background p-1.5 shadow-sm sm:flex sm:flex-wrap lg:justify-end">
+            <TutorMenu label={`Task: ${activeMode.label}`} triggerText="Task" icon={CheckSquare} menuId="task" openMenu={openTutorMenu} setOpenMenu={setOpenTutorMenu} width={512} panelClassName="w-[min(32rem,calc(100vw-2rem))]" disabled={loading || insertBusy || importLoading}>
               {(close) => <TutorMenuSection title="Task">
                 <div className="grid gap-1.5 sm:grid-cols-2">
                   {aiTutorModeOptions.map((item) => {
