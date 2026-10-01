@@ -98,6 +98,17 @@ test("the plan says what works without AI", () => {
   assert.deepEqual({ ...planPassage("Just a thought about cells."), pairs: undefined }, { pairs: undefined, quizLocally: false, cardsLocally: false })
 })
 
+test("local quizzes exclude meanings shared by different terms", () => {
+  const ambiguous = "CPU: processor\nGPU: processor\nTPU: PROCESSOR"
+  assert.deepEqual(localQuizQuestions(extractStudyPairs(ambiguous), "Hardware"), [])
+  assert.equal(planPassage(ambiguous).quizLocally, false)
+  assert.equal(planPassage(ambiguous).cardsLocally, true, "the written pairs remain useful as cards")
+  const mixed = `${ambiguous}\nRAM: volatile memory\nSSD: persistent storage\nNIC: network interface`
+  const questions = localQuizQuestions(extractStudyPairs(mixed), "Hardware")
+  assert.equal(questions.length, 3)
+  assert.ok(questions.every(question => question.question.toLowerCase() !== "processor"))
+})
+
 test("AI counts as ready only with an enabled provider that has a key and has not failed", () => {
   assert.equal(aiReadyFrom({ items: [], runtimeItems: [] }), false)
   assert.equal(aiReadyFrom({ items: [{ enabled: false, has_key: true }, { enabled: true, has_key: false }, { enabled: true, has_key: true, last_status: "error" }] }), false)

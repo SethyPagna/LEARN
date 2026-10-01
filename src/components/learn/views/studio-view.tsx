@@ -102,7 +102,7 @@ import {
 } from "lucide-react"
 import { api, formatDate } from "../api"
 import type { Note, StudioDirtyBadge, StudioKind, StudioLayoutState, StudioPane, StudioTab, View, WorkspaceDeck, WorkspaceDocument, WorkspaceSheet } from "../types"
-import { launchAiTutorFromSource, type TutorSource } from "@/lib/ai/source-launch"
+import type { TutorSource } from "@/lib/ai/source-launch"
 import { createDesignDoc } from "@/lib/design/document"
 import { slidesFormatId } from "@/lib/design/formats"
 import { deckToDesign, legacyDeckSlides } from "@/lib/design/from-deck"
@@ -439,6 +439,7 @@ export function StudioView({
   setSelectedNoteId,
   onDraftSummary,
   onOpenLink,
+  onOpenAiSource,
   setView,
 }: {
   initialKind: StudioKind
@@ -450,6 +451,7 @@ export function StudioView({
   onDraftSummary?: (summary: StudioDraftSummary) => void
   /** Goes to an in-app link, e.g. a deck in the slides editor. */
   onOpenLink: (href: string) => void
+  onOpenAiSource: (source: TutorSource) => void
   setView: (view: View) => void
 }) {
   const [kind, setKind] = useState<StudioKind>(initialKind)
@@ -1427,10 +1429,14 @@ export function StudioView({
     downloadText(`${base}.${exportMode ? "txt" : "html"}`, currentPayload(exportMode ? "export" : "download"), exportMode ? "text/plain" : "text/html")
   }
 
-  function askAi(task: TutorSource["task"] = "explain", content = currentPayload("export"), title = activeTitle()) {
+  function askAi(task: TutorSource["task"] = "explain", content?: string, title = activeTitle()) {
     try {
-      launchAiTutorFromSource({ title, content, task })
-      setView("ai")
+      const selection = window.getSelection()
+      const container = selection?.rangeCount ? selection.getRangeAt(0).commonAncestorContainer : null
+      const root = (container instanceof Element ? container : container?.parentElement)?.closest<HTMLElement>("[data-select-to-act]")
+      const source = root?.closest<HTMLElement>("[data-source-id]")
+      const selectedContent = source?.dataset.sourceId === `${kind}:${activeStudioItem()?.id || "draft"}` ? selection?.toString().trim() : ""
+      onOpenAiSource({ title, content: content ?? (selectedContent || currentPayload("export")), task })
     } catch {
       setStatus("Your browser could not save the AI handoff. Allow local storage and try again.")
     }
@@ -1720,6 +1726,7 @@ export function StudioView({
                     activeKind={kind}
                     activeSummary={activeSummaryText}
                     activeTitle={activeTitle()}
+                    activeSourceId={`${kind}:${activeStudioItem()?.id || "draft"}`}
                     cells={cells}
                     docHistory={docHistory}
                     inspectorOpen={layout.inspectorOpen}
@@ -2602,6 +2609,7 @@ function StudioPaneSurface({
   activeKind,
   activeSummary,
   activeTitle,
+  activeSourceId,
   canvasFormat,
   cells,
   docHistory,
@@ -2642,6 +2650,7 @@ function StudioPaneSurface({
   activeKind: StudioKind
   activeSummary: string
   activeTitle: string
+  activeSourceId: string
   canvasFormat: StudioCanvasFormat
   cells: string[][]
   docHistory: HistoryState<string>
@@ -2729,7 +2738,7 @@ function StudioPaneSurface({
             <StudioPanePreviewCard preview={panePreview} onOpen={onSelectPane} />
           ) : (
           <div className={`grid min-h-0 flex-1 ${inspectorOpen ? "xl:grid-cols-[1fr_260px]" : ""}`}>
-            <div className="studio-pane-body min-h-0 overflow-auto bg-secondary/50" data-source-title={activeTitle} data-source-kind={activeKind}>
+            <div className="studio-pane-body min-h-0 overflow-auto bg-secondary/50" data-source-title={activeTitle} data-source-kind={activeKind} data-source-id={activeSourceId}>
               <StudioCanvas
                 importKey={`${pane.id}:${pane.activeTabId}`}
                 activeKind={activeKind}
@@ -3095,7 +3104,7 @@ function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: {
   return (
     <div className="studio-writing-surface">
       <RichTextToolbar editor={editor} />
-      <div ref={writingViewport} className="studio-writing-scroll overflow-auto p-4 sm:p-8" data-select-to-act>
+      <div ref={writingViewport} className="studio-writing-scroll overflow-auto p-4 sm:p-8" data-select-to-act tabIndex={-1}>
         <div
           className="mx-auto"
           style={{ minHeight: pageWidth / Number(canvasFormat.width / canvasFormat.height) * pageScale, width: Math.round(pageWidth * pageScale) }}

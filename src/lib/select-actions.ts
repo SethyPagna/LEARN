@@ -118,7 +118,17 @@ function stableSlot(text: string, count: number) {
 export function localQuizQuestions(pairs: readonly StudyPair[], topic: string): GeneratedQuestion[] {
   const questions: GeneratedQuestion[] = []
   for (const from of ["term", "question"] as const) {
-    const group = pairs.filter((pair) => pair.from === from)
+    const candidates = pairs.filter((pair) => pair.from === from)
+    const answersByQuestion = new Map<string, Set<string>>()
+    for (const pair of candidates) {
+      const ask = tidy(from === "term" ? pair.answer : pair.prompt).toLocaleLowerCase()
+      const answers = answersByQuestion.get(ask) || new Set<string>()
+      answers.add(tidy(from === "term" ? pair.prompt : pair.answer).toLocaleLowerCase())
+      answersByQuestion.set(ask, answers)
+    }
+    // The same meaning attached to different terms has no single correct
+    // multiple-choice answer. Keep those pairs for cards, not a local quiz.
+    const group = candidates.filter(pair => answersByQuestion.get(tidy(from === "term" ? pair.answer : pair.prompt).toLocaleLowerCase())?.size === 1)
     if (group.length < MIN_QUIZ_QUESTIONS) continue
     const solutions = group.map((pair) => (from === "term" ? pair.prompt : pair.answer))
     group.forEach((pair, index) => {

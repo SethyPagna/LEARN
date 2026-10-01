@@ -57,7 +57,7 @@ test("Vault rejects unsafe links and executable HTML while retaining readable co
 
 test("Vault note content is visible even when no saved blocks are loaded", () => {
   const note = { id: "note_1", title: "Plan", icon: "", content: "## Visible source\n\n- Use the note", favorite: false, template: "", updated_at: "2026-10-01" }
-  const html = renderToStaticMarkup(createElement(VaultNoteBlocks, { note, revision: 0, setView: () => {} }))
+  const html = renderToStaticMarkup(createElement(VaultNoteBlocks, { note, revision: 0, onOpenAiSource: () => {} }))
   assert.match(html, /aria-label="Note content"/)
   assert.match(html, /role="heading" aria-level="2">Visible source/)
   assert.match(html, /<li>Use the note<\/li>/)

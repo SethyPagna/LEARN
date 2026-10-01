@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react"
 import { VaultNoteBlocks } from "../vault-note-blocks"
+import type { TutorSource } from "@/lib/ai/source-launch"
+import { useEditorExitGuard } from "../editor-navigation"
+import { completeVaultBlockDraft, readVaultBlockDraft, writeVaultBlockDraft, type VaultBlockDraft } from "@/lib/vault-drafts"
 import {
   ArrowRight,
   ArrowLeft,
@@ -72,7 +75,7 @@ type ReviewPayload = {
   remainingDueCount: number
 }
 
-export function VaultView({ notes = [], setView, onOpenNote }: { notes?: Note[]; setView: (view: View) => void; onOpenNote: (id: string) => void }) {
+export function VaultView({ notes = [], setView, onOpenNote, onOpenAiSource }: { notes?: Note[]; setView: (view: View) => void; onOpenNote: (id: string) => void; onOpenAiSource: (source: TutorSource) => void }) {
   const { data, status } = useResource<VaultGraphPayload>("/api/vault/graph")
   const [blockType, setBlockType] = useState<VaultBlockType>("text")
   const [blockNoteId, setBlockNoteId] = useState("")
@@ -81,31 +84,93 @@ export function VaultView({ notes = [], setView, onOpenNote }: { notes?: Note[];
   const [savingBlock, setSavingBlock] = useState(false)
   const [noteQuery, setNoteQuery] = useState("")
   const [blocksRevision, setBlocksRevision] = useState(0)
+  const blockDrafts = useRef(new Map<string, VaultBlockDraft>())
+  const currentBlockDraft = useRef<{ noteId: string; draft: VaultBlockDraft } | null>(null)
+  const blockSavePending = useRef(false)
+  const vaultMounted = useRef(false)
+  const unwrittenBlockDrafts = useRef(new Set<string>())
 
   const topNodes = data?.nodes.slice(0, 5) ?? []
   const paletteGroups = useMemo(() => buildVaultBlockPalette(blockType), [blockType])
   const targetNoteId = blockNoteId || notes[0]?.id || ""
   const targetNoteTitle = notes.find((note) => note.id === targetNoteId)?.title || "No note selected"
 
+  function persistBlockDraft(noteId: string, draft: VaultBlockDraft, announce = true) {
+    blockDrafts.current.set(noteId, draft)
+    try { writeVaultBlockDraft(window.localStorage, noteId, draft); unwrittenBlockDrafts.current.delete(noteId); return true }
+    catch { unwrittenBlockDrafts.current.add(noteId); if (announce) setBlockStatus("Browser storage is unavailable. Keep this page open until your block is saved."); return false }
+  }
+
+  function flushVaultDrafts(announce = true) {
+    let persisted = true
+    for (const noteId of unwrittenBlockDrafts.current) {
+      const draft = blockDrafts.current.get(noteId)
+      if (draft && !persistBlockDraft(noteId, draft, announce)) persisted = false
+    }
+    return persisted
+  }
+
+  useEditorExitGuard(async () => flushVaultDrafts())
+
+  useEffect(() => {
+    vaultMounted.current = true
+    const flush = () => { flushVaultDrafts(false) }
+    window.addEventListener("pagehide", flush)
+    return () => { vaultMounted.current = false; window.removeEventListener("pagehide", flush); flush() }
+  }, [])
+
+  useEffect(() => {
+    if (!targetNoteId) return
+    let draft = blockDrafts.current.get(targetNoteId)
+    try { draft ||= readVaultBlockDraft(window.localStorage, targetNoteId) || undefined }
+    catch { setBlockStatus("Browser storage is unavailable. Keep this page open until your block is saved.") }
+    draft ||= { blockType: "text", text: "", revision: crypto.randomUUID() }
+    blockDrafts.current.set(targetNoteId, draft)
+    currentBlockDraft.current = { noteId: targetNoteId, draft }
+    setBlockType(draft.blockType)
+    setBlockContent(draft.text)
+  }, [targetNoteId])
+
+  function updateBlockDraft(change: Partial<Pick<VaultBlockDraft, "blockType" | "text">>) {
+    const current = currentBlockDraft.current
+    if (!current || current.noteId !== targetNoteId) return
+    const draft = { ...current.draft, ...change, revision: crypto.randomUUID() }
+    currentBlockDraft.current = { noteId: targetNoteId, draft }
+    setBlockType(draft.blockType)
+    setBlockContent(draft.text)
+    persistBlockDraft(targetNoteId, draft)
+  }
+
   async function saveVaultBlock() {
-    if (savingBlock || !blockContent.trim()) return
+    if (blockSavePending.current || !blockContent.trim()) return
     if (!targetNoteId) {
       setBlockStatus("Create a note first, then the palette can save blocks into it.")
       return
     }
-    setBlockStatus("Saving block...")
+    const submitted = currentBlockDraft.current
+    if (!submitted || submitted.noteId !== targetNoteId) return
+    blockSavePending.current = true
     setSavingBlock(true)
+    setBlockStatus("Saving block...")
     try {
       await api("/api/vault/blocks", {
         method: "POST",
-        body: JSON.stringify({ noteId: targetNoteId, blockType, content: { text: blockContent } }),
+        body: JSON.stringify({ noteId: submitted.noteId, blockType: submitted.draft.blockType, content: { text: submitted.draft.text } }),
       })
-      setBlockContent("")
+      let cleared: VaultBlockDraft | null = null
+      try { cleared = completeVaultBlockDraft(window.localStorage, submitted.noteId, submitted.draft, crypto.randomUUID()) }
+      catch { /* The saved block remains persisted; keep its local draft for recovery. */ }
+      if (cleared) { blockDrafts.current.set(submitted.noteId, cleared); unwrittenBlockDrafts.current.delete(submitted.noteId) }
+      if (!vaultMounted.current) return
+      if (cleared && currentBlockDraft.current?.noteId === submitted.noteId && currentBlockDraft.current.draft.revision === submitted.draft.revision) {
+        currentBlockDraft.current = { noteId: submitted.noteId, draft: cleared }
+        setBlockContent("")
+      }
       setBlocksRevision((value) => value + 1)
-      setBlockStatus(`Saved a ${blockType} block to "${targetNoteTitle}".`)
+      setBlockStatus(cleared ? `Saved a ${blockType} block to "${targetNoteTitle}".` : "Block saved. A newer or unavailable local draft was kept.")
     } catch (error) {
-      setBlockStatus(error instanceof Error ? error.message : "Unable to save the block.")
-    } finally { setSavingBlock(false) }
+      if (vaultMounted.current) setBlockStatus(error instanceof Error ? error.message : "Unable to save the block.")
+    } finally { blockSavePending.current = false; if (vaultMounted.current) setSavingBlock(false) }
   }
 
   return (
@@ -115,13 +180,13 @@ export function VaultView({ notes = [], setView, onOpenNote }: { notes?: Note[];
         <aside className="compact-list"><select aria-label="Vault note" className="editor-input md:hidden" disabled={savingBlock} value={targetNoteId} onChange={event => setBlockNoteId(event.target.value)}>{notes.map(note => <option key={note.id} value={note.id}>{note.title}</option>)}</select>
           <div className="hidden md:grid"><input aria-label="Find a Vault note" className="editor-input mb-2" placeholder="Find a note" value={noteQuery} onChange={event => setNoteQuery(event.target.value)} /><div className="max-h-[60dvh] overflow-y-auto">{notes.filter(note => note.title.toLowerCase().includes(noteQuery.trim().toLowerCase())).map(note => <button key={note.id} disabled={savingBlock} className="compact-row" aria-pressed={targetNoteId === note.id} onClick={() => setBlockNoteId(note.id)}><span data-project-kind="notes" className="studio-project-icon shrink-0 rounded-md p-1"><NoteIcon className="h-3.5 w-3.5" /></span><span className="truncate">{note.title}</span></button>)}</div></div>
         </aside>
-        <Panel className="min-w-0 p-4"><div className="mb-3 flex items-center justify-between gap-3"><h3 className="min-w-0 truncate font-semibold">{targetNoteTitle}</h3><button onClick={() => targetNoteId ? onOpenNote(targetNoteId) : setView("notes")} className="editor-primary shrink-0" aria-label="Open notes" title="Open notes"><BookOpen className="h-4 w-4" /></button></div><VaultNoteBlocks note={notes.find(note => note.id === targetNoteId)} revision={blocksRevision} setView={setView} />
+        <Panel className="min-w-0 p-4"><div className="mb-3 flex items-center justify-between gap-3"><h3 className="min-w-0 truncate font-semibold">{targetNoteTitle}</h3><button onClick={() => targetNoteId ? onOpenNote(targetNoteId) : setView("notes")} className="editor-primary shrink-0" aria-label="Open notes" title="Open notes"><BookOpen className="h-4 w-4" /></button></div><VaultNoteBlocks note={notes.find(note => note.id === targetNoteId)} revision={blocksRevision} onOpenAiSource={onOpenAiSource} />
           <details className="workspace-disclosure mt-3"><summary>Add a block</summary><div className="grid gap-3 pt-3">
-            <select aria-label="Block type" className="editor-input" disabled={savingBlock} value={blockType} onChange={event => setBlockType(event.target.value as VaultBlockType)}>{paletteGroups.map(group => <optgroup key={group.id} label={group.label}>{group.blocks.map(block => <option key={block} value={block}>{block.replaceAll("-", " ")}</option>)}</optgroup>)}</select>
-            <textarea aria-label="Block content" className="editor-input min-h-24 py-2" disabled={savingBlock} placeholder="Write something…" value={blockContent} onChange={event => setBlockContent(event.target.value)} />
-            <div className="flex items-center gap-2">{!savingBlock ? <VoiceInput label="Dictate block" prompt={`Vault ${blockType} block for ${targetNoteTitle}`} onTranscript={(text) => setBlockContent((current) => (current && !/\s$/.test(current) ? `${current} ${text}` : `${current}${text}`))} /> : null}<button className="editor-primary ml-auto" disabled={savingBlock || !targetNoteId || !blockContent.trim()} onClick={saveVaultBlock}>{savingBlock ? "Saving…" : "Add"}</button></div>
-            {blockStatus ? <p role="status" className="text-xs text-muted-foreground">{blockStatus}</p> : null}
+            <select aria-label="Block type" className="editor-input" disabled={savingBlock} value={blockType} onChange={event => updateBlockDraft({ blockType: event.target.value as VaultBlockType })}>{paletteGroups.map(group => <optgroup key={group.id} label={group.label}>{group.blocks.map(block => <option key={block} value={block}>{block.replaceAll("-", " ")}</option>)}</optgroup>)}</select>
+            <textarea aria-label="Block content" className="editor-input min-h-24 py-2" disabled={savingBlock} placeholder="Write something…" value={blockContent} onChange={event => updateBlockDraft({ text: event.target.value })} />
+            <div className="flex items-center gap-2">{!savingBlock ? <VoiceInput label="Dictate block" prompt={`Vault ${blockType} block for ${targetNoteTitle}`} onTranscript={(text) => { const current = currentBlockDraft.current?.draft.text || ""; updateBlockDraft({ text: (current && !/\s$/.test(current) ? `${current} ${text}` : `${current}${text}`) }) }} /> : null}<button className="editor-primary ml-auto" disabled={savingBlock || !targetNoteId || !blockContent.trim()} onClick={saveVaultBlock}>{savingBlock ? "Saving…" : "Add"}</button></div>
           </div></details>
+          {blockStatus ? <p role="status" className="mt-2 text-xs text-muted-foreground">{blockStatus}</p> : null}
         </Panel>
       </div>
       <details className="workspace-disclosure"><summary>Connected topics <span className="text-muted-foreground">{data?.nodes.length || 0}</span></summary><div className="grid gap-2 pt-3 sm:grid-cols-3">{topNodes.map(node => <NodeCard key={node.id} node={node} />)}</div><button className="editor-command mt-2" onClick={() => setView("graph")} aria-label="Explore graph" title="Explore graph"><Network className="h-4 w-4" /></button></details>

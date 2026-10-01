@@ -88,9 +88,10 @@ test("the Vault block field appends the transcript instead of replacing it", () 
 
   assert.match(
     element,
-    /setBlockContent\(\(current\)/,
-    "the Vault block field must append to the current block content",
+    /currentBlockDraft\.current\?\.draft\.text/,
+    "the Vault block field must append to its current durable draft",
   )
+  assert.match(element, /updateBlockDraft\(/, "dictation uses the same persisted draft update as typing")
   assert.match(
     element,
     /!\/\\s\$\/\.test\(current\)/,

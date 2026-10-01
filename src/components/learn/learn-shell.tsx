@@ -31,6 +31,7 @@ import { readStudioDrafts, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, type Studi
 import { getStudioKind, practiceViews, socialViews, studioViews, viewFromPath, viewRoutes } from "@/lib/navigation"
 import type { SavedQuiz } from "@/lib/select-actions"
 import { AI_TUTOR_LAUNCH_KEY, buildPracticeAiTutorLaunch } from "@/lib/ai/tutor-workflow"
+import { launchAiTutorFromSource, type TutorSource } from "@/lib/ai/source-launch"
 import { artifactCreationPlan, studioCreationKindFromSearch, withoutStudioCreationQuery, type StudioCreationIntent } from "@/lib/studio-creation"
 import type { ArtifactType } from "@/lib/ux/artifact-catalog"
 import { cycleSidebarMode, DEFAULT_SIDEBAR_MODE, sidebarModeCookie, type SidebarMode } from "@/lib/shell/sidebar-mode"
@@ -303,9 +304,12 @@ export function LearnShell({
   }, [openLink, practiceDraftSummary.count, quizzes, selectedQuizId])
 
   const openNote = useCallback((id: string) => {
-    setSelectedNoteId(id)
-    chooseView("notes")
-  }, [chooseView])
+    openLink(`/notes?item=notes:${encodeURIComponent(id)}`, () => setSelectedNoteId(id))
+  }, [openLink])
+
+  const openAiSource = useCallback((source: TutorSource) => {
+    openLink("/ai", () => launchAiTutorFromSource(source))
+  }, [openLink])
 
   const openQuiz = useCallback((id: string) => {
     void navigateSafely(() => {
@@ -396,7 +400,7 @@ export function LearnShell({
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
             {view === "dashboard" ? <TodayView onOpen={openLink} /> : null}
             {isStudioLobby ? <StudioLobby key={view} notes={notes} options={preferences.options} onOpen={openLink} onNoteCreated={(note) => setNotes((current) => [note, ...current])} initialFilter={view === "canvas" ? "Canvas" : view === "slides" ? "Slides" : "All"} creationIntent={studioCreationIntent} onCreationConsumed={consumeStudioCreation} /> : null}
-            {view === "vault" ? <VaultView setView={chooseView} notes={notes} onOpenNote={openNote} /> : null}
+            {view === "vault" ? <VaultView setView={chooseView} notes={notes} onOpenNote={openNote} onOpenAiSource={openAiSource} /> : null}
             {/* `discover` is a documented alias of `feed`, not a second screen: both
                 views render the same FeedView. `/discover` exists as a route (and
                 `viewFromPath` resolves it to the `discover` view), but the catalog
@@ -413,9 +417,9 @@ export function LearnShell({
                 stack on one page. */}
             {view === "live" ? <LiveQuizView key={liveSetupRevision} quizzes={quizzes} user={user} /> : null}
             {view === "reviews" ? <ReviewsView setView={chooseView} /> : null}
-            {view !== "studio" && view !== "slides" && studioViews.includes(view as (typeof studioViews)[number]) ? <StudioView key={`${view}:${locationSearch}`} setView={chooseView} initialKind={getStudioKind(view)} notes={notes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} onDraftSummary={setStudioDraftSummary} onOpenLink={openLink} /> : null}
+            {view !== "studio" && view !== "slides" && studioViews.includes(view as (typeof studioViews)[number]) ? <StudioView key={`${view}:${locationSearch}`} setView={chooseView} initialKind={getStudioKind(view)} notes={notes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} onDraftSummary={setStudioDraftSummary} onOpenLink={openLink} onOpenAiSource={openAiSource} /> : null}
             {view !== "live" && view !== "reviews" && practiceViews.includes(view as (typeof practiceViews)[number]) ? <PracticeWorkspaceView initialView={view} quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} quizLaunch={quizLaunch} libraryRevision={practiceLibraryRevision} onQuizArchived={removeArchivedQuiz} options={preferences.options} setView={chooseView} /> : null}
-            {view === "ai" ? <AiTutorView key={aiCreationRevision} notes={notes} options={preferences.options} setNotes={setNotes} setQuizzes={setQuizzes} setOptions={preferences.setOptions} setView={chooseView} /> : null}
+            {view === "ai" ? <AiTutorView key={aiCreationRevision} userId={user?.id} notes={notes} options={preferences.options} setNotes={setNotes} setQuizzes={setQuizzes} setOptions={preferences.setOptions} setView={chooseView} /> : null}
             {view === "files" ? <FilesView options={preferences.options} onPreviewChange={setFilePreviewOpen} /> : null}
             {socialViews.includes(view as (typeof socialViews)[number]) ? <SocialWorkspaceView initialView={view} options={preferences.options} setView={chooseView} user={user} /> : null}
             {view === "profile" ? <ProfileView key={profileUsername || "me"} user={user} username={profileUsername} setView={chooseView} onProfileSaved={setUser} /> : null}
@@ -438,7 +442,7 @@ export function LearnShell({
           user={user}
         />
         <PlaceGuide setView={chooseView} />
-        <SelectionDock userId={user?.id} view={view} onOpen={openLink} onQuizCreated={addQuiz} />
+        <SelectionDock userId={user?.id} view={`${view}:${locationSearch}`} onOpen={openLink} onQuizCreated={addQuiz} />
       </div>
     </RealtimeInboxProvider></AppInstallProvider></EditorNavigationContext.Provider>
   )

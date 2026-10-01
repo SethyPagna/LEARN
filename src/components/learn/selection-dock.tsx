@@ -19,7 +19,8 @@ import {
   type ProviderList,
   type SavedQuiz,
 } from "@/lib/select-actions"
-import { cleanSelectionText, isActionableSelection, placeSelectionDock, type DockPlacement } from "@/lib/selection-dock"
+import { cleanSelectionText, isActionableSelection, MAX_SELECTION_CHARS, placeSelectionDock, type DockPlacement } from "@/lib/selection-dock"
+import { createSelectionCache, guardSelectionFetch } from "@/lib/selection-session"
 import { api } from "./api"
 import { Buddy } from "./buddy"
 
@@ -46,6 +47,8 @@ interface Snapshot {
   passage: Passage
   range: Range
   root: HTMLElement
+  source: HTMLElement
+  sourceKey: string
   quizLocally: boolean
   cardsLocally: boolean
 }
@@ -72,29 +75,26 @@ const CHAT_TTL_MS = 60_000
 const TAP_GRACE_MS = 700
 const PEOPLE_TONES = ["#7b6cf0", "#3b82c4", "#2f9e7a", "#e0694a", "#d99a1e", "#d0508f"]
 
-// Shared by every pill in this page session: one providers read every few
-// minutes and one chat list read a minute, however many passages are picked.
-let aiCache: { at: number; ready: Promise<boolean> } | null = null
-let chatCache: { at: number; chats: Promise<ChatTarget[]> } | null = null
+const aiCache = createSelectionCache<boolean>(AI_TTL_MS)
+const chatCache = createSelectionCache<ChatTarget[]>(CHAT_TTL_MS)
 
-function loadAiReady() {
-  if (!aiCache || Date.now() - aiCache.at > AI_TTL_MS) {
-    aiCache = { at: Date.now(), ready: api<ProviderList>("/api/ai/providers").then(aiReadyFrom, () => false) }
-  }
-  return aiCache.ready
+function loadAiReady(userId: string) {
+  return aiCache.load(userId, () => api<ProviderList>("/api/ai/providers").then(aiReadyFrom, () => false))
 }
 
-function loadChats() {
-  if (!chatCache || Date.now() - chatCache.at > CHAT_TTL_MS) {
-    chatCache = {
-      at: Date.now(),
-      chats: Promise.all([
+function loadChats(userId: string) {
+  return chatCache.load(userId, () => Promise.all([
         api<{ items?: ChatThreadSummary[] }>("/api/chat"),
         api<{ items?: Array<{ id: string; name: string }> }>("/api/groups").catch(() => ({ items: [] })),
-      ]).then(([threads, groups]) => chatTargets(threads.items || [], groups.items || []), () => []),
-    }
-  }
-  return chatCache.chats
+      ]).then(([threads, groups]) => chatTargets(threads.items || [], groups.items || []), () => []))
+}
+
+function sourceKey(source: HTMLElement) {
+  return JSON.stringify([source.dataset.sourceId, source.dataset.sourceKind, source.dataset.sourceTitle])
+}
+
+function snapshotIsCurrent(snapshot: Snapshot) {
+  return snapshot.root.isConnected && snapshot.source.isConnected && sourceKey(snapshot.source) === snapshot.sourceKey
 }
 
 function readSnapshot(): Snapshot | null {
@@ -104,23 +104,31 @@ function readSnapshot(): Snapshot | null {
   const container = range.commonAncestorContainer
   const root = (container instanceof Element ? container : container.parentElement)?.closest<HTMLElement>("[data-select-to-act]")
   if (!root) return null
-  const text = cleanSelectionText(selection.toString())
+  const selectedText = selection.toString()
+  const text = cleanSelectionText(selectedText)
   if (!isActionableSelection(text)) return null
-  const holder = document.createElement("div")
-  holder.appendChild(range.cloneContents())
-  const source = root.closest<HTMLElement>("[data-source-title]")
+  const source = root.closest<HTMLElement>("[data-source-title]") || root
+  const truncated = cleanSelectionText(selectedText, Number.MAX_SAFE_INTEGER).length > MAX_SELECTION_CHARS
+  let html: string | undefined
+  if (!truncated) {
+    const holder = document.createElement("div")
+    holder.appendChild(range.cloneContents())
+    html = holder.innerHTML
+  }
   const plan = planPassage(text)
   return {
-    passage: { text, html: holder.innerHTML, title: source?.dataset.sourceTitle || "", kind: source?.dataset.sourceKind || "notes" },
+    passage: { text, html, title: source.dataset.sourceTitle || "", kind: source.dataset.sourceKind || "notes" },
     range: range.cloneRange(),
     root,
+    source,
+    sourceKey: sourceKey(source),
     quizLocally: plan.quizLocally,
     cardsLocally: plan.cardsLocally,
   }
 }
 
 function placeFor(snapshot: Snapshot, dock: HTMLElement): DockPlacement | null {
-  if (!snapshot.root.isConnected) return null
+  if (!snapshotIsCurrent(snapshot)) return null
   const rects = Array.from(snapshot.range.getClientRects()).filter((rect) => rect.width || rect.height)
   if (!rects.length) return null
   const first = rects[0]
@@ -173,8 +181,10 @@ export function SelectionDock({ userId, view, onOpen, onQuizCreated }: {
   const placementRef = useRef<DockPlacement | null>(null)
   const runRef = useRef(0)
   const tapRef = useRef(0)
-  const dismissedRef = useRef("")
+  const dismissedRef = useRef<{ root: HTMLElement; sourceKey: string; text: string } | null>(null)
   const announcedRef = useRef(false)
+  const ownerRef = useRef({ userId, view })
+  const preparedQuizRef = useRef<{ snapshot: Snapshot; quiz: SavedQuiz } | null>(null)
 
   useLayoutEffect(() => {
     snapshotRef.current = snapshot
@@ -186,25 +196,37 @@ export function SelectionDock({ userId, view, onOpen, onQuizCreated }: {
 
   const reset = useCallback(() => {
     runRef.current += 1
+    stageRef.current = { name: "ready" }
+    snapshotRef.current = null
+    preparedQuizRef.current = null
     setStage({ name: "ready" })
     setSnapshot(null)
     setPlacement(null)
   }, [])
 
-  useEffect(() => { reset() }, [reset, view])
+  useLayoutEffect(() => {
+    ownerRef.current = { userId, view }
+    reset()
+    setAiReady(false)
+    setChats([])
+    dismissedRef.current = null
+    return () => { runRef.current += 1; ownerRef.current = { userId: undefined, view: "" } }
+  }, [reset, userId, view])
 
   const warm = useCallback(() => {
     if (!userId) return
-    void loadAiReady().then(setAiReady)
-    void loadChats().then(setChats)
-  }, [userId])
+    const owner = ownerRef.current
+    void loadAiReady(userId).then(ready => { if (owner === ownerRef.current) setAiReady(ready) })
+    void loadChats(userId).then(targets => { if (owner === ownerRef.current) setChats(targets) })
+  }, [userId, view])
 
   const dismiss = useCallback((returnFocus: boolean) => {
     const current = snapshotRef.current
-    dismissedRef.current = current?.passage.text || ""
+    dismissedRef.current = current ? { root: current.root, sourceKey: current.sourceKey, text: current.passage.text } : null
     reset()
-    if (!returnFocus || !current) return
-    current.root.querySelector<HTMLElement>("[contenteditable='true']")?.focus({ preventScroll: true })
+    if (!returnFocus || !current || !snapshotIsCurrent(current)) return
+    const focusTarget = current.root.querySelector<HTMLElement>("[contenteditable='true']") || current.root
+    focusTarget.focus({ preventScroll: true })
     const selection = document.getSelection()
     selection?.removeAllRanges()
     selection?.addRange(current.range)
@@ -217,17 +239,27 @@ export function SelectionDock({ userId, view, onOpen, onQuizCreated }: {
     let timer = 0
     let pointerDown = false
     const refresh = () => {
-      if (Date.now() - tapRef.current < TAP_GRACE_MS || stageRef.current.name === "working") return
+      if (stageRef.current.name === "working") return
+      const graceRemaining = TAP_GRACE_MS - (Date.now() - tapRef.current)
+      if (graceRemaining > 0) {
+        window.clearTimeout(timer)
+        timer = window.setTimeout(refresh, graceRemaining + 1)
+        return
+      }
       const next = readSnapshot()
       if (!next) {
-        dismissedRef.current = ""
+        dismissedRef.current = null
         if (snapshotRef.current) reset()
         return
       }
-      if (next.passage.text === dismissedRef.current) return
+      const dismissed = dismissedRef.current
+      if (dismissed?.root === next.root && dismissed.sourceKey === next.sourceKey && dismissed.text === next.passage.text) return
       const current = snapshotRef.current
       if (current && current.root === next.root && current.passage.text === next.passage.text) return
       runRef.current += 1
+      preparedQuizRef.current = null
+      stageRef.current = { name: "ready" }
+      snapshotRef.current = next
       setStage({ name: "ready" })
       setSnapshot(next)
     }
@@ -241,7 +273,8 @@ export function SelectionDock({ userId, view, onOpen, onQuizCreated }: {
         return
       }
       // A new drag or tap may pick the same words on purpose: offer the pill again.
-      dismissedRef.current = ""
+      tapRef.current = 0
+      dismissedRef.current = null
       pointerDown = true
     }
     const onPointerUp = () => {
@@ -269,6 +302,18 @@ export function SelectionDock({ userId, view, onOpen, onQuizCreated }: {
   }, [reset, userId, warm])
 
   useEffect(() => { if (snapshot) warm() }, [snapshot, warm])
+
+  useEffect(() => {
+    if (!snapshot) return
+    const observer = new MutationObserver(() => {
+      if (!snapshotIsCurrent(snapshot)) reset()
+    })
+    observer.observe(snapshot.source, { attributes: true, attributeFilter: ["data-source-id", "data-source-title", "data-source-kind"] })
+    // A containing pane can disappear while the root's immediate parent
+    // stays intact inside the detached tree.
+    observer.observe(document.body, { childList: true, subtree: true })
+    return () => observer.disconnect()
+  }, [reset, snapshot])
 
   const measure = useCallback(() => {
     const current = snapshotRef.current
@@ -299,11 +344,12 @@ export function SelectionDock({ userId, view, onOpen, onQuizCreated }: {
     if (!snapshot) return
     const onKeyDown = (event: KeyboardEvent) => {
       const dock = dockRef.current
-      if (!dock || !placementRef.current) return
+      if (!dock) return
       if (event.key === "F10" && event.shiftKey) {
+        if (!placementRef.current) return
         event.preventDefault()
         dock.querySelector<HTMLButtonElement>("button")?.focus()
-      } else if (event.key === "Escape" && stageRef.current.name !== "working") {
+      } else if (event.key === "Escape") {
         dismiss(dock.contains(document.activeElement))
       }
     }
@@ -324,34 +370,43 @@ export function SelectionDock({ userId, view, onOpen, onQuizCreated }: {
 
   async function run(action: Action, target?: ChatTarget) {
     const current = snapshotRef.current
-    if (!current || !userId) return
-    // A newer selection or a new place makes this run stale: it still saves,
-    // but never shows a result or moves the learner.
+    if (!current || !userId || stageRef.current.name === "working" || !snapshotIsCurrent(current)) return
+    const owner = ownerRef.current
+    // A started save may finish, but stale actions cannot issue follow-up
+    // requests, alter the current library or move the learner.
     const runId = ++runRef.current
-    const alive = () => runId === runRef.current
+    const alive = () => runId === runRef.current && owner === ownerRef.current && snapshotIsCurrent(current)
+    const fetchCurrent = guardSelectionFetch(api, alive)
+    stageRef.current = { name: "working", action }
     setStage({ name: "working", action })
     try {
       if (action === "quiz") {
-        const { quiz } = await makeQuiz(api, current.passage, { aiReady })
+        const { quiz } = await makeQuiz(fetchCurrent, current.passage, { aiReady })
+        if (!alive()) return
         onQuizCreated?.(quiz)
-        if (alive()) finish(`/quiz/${encodeURIComponent(quiz.id)}`)
+        finish(`/quiz/${encodeURIComponent(quiz.id)}`)
       } else if (action === "cards") {
-        const { count } = await makeCards(api, current.passage, { aiReady })
+        const { count } = await makeCards(fetchCurrent, current.passage, { aiReady })
         if (!alive()) return
         setStage({ name: "done", text: count === 1 ? "+1 card" : `+${count} cards`, next: { label: "Review", go: () => finish("/reviews") } })
       } else if (action === "slides") {
-        const { id } = await makeSlides(api, current.passage)
+        const { id } = await makeSlides(fetchCurrent, current.passage)
         if (alive()) finish(`/slides?design=${encodeURIComponent(id)}`)
       } else if (action === "share" && target) {
-        const { threadId } = await shareToChat(api, target, current.passage)
-        chatCache = null
+        const { threadId } = await shareToChat(fetchCurrent, target, current.passage)
+        chatCache.invalidate(userId)
         if (!alive()) return
         setStage({ name: "done", text: `Sent to ${target.name}`, next: { label: "Open", go: () => { rememberThread(userId, threadId); finish("/chat") } } })
       } else if (action === "play" && target) {
-        const { quiz } = await makeQuiz(api, current.passage, { aiReady })
-        onQuizCreated?.(quiz)
+        let quiz = preparedQuizRef.current?.snapshot === current ? preparedQuizRef.current.quiz : null
+        if (!quiz) {
+          quiz = (await makeQuiz(fetchCurrent, current.passage, { aiReady })).quiz
+          if (!alive()) return
+          preparedQuizRef.current = { snapshot: current, quiz }
+          onQuizCreated?.(quiz)
+        }
         if (!alive()) return
-        const { code } = await hostGame(api, target, quiz)
+        const { code } = await hostGame(fetchCurrent, target, quiz)
         if (alive()) finish(`/live?code=${encodeURIComponent(code)}`)
       }
     } catch (error) {
@@ -448,7 +503,6 @@ export function SelectionDock({ userId, view, onOpen, onQuizCreated }: {
             <span className="select-dock-label select-dock-label-keep">{stage.next.label}</span>
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </button>
-          <button type="button" className="select-dock-icon" aria-label="Close" onClick={() => dismiss(false)}><X className="h-4 w-4" /></button>
         </>
       ) : null}
 
@@ -458,6 +512,8 @@ export function SelectionDock({ userId, view, onOpen, onQuizCreated }: {
           <span className="select-dock-note" data-tone="error" role="alert">{stage.text}</span>
         </>
       ) : null}
+
+      <button type="button" className="select-dock-icon" aria-label={stage.name === "working" ? "Cancel action" : "Close selection tools"} title={stage.name === "working" ? "Cancel action" : "Close"} onClick={() => dismiss(true)}><X className="h-4 w-4" /></button>
 
       <span className="sr-only" aria-live="polite">{announcement}</span>
     </div>,
