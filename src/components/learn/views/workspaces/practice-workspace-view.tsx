@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ArrowRight, Layers3, Play, Radio, Repeat2, Search, Sparkles, Zap } from "lucide-react"
+import { ArrowRight, Layers3, Play, Repeat2, Search, Sparkles } from "lucide-react"
 import type { Quiz, View } from "../../types"
 import type { WorkspaceOptions } from "../../preferences"
 import { PracticeDesign } from "../../practice-design"
@@ -80,17 +80,13 @@ export function PracticeWorkspaceView({ initialView, options, quizzes, selectedQ
     <div className={styles.workspace}>
       {status ? <p className={styles.notice} role="status">{status}</p> : null}
       {initialView === "games" ? <GamesView quizzes={quizzes} options={options} /> : activeQuizId ? <QuizView key={activeQuizId} quizzes={availableQuizzes} selectedQuizId={activeQuizId} setSelectedQuizId={setSelectedQuizId} options={options} onArchived={onQuizArchived} onBack={() => { setActiveQuizId(null); setView("quizzes") }} onArchive={id => { setArchivedIds(ids => [...ids, id]); setActiveQuizId(null); setView("quizzes") }} /> : <>
-        <div className={styles.shortcuts} aria-label="Practice activities">
-          <button type="button" data-tone="violet" onClick={() => setView("games")}><span><Zap aria-hidden="true" /></span><strong>Sprint</strong><ArrowRight aria-hidden="true" size={17} /></button>
-          <button type="button" data-tone="pink" onClick={() => setView("live")}><span><Radio aria-hidden="true" /></span><strong>Live</strong><ArrowRight aria-hidden="true" size={17} /></button>
-          <button type="button" data-tone="blue" onClick={() => setView("reviews")}><span><Repeat2 aria-hidden="true" /></span><strong>Review</strong><ArrowRight aria-hidden="true" size={17} /></button>
-        </div>
         <div className={styles.libraryTools}>
           <div className={styles.segmented} role="group" aria-label="Practice library filter">
             <button type="button" aria-pressed={!savedOnly} onClick={() => setSavedOnly(false)}>All <span>{availableQuizzes.length}</span></button>
             <button type="button" aria-pressed={savedOnly} onClick={() => setSavedOnly(true)}>Saved <span>{savedCount}</span></button>
           </div>
           <label className={styles.search}><Search aria-hidden="true" size={16} /><input aria-label="Find a practice set" placeholder="Find a set" value={query} onChange={event => setQuery(event.target.value)} /></label>
+          <button type="button" className={styles.reviewShortcut} onClick={() => setView("reviews")}><Repeat2 aria-hidden="true" size={16} />Review</button>
         </div>
         <div className={styles.setGrid} aria-label="Practice sets">
           {visibleQuizzes.map((quiz) => {

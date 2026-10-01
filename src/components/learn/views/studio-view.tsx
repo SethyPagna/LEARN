@@ -51,6 +51,7 @@ import {
   CheckSquare,
   CheckCircle2,
   ChevronDown,
+  CircleHelp,
   Clipboard,
   Clock,
   Columns3,
@@ -1974,12 +1975,7 @@ function StudioToolPanelHeader({ panel }: { panel: ReturnType<typeof getStudioTo
   return (
     <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-background p-3">
       <p className="text-sm font-bold text-foreground">{panel.label}</p>
-      <details className="relative">
-        <summary className="flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${panel.label}`}>
-          <BookOpen className="h-3.5 w-3.5" />
-        </summary>
-        <p className="absolute right-0 top-8 z-40 w-56 rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-xl">{panel.description}</p>
-      </details>
+      <PopoverButton label={`About ${panel.label}`} placement="bottom-end" width={224} buttonClassName="canvas-tool h-9 w-9 shrink-0" panel={() => <p className="max-w-52 text-xs leading-5">{panel.description}</p>}><CircleHelp className="h-4 w-4" /></PopoverButton>
     </div>
   )
 }
@@ -3518,16 +3514,14 @@ function MenuAction({
   meta?: string
   onClick: () => void
 }) {
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    onClick()
-  }
-
   return (
     <button
-      onClick={handleClick}
+      onClick={onClick}
+      title={meta}
+      aria-label={disabled && meta ? `${label}: ${meta}` : label}
       disabled={disabled}
       role="menuitem"
-      className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`flex min-h-9 w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover disabled:cursor-not-allowed disabled:opacity-50 ${
         danger
           ? "text-destructive hover:bg-destructive/10"
           : active
@@ -3536,11 +3530,9 @@ function MenuAction({
       }`}
       type="button"
     >
-      <Icon className="mt-0.5 h-4 w-4 shrink-0" />
-      <span className="min-w-0">
-        <span className="block truncate">{label}</span>
-        {meta ? <span className={`mt-0.5 block line-clamp-2 text-xs font-medium ${active ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{meta}</span> : null}
-      </span>
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {meta && /^\d+(?:\s+\w+){0,2}$/.test(meta) ? <span className="shrink-0 text-xs tabular-nums opacity-70">{meta}</span> : null}
     </button>
   )
 }

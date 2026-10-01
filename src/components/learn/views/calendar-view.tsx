@@ -273,7 +273,7 @@ export function CalendarView({ options }: { options: WorkspaceOptions }) {
       <div className="flex items-baseline gap-3"><h2 className="sr-only">Calendar</h2><span title={`Times shown in ${timezone}`} className="hidden text-xs text-muted-foreground sm:inline">{timezone.split("/").at(-1)?.replaceAll("_", " ")}</span></div>
       <div className="flex items-center gap-2">
         <button type="button" onClick={() => setConnectionsOpen(true)} aria-label="Calendar connections" className="editor-command"><LinkIcon className="h-4 w-4" /><span className="sr-only">Connections</span></button>
-        <button type="button" onClick={() => createEventForDay()} className="editor-primary" aria-label="Add" title="Add"><Plus className="h-4 w-4" /> </button>
+        <button type="button" onClick={() => createEventForDay()} className="editor-primary" aria-label="Add event" title="Add event"><Plus className="h-4 w-4" /> </button>
       </div>
     </header>
     <CalendarConnections open={connectionsOpen} onClose={() => setConnectionsOpen(false)} onChange={() => void connected.refresh()} />
