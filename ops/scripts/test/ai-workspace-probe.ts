@@ -198,7 +198,7 @@ async function main() {
         releaseChat()
         await page.getByRole("button", { name: "Run tutor", exact: true }).waitFor()
         await page.waitForTimeout(150)
-        check(await prompt.inputValue() === "NEWER_CONTEXT" && await page.getByRole("button", { name: "Save as note", exact: true }).count() === 0, "late generation cannot mix contexts")
+        check(await prompt.inputValue() === "NEWER_CONTEXT" && await page.locator(".learn-block__paragraph").filter({ hasText: initialDraft.reply }).isVisible() && await page.locator(".learn-block__paragraph").filter({ hasText: "FRESH_FIXTURE_RESULT" }).count() === 0, "late generation cannot replace previous result or mix contexts")
         await prompt.fill("")
         await chooseTask("Rewrite")
         await (await openDraft()).getByRole("button", { name: "Restore previous AI draft", exact: true }).click()
