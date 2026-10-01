@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url"
 import { createLiveSession, reduceSession, serializeSession, type LiveQuizSession } from "../../lib/live/quiz-session"
 import { setLocalRealtimeHub } from "../../lib/realtime/hub-core"
 import { installDatabaseStub, primeDatabase, request, TEST_USER_ROW } from "./harness"
+import { installSqliteStore } from "./sqlite-store"
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
 const HOST_ID = "live_host"
@@ -41,6 +42,7 @@ test("live quiz routes preserve replay results with the real roster and answer c
 
   try {
     await primeDatabase(stub)
+    installSqliteStore(stub, database, { pattern: /\blive_quiz_(sessions|participants|answers)\b/ })
     const { GET, POST } = await import("../../app/api/live-sessions/[code]/route")
     stub.on(/\blive_quiz_(sessions|participants|answers)\b/, (sql, params) => {
       const statement = database.prepare(sql)

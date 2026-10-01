@@ -46,6 +46,8 @@ export interface DatabaseStub {
   readonly httpRequests: { url: string; init?: RequestInit }[]
   /** Register a canned response for every statement whose SQL matches. */
   on(pattern: RegExp, respond: CannedResult | ((sql: string, params: unknown[]) => CannedResult)): void
+  /** Wrap a batch's synchronous SQL execution, e.g. in an isolated SQLite transaction. */
+  onBatch(handler: (statements: RecordedStatement[], execute: () => CannedResult[]) => CannedResult[] | Promise<CannedResult[]>): void
   /** Register a canned response for a non-database outbound request. */
   onHttp(pattern: RegExp, handler: (url: string, init?: RequestInit) => Response | Promise<Response>): void
   /** Statements whose SQL matches the pattern. */
@@ -69,14 +71,10 @@ const D1_ENV_KEYS = ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_D1_DATABASE_ID", "CLOU
  */
 const D1_URL_PATTERN = /\/d1\/database\/[^/]+\/query$/
 
-function d1ApiResponse(result: CannedResult, isRead: boolean) {
+function d1ApiResult(result: CannedResult, isRead: boolean) {
   const rows = result.rows ?? []
   const changes = result.rowCount ?? (isRead ? rows.length : 0)
-  return {
-    success: true,
-    errors: [],
-    result: [{ success: true, results: rows, meta: { changes } }],
-  }
+  return { success: true, results: rows, meta: { changes } }
 }
 
 function isReadStatement(sql: string) {
@@ -91,6 +89,7 @@ export function installDatabaseStub(): DatabaseStub {
   const httpRequests: { url: string; init?: RequestInit }[] = []
   const savedEnv = new Map<string, string | undefined>()
   const originalFetch = globalThis.fetch
+  let batchHandler: Parameters<DatabaseStub["onBatch"]>[0] | undefined
 
   for (const key of D1_ENV_KEYS) {
     savedEnv.set(key, process.env[key])
@@ -112,6 +111,9 @@ export function installDatabaseStub(): DatabaseStub {
     onHttp(pattern, handler) {
       httpStubs.unshift({ pattern, handler })
     },
+    onBatch(handler) {
+      batchHandler = handler
+    },
     matching(pattern) {
       return statements.filter((statement) => pattern.test(statement.sql))
     },
@@ -124,6 +126,7 @@ export function installDatabaseStub(): DatabaseStub {
       statements.length = 0
       responders.length = 0
       httpRequests.length = 0
+      batchHandler = undefined
     },
     restore() {
       globalThis.fetch = originalFetch
@@ -138,21 +141,23 @@ export function installDatabaseStub(): DatabaseStub {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
 
     if (D1_URL_PATTERN.test(url)) {
-      const body = JSON.parse(String(init?.body ?? "{}")) as { sql?: string; params?: unknown[] }
-      const sql = String(body.sql ?? "")
-      const params = body.params ?? []
-      statements.push({ sql, params })
-
-      const isRead = isReadStatement(sql)
-      let canned: CannedResult = { rows: [], rowCount: 0 }
-      for (const responder of responders) {
-        if (responder.pattern.test(sql)) {
-          canned = responder.respond(sql, params)
-          break
+      const body = JSON.parse(String(init?.body ?? "{}")) as { sql?: string; params?: unknown[]; batch?: RecordedStatement[] }
+      const requested = body.batch ?? [{ sql: String(body.sql ?? ""), params: body.params ?? [] }]
+      const execute = () => requested.map(({ sql, params }) => {
+        statements.push({ sql, params })
+        for (const responder of responders) {
+          if (responder.pattern.test(sql)) return responder.respond(sql, params)
         }
+        return { rows: [], rowCount: 0 }
+      })
+      let results: CannedResult[]
+      try {
+        results = body.batch && batchHandler ? await batchHandler(requested, execute) : execute()
+      } catch (error) {
+        return new Response(JSON.stringify({ success: false, errors: [{ message: String(error) }], result: [] }), { status: 500 })
       }
-
-      return new Response(JSON.stringify(d1ApiResponse(canned, isRead)), {
+      return new Response(JSON.stringify({ success: true, errors: [], result: results.map((result, index) =>
+        d1ApiResult(result, isReadStatement(requested[index].sql))) }), {
         status: 200,
         headers: { "content-type": "application/json" },
       })

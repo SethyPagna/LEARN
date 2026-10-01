@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { installDatabaseStub, primeDatabase, request, stubSessionLookup, TEST_USER_ROW } from "./harness"
 import { setLocalRealtimeHub } from "../../lib/realtime/hub-core"
+import { createSqliteFixture } from "./sqlite-store"
 
 test("chat handlers enforce conversation destinations and attachment privacy", async (t) => {
   const stub = installDatabaseStub()
@@ -116,31 +117,43 @@ test("chat handlers enforce conversation destinations and attachment privacy", a
         assert.equal(stub.writesMatching(/INSERT INTO live_quiz_sessions/).length, grantType === "user" ? 1 : 0)
       }
     })
-    await t.test("game invitations and final results notify the originating chat exactly once", async () => {
+    await t.test("game results persist once and host retries notify the originating chat again", async () => {
       reset()
-      const { POST: launch } = await import("../../app/api/live-sessions/route")
-      const { POST: control } = await import("../../app/api/live-sessions/[code]/route")
-      stub.on(/SELECT \* FROM quizzes WHERE/, { rows: [{ id: "quiz", title: "Quiz", created_by_user_id: TEST_USER_ROW.id }] })
-      stub.on(/SELECT \* FROM quiz_questions WHERE/, { rows: [{ id: "q1", question: "Two plus two?", choices: JSON.stringify([{ id: "a", text: "Four" }, { id: "b", text: "Five" }]), correct_answer_id: "a" }] })
-      stub.on(/SELECT 1 FROM group_members/, { rows: [{ member: 1 }] })
-      stub.on(/SELECT id FROM chat_threads WHERE group_id/, { rows: [{ id: "game-thread" }] })
-      stub.on(/SELECT group_id, target_user_id, created_by_user_id FROM chat_threads/, { rows: [{ group_id: "group-a", target_user_id: null, created_by_user_id: TEST_USER_ROW.id }] })
-      let state = ""
-      stub.on(/UPDATE live_quiz_sessions SET state_json/, (_sql, params) => { state = String(params[0]); return { rowCount: 1 } })
-      stub.on(/UPDATE live_quiz_sessions\s+SET phase/, (_sql, params) => { state = String(params[2]); return { rowCount: 1 } })
-      stub.on(/SELECT \* FROM live_quiz_sessions WHERE code/, () => ({ rows: [{ id: "session", state_json: state }] }))
-      stub.on(/INSERT INTO chat_messages/, { rowCount: 1 })
-      const response = await launch(request("/api/live-sessions", { method: "POST", body: { quizId: "quiz", groupId: "group-a" } }))
-      assert.equal(response.status, 201)
-      const launched = await response.json()
-      const code = String(launched.item.code)
-      assert.deepEqual(events.filter((event) => event.channel === "group__group-a").map((event) => event.payload), [{ threadId: "game-thread" }])
-      for (let attempt = 0; attempt < 2; attempt++) {
-        assert.equal((await control(request(`/api/live-sessions/${code}`, { method: "POST", body: { action: "close" } }), { params: Promise.resolve({ code }) })).status, 200)
-      }
-      const descriptors = stub.writesMatching(/INSERT INTO chat_messages/).map((entry) => JSON.parse(String(entry.params[4])))
-      assert.deepEqual(descriptors.map((entry) => entry.kind), ["live-game", "live-game-result"])
-      assert.equal(events.filter((event) => event.channel === "group__group-a").length, 2)
+      const fixture = await createSqliteFixture()
+      try {
+        const { database } = fixture
+        database.prepare("INSERT INTO users (id, username, email, name, password_hash) VALUES (?, ?, ?, ?, 'test')")
+          .run(TEST_USER_ROW.id, TEST_USER_ROW.username, TEST_USER_ROW.email, TEST_USER_ROW.name)
+        database.prepare("INSERT INTO workspaces (id, owner_user_id, name) VALUES ('workspace_demo', ?, 'Fixture workspace')").run(TEST_USER_ROW.id)
+        database.prepare("INSERT INTO workspace_groups (id, workspace_id, name, created_by_user_id) VALUES ('group-a', 'workspace_demo', 'Fixture group', ?)").run(TEST_USER_ROW.id)
+        database.prepare("INSERT INTO group_members (group_id, user_id) VALUES ('group-a', ?)").run(TEST_USER_ROW.id)
+        database.prepare("INSERT INTO chat_threads (id, workspace_id, group_id, title, created_by_user_id) VALUES ('game-thread', 'workspace_demo', 'group-a', 'Fixture chat', ?)").run(TEST_USER_ROW.id)
+        database.prepare("INSERT INTO quizzes (id, workspace_id, title, topic, created_by_user_id) VALUES ('quiz', 'workspace_demo', 'Fixture quiz', 'math', ?)").run(TEST_USER_ROW.id)
+        database.prepare("INSERT INTO quiz_questions (id, quiz_id, question, choices, correct_answer_id, topic) VALUES ('q1', 'quiz', 'Two plus two?', ?, 'a', 'math')")
+          .run(JSON.stringify([{ id: "a", text: "Four" }, { id: "b", text: "Five" }]))
+        stubSessionLookup(fixture.stub)
+        const { POST: launch } = await import("../../app/api/live-sessions/route")
+        const { POST: control } = await import("../../app/api/live-sessions/[code]/route")
+        const response = await launch(request("/api/live-sessions", { method: "POST", body: { quizId: "quiz", groupId: "group-a" } }))
+        assert.equal(response.status, 201)
+        const launched = await response.json()
+        const code = String(launched.item.code)
+        assert.equal(launched.threadId, "game-thread")
+        assert.equal(launched.item.session.threadId, "game-thread", "attachment reads back the actual stored state")
+        const chatEvents = () => events.filter((event) => event.channel === "group__group-a")
+        assert.deepEqual(chatEvents().map((event) => event.payload), [{ threadId: "game-thread" }])
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const closed = await control(request(`/api/live-sessions/${code}`, { method: "POST", body: { action: "close" } }), { params: Promise.resolve({ code }) })
+          assert.equal(closed.status, 200)
+          assert.equal(chatEvents().length, attempt + 2, "each confirmed finish or repair wakes the same conversation")
+          assert.equal(database.prepare("SELECT count(*) AS count FROM chat_messages WHERE json_extract(metadata, '$.kind') = 'live-game-result'").get()?.count, 1)
+        }
+        const descriptors = database.prepare("SELECT metadata FROM chat_messages WHERE thread_id = 'game-thread'").all()
+          .map((row) => JSON.parse(String(row.metadata)))
+        assert.deepEqual(descriptors.map((entry) => entry.kind).sort(), ["live-game", "live-game-result"])
+        assert.equal(database.prepare("SELECT count(*) AS count FROM audit_logs WHERE entity = 'chat_message' AND entity_id = ?").get(`chatmsg_liveresult_${code}`)?.count, 1)
+        assert.ok(chatEvents().every((event) => event.payload.threadId === "game-thread"))
+      } finally { fixture.close() }
     })
   } finally { setLocalRealtimeHub(null); stub.restore() }
 })

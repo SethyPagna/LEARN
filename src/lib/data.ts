@@ -3,7 +3,7 @@ import crypto from "node:crypto"
 import { buildProviderAdminSummary, decryptProviderSecret, encryptProviderSecret, maskProviderSecret, normalizeProviderConfigInput, type ProviderConfigInput, type SerializedProviderConfig } from "./ai/provider-admin"
 import type { AiProviderKey } from "./ai/providers"
 import { createSessionToken, hashPassword, hashSessionToken, verifyPassword } from "./auth"
-import { query } from "./db"
+import { query, queryBatch, type DatabaseStatement } from "./db"
 import { dmChatChannelId, groupChatChannelId } from "./chat-channel"
 import { broadcastRealtimeEvent } from "./realtime-broadcast"
 import { buildFeedRankCacheEntries, feedTopicKey, selectCachedFeedLessons, type FeedRankCacheEntry } from "./feed-cache"
@@ -19,7 +19,7 @@ import {
   type KnowledgeNode,
   type ReviewItem,
 } from "./learning-ecosystem"
-import { MAX_DAILY_REVIEW_CAP, nextReviewDueAt, readDailyReviewBudget } from "./review-scheduling"
+import { MAX_DAILY_REVIEW_CAP, nextReviewDueAt, readDailyReviewBudget, reviewDayWindow, reviewSchedulingPreferences } from "./review-scheduling"
 import { buildGamePracticeSessionDraft, buildQuizPracticeSessionDraft, buildReviewCardsFromPracticeItems, type PracticeSessionDraft, type PracticeSessionQuestion } from "./practice-sessions"
 import { createId, ensureDatabase, logAudit } from "./schema"
 import {
@@ -2358,6 +2358,7 @@ export async function recordQuizAttempt(user: User, input: {
 
 const LIVE_SESSION_NOT_FOUND = "That join code does not match a live quiz."
 const LIVE_JOIN_CODE_ATTEMPTS = 8
+const MAX_LEARNING_MUTATION_ATTEMPTS = 8
 
 /**
  * The participant identity for a signed-in player.
@@ -2406,10 +2407,11 @@ async function loadLiveSessionRecord(codeInput: unknown) {
  */
 async function persistLiveSession(input: {
   id: string
+  beforeJson: string
   after: LiveQuizSession
   effects: LiveEffect[]
 }) {
-  const { id, after, effects } = input
+  const { id, beforeJson, after, effects } = input
   const [roster, storedAnswers] = await Promise.all([
     query<{ id: string; user_id: string | null }>("SELECT id, user_id FROM live_quiz_participants WHERE session_id = $1", [id]),
     query<{ participant_id: string; question_id: string }>("SELECT participant_id, question_id FROM live_quiz_answers WHERE session_id = $1", [id]),
@@ -2421,37 +2423,35 @@ async function persistLiveSession(input: {
       || roster.rows.find((row) => row.id === participant.id || (userId && row.user_id === userId))
     return [participant.id, { id: existing?.id || scopedId, userId }] as const
   }))
-  const stateJson = serializeSession(after)
-  if (effects.some((effect) => effect.type === "finalize")) {
-    await query(
-      `UPDATE live_quiz_sessions
-       SET phase = $1, question_index = $2, state_json = $3, updated_at = datetime('now'), finished_at = COALESCE(finished_at, datetime('now'))
-       WHERE id = $4`,
-      [after.phase, after.questionIndex, stateJson, id],
-    )
-  } else {
-    await query(
-      `UPDATE live_quiz_sessions
-       SET phase = $1, question_index = $2, state_json = $3, updated_at = datetime('now')
-       WHERE id = $4`,
-      [after.phase, after.questionIndex, stateJson, id],
-    )
-  }
-
-  await insertRows(
-    "live_quiz_participants",
-    ["id", "session_id", "user_id", "name", "score", "joined_at"],
-    after.participants.map((participant) => [
+  const mutationId = createId("livemutation")
+  // A private JSON token prevents an identical-state comparison from owning
+  // someone else's child writes, without requiring a preview schema migration.
+  const statements: DatabaseStatement[] = [{
+    sql: `UPDATE live_quiz_sessions
+          SET phase = $1, question_index = $2, state_json = json_set($3, '$._mutationId', $7), updated_at = datetime('now'),
+              finished_at = CASE WHEN $6 = 1 THEN COALESCE(finished_at, datetime('now')) ELSE finished_at END
+          WHERE id = $4 AND state_json = $5`,
+    params: [after.phase, after.questionIndex, serializeSession(after), id, beforeJson,
+      effects.some((effect) => effect.type === "finalize") ? 1 : 0, mutationId],
+  }]
+  const participants = after.participants.map((participant) => [
       participantRows.get(participant.id)!.id,
       id,
       participantRows.get(participant.id)!.userId,
       participant.name,
       participant.score,
       new Date(participant.joinedAt).toISOString(),
-    ]),
-    [],
-    "ON CONFLICT (id) DO UPDATE SET session_id = EXCLUDED.session_id, user_id = EXCLUDED.user_id, name = EXCLUDED.name, score = EXCLUDED.score, joined_at = EXCLUDED.joined_at",
-  )
+    ])
+  if (participants.length) statements.push({
+    sql: `INSERT INTO live_quiz_participants (id, session_id, user_id, name, score, joined_at)
+          SELECT json_extract(value, '$[0]'), json_extract(value, '$[1]'), json_extract(value, '$[2]'),
+                 json_extract(value, '$[3]'), json_extract(value, '$[4]'), json_extract(value, '$[5]')
+          FROM json_each($1)
+          WHERE EXISTS (SELECT 1 FROM live_quiz_sessions WHERE id = $2 AND json_extract(state_json, '$._mutationId') = $3)
+          ON CONFLICT (id) DO UPDATE SET session_id = EXCLUDED.session_id, user_id = EXCLUDED.user_id,
+            name = EXCLUDED.name, score = EXCLUDED.score, joined_at = EXCLUDED.joined_at`,
+    params: [JSON.stringify(participants), id, mutationId],
+  })
 
   const alreadyStored = new Set(
     storedAnswers.rows.map((answer) => JSON.stringify([answer.participant_id, answer.question_id])),
@@ -2471,13 +2471,18 @@ async function persistLiveSession(input: {
         timestampIso(answer.at),
       ])
   })
-  await insertRows(
-    "live_quiz_answers",
-    ["id", "session_id", "question_id", "participant_id", "choice_id", "correct", "points", "answered_at"],
-    newAnswers,
-    [],
-    "ON CONFLICT (participant_id, question_id) DO NOTHING",
-  )
+  if (newAnswers.length) statements.push({
+    sql: `INSERT INTO live_quiz_answers (id, session_id, question_id, participant_id, choice_id, correct, points, answered_at)
+          SELECT json_extract(value, '$[0]'), json_extract(value, '$[1]'), json_extract(value, '$[2]'),
+                 json_extract(value, '$[3]'), json_extract(value, '$[4]'), json_extract(value, '$[5]'),
+                 json_extract(value, '$[6]'), json_extract(value, '$[7]')
+          FROM json_each($1)
+          WHERE EXISTS (SELECT 1 FROM live_quiz_sessions WHERE id = $2 AND json_extract(state_json, '$._mutationId') = $3)
+          ON CONFLICT (participant_id, question_id) DO NOTHING`,
+    params: [JSON.stringify(newAnswers), id, mutationId],
+  })
+  const [updated] = await queryBatch(statements)
+  return updated.rowCount === 1
 }
 
 export async function createLiveSession(user: User, input: { quizId: string; title?: string; mode?: unknown }) {
@@ -2546,10 +2551,17 @@ const LIVE_RESULT_MESSAGE_ID_PREFIX = "chatmsg_liveresult_"
  * like everything else), and adding it to the JSON keeps a feature that is
  * entirely about one round of play from needing a migration.
  */
-async function attachLiveSessionThread(id: string, session: LiveQuizSession, threadId: string): Promise<LiveQuizSession> {
-  const withThread: LiveQuizSession = { ...session, threadId }
-  await query("UPDATE live_quiz_sessions SET state_json = $1 WHERE id = $2", [serializeSession(withThread), id])
-  return withThread
+async function attachLiveSessionThread(id: string, threadId: string): Promise<LiveQuizSession> {
+  const [, current] = await queryBatch([
+    {
+      sql: "UPDATE live_quiz_sessions SET state_json = json_set(state_json, '$.threadId', $1, '$._mutationId', $3) WHERE id = $2",
+      params: [threadId, id, createId("livemutation")],
+    },
+    { sql: "SELECT state_json FROM live_quiz_sessions WHERE id = $1", params: [id] },
+  ])
+  const session = parseSession(current.rows[0]?.state_json)
+  if (!session) throw new Error(LIVE_SESSION_NOT_FOUND)
+  return session
 }
 
 /**
@@ -2558,10 +2570,10 @@ async function attachLiveSessionThread(id: string, session: LiveQuizSession, thr
  *
  * Idempotent by primary key: the message id is derived from the join code and
  * the insert is `ON CONFLICT (id) DO NOTHING`. The reducer already guarantees a
- * single `finalize` per session (it refuses `next`/`close` once finished), but
- * two requests can both load a *still-running* session and both reduce it to
- * `finished`; that race is settled here, by the database, the same way the join
- * code's UNIQUE index settles a collision.
+ * single transition to finished. A retried host finish can repair publication
+ * after an uncertain response without duplicating the message or audit row.
+ * Successful retries broadcast again so connected clients can refresh; delivery
+ * is at least once, while game completion still precedes this transaction.
  */
 async function recordLiveGameResultMessage(session: LiveQuizSession, finishedAtMs: number) {
   if (!session.threadId) return null
@@ -2575,19 +2587,30 @@ async function recordLiveGameResultMessage(session: LiveQuizSession, finishedAtM
     participants: summary.participants,
   })
   const messageId = `${LIVE_RESULT_MESSAGE_ID_PREFIX}${session.code}`
-  const written = await query(
-    `INSERT INTO chat_messages (id, thread_id, user_id, body, metadata)
-     VALUES ($1, $2, $3, $4, $5::jsonb)
-     ON CONFLICT (id) DO NOTHING`,
-    [messageId, session.threadId, session.hostUserId, liveGameResultBody(result), JSON.stringify(result)],
-  )
+  const [written] = await queryBatch([
+    {
+      sql: `INSERT INTO chat_messages (id, thread_id, user_id, body, metadata)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (id) DO NOTHING`,
+      params: [messageId, session.threadId, session.hostUserId, liveGameResultBody(result), JSON.stringify(result)],
+    },
+    {
+      sql: `UPDATE chat_threads SET updated_at = datetime('now') WHERE id = $1
+            AND EXISTS (SELECT 1 FROM chat_messages WHERE id = $2 AND thread_id = $1)`,
+      params: [session.threadId, messageId],
+    },
+    {
+      sql: `INSERT INTO audit_logs (id, user_id, action, entity, entity_id, details)
+            SELECT $1, $2, 'create', 'chat_message', $3, '{}'
+            WHERE EXISTS (SELECT 1 FROM chat_messages WHERE id = $3 AND thread_id = $4)
+              AND NOT EXISTS (SELECT 1 FROM audit_logs WHERE action = 'create' AND entity = 'chat_message' AND entity_id = $3)
+            ON CONFLICT (id) DO NOTHING`,
+      params: [`audit_liveresult_${session.code}`, session.hostUserId, messageId, session.threadId],
+    },
+  ])
   // The message is attributed to the host, who started the game, so the thread
   // reads as one person reporting a result rather than as a system notice.
-  if (written.rowCount > 0) {
-    await logAudit({ userId: session.hostUserId, action: "create", entity: "chat_message", entityId: messageId })
-    await query("UPDATE chat_threads SET updated_at = now() WHERE id = $1", [session.threadId])
-    await broadcastChatThreadChange(session.threadId, session.hostUserId)
-  }
+  await broadcastChatThreadChange(session.threadId, session.hostUserId)
   // `rowCount` is 0 when the row already existed: idempotency working, not a
   // failure. Still returned, because "was this the first write?" is the only
   // interesting thing about this call.
@@ -2646,7 +2669,7 @@ export async function launchLiveGameInChat(user: User, input: {
     body: liveGameInviteBody(invite),
     metadata: invite,
   })
-  const session = await attachLiveSessionThread(created.id, created.session, posted.threadId)
+  const session = await attachLiveSessionThread(created.id, posted.threadId)
   return { id: created.id, code: created.code, session, threadId: posted.threadId, messageId: posted.messageId }
 }
 
@@ -2685,40 +2708,42 @@ export async function listLiveSessions(user: User, limit = 20) {
 /**
  * Applies one event to the stored session and persists the result.
  *
- * Returns `{ accepted: false, session }` when the reducer refuses — a late
- * answer, a second answer, a non-host `start` — without touching the database.
- * Callers turn that into a 409/403 with a message; the point is that a refused
- * event is never a partial write.
+ * Refused events leave game state unchanged. A retried host close/next on a
+ * finished game can recover its idempotent chat result message.
  *
- * This is also where a finished game is written back into the chat thread it
- * was launched from. Doing it here rather than in the host's browser is the
- * whole reason the session remembers its `threadId`:
- *
- * - **Exactly once, by construction.** The reducer rejects `next`/`close` once
- *   the phase is `finished`, so only the one event that *transitions* into
- *   `finished` carries a `finalize` effect — a host polling the state, or
- *   pressing End twice, cannot produce a second result message.
- * - **Independent of the host's tab.** The record lands even if the host closed
- *   the laptop on the last question, and every client sees the same message.
- * - **Ordered before the response.** The message exists by the time the host is
- *   told the game is over, so the thread cannot be read in a state where the
- *   game finished and left no trace.
+ * State, roster and answers commit together before chat publication. The
+ * response waits for publication, but a failure can leave a finished game
+ * without its result card until the host retries; this is not a durable outbox.
  */
 async function applyLiveEvent(input: {
   code: unknown
   event: LiveEvent
   nowMs: number
 }): Promise<{ accepted: boolean; id: string; session: LiveQuizSession; effects: LiveEffect[] }> {
-  const found = await loadLiveSessionRecord(input.code)
-  const result = reduceSession(found.session, input.event, input.nowMs)
-  if (!result.effects.length) {
-    return { accepted: false, id: found.id, session: found.session, effects: [] }
+  for (let attempt = 0; attempt < MAX_LEARNING_MUTATION_ATTEMPTS; attempt += 1) {
+    const found = await loadLiveSessionRecord(input.code)
+    const result = reduceSession(found.session, input.event, input.nowMs)
+    if (!result.effects.length) {
+      if (found.session.phase === "finished" && found.session.threadId
+        && input.event.actorId === found.session.hostUserId
+        && (input.event.type === "close" || input.event.type === "next")) {
+        await recordLiveGameResultMessage(found.session, input.nowMs)
+      }
+      return { accepted: false, id: found.id, session: found.session, effects: [] }
+    }
+    const persisted = await persistLiveSession({
+      id: found.id, beforeJson: String(found.row.state_json),
+      after: result.session, effects: result.effects,
+    })
+    // Only a confirmed comparison miss is retried. A failed/lost batch response
+    // may already have committed and must propagate without replaying writes.
+    if (!persisted) continue
+    if (result.effects.some((effect) => effect.type === "finalize")) {
+      await recordLiveGameResultMessage(result.session, input.nowMs)
+    }
+    return { accepted: true, id: found.id, session: result.session, effects: result.effects }
   }
-  await persistLiveSession({ id: found.id, after: result.session, effects: result.effects })
-  if (result.effects.some((effect) => effect.type === "finalize")) {
-    await recordLiveGameResultMessage(result.session, input.nowMs)
-  }
-  return { accepted: true, id: found.id, session: result.session, effects: result.effects }
+  throw new Error("This live quiz is busy. Please try again.")
 }
 
 export async function joinLiveSession(user: User, codeInput: unknown) {
@@ -3357,48 +3382,82 @@ export async function recordReviewResult(user: User, input: Record<string, unkno
     throw new Error("Choose Again, Hard, Good, or Easy.")
   }
   const now = new Date()
-  const budget = await readDailyReviewBudget({ userId: user.id, preferences: user.preferences || {}, now })
-  if (buildReviewSchedule({ items: [], now, ...budget }).isRestDay) {
-    throw new Error("Today is your review rest day.")
+  const nowIso = now.toISOString()
+  const today = nowIso.slice(0, 10)
+  const { dayStart, nextDay } = reviewDayWindow(now)
+  const elapsed = Number(input.elapsedMs ?? input.elapsed_ms ?? 0)
+  const elapsedMs = Number.isFinite(elapsed) ? Math.max(0, Math.floor(elapsed)) : 0
+
+  for (let attempt = 0; attempt < MAX_LEARNING_MUTATION_ATTEMPTS; attempt += 1) {
+    const currentUser = (await query(
+      "SELECT streak_current, streak_longest, streak_freezes_available, last_learning_activity_at, xp_total, preferences FROM users WHERE id = $1",
+      [user.id],
+    )).rows[0]
+    if (!currentUser) throw new Error("Your account is no longer available.")
+    const preferences = parseJsonObject(currentUser.preferences)
+    const budget = await readDailyReviewBudget({ userId: user.id, preferences, now })
+    if (buildReviewSchedule({ items: [], now, ...budget }).isRestDay) {
+      throw new Error("Today is your review rest day.")
+    }
+    if (budget.dailyCap === 0) throw new Error("You've reached today's review limit.")
+    const { restDay } = budget
+    const nextDueAt = nextReviewDueAt({ rating, now, restDay })
+    const streak = updateLearningStreak({
+      current: normalizeInteger(currentUser.streak_current),
+      longest: normalizeInteger(currentUser.streak_longest),
+      freezesAvailable: normalizeInteger(currentUser.streak_freezes_available),
+      lastActivityDate: String(currentUser.last_learning_activity_at || "").slice(0, 10),
+      today,
+      restDay,
+    })
+    const logId = createId("reviewlog")
+    const [reserved] = await queryBatch([
+      {
+        // The database checks the remaining dose inside the transaction. The
+        // metric snapshot also guards streak/freezes against concurrent grades.
+        sql: `INSERT INTO review_logs (id, user_id, review_item_id, rating, elapsed_ms, next_due_at, created_at)
+              SELECT $1, $2, $3, $4, $5, $6, $7
+              WHERE EXISTS (SELECT 1 FROM review_items WHERE id = $3 AND user_id = $2 AND datetime(due_at) <= datetime($7))
+                AND (SELECT count(*) FROM review_logs WHERE user_id = $2
+                  AND datetime(created_at) >= datetime($8) AND datetime(created_at) < datetime($9)) < $10
+                AND EXISTS (SELECT 1 FROM users WHERE id = $2
+                  AND streak_current IS $11 AND streak_longest IS $12 AND streak_freezes_available IS $13
+                  AND last_learning_activity_at IS $14 AND xp_total IS $15 AND preferences IS $16)`,
+        params: [logId, user.id, id, rating, elapsedMs, nextDueAt, nowIso, dayStart, nextDay,
+          reviewSchedulingPreferences(preferences).dailyCap, currentUser.streak_current ?? null,
+          currentUser.streak_longest ?? null, currentUser.streak_freezes_available ?? null,
+          currentUser.last_learning_activity_at ?? null, currentUser.xp_total ?? null, currentUser.preferences ?? null],
+      },
+      {
+        sql: `UPDATE review_items SET due_at = $1, last_reviewed_at = $2, review_count = review_count + 1,
+                lapse_count = lapse_count + $3, retrievability = $4, updated_at = $2
+              WHERE id = $5 AND user_id = $6 AND EXISTS (SELECT 1 FROM review_logs WHERE id = $7)`,
+        params: [nextDueAt, nowIso, rating === "again" ? 1 : 0, rating === "again" ? 0.35 : 0.9, id, user.id, logId],
+      },
+      {
+        sql: `UPDATE users SET streak_current = $1, streak_longest = $2, streak_freezes_available = $3,
+                xp_total = COALESCE(xp_total, 0) + 8, last_learning_activity_at = $4
+              WHERE id = $5 AND EXISTS (SELECT 1 FROM review_logs WHERE id = $6)`,
+        params: [streak.current, streak.longest, streak.freezesAvailable, today, user.id, logId],
+      },
+      {
+        sql: `INSERT INTO audit_logs (id, user_id, action, entity, entity_id, details)
+              SELECT $1, $2, 'complete', 'review_item', $3, $4
+              WHERE EXISTS (SELECT 1 FROM review_logs WHERE id = $5)`,
+        params: [createId("audit"), user.id, id, JSON.stringify({ rating }), logId],
+      },
+    ])
+    if (reserved.rowCount === 1) return { nextDueAt, streak }
+
+    const due = await query(
+      "SELECT id FROM review_items WHERE id = $1 AND user_id = $2 AND datetime(due_at) <= datetime($3)",
+      [id, user.id, nowIso],
+    )
+    if (!due.rowCount) throw new Error("This review is not due or is no longer available.")
+    // A confirmed zero-row reservation may be a changed metric/preference
+    // snapshot. Re-read it and the budget; transaction errors are not retried.
   }
-  if (budget.dailyCap === 0) throw new Error("You've reached today's review limit.")
-  const { restDay } = budget
-  const nextDueAt = nextReviewDueAt({ rating, now, restDay })
-  const updated = await query(
-    `UPDATE review_items
-     SET due_at = $1,
-         last_reviewed_at = now(),
-         review_count = review_count + 1,
-         lapse_count = lapse_count + $2,
-         retrievability = $3,
-         updated_at = now()
-     WHERE id = $4 AND user_id = $5 AND datetime(due_at) <= datetime($6)`,
-    [nextDueAt, rating === "again" ? 1 : 0, rating === "again" ? 0.35 : 0.9, id, user.id, now.toISOString()],
-  )
-  if (updated.rowCount === 0) throw new Error("This review is not due or is no longer available.")
-  await query(
-    "INSERT INTO review_logs (id, user_id, review_item_id, rating, elapsed_ms, next_due_at) VALUES ($1, $2, $3, $4, $5, $6)",
-    [createId("reviewlog"), user.id, id, rating, Number(input.elapsedMs || input.elapsed_ms || 0), nextDueAt],
-  )
-  const currentUser = (await query(
-    "SELECT streak_current, streak_longest, streak_freezes_available, last_learning_activity_at FROM users WHERE id = $1",
-    [user.id],
-  )).rows[0] || {}
-  const today = now.toISOString().slice(0, 10)
-  const streak = updateLearningStreak({
-    current: normalizeInteger(currentUser.streak_current),
-    longest: normalizeInteger(currentUser.streak_longest),
-    freezesAvailable: normalizeInteger(currentUser.streak_freezes_available),
-    lastActivityDate: String(currentUser.last_learning_activity_at || "").slice(0, 10),
-    today,
-    restDay,
-  })
-  await query(
-    "UPDATE users SET streak_current = $1, streak_longest = $2, streak_freezes_available = $3, xp_total = COALESCE(xp_total, 0) + 8, last_learning_activity_at = $4 WHERE id = $5",
-    [streak.current, streak.longest, streak.freezesAvailable, today, user.id],
-  )
-  await logAudit({ userId: user.id, action: "complete", entity: "review_item", entityId: id, details: { rating } })
-  return { nextDueAt, streak }
+  throw new Error("Your review progress is busy. Please try again.")
 }
 
 export async function listFeed(user: User, topics: string[] = []) {
