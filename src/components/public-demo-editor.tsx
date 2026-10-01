@@ -23,7 +23,7 @@ import type { MeasureText } from "@/lib/design/text"
 import type { DesignPanelId } from "@/components/learn/design/editor-types"
 import styles from "./public-demo-editor.module.css"
 
-const TOUR_STEPS = ["Pick a project.", "Select text. Try the tools.", "Add a little personality.", "Make a page. Keep your design."] as const
+const TOUR_STEPS = ["Pick a project.", "Try the text tools.", "Add a little personality.", "Add a page. Download it."] as const
 const DEMO_SHAPES: readonly ShapeKind[] = ["ellipse", "rounded", "star", "burst", "heart", "speech"]
 const PANEL_LABELS: Partial<Record<DesignPanelId, string>> = { text: "Text", elements: "Elements", layers: "Layers", styles: "Styles", "text-color": "Text color", "text-effects": "Effects" }
 type DemoController = ReturnType<typeof useDesignController>
