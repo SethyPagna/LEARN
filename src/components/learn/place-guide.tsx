@@ -84,10 +84,15 @@ export function PlaceGuide({ setView }: { setView: (view: View) => void }) {
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const dialogRef = useRef<HTMLElement | null>(null)
+  const invokerRef = useRef<HTMLElement | null>(null)
   const entries = useMemo(() => groupPlaces().flatMap((group) => group.items), [])
 
   useEffect(() => {
     function openGuide() {
+      const activeElement = document.activeElement
+      if (!dialogRef.current?.contains(activeElement)) {
+        invokerRef.current = activeElement instanceof HTMLElement && activeElement !== document.body ? activeElement : null
+      }
       setActiveIndex(0)
       setOpen(true)
     }
@@ -98,6 +103,11 @@ export function PlaceGuide({ setView }: { setView: (view: View) => void }) {
   useEffect(() => {
     if (!open) return
     dialogRef.current?.querySelector<HTMLElement>("[data-place-id]")?.focus()
+    return () => {
+      const invoker = invokerRef.current
+      invokerRef.current = null
+      if (invoker?.isConnected) invoker.focus()
+    }
   }, [open])
 
   function choose(place: PlaceEntry) {

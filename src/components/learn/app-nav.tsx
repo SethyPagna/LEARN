@@ -336,28 +336,11 @@ function SidebarPageLinks({ isAdmin, label, setView, text, view }: { isAdmin: bo
 }
 
 function SidebarFooter({ compact, isAdmin, setView, text, view }: { compact: boolean; isAdmin: boolean; setView: (view: View) => void; text: Text; view: View }) {
-
-  if (compact) {
-    return (
-      <div className="grid justify-items-center gap-2 border-t border-sidebar-border px-2 py-3">
-        <button type="button" onClick={openPlaceGuide} className={ghostIconButton} aria-label="What's where?" title="What's where?">
-          <Compass className="h-[18px] w-[18px]" />
-        </button>
-      </div>
-    )
-  }
+  if (compact || resolveNavigationTarget(view).primaryView !== "profile") return null
 
   return (
     <div className="border-t border-sidebar-border px-3 py-2">
-      {resolveNavigationTarget(view).primaryView === "profile" ? <SidebarPageLinks isAdmin={isAdmin} label={String(text.me)} setView={setView} text={text} view={view} /> : null}
-      <button
-        type="button"
-        onClick={openPlaceGuide}
-        aria-label="What's where?" title="Help"
-        className={ghostIconButton}
-      >
-        <Compass className="h-4 w-4" />
-      </button>
+      <SidebarPageLinks isAdmin={isAdmin} label={String(text.me)} setView={setView} text={text} view={view} />
     </div>
   )
 }
@@ -645,7 +628,7 @@ function AccountMenu({
 
           <div className="account-links my-2 grid gap-0.5">
             <MenuRow icon={Settings} label={String(text.settings)} onClick={() => go("settings")} />
-            <MenuRow icon={Compass} label="What's where?" onClick={() => { setOpen(false); openPlaceGuide() }} />
+            <MenuRow icon={Compass} label="What's where?" onClick={() => { setOpen(false); triggerRef.current?.focus(); openPlaceGuide() }} />
           </div>
 
           <details className="account-preferences border-t border-border pb-2 pt-1"><summary className="cursor-pointer py-2 text-xs font-medium text-muted-foreground">Preferences</summary><div className="grid gap-3 py-2">
