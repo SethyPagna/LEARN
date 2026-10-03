@@ -105,10 +105,18 @@ async function editorFlows(page, editor) {
   const textEditor = stage.getByRole("textbox", { name: "Text", exact: true })
   await visible(textEditor)
   assert.equal(await textEditor.inputValue(), "Your next idea", "Inserted text must open in the real editor")
+  await textEditor.fill("A small idea, made mine.")
+  await textEditor.press("Tab")
+  await editor.getByRole("button", { name: "Undo", exact: true }).click()
+  await visible(stage.getByText("Your next idea", { exact: true }))
+  await editor.getByRole("button", { name: "Redo", exact: true }).click()
+  await visible(stage.getByText("A small idea, made mine.", { exact: true }))
+  await editor.getByRole("button", { name: "Undo", exact: true }).click()
+  await visible(stage.getByText("Your next idea", { exact: true }))
   await editor.getByRole("button", { name: "Undo", exact: true }).click()
   await page.waitForFunction(count => document.querySelectorAll("[data-demo-editor] [data-design-stage] [data-design-element]").length === count, before)
   assert.equal(await stage.locator('[data-design-element^="demo-text"]').count(), 0, "Undo must remove the inserted text")
-  report.checks.push("canvas: add text and undo")
+  report.checks.push("canvas: add and edit text, undo, redo, remove insertion with undo")
 
   await editor.getByRole("button", { name: "Open Slides demo project", exact: true }).click()
   const secondPage = editor.getByRole("button", { name: "Page 2", exact: true })
@@ -120,6 +128,23 @@ async function editorFlows(page, editor) {
   await visible(editor.getByRole("application", { name: "Design page 1", exact: true }))
   assert.equal(await editor.getByRole("button", { name: "Page 1", exact: true }).getAttribute("aria-current"), "page")
   report.checks.push("slides: switch page 1 to 2 and back")
+}
+
+async function guidedTour(page, editor, viewport) {
+  await editor.getByRole("button", { name: "Start guided Studio tour", exact: true }).click()
+  const tour = editor.getByRole("region", { name: "Studio guided tour", exact: true })
+  await visible(tour.getByText("Pick a project.", { exact: true }))
+  await tour.getByRole("button", { name: "Next tutorial step", exact: true }).click()
+  await visible(tour.getByText("Try the text tools.", { exact: true }))
+  await visible(editor.getByRole("toolbar", { name: "Selection tools", exact: true }))
+  await tour.getByRole("button", { name: "Next tutorial step", exact: true }).click()
+  await visible(editor.getByRole("region", { name: "Elements library", exact: true }))
+  await layout(page, viewport, "guided tour elements")
+  await tour.getByRole("button", { name: "Next tutorial step", exact: true }).click()
+  await visible(tour.getByText("Add a page. Download it.", { exact: true }))
+  await tour.getByRole("button", { name: "Finish tutorial", exact: true }).click()
+  await tour.waitFor({ state: "hidden" })
+  report.checks.push(`guided tour: selection tools, elements and completion at ${viewport.width}px`)
 }
 
 async function authFlow(page, origin, viewport, sharp) {
@@ -191,6 +216,7 @@ async function viewportFlow(browser, origin, viewport, sharp) {
     for (const mode of viewport.width === 1280 ? ["Light", "Dark", "Color"] : [viewport.mode]) await appearance(page, mode)
     report.checks.push(`appearance modes: ${viewport.width === 1280 ? "Light, Dark, Color" : viewport.mode} at ${viewport.width}px`)
     if (viewport.width === 1280) await editorFlows(page, editor)
+    await guidedTour(page, editor, viewport)
     await layout(page, viewport, "public landing and demo")
     await editor.scrollIntoViewIfNeeded()
     const bounds = await editor.locator("[data-design-stage]").boundingBox()
