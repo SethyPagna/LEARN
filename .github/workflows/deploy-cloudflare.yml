@@ -67,12 +67,31 @@ jobs:
           done
           corepack pnpm smoke:cloudflare
 
+      - name: Smoke public editor and responsive auth views
+        run: |
+          browser_path=$(command -v google-chrome || command -v chromium || true)
+          if [ -z "$browser_path" ]; then
+            echo "A Chromium browser is required for the public flow checks."
+            exit 1
+          fi
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$browser_path" node ops/scripts/test/smoke-cloudflare-browser.mjs
+
       - name: Preserve release preflight summary
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: cloudflare-release-preflight-${{ github.sha }}
           path: .cache/release/cloudflare-release-summary.json
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Preserve public browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-public-browser-${{ github.sha }}
+          path: .cache/release/browser
           include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 14

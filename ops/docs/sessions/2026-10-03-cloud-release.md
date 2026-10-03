@@ -3,7 +3,7 @@
 ## Resume here
 
 - Actual checkout: `C:/Users/user/Downloads/Projects/LEARN`, `cleanup/stage-1`, source `b7ec6b277a5410615996aef8072e27b1c4bd453e`. GitHub confirms this branch is 249 commits ahead of default `main`, zero behind; its October 1 tests/type/build CI passed. Keep GitHub branches and history.
-- Preserve pre-existing uncommitted appendices in `ops/docs/roadmap/progress.md` and `ops/docs/sessions/2026-10-01-navigation-polish.md`; another publication lane wrote those, and this release does not own them.
+- Preserve the earlier publication lane's historical appendices in `ops/docs/roadmap/progress.md` and `ops/docs/sessions/2026-10-01-navigation-polish.md`. After stable repeated reads, root saved them unchanged in a separate documentation commit under the user's commit authorization. Their earlier deployment-order limitations are superseded by this release's source/evidence below.
 - User authorizes publishing LEARN and the portfolio to Cloudflare, replacing the outdated portfolio link, and removing proven obsolete local versions/useless files. Their explicit clarification is to move both sites. No new Vercel deployment.
 - Harness Build run: `run-d9e4d03d-907f-4a3d-9c51-eab577d723e8`, area `cloud-release`. Goal is current public LEARN, accurate portfolio link and only the latest useful local source, preserving data/assets/WIP/history.
 - Cloudflare connector confirms account `d105a82bc26b6913575355352c2d1bb1`, sole LEARN Worker `learn`, `https://learn.learn-app.workers.dev`, D1 `learn-db`, R2 `learn-files`/`learn-next-cache`. Other Workers are unrelated and untouched. Live Worker last deployed June 21; its migration tag is `v6_add_presence_durable_object`, absent from both source configurations.
@@ -24,7 +24,7 @@
 | --- | --- |
 | GitHub/source and existing cloud inventory | Done, fresh read-only provider/GitHub evidence |
 | Migration/config and safe deployment ordering | Committed; independent static review passed, hosted tests pending |
-| Hosted verification / Cloudflare deployment | To do |
+| Hosted verification / Cloudflare deployment | CI 37094509890 passed 1372 tests/typecheck/build/four CSS checks at b6731be; deployment pending |
 | Public browser/editor/auth smoke | To do |
 | Portfolio canonical link / current preview | To do, stale checkout avoided |
 | Local duplicate/cache inventory | Done, six generated candidates total 8.37 GiB; no deletion |
@@ -41,3 +41,5 @@
 - Review caught and fixed a direct-run edge case: the default deploy command now applies D1 after build/preflight as well. All three entry points use the same ordering, upload refuses a missing completed artifact, and production runs cannot cancel an in-progress migration. The hosted artifact preserves only the nonsecret timestamp/source/ledger summary; private bookmarks stay in ignored recovery receipts. A current provider bookmark and prior deployment/version/bindings are retained locally before release.
 - User authorized coordination with "Improve portfolio immersion". That chat is now the sole portfolio writer/deployer and accepted handoff of the six scoped LEARN link/docs/art changes. It is creating `sethy-pagna` Pages via the existing Cloudflare Git integration, planned `https://sethy-pagna.pages.dev`; not yet live. Root will send verified LEARN evidence before its publication and will not duplicate portfolio deployments.
 - Focused local commits preserve applied DO history (`03eed5e`) and disable new Vercel Git deployments (`bb35ad1`). No cloud write by this LEARN lane yet. Hosted CI is the next gate; no laptop heavy job or reservation is held.
+- Hosted CI `37094509890` at exact `b6731be366ec0aa1327b8eb11aa5d60563f9317d` completed successfully: 1372 tests, zero failures, typecheck, production build and four CSS checks. Log saved privately under `.cache/release/ci-b6731be.log`. Two Git remote reads and independent GitHub ref agree with local HEAD at that checkpoint. Anonymous browser regression is being added for the hosted release; no public-user data write or account creation is part of its checks.
+- The 45 KB June archive's 37 files, including local configuration and original Git objects, are preserved in ignored `.cache/recovery/learn-2026-06`, verified with two reads of each original and copy against a before-copy manifest. Original archive has not been removed; cleanup waits for the storage census. Receipt remains private and no secret values were printed.
