@@ -279,3 +279,19 @@ later checkpoint scheme from these original 20 phases.
 ## Next Recommended Slice
 
 Start with Phase 1. It will expose which buttons and workflows are incomplete, then Phase 2 and Phase 3 can turn those findings into reusable UI and architecture rules before larger implementation begins.
+
+## 2026-10-02 UTC: publication inventory and manual deployment handoff
+
+Original goal remains the Cloudflare-first learning operating system with working learning/editor/AI/social/practice workflows and evidence-led staged delivery. Historical May phase checklists and September/October verified slices remain intact; they are not a claim that every phase/provider flow is complete.
+
+Past: navigation/demo delivery records 1,355 tests, build/four CSS checks, 76 navigation and 93 demo checks across nine layouts; exact-head CI receipts are preserved in the existing session/audit. Current: root verified clean `cleanup/stage-1` at full SHA `b7ec6b277a5410615996aef8072e27b1c4bd453e`, matching remote `SethyPagna/LEARN`, with verify and Vercel Preview Comments successful. Already published; no duplicate push/PR, merge or deployment was made in this task.
+
+Request/evidence checklist:
+- Original all-other-projects goal: clean/debloated/working source plus required review and additional gates before dedicated non-deploying branches/draft PRs; BusinessOS excluded.
+- 11:31:16 manual deployment request: staged `task-8/deployment-guidance/web-tools/LEARN.md` and read/print-only `Run-ManualPlan.ps1`; actual existing configs/scripts/IDs reused, no secrets copied. Operator verifies GitHub SethyPagna, Vercel ungsethypagna@gmail.com and Cloudflare jamesung.kh@gmail.com before any manual write.
+- 11:31:39 progress request: this append-only proposal preserves existing goal/evidence/history; application source and provider settings remain unchanged by this documentation checkpoint.
+- Actual Cloudflare resources/configuration: account `d105a82bc26b6913575355352c2d1bb1`, Worker `learn`, D1 `learn-db` (`3eeb04af-c283-48c0-9469-82b64392fa79`), R2 `learn-files`/`learn-next-cache`, existing realtime Durable Objects. Missing or mismatched resources stop the manual plan rather than provisioning replacements.
+
+Blockers/limits: requested watermark skill NOT FOUND/NOT RUN; provider-dependent live verification and source-specific provenance follow-ons remain open. Existing Cloudflare launcher applies live D1 migrations before its build/upload pipeline; schema recovery, migration ordering and a prior local build are required. Remote Wrangler 4.95.0 `d1 migrations list` is not read-only preflight. Existing Vercel launcher uses unpinned latest CLI; exact existing scope/project and pinned CLI remain operator gates. No full checks or live smoke were rerun in this docs lane.
+
+Next gate: owner selects/fixes the exact deployment candidate, verifies existing account/resources and schema recovery, resolves requested skill criterion, completes source/local/UI/provider gates serially, then chooses deliberate manual deployment and records its exact release SHA/URL/schema state/smoke. Main push/manual deployment workflow is a production action and remains outside this task's source-only publication scope. Do not mark deployment complete from this handoff.
