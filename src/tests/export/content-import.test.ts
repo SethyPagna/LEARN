@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { StudioContentImport } from "../../components/learn/studio-content-import"
 import { createZip, readZip } from "../../lib/export/zip"
 import { importPptx } from "../../lib/export/pptx-import"
-import { importPdf } from "../../lib/export/pdf-import"
+import { importPdf, studioDocumentFromPdfFile } from "../../lib/export/pdf-import"
 import { buildPdf } from "../../lib/export/pdf"
 import { parseXml } from "../../lib/export/xml-read"
 import type { ThemedBlock } from "../../lib/ai/format-response"
@@ -74,6 +74,10 @@ test("ZIP rejects declared and actual expanded content beyond limits", async () 
   view.setUint16(directory + 10, 8, true)
   view.setUint32(directory + 24, 1, true)
   await assert.rejects(readZip(packed, { maxEntryBytes: 10 }), /could not be inflated/)
+})
+
+test("PDF file selection reports a browser-only boundary before loading vendor modules on the server", async () => {
+  await assert.rejects(studioDocumentFromPdfFile(new Blob(["not a pdf"])), /available in the browser/)
 })
 
 test("real PDF.js reads exported text and keeps explicit page boundaries editable", async () => {

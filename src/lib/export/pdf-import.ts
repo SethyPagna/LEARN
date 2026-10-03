@@ -18,7 +18,8 @@ export interface ImportedPdfDocument {
 /** PDF.js is served as a same-origin module, fetched only after a PDF is selected. */
 export async function studioDocumentFromPdfFile(file: Blob): Promise<ImportedPdfDocument> {
   if (file.size > MAX_FILE_BYTES) throw new Error("PDF exceeds the 25 MB import limit.")
-  const moduleUrl = "/vendor/pdfjs/pdf.min.mjs"
+  if (typeof window === "undefined") throw new Error("PDF file import is available in the browser.")
+  const moduleUrl = new URL("/vendor/pdfjs/pdf.min.mjs", window.location.origin).href
   const pdfjs: typeof import("pdfjs-dist") = await import(/* webpackIgnore: true */ moduleUrl)
   pdfjs.GlobalWorkerOptions.workerSrc = "/vendor/pdfjs/pdf.worker.min.mjs"
   return importPdf(new Uint8Array(await file.arrayBuffer()), pdfjs)
