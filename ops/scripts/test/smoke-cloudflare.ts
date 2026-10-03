@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = "https://learn.learn-app.workers.dev"
+const DEFAULT_BASE_URL = "https://learn.pagna.workers.dev"
 const REQUEST_TIMEOUT_MS = 20_000
 const REQUIRED_CSS_SNIPPETS = [
   "display:flex",
@@ -227,12 +227,27 @@ async function checkFavicon(baseUrl: string) {
   }
 }
 
+async function checkPdfAssets(baseUrl: string) {
+  for (const assetPath of ["/vendor/pdfjs/pdf.min.mjs", "/vendor/pdfjs/pdf.worker.min.mjs"]) {
+    const response = await fetch(absoluteUrl(baseUrl, assetPath), {
+      method: "HEAD",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    })
+    if (response.status !== 200) fail(`${assetPath} returned ${response.status}`)
+    const contentType = response.headers.get("content-type") || ""
+    if (!/^(?:text|application)\/javascript(?:;|$)/i.test(contentType)) {
+      fail(`${assetPath} returned ${contentType || "no content type"} instead of JavaScript`)
+    }
+  }
+}
+
 async function main() {
   const baseUrl = normalizeBaseUrl(process.env.LEARN_SMOKE_BASE_URL)
 
   await checkRoutes(baseUrl)
   await checkCss(baseUrl)
   await checkFavicon(baseUrl)
+  await checkPdfAssets(baseUrl)
 
   console.log(`Cloudflare smoke check passed for ${baseUrl}.`)
 }

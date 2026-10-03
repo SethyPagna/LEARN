@@ -5,7 +5,7 @@ import { createRequire } from "node:module"
 import path from "node:path"
 import { chromium } from "playwright-core"
 
-const DEFAULT_BASE_URL = "https://learn.learn-app.workers.dev"
+const DEFAULT_BASE_URL = "https://learn.pagna.workers.dev"
 const OUTPUT = path.resolve(".cache/release/browser")
 const VIEWPORTS = [
   { width: 1280, height: 800, mode: "Color" },
