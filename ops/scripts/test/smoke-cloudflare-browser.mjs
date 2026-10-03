@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
+import { createHash } from "node:crypto"
 import { existsSync } from "node:fs"
-import { mkdir, writeFile } from "node:fs/promises"
+import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import path from "node:path"
 import { chromium } from "playwright-core"
@@ -22,6 +23,7 @@ const report = {
   checks: [],
   layouts: [],
   screenshots: [],
+  exports: [],
   pageErrors: [],
   consoleErrors: [],
   requestFailures: [],
@@ -118,6 +120,20 @@ async function editorFlows(page, editor) {
   assert.equal(await stage.locator('[data-design-element^="demo-text"]').count(), 0, "Undo must remove the inserted text")
   report.checks.push("canvas: add and edit text, undo, redo, remove insertion with undo")
 
+  const downloadStarted = page.waitForEvent("download")
+  await editor.getByRole("button", { name: "Download demo image", exact: true }).click()
+  const download = await downloadStarted
+  assert.equal(await download.failure(), null, "Demo PNG download must complete")
+  const exportPath = path.join(OUTPUT, "demo-export.png")
+  await download.saveAs(exportPath)
+  const png = await readFile(exportPath)
+  assert(png.length > 1000, "Demo export must contain a rendered image")
+  assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10], "Export must have a PNG signature")
+  assert.equal(png.readUInt32BE(16), 960, "Export preserves the canvas width")
+  assert.equal(png.readUInt32BE(20), 600, "Export preserves the canvas height")
+  report.exports.push({ file: "demo-export.png", bytes: png.length, width: 960, height: 600, sha256: createHash("sha256").update(png).digest("hex") })
+  report.checks.push("canvas: download an actual 960 by 600 PNG")
+
   await editor.getByRole("button", { name: "Open Slides demo project", exact: true }).click()
   const secondPage = editor.getByRole("button", { name: "Page 2", exact: true })
   await secondPage.click()
@@ -170,7 +186,7 @@ async function authFlow(page, origin, viewport, sharp) {
 }
 
 async function viewportFlow(browser, origin, viewport, sharp) {
-  const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, colorScheme: "light", serviceWorkers: "block", acceptDownloads: false })
+  const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, colorScheme: "light", serviceWorkers: "block", acceptDownloads: viewport.width === 1280 })
   let collecting = true
   await context.route("**/*", async route => {
     const request = route.request()
