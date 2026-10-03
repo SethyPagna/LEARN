@@ -6,6 +6,13 @@ on:
     branches:
       - main
 
+concurrency:
+  group: learn-cloudflare-production
+  cancel-in-progress: false
+
+env:
+  NODE_OPTIONS: --max-old-space-size=4096
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -28,6 +35,15 @@ jobs:
           corepack pnpm test
           corepack pnpm lint
 
+      - name: Build Worker
+        run: corepack pnpm exec tsx ops/scripts/deploy/cloudflare.ts build
+
+      - name: Verify existing Cloudflare target and recovery point
+        run: corepack pnpm exec tsx ops/scripts/deploy/cloudflare-preflight.ts
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
       - name: Apply D1 migrations
         run: corepack pnpm db:migrate:remote
         env:
@@ -35,7 +51,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
       - name: Deploy Worker
-        run: corepack pnpm deploy:cloudflare
+        run: corepack pnpm exec tsx ops/scripts/deploy/cloudflare.ts upload
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -50,3 +66,13 @@ jobs:
             sleep 15
           done
           corepack pnpm smoke:cloudflare
+
+      - name: Preserve release preflight summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-release-preflight-${{ github.sha }}
+          path: .cache/release/cloudflare-release-summary.json
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 14

@@ -223,7 +223,7 @@ test("Cloudflare smoke script verifies live routes and CSS", () => {
 
 test("Cloudflare deploy workflow smokes the live Worker after deploy", () => {
   const workflowText = fs.readFileSync(".github/workflows/deploy-cloudflare.yml", "utf8")
-  const deployIndex = workflowText.indexOf("corepack pnpm deploy:cloudflare")
+  const deployIndex = workflowText.indexOf("corepack pnpm exec tsx ops/scripts/deploy/cloudflare.ts upload")
   const smokeIndex = workflowText.indexOf("corepack pnpm smoke:cloudflare")
 
   assert.notEqual(deployIndex, -1)
