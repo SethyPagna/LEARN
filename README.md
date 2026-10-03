@@ -1,5 +1,7 @@
 # LEARN
 
+Live app: [learn.pagna.workers.dev](https://learn.pagna.workers.dev). Cloudflare is the production target; automatic Vercel releases are disabled.
+
 LEARN is a Cloudflare-first study workspace with notes, native docs, sheets, slides, quizzes, study games, AI tutor workflows, progress tracking, multilingual vocabulary, file capture, calendar planning, group chat, automation logs, and first-party login.
 
 The deployable app name is `learn`. Each sibling app should use separate Cloudflare resources; this repo only creates or modifies `learn-*` resources.
@@ -12,7 +14,7 @@ Double-click a file in the project folder. Needs [Node.js](https://nodejs.org) 2
 | --- | --- |
 | `run.bat` | Starts LEARN on this PC and opens it in the browser. Ctrl+C stops it. |
 | `test.bat` | Type check and every test. `test.bat full` adds a production build; `test.bat tour` screenshots every page of a running LEARN. |
-| `deploy.bat` | Publishes to Cloudflare or Vercel: every check first, then one question before anything goes live. |
+| `deploy.bat cloudflare` | Checks and builds, verifies the existing cloud target and recovery point, then publishes to Cloudflare. |
 | `tools.bat` | Health check, clean caches, reinstall packages, reset local data, Cloudflare preview, tunnel. |
 
 Local data (accounts, notes, designs, chats, uploads) lives in `.wrangler\state`. Cleaning caches and deploying never touch it; only **Reset local data** in `tools.bat` deletes it, after you type `RESET`.
@@ -111,23 +113,20 @@ Direct local call checks do not establish reliability on every external network.
 
 ## Deploy
 
-`deploy.bat` asks for the target; `deploy.bat cloudflare` or `deploy.bat vercel`
-skips the question, and `--yes` after the target skips the confirmations for
-automation.
+Use `deploy.bat cloudflare`; `--yes` after the target skips the launcher's
+confirmations for automation. The GitHub Cloudflare workflow also offers a
+verification-only mode that checks the published app without a database write
+or deployment.
 
-Cloudflare Workers (signs in through the browser when needed, or uses `CLOUDFLARE_API_TOKEN`):
+Cloudflare Workers uses the project's `CLOUDFLARE_API_TOKEN` and pinned account:
 
 ```powershell
 deploy.bat cloudflare
 ```
 
-The Worker name is `learn`, so the default Workers URL is `https://learn.<account-workers-subdomain>.workers.dev`. Cloudflare's workers.dev subdomain is account-level; changing it from `learn-learning-app` to `learn`, `learning`, or `learn-learning` changes workers.dev URLs for other Workers in the same account too. Use a custom domain for a LEARN-only hostname change.
-
-Vercel project `learn` (needs `VERCEL_TOKEN`):
-
-```powershell
-deploy.bat vercel
-```
+The existing Worker is `learn` at `https://learn.pagna.workers.dev`. The
+`pagna` subdomain belongs to the account; do not change it for this app because
+that would change other Workers' URLs. Use a custom domain for an app-only hostname.
 
 Docker/domain self-deploy:
 
