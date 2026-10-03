@@ -1,0 +1,109 @@
+{
+  "revision": "8327053cedbd4162420e7bb0f39b785c8653f8c5",
+  "base": "326dba6bb6fd82f7e58409129d85f4f9e4f69c88",
+  "verifiedAt": "2026-10-01T04:39:00.329Z",
+  "records": [
+    {
+      "file": "ops/docs/audits/2026-10-01-navigation-polish.md",
+      "sha256": "ad10a6fa0ab0d81054ae0ac46581b4f0b7f6a05efc3aac0c69987986f5e7d628",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-navigation-polish/baseline-results.json",
+      "sha256": "3b15ad422f804bd6cc66cea8965db92760aa759e794630134b2ee314bd270b8c",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-navigation-polish/demo-1280-color.jpg",
+      "sha256": "0bcd6c5dd34b19f8b282c518967adced89f8180bd091dbc30268ed8dbefb49ff",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-navigation-polish/demo-320-dark.jpg",
+      "sha256": "d67e3ab4a4a904b05d33cfc55d234d3e607ae2a3aaaf817ca58d21ce7cca7b3f",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-navigation-polish/demo-results.json",
+      "sha256": "3a4aa81161330311c4153fee5f71c0dcc3d751e1f797f2e863198cc9d32f7e24",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-navigation-polish/evidence-hashes.json",
+      "sha256": "e4f020b406c608d226a0613a28f5867dc1b074d6795c65bd2a403cab7d0ff0c5",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-navigation-polish/navigation-results.json",
+      "sha256": "691b10f8c589dfcf87549c1d5c08e348ae51885eb9441a48901321738b3ba2df",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/audits/README.md",
+      "sha256": "2ebaa022bfbf8fdda8ae645ee53c4f3b3bed9cfc38144db0d781fe901d91206d",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/roadmap/progress.md",
+      "sha256": "038d2bd60379e1c54c69514a59a2ed6b438cb3a55b97041f1ee6dca95710e3c9",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/roadmap/requests.md",
+      "sha256": "38704fd06a4b008c16719af9797f6fe30fcc23890f82976d22738069a42d7242",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/sessions/2026-10-01-ai-result-recovery.md",
+      "sha256": "2bc98a87b58022524b752784862c940d98aa9ea66dc6d1970d89de3f085d1f90",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/docs/sessions/2026-10-01-navigation-polish.md",
+      "sha256": "3b652eb6c2fd2a01de9ffd9150f2d9ca7af2d96c0386c770d0b45ea898d98aee",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/scripts/test/navigation-polish-probe.ts",
+      "sha256": "f2e955173035b1ab6df2516e62d89fdf62827985ec3ac4a1c8e76a6cc1e1d4fa",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "ops/scripts/test/playwright-demo.js",
+      "sha256": "1383b7cc3704c843893eae54f279cb53ba44164944059927e64fae70d9474208",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "src/components/learn/app-nav.tsx",
+      "sha256": "edcc230546cb7ad4873ee2dd26c8b55343484cd8d9a48ee0c81c91060c45f53c",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "src/components/learn/place-guide.tsx",
+      "sha256": "abc1b262ae634c387064fddf28e751102fe55f3055b7dbcddf9966622dd84b22",
+      "reads": 2,
+      "committedBytesMatched": true
+    },
+    {
+      "file": "src/components/public-demo-editor.tsx",
+      "sha256": "72e3cfeffb2028cbe025e305e8d8d3abc643b444e59281e7f3c2ee6c89f3e02b",
+      "reads": 2,
+      "committedBytesMatched": true
+    }
+  ]
+}

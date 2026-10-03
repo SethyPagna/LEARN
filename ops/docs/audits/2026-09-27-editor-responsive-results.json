@@ -1,0 +1,2461 @@
+{
+  "date": "2026-09-27",
+  "implementationHead": "48a75ff",
+  "scope": "Isolated local Playwright contexts; canvas/chat/auth writes intercepted; public demo anonymous",
+  "suites": {
+    "demo": {
+      "checks": [
+        "The demo starts in an isolated anonymous browser context",
+        "The anonymous public home page opens without a workspace redirect",
+        "The public demo renders its five editable design elements",
+        "Fresh-demo history controls have honest disabled states",
+        "Apricot changes the actual canvas background",
+        "Mint changes the actual canvas background",
+        "Periwinkle changes the actual canvas background",
+        "The custom page color updates the rendered canvas",
+        "Add shape inserts and selects a real canvas object",
+        "rounded changes the rendered vector",
+        "star changes the rendered vector",
+        "burst changes the rendered vector",
+        "ellipse changes the rendered vector",
+        "heart changes the rendered vector",
+        "Shape color changes the vector fill",
+        "Shape labels can be edited without leaving the canvas",
+        "A real pointer drag moves the selected canvas object",
+        "Undo restores the position before the pointer drag",
+        "Redo reapplies the pointer drag",
+        "Dragging the corner handle resizes the real object",
+        "Dragging the rotation handle rotates the real object",
+        "Keyboard nudging moves a selected object in design coordinates",
+        "Duplicate creates a separately selectable copy with its label",
+        "Delete removes only the selected duplicate",
+        "Bring forward changes the rendered stacking order",
+        "Add text inserts editable text and commits its content",
+        "space changes the actual text font",
+        "playfair changes the actual text font",
+        "caveat changes the actual text font",
+        "sans changes the actual text font",
+        "Font size changes the rendered text size",
+        "Bold toggles off in both the control and rendered text",
+        "Bold toggles on in both the control and rendered text",
+        "Text color changes the rendered text",
+        "Escape closes the compact text field",
+        "Double-click opens direct text editing on the canvas",
+        "The keyboard undo shortcut restores text content",
+        "The keyboard redo shortcut restores the direct text edit",
+        "Reset restores the original page and all original objects",
+        "Reset is undoable and preserves the visitor’s work in history",
+        "Practice hides the editor without unmounting its work",
+        "The practice preview responds to an incorrect answer",
+        "The practice preview marks the correct answer",
+        "Choosing a calendar preview day changes its events",
+        "Returning to Create by keyboard preserves the design and its history",
+        "The demo downloads a PNG without signing in",
+        "The exported PNG decodes at 1920×1200 for the 2× standard export",
+        "The editor provides the full-workspace link without navigating during this test",
+        "Light changes the chrome without recoloring or resetting the design",
+        "Light 320×568: pointer editing remains usable",
+        "Light 320×568: gesture history works",
+        "Light 320×568: text editing works",
+        "Light 320×568: no horizontal document overflow",
+        "Light 320×568: the complete canvas fits at its original aspect ratio",
+        "Light 320×568: editor controls fit and have accessible names",
+        "Light 320×568: the footer remains reachable by normal scrolling",
+        "Light 320×568: the original edited artwork survives responsive interactions",
+        "Light 390×844: pointer editing remains usable",
+        "Light 390×844: gesture history works",
+        "Light 390×844: text editing works",
+        "Light 390×844: no horizontal document overflow",
+        "Light 390×844: the complete canvas fits at its original aspect ratio",
+        "Light 390×844: editor controls fit and have accessible names",
+        "Light 390×844: the footer remains reachable by normal scrolling",
+        "Light 390×844: the original edited artwork survives responsive interactions",
+        "Light 768×900: pointer editing remains usable",
+        "Light 768×900: gesture history works",
+        "Light 768×900: text editing works",
+        "Light 768×900: no horizontal document overflow",
+        "Light 768×900: the complete canvas fits at its original aspect ratio",
+        "Light 768×900: editor controls fit and have accessible names",
+        "Light 768×900: the footer remains reachable by normal scrolling",
+        "Light 768×900: the original edited artwork survives responsive interactions",
+        "Light 844×390: pointer editing remains usable",
+        "Light 844×390: gesture history works",
+        "Light 844×390: text editing works",
+        "Light 844×390: no horizontal document overflow",
+        "Light 844×390: the complete canvas fits at its original aspect ratio",
+        "Light 844×390: editor controls fit and have accessible names",
+        "Light 844×390: the footer remains reachable by normal scrolling",
+        "Light 844×390: the original edited artwork survives responsive interactions",
+        "Light 2048×1024: pointer editing remains usable",
+        "Light 2048×1024: gesture history works",
+        "Light 2048×1024: text editing works",
+        "Light 2048×1024: no horizontal document overflow",
+        "Light 2048×1024: the complete canvas fits at its original aspect ratio",
+        "Light 2048×1024: editor controls fit and have accessible names",
+        "Light 2048×1024: the footer remains reachable by normal scrolling",
+        "Light 2048×1024: the original edited artwork survives responsive interactions",
+        "Dark changes the chrome without recoloring or resetting the design",
+        "Dark 320×568: pointer editing remains usable",
+        "Dark 320×568: gesture history works",
+        "Dark 320×568: text editing works",
+        "Dark 320×568: no horizontal document overflow",
+        "Dark 320×568: the complete canvas fits at its original aspect ratio",
+        "Dark 320×568: editor controls fit and have accessible names",
+        "Dark 320×568: the footer remains reachable by normal scrolling",
+        "Dark 320×568: the original edited artwork survives responsive interactions",
+        "Dark 390×844: pointer editing remains usable",
+        "Dark 390×844: gesture history works",
+        "Dark 390×844: text editing works",
+        "Dark 390×844: no horizontal document overflow",
+        "Dark 390×844: the complete canvas fits at its original aspect ratio",
+        "Dark 390×844: editor controls fit and have accessible names",
+        "Dark 390×844: the footer remains reachable by normal scrolling",
+        "Dark 390×844: the original edited artwork survives responsive interactions",
+        "Dark 768×900: pointer editing remains usable",
+        "Dark 768×900: gesture history works",
+        "Dark 768×900: text editing works",
+        "Dark 768×900: no horizontal document overflow",
+        "Dark 768×900: the complete canvas fits at its original aspect ratio",
+        "Dark 768×900: editor controls fit and have accessible names",
+        "Dark 768×900: the footer remains reachable by normal scrolling",
+        "Dark 768×900: the original edited artwork survives responsive interactions",
+        "Dark 844×390: pointer editing remains usable",
+        "Dark 844×390: gesture history works",
+        "Dark 844×390: text editing works",
+        "Dark 844×390: no horizontal document overflow",
+        "Dark 844×390: the complete canvas fits at its original aspect ratio",
+        "Dark 844×390: editor controls fit and have accessible names",
+        "Dark 844×390: the footer remains reachable by normal scrolling",
+        "Dark 844×390: the original edited artwork survives responsive interactions",
+        "Dark 2048×1024: pointer editing remains usable",
+        "Dark 2048×1024: gesture history works",
+        "Dark 2048×1024: text editing works",
+        "Dark 2048×1024: no horizontal document overflow",
+        "Dark 2048×1024: the complete canvas fits at its original aspect ratio",
+        "Dark 2048×1024: editor controls fit and have accessible names",
+        "Dark 2048×1024: the footer remains reachable by normal scrolling",
+        "Dark 2048×1024: the original edited artwork survives responsive interactions",
+        "Color changes the chrome without recoloring or resetting the design",
+        "Color 320×568: pointer editing remains usable",
+        "Color 320×568: gesture history works",
+        "Color 320×568: text editing works",
+        "Color 320×568: no horizontal document overflow",
+        "Color 320×568: the complete canvas fits at its original aspect ratio",
+        "Color 320×568: editor controls fit and have accessible names",
+        "Color 320×568: the footer remains reachable by normal scrolling",
+        "Color 320×568: the original edited artwork survives responsive interactions",
+        "Color 390×844: pointer editing remains usable",
+        "Color 390×844: gesture history works",
+        "Color 390×844: text editing works",
+        "Color 390×844: no horizontal document overflow",
+        "Color 390×844: the complete canvas fits at its original aspect ratio",
+        "Color 390×844: editor controls fit and have accessible names",
+        "Color 390×844: the footer remains reachable by normal scrolling",
+        "Color 390×844: the original edited artwork survives responsive interactions",
+        "Color 768×900: pointer editing remains usable",
+        "Color 768×900: gesture history works",
+        "Color 768×900: text editing works",
+        "Color 768×900: no horizontal document overflow",
+        "Color 768×900: the complete canvas fits at its original aspect ratio",
+        "Color 768×900: editor controls fit and have accessible names",
+        "Color 768×900: the footer remains reachable by normal scrolling",
+        "Color 768×900: the original edited artwork survives responsive interactions",
+        "Color 844×390: pointer editing remains usable",
+        "Color 844×390: gesture history works",
+        "Color 844×390: text editing works",
+        "Color 844×390: no horizontal document overflow",
+        "Color 844×390: the complete canvas fits at its original aspect ratio",
+        "Color 844×390: editor controls fit and have accessible names",
+        "Color 844×390: the footer remains reachable by normal scrolling",
+        "Color 844×390: the original edited artwork survives responsive interactions",
+        "Color 2048×1024: pointer editing remains usable",
+        "Color 2048×1024: gesture history works",
+        "Color 2048×1024: text editing works",
+        "Color 2048×1024: no horizontal document overflow",
+        "Color 2048×1024: the complete canvas fits at its original aspect ratio",
+        "Color 2048×1024: editor controls fit and have accessible names",
+        "Color 2048×1024: the footer remains reachable by normal scrolling",
+        "Color 2048×1024: the original edited artwork survives responsive interactions",
+        "No API writes were attempted by any demo interaction",
+        "The demo has no uncaught browser errors",
+        "Every interaction stayed on the anonymous public home page"
+      ],
+      "layouts": [
+        {
+          "mode": "Light",
+          "width": 320,
+          "height": 568,
+          "overflow": 0,
+          "editorWidth": 268,
+          "canvasWidth": 234,
+          "canvasHeight": 146.25,
+          "canvasContained": true,
+          "clippedControls": [],
+          "unnamedControls": []
+        },
+        {
+          "mode": "Light",
+          "width": 390,
+          "height": 844,
+          "overflow": 0,
+          "editorWidth": 338,
+          "canvasWidth": 265.59375,
+          "canvasHeight": 166,
+          "canvasContained": true,
+          "clippedControls": [],
+          "unnamedControls": []
+        },
+        {
+          "mode": "Light",
+          "width": 768,
+          "height": 900,
+          "overflow": 0,
+          "editorWidth": 658,
+          "canvasWidth": 481.59375,
+          "canvasHeight": 301,
+          "canvasContained": true,
+          "clippedControls": [],
+          "unnamedControls": []
+        },
+        {
+          "mode": "Light",
+          "width": 844,
+          "height": 390,
+          "overflow": 0,
+          "editorWidth": 658,
+          "canvasWidth": 481.59375,
+          "canvasHeight": 301,
+          "canvasContained": true,
+          "clippedControls": [],
+          "unnamedControls": []
+        },
+        {
+          "mode": "Light",
+          "width": 2048,
+          "height": 1024,
+          "overflow": 0,
+          "editorWidth": 678,
+          "canvasWidth": 491.1875,
+          "canvasHeight": 307,
+          "canvasContained": true,
+          "clippedControls": [],
+          "unnamedControls": []
+        },
+        {
+          "mode": "Dark",
+          "width": 320,
+          "height": 568,
+          "overflow": 0,
+          "editorWidth": 268,
+          "canvasWidth": 234,
+          "canvasHeight": 146.25,
+          "canvasContained": true,
+          "clippedControls": [],
+          "unnamedControls": []
+        },
+        {
+          "mode": "Dark",
+          "width": 390,
+          "height": 844,
+          "overflow": 0,
+          "editorWidth": 338,
+          "canvasWidth": 265.59375,
+          "canvasHeight": 166,
+          "canvasContained": true,
+          "clippedControls": [],
+          "unnamedControls": []
+        },
+        {
+          "mode": "Dark",
+          "width": 768,
+          "height": 900,
+          "overflow": 0,
+          "editorWidth": 658,
+          "canvasWidth": 481.59375,
+          "canvasHeight": 301,
+          "canvasContained": true,
+          "clippedControls": [],
+          "unnamedControls": []
+        },
+        {
+          "mode": "Dark",
+          "width": 844,
+          "height": 390,
+          "overflow": 0,
+          "editorWidth": 658,
+          "canvasWidth": 481.59375,
+          "canvasHeight": 301,
+          "canvasContained": true,
+          "clippedControls": [],
+          "unnamedControls": []
+        },
+        {
+          "mode": "Dark",
+          "width": 2048,
+          "height": 1024,
+          "overflow": 0,
+          "editorWidth": 678,
+          "canvasWidth": 491.1875,
+          "canvasHeight": 307,
+          "canvasContained": true,
+          "clippedControls": [],
+          "unnamedControls": []
+        },
+        {
+          "mode": "Color",
+          "width": 320,
+          "height": 568,
+          "overflow": 0,
+          "editorWidth": 268,
+          "canvasWidth": 234,
+          "canvasHeight": 146.25,
+          "canvasContained": true,
+          "clippedControls": [],
+          "unnamedControls": []
+        },
+        {
+          "mode": "Color",
+          "width": 390,
+          "height": 844,
+          "overflow": 0,
+          "editorWidth": 338,
+          "canvasWidth": 265.59375,
+          "canvasHeight": 166,
+          "canvasContained": true,
+          "clippedControls": [],
+          "unnamedControls": []
+        },
+        {
+          "mode": "Color",
+          "width": 768,
+          "height": 900,
+          "overflow": 0,
+          "editorWidth": 658,
+          "canvasWidth": 481.59375,
+          "canvasHeight": 301,
+          "canvasContained": true,
+          "clippedControls": [],
+          "unnamedControls": []
+        },
+        {
+          "mode": "Color",
+          "width": 844,
+          "height": 390,
+          "overflow": 0,
+          "editorWidth": 658,
+          "canvasWidth": 481.59375,
+          "canvasHeight": 301,
+          "canvasContained": true,
+          "clippedControls": [],
+          "unnamedControls": []
+        },
+        {
+          "mode": "Color",
+          "width": 2048,
+          "height": 1024,
+          "overflow": 0,
+          "editorWidth": 678,
+          "canvasWidth": 491.1875,
+          "canvasHeight": 307,
+          "canvasContained": true,
+          "clippedControls": [],
+          "unnamedControls": []
+        }
+      ],
+      "screenshots": [
+        "output/playwright/public-demo/initial.png",
+        "output/playwright/public-demo/shape-gestures.png",
+        "output/playwright/public-demo/text-editing.png",
+        "output/playwright/public-demo/light-320x568.png",
+        "output/playwright/public-demo/light-390x844.png",
+        "output/playwright/public-demo/light-768x900.png",
+        "output/playwright/public-demo/light-844x390.png",
+        "output/playwright/public-demo/light-2048x1024.png",
+        "output/playwright/public-demo/dark-320x568.png",
+        "output/playwright/public-demo/dark-390x844.png",
+        "output/playwright/public-demo/dark-768x900.png",
+        "output/playwright/public-demo/dark-844x390.png",
+        "output/playwright/public-demo/dark-2048x1024.png",
+        "output/playwright/public-demo/color-320x568.png",
+        "output/playwright/public-demo/color-390x844.png",
+        "output/playwright/public-demo/color-768x900.png",
+        "output/playwright/public-demo/color-844x390.png",
+        "output/playwright/public-demo/color-2048x1024.png"
+      ],
+      "downloads": [
+        {
+          "path": "output/playwright/public-demo/my-curious-idea.png",
+          "filename": "my-curious-idea.png",
+          "width": 1920,
+          "height": 1200
+        }
+      ],
+      "apiWrites": [],
+      "errors": []
+    },
+    "editorEdges": {
+      "checks": [
+        "Studio fits 320×568",
+        "Studio fits 767×600",
+        "Studio fits 1023×768",
+        "Studio fits 1024×768",
+        "Studio fits 2048×1024",
+        "Studio and sidebar use the wide viewport at 2048px",
+        "Studio fits 2560×1080",
+        "Studio and sidebar use the wide viewport at 2560px",
+        "Collapsed rail has one brand expansion control",
+        "Brand keyboard activation expands without navigating",
+        "Lobby scroll setup is meaningful",
+        "Opening a project clears lobby document scroll",
+        "Pointer drag moves selected shape",
+        "Undo restores drag",
+        "Redo restores drag",
+        "Resize handle changes geometry",
+        "Rotation handle rotates shape",
+        "Slider arrows change transparency without nudging shape",
+        "Locked selection exposes unlock without style controls",
+        "Ctrl+S saves while typing canvas text",
+        "Ctrl+S saves from title input",
+        "Double-click enters picture crop",
+        "Crop drag changes picture focal point: {\"id\":\"edge_image\",\"type\":\"image\",\"x\":860,\"y\":180,\"width\":240,\"height\":330,\"rotation\":0,\"z\":2,\"groupId\":null,\"locked\":false,\"hidden\":false,\"content\":\"/icon.svg\",\"style\":{\"fit\":\"cover\",\"focusX\":0.067,\"focusY\":0.5}}",
+        "External picture URL gives upload guidance without adding a blank object",
+        "Same-site absolute picture URL renders as a portable relative asset",
+        "Save failure retains local draft",
+        "Retry saves retained content",
+        "Save queue retains edits made during in-flight save",
+        "Saved fixture restores on reload",
+        "Canvas remains usable at 320×568: {\"width\":320,\"height\":568,\"bodyHeight\":325,\"benchWidth\":320,\"canvasHeight\":144,\"pageWidth\":320,\"minHeight\":\"240px\",\"flex\":\"1 0 0%\",\"short\":true}",
+        "Resize popover fits narrow viewport",
+        "Canvas remains usable at 390×320: {\"width\":390,\"height\":320,\"bodyHeight\":240,\"benchWidth\":390,\"canvasHeight\":124,\"pageWidth\":390,\"minHeight\":\"240px\",\"flex\":\"1 0 0%\",\"short\":true}",
+        "Canvas remains usable at 844×320: {\"width\":844,\"height\":320,\"bodyHeight\":240,\"benchWidth\":796,\"canvasHeight\":118,\"pageWidth\":844,\"minHeight\":\"240px\",\"flex\":\"1 0 0%\",\"short\":true}",
+        "Canvas remains usable at 1200×700: {\"width\":1200,\"height\":700,\"bodyHeight\":476,\"benchWidth\":924,\"canvasHeight\":354,\"pageWidth\":1200,\"minHeight\":\"0px\",\"flex\":\"1 1 0%\",\"short\":false}",
+        "Canvas remains usable at 1279×700: {\"width\":1279,\"height\":700,\"bodyHeight\":476,\"benchWidth\":1003,\"canvasHeight\":354,\"pageWidth\":1279,\"minHeight\":\"0px\",\"flex\":\"1 1 0%\",\"short\":false}",
+        "Canvas remains usable at 1280×700: {\"width\":1280,\"height\":700,\"bodyHeight\":476,\"benchWidth\":1004,\"canvasHeight\":354,\"pageWidth\":1280,\"minHeight\":\"0px\",\"flex\":\"1 1 0%\",\"short\":false}",
+        "Canvas remains usable at 2048×1024: {\"width\":2048,\"height\":1024,\"bodyHeight\":800,\"benchWidth\":1772,\"canvasHeight\":678,\"pageWidth\":2048,\"minHeight\":\"0px\",\"flex\":\"1 1 0%\",\"short\":false}",
+        "Writing editor library leaves a usable document at 1199px",
+        "Writing editor library leaves a usable document at 1200px",
+        "Writing editor library leaves a usable document at 1279px",
+        "Writing editor library leaves a usable document at 1280px",
+        "Chat adapts at 844×390",
+        "Chat composer remains reachable at 844×390",
+        "Chat adapts at 390×320",
+        "Chat composer remains reachable at 390×320",
+        "Chat adapts at 2048×1440",
+        "Chat uses tall windows beyond the old height cap",
+        "Chat composer remains reachable at 2048×1440",
+        "Interaction checks exercise persisted document payloads",
+        "No uncaught browser errors"
+      ],
+      "layouts": [
+        {
+          "width": 320,
+          "height": 568,
+          "scrollWidth": 320,
+          "lobby": {
+            "x": 12,
+            "right": 308,
+            "width": 296
+          },
+          "sidebarBottom": 0
+        },
+        {
+          "width": 767,
+          "height": 600,
+          "scrollWidth": 767,
+          "lobby": {
+            "x": 20,
+            "right": 747,
+            "width": 727
+          },
+          "sidebarBottom": 0
+        },
+        {
+          "width": 1023,
+          "height": 768,
+          "scrollWidth": 1023,
+          "lobby": {
+            "x": 20,
+            "right": 1003,
+            "width": 983
+          },
+          "sidebarBottom": 0
+        },
+        {
+          "width": 1024,
+          "height": 768,
+          "scrollWidth": 1024,
+          "lobby": {
+            "x": 204,
+            "right": 1000,
+            "width": 796
+          },
+          "sidebarBottom": 768
+        },
+        {
+          "width": 2048,
+          "height": 1024,
+          "scrollWidth": 2048,
+          "lobby": {
+            "x": 204,
+            "right": 2024,
+            "width": 1820
+          },
+          "sidebarBottom": 1024
+        },
+        {
+          "width": 2560,
+          "height": 1080,
+          "scrollWidth": 2560,
+          "lobby": {
+            "x": 204,
+            "right": 2536,
+            "width": 2332
+          },
+          "sidebarBottom": 1080
+        },
+        {
+          "width": 320,
+          "height": 568,
+          "bodyHeight": 325,
+          "benchWidth": 320,
+          "canvasHeight": 144,
+          "pageWidth": 320,
+          "minHeight": "240px",
+          "flex": "1 0 0%",
+          "short": true
+        },
+        {
+          "width": 390,
+          "height": 320,
+          "bodyHeight": 240,
+          "benchWidth": 390,
+          "canvasHeight": 124,
+          "pageWidth": 390,
+          "minHeight": "240px",
+          "flex": "1 0 0%",
+          "short": true
+        },
+        {
+          "width": 844,
+          "height": 320,
+          "bodyHeight": 240,
+          "benchWidth": 796,
+          "canvasHeight": 118,
+          "pageWidth": 844,
+          "minHeight": "240px",
+          "flex": "1 0 0%",
+          "short": true
+        },
+        {
+          "width": 1200,
+          "height": 700,
+          "bodyHeight": 476,
+          "benchWidth": 924,
+          "canvasHeight": 354,
+          "pageWidth": 1200,
+          "minHeight": "0px",
+          "flex": "1 1 0%",
+          "short": false
+        },
+        {
+          "width": 1279,
+          "height": 700,
+          "bodyHeight": 476,
+          "benchWidth": 1003,
+          "canvasHeight": 354,
+          "pageWidth": 1279,
+          "minHeight": "0px",
+          "flex": "1 1 0%",
+          "short": false
+        },
+        {
+          "width": 1280,
+          "height": 700,
+          "bodyHeight": 476,
+          "benchWidth": 1004,
+          "canvasHeight": 354,
+          "pageWidth": 1280,
+          "minHeight": "0px",
+          "flex": "1 1 0%",
+          "short": false
+        },
+        {
+          "width": 2048,
+          "height": 1024,
+          "bodyHeight": 800,
+          "benchWidth": 1772,
+          "canvasHeight": 678,
+          "pageWidth": 2048,
+          "minHeight": "0px",
+          "flex": "1 1 0%",
+          "short": false
+        },
+        {
+          "width": 1199,
+          "bodyTop": 105,
+          "paneTop": 170.5,
+          "paneHeight": 629.5,
+          "pageWidth": 1199
+        },
+        {
+          "width": 1200,
+          "bodyTop": 105,
+          "paneTop": 170.5,
+          "paneHeight": 629.5,
+          "pageWidth": 1200
+        },
+        {
+          "width": 1279,
+          "bodyTop": 105,
+          "paneTop": 170.5,
+          "paneHeight": 629.5,
+          "pageWidth": 1279
+        },
+        {
+          "width": 1280,
+          "bodyTop": 105,
+          "paneTop": 105,
+          "paneHeight": 695,
+          "pageWidth": 1280
+        },
+        {
+          "width": 844,
+          "height": 232,
+          "pageWidth": 844,
+          "viewport": 390
+        },
+        {
+          "width": 390,
+          "height": 190,
+          "pageWidth": 390,
+          "viewport": 320
+        },
+        {
+          "width": 2048,
+          "height": 1298,
+          "pageWidth": 2048,
+          "viewport": 1440
+        }
+      ],
+      "errors": [],
+      "screenshots": [
+        "output/playwright/studio-wide-responsive.png",
+        "output/playwright/editor-interactions.png",
+        "output/playwright/editor-resize-phone.png",
+        "output/playwright/editor-short-390.png",
+        "output/playwright/editor-short-844.png",
+        "output/playwright/writing-library-breakpoint.png"
+      ]
+    },
+    "publicRegression": {
+      "layoutsPassed": 48,
+      "interactionChecks": 76,
+      "reports": {
+        "layouts": {
+          "layouts": [
+            {
+              "name": "home",
+              "path": "/",
+              "width": 1440,
+              "expectedTheme": "color",
+              "status": 200,
+              "theme": "color",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Learn it.Make it yours.",
+                "Follow your curiosity.",
+                "One idea is enough."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "showcase",
+              "path": "/showcase",
+              "width": 1440,
+              "expectedTheme": "color",
+              "status": 200,
+              "theme": "color",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Find your flow.",
+                "A blank page. Endless possibilities."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "signin",
+              "path": "/login",
+              "width": 1440,
+              "expectedTheme": "color",
+              "status": 200,
+              "theme": "color",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Welcome back."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "request",
+              "path": "/login?mode=request",
+              "width": 1440,
+              "expectedTheme": "color",
+              "status": 200,
+              "theme": "color",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Start something good."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "invite-ready",
+              "path": "/invite/public-qa-ready",
+              "width": 1440,
+              "expectedTheme": "color",
+              "status": 200,
+              "theme": "color",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Make yourself at home."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "invite-expired",
+              "path": "/invite/public-qa-expired",
+              "width": 1440,
+              "expectedTheme": "color",
+              "status": 200,
+              "theme": "color",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Make yourself at home."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "home",
+              "path": "/",
+              "width": 768,
+              "expectedTheme": "color",
+              "status": 200,
+              "theme": "color",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Learn it.Make it yours.",
+                "Follow your curiosity.",
+                "One idea is enough."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "showcase",
+              "path": "/showcase",
+              "width": 768,
+              "expectedTheme": "color",
+              "status": 200,
+              "theme": "color",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Find your flow.",
+                "A blank page. Endless possibilities."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "home",
+              "path": "/",
+              "width": 390,
+              "expectedTheme": "color",
+              "status": 200,
+              "theme": "color",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Learn it.Make it yours.",
+                "Follow your curiosity.",
+                "One idea is enough."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "showcase",
+              "path": "/showcase",
+              "width": 390,
+              "expectedTheme": "color",
+              "status": 200,
+              "theme": "color",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Find your flow.",
+                "A blank page. Endless possibilities."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "signin",
+              "path": "/login",
+              "width": 390,
+              "expectedTheme": "color",
+              "status": 200,
+              "theme": "color",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Welcome back."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "request",
+              "path": "/login?mode=request",
+              "width": 390,
+              "expectedTheme": "color",
+              "status": 200,
+              "theme": "color",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Start something good."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "invite-ready",
+              "path": "/invite/public-qa-ready",
+              "width": 390,
+              "expectedTheme": "color",
+              "status": 200,
+              "theme": "color",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Make yourself at home."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "invite-expired",
+              "path": "/invite/public-qa-expired",
+              "width": 390,
+              "expectedTheme": "color",
+              "status": 200,
+              "theme": "color",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Make yourself at home."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "home",
+              "path": "/",
+              "width": 320,
+              "expectedTheme": "color",
+              "status": 200,
+              "theme": "color",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Learn it.Make it yours.",
+                "Follow your curiosity.",
+                "One idea is enough."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "showcase",
+              "path": "/showcase",
+              "width": 320,
+              "expectedTheme": "color",
+              "status": 200,
+              "theme": "color",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Find your flow.",
+                "A blank page. Endless possibilities."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "home",
+              "path": "/",
+              "width": 1440,
+              "expectedTheme": "light",
+              "status": 200,
+              "theme": "light",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Learn it.Make it yours.",
+                "Follow your curiosity.",
+                "One idea is enough."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "showcase",
+              "path": "/showcase",
+              "width": 1440,
+              "expectedTheme": "light",
+              "status": 200,
+              "theme": "light",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Find your flow.",
+                "A blank page. Endless possibilities."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "signin",
+              "path": "/login",
+              "width": 1440,
+              "expectedTheme": "light",
+              "status": 200,
+              "theme": "light",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Welcome back."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "request",
+              "path": "/login?mode=request",
+              "width": 1440,
+              "expectedTheme": "light",
+              "status": 200,
+              "theme": "light",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Start something good."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "invite-ready",
+              "path": "/invite/public-qa-ready",
+              "width": 1440,
+              "expectedTheme": "light",
+              "status": 200,
+              "theme": "light",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Make yourself at home."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "invite-expired",
+              "path": "/invite/public-qa-expired",
+              "width": 1440,
+              "expectedTheme": "light",
+              "status": 200,
+              "theme": "light",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Make yourself at home."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "home",
+              "path": "/",
+              "width": 768,
+              "expectedTheme": "light",
+              "status": 200,
+              "theme": "light",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Learn it.Make it yours.",
+                "Follow your curiosity.",
+                "One idea is enough."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "showcase",
+              "path": "/showcase",
+              "width": 768,
+              "expectedTheme": "light",
+              "status": 200,
+              "theme": "light",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Find your flow.",
+                "A blank page. Endless possibilities."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "home",
+              "path": "/",
+              "width": 390,
+              "expectedTheme": "light",
+              "status": 200,
+              "theme": "light",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Learn it.Make it yours.",
+                "Follow your curiosity.",
+                "One idea is enough."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "showcase",
+              "path": "/showcase",
+              "width": 390,
+              "expectedTheme": "light",
+              "status": 200,
+              "theme": "light",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Find your flow.",
+                "A blank page. Endless possibilities."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "signin",
+              "path": "/login",
+              "width": 390,
+              "expectedTheme": "light",
+              "status": 200,
+              "theme": "light",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Welcome back."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "request",
+              "path": "/login?mode=request",
+              "width": 390,
+              "expectedTheme": "light",
+              "status": 200,
+              "theme": "light",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Start something good."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "invite-ready",
+              "path": "/invite/public-qa-ready",
+              "width": 390,
+              "expectedTheme": "light",
+              "status": 200,
+              "theme": "light",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Make yourself at home."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "invite-expired",
+              "path": "/invite/public-qa-expired",
+              "width": 390,
+              "expectedTheme": "light",
+              "status": 200,
+              "theme": "light",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Make yourself at home."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "home",
+              "path": "/",
+              "width": 320,
+              "expectedTheme": "light",
+              "status": 200,
+              "theme": "light",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Learn it.Make it yours.",
+                "Follow your curiosity.",
+                "One idea is enough."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "showcase",
+              "path": "/showcase",
+              "width": 320,
+              "expectedTheme": "light",
+              "status": 200,
+              "theme": "light",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Find your flow.",
+                "A blank page. Endless possibilities."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "home",
+              "path": "/",
+              "width": 1440,
+              "expectedTheme": "dark",
+              "status": 200,
+              "theme": "dark",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Learn it.Make it yours.",
+                "Follow your curiosity.",
+                "One idea is enough."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "showcase",
+              "path": "/showcase",
+              "width": 1440,
+              "expectedTheme": "dark",
+              "status": 200,
+              "theme": "dark",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Find your flow.",
+                "A blank page. Endless possibilities."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "signin",
+              "path": "/login",
+              "width": 1440,
+              "expectedTheme": "dark",
+              "status": 200,
+              "theme": "dark",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Welcome back."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "request",
+              "path": "/login?mode=request",
+              "width": 1440,
+              "expectedTheme": "dark",
+              "status": 200,
+              "theme": "dark",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Start something good."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "invite-ready",
+              "path": "/invite/public-qa-ready",
+              "width": 1440,
+              "expectedTheme": "dark",
+              "status": 200,
+              "theme": "dark",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Make yourself at home."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "invite-expired",
+              "path": "/invite/public-qa-expired",
+              "width": 1440,
+              "expectedTheme": "dark",
+              "status": 200,
+              "theme": "dark",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Make yourself at home."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "home",
+              "path": "/",
+              "width": 768,
+              "expectedTheme": "dark",
+              "status": 200,
+              "theme": "dark",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Learn it.Make it yours.",
+                "Follow your curiosity.",
+                "One idea is enough."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "showcase",
+              "path": "/showcase",
+              "width": 768,
+              "expectedTheme": "dark",
+              "status": 200,
+              "theme": "dark",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Find your flow.",
+                "A blank page. Endless possibilities."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "home",
+              "path": "/",
+              "width": 390,
+              "expectedTheme": "dark",
+              "status": 200,
+              "theme": "dark",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Learn it.Make it yours.",
+                "Follow your curiosity.",
+                "One idea is enough."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "showcase",
+              "path": "/showcase",
+              "width": 390,
+              "expectedTheme": "dark",
+              "status": 200,
+              "theme": "dark",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Find your flow.",
+                "A blank page. Endless possibilities."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "signin",
+              "path": "/login",
+              "width": 390,
+              "expectedTheme": "dark",
+              "status": 200,
+              "theme": "dark",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Welcome back."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "request",
+              "path": "/login?mode=request",
+              "width": 390,
+              "expectedTheme": "dark",
+              "status": 200,
+              "theme": "dark",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Start something good."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "invite-ready",
+              "path": "/invite/public-qa-ready",
+              "width": 390,
+              "expectedTheme": "dark",
+              "status": 200,
+              "theme": "dark",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Make yourself at home."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "invite-expired",
+              "path": "/invite/public-qa-expired",
+              "width": 390,
+              "expectedTheme": "dark",
+              "status": 200,
+              "theme": "dark",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Make yourself at home."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "home",
+              "path": "/",
+              "width": 320,
+              "expectedTheme": "dark",
+              "status": 200,
+              "theme": "dark",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Learn it.Make it yours.",
+                "Follow your curiosity.",
+                "One idea is enough."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            },
+            {
+              "name": "showcase",
+              "path": "/showcase",
+              "width": 320,
+              "expectedTheme": "dark",
+              "status": 200,
+              "theme": "dark",
+              "overflow": 0,
+              "mainLandmarks": 1,
+              "headings": [
+                "Find your flow.",
+                "A blank page. Endless possibilities."
+              ],
+              "unnamed": [],
+              "clippedLabels": []
+            }
+          ],
+          "pageErrors": [],
+          "failures": [],
+          "passed": 48
+        },
+        "explore": {
+          "checks": [
+            "Home Studio card links to its matching interactive tour",
+            "Home Practice card links to its matching interactive tour",
+            "Home Calendar card links to its matching interactive tour",
+            "Home primary CTA opens request access",
+            "Get started reaches the actual access form",
+            "Editable Studio demo leads to the workspace",
+            "Studio demo updates its actual page color",
+            "Public page edit is undoable",
+            "Home preview tabs support arrow keys",
+            "Practice example provides helpful feedback for an incorrect answer",
+            "Practice example recognizes the correct answer",
+            "Calendar example changes the active day and event",
+            "Public theme control changes the rendered theme",
+            "Public theme choice survives reload",
+            "Product tour exposes five visual examples",
+            "Tour tabs support End-key navigation",
+            "Tour tabs support Home-key navigation",
+            "Tutor example expands in place without an AI request",
+            "Tutor example collapses again",
+            "Home path deep link selects the Create tour",
+            "Home path deep link selects the Practice tour",
+            "Home path deep link selects the Plan tour",
+            "Unknown tour deep links safely use Create",
+            "Phone tour can select Create",
+            "Phone Create scene stays within the document width",
+            "Phone tour can select Understand",
+            "Phone Understand scene stays within the document width",
+            "Phone tour can select Practice",
+            "Phone Practice scene stays within the document width",
+            "Phone tour can select Plan",
+            "Phone Plan scene stays within the document width",
+            "Phone tour can select Connect",
+            "Phone Connect scene stays within the document width",
+            "Expanded tutor sample remains readable at 320px",
+            "Expanded tutor sample remains readable at 390px",
+            "Legacy intro routes into the redesigned tour",
+            "Reduced motion disables preview scene animation"
+          ],
+          "pageErrors": [],
+          "externalRequests": []
+        },
+        "auth": {
+          "checks": [
+            "Sign in requires credentials",
+            "Password visibility is explicit",
+            "Password visibility can be restored",
+            "Pending login disables duplicate submission",
+            "Failed login preserves username",
+            "Failed login preserves password for correction",
+            "Transport error returns login to a retryable state",
+            "Rate-limit feedback remains visible without a stuck pending state",
+            "Forgot password explains the actual admin reset workflow",
+            "Switching to access request closes password help",
+            "Access-mode switch updates the URL",
+            "Direct request-access URL opens the form with validation enabled",
+            "Access request rejects an invalid email before submission",
+            "Visual role choices remain accessible radio inputs",
+            "Failed access request preserves the learning goal",
+            "Access-request rate limits remain retryable",
+            "Pending access request prevents duplicate sends",
+            "Pending access request locks the submitted details",
+            "Successful request shows honest admin-review confirmation",
+            "Successful request identifies the submitted email",
+            "Confirmation returns to sign in cleanly",
+            "Successful login preserves a safe in-app return path",
+            "Successful login rejects an external redirect"
+          ],
+          "requests": [
+            {
+              "endpoint": "auth/login",
+              "method": "POST"
+            },
+            {
+              "endpoint": "auth/login",
+              "method": "POST"
+            },
+            {
+              "endpoint": "auth/login",
+              "method": "POST"
+            },
+            {
+              "endpoint": "auth/signup-request",
+              "method": "POST"
+            },
+            {
+              "endpoint": "auth/signup-request",
+              "method": "POST"
+            },
+            {
+              "endpoint": "auth/signup-request",
+              "method": "POST"
+            },
+            {
+              "endpoint": "auth/login",
+              "method": "POST"
+            },
+            {
+              "endpoint": "auth/login",
+              "method": "POST"
+            }
+          ],
+          "pageErrors": []
+        },
+        "invites": {
+          "checks": [
+            "Invalid invitation does not expose account-creation fields",
+            "Invalid invite leads to the actual request-access form",
+            "Rate-limited invite lookup offers Retry instead of treating the token as invalid",
+            "Invite lookup connection failure exposes Retry",
+            "Verified invite email is visible and cannot be edited",
+            "Invite requires a name and valid password",
+            "Invite rejects a short password before submission",
+            "Invite supports password visibility",
+            "Invite submission binds the verified email and current token",
+            "Failed invite submission preserves form details for retry",
+            "Invite submission binds the verified email and current token",
+            "Rejected invite response returns the form to a usable state",
+            "Invite submission binds the verified email and current token",
+            "Pending account creation disables duplicate submission",
+            "Pending account creation locks the submitted details",
+            "Accepted invitation opens onboarding"
+          ],
+          "requests": [
+            {
+              "method": "GET",
+              "mode": "invalid"
+            },
+            {
+              "method": "GET",
+              "mode": "rate-limit"
+            },
+            {
+              "method": "GET",
+              "mode": "offline"
+            },
+            {
+              "method": "GET",
+              "mode": "ready"
+            },
+            {
+              "method": "POST",
+              "mode": "offline"
+            },
+            {
+              "method": "POST",
+              "mode": "rejected"
+            },
+            {
+              "method": "POST",
+              "mode": "success"
+            }
+          ],
+          "pageErrors": []
+        }
+      }
+    },
+    "studioRegression": {
+      "checks": 114,
+      "passed": [
+        "Sidebar can enter expanded mode",
+        "320px light: Search, appearance and Add share one ordered row",
+        "320px light: account follows theme and notifications",
+        "320px light: compact named controls fit without Add icons",
+        "320px light: Add menu stays inside viewport",
+        "320px light: Escape returns Add focus",
+        "390px light: Search, appearance and Add share one ordered row",
+        "390px light: account follows theme and notifications",
+        "390px light: compact named controls fit without Add icons",
+        "390px light: Add menu stays inside viewport",
+        "390px light: Escape returns Add focus",
+        "768px light: Search, appearance and Add share one ordered row",
+        "768px light: account follows theme and notifications",
+        "768px light: compact named controls fit without Add icons",
+        "768px light: Add menu stays inside viewport",
+        "768px light: Escape returns Add focus",
+        "1024px light: Search, appearance and Add share one ordered row",
+        "1024px light: account follows theme and notifications",
+        "1024px light: compact named controls fit without Add icons",
+        "1024px light: Add menu stays inside viewport",
+        "1024px light: Escape returns Add focus",
+        "1440px light: Search, appearance and Add share one ordered row",
+        "1440px light: account follows theme and notifications",
+        "1440px light: compact named controls fit without Add icons",
+        "1440px light: Add menu stays inside viewport",
+        "1440px light: Escape returns Add focus",
+        "320px dark: Search, appearance and Add share one ordered row",
+        "320px dark: account follows theme and notifications",
+        "320px dark: compact named controls fit without Add icons",
+        "320px dark: Add menu stays inside viewport",
+        "320px dark: Escape returns Add focus",
+        "390px dark: Search, appearance and Add share one ordered row",
+        "390px dark: account follows theme and notifications",
+        "390px dark: compact named controls fit without Add icons",
+        "390px dark: Add menu stays inside viewport",
+        "390px dark: Escape returns Add focus",
+        "768px dark: Search, appearance and Add share one ordered row",
+        "768px dark: account follows theme and notifications",
+        "768px dark: compact named controls fit without Add icons",
+        "768px dark: Add menu stays inside viewport",
+        "768px dark: Escape returns Add focus",
+        "1024px dark: Search, appearance and Add share one ordered row",
+        "1024px dark: account follows theme and notifications",
+        "1024px dark: compact named controls fit without Add icons",
+        "1024px dark: Add menu stays inside viewport",
+        "1024px dark: Escape returns Add focus",
+        "1440px dark: Search, appearance and Add share one ordered row",
+        "1440px dark: account follows theme and notifications",
+        "1440px dark: compact named controls fit without Add icons",
+        "1440px dark: Add menu stays inside viewport",
+        "1440px dark: Escape returns Add focus",
+        "320px color: Search, appearance and Add share one ordered row",
+        "320px color: account follows theme and notifications",
+        "320px color: compact named controls fit without Add icons",
+        "320px color: Add menu stays inside viewport",
+        "320px color: Escape returns Add focus",
+        "390px color: Search, appearance and Add share one ordered row",
+        "390px color: account follows theme and notifications",
+        "390px color: compact named controls fit without Add icons",
+        "390px color: Add menu stays inside viewport",
+        "390px color: Escape returns Add focus",
+        "768px color: Search, appearance and Add share one ordered row",
+        "768px color: account follows theme and notifications",
+        "768px color: compact named controls fit without Add icons",
+        "768px color: Add menu stays inside viewport",
+        "768px color: Escape returns Add focus",
+        "1024px color: Search, appearance and Add share one ordered row",
+        "1024px color: account follows theme and notifications",
+        "1024px color: compact named controls fit without Add icons",
+        "1024px color: Add menu stays inside viewport",
+        "1024px color: Escape returns Add focus",
+        "1440px color: Search, appearance and Add share one ordered row",
+        "1440px color: account follows theme and notifications",
+        "1440px color: compact named controls fit without Add icons",
+        "1440px color: Add menu stays inside viewport",
+        "1440px color: Escape returns Add focus",
+        "Add retains five project types",
+        "Add initially focuses Canvas",
+        "ArrowDown focuses Note",
+        "ArrowUp wraps from Canvas to Sheet",
+        "Clicking outside closes Add menu",
+        "Search filters the project list",
+        "Search filters recent previews too",
+        "Clearing search restores projects",
+        "Canvas filters only matching project kinds",
+        "Writing filters only matching project kinds",
+        "Slides filters only matching project kinds",
+        "Sheets filters only matching project kinds",
+        "Recent previews scroll horizontally",
+        "Recent previews return to the newest project",
+        "Notifications still open and dismiss",
+        "Reordered account still opens",
+        "Mobile account popover stays inside viewport",
+        "Sidebar can enter rail mode",
+        "rail: account remains visible",
+        "rail: account dimensions stay usable",
+        "rail: account menu opens",
+        "Sidebar can enter hidden mode",
+        "hidden: account remains visible",
+        "hidden: account dimensions stay usable",
+        "hidden: account menu opens",
+        "Sidebar can enter expanded mode",
+        "expanded: account remains visible",
+        "expanded: account dimensions stay usable",
+        "expanded: account menu opens",
+        "Add disables while a project is being created",
+        "Rapid creation attempts produce only one request",
+        "Creation failure appears without leaving Studio",
+        "Add re-enables after a failed creation",
+        "Failed creation can be retried",
+        "Appearance shortcut opens the intended settings section",
+        "Personal workspace title remains visible on mobile without a daily focus",
+        "Personal workspace title does not overflow a 390px viewport",
+        "No browser page errors during Studio checks"
+      ],
+      "layouts": [
+        {
+          "theme": "light",
+          "width": 320,
+          "search": {
+            "x": 48,
+            "y": 129,
+            "width": 144,
+            "height": 16,
+            "right": 192
+          },
+          "appearance": {
+            "x": 210,
+            "y": 119,
+            "width": 36,
+            "height": 36,
+            "right": 246
+          },
+          "add": {
+            "x": 252,
+            "y": 119,
+            "width": 56,
+            "height": 36,
+            "right": 308
+          },
+          "sameRow": true,
+          "searchBeforeControls": true,
+          "accountAfterNotification": true,
+          "themeBeforeNotification": true,
+          "accountWidth": 40,
+          "overflow": 0,
+          "addSvgCount": 0,
+          "unnamed": 0
+        },
+        {
+          "theme": "light",
+          "width": 390,
+          "search": {
+            "x": 48,
+            "y": 129,
+            "width": 214,
+            "height": 16,
+            "right": 262
+          },
+          "appearance": {
+            "x": 280,
+            "y": 119,
+            "width": 36,
+            "height": 36,
+            "right": 316
+          },
+          "add": {
+            "x": 322,
+            "y": 119,
+            "width": 56,
+            "height": 36,
+            "right": 378
+          },
+          "sameRow": true,
+          "searchBeforeControls": true,
+          "accountAfterNotification": true,
+          "themeBeforeNotification": true,
+          "accountWidth": 40,
+          "overflow": 0,
+          "addSvgCount": 0,
+          "unnamed": 0
+        },
+        {
+          "theme": "light",
+          "width": 768,
+          "search": {
+            "x": 56,
+            "y": 129,
+            "width": 576,
+            "height": 16,
+            "right": 632
+          },
+          "appearance": {
+            "x": 650,
+            "y": 119,
+            "width": 36,
+            "height": 36,
+            "right": 686
+          },
+          "add": {
+            "x": 692,
+            "y": 119,
+            "width": 56,
+            "height": 36,
+            "right": 748
+          },
+          "sameRow": true,
+          "searchBeforeControls": true,
+          "accountAfterNotification": true,
+          "themeBeforeNotification": true,
+          "accountWidth": 40,
+          "overflow": 0,
+          "addSvgCount": 0,
+          "unnamed": 0
+        },
+        {
+          "theme": "light",
+          "width": 1024,
+          "search": {
+            "x": 240,
+            "y": 72,
+            "width": 644,
+            "height": 16,
+            "right": 884
+          },
+          "appearance": {
+            "x": 902,
+            "y": 62,
+            "width": 36,
+            "height": 36,
+            "right": 938
+          },
+          "add": {
+            "x": 944,
+            "y": 62,
+            "width": 56,
+            "height": 36,
+            "right": 1000
+          },
+          "sameRow": true,
+          "searchBeforeControls": true,
+          "accountAfterNotification": true,
+          "themeBeforeNotification": true,
+          "accountWidth": 91,
+          "overflow": 0,
+          "addSvgCount": 0,
+          "unnamed": 0
+        },
+        {
+          "theme": "light",
+          "width": 1440,
+          "search": {
+            "x": 615.96875,
+            "y": 26,
+            "width": 684.03125,
+            "height": 16,
+            "right": 1300
+          },
+          "appearance": {
+            "x": 1318,
+            "y": 16,
+            "width": 36,
+            "height": 36,
+            "right": 1354
+          },
+          "add": {
+            "x": 1360,
+            "y": 16,
+            "width": 56,
+            "height": 36,
+            "right": 1416
+          },
+          "sameRow": true,
+          "searchBeforeControls": true,
+          "accountAfterNotification": true,
+          "themeBeforeNotification": true,
+          "accountWidth": 91,
+          "overflow": 0,
+          "addSvgCount": 0,
+          "unnamed": 0
+        },
+        {
+          "theme": "dark",
+          "width": 320,
+          "search": {
+            "x": 48,
+            "y": 129,
+            "width": 144,
+            "height": 16,
+            "right": 192
+          },
+          "appearance": {
+            "x": 210,
+            "y": 119,
+            "width": 36,
+            "height": 36,
+            "right": 246
+          },
+          "add": {
+            "x": 252,
+            "y": 119,
+            "width": 56,
+            "height": 36,
+            "right": 308
+          },
+          "sameRow": true,
+          "searchBeforeControls": true,
+          "accountAfterNotification": true,
+          "themeBeforeNotification": true,
+          "accountWidth": 40,
+          "overflow": 0,
+          "addSvgCount": 0,
+          "unnamed": 0
+        },
+        {
+          "theme": "dark",
+          "width": 390,
+          "search": {
+            "x": 48,
+            "y": 129,
+            "width": 214,
+            "height": 16,
+            "right": 262
+          },
+          "appearance": {
+            "x": 280,
+            "y": 119,
+            "width": 36,
+            "height": 36,
+            "right": 316
+          },
+          "add": {
+            "x": 322,
+            "y": 119,
+            "width": 56,
+            "height": 36,
+            "right": 378
+          },
+          "sameRow": true,
+          "searchBeforeControls": true,
+          "accountAfterNotification": true,
+          "themeBeforeNotification": true,
+          "accountWidth": 40,
+          "overflow": 0,
+          "addSvgCount": 0,
+          "unnamed": 0
+        },
+        {
+          "theme": "dark",
+          "width": 768,
+          "search": {
+            "x": 56,
+            "y": 129,
+            "width": 576,
+            "height": 16,
+            "right": 632
+          },
+          "appearance": {
+            "x": 650,
+            "y": 119,
+            "width": 36,
+            "height": 36,
+            "right": 686
+          },
+          "add": {
+            "x": 692,
+            "y": 119,
+            "width": 56,
+            "height": 36,
+            "right": 748
+          },
+          "sameRow": true,
+          "searchBeforeControls": true,
+          "accountAfterNotification": true,
+          "themeBeforeNotification": true,
+          "accountWidth": 40,
+          "overflow": 0,
+          "addSvgCount": 0,
+          "unnamed": 0
+        },
+        {
+          "theme": "dark",
+          "width": 1024,
+          "search": {
+            "x": 240,
+            "y": 72,
+            "width": 644,
+            "height": 16,
+            "right": 884
+          },
+          "appearance": {
+            "x": 902,
+            "y": 62,
+            "width": 36,
+            "height": 36,
+            "right": 938
+          },
+          "add": {
+            "x": 944,
+            "y": 62,
+            "width": 56,
+            "height": 36,
+            "right": 1000
+          },
+          "sameRow": true,
+          "searchBeforeControls": true,
+          "accountAfterNotification": true,
+          "themeBeforeNotification": true,
+          "accountWidth": 91,
+          "overflow": 0,
+          "addSvgCount": 0,
+          "unnamed": 0
+        },
+        {
+          "theme": "dark",
+          "width": 1440,
+          "search": {
+            "x": 615.96875,
+            "y": 26,
+            "width": 684.03125,
+            "height": 16,
+            "right": 1300
+          },
+          "appearance": {
+            "x": 1318,
+            "y": 16,
+            "width": 36,
+            "height": 36,
+            "right": 1354
+          },
+          "add": {
+            "x": 1360,
+            "y": 16,
+            "width": 56,
+            "height": 36,
+            "right": 1416
+          },
+          "sameRow": true,
+          "searchBeforeControls": true,
+          "accountAfterNotification": true,
+          "themeBeforeNotification": true,
+          "accountWidth": 91,
+          "overflow": 0,
+          "addSvgCount": 0,
+          "unnamed": 0
+        },
+        {
+          "theme": "color",
+          "width": 320,
+          "search": {
+            "x": 48,
+            "y": 129,
+            "width": 144,
+            "height": 16,
+            "right": 192
+          },
+          "appearance": {
+            "x": 210,
+            "y": 119,
+            "width": 36,
+            "height": 36,
+            "right": 246
+          },
+          "add": {
+            "x": 252,
+            "y": 119,
+            "width": 56,
+            "height": 36,
+            "right": 308
+          },
+          "sameRow": true,
+          "searchBeforeControls": true,
+          "accountAfterNotification": true,
+          "themeBeforeNotification": true,
+          "accountWidth": 40,
+          "overflow": 0,
+          "addSvgCount": 0,
+          "unnamed": 0
+        },
+        {
+          "theme": "color",
+          "width": 390,
+          "search": {
+            "x": 48,
+            "y": 129,
+            "width": 214,
+            "height": 16,
+            "right": 262
+          },
+          "appearance": {
+            "x": 280,
+            "y": 119,
+            "width": 36,
+            "height": 36,
+            "right": 316
+          },
+          "add": {
+            "x": 322,
+            "y": 119,
+            "width": 56,
+            "height": 36,
+            "right": 378
+          },
+          "sameRow": true,
+          "searchBeforeControls": true,
+          "accountAfterNotification": true,
+          "themeBeforeNotification": true,
+          "accountWidth": 40,
+          "overflow": 0,
+          "addSvgCount": 0,
+          "unnamed": 0
+        },
+        {
+          "theme": "color",
+          "width": 768,
+          "search": {
+            "x": 56,
+            "y": 129,
+            "width": 576,
+            "height": 16,
+            "right": 632
+          },
+          "appearance": {
+            "x": 650,
+            "y": 119,
+            "width": 36,
+            "height": 36,
+            "right": 686
+          },
+          "add": {
+            "x": 692,
+            "y": 119,
+            "width": 56,
+            "height": 36,
+            "right": 748
+          },
+          "sameRow": true,
+          "searchBeforeControls": true,
+          "accountAfterNotification": true,
+          "themeBeforeNotification": true,
+          "accountWidth": 40,
+          "overflow": 0,
+          "addSvgCount": 0,
+          "unnamed": 0
+        },
+        {
+          "theme": "color",
+          "width": 1024,
+          "search": {
+            "x": 240,
+            "y": 72,
+            "width": 644,
+            "height": 16,
+            "right": 884
+          },
+          "appearance": {
+            "x": 902,
+            "y": 62,
+            "width": 36,
+            "height": 36,
+            "right": 938
+          },
+          "add": {
+            "x": 944,
+            "y": 62,
+            "width": 56,
+            "height": 36,
+            "right": 1000
+          },
+          "sameRow": true,
+          "searchBeforeControls": true,
+          "accountAfterNotification": true,
+          "themeBeforeNotification": true,
+          "accountWidth": 91,
+          "overflow": 0,
+          "addSvgCount": 0,
+          "unnamed": 0
+        },
+        {
+          "theme": "color",
+          "width": 1440,
+          "search": {
+            "x": 615.96875,
+            "y": 26,
+            "width": 684.03125,
+            "height": 16,
+            "right": 1300
+          },
+          "appearance": {
+            "x": 1318,
+            "y": 16,
+            "width": 36,
+            "height": 36,
+            "right": 1354
+          },
+          "add": {
+            "x": 1360,
+            "y": 16,
+            "width": 56,
+            "height": 36,
+            "right": 1416
+          },
+          "sameRow": true,
+          "searchBeforeControls": true,
+          "accountAfterNotification": true,
+          "themeBeforeNotification": true,
+          "accountWidth": 91,
+          "overflow": 0,
+          "addSvgCount": 0,
+          "unnamed": 0
+        }
+      ],
+      "errors": []
+    },
+    "chatRegression": {
+      "checks": [
+        "Fixture conversations load",
+        "light 320: inbox visible",
+        "light 320: contained and named controls",
+        "light 320: send control stays clear of bottom navigation",
+        "light 390: inbox visible",
+        "light 390: contained and named controls",
+        "light 390: send control stays clear of bottom navigation",
+        "light 768: inbox visible",
+        "light 768: contained and named controls",
+        "light 768: send control stays clear of bottom navigation",
+        "light 1024: inbox visible",
+        "light 1024: contained and named controls",
+        "light 1024: send control stays clear of bottom navigation",
+        "light 1440: inbox visible",
+        "light 1440: contained and named controls",
+        "light 1440: send control stays clear of bottom navigation",
+        "dark 320: inbox visible",
+        "dark 320: contained and named controls",
+        "dark 320: send control stays clear of bottom navigation",
+        "dark 390: inbox visible",
+        "dark 390: contained and named controls",
+        "dark 390: send control stays clear of bottom navigation",
+        "dark 768: inbox visible",
+        "dark 768: contained and named controls",
+        "dark 768: send control stays clear of bottom navigation",
+        "dark 1024: inbox visible",
+        "dark 1024: contained and named controls",
+        "dark 1024: send control stays clear of bottom navigation",
+        "dark 1440: inbox visible",
+        "dark 1440: contained and named controls",
+        "dark 1440: send control stays clear of bottom navigation",
+        "color 320: inbox visible",
+        "color 320: contained and named controls",
+        "color 320: send control stays clear of bottom navigation",
+        "color 390: inbox visible",
+        "color 390: contained and named controls",
+        "color 390: send control stays clear of bottom navigation",
+        "color 768: inbox visible",
+        "color 768: contained and named controls",
+        "color 768: send control stays clear of bottom navigation",
+        "color 1024: inbox visible",
+        "color 1024: contained and named controls",
+        "color 1024: send control stays clear of bottom navigation",
+        "color 1440: inbox visible",
+        "color 1440: contained and named controls",
+        "color 1440: send control stays clear of bottom navigation",
+        "Conversation search filters actual message bodies",
+        "Message search has a no-result state",
+        "Reaction choices are contextual",
+        "People filter uses DM destinations",
+        "Groups filter uses group destinations",
+        "Saved filter reflects persisted flags",
+        "Inbox searches recipient names",
+        "Recipient picker filters contacts and groups",
+        "Failed group creation preserves input",
+        "New conversation dialog closes with Escape",
+        "Voice recording remains reachable",
+        "Emoji inserts into the draft",
+        "Live games remain reachable",
+        "Pending keyboard sends are deduplicated",
+        "Failed sending preserves draft",
+        "Switching recipients does not carry another conversation’s text",
+        "Earlier send completion preserves the new destination and draft",
+        "Conversation draft and destination survive reload",
+        "Only the successfully sent source draft is cleared",
+        "Send completion preserves text entered while the request was pending",
+        "Switching back restores each conversation independently",
+        "Unmount/reopen race begins while the original send is still pending",
+        "Unmounted send completion cannot change a reopened composer",
+        "Unmounted send completion cannot overwrite the newer persisted draft",
+        "Message history errors recover through Retry",
+        "Inbox errors recover through Retry",
+        "Story composer remains reachable",
+        "No browser runtime errors"
+      ],
+      "layouts": [
+        {
+          "theme": "light",
+          "width": 320,
+          "overflow": 0,
+          "workspaceWidth": 296,
+          "bottom": 767,
+          "height": 844,
+          "composer": 750,
+          "bottomNavigation": 774.6875,
+          "unnamed": 0
+        },
+        {
+          "theme": "light",
+          "width": 390,
+          "overflow": 0,
+          "workspaceWidth": 366,
+          "bottom": 767,
+          "height": 844,
+          "composer": 750,
+          "bottomNavigation": 774.6875,
+          "unnamed": 0
+        },
+        {
+          "theme": "light",
+          "width": 768,
+          "overflow": 0,
+          "workspaceWidth": 728,
+          "bottom": 821,
+          "height": 900,
+          "composer": 799,
+          "bottomNavigation": 830.6875,
+          "unnamed": 0
+        },
+        {
+          "theme": "light",
+          "width": 1024,
+          "overflow": 0,
+          "workspaceWidth": 796,
+          "bottom": 838,
+          "height": 900,
+          "composer": 816,
+          "bottomNavigation": 900,
+          "unnamed": 0
+        },
+        {
+          "theme": "light",
+          "width": 1440,
+          "overflow": 0,
+          "workspaceWidth": 1212,
+          "bottom": 838,
+          "height": 900,
+          "composer": 816,
+          "bottomNavigation": 900,
+          "unnamed": 0
+        },
+        {
+          "theme": "dark",
+          "width": 320,
+          "overflow": 0,
+          "workspaceWidth": 296,
+          "bottom": 767,
+          "height": 844,
+          "composer": 750,
+          "bottomNavigation": 774.6875,
+          "unnamed": 0
+        },
+        {
+          "theme": "dark",
+          "width": 390,
+          "overflow": 0,
+          "workspaceWidth": 366,
+          "bottom": 767,
+          "height": 844,
+          "composer": 750,
+          "bottomNavigation": 774.6875,
+          "unnamed": 0
+        },
+        {
+          "theme": "dark",
+          "width": 768,
+          "overflow": 0,
+          "workspaceWidth": 728,
+          "bottom": 821,
+          "height": 900,
+          "composer": 799,
+          "bottomNavigation": 830.6875,
+          "unnamed": 0
+        },
+        {
+          "theme": "dark",
+          "width": 1024,
+          "overflow": 0,
+          "workspaceWidth": 796,
+          "bottom": 838,
+          "height": 900,
+          "composer": 816,
+          "bottomNavigation": 900,
+          "unnamed": 0
+        },
+        {
+          "theme": "dark",
+          "width": 1440,
+          "overflow": 0,
+          "workspaceWidth": 1212,
+          "bottom": 838,
+          "height": 900,
+          "composer": 816,
+          "bottomNavigation": 900,
+          "unnamed": 0
+        },
+        {
+          "theme": "color",
+          "width": 320,
+          "overflow": 0,
+          "workspaceWidth": 296,
+          "bottom": 767,
+          "height": 844,
+          "composer": 750,
+          "bottomNavigation": 774.6875,
+          "unnamed": 0
+        },
+        {
+          "theme": "color",
+          "width": 390,
+          "overflow": 0,
+          "workspaceWidth": 366,
+          "bottom": 767,
+          "height": 844,
+          "composer": 750,
+          "bottomNavigation": 774.6875,
+          "unnamed": 0
+        },
+        {
+          "theme": "color",
+          "width": 768,
+          "overflow": 0,
+          "workspaceWidth": 728,
+          "bottom": 821,
+          "height": 900,
+          "composer": 799,
+          "bottomNavigation": 830.6875,
+          "unnamed": 0
+        },
+        {
+          "theme": "color",
+          "width": 1024,
+          "overflow": 0,
+          "workspaceWidth": 796,
+          "bottom": 838,
+          "height": 900,
+          "composer": 816,
+          "bottomNavigation": 900,
+          "unnamed": 0
+        },
+        {
+          "theme": "color",
+          "width": 1440,
+          "overflow": 0,
+          "workspaceWidth": 1212,
+          "bottom": 838,
+          "height": 900,
+          "composer": 816,
+          "bottomNavigation": 900,
+          "unnamed": 0
+        }
+      ],
+      "writes": [
+        {
+          "path": "/api/groups",
+          "method": "POST"
+        },
+        {
+          "path": "/api/chat",
+          "method": "POST"
+        },
+        {
+          "path": "/api/chat",
+          "method": "POST"
+        },
+        {
+          "path": "/api/chat",
+          "method": "POST"
+        },
+        {
+          "path": "/api/chat",
+          "method": "POST"
+        }
+      ],
+      "errors": []
+    }
+  }
+}

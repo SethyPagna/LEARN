@@ -1,18 +1,22 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, Bot, CalendarDays, CalendarPlus, Camera, Check, ChevronRight, Clock, Copy, FileText, Filter, Gauge, Languages, Link as LinkIcon, Lock, Palette, Repeat2, Save, Search, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, UserPlus, UserRound, Users, X } from "lucide-react"
+import { AppearanceSettings } from "../appearance-settings"
+import { InstallAppSettings } from "../app-install"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { AlertTriangle, ArrowRight, BookOpen, Bot, CalendarPlus, Check, ChevronRight, CircleHelp, FileText, Filter, Gauge, Languages, Link as LinkIcon, Lock, Palette, Repeat2, Save, Search, ShieldCheck, Sparkles, Target, UserPlus, UserRound, Users, X } from "lucide-react"
+import { PopoverButton } from "../design/popover"
 import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
-import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, buildCalendarSummaryChips, calendarDurationPresets, calendarEventTypeOptions, filterCalendarAgenda, formatCalendarDuration, labelCalendarEventType, normalizeCalendarEventType, summarizeCalendarAgenda, type CalendarAgendaFilter, type CalendarEventType } from "@/lib/calendar-features"
 import { buildProgressCommandPlan, summarizeLearningProgress, type ProgressActionTarget, type ProgressNextAction } from "@/lib/progress-features"
-import { buildSettingsControlPlan, buildSettingsSummaryChips, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
+import { buildSettingsControlPlan, normalizeSettingsNumber, summarizeSettingsOptions, type SettingsSectionGuide, type SettingsSectionId } from "@/lib/settings-features"
 import { adminPanelTabOptions, buildAdminOperationalPlan, buildAdminSummaryChips, filterAdminList, summarizeAdminOperations, type AdminAccessRequest, type AdminPanelTab, type AdminSummaryChip } from "@/lib/admin-features"
 import type { WorkspaceOptions } from "../preferences"
-import type { AdminData, AutomationData, CalendarEvent, DashboardData, Quiz, User, View } from "../types"
+import type { AdminData, AutomationData, DashboardData, Quiz, User, View } from "../types"
 import { api, formatDate } from "../api"
-import { ControlButton, Panel, StatusPill as SharedStatusPill } from "../ui"
+import { ControlButton, EmptyState, Panel, StatusPill as SharedStatusPill } from "../ui"
 import { ProviderAdminPanel } from "./provider-admin-panel"
 import { toneSurfaceClasses } from "@/lib/design-system"
+import { beginProfileIdentitySave } from "@/lib/profile-identity"
+import { ProfileIdentityEditor, useProfileIdentityEditor } from "../profile-identity-editor"
 
 const progressActionIcons: Record<ProgressActionTarget, typeof Target> = {
   ai: Sparkles,
@@ -28,6 +32,7 @@ const adminPanelTabIcons: Record<AdminPanelTab, typeof Gauge> = {
   users: Users,
   providers: Bot,
   audit: ShieldCheck,
+  moderation: AlertTriangle,
   automation: Sparkles,
 }
 
@@ -38,149 +43,14 @@ export function ProgressView({ dashboard, quizzes, setView }: { dashboard: Dashb
   )
   const progressPlan = useMemo(() => buildProgressCommandPlan(progress), [progress])
   const ProgressPlanIcon = progressActionIcons[progressPlan.target]
-  const topicSeverityCounts = useMemo(() => summarizeProgressTopicSeverity(progress.weakTopics), [progress.weakTopics])
 
-  return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <Panel className="p-4 xl:col-span-2">
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <TrendingUp className="h-6 w-6" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-2xl font-semibold text-foreground">Progress command center</h2>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <SharedStatusPill label={progress.momentumLabel} />
-                <SharedStatusPill label={`${progress.focusTopics.length} focus`} />
-                <SharedStatusPill label={`${progress.reviewCount} review`} />
-                <SharedStatusPill label={`${topicSeverityCounts.critical} critical`} tone={topicSeverityCounts.critical ? "watch" : "neutral"} />
-              </div>
-            </div>
-          </div>
-          <button onClick={() => setView?.(progressPlan.target)} className="rounded-md border border-border bg-secondary p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
-            <div className="flex items-center gap-3">
-              <ProgressPlanIcon className="h-5 w-5 text-success" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold text-foreground">{progressPlan.headline}</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{progressPlan.chips.slice(0, 2).join(" / ")}</p>
-              </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </button>
-          <div className="xl:col-span-2">
-            <div className="flex items-center justify-between text-xs font-semibold uppercase text-muted-foreground">
-              <span>Goal route</span>
-              <span>{progress.goalCompletion}%</span>
-            </div>
-            <div className="mt-2 h-3 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-success transition-all" style={{ width: `${Math.max(4, progress.goalCompletion)}%` }} />
-            </div>
-            <details className="mt-3 rounded-md border border-border bg-background">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-                <span>Route details</span>
-                <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{progress.focusTopics.length || 0} focus</span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </summary>
-              <div className="grid gap-3 border-t border-border p-3 md:grid-cols-[1fr_auto]">
-                <p className="text-sm leading-6 text-muted-foreground">{progressPlan.detail}</p>
-                <div className="flex flex-wrap gap-2 md:justify-end">
-                  {progressPlan.chips.map((chip) => <SharedStatusPill key={chip} label={chip} />)}
-                  {progress.focusTopics.length ? progress.focusTopics.map((topic) => <SharedStatusPill key={topic} label={topic} />) : <SharedStatusPill label="No focus set" />}
-                </div>
-              </div>
-            </details>
-          </div>
-        </div>
-        <details className="mt-4 rounded-md border border-border bg-background">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-            <span>Metrics</span>
-            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{progress.metrics.length}</span>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          </summary>
-          <div className="grid gap-3 border-t border-border p-3 sm:grid-cols-2 xl:grid-cols-4">
-            {progress.metrics.map((metric) => (
-              <div key={metric.id} className="group relative rounded-md border border-border bg-card p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{metric.label}</p>
-                <p className="mt-2 text-3xl font-semibold leading-none text-foreground">{metric.value}</p>
-                <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{metric.detail}</p>
-              </div>
-            ))}
-          </div>
-        </details>
-      </Panel>
-
-      <Panel className="p-4">
-        <ProgressHeader icon={Target} title="Next actions" info="Ranked from the current goal, weak topics, and available quiz banks." />
-        <div className="mt-4 grid gap-2">
-          {progress.nextActions.map((action) => (
-            <ProgressActionButton key={action.id} action={action} onClick={() => setView?.(action.target)} />
-          ))}
-        </div>
-      </Panel>
-
-      <Panel className="p-4">
-        <ProgressHeader icon={AlertTriangle} title="Weak topics" info="Lower accuracy appears first. Use these cards to decide what should become review or practice next." />
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          <MiniProgressStat label="Critical" value={String(topicSeverityCounts.critical)} tone="critical" />
-          <MiniProgressStat label="Watch" value={String(topicSeverityCounts.watch)} tone="watch" />
-          <MiniProgressStat label="Steady" value={String(topicSeverityCounts.steady)} tone="steady" />
-        </div>
-        <div className="mt-4 grid gap-2">
-          {progress.weakTopics.length ? progress.weakTopics.map((topic) => (
-            <div key={topic.topic} className="rounded-md border border-border bg-background p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">{topic.topic}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{topic.attempts || 0} attempts</p>
-                </div>
-                <span className={`rounded-md px-2 py-1 text-xs font-semibold ${severityClass(topic.severity)}`}>{topic.accuracy}%</span>
-              </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-                <div className={`h-full rounded-full ${topic.severity === "critical" ? "bg-destructive" : "bg-success"}`} style={{ width: `${Math.max(6, topic.accuracy)}%` }} />
-              </div>
-            </div>
-          )) : (
-            <div className="rounded-md border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
-              No weak topics yet. Run practice to create signals.
-            </div>
-          )}
-        </div>
-      </Panel>
-
-      <Panel className="p-4 xl:col-span-2">
-        <details>
-          <summary className="flex cursor-pointer items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
-                <Gauge className="h-5 w-5" />
-              </div>
-              <h3 className="truncate font-semibold text-foreground">Learning loop</h3>
-            </div>
-            <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">Guide</span>
-          </summary>
-          <div className="mt-4 grid gap-3 md:grid-cols-5">
-            {[
-              ["Studio", "Capture"],
-              ["AI", "Clean"],
-              ["Practice", "Attempt"],
-              ["Reviews", "Recall"],
-              ["Calendar", "Schedule"],
-            ].map(([label, detail], index) => (
-              <div key={label} className="rounded-md border border-border bg-background p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-secondary text-sm font-semibold text-secondary-foreground">{index + 1}</span>
-                  {index < 4 ? <ArrowRight className="h-4 w-4 text-muted-foreground" /> : <Check className="h-4 w-4 text-success" />}
-                </div>
-                <p className="mt-3 font-semibold text-foreground">{label}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
-              </div>
-            ))}
-          </div>
-        </details>
-      </Panel>
-    </div>
-  )
+  return <section className="learning-page mx-auto grid max-w-4xl gap-4">
+    <h2 className="sr-only">Progress</h2>
+    <div className="progress-overview"><div className="progress-ring" style={{ background: `conic-gradient(var(--primary) ${progress.goalCompletion}%, var(--muted) 0)` }}><span><strong>{progress.goalCompletion}%</strong><small>Daily goal</small></span></div><div className="grid flex-1 grid-cols-2 gap-4">{progress.metrics.filter(metric => metric.id !== "goal").map(metric => <div key={metric.id} title={metric.detail}><p className="text-2xl font-semibold tabular-nums">{metric.value}</p><p className="mt-1 text-xs text-muted-foreground">{metric.label}</p></div>)}<p className="self-center justify-self-start rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium leading-snug text-secondary-foreground sm:rounded-full">{progress.momentumLabel === "steady" ? "On track" : progress.momentumLabel === "building" ? "Making progress" : "Let’s get started"}</p></div></div>
+    <div className="grid gap-4 md:grid-cols-2"><Panel className="p-4"><h3 className="mb-3 text-sm font-semibold">Next</h3><div className="grid gap-2">{progress.nextActions.slice(0, 3).map(action => <ProgressActionButton key={action.id} action={action} onClick={() => setView?.(action.target)} />)}</div></Panel>
+    <Panel className="p-4"><h3 className="mb-3 text-sm font-semibold">Topics</h3>{progress.weakTopics.length ? progress.weakTopics.map(topic => <button key={topic.topic} onClick={() => setView?.("quizzes")} className="block w-full py-2 text-left"><span className="flex justify-between gap-2 text-sm"><span className="truncate">{topic.topic}</span><span className="text-xs text-muted-foreground">{topic.accuracy}%</span></span><span className="mt-2 block h-1.5 rounded-full bg-muted"><span className="block h-full rounded-full bg-primary" style={{ width: `${topic.accuracy}%` }} /></span></button>) : <EmptyState bare title="No results yet" action={<button className="editor-command" onClick={() => setView?.("quizzes")}><BookOpen className="h-4 w-4" />Practice</button>} />}</Panel></div>
+    <details className="workspace-disclosure"><summary>Goal details</summary><p className="pt-3 text-sm text-muted-foreground">{progressPlan.detail}</p><button className="editor-command mt-2" onClick={() => setView?.(progressPlan.target)}><ProgressPlanIcon className="h-4 w-4" />{progressPlan.headline}</button></details>
+  </section>
 }
 
 function ProgressActionButton({ action, onClick }: { action: ProgressNextAction; onClick: () => void }) {
@@ -188,602 +58,14 @@ function ProgressActionButton({ action, onClick }: { action: ProgressNextAction;
   return (
     <button onClick={onClick} className="group relative rounded-md border border-border bg-background p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
       <div className="flex items-center gap-3">
-        <Icon className="h-5 w-5 text-success" />
+        <Icon className="h-5 w-5 text-[var(--decor-mint-ink)]" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{action.label}</p>
-          <SharedStatusPill label={action.urgency} tone={urgencyTone(action.urgency)} />
         </div>
         <ArrowRight className="h-4 w-4 text-muted-foreground" />
       </div>
-      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{action.detail}</p>
+      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-20 hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">{action.detail}</p>
     </button>
-  )
-}
-
-function ProgressHeader({ icon: Icon, info, title }: { icon: typeof Target; info: string; title: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
-          <Icon className="h-5 w-5" />
-        </div>
-        <h3 className="truncate font-semibold text-foreground">{title}</h3>
-      </div>
-      <details className="relative">
-        <summary className="flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${title}`}>
-          <Filter className="h-4 w-4" />
-        </summary>
-        <p className="absolute right-0 top-10 z-20 w-64 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">{info}</p>
-      </details>
-    </div>
-  )
-}
-
-function MiniProgressStat({ label, tone, value }: { label: string; tone: "critical" | "watch" | "steady"; value: string }) {
-  return (
-    <div className={`rounded-md border p-2 ${severityClass(tone)}`}>
-      <p className="text-[0.65rem] font-semibold uppercase opacity-80">{label}</p>
-      <p className="mt-1 text-lg font-semibold leading-none">{value}</p>
-    </div>
-  )
-}
-
-function summarizeProgressTopicSeverity(topics: Array<{ severity: "critical" | "watch" | "steady" }>) {
-  const counts = { critical: 0, steady: 0, watch: 0 }
-  for (const topic of topics) counts[topic.severity] += 1
-  return counts
-}
-
-function severityClass(severity: "critical" | "watch" | "steady") {
-  if (severity === "critical") return "bg-destructive text-destructive-foreground"
-  if (severity === "watch") return "bg-warning/20 text-warning-foreground"
-  return "bg-success/20 text-success"
-}
-
-function urgencyTone(urgency: ProgressNextAction["urgency"]) {
-  if (urgency === "high") return "critical"
-  if (urgency === "medium") return "watch"
-  return "steady"
-}
-
-export function CalendarView({ options }: { options: WorkspaceOptions }) {
-  const [events, setEvents] = useState<CalendarEvent[]>([])
-  const [selectedId, setSelectedId] = useState("")
-  const [calendarMounted, setCalendarMounted] = useState(false)
-  const [visibleMonth, setVisibleMonth] = useState(() => new Date(2000, 0, 1))
-  const [selectedDayKey, setSelectedDayKey] = useState("2000-01-01")
-  const [title, setTitle] = useState("45 min focus block")
-  const [eventType, setEventType] = useState<CalendarEventType>("study")
-  const [startsAt, setStartsAt] = useState("")
-  const [durationMinutes, setDurationMinutes] = useState(options.calendarDefaultMinutes)
-  const [notes, setNotes] = useState("")
-  const [status, setStatus] = useState("")
-  const [agendaFilter, setAgendaFilter] = useState<CalendarAgendaFilter>("upcoming")
-  const [calendarActionBusy, setCalendarActionBusy] = useState<"save" | "complete" | "duplicate" | "delete" | null>(null)
-  const selected = events.find((event) => event.id === selectedId)
-  const agendaSummary = useMemo(() => summarizeCalendarAgenda(events), [events])
-  const calendarSummaryChips = useMemo(() => buildCalendarSummaryChips(agendaSummary), [agendaSummary])
-  const primaryCalendarChips = calendarSummaryChips.filter((chip) => chip.priority === "primary")
-  const secondaryCalendarChips = calendarSummaryChips.filter((chip) => chip.priority === "secondary")
-  const calendarPlan = useMemo(
-    () => buildCalendarPlanningSummary(events, { defaultMinutes: options.calendarDefaultMinutes, leadMinutes: options.calendarLeadMinutes }),
-    [events, options.calendarDefaultMinutes, options.calendarLeadMinutes],
-  )
-  const filteredEvents = useMemo(() => filterCalendarAgenda(events, agendaFilter), [agendaFilter, events])
-  const monthDays = useMemo(() => buildCalendarMonthGrid(visibleMonth, events), [events, visibleMonth])
-  const selectedDayEvents = useMemo(
-    () => events.filter((event) => localDateKey(new Date(event.starts_at)) === selectedDayKey).sort(compareCalendarEvents),
-    [events, selectedDayKey],
-  )
-  const selectedDaySegments = useMemo(() => buildCalendarDaySegments(selectedDayEvents), [selectedDayEvents])
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-  const canSave = title.trim().length > 0 && Number.isFinite(Date.parse(startsAt)) && durationMinutes >= 5
-  const calendarBusy = calendarActionBusy !== null
-
-  async function refresh() {
-    const response = await api<{ items: CalendarEvent[] }>("/api/calendar")
-    setEvents(response.items)
-  }
-
-  useEffect(() => {
-    refresh().catch((error) => setStatus(error.message))
-  }, [])
-
-  useEffect(() => {
-    if (calendarMounted) return
-    const now = new Date()
-    setVisibleMonth(now)
-    setSelectedDayKey(localDateKey(now))
-    setStartsAt(toLocalInputValue(new Date(now.getTime() + options.calendarLeadMinutes * 60 * 1000)))
-    setDurationMinutes(options.calendarDefaultMinutes)
-    setCalendarMounted(true)
-  }, [calendarMounted, options.calendarDefaultMinutes, options.calendarLeadMinutes])
-
-  useEffect(() => {
-    if (!selected) return
-    const start = new Date(selected.starts_at)
-    const end = new Date(selected.ends_at)
-    setTitle(selected.title)
-    setEventType(normalizeCalendarEventType(selected.event_type))
-    setStartsAt(toLocalInputValue(start))
-    setDurationMinutes(Math.max(5, Math.round((end.getTime() - start.getTime()) / 60000)))
-    setNotes(selected.notes || "")
-  }, [selected?.id])
-
-  async function createEvent() {
-    if (calendarBusy) return
-    setSelectedId("")
-    setTitle("45 min focus block")
-    setEventType("study")
-    setStartsAt(toLocalInputValue(new Date(Date.now() + options.calendarLeadMinutes * 60 * 1000)))
-    setDurationMinutes(options.calendarDefaultMinutes)
-    setNotes("")
-    setStatus("Drafting a new time block.")
-  }
-
-  function createEventForDay(hour = 9) {
-    if (calendarBusy) return
-    const selectedDate = dateFromLocalKey(selectedDayKey)
-    const now = new Date()
-    const isToday = localDateKey(now) === selectedDayKey
-    const start = isToday
-      ? new Date(now.getTime() + options.calendarLeadMinutes * 60 * 1000)
-      : new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), hour, 0)
-    setSelectedId("")
-    setTitle(hour < 12 ? "Morning focus block" : hour < 17 ? "Afternoon review block" : "Evening learning block")
-    setEventType(hour < 17 ? "study" : "review")
-    setStartsAt(toLocalInputValue(start))
-    setDurationMinutes(options.calendarDefaultMinutes)
-    setNotes("")
-    setStatus(`Drafting ${formatCalendarDayLabel(selectedDayKey)} at ${start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}.`)
-  }
-
-  function selectCalendarDay(key: string) {
-    setSelectedDayKey(key)
-    if (!selectedId) setStartsAt(moveLocalInputDate(startsAt, key))
-  }
-
-  async function saveEvent(id = selectedId, action: "save" | "duplicate" = "save") {
-    if (calendarBusy) return null
-    if (!canSave) {
-      setStatus("Add a title, valid start time, and duration of at least 5 minutes.")
-      return null
-    }
-    const startDate = new Date(startsAt)
-    const endDate = new Date(startDate.getTime() + durationMinutes * 60 * 1000)
-    setCalendarActionBusy(action)
-    try {
-      const response = await api<{ item: CalendarEvent }>("/api/calendar", {
-        method: id ? "PUT" : "POST",
-        body: JSON.stringify({
-          id: id || undefined,
-          title,
-          eventType,
-          startsAt: startDate.toISOString(),
-          endsAt: endDate.toISOString(),
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          notes,
-        }),
-      })
-      setSelectedId(response.item.id)
-      setStatus(action === "duplicate" ? `${response.item.title} duplicated.` : `${response.item.title} saved.`)
-      await refresh()
-      return response.item
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to save this time block.")
-      return null
-    } finally {
-      setCalendarActionBusy(null)
-    }
-  }
-
-  async function duplicateEvent() {
-    await saveEvent("", "duplicate")
-  }
-
-  async function toggleComplete() {
-    if (calendarBusy) return
-    const nextType = eventType === "completed" ? "study" : "completed"
-    const startDate = new Date(startsAt)
-    setCalendarActionBusy("complete")
-    try {
-      await api("/api/calendar", {
-        method: selectedId ? "PUT" : "POST",
-        body: JSON.stringify({
-          id: selectedId || undefined,
-          title,
-          eventType: nextType,
-          startsAt: startDate.toISOString(),
-          endsAt: new Date(startDate.getTime() + durationMinutes * 60 * 1000).toISOString(),
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          notes,
-        }),
-      })
-      setEventType(nextType)
-      setStatus(nextType === "completed" ? "Marked complete." : "Moved back to study.")
-      await refresh()
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to update this time block.")
-    } finally {
-      setCalendarActionBusy(null)
-    }
-  }
-
-  async function deleteEvent(id: string) {
-    if (calendarBusy) return
-    setCalendarActionBusy("delete")
-    try {
-      await api(`/api/calendar?id=${encodeURIComponent(id)}`, { method: "DELETE" })
-      if (selectedId === id) {
-        setSelectedId("")
-        setTitle("45 min focus block")
-        setEventType("study")
-        setStartsAt(toLocalInputValue(new Date(Date.now() + options.calendarLeadMinutes * 60 * 1000)))
-        setDurationMinutes(options.calendarDefaultMinutes)
-        setNotes("")
-      }
-      setStatus("Time block deleted.")
-      await refresh()
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to delete this time block.")
-    } finally {
-      setCalendarActionBusy(null)
-    }
-  }
-
-  function applyPlanSuggestion() {
-    const suggestion = calendarPlan.suggestion
-    setSelectedId("")
-    setTitle(suggestion.title)
-    setEventType(normalizeCalendarEventType(suggestion.eventType))
-    setStartsAt(toLocalInputValue(suggestion.startsAt))
-    setDurationMinutes(suggestion.durationMinutes)
-    setNotes(suggestion.reason)
-    setStatus("Suggestion loaded as a draft.")
-  }
-
-  function shiftVisibleMonth(delta: number) {
-    setVisibleMonth((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1))
-  }
-
-  if (!calendarMounted) {
-    return (
-      <Panel className="p-4">
-        <h2 className="text-2xl font-semibold text-foreground">Study calendar</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Loading planner...</p>
-      </Panel>
-    )
-  }
-
-  return (
-    <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
-      <Panel className="p-4">
-        <h2 className="text-2xl font-semibold text-foreground">Study calendar</h2>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <SharedStatusPill label={`${options.calendarDefaultMinutes}m default`} />
-          <SharedStatusPill label={`${options.calendarLeadMinutes}m lead`} />
-          <SharedStatusPill label={timezone} />
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          {[...primaryCalendarChips, ...secondaryCalendarChips.filter((chip) => chip.id === "completed" || chip.id === "total")].map((chip) => (
-            <CompactInfo key={chip.id} label={chip.label} value={chip.value} tone={calendarSummaryTone(chip.id)} />
-          ))}
-        </div>
-        <button onClick={applyPlanSuggestion} className="mt-4 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
-          <div className="flex items-center justify-between gap-3">
-            <span className="font-semibold text-foreground">{calendarPlan.headline}</span>
-            <SharedStatusPill label={calendarPlan.suggestion.eventType} tone={settingsTone(calendarPlan.tone)} />
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {calendarPlan.chips.map((chip) => <SharedStatusPill key={chip} label={chip} />)}
-          </div>
-        </button>
-        <details className="mt-3 rounded-md border border-border bg-background p-2">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
-            <span>Planning details</span>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          </summary>
-          <div className="mt-2 flex flex-wrap gap-2 border-t border-border pt-2">
-            {secondaryCalendarChips.map((chip) => <SharedStatusPill key={chip.id} label={`${chip.label} ${chip.value}`} />)}
-          </div>
-          <p className="mt-2 rounded-md bg-muted p-2 text-xs leading-5 text-muted-foreground">{calendarPlan.suggestion.reason}</p>
-        </details>
-        <div className="mt-4 grid gap-3">
-          <Field label="Title" value={title} onChange={setTitle} />
-          <label className="block rounded-lg bg-muted p-4">
-            <span className="text-xs font-semibold uppercase text-muted-foreground">Type</span>
-            <select value={eventType} onChange={(event) => setEventType(normalizeCalendarEventType(event.target.value))} className={`mt-2 h-9 w-full rounded-md border px-3 text-sm font-semibold outline-none ${calendarTypeSelectClass(eventType)}`}>
-              {calendarEventTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-          </label>
-          <DateTimeField label="Starts at" value={startsAt} onChange={setStartsAt} />
-          <NumberField label="Duration minutes" value={durationMinutes} min={5} step={5} onChange={(value) => setDurationMinutes(value || options.calendarDefaultMinutes)} />
-          <div className="flex flex-wrap gap-2">
-            {calendarDurationPresets.map((minutes) => (
-              <ControlButton key={minutes} onClick={() => setDurationMinutes(minutes)} active={durationMinutes === minutes} size="compact">
-                {formatCalendarDuration(minutes)}
-              </ControlButton>
-            ))}
-          </div>
-          <label className="block rounded-lg bg-muted p-4">
-            <span className="text-xs font-semibold uppercase text-muted-foreground">Notes</span>
-            <textarea value={notes} onChange={(event) => setNotes(event.target.value)} className="mt-2 min-h-24 w-full resize-none rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none" />
-          </label>
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <CalendarAction label="New" icon={CalendarPlus} onClick={createEvent} disabled={calendarBusy} />
-          <CalendarAction label={calendarActionBusy === "save" ? "Saving" : "Save"} icon={Save} onClick={() => saveEvent()} primary disabled={calendarBusy} />
-          <CalendarAction label={calendarActionBusy === "complete" ? "Updating" : eventType === "completed" ? "Reopen" : "Complete"} icon={Check} onClick={toggleComplete} disabled={calendarBusy} />
-          <CalendarAction label={calendarActionBusy === "duplicate" ? "Duplicating" : "Duplicate"} icon={Copy} onClick={duplicateEvent} disabled={calendarBusy} />
-        </div>
-        {status ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
-      </Panel>
-      <Panel className="p-4">
-        <div className="mb-4 grid gap-4 2xl:grid-cols-[minmax(0,1.1fr)_minmax(300px,0.9fr)]">
-          <section className="rounded-lg border border-border bg-background p-3">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <CalendarDays className="h-5 w-5 text-primary" />
-                <div>
-                  <h3 className="font-semibold text-foreground">{visibleMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h3>
-                  <p className="text-xs text-muted-foreground">Month view</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <ControlButton onClick={() => shiftVisibleMonth(-1)} className="h-8 w-8 px-0" size="compact" aria-label="Previous month">
-                  <ArrowLeft className="h-4 w-4" />
-                </ControlButton>
-                <ControlButton onClick={() => { setVisibleMonth(new Date()); setSelectedDayKey(localDateKey(new Date())) }} size="compact">
-                  Today
-                </ControlButton>
-                <ControlButton onClick={() => shiftVisibleMonth(1)} className="h-8 w-8 px-0" size="compact" aria-label="Next month">
-                  <ArrowRight className="h-4 w-4" />
-                </ControlButton>
-              </div>
-            </div>
-            <div className="grid grid-cols-7 gap-1 text-center text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day} className="py-1">{day}</span>)}
-            </div>
-            <div className="mt-1 grid grid-cols-7 gap-1">
-              {monthDays.map((day) => (
-                <button
-                  key={day.key}
-                  onClick={() => selectCalendarDay(day.key)}
-                  className={`min-h-24 rounded-md border p-2 text-left transition hover:border-primary/60 hover:bg-accent hover:text-accent-foreground ${day.key === selectedDayKey ? "border-primary bg-primary/10 text-primary" : day.inMonth ? "border-border bg-card text-foreground" : "border-border/60 bg-muted/40 text-muted-foreground"} ${day.isToday ? "ring-1 ring-success/70" : ""}`}
-                >
-                  <span className="flex items-center justify-between gap-1 text-xs font-semibold">
-                    <span>{day.label}</span>
-                    {day.totalEvents ? <span className="rounded bg-secondary px-1.5 py-0.5 text-[0.62rem] text-secondary-foreground">{day.totalEvents}</span> : null}
-                  </span>
-                  {day.totalEvents ? (
-                    <span className="mt-1 block space-y-1">
-                      <span className="block truncate text-[0.68rem] font-semibold text-foreground">{day.firstEventTime}</span>
-                      <span className="block truncate text-[0.65rem] text-muted-foreground">{formatCalendarDuration(day.totalMinutes)}</span>
-                    </span>
-                  ) : null}
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {day.events.slice(0, 3).map((event) => <span key={event.id} className={`h-1.5 w-1.5 rounded-full ${calendarDotClass(event.event_type)}`} title={event.title} />)}
-                    {day.events.length > 3 ? <span className="text-[0.65rem] font-semibold text-muted-foreground">+{day.events.length - 3}</span> : null}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-          <section className="rounded-lg border border-border bg-background p-3">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <h3 className="font-semibold text-foreground">{formatCalendarDayLabel(selectedDayKey)}</h3>
-                <p className="text-xs text-muted-foreground">{selectedDayEvents.length} scheduled blocks</p>
-              </div>
-              <SharedStatusPill label={timezone} />
-            </div>
-            <div className="mb-3 grid grid-cols-3 gap-2">
-              {([
-                [9, "Morning"],
-                [13, "Afternoon"],
-                [19, "Evening"],
-              ] as const).map(([hour, label]) => (
-                <ControlButton key={hour} onClick={() => createEventForDay(hour)} size="compact" className="justify-center">
-                  <CalendarPlus className="h-3.5 w-3.5" />
-                  {label}
-                </ControlButton>
-              ))}
-            </div>
-            <div className="mb-3 grid gap-2">
-              {selectedDaySegments.map((segment) => (
-                <details key={segment.id} className="rounded-md border border-border bg-card" open={segment.events.length > 0}>
-                  <summary className="grid cursor-pointer list-none grid-cols-[74px_minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-                    <span className={`rounded-md px-2 py-1 text-xs ${calendarSegmentClass(segment.id)}`}>{calendarSegmentTime(segment.id)}</span>
-                    <span className="truncate">{segment.label}</span>
-                    <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
-                      {segment.events.length ? `${segment.events.length} | ${formatCalendarDuration(segment.totalMinutes)}` : "open"}
-                    </span>
-                  </summary>
-                  <div className="grid gap-1 border-t border-border p-2 pl-[92px]">
-                    {segment.events.map((event) => (
-                      <button key={event.id} onClick={() => setSelectedId(event.id)} className="flex items-center justify-between gap-2 rounded-md bg-background px-2 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground" type="button">
-                        <span className="min-w-0 truncate font-semibold text-foreground">{event.title}</span>
-                        <span className="shrink-0 text-muted-foreground">{formatCalendarTimeRange(event)}</span>
-                      </button>
-                    ))}
-                    {!segment.events.length ? <span className="rounded-md bg-background px-2 py-1.5 text-xs text-muted-foreground">No block yet</span> : null}
-                  </div>
-                </details>
-              ))}
-            </div>
-            <div className="space-y-2">
-              {selectedDayEvents.map((event) => (
-                <button key={event.id} onClick={() => setSelectedId(event.id)} className={`flex w-full items-start gap-3 rounded-md border p-3 text-left ${selectedId === event.id ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-accent hover:text-accent-foreground"}`}>
-                  <span className={`mt-1 h-2.5 w-2.5 rounded-full ${calendarDotClass(event.event_type)}`} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-xs font-semibold text-muted-foreground">{formatCalendarTimeRange(event)}</span>
-                    <span className="mt-1 block truncate font-semibold text-foreground">{event.title}</span>
-                    <span className="mt-1 block text-xs text-muted-foreground">{labelCalendarEventType(event.event_type)} | {formatCalendarDuration(calendarEventDurationFromRecord(event))}</span>
-                  </span>
-                </button>
-              ))}
-              {!selectedDayEvents.length ? (
-                <div className="rounded-md border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                  No blocks on this date. Pick a time on the left and save a focus, review, or deadline block.
-                </div>
-              ) : null}
-            </div>
-          </section>
-        </div>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="font-semibold text-foreground">Agenda records</h3>
-            <p className="text-sm text-muted-foreground">Select a block to edit it in the left panel.</p>
-          </div>
-          <SharedStatusPill label={`${filteredEvents.length}/${events.length} blocks`} />
-        </div>
-        <div className="mb-4 flex flex-wrap gap-2">
-          {(["all", "today", "upcoming", "review", "completed"] as CalendarAgendaFilter[]).map((filter) => (
-            <ControlButton
-              key={filter}
-              onClick={() => setAgendaFilter(filter)}
-              active={agendaFilter === filter}
-              size="compact"
-            >
-              <Filter className="h-3.5 w-3.5" />
-              {filter[0].toUpperCase() + filter.slice(1)}
-            </ControlButton>
-          ))}
-        </div>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {filteredEvents.map((event) => {
-            const duration = formatCalendarDuration(Math.max(0, Math.round((new Date(event.ends_at).getTime() - new Date(event.starts_at).getTime()) / 60000)))
-            return (
-            <article key={event.id} className={`rounded-lg border p-4 ${selectedId === event.id ? "border-primary bg-primary/10" : "border-border bg-card"}`}>
-              <div className="flex items-start justify-between gap-3">
-                <button onClick={() => setSelectedId(event.id)} className="min-w-0 flex-1 text-left">
-                  <p className="truncate font-semibold text-foreground">{event.title}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{formatDate(event.starts_at)} | {labelCalendarEventType(event.event_type)}</p>
-                  <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground"><Clock className="h-3.5 w-3.5" /> {duration}</p>
-                  {event.notes ? <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{event.notes}</p> : null}
-                </button>
-                <button
-                  onClick={() => deleteEvent(event.id)}
-                  className="rounded-md p-2 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
-                  aria-label="Delete event"
-                  disabled={calendarBusy}
-                  title={calendarActionBusy === "delete" ? "Deleting" : "Delete event"}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </article>
-          )})}
-          {!filteredEvents.length ? (
-            <div className="rounded-lg border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
-              No blocks match this filter. Use the selected-day quick slots or save a new block from the editor.
-            </div>
-          ) : null}
-        </div>
-      </Panel>
-    </div>
-  )
-}
-
-function compareCalendarEvents(first: CalendarEvent, second: CalendarEvent) {
-  return Date.parse(first.starts_at) - Date.parse(second.starts_at)
-}
-
-function calendarEventDurationFromRecord(event: CalendarEvent) {
-  const start = Date.parse(event.starts_at)
-  const end = Date.parse(event.ends_at)
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0
-  return Math.round((end - start) / 60000)
-}
-
-function calendarDotClass(type: string) {
-  if (type === "review") return "bg-warning"
-  if (type === "deadline") return "bg-destructive"
-  if (type === "completed") return "bg-success"
-  if (type === "focus") return "bg-primary"
-  return "bg-sky-500"
-}
-
-function calendarSummaryTone(id: string) {
-  if (id === "today") return "primary"
-  if (id === "upcoming") return "sky"
-  if (id === "planned") return "success"
-  if (id === "review") return "warning"
-  return "neutral"
-}
-
-function calendarTypeSelectClass(type: string) {
-  if (type === "review") return "border-warning/40 bg-warning/10 text-warning"
-  if (type === "deadline") return "border-destructive/40 bg-destructive/10 text-destructive"
-  if (type === "completed") return "border-success/40 bg-success/10 text-success"
-  if (type === "focus") return "border-primary/40 bg-primary/10 text-primary"
-  return "border-sky-400/40 bg-sky-500/10 text-sky-700 dark:text-sky-300"
-}
-
-function calendarSegmentClass(id: string) {
-  if (id === "morning") return "bg-sky-500/10 text-sky-700 dark:text-sky-300"
-  if (id === "afternoon") return "bg-warning/10 text-warning"
-  return "bg-primary/10 text-primary"
-}
-
-function calendarSegmentTime(id: string) {
-  if (id === "morning") return "6-12"
-  if (id === "afternoon") return "12-5"
-  return "5-12"
-}
-
-function formatCalendarDayLabel(key: string) {
-  const date = dateFromLocalKey(key)
-  return date.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })
-}
-
-function formatCalendarTimeRange(event: CalendarEvent) {
-  const format = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" })
-  return `${format.format(new Date(event.starts_at))} - ${format.format(new Date(event.ends_at))}`
-}
-
-function dateFromLocalKey(key: string) {
-  const [year, month, day] = key.split("-").map(Number)
-  return new Date(year, (month || 1) - 1, day || 1)
-}
-
-function localDateKey(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, "0")
-  const day = String(date.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
-}
-
-function toLocalInputValue(date: Date) {
-  const offset = date.getTimezoneOffset()
-  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16)
-}
-
-function moveLocalInputDate(value: string, dayKey: string) {
-  const parsed = new Date(value)
-  const nextDate = dateFromLocalKey(dayKey)
-  if (!Number.isFinite(parsed.getTime())) return toLocalInputValue(new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate(), 9, 0))
-  return toLocalInputValue(new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate(), parsed.getHours(), parsed.getMinutes()))
-}
-
-function CalendarAction({
-  disabled,
-  icon: Icon,
-  label,
-  onClick,
-  primary,
-}: {
-  disabled?: boolean
-  icon: typeof Save
-  label: string
-  onClick: () => void
-  primary?: boolean
-}) {
-  return (
-    <ControlButton onClick={onClick} active={primary} disabled={disabled}>
-      <Icon className="h-4 w-4" />
-      {label}
-    </ControlButton>
   )
 }
 
@@ -798,30 +80,13 @@ function SettingsSectionButton({
   active,
   guide,
   onClick,
-  suggested,
 }: {
   active: boolean
   guide: SettingsSectionGuide
   onClick: () => void
-  suggested: boolean
 }) {
   const Icon = settingsSectionIcons[guide.id]
-  return (
-    <button
-      onClick={onClick}
-      className={`group relative inline-flex h-10 min-w-[9.5rem] items-center gap-2 rounded-md border px-3 text-left text-sm transition hover:-translate-y-0.5 ${active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
-      title={guide.detail}
-    >
-      <Icon className="h-4 w-4 shrink-0" />
-      <span className="min-w-0 flex-1 truncate font-semibold">{guide.label}</span>
-      {active ? (
-        <span className="rounded-md bg-primary-foreground/15 px-2 py-0.5 text-[0.65rem] font-semibold text-primary-foreground">{suggested ? "next" : guide.badge}</span>
-      ) : (
-        <span className="rounded-md bg-background/80 px-2 py-0.5 text-[0.65rem] font-semibold text-muted-foreground">{suggested ? "next" : guide.badge}</span>
-      )}
-      <p className="pointer-events-none absolute left-2 right-2 top-[calc(100%+0.35rem)] z-[70] hidden rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-lg group-hover:block">{guide.detail}</p>
-    </button>
-  )
+  return <button type="button" onClick={onClick} aria-current={active ? "page" : undefined} className="settings-section" title={guide.detail}><Icon className="h-4 w-4 shrink-0" /><span>{guide.label}</span></button>
 }
 
 export function SettingsView({
@@ -829,6 +94,8 @@ export function SettingsView({
   automationData,
   locale,
   options,
+  locationSearch,
+  onProfileSaved,
   setLocale,
   setOptions,
 }: {
@@ -836,205 +103,128 @@ export function SettingsView({
   automationData: AutomationData | null
   locale: SupportedLocale
   options: WorkspaceOptions
+  locationSearch?: string
+  onProfileSaved: (user: User) => void
   setLocale: (locale: SupportedLocale) => void
   setOptions: (options: Partial<WorkspaceOptions>) => void
 }) {
-  const [name, setName] = useState(user?.name || "")
   const [email, setEmail] = useState(user?.email || "")
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || "")
-  const [bio, setBio] = useState(user?.bio || "")
-  const [profileVisibility, setProfileVisibility] = useState(user?.profileVisibility || "private")
-  const [facebookUrl, setFacebookUrl] = useState(preferenceString(user?.preferences?.facebookUrl))
-  const [websiteUrl, setWebsiteUrl] = useState(preferenceString(user?.preferences?.websiteUrl))
-  const [introUrl, setIntroUrl] = useState(preferenceString(user?.preferences?.introUrl))
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState(Number(user?.preferences?.dailyGoalMinutes || 45))
   const [section, setSection] = useState<SettingsSectionId>("profile")
+  useEffect(() => {
+    function syncSection() {
+      const requested = new URLSearchParams(window.location.search).get("section")
+      const next = (Object.keys(settingsSectionIcons) as SettingsSectionId[]).find(id => id === requested)
+      setSection(next || "profile")
+    }
+    syncSection()
+    window.addEventListener("popstate", syncSection)
+    return () => window.removeEventListener("popstate", syncSection)
+  }, [locationSearch])
   const [status, setStatus] = useState("")
   const [saveBusy, setSaveBusy] = useState(false)
+  const savePending = useRef(false)
+  const currentUser = useRef(user)
+  const reconciledUser = useRef(user)
+  currentUser.current = user
+  const editor = useProfileIdentityEditor({ user, onSaved: onProfileSaved })
   const settingsSummary = useMemo(() => summarizeSettingsOptions(options), [options])
-  const settingsSummaryChips = useMemo(() => buildSettingsSummaryChips(settingsSummary), [settingsSummary])
-  const primarySettingsChips = settingsSummaryChips.filter((chip) => chip.priority === "primary")
-  const secondarySettingsChips = settingsSummaryChips.filter((chip) => chip.priority === "secondary")
   const settingsPlan = useMemo(() => buildSettingsControlPlan(settingsSummary), [settingsSummary])
-  const profileDirty = name !== (user?.name || "")
-    || email !== (user?.email || "")
-    || avatarUrl !== (user?.avatarUrl || "")
-    || bio !== (user?.bio || "")
-    || profileVisibility !== (user?.profileVisibility || "private")
-    || facebookUrl !== preferenceString(user?.preferences?.facebookUrl)
-    || websiteUrl !== preferenceString(user?.preferences?.websiteUrl)
-    || introUrl !== preferenceString(user?.preferences?.introUrl)
+  const storedOptions = user?.preferences?.workspaceOptions
+  const optionsDirty = !storedOptions || typeof storedOptions !== "object" || Array.isArray(storedOptions)
+    || Object.entries(options).some(([key, value]) => (storedOptions as Record<string, unknown>)[key] !== value)
+  const settingsDirty = email.trim() !== (user?.email || "")
     || dailyGoalMinutes !== Number(user?.preferences?.dailyGoalMinutes || 45)
+    || optionsDirty
+    || options.restDay !== user?.preferences?.restDay
+    || options.dailyReviewCap !== user?.preferences?.dailyReviewCap
 
   useEffect(() => {
-    setName(user?.name || "")
-    setEmail(user?.email || "")
-    setAvatarUrl(user?.avatarUrl || "")
-    setBio(user?.bio || "")
-    setProfileVisibility(user?.profileVisibility || "private")
-    setFacebookUrl(preferenceString(user?.preferences?.facebookUrl))
-    setWebsiteUrl(preferenceString(user?.preferences?.websiteUrl))
-    setIntroUrl(preferenceString(user?.preferences?.introUrl))
-    setDailyGoalMinutes(Number(user?.preferences?.dailyGoalMinutes || 45))
-  }, [user?.id])
+    const previous = reconciledUser.current
+    reconciledUser.current = user
+    if (!user || !previous || previous.id !== user.id) {
+      setEmail(user?.email || "")
+      setDailyGoalMinutes(Number(user?.preferences?.dailyGoalMinutes || 45))
+      setStatus("")
+      return
+    }
+    setEmail(current => current === previous.email ? user.email : current)
+    const previousGoal = Number(previous.preferences.dailyGoalMinutes || 45)
+    setDailyGoalMinutes(current => current === previousGoal ? Number(user.preferences.dailyGoalMinutes || 45) : current)
+  }, [user])
 
-  function handleAvatarFile(file?: File | null) {
-    if (!file) return
-    if (!file.type.startsWith("image/")) {
-      setStatus("Choose an image file for the avatar.")
-      return
-    }
-    if (file.size > 256 * 1024) {
-      setStatus("Use an avatar image under 256 KB.")
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = () => {
-      setAvatarUrl(typeof reader.result === "string" ? reader.result : "")
-      setStatus("Avatar draft ready. Save to apply it.")
-    }
-    reader.onerror = () => setStatus("Unable to read that image.")
-    reader.readAsDataURL(file)
+  function chooseSection(next: SettingsSectionId) {
+    setSection(next)
+    const url = new URL(window.location.href)
+    url.searchParams.set("section", next)
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`)
   }
 
-  async function saveProfile() {
-    if (saveBusy) return
+  async function saveSettings() {
+    if (!user || savePending.current || !settingsDirty) return
+    if (!email.trim()) { setStatus("Enter your email address."); return }
+    const userId = user.id
+    const releaseSave = beginProfileIdentitySave(userId)
+    if (!releaseSave) { setStatus("Your profile is already saving. Try again in a moment."); return }
+    savePending.current = true
     setSaveBusy(true)
-    setStatus("Saving settings...")
+    setStatus("Saving settings…")
     try {
-      await api("/api/profile", {
+      const { user: savedUser } = await api<{ user: User }>("/api/profile", {
         method: "PUT",
         body: JSON.stringify({
-          name,
-          email,
-          avatarUrl,
-          bio,
-          profileVisibility,
-          preferences: { dailyGoalMinutes, facebookUrl, websiteUrl, introUrl },
+          ...(email.trim() !== user.email ? { email: email.trim() } : {}),
+          preferences: {
+            dailyGoalMinutes, localeReady: supportedLocales.length, workspaceOptions: options,
+            restDay: options.restDay, dailyReviewCap: options.dailyReviewCap,
+          },
         }),
       })
-      await api("/api/preferences", {
-        method: "PUT",
-        body: JSON.stringify({ dailyGoalMinutes, facebookUrl, websiteUrl, introUrl, localeReady: supportedLocales.length, workspaceOptions: options }),
-      })
-      setStatus("Saved profile and preferences.")
+      if (currentUser.current?.id !== userId) return
+      onProfileSaved(savedUser)
+      setEmail(savedUser.email)
+      setDailyGoalMinutes(Number(savedUser.preferences.dailyGoalMinutes || 45))
+      setStatus("Settings saved.")
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to save settings.")
+      if (currentUser.current?.id === userId) setStatus(error instanceof Error ? error.message : "Unable to save settings.")
     } finally {
+      releaseSave()
+      savePending.current = false
       setSaveBusy(false)
     }
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <Panel className="p-4 xl:col-span-2">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <SlidersHorizontal className="h-6 w-6" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-2xl font-semibold text-foreground">Settings</h2>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {primarySettingsChips.map((chip) => (
-                  <SharedStatusPill key={chip.id} label={`${chip.label}: ${chip.value}`} />
-                ))}
-                {profileDirty ? <SharedStatusPill label="profile draft" tone="watch" /> : <SharedStatusPill label="profile saved" tone="steady" />}
-              </div>
-            </div>
-          </div>
-          <ControlButton onClick={saveProfile} active disabled={saveBusy}>
-            <Save className="h-4 w-4" />
-            {saveBusy ? "Saving" : "Save"}
-          </ControlButton>
-        </div>
-        {status ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{status}</p> : null}
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-          {settingsPlan.guides.map((guide) => (
-            <SettingsSectionButton key={guide.id} guide={guide} active={section === guide.id} suggested={settingsPlan.suggestedSection === guide.id} onClick={() => setSection(guide.id)} />
-          ))}
-        </div>
-        <details className="mt-3 rounded-md border border-border bg-background p-2">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
-            <span>Signals</span>
-            <span className="flex items-center gap-2">
-              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{settingsSummary.statuses.length}</span>
-              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{settingsPlan.nextAction}</span>
-            </span>
-          </summary>
-          <div className="mt-3 grid gap-2 md:grid-cols-5">
-            {secondarySettingsChips.map((chip) => (
-              <div key={chip.id} className="rounded-md border border-border bg-card p-2 text-sm">
-                <span className="block truncate font-medium text-foreground">{chip.label}</span>
-                <span className="mt-2 inline-flex"><SharedStatusPill label={chip.value} /></span>
-              </div>
-            ))}
-            {settingsSummary.statuses.map((item) => (
-              <div key={item.id} className="rounded-md border border-border bg-card p-2 text-sm">
-                <span className="block truncate font-medium text-foreground">{item.label}</span>
-                <span className="mt-2 inline-flex"><SharedStatusPill label={item.value} tone={settingsTone(item.tone)} /></span>
-              </div>
-            ))}
-          </div>
-          <ControlButton
-            onClick={() => setSection(settingsPlan.suggestedSection)}
-            className="mt-3 w-full justify-between"
-          >
-            <span className="min-w-0 truncate">{settingsPlan.nextAction}</span>
-            <ArrowRight className="h-4 w-4 shrink-0" />
-          </ControlButton>
-        </details>
-      </Panel>
-
+    <div className="settings-workspace">
+      <h2 className="sr-only">Settings</h2>
+      <nav aria-label="Settings sections" className="settings-sections">{settingsPlan.guides.map((guide) => <SettingsSectionButton key={guide.id} guide={guide} active={section === guide.id} onClick={() => chooseSection(guide.id)} />)}</nav>
+      <div className="settings-content">
+      {status ? <p role="status" className="mb-4 text-sm text-muted-foreground">{status}</p> : null}
       {section === "profile" ? (
         <Panel className="p-4">
-          <SettingsSectionHeader icon={UserRound} title="Profile" body="Edit identity, avatar, privacy, and links." />
-          <div className="mt-4 grid gap-4 xl:grid-cols-[280px_1fr]">
-            <div className="rounded-lg bg-muted p-4">
-              <span className="text-xs font-semibold uppercase text-muted-foreground">Avatar</span>
-              <div className="mt-3 flex items-center gap-3">
-                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-primary text-2xl font-semibold text-primary-foreground">
-                  {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : (name || user?.username || "L").slice(0, 1)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground">
-                    <Camera className="h-4 w-4" />
-                    Upload
-                    <input type="file" accept="image/*" className="sr-only" onChange={(event) => handleAvatarFile(event.target.files?.[0])} />
-                  </label>
-                  {avatarUrl ? (
-                    <button type="button" onClick={() => setAvatarUrl("")} className="ml-2 inline-flex items-center gap-1 rounded-md border border-border px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                      <X className="h-4 w-4" />
-                      Clear
-                    </button>
-                  ) : null}
-                  <p className="mt-2 text-xs leading-5 text-muted-foreground">Small images load fastest.</p>
-                </div>
+          <div className="grid gap-4">
+            <div className="grid gap-3 border-b border-border pb-4" onKeyDown={event => { if (event.key === "Escape" && editor.editing) { event.stopPropagation(); editor.cancelEditing() } }}>
+              <div className="flex min-w-0 items-center justify-between gap-3">
+                <div className="min-w-0"><p className="truncate font-semibold">{user?.name || "Your profile"}</p><p className="truncate text-xs text-muted-foreground">{user?.username ? `@${user.username}` : ""}</p></div>
+                <button ref={editor.editButton} type="button" className="editor-command shrink-0" aria-label="Edit profile" aria-expanded={editor.editing} aria-controls="settings-profile-editor" disabled={!user || saveBusy || editor.saveBusy} onClick={() => editor.editing ? editor.cancelEditing() : editor.startEditing()}><UserRound className="h-4 w-4" />{editor.editing ? "Close" : "Edit"}</button>
               </div>
+              {editor.editing ? <ProfileIdentityEditor id="settings-profile-editor" editor={editor} /> : editor.status ? <p role="status" className="text-xs text-muted-foreground">{editor.status}</p> : null}
             </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <Field label="Name" value={name} onChange={setName} />
-              <Field label="Email" value={email} onChange={setEmail} />
-              <SelectField label="Profile visibility" value={profileVisibility} options={["private", "connections", "public"]} onChange={setProfileVisibility} />
-              <Field label="Daily goal minutes" value={String(dailyGoalMinutes)} onChange={(value) => setDailyGoalMinutes(normalizeSettingsNumber({ value, fallback: 45, min: 5, max: 240 }))} />
-              <TextAreaField label="About" value={bio} onChange={(value) => setBio(value.slice(0, 800))} />
-              <div className="grid gap-3">
-                <Field label="Facebook" value={facebookUrl} onChange={setFacebookUrl} />
-                <Field label="Website" value={websiteUrl} onChange={setWebsiteUrl} />
-                <Field label="Intro link" value={introUrl} onChange={setIntroUrl} />
+            <fieldset disabled={saveBusy} className="grid gap-3 md:grid-cols-2">
+                <Field label="Email" value={email} onChange={setEmail} />
+                <Field label="Daily goal minutes" value={String(dailyGoalMinutes)} onChange={(value) => setDailyGoalMinutes(normalizeSettingsNumber({ value, fallback: 45, min: 5, max: 240 }))} />
                 <Info label="Role" value={user?.role} />
-              </div>
-            </div>
+            </fieldset>
           </div>
         </Panel>
       ) : null}
 
       {section === "experience" ? (
         <Panel className="p-4">
-          <SettingsSectionHeader icon={Palette} title="Experience" body="Theme, language, density, and comfort." />
+          <AppearanceSettings options={options} setOptions={setOptions} />
+          <InstallAppSettings />
+          <details className="mt-7 border-t border-border pt-4"><summary className="-my-2 cursor-pointer py-2 text-sm font-medium">Editor and accessibility preferences</summary>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <SelectField label="Dashboard" value={options.dashboardDetail} options={["focused", "detailed"]} onChange={(value) => setOptions({ dashboardDetail: value as WorkspaceOptions["dashboardDetail"] })} />
-            <SelectField label="Accent color" value={options.appAccent} options={["teal", "sky", "violet", "rose", "amber"]} onChange={(value) => setOptions({ appAccent: value as WorkspaceOptions["appAccent"] })} />
             <SelectField label="Files layout" value={options.fileLayout} options={["list", "grid"]} onChange={(value) => setOptions({ fileLayout: value as WorkspaceOptions["fileLayout"] })} />
             <SelectField label="Docs template" value={options.docsTemplate} options={["study", "cornell", "project"]} onChange={(value) => setOptions({ docsTemplate: value as WorkspaceOptions["docsTemplate"] })} />
             <SelectField label="Slides aspect" value={options.slidesAspect} options={["16:9", "4:3"]} onChange={(value) => setOptions({ slidesAspect: value as WorkspaceOptions["slidesAspect"] })} />
@@ -1043,38 +233,42 @@ export function SettingsView({
             <Toggle label="High contrast" checked={options.highContrast} onChange={(checked) => setOptions({ highContrast: checked })} />
             <Toggle label="Reduced motion" checked={options.reducedMotion} onChange={(checked) => setOptions({ reducedMotion: checked })} />
             <Toggle label="Dyslexia-friendly font" checked={options.dyslexiaFriendly} onChange={(checked) => setOptions({ dyslexiaFriendly: checked })} />
-            <Toggle label="Weak-topic bars" checked={options.showWeakTopicBars} onChange={(checked) => setOptions({ showWeakTopicBars: checked })} />
             <Toggle label="File previews" checked={options.filePreview} onChange={(checked) => setOptions({ filePreview: checked })} />
           </div>
           <LanguagePicker locale={locale} setLocale={setLocale} />
+          </details>
         </Panel>
       ) : null}
 
       {section === "learning" ? (
         <Panel className="p-4">
-          <SettingsSectionHeader icon={Target} title="Learning workflow" body="Caps, defaults, reviews, and AI limits." />
+          <SettingsSectionHeader icon={Target} title="Practice" body="Defaults for quizzes, games and reviews." />
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <SelectField label="Quiz mode" value={options.quizMode} options={["practice", "exam", "review"]} onChange={(value) => setOptions({ quizMode: value as WorkspaceOptions["quizMode"] })} />
             <SelectField label="Game mode" value={options.gameMode} options={["sprint", "matching", "memory"]} onChange={(value) => setOptions({ gameMode: value as WorkspaceOptions["gameMode"] })} />
             <SelectField label="Rest day" value={options.restDay} options={["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]} onChange={(value) => setOptions({ restDay: value as WorkspaceOptions["restDay"] })} />
-            <Field label="Calendar lead minutes" value={String(options.calendarLeadMinutes)} onChange={(value) => setOptions({ calendarLeadMinutes: normalizeSettingsNumber({ value, fallback: 15, min: 0, max: 240 }) })} />
-            <Field label="Calendar block minutes" value={String(options.calendarDefaultMinutes)} onChange={(value) => setOptions({ calendarDefaultMinutes: normalizeSettingsNumber({ value, fallback: 45, min: 5, max: 240 }) })} />
             <Field label="Game question limit" value={String(options.gameQuestionLimit)} onChange={(value) => setOptions({ gameQuestionLimit: normalizeSettingsNumber({ value, fallback: 12, min: 3, max: 80 }) })} />
-            <Field label="Daily review cap" value={String(options.dailyReviewCap)} onChange={(value) => setOptions({ dailyReviewCap: normalizeSettingsNumber({ value, fallback: 30, min: 1, max: 120 }) })} />
-            <Field label="Feed serendipity %" value={String(options.feedSerendipity)} onChange={(value) => setOptions({ feedSerendipity: normalizeSettingsNumber({ value, fallback: 15, min: 15, max: 50 }) })} />
-            <Field label="AI max tokens" value={String(options.aiMaxTokens)} onChange={(value) => setOptions({ aiMaxTokens: normalizeSettingsNumber({ value, fallback: 8192, min: 256, max: 16384 }) })} />
+            <Field label="Daily review cap" value={String(options.dailyReviewCap)} onChange={(value) => setOptions({ dailyReviewCap: normalizeSettingsNumber({ value, fallback: 30, min: 0, max: 200 }) })} />
           </div>
           <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-            <Toggle label="Notes autosave" checked={options.notesAutosave} onChange={(checked) => setOptions({ notesAutosave: checked })} />
             <Toggle label="Reveal quiz answers" checked={options.revealAnswers} onChange={(checked) => setOptions({ revealAnswers: checked })} />
-            <Toggle label="AI includes notes" checked={options.aiIncludeNotes} onChange={(checked) => setOptions({ aiIncludeNotes: checked })} />
           </div>
+          <details className="workspace-disclosure mt-4"><summary>Calendar</summary><div className="grid gap-3 pt-3 md:grid-cols-2">
+            <Field label="Reminder · minutes before" value={String(options.calendarLeadMinutes)} onChange={(value) => setOptions({ calendarLeadMinutes: normalizeSettingsNumber({ value, fallback: 15, min: 0, max: 240 }) })} />
+            <Field label="Session · minutes" value={String(options.calendarDefaultMinutes)} onChange={(value) => setOptions({ calendarDefaultMinutes: normalizeSettingsNumber({ value, fallback: 45, min: 5, max: 240 }) })} />
+          </div></details>
+          <details className="workspace-disclosure mt-3"><summary>Notes, AI &amp; feed</summary><div className="grid gap-3 pt-3 md:grid-cols-2">
+            <Toggle label="Notes autosave" checked={options.notesAutosave} onChange={(checked) => setOptions({ notesAutosave: checked })} />
+            <Toggle label="AI includes notes" checked={options.aiIncludeNotes} onChange={(checked) => setOptions({ aiIncludeNotes: checked })} />
+            <Field label="Feed discovery %" value={String(options.feedSerendipity)} onChange={(value) => setOptions({ feedSerendipity: normalizeSettingsNumber({ value, fallback: 15, min: 15, max: 50 }) })} />
+            <Field label="AI max tokens" value={String(options.aiMaxTokens)} onChange={(value) => setOptions({ aiMaxTokens: normalizeSettingsNumber({ value, fallback: 8192, min: 256, max: 16384 }) })} />
+          </div></details>
         </Panel>
       ) : null}
 
       {section === "privacy" ? (
         <Panel className="p-4">
-          <SettingsSectionHeader icon={Lock} title="Privacy and notifications" body="Sharing, presence, reminders, and system alerts." />
+          <SettingsSectionHeader icon={Lock} title="Privacy & alerts" body="Sharing, presence, reminders, and system alerts." />
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <SelectField label="Privacy default" value={options.privacyDefault} options={["private", "connections", "public"]} onChange={(value) => setOptions({ privacyDefault: value as WorkspaceOptions["privacyDefault"] })} />
             <Toggle label="Presence hints" checked={options.collaborationPresence} onChange={(checked) => setOptions({ collaborationPresence: checked })} />
@@ -1086,16 +280,18 @@ export function SettingsView({
             <Toggle label="System health" checked={options.notificationSystemHealth} onChange={(checked) => setOptions({ notificationSystemHealth: checked })} />
             <Toggle label="Verbose admin" checked={options.adminVerbose} onChange={(checked) => setOptions({ adminVerbose: checked })} />
           </div>
-          <div className="mt-5 grid gap-2 md:grid-cols-2">
+          <details className="workspace-disclosure mt-4"><summary>Automations</summary><div className="mt-3 grid gap-2 md:grid-cols-2">
             {(automationData?.jobs || []).slice(0, 4).map((job) => (
               <div key={job.key} className="rounded-md border border-border bg-background p-3">
                 <p className="text-sm font-semibold text-foreground">{job.label}</p>
-                <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{job.description}</p>
+                <span className="sr-only">{job.description}</span>
               </div>
             ))}
-          </div>
+          </div></details>
         </Panel>
       ) : null}
+      <div className="settings-save"><ControlButton onClick={saveSettings} active disabled={!user || saveBusy || !settingsDirty}><Save className="h-4 w-4" />{saveBusy ? "Saving…" : "Save settings"}</ControlButton></div>
+      </div>
     </div>
   )
 }
@@ -1109,12 +305,7 @@ function SettingsSectionHeader({ body, icon: Icon, title }: { body: string; icon
         </div>
         <h3 className="truncate text-lg font-semibold text-foreground">{title}</h3>
       </div>
-      <details className="relative">
-        <summary className="flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${title}`}>
-          <Filter className="h-4 w-4" />
-        </summary>
-        <p className="absolute right-0 top-10 z-[80] w-64 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">{body}</p>
-      </details>
+      <PopoverButton label={`About ${title}`} placement="bottom-end" width={256} buttonClassName="canvas-tool h-9 w-9 shrink-0" panel={() => <p className="max-w-60 text-sm leading-6">{body}</p>}><CircleHelp className="h-4 w-4" /></PopoverButton>
     </div>
   )
 }
@@ -1122,9 +313,9 @@ function SettingsSectionHeader({ body, icon: Icon, title }: { body: string; icon
 function LanguagePicker({ locale, setLocale }: { locale: SupportedLocale; setLocale: (locale: SupportedLocale) => void }) {
   return (
     <details className="mt-4 rounded-lg border border-border bg-background p-3">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
+      <summary className="-m-3 flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-semibold text-foreground">
         <span className="flex min-w-0 items-center gap-2">
-          <Languages className="h-4 w-4 shrink-0 text-success" />
+          <Languages className="h-4 w-4 shrink-0 text-[var(--decor-mint-ink)]" />
           <span className="truncate">Language</span>
         </span>
         <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{languageNames[locale]}</span>
@@ -1152,10 +343,6 @@ function settingsTone(tone: "good" | "watch" | "neutral") {
   return "neutral"
 }
 
-function preferenceString(value: unknown) {
-  return typeof value === "string" ? value : ""
-}
-
 export function AdminView({ user, adminData, automationData, options }: { user: User | null; adminData: AdminData | null; automationData: AutomationData | null; options: WorkspaceOptions }) {
   const [tab, setTab] = useState<AdminPanelTab>("overview")
   const [query, setQuery] = useState("")
@@ -1164,8 +351,7 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
   const adminSummary = useMemo(() => summarizeAdminOperations({ adminData, automationData }), [adminData, automationData])
   const adminPlan = useMemo(() => buildAdminOperationalPlan(adminSummary), [adminSummary])
   const adminSummaryChips = useMemo(() => buildAdminSummaryChips(adminSummary), [adminSummary])
-  const primaryAdminChips = adminSummaryChips.filter((chip) => chip.priority === "primary")
-  const secondaryAdminChips = adminSummaryChips.filter((chip) => chip.priority === "secondary")
+  const secondaryAdminChips = adminSummaryChips
   const accessRequests = useMemo(() => filterAdminList(adminSummary.accessRequests, query, ["name", "email", "goal", "role"]), [adminSummary.accessRequests, query])
   const users = useMemo(() => filterAdminList(adminData?.users || [], query, ["name", "username", "email", "role"]), [adminData?.users, query])
   const providers = useMemo(() => filterAdminList(adminData?.providers || [], query, ["name", "provider", "last_status", "last_error"]), [adminData?.providers, query])
@@ -1195,22 +381,10 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
     <div className="grid gap-4">
       <Panel className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-md ${toneSurfaceClasses(adminSummary.systemTone === "watch" ? "watch" : "primary")}`}>
-              <ShieldCheck className="h-6 w-6" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-2xl font-semibold text-foreground">Admin control center</h2>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {primaryAdminChips.map((chip) => (
-                  <AdminSummaryChipButton key={chip.id} chip={chip} onClick={() => setTab(chip.targetTab)} />
-                ))}
-              </div>
-            </div>
-          </div>
+          <h2 className="sr-only">Admin</h2>
           <label className="flex h-10 w-full max-w-sm items-center gap-2 rounded-md border border-border bg-background px-3 focus-within:ring-2 focus-within:ring-primary/25">
             <Search className="h-4 w-4 text-muted-foreground" />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search admin data" className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
+            <input aria-label="Search admin data" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search admin data" className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
           </label>
         </div>
         <details className="mt-5 rounded-md border border-border bg-background">
@@ -1225,31 +399,11 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
             ))}
           </div>
         </details>
-        <button onClick={() => setTab(adminPlan.targetTab)} className="mt-4 flex w-full items-center justify-between gap-3 rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-foreground">{adminPlan.headline}</span>
-            <span className="mt-1 flex flex-wrap gap-2">
-              {adminPlan.chips.map((chip) => <SharedStatusPill key={chip} label={chip} />)}
-            </span>
-          </span>
-          <span className="inline-flex shrink-0 items-center gap-2 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">
-            {adminPlan.nextAction}
-            <ArrowRight className="h-3.5 w-3.5" />
-          </span>
-        </button>
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="workspace-tabs mt-4" aria-label="Admin sections">
           {adminPanelTabOptions.map(({ id, label }) => {
             const Icon = adminPanelTabIcons[id]
             return (
-            <ControlButton
-              key={id}
-              onClick={() => setTab(id)}
-              active={tab === id}
-              size="compact"
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </ControlButton>
+            <button type="button" key={id} onClick={() => setTab(id)} aria-current={tab === id ? "page" : undefined} className={`workspace-tab ${tab === id ? "is-active" : ""}`}><Icon className="h-4 w-4" />{label}</button>
             )
           })}
         </div>
@@ -1274,11 +428,12 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
       {tab === "users" ? <AdminList title="Users" items={users} emptyLabel="No users match this search." query={query} /> : null}
       {tab === "providers" ? (
         <div className="grid gap-4">
-          <AdminList title="Provider records" items={providers} emptyLabel="No provider records match this search." query={query} accent={adminPlan.riskCount ? "watch" : "good"} />
           <ProviderAdminPanel />
+          <details className="workspace-disclosure"><summary>Provider records</summary><div className="mt-3"><AdminList title="Provider records" items={providers} emptyLabel="No provider records match this search." query={query} accent={adminPlan.riskCount ? "watch" : "good"} /></div></details>
         </div>
       ) : null}
       {tab === "audit" ? <AdminList title="Audit" items={audit} emptyLabel="No audit rows match this search." query={query} /> : null}
+      {tab === "moderation" ? <AdminModerationQueue query={query} /> : null}
       {tab === "automation" ? (
         <div className="grid gap-4 xl:grid-cols-2">
           <AdminList title="Automation jobs" items={jobs} emptyLabel="No automation jobs match this search." query={query} accent={jobs.length ? "good" : "neutral"} />
@@ -1287,10 +442,10 @@ export function AdminView({ user, adminData, automationData, options }: { user: 
       ) : null}
 
       {options.adminVerbose ? (
-        <Panel className="p-4">
-          <p className="font-semibold text-foreground">Current option policy</p>
+        <details className="workspace-disclosure">
+          <summary>Current option policy</summary>
           <pre className="mt-3 overflow-auto rounded-md bg-muted p-3 text-xs text-muted-foreground">{JSON.stringify(options, null, 2)}</pre>
-        </Panel>
+        </details>
       ) : null}
     </div>
   )
@@ -1304,7 +459,7 @@ function AdminSummaryChipButton({ chip, onClick, relaxed = false }: { chip: Admi
       className={`group rounded-md border px-3 py-2 text-left transition hover:-translate-y-0.5 ${adminSummaryChipClasses(chip.tone)} ${relaxed ? "min-h-20" : ""}`}
       title={`${chip.label}: ${chip.value}`}
     >
-      <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.12em] opacity-75">{chip.label}</span>
+      <span className="block text-xs font-semibold uppercase tracking-[0.12em] opacity-75">{chip.label}</span>
       <span className="mt-1 block text-sm font-semibold">{chip.value}</span>
     </button>
   )
@@ -1318,70 +473,26 @@ function adminSummaryChipClasses(tone: AdminSummaryChip["tone"]) {
 
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
-    <label className="block rounded-lg bg-muted p-4">
-      <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
+    <label className="block min-w-0">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
       <input value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none" />
-    </label>
-  )
-}
-
-function TextAreaField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  return (
-    <label className="block rounded-lg bg-muted p-4">
-      <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
-      <textarea value={value} onChange={(event) => onChange(event.target.value)} rows={7} className="mt-2 w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm leading-6 text-foreground outline-none" />
-    </label>
-  )
-}
-
-function DateTimeField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  return (
-    <label className="block rounded-lg bg-muted p-4">
-      <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
-      <input type="datetime-local" value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none" />
-    </label>
-  )
-}
-
-function NumberField({ label, min, onChange, step, value }: { label: string; min: number; onChange: (value: number) => void; step: number; value: number }) {
-  return (
-    <label className="block rounded-lg bg-muted p-4">
-      <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
-      <input type="number" min={min} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none" />
     </label>
   )
 }
 
 function Info({ label, value }: { label: string; value?: unknown }) {
   return (
-    <div className="rounded-lg bg-muted p-4">
-      <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
+    <div className="rounded-lg bg-muted p-3">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <p className="mt-2 font-medium text-foreground">{String(value ?? "Not set")}</p>
     </div>
   )
 }
 
-function CompactInfo({ label, tone = "neutral", value }: { label: string; tone?: string; value: string }) {
-  return (
-    <div className={`rounded-md border px-3 py-2 ${compactInfoToneClass(tone)}`}>
-      <p className="text-[0.65rem] font-semibold uppercase text-muted-foreground">{label}</p>
-      <p className="text-base font-semibold text-foreground">{value}</p>
-    </div>
-  )
-}
-
-function compactInfoToneClass(tone: string) {
-  if (tone === "primary") return "border-primary/25 bg-primary/10"
-  if (tone === "sky") return "border-sky-400/25 bg-sky-500/10"
-  if (tone === "success") return "border-success/25 bg-success/10"
-  if (tone === "warning") return "border-warning/25 bg-warning/10"
-  return "border-border bg-background"
-}
-
 function SelectField({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
   return (
-    <label className="block rounded-lg bg-muted p-4">
-      <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
+    <label className="block min-w-0">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
       <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none">
         {options.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
@@ -1431,6 +542,8 @@ function AdminList<TItem extends AdminListItem>({
   query?: string
   title: string
 }) {
+  const [limit, setLimit] = useState(12)
+  useEffect(() => setLimit(12), [query, title])
   return (
     <Panel className="p-4">
       <div className="flex items-center justify-between gap-3">
@@ -1440,14 +553,14 @@ function AdminList<TItem extends AdminListItem>({
         </div>
         <SharedStatusPill label={String(items.length)} tone={settingsTone(accent)} />
       </div>
-      <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-        {items.slice(0, 12).map((item, index) => (
-          <div key={item.id || item.key || index} className="rounded-md border border-border bg-background p-3 text-sm">
-            <div className="flex items-center justify-between gap-2">
+      <div className="mt-3 divide-y divide-border">
+        {items.slice(0, limit).map((item, index) => (
+          <details key={item.id || item.key || index} className="py-3 text-sm">
+            <summary className="-my-3 flex cursor-pointer list-none items-center justify-between gap-2 py-3">
               <span className="truncate font-semibold text-foreground">{item.name || item.username || item.action || item.provider || item.label || item.id || item.key || "Record"}</span>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-            </div>
-            <p className="mt-1 truncate text-xs text-muted-foreground">{String(item.email || item.role || item.entity || item.description || item.default_model || item.details || item.provider_type || item.key || "No detail")}</p>
+            </summary>
+            <p className="mt-2 whitespace-pre-wrap break-words text-xs leading-5 text-muted-foreground">{String(item.email || item.role || item.entity || item.description || item.default_model || (typeof item.details === "object" ? JSON.stringify(item.details, null, 2) : item.details) || item.provider_type || item.key || "No detail")}</p>
             {item.last_status || item.enabled !== undefined || item.has_key !== undefined ? (
               <div className="mt-2 flex flex-wrap gap-1">
                 {item.last_status ? <SharedStatusPill label={item.last_status} /> : null}
@@ -1455,9 +568,10 @@ function AdminList<TItem extends AdminListItem>({
                 {item.has_key !== undefined ? <SharedStatusPill label={item.has_key ? "key stored" : "key missing"} tone={item.has_key ? "steady" : "watch"} /> : null}
               </div>
             ) : null}
-          </div>
+          </details>
         ))}
         {!items.length ? <p className="rounded-md border border-dashed border-border bg-background p-4 text-sm text-muted-foreground md:col-span-2 xl:col-span-4">{emptyLabel}</p> : null}
+        {items.length > limit ? <button className="editor-command mt-2" onClick={() => setLimit(value => value + 12)}>Show more <span className="text-muted-foreground">{items.length - limit}</span></button> : null}
       </div>
     </Panel>
   )
@@ -1481,7 +595,7 @@ function AdminAccessRequests({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="font-semibold text-foreground">Access requests</p>
-          <p className="mt-1 text-sm text-muted-foreground">Review request-access audit rows and issue invite links without digging through raw logs.</p>
+
           {query ? <p className="mt-1 text-xs text-muted-foreground">Filtered by "{query}"</p> : null}
         </div>
         <SharedStatusPill label={String(items.length)} tone={items.length ? "watch" : "steady"} />
@@ -1530,6 +644,115 @@ function AdminAccessRequests({
           </p>
         ) : null}
       </div>
+    </Panel>
+  )
+}
+
+interface AdminModerationItem {
+  id: string
+  reporter_user_id?: string
+  target_type?: string
+  target_id?: string
+  reason?: string
+  status?: string
+  notes?: string
+  created_at?: string
+}
+
+const closedModerationStatuses = new Set(["resolved", "dismissed"])
+
+function AdminModerationQueue({ query }: { query: string }) {
+  const [items, setItems] = useState<AdminModerationItem[]>([])
+  const [status, setStatus] = useState("Loading moderation queue...")
+  const [pendingId, setPendingId] = useState("")
+  const visibleItems = filterAdminList(items, query, ["reason", "target_type", "target_id", "status", "notes"])
+
+  async function refresh() {
+    try {
+      const response = await api<{ items: AdminModerationItem[] }>("/api/moderation")
+      setItems(response.items)
+      setStatus(response.items.length ? "" : "Nothing is waiting for moderation.")
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to load the moderation queue.")
+    }
+  }
+
+  useEffect(() => {
+    refresh()
+  }, [])
+
+  async function decide(item: AdminModerationItem, nextStatus: "resolved" | "dismissed") {
+    setPendingId(item.id)
+    setStatus(`Marking ${item.id} ${nextStatus}...`)
+    try {
+      await api("/api/moderation", {
+        method: "POST",
+        body: JSON.stringify({
+          id: item.id,
+          targetType: item.target_type,
+          targetId: item.target_id,
+          reason: item.reason,
+          notes: item.notes,
+          status: nextStatus,
+        }),
+      })
+      await refresh()
+      setStatus(`Marked ${item.id} ${nextStatus}.`)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to update the moderation item.")
+    } finally {
+      setPendingId("")
+    }
+  }
+
+  return (
+    <Panel className="p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-semibold text-foreground">Moderation queue</p>
+
+          {query ? <p className="mt-1 text-xs text-muted-foreground">Filtered by "{query}"</p> : null}
+        </div>
+        <SharedStatusPill label={String(visibleItems.length)} tone={visibleItems.length ? "watch" : "steady"} />
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        {visibleItems.map((item) => (
+          <article key={item.id} className="rounded-md border border-border bg-background p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-foreground">{item.reason || "Needs review"}</p>
+                <p className="mt-1 truncate text-xs text-muted-foreground">
+                  {item.target_type || "feed"} - {item.target_id || "unknown target"}
+                </p>
+              </div>
+              <SharedStatusPill label={item.status || "open"} tone={closedModerationStatuses.has(item.status || "") ? "steady" : "watch"} />
+            </div>
+            <p className="mt-3 line-clamp-3 text-sm leading-6 text-muted-foreground">{item.notes || "No reviewer notes yet."}</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Reported by {item.reporter_user_id || "unknown"} {item.created_at ? `| ${formatDate(item.created_at)}` : ""}
+            </p>
+            {closedModerationStatuses.has(item.status || "") ? null : (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <ControlButton type="button" onClick={() => decide(item, "resolved")} active size="compact" disabled={pendingId === item.id}>
+                  <Check className="h-4 w-4" />
+                  Resolve
+                </ControlButton>
+                <ControlButton type="button" onClick={() => decide(item, "dismissed")} size="compact" disabled={pendingId === item.id}>
+                  <X className="h-4 w-4" />
+                  Dismiss
+                </ControlButton>
+              </div>
+            )}
+          </article>
+        ))}
+        {!visibleItems.length ? (
+          <p className="rounded-md border border-dashed border-border bg-background p-4 text-sm text-muted-foreground lg:col-span-2">
+            {status || "No moderation items match this search."}
+          </p>
+        ) : null}
+      </div>
+      {visibleItems.length && status ? <p className="mt-3 text-sm text-muted-foreground">{status}</p> : null}
     </Panel>
   )
 }

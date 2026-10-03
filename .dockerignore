@@ -12,6 +12,7 @@ output
 public/vendor
 .pnpm-store
 .agents
+.workbuddy-ai
 README.md
 Caddyfile
 npm-debug.log*

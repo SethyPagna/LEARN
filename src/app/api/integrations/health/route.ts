@@ -4,6 +4,7 @@ import { getCloudflareBindings } from "@/lib/cloudflare"
 import { getDatabaseRuntimeMode, isDatabaseConfigured, query } from "@/lib/db"
 import { isR2Configured } from "@/lib/storage"
 import { resolveConfiguredProvider } from "@/lib/ai/providers"
+import { isProviderSecretKeyConfigured } from "@/lib/ai/provider-admin"
 import { withApiErrorBoundary } from "@/lib/api"
 
 export const GET = withApiErrorBoundary(async () => {
@@ -36,6 +37,13 @@ export const GET = withApiErrorBoundary(async () => {
     ai: {
       provider: resolveConfiguredProvider()?.provider || null,
       configured: Boolean(resolveConfiguredProvider()),
+    },
+    // Surfaces the Item 5 misconfiguration before it bites: without this key a
+    // production deployment cannot store provider secrets at all (it now throws
+    // rather than silently encrypting under the built-in development key).
+    encryption: {
+      providerSecretKeyConfigured: isProviderSecretKeyConfigured(),
+      requiredInProduction: true,
     },
   })
 })

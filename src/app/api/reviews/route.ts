@@ -37,6 +37,6 @@ export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   try {
     return ok({ item: await recordReviewResult(user, body) }, { status: 201 })
   } catch (error) {
-    return fail(error instanceof Error ? error.message : "Failed to record review.", 500)
+    return fail(error instanceof Error ? error.message : "Failed to record review.", 400)
   }
 })

@@ -1,5 +1,8 @@
-import { redirect } from "next/navigation"
+import type { Metadata } from "next"
+import { LearnPage } from "@/components/learn/learn-page"
+
+export const metadata: Metadata = { title: "Vault" }
 
 export default function VaultPage() {
-  redirect("/studio")
+  return <LearnPage initialView="vault" />
 }

@@ -1,0 +1,26 @@
+.form { min-width:0; margin-top:12px; padding-top:12px; border-top:1px solid var(--border); }
+.form fieldset { min-width:0; }
+.avatarEditor { display:flex; align-items:center; gap:9px; margin-bottom:12px; }
+.avatar { display:grid; place-items:center; width:40px; height:40px; flex-shrink:0; border-radius:50%; overflow:hidden; background:var(--primary); color:var(--primary-foreground); font-size:16px; font-weight:600; }
+.avatar img { width:100%; height:100%; object-fit:cover; }
+.primaryButton,.secondaryButton,.iconButton { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:36px; border-radius:8px; padding:6px 10px; font-size:12px; font-weight:550; }
+.primaryButton { color:var(--primary-foreground); background:var(--primary); }
+.secondaryButton { color:var(--foreground); background:var(--secondary); cursor:pointer; }
+.iconButton { width:36px; padding:0; color:var(--muted-foreground); }
+.form svg { width:14px; height:14px; flex-shrink:0; }
+.secondaryButton:hover,.iconButton:hover { background:var(--accent); }
+.primaryButton:hover { opacity:.9; }
+.fields { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
+.fields label,.linkFields label { display:grid; gap:5px; min-width:0; font-size:12px; color:var(--muted-foreground); }
+.form input:not([type=file]),.form select,.form textarea { width:100%; min-width:0; min-height:36px; padding:7px 9px; border:1px solid var(--border); border-radius:8px; background:var(--background); color:var(--foreground); font-size:13px; }
+.form textarea { resize:vertical; }
+.bioField { grid-column:1 / -1; }
+.links { margin-top:9px; }
+.links summary { display:flex; align-items:center; gap:6px; cursor:pointer; min-height:36px; font-size:12px; }
+.links[open] summary svg { transform:rotate(180deg); }
+.linkFields { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr)); gap:9px; }
+.actions { display:flex; justify-content:flex-end; gap:7px; margin-top:12px; }
+.status { color:var(--muted-foreground); font-size:12px; line-height:1.5; margin-top:8px; overflow-wrap:anywhere; }
+.form :is(button,input,textarea,select,summary):focus-visible,.secondaryButton:focus-within { outline:2px solid var(--ring); outline-offset:2px; }
+.form button:disabled,.form fieldset:disabled .secondaryButton { cursor:default; opacity:.55; }
+@media (max-width:360px) { .fields { grid-template-columns:minmax(0,1fr); } }

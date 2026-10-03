@@ -1,9 +1,9 @@
-const DEFAULT_BASE_URL = "https://learn.learn-app.workers.dev"
+const DEFAULT_BASE_URL = "https://learn.pagna.workers.dev"
 const REQUEST_TIMEOUT_MS = 20_000
 const REQUIRED_CSS_SNIPPETS = [
   "display:flex",
   "display:grid",
-  "min-height:100vh",
+  "min-height:100dvh",
 ]
 const REQUIRED_RESPONSE_HEADERS: RequiredResponseHeader[] = [
   { includes: "DENY", name: "x-frame-options" },
@@ -23,31 +23,31 @@ const UNSAFE_RESPONSE_PATTERNS: UnsafeResponsePattern[] = [
 ]
 const ROUTES_TO_CHECK: RouteExpectation[] = [
   {
-    markers: ["LEARN", "Vault to practice", "View workflow"],
+    markers: ["LEARN", "Learn it.", "Try the workspace"],
     path: "/",
   },
   {
-    markers: ["Workspace access", "Sign in", "Request access"],
+    markers: ["Welcome back.", "Sign in", "Request access"],
     path: "/login",
   },
   {
-    markers: ["Dashboard", "Route", "AI suggestion"],
+    markers: ["<title>Today - LEARN</title>"],
     path: "/dashboard",
   },
   {
-    markers: ["Studio", "All projects", "Designs"],
+    markers: ["<title>Studio - LEARN</title>"],
     path: "/studio",
   },
   {
-    markers: ["Chats", "Search or start", "Type a message"],
+    markers: ["<title>Friends - LEARN</title>"],
     path: "/social",
   },
   {
-    markers: ["Practice", "Sets", "Games"],
+    markers: ["<title>Practice - LEARN</title>"],
     path: "/practice",
   },
   {
-    markers: ["AI tutor", "Task", "Gateway"],
+    markers: ["<title>AI tutor - LEARN</title>"],
     path: "/ai",
   },
   {
@@ -186,6 +186,12 @@ async function checkRoutes(baseUrl: string) {
       if (missingKeys.length > 0) {
         fail(`${route.path} JSON is missing ${missingKeys.join(", ")}`)
       }
+      if (route.path === "/api/auth/session" && jsonObject.databaseConfigured !== true) {
+        fail("the live authentication route cannot access its database")
+      }
+      if (route.path === "/api/auth/session" && jsonObject.user !== null) {
+        fail("the anonymous authentication response contains a user session")
+      }
     }
   }
 }
@@ -220,9 +226,24 @@ async function checkCss(baseUrl: string) {
 async function checkFavicon(baseUrl: string) {
   const response = await fetch(absoluteUrl(baseUrl, "/favicon.ico"), {
     method: "HEAD",
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
   if (response.status !== 200) {
     fail(`/favicon.ico returned ${response.status}`)
+  }
+}
+
+async function checkPdfAssets(baseUrl: string) {
+  for (const assetPath of ["/vendor/pdfjs/pdf.min.mjs", "/vendor/pdfjs/pdf.worker.min.mjs"]) {
+    const response = await fetch(absoluteUrl(baseUrl, assetPath), {
+      method: "HEAD",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    })
+    if (response.status !== 200) fail(`${assetPath} returned ${response.status}`)
+    const contentType = response.headers.get("content-type") || ""
+    if (!/^(?:text|application)\/javascript(?:;|$)/i.test(contentType)) {
+      fail(`${assetPath} returned ${contentType || "no content type"} instead of JavaScript`)
+    }
   }
 }
 
@@ -232,6 +253,7 @@ async function main() {
   await checkRoutes(baseUrl)
   await checkCss(baseUrl)
   await checkFavicon(baseUrl)
+  await checkPdfAssets(baseUrl)
 
   console.log(`Cloudflare smoke check passed for ${baseUrl}.`)
 }

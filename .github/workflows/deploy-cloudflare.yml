@@ -2,12 +2,29 @@ name: Deploy Cloudflare
 
 on:
   workflow_dispatch:
+    inputs:
+      verification_only:
+        description: Check the current public release without rebuilding or deploying
+        type: boolean
+        default: false
+      deployed_source_sha:
+        description: Previously verified deployed app SHA (required for verification only)
+        type: string
+        required: false
   push:
     branches:
       - main
 
+concurrency:
+  group: learn-cloudflare-production
+  cancel-in-progress: false
+
+env:
+  NODE_OPTIONS: --max-old-space-size=4096
+
 jobs:
   deploy:
+    if: ${{ !inputs.verification_only }}
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -28,6 +45,15 @@ jobs:
           corepack pnpm test
           corepack pnpm lint
 
+      - name: Build Worker
+        run: corepack pnpm exec tsx ops/scripts/deploy/cloudflare.ts build
+
+      - name: Verify existing Cloudflare target and recovery point
+        run: corepack pnpm exec tsx ops/scripts/deploy/cloudflare-preflight.ts
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
       - name: Apply D1 migrations
         run: corepack pnpm db:migrate:remote
         env:
@@ -35,7 +61,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
       - name: Deploy Worker
-        run: corepack pnpm deploy:cloudflare
+        run: corepack pnpm exec tsx ops/scripts/deploy/cloudflare.ts upload
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -50,3 +76,74 @@ jobs:
             sleep 15
           done
           corepack pnpm smoke:cloudflare
+
+      - name: Smoke public editor and responsive auth views
+        run: |
+          browser_path=$(command -v google-chrome || command -v chromium || true)
+          if [ -z "$browser_path" ]; then
+            echo "A Chromium browser is required for the public flow checks."
+            exit 1
+          fi
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$browser_path" node ops/scripts/test/smoke-cloudflare-browser.mjs
+
+      - name: Preserve release preflight summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-release-preflight-${{ github.sha }}
+          path: .cache/release/cloudflare-release-summary.json
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Preserve public browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-public-browser-${{ github.sha }}
+          path: .cache/release/browser
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 14
+
+  verify-public:
+    if: ${{ inputs.verification_only }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      LEARN_DEPLOYED_SOURCE_SHA: ${{ inputs.deployed_source_sha }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Validate deployed source receipt
+        run: |
+          if [[ ! "$LEARN_DEPLOYED_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "A full deployed source SHA from a verified release receipt is required."
+            exit 1
+          fi
+      - name: Install browser tooling
+        run: |
+          corepack enable
+          corepack pnpm install --frozen-lockfile
+      - name: Check live HTTP and PDF assets
+        run: corepack pnpm smoke:cloudflare
+      - name: Check live public editor and responsive auth
+        run: |
+          browser_path=$(command -v google-chrome || command -v chromium || true)
+          if [ -z "$browser_path" ]; then
+            echo "A Chromium browser is required for the public flow checks."
+            exit 1
+          fi
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$browser_path" node ops/scripts/test/smoke-cloudflare-browser.mjs
+      - name: Preserve public browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-public-browser-${{ github.sha }}
+          path: .cache/release/browser
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 14

@@ -1,11 +1,53 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import {
+  AI_TUTOR_DRAFT_KEY,
+  archiveAiTutorDraft,
   normalizeAiTutorDraft,
   normalizeAiTutorLaunchPreset,
   parseStoredAiTutorDraft,
   parseStoredAiTutorLaunchPreset,
+  persistAiTutorDraft,
+  readPreviousAiTutorDraft,
 } from "../../lib/ai/tutor-drafts"
+
+function draftStorage() {
+  const values = new Map<string, string>()
+  return { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value) } }
+}
+
+test("a new source can replace the active draft while its original prompt, reply and source remain restorable", () => {
+  const saved = draftStorage()
+  const original = normalizeAiTutorDraft({ message: "My unfinished prompt", reply: "Original provider reply", sourceTitle: "Original note", sourceContent: "Original selected words", sourceScope: "Active Studio item" })!
+  const incoming = normalizeAiTutorDraft({ message: "New source prompt", sourceTitle: "New note", sourceContent: "New selected words", sourceScope: "Active Studio item" })!
+  persistAiTutorDraft(saved, original)
+  archiveAiTutorDraft(saved, original)
+  persistAiTutorDraft(saved, incoming)
+  assert.deepEqual(parseStoredAiTutorDraft(saved.getItem(AI_TUTOR_DRAFT_KEY)), incoming)
+  assert.deepEqual(readPreviousAiTutorDraft(saved, incoming), original)
+  archiveAiTutorDraft(saved, incoming)
+  persistAiTutorDraft(saved, original)
+  assert.deepEqual(readPreviousAiTutorDraft(saved, original), incoming, "restoring one draft also preserves the outgoing source")
+})
+
+test("archiving never removes older drafts and timestamps do not make duplicate snapshots", () => {
+  const saved = draftStorage()
+  const first = normalizeAiTutorDraft({ message: "First", reply: "Keep first reply" })!
+  const second = normalizeAiTutorDraft({ message: "Second", reply: "Keep second reply" })!
+  archiveAiTutorDraft(saved, first)
+  archiveAiTutorDraft(saved, second)
+  archiveAiTutorDraft(saved, { ...first, updatedAt: "2026-10-01T09:00:00Z" })
+  assert.equal(readPreviousAiTutorDraft(saved, first)?.reply, second.reply)
+})
+
+test("failed draft archiving leaves the existing active prompt and reply intact", () => {
+  const saved = draftStorage()
+  const original = normalizeAiTutorDraft({ message: "Unfinished", reply: "Never lose this reply" })!
+  persistAiTutorDraft(saved, original)
+  const denied = { ...saved, setItem: () => { throw new Error("quota") } }
+  assert.throws(() => archiveAiTutorDraft(denied, original), /quota/)
+  assert.deepEqual(parseStoredAiTutorDraft(saved.getItem(AI_TUTOR_DRAFT_KEY)), original)
+})
 
 test("AI tutor draft parser rejects invalid JSON and non-object payloads", () => {
   assert.equal(parseStoredAiTutorDraft("{bad json"), null)

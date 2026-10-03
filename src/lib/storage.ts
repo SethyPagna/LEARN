@@ -281,9 +281,39 @@ export async function getMediaAssetById(id: string) {
   return result.rows[0] ? normalizeAsset(result.rows[0]) : null
 }
 
-export async function getMediaObject(asset: MediaAsset) {
+/**
+ * A stored object in the only shape that survives every runtime this app runs
+ * in: its bytes, plus the two facts a response needs.
+ *
+ * There is deliberately no stream here. Locally, `next dev` reaches R2 through
+ * wrangler's `getPlatformProxy()`, which bridges Node and workerd by
+ * devalue-serialising every call and result. The real `R2ObjectBody` does not
+ * survive that bridge: `writeHttpMetadata(headers)` throws
+ * "Cannot stringify arbitrary non-POJOs" (the Node `Headers` argument is not an
+ * instance of the `undici.Headers` the bridge checks for), and reading `.body`
+ * hands back a stream that the calling runtime can no longer consume. Buffering
+ * the bytes avoids the whole class of problem and behaves identically in
+ * workerd — the cost is memory, so callers must cap the size (see
+ * `MAX_INLINE_DOWNLOAD_BYTES`).
+ */
+export interface MediaObject {
+  /** The object's bytes. */
+  arrayBuffer(): Promise<ArrayBuffer>
+  /** Size in bytes as reported by storage, when it is known. */
+  size: number | null
+}
+
+/** Fetch a stored object, or null when storage has no such key. */
+export async function getMediaObject(asset: MediaAsset): Promise<MediaObject | null> {
   const binding = await getR2Bucket()
-  if (binding) return binding.get(asset.object_key)
+  if (binding) {
+    const object = await binding.get(asset.object_key)
+    if (!object) return null
+    return {
+      arrayBuffer: () => object.arrayBuffer(),
+      size: typeof object.size === "number" ? object.size : null,
+    }
+  }
 
   const config = getR2ApiConfig()
   if (!config) {
@@ -293,13 +323,8 @@ export async function getMediaObject(asset: MediaAsset) {
   if (response.status === 404) return null
   if (!response.ok) throw new Error(`Cloudflare R2 download failed with ${response.status}.`)
   return {
-    body: response.body,
-    httpMetadata: { contentType: response.headers.get("content-type") || asset.content_type },
-    size: Number(response.headers.get("content-length") || asset.size_bytes),
-    writeHttpMetadata(headers: Headers) {
-      const contentType = response.headers.get("content-type")
-      if (contentType) headers.set("content-type", contentType)
-    },
+    arrayBuffer: () => response.arrayBuffer(),
+    size: Number(response.headers.get("content-length")) || asset.size_bytes || null,
   }
 }
 

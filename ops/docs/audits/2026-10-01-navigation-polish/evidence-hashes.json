@@ -1,0 +1,40 @@
+{
+  "verifiedAt": "2026-10-01T04:30:52.327Z",
+  "records": [
+    {
+      "source": ".cache/design-review/navigation-polish/results.json",
+      "file": "navigation-results.json",
+      "sha256": "691b10f8c589dfcf87549c1d5c08e348ae51885eb9441a48901321738b3ba2df",
+      "originalReads": 2,
+      "copyReads": 2
+    },
+    {
+      "source": ".cache/design-review/navigation-polish/demo-results.json",
+      "file": "demo-results.json",
+      "sha256": "3a4aa81161330311c4153fee5f71c0dcc3d751e1f797f2e863198cc9d32f7e24",
+      "originalReads": 2,
+      "copyReads": 2
+    },
+    {
+      "source": ".cache/design-review/navigation-polish-baseline-results.json",
+      "file": "baseline-results.json",
+      "sha256": "3b15ad422f804bd6cc66cea8965db92760aa759e794630134b2ee314bd270b8c",
+      "originalReads": 2,
+      "copyReads": 2
+    },
+    {
+      "source": ".cache/design-review/navigation-polish/demo-1280-color.jpg",
+      "file": "demo-1280-color.jpg",
+      "sha256": "0bcd6c5dd34b19f8b282c518967adced89f8180bd091dbc30268ed8dbefb49ff",
+      "originalReads": 2,
+      "copyReads": 2
+    },
+    {
+      "source": ".cache/design-review/navigation-polish/demo-320-dark.jpg",
+      "file": "demo-320-dark.jpg",
+      "sha256": "d67e3ab4a4a904b05d33cfc55d234d3e607ae2a3aaaf817ca58d21ce7cca7b3f",
+      "originalReads": 2,
+      "copyReads": 2
+    }
+  ]
+}

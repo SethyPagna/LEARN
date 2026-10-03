@@ -11,6 +11,11 @@ LEARN keeps most implementation, operations, and planning files inside grouped f
 - `vercel.json`: Vercel project deployment metadata.
 - `.gitignore`, `.dockerignore`: repository and Docker build-context ignore rules.
 - `README.md`: public project overview.
+- `.gitattributes`: keeps CRLF line endings for Windows batch files on every checkout.
+
+## Launchers
+
+- `run.bat`, `test.bat`, `deploy.bat`, `tools.bat`: double-click entry points. Each one only hands over to the matching script in `ops/run`, then to `ops/run/lib/finish.bat`, which keeps a double-clicked window open at the end.
 
 ## Organized Folders
 

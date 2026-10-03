@@ -39,7 +39,7 @@ if (!testFiles.length) {
   process.exit(1)
 }
 
-const result = spawnSync("tsx", ["--test", ...testFiles], {
+const result = spawnSync("tsx", ["--test", "--test-concurrency=1", ...testFiles], {
   cwd: rootDir,
   shell: true,
   stdio: "inherit",

@@ -1,6 +1,14 @@
-import { getD1Database } from "./cloudflare"
+import { getD1Database, type D1DatabaseLike } from "./cloudflare"
 
 export type QueryResultRow = Record<string, unknown>
+export interface DatabaseStatement {
+  sql: string
+  params?: unknown[]
+}
+export interface DatabaseResult<T = QueryResultRow> {
+  rows: T[]
+  rowCount: number
+}
 export type CloudflareRuntimeMode = "cloudflare-binding" | "cloudflare-api" | "vercel" | "docker" | "local"
 
 export interface DatabaseClient {
@@ -97,10 +105,6 @@ export async function getDatabaseRuntimeMode(): Promise<CloudflareRuntimeMode> {
   })
 }
 
-export async function getDatabaseDialect() {
-  return "d1" as const
-}
-
 export async function isDatabaseConfigured() {
   return Boolean((await getD1Database()) || getD1ApiConfig(await getMergedEnv()))
 }
@@ -178,15 +182,59 @@ export async function query<T = QueryResultRow>(
   return queryD1Api<T>(text, values)
 }
 
-function splitSqlStatements(sql: string) {
-  return sql
-    .split(";")
-    .map((statement) => statement.trim())
-    .filter(Boolean)
+function normalizeBatchResults<T>(statements: DatabaseStatement[], results: NonNullable<D1ApiResponse<T>["result"]>): DatabaseResult<T>[] {
+  if (results.length !== statements.length) throw new Error("Cloudflare D1 returned an incomplete batch result.")
+  return results.map((result, index) => {
+    if (result.success === false) throw new Error(result.error || "Cloudflare D1 batch statement failed.")
+    const rows = result.results || []
+    if (isD1ReadStatement(statements[index].sql)) return { rows, rowCount: rows.length }
+    const changes = result.meta?.changes
+    if (typeof changes !== "number" || !Number.isSafeInteger(changes) || changes < 0) {
+      throw new Error("Cloudflare D1 batch result omitted a valid change count.")
+    }
+    return { rows, rowCount: changes }
+  })
 }
 
-export async function exec(sql: string) {
-  for (const statement of splitSqlStatements(sql)) {
-    await query(statement)
-  }
+/** Executes one transaction against an explicit binding, including a D1 session. */
+export async function queryBatchWithBinding<T = QueryResultRow>(
+  binding: Pick<D1DatabaseLike, "prepare" | "batch">,
+  statements: DatabaseStatement[],
+): Promise<DatabaseResult<T>[]> {
+  const prepared = statements.map(({ sql, params }) => {
+    const normalized = normalizeD1Sql(sql, params)
+    const statement = binding.prepare(normalized.sql)
+    return normalized.values.length ? statement.bind(...normalized.values) : statement
+  })
+  return normalizeBatchResults(statements, await binding.batch<T>(prepared))
 }
+
+/** A failed or lost transaction response is never replayed through another transport. */
+export async function queryBatch<T = QueryResultRow>(statements: DatabaseStatement[]): Promise<DatabaseResult<T>[]> {
+  if (!statements.length) return []
+  const binding = await getD1Database()
+  if (binding) return queryBatchWithBinding<T>(binding, statements)
+
+  const config = getD1ApiConfig(await getMergedEnv())
+  if (!config) throw new Error("Cloudflare D1 is not configured. Set LEARN_DB binding or D1 API credentials.")
+  const response = await fetch(d1ApiUrl(config), {
+    method: "POST",
+    headers: {
+      ...(config.apiToken
+        ? { authorization: `Bearer ${config.apiToken}` }
+        : { "x-auth-email": String(config.apiEmail), "x-auth-key": String(config.globalApiKey) }),
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ batch: statements.map(({ sql, params }) => {
+      const normalized = normalizeD1Sql(sql, params)
+      return { sql: normalized.sql, params: normalized.values }
+    }) }),
+  })
+  const json = await response.json() as D1ApiResponse<T>
+  if (!response.ok || json.success === false) {
+    throw new Error(json.errors?.map(error => error.message).filter(Boolean).join("; ") || "Cloudflare D1 batch failed.")
+  }
+  if (!Array.isArray(json.result)) throw new Error("Cloudflare D1 returned no batch results.")
+  return normalizeBatchResults(statements, json.result)
+}
+

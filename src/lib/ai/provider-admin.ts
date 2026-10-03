@@ -90,6 +90,7 @@ export interface ProviderAdminSummary {
 const safeProviderDefaults: Record<AiProviderKey, Pick<NormalizedProviderConfigInput,
   "priority" | "requestsPerMinute" | "maxInputChars" | "maxCompletionTokens" | "timeoutMs" | "cooldownSeconds"
 >> = {
+  ollama: fromMetadata("ollama", 16_000, 4096),
   groq: fromMetadata("groq", 16_000, 16_384),
   google: fromMetadata("google", 16_000, 16_384),
   mistral: fromMetadata("mistral", 16_000, 16_384),
@@ -126,8 +127,44 @@ function normalizeSupportedModels(value: ProviderConfigInput["supportedModels"])
   return trim(value).split(/\r?\n|,/).map(trim).filter(Boolean)
 }
 
+/**
+ * Key used only when running outside production without a configured secret.
+ * Named so it is obvious in a stack trace that this is the development path.
+ */
+const DEVELOPMENT_FALLBACK_KEY = "learn-local-development-key"
+
+/**
+ * Resolve the AES master key, failing closed in production.
+ *
+ * This used to be `masterKey || "learn-local-development-key"` inline. The
+ * problem was not the fallback existing — it was that a *production* deployment
+ * missing both `LEARN_SECRET_KEY` and `AUTH_SECRET` would silently derive from a
+ * hardcoded literal. Encryption still "worked", so nothing looked wrong, while
+ * every stored provider secret became decryptable by anyone with database read
+ * access. A misconfiguration that presents as success is worse than an outage.
+ *
+ * So: throw in production, fall back only in development.
+ */
+function resolveMasterKey(masterKey: string) {
+  const key = trim(masterKey)
+  if (key) return key
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "Provider-secret encryption is not configured. Set LEARN_SECRET_KEY (or AUTH_SECRET) " +
+        "before deploying: refusing to fall back to the built-in development key in production. " +
+        "If secrets were previously stored under the fallback, rotate them.",
+    )
+  }
+  return DEVELOPMENT_FALLBACK_KEY
+}
+
+/** Whether a real master key is configured (used by health checks). */
+export function isProviderSecretKeyConfigured() {
+  return Boolean(trim(process.env.LEARN_SECRET_KEY || process.env.AUTH_SECRET || ""))
+}
+
 function deriveEncryptionKey(masterKey: string) {
-  return crypto.createHash("sha256").update(masterKey || "learn-local-development-key").digest().subarray(0, KEY_BYTES)
+  return crypto.createHash("sha256").update(resolveMasterKey(masterKey)).digest().subarray(0, KEY_BYTES)
 }
 
 export function maskProviderSecret(value: string) {
@@ -158,6 +195,7 @@ export async function decryptProviderSecret(value: string, masterKey = process.e
 
 export function normalizeProviderConfigInput(input: ProviderConfigInput): NormalizedProviderConfigInput {
   const requestedProvider = trim(input.provider)
+  if (requestedProvider === "ollama") throw new Error("Configure OLLAMA_BASE_URL and OLLAMA_MODEL in the LEARN server environment. Local Ollama endpoints cannot be set through the provider form.")
   const metadata = getProviderMetadata(requestedProvider)
   if (!metadata) throw new Error(`"${requestedProvider || "(none)"}" isn't a supported AI provider.`)
   const defaults = safeProviderDefaults[metadata.provider]

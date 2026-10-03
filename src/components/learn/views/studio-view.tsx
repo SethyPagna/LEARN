@@ -1,16 +1,23 @@
 "use client"
 
+import { PopoverButton } from "../design/popover"
+import { useDesignMeasure } from "../design/text-measure"
+import { StudioProjectPreview } from "../studio-project-preview"
+import { KindArt } from "../kind-art"
+import { formatRelativeTime } from "@/lib/format-time"
+import type { Project } from "../studio-projects"
+
 import { Fragment, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import type React from "react"
-import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core"
-import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
 import * as ContextMenu from "@radix-ui/react-context-menu"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { Extension } from "@tiptap/core"
 import { Panel as ResizePanel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
-import { EditorContent, useEditor, type Editor } from "@tiptap/react"
+import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
+import { StudioPageBreak } from "../studio-page-break"
+import { WritingDocument, WritingPage, writingDocumentHtml, insertWritingPageBreak } from "../studio-writing-pages"
+import { sanitizeImageUrl } from "@/lib/studio/canvas-styles"
 import Underline from "@tiptap/extension-underline"
 import TextAlign from "@tiptap/extension-text-align"
 import { TextStyle } from "@tiptap/extension-text-style"
@@ -44,6 +51,7 @@ import {
   CheckSquare,
   CheckCircle2,
   ChevronDown,
+  CircleHelp,
   Clipboard,
   Clock,
   Columns3,
@@ -53,13 +61,10 @@ import {
   FilePlus2,
   FileText,
   Grid2X2,
-  GripVertical,
   Heading1,
   Heading2,
   Heading3,
   Highlighter,
-  Eye,
-  EyeOff,
   ImageIcon,
   Italic,
   LayoutPanelLeft,
@@ -96,9 +101,19 @@ import {
   X,
 } from "lucide-react"
 import { api, formatDate } from "../api"
-import type { Note, SlideObject, StudioDirtyBadge, StudioKind, StudioLayoutState, StudioPane, StudioTab, WorkspaceDeck, WorkspaceDocument, WorkspaceSheet } from "../types"
+import type { Note, StudioDirtyBadge, StudioKind, StudioLayoutState, StudioPane, StudioTab, View, WorkspaceDeck, WorkspaceDocument, WorkspaceSheet } from "../types"
+import type { TutorSource } from "@/lib/ai/source-launch"
+import { createDesignDoc } from "@/lib/design/document"
+import { slidesFormatId } from "@/lib/design/formats"
+import { deckToDesign, legacyDeckSlides } from "@/lib/design/from-deck"
+import { htmlToDesignSpec } from "@/lib/design/from-content"
+import { designFromSpec } from "@/lib/design/layout"
+import { importPowerPoint } from "../design/import-pptx"
+import { rescueSlidesDraft } from "./deck-opener"
+import { StudioContentImport, type ImportedStudioContent } from "../studio-content-import"
 import type { WorkspaceOptions } from "../preferences"
 import { EmptyState, Panel } from "../ui"
+import { VoiceInput } from "../voice-input"
 import {
   addColumn,
   addRow,
@@ -113,34 +128,41 @@ import {
   createStudioTab,
   deleteColumn,
   deleteRow,
-  duplicateSlide,
-  evaluateSheetFormula,
+  createSheetFormulaEvaluator,
   fillSheetRange,
   moveColumn,
   moveRow,
-  moveSlide,
   normalizeStudioLayout,
   pinStudioPane,
   recommendedStudioDownloadOption,
   sortSheetByColumn,
   splitStudioPane,
+  type StudioDownloadOption,
   type StudioRecordActionId,
 } from "@/lib/studio-features"
 import { createHistoryState, exportSheetToCsv, importCsvToSheet, pushHistory, redoHistory, replaceTextInHtml, summarizeDocumentHtml, undoHistory, type HistoryState } from "@/lib/workspace-features"
-import { clearStudioDraft, readStudioDrafts, shouldAnnounceStudioDraftSave, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
+import { canRestoreStudioDraft, clearStudioDraft, readStudioDrafts, shouldAnnounceStudioDraftSave, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, writeStudioDraft, type StudioDraftRecord, type StudioDraftSummary } from "@/lib/studio-drafts"
 import { studioFontOptions, studioFontSizeOptions, studioHighlightColorOptions, studioTextColorOptions } from "@/lib/studio-formatting"
 import { getStudioKindOption, getStudioViewModeOption, studioEmptyTabLabels, studioInspectorTabs, studioKindOptions, studioSectionFilters, studioViewModeOptions, type StudioViewMode } from "@/lib/studio-navigation"
-import { blankDeckFingerprint, blankDeckSlides, blankDeckTitle, blankDocTitle, blankNoteTitle, blankRichText, blankSheetCells, blankSheetFingerprint, blankSheetTitle, ensureSheetCells, parseDeckSlides, parseSheetCells, studioCreateLabels, studioDraftSummary, studioFallbackTitle, studioNoItemSummary } from "@/lib/studio-defaults"
+import { blankDocTitle, blankNoteTitle, blankRichText, blankSheetCells, blankSheetFingerprint, blankSheetTitle, ensureSheetCells, parseSheetCells, studioCreateLabels, studioDraftSummary, studioFallbackTitle, studioNoItemSummary } from "@/lib/studio-defaults"
 import { getImportDestinationView, importTargetOptions, labelImportTarget, normalizeImportTargetSelection, type ImportTarget, type ImportTargetSelection } from "@/lib/import-gateway"
-import { alignSlideDesignObject, applySlideDesignPreset, applySlideDesignPresetToDeck, buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, createSlideDesignObject, documentInsertGroups, duplicateSlideDesignObject, getDocumentInsertBlock, nudgeSlideDesignObject, removeSlideDesignObject, reorderSlideDesignObject, resizeSlideDesignObject, richTemplateDesignFor, sheetTemplateDesignFor, slideAnimationPresets, slideDesignPresets, slideTransitionPresets, summarizeSlideShow, updateSlideDesignObject, type DocumentInsertKind } from "@/lib/studio-design"
-import { canvasAspectRatio, canvasPreviewWidth, getAnyStudioCanvasFormat, getStudioCanvasFormat, getStudioKindForCanvasFormat, listAllStudioCanvasFormatGroups, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
-import { buildStudioProjectBrowserHeader, buildStudioProjectBrowserState, buildStudioProjectBrowserSummary, buildStudioProjectSubtitle, buildStudioTemplateSubtitle, filterStudioProjectsByDraftStatus, getStudioProjectDisplayMeta, getStudioProjectFilterOption, listStudioProjectFilterOptions, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, type StudioProjectKindFilter, type StudioProjectStatusFilter } from "@/lib/studio-project-browser"
+import { buildDesignedRichTemplate, buildDesignedSheetTemplateCsv, buildDesignedSlideTemplateDeck, buildSlideExportPayload, buildSlidePresenterOutline, documentInsertGroups, getDocumentInsertBlock, richTemplateDesignFor, sheetTemplateDesignFor, slideDesignPresets, type DocumentInsertKind } from "@/lib/studio-design"
+import { canvasPreviewWidth, getAnyStudioCanvasFormat, getStudioCanvasFormat, getStudioKindForCanvasFormat, listAllStudioCanvasFormatGroups, listStudioCanvasFormatGroups, listStudioCanvasFormats, type StudioCanvasFormat } from "@/lib/studio-canvas"
+import { buildStudioProjectBrowserState, buildStudioProjectSubtitle, buildStudioTemplateSubtitle, filterStudioProjectsByDraftStatus, getStudioProjectFilterOption, listStudioProjectFilterOptions, selectStudioBrowserTemplate, selectStudioProjectShelf, selectStudioTemplateShelf, sortStudioProjectsByModified, type StudioProjectKindFilter, type StudioProjectStatusFilter } from "@/lib/studio-project-browser"
+import { useEditorExitGuard } from "../editor-navigation"
 import { getStudioToolActions, getStudioToolPanel, studioToolPanels, type StudioToolAction, type StudioToolPanelId } from "@/lib/studio-tool-library"
-import { appendRichDocumentPage, countRichDocumentPages, duplicateRichDocumentLastPage } from "@/lib/studio-pages"
+import { richDocumentEditingHtml, appendRichDocumentPage, duplicateRichDocumentLastPage, countRichDocumentPages } from "@/lib/studio-pages"
 import { HEADING_STYLE_KEY, STUDIO_LAYOUT_KEY, parseStoredHeadingStyles, parseStoredStudioLayout, type HeadingStyleLevel, type HeadingStylePreset } from "@/lib/studio-preferences"
+import { DOCX_MIME, PDF_MIME, XLSX_MIME, documentHtmlToDocx, documentHtmlToPdf, sheetCellsToXlsx } from "@/lib/export/studio-export"
+import { studioDocumentFromDocxFile, studioSheetFromXlsxFile } from "@/lib/export/studio-import"
+import { StudioImportFile } from "../studio-import-file"
 
 const DRAFT_TAB_TITLE_PATTERN = /^New (Note|Doc|Sheet|Deck)$/i
 const NUMBERED_EMPTY_TAB_PATTERN = /^\d+\s+(Notes|Docs|Sheets|Slides)$/i
+
+/** What the file pickers accept: both the extension and the registered MIME type. */
+const DOCX_ACCEPT = ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+const XLSX_ACCEPT = ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 const studioKindIcons: Record<StudioKind, React.ComponentType<{ className?: string }>> = {
   notes: FileText,
@@ -163,6 +185,7 @@ type StudioListItem = {
   summary?: string
   favorite?: boolean
   archived_at?: string | null
+  preview?: Project
 }
 
 type StudioRecordItem = Pick<StudioListItem, "id" | "kind" | "title">
@@ -193,31 +216,31 @@ const FontSize = Extension.create({
 
 const studioKindStyles: Record<StudioKind, { accent: string; card: string; chip: string; icon: string; label: string }> = {
   notes: {
-    accent: "bg-amber-400",
-    card: "hover:border-amber-400/70 hover:bg-amber-50/70 dark:hover:bg-amber-950/20",
-    chip: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
-    icon: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-200",
+    accent: "bg-[var(--decor-amber-ink)]",
+    card: "hover:border-[var(--decor-amber-ink)] hover:bg-[var(--decor-amber-soft)]",
+    chip: "bg-[var(--decor-amber-soft)] text-[var(--decor-amber-ink)]",
+    icon: "bg-[var(--decor-amber-soft)] text-[var(--decor-amber-ink)]",
     label: "Note",
   },
   docs: {
-    accent: "bg-sky-500",
-    card: "hover:border-sky-500/70 hover:bg-sky-50/70 dark:hover:bg-sky-950/20",
-    chip: "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200",
-    icon: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-200",
+    accent: "bg-[var(--decor-blue-ink)]",
+    card: "hover:border-[var(--decor-blue-ink)] hover:bg-[var(--decor-blue-soft)]",
+    chip: "bg-[var(--decor-blue-soft)] text-[var(--decor-blue-ink)]",
+    icon: "bg-[var(--decor-blue-soft)] text-[var(--decor-blue-ink)]",
     label: "Doc",
   },
   sheets: {
-    accent: "bg-emerald-500",
-    card: "hover:border-emerald-500/70 hover:bg-emerald-50/70 dark:hover:bg-emerald-950/20",
-    chip: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200",
-    icon: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200",
+    accent: "bg-[var(--decor-mint-ink)]",
+    card: "hover:border-[var(--decor-mint-ink)] hover:bg-[var(--decor-mint-soft)]",
+    chip: "bg-[var(--decor-mint-soft)] text-[var(--decor-mint-ink)]",
+    icon: "bg-[var(--decor-mint-soft)] text-[var(--decor-mint-ink)]",
     label: "Sheet",
   },
   slides: {
-    accent: "bg-orange-500",
-    card: "hover:border-orange-500/70 hover:bg-orange-50/70 dark:hover:bg-orange-950/20",
-    chip: "bg-orange-100 text-orange-900 dark:bg-orange-950 dark:text-orange-200",
-    icon: "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-200",
+    accent: "bg-[var(--decor-coral-ink)]",
+    card: "hover:border-[var(--decor-coral-ink)] hover:bg-[var(--decor-coral-soft)]",
+    chip: "bg-[var(--decor-coral-soft)] text-[var(--decor-coral-ink)]",
+    icon: "bg-[var(--decor-coral-soft)] text-[var(--decor-coral-ink)]",
     label: "Slide",
   },
 }
@@ -312,7 +335,7 @@ function cellsFromSheet(sheet?: WorkspaceSheet) {
 }
 
 function slidesFromDeck(deck?: WorkspaceDeck) {
-  return parseDeckSlides(deck).map((slide) => ({
+  return legacyDeckSlides(deck).map((slide) => ({
     ...slide,
     accent: slide.accent || "Slide",
     layout: slide.layout || "title",
@@ -334,6 +357,16 @@ function importTargetToKind(target: ImportTarget): StudioKind {
 
 function downloadText(filename: string, body: string, type = "text/plain") {
   const blob = new Blob([body], { type })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement("a")
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
+function downloadBytes(filename: string, body: Uint8Array, type: string) {
+  const blob = new Blob([new Uint8Array(body)], { type })
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement("a")
   anchor.href = url
@@ -397,37 +430,6 @@ function plainTextFromHtml(value: string) {
   return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
 }
 
-type PptxGenConstructor = typeof import("pptxgenjs").default
-
-declare global {
-  interface Window {
-    PptxGenJS?: PptxGenConstructor
-  }
-}
-
-async function loadPptxGen() {
-  if (window.PptxGenJS) return window.PptxGenJS
-  await new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>('script[data-learn-pptxgen="true"]')
-    if (existing) {
-      existing.addEventListener("load", () => resolve(), { once: true })
-      existing.addEventListener("error", () => reject(new Error("Unable to load the PPTX exporter.")), { once: true })
-      return
-    }
-
-    const script = document.createElement("script")
-    script.src = "/vendor/pptxgen.min.js"
-    script.async = true
-    script.dataset.learnPptxgen = "true"
-    script.onload = () => resolve()
-    script.onerror = () => reject(new Error("Unable to load the PPTX exporter."))
-    document.head.appendChild(script)
-  })
-
-  if (!window.PptxGenJS) throw new Error("PPTX exporter did not initialize.")
-  return window.PptxGenJS
-}
-
 export function StudioView({
   initialKind,
   notes,
@@ -436,6 +438,9 @@ export function StudioView({
   setNotes,
   setSelectedNoteId,
   onDraftSummary,
+  onOpenLink,
+  onOpenAiSource,
+  setView,
 }: {
   initialKind: StudioKind
   notes: Note[]
@@ -444,6 +449,10 @@ export function StudioView({
   setNotes: React.Dispatch<React.SetStateAction<Note[]>>
   setSelectedNoteId: (id: string) => void
   onDraftSummary?: (summary: StudioDraftSummary) => void
+  /** Goes to an in-app link, e.g. a deck in the slides editor. */
+  onOpenLink: (href: string) => void
+  onOpenAiSource: (source: TutorSource) => void
+  setView: (view: View) => void
 }) {
   const [kind, setKind] = useState<StudioKind>(initialKind)
   const [query, setQuery] = useState("")
@@ -453,7 +462,7 @@ export function StudioView({
   const [canvasFormatId, setCanvasFormatId] = useState("")
   const [activeToolPanel, setActiveToolPanel] = useState<StudioToolPanelId>("templates")
   const [toolRailCollapsed, setToolRailCollapsed] = useState(false)
-  const [toolDrawerOpen, setToolDrawerOpen] = useState(true)
+  const [toolDrawerOpen, setToolDrawerOpen] = useState(false)
   const [status, setStatus] = useState("Loading Studio...")
   const [draftNotice, setDraftNotice] = useState("")
   const [saving, setSaving] = useState(false)
@@ -466,7 +475,6 @@ export function StudioView({
   const [dirtyBadges, setDirtyBadges] = useState<StudioDirtyBadge[]>([])
   const [inspectorTab, setInspectorTab] = useState("Info")
   const [selectedCell, setSelectedCell] = useState({ row: 0, column: 0 })
-  const [selectedSlideIndex, setSelectedSlideIndex] = useState(0)
   const [archivedNotes, setArchivedNotes] = useState<Note[]>([])
   const [archivedDocs, setArchivedDocs] = useState<WorkspaceDocument[]>([])
   const [archivedSheets, setArchivedSheets] = useState<WorkspaceSheet[]>([])
@@ -490,14 +498,21 @@ export function StudioView({
   const [sheetTitle, setSheetTitle] = useState(blankSheetTitle)
   const [cells, setCells] = useState<string[][]>(blankSheetCells)
 
+  const docImportState = useRef({ kind, id: docId, pane: layout.activePaneId, content: docHistory.present, mounted: true })
+  docImportState.current = { kind, id: docId, pane: layout.activePaneId, content: docHistory.present, mounted: true }
+  useEffect(() => {
+    docImportState.current.mounted = true
+    return () => { docImportState.current.mounted = false }
+  }, [])
+
+  // Old decks are listed here; they open (and convert) in the slides editor.
   const [decks, setDecks] = useState<WorkspaceDeck[]>([])
-  const [deckId, setDeckId] = useState("")
-  const selectedDeck = deckId ? decks.find((item) => item.id === deckId) : undefined
-  const [deckTitle, setDeckTitle] = useState(blankDeckTitle)
-  const [slides, setSlides] = useState<WorkspaceDeck["slides"]>(blankDeckSlides)
   const deferredQuery = useDeferredValue(query)
   const hydratedDraftKinds = useRef<Set<StudioKind>>(new Set())
   const draftReady = useRef(false)
+  // Hydration sets editor state for the next render. Never enqueue the previous
+  // render's blank content under the newly loaded project's id.
+  const hydratingDraftKinds = useRef(new Set<StudioKind>())
   const lastDraftFingerprint = useRef<Partial<Record<StudioKind, string>>>({})
   const pendingDrafts = useRef<Partial<Record<StudioKind, { draft: StudioDraftRecord; fingerprint: string }>>>({})
   const draftSaveTimeouts = useRef<Partial<Record<StudioKind, number>>>({})
@@ -506,6 +521,7 @@ export function StudioView({
   const lastDraftNoticeKind = useRef<StudioKind | undefined>(undefined)
   const layoutSaveTimeout = useRef<number | null>(null)
   const pendingLayoutSnapshot = useRef("")
+  const inFlightSave = useRef<Promise<boolean> | null>(null)
 
   function notifyDraftSummary() {
     onDraftSummary?.(summarizeStudioDrafts(readStudioDrafts()))
@@ -583,7 +599,7 @@ export function StudioView({
 
   useEffect(() => {
     try {
-      setLayout(parseStoredStudioLayout(window.localStorage.getItem(STUDIO_LAYOUT_KEY), createDefaultStudioLayout(initialKind, "Studio")))
+      setLayout({ ...parseStoredStudioLayout(window.localStorage.getItem(STUDIO_LAYOUT_KEY), createDefaultStudioLayout(initialKind, "Studio")), inspectorOpen: false })
     } catch {
       setLayout(createDefaultStudioLayout(initialKind, "Studio"))
     }
@@ -599,8 +615,9 @@ export function StudioView({
   }, [layout])
 
   useEffect(() => {
+    hydratingDraftKinds.current.add("notes")
     const stored = readStudioDrafts().notes
-    if (!hydratedDraftKinds.current.has("notes") && stored?.kind === "notes") {
+    if (!hydratedDraftKinds.current.has("notes") && stored?.kind === "notes" && canRestoreStudioDraft(stored, new URLSearchParams(window.location.search).get("item"), selectedNote?.id)) {
       hydratedDraftKinds.current.add("notes")
       setSelectedNoteId(stored.id || "")
       setNoteDraft({
@@ -619,6 +636,11 @@ export function StudioView({
   useEffect(() => {
     const deepLink = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("item")
     const [deepLinkKind, deepLinkId] = deepLink ? deepLink.split(":") : [undefined, undefined]
+    if (deepLinkKind === "notes" && deepLinkId) {
+      setSelectedNoteId(deepLinkId)
+      setKind("notes")
+      setStudioMode("editor")
+    }
 
     Promise.all([
       api<{ items: WorkspaceDocument[] }>("/api/docs"),
@@ -638,19 +660,21 @@ export function StudioView({
           setSheetId(deepLinkId!)
           setKind("sheets")
           setStudioMode("editor")
-        } else if (deepLinkKind === "slides" && decksResponse.items.some((item) => item.id === deepLinkId)) {
-          setDeckId(deepLinkId!)
-          setKind("slides")
-          setStudioMode("editor")
+        } else if (deepLinkKind === "slides" && deepLinkId) {
+          openDeck(deepLinkId)
         } else {
           setDocId(docsResponse.items[0]?.id || "")
           setSheetId(sheetsResponse.items[0]?.id || "")
-          setDeckId(decksResponse.items[0]?.id || "")
         }
 
         draftReady.current = true
         notifyDraftSummary()
         setStatus("")
+        // Unsaved changes left by the retired slides editor become slides.
+        rescueSlidesDraft(options.slidesAspect).then(
+          (href) => { if (href) setStatus("Unsaved slides moved to Slides.") },
+          () => undefined,
+        )
       })
       .catch((error) => setStatus(error.message))
   }, [])
@@ -661,8 +685,9 @@ export function StudioView({
   }, [archivedLoaded, section])
 
   useEffect(() => {
+    hydratingDraftKinds.current.add("docs")
     const stored = readStudioDrafts().docs
-    if (!hydratedDraftKinds.current.has("docs") && stored?.kind === "docs") {
+    if (!hydratedDraftKinds.current.has("docs") && stored?.kind === "docs" && canRestoreStudioDraft(stored, new URLSearchParams(window.location.search).get("item"), selectedDoc?.id)) {
       hydratedDraftKinds.current.add("docs")
       setDocId(stored.id || "")
       setDocTitle(stored.title)
@@ -675,8 +700,9 @@ export function StudioView({
   }, [selectedDoc?.id])
 
   useEffect(() => {
+    hydratingDraftKinds.current.add("sheets")
     const stored = readStudioDrafts().sheets
-    if (!hydratedDraftKinds.current.has("sheets") && stored?.kind === "sheets") {
+    if (!hydratedDraftKinds.current.has("sheets") && stored?.kind === "sheets" && canRestoreStudioDraft(stored, new URLSearchParams(window.location.search).get("item"), selectedSheet?.id)) {
       hydratedDraftKinds.current.add("sheets")
       setSheetId(stored.id || "")
       setSheetTitle(stored.title)
@@ -689,31 +715,17 @@ export function StudioView({
   }, [selectedSheet?.id])
 
   useEffect(() => {
-    const stored = readStudioDrafts().slides
-    if (!hydratedDraftKinds.current.has("slides") && stored?.kind === "slides") {
-      hydratedDraftKinds.current.add("slides")
-      setDeckId(stored.id || "")
-      setDeckTitle(stored.title)
-      setSlides(stored.slides)
-      setSelectedSlideIndex(0)
-      return
-    }
-    if (!selectedDeck) return
-    setDeckTitle(selectedDeck.title)
-    setSlides(slidesFromDeck(selectedDeck))
-    setSelectedSlideIndex(0)
-  }, [selectedDeck?.id])
-
-  useEffect(() => {
     if (!options.notesAutosave || kind !== "notes" || !noteDraft?.id) return
     const timeout = window.setTimeout(() => {
-      saveActive(true).catch(() => undefined)
+      // saveActive() now reports its own failures via `status`; the old
+      // `.catch(() => undefined)` here is what made autosave failures invisible.
+      void saveActive(true)
     }, 1800)
     return () => window.clearTimeout(timeout)
   }, [options.notesAutosave, kind, noteDraft?.id, noteDraft?.title, noteHistory.present])
 
   useEffect(() => {
-    if (!draftReady.current || !noteDraft) return
+    if (hydratingDraftKinds.current.delete("notes") || !draftReady.current || !noteDraft) return
     const title = noteDraft.title || blankNoteTitle
     const changed = title !== (selectedNote?.title || "") || noteHistory.present !== (selectedNote?.content || "")
     if (!changed) return
@@ -728,7 +740,7 @@ export function StudioView({
   }, [noteDraft?.id, noteDraft?.title, noteHistory.present, selectedNote?.content, selectedNote?.title])
 
   useEffect(() => {
-    if (!draftReady.current) return
+    if (hydratingDraftKinds.current.delete("docs") || !draftReady.current) return
     const selectedContent = textFromDocument(selectedDoc)
     const title = docTitle || blankDocTitle
     const changed = selectedDoc
@@ -747,11 +759,9 @@ export function StudioView({
 
   const cellsFingerprint = useMemo(() => JSON.stringify(cells), [cells])
   const selectedSheetFingerprint = useMemo(() => selectedSheet ? JSON.stringify(cellsFromSheet(selectedSheet)) : blankSheetFingerprint, [selectedSheet?.cells, selectedSheet?.id])
-  const slidesFingerprint = useMemo(() => JSON.stringify(slides), [slides])
-  const selectedDeckFingerprint = useMemo(() => selectedDeck ? JSON.stringify(slidesFromDeck(selectedDeck)) : blankDeckFingerprint, [selectedDeck?.id, selectedDeck?.slides])
 
   useEffect(() => {
-    if (!draftReady.current) return
+    if (hydratingDraftKinds.current.delete("sheets") || !draftReady.current) return
     const title = sheetTitle || blankSheetTitle
     const changed = selectedSheet
       ? title !== selectedSheet.title || cellsFingerprint !== selectedSheetFingerprint
@@ -766,27 +776,6 @@ export function StudioView({
       updatedAt: new Date().toISOString(),
     }))
   }, [cells, cellsFingerprint, selectedSheet?.id, selectedSheet?.title, selectedSheetFingerprint, sheetTitle])
-
-  useEffect(() => {
-    if (!draftReady.current) return
-    const title = deckTitle || blankDeckTitle
-    const changed = selectedDeck
-      ? title !== selectedDeck.title || slidesFingerprint !== selectedDeckFingerprint
-      : title !== blankDeckTitle || slidesFingerprint !== blankDeckFingerprint
-    if (!changed) return
-    const fingerprint = ["slides", selectedDeck?.id || "", title, slidesFingerprint].join("\u001f")
-    return scheduleStudioDraft("slides", fingerprint, () => ({
-      kind: "slides",
-      id: selectedDeck?.id,
-      title,
-      slides,
-      updatedAt: new Date().toISOString(),
-    }))
-  }, [deckTitle, selectedDeck?.id, selectedDeck?.title, selectedDeckFingerprint, slides, slidesFingerprint])
-
-  useEffect(() => {
-    if (selectedSlideIndex >= slides.length) setSelectedSlideIndex(Math.max(0, slides.length - 1))
-  }, [selectedSlideIndex, slides.length])
 
   const activeTab = getStudioKindOption(kind)
   const canvasFormat = getStudioCanvasFormat(canvasFormatId, kind)
@@ -807,10 +796,10 @@ export function StudioView({
       mapped.push(item)
     }
 
-    for (const item of notesSource) append({ id: item.id, kind: "notes", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: item.content, favorite: item.favorite })
-    for (const item of docsSource) append({ id: item.id, kind: "docs", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: textFromDocument(item) })
-    for (const item of sheetsSource) append({ id: item.id, kind: "sheets", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: `${cellsFromSheet(item).length} rows` })
-    for (const item of decksSource) append({ id: item.id, kind: "slides", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: `${slidesFromDeck(item).length} slides` })
+    for (const item of notesSource) append({ id: item.id, kind: "notes", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: item.content, favorite: item.favorite, preview: { ...item, kind: "notes" } })
+    for (const item of docsSource) append({ id: item.id, kind: "docs", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: textFromDocument(item), preview: { ...item, kind: "docs" } })
+    for (const item of sheetsSource) append({ id: item.id, kind: "sheets", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: `${cellsFromSheet(item).length} rows`, preview: { ...item, kind: "sheets", cells: cellsFromSheet(item) } })
+    for (const item of decksSource) append({ id: item.id, kind: "slides", title: item.title, updated_at: item.updated_at, archived_at: item.archived_at, summary: `${slidesFromDeck(item).length} slides`, preview: { ...item, kind: "slides", slides: slidesFromDeck(item) } })
 
     return mapped.sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")))
   }, [archivedDecks, archivedDocs, archivedNotes, archivedSheets, decks, deferredQuery, docs, notes, section, sheets])
@@ -850,23 +839,20 @@ export function StudioView({
     if (kind === "notes") return noteDraft?.title || blankNoteTitle
     if (kind === "docs") return docTitle
     if (kind === "sheets") return sheetTitle
-    return deckTitle
+    return ""
   }
 
   function setActiveTitle(value: string) {
     if (kind === "notes" && noteDraft) setNoteDraft({ ...noteDraft, title: value })
     if (kind === "docs") setDocTitle(value)
     if (kind === "sheets") setSheetTitle(value)
-    if (kind === "slides") setDeckTitle(value)
   }
 
   function currentPayload(format: "download" | "export" = "download") {
     if (kind === "notes") return noteHistory.present
     if (kind === "docs") return format === "export" ? plainTextFromHtml(docHistory.present) : docHistory.present
     if (kind === "sheets") return exportSheetToCsv({ cells: ensureSheetCells(cells) })
-    return format === "export"
-      ? JSON.stringify(buildSlideExportPayload(deckTitle || "Slides", slides), null, 2)
-      : buildSlidePresenterOutline(slides)
+    return ""
   }
 
   const activeSummaryText = useMemo(() => {
@@ -876,8 +862,8 @@ export function StudioView({
       const safeCells = ensureSheetCells(cells)
       return `${safeCells.length} rows x ${safeCells[0]?.length || 0} columns`
     }
-    return `${slides.length} slides`
-  }, [cells, docHistory.present, kind, noteHistory.present, slides.length])
+    return ""
+  }, [cells, docHistory.present, kind, noteHistory.present])
 
   function selectKind(nextKind: StudioKind) {
     setKind(nextKind)
@@ -886,6 +872,10 @@ export function StudioView({
 
   function applyTemplateForKind(templateKind: StudioKind, template: StudioTemplate) {
     const applied = buildAppliedTemplate(templateKind, template)
+    if (templateKind === "slides") {
+      void openNewSlides(applied.title, ensureTwoSlidePages(buildDesignedSlideTemplateDeck(applied.body, template.label)))
+      return
+    }
     selectKind(templateKind)
     setCanvasFormatId((current) => getStudioCanvasFormat(current, templateKind).id)
     setStudioMode("editor")
@@ -902,11 +892,7 @@ export function StudioView({
     if (templateKind === "sheets") {
       setSheetTitle(applied.title)
       setCells(importCsvToSheet(applied.body).cells)
-      return
     }
-    setDeckTitle(applied.title)
-    setSlides(ensureTwoSlidePages(buildDesignedSlideTemplateDeck(applied.body, template.label)))
-    setSelectedSlideIndex(0)
   }
 
   function appendRichToolContentForKind(targetKind: StudioKind, html: string) {
@@ -932,35 +918,6 @@ export function StudioView({
         setStatus(`${action.label} added.`)
         return
       }
-      if (targetKind === "slides") {
-        if (action.canvasAction === "duplicate-page") {
-          setSlides((current) => duplicateSlide(current, selectedSlideIndex))
-          setSelectedSlideIndex(selectedSlideIndex + 1)
-        } else {
-          setSlides((current) => [...current, createBlankStudioSlide(current.length + 1)])
-          setSelectedSlideIndex(slides.length)
-        }
-        setStatus(`${action.label} added.`)
-        return
-      }
-    }
-    if (targetKind === "slides" && (action.slideAnimation || action.slideLayout || action.slideTheme || action.slideTransition)) {
-      const themeKey = action.slideTheme as keyof typeof slideDesignPresets | undefined
-      const palette = themeKey ? slideDesignPresets[themeKey] : undefined
-      setSlides((current) => current.map((slide, index) => (
-        index === selectedSlideIndex
-          ? {
-              ...slide,
-              animation: action.slideAnimation || slide.animation,
-              background: palette?.background || slide.background,
-              layout: action.slideLayout || slide.layout,
-              theme: action.slideTheme || slide.theme,
-              transition: action.slideTransition || slide.transition,
-            }
-          : slide
-      )))
-      setStatus(`${action.label} applied.`)
-      return
     }
     if ((targetKind === "notes" || targetKind === "docs") && action.richHtml) {
       appendRichToolContentForKind(targetKind, action.richHtml)
@@ -972,19 +929,11 @@ export function StudioView({
       if (action.sheetAction === "add-column") setCells((current) => addColumn(ensureSheetCells(current), selectedCell.column))
       if (action.sheetAction === "table") setCells((current) => ensureSheetCells(current).map((row, rowIndex) => row.map((cell, columnIndex) => cell || (rowIndex === 0 ? ["Item", "Detail", "Status"][columnIndex] || "" : ""))))
       setStatus(`${action.label} added.`)
-      return
-    }
-    if (targetKind === "slides" && action.slideObjectType) {
-      setSlides((current) => current.map((slide, index) => (
-        index === selectedSlideIndex
-          ? { ...slide, objects: [...(slide.objects || []), createSlideDesignObject(action.slideObjectType || "text")] }
-          : slide
-      )))
-      setStatus(`${action.label} added.`)
     }
   }
 
   async function createActive(targetKind: StudioKind = kind) {
+    if (targetKind === "slides") return openNewSlides("Untitled slides")
     setStudioMode("editor")
     if (targetKind !== kind) {
       setKind(targetKind)
@@ -1012,14 +961,18 @@ export function StudioView({
       setSheetId("")
       setSheetTitle(blankSheetTitle)
       setCells(blankSheetCells)
-      return
     }
-    setDeckId("")
-    setDeckTitle(blankDeckTitle)
-    setSlides(blankDeckSlides)
   }
 
-  async function saveActive(silent = false) {
+  function saveActive(silent = false): Promise<boolean> {
+    const run = saveActiveNow(silent)
+    inFlightSave.current = run
+    const settle = () => { if (inFlightSave.current === run) inFlightSave.current = null }
+    void run.then(settle, settle)
+    return run
+  }
+
+  async function saveActiveNow(silent: boolean): Promise<boolean> {
     setSaving(true)
     try {
       if (kind === "notes" && noteDraft) {
@@ -1061,19 +1014,22 @@ export function StudioView({
         onDraftSummary?.(clearStudioDraft("sheets"))
       }
 
-      if (kind === "slides") {
-        const response = await api<{ item: WorkspaceDeck }>("/api/slides", {
-          method: selectedDeck?.id ? "PUT" : "POST",
-          body: JSON.stringify({ id: selectedDeck?.id, title: deckTitle, slides, speakerNotes: Object.fromEntries(slides.map((slide, index) => [index, slide.speakerNotes || ""])) }),
-        })
-        setDecks((current) => [response.item, ...current.filter((item) => item.id !== response.item.id)])
-        setDeckId(response.item.id)
-        syncActivePaneTab("slides", response.item.id, response.item.title)
-        onDraftSummary?.(clearStudioDraft("slides"))
-      }
-
       setLastSaved(new Date().toLocaleTimeString())
       if (!silent) setStatus("Saved.")
+      return true
+    } catch (error) {
+      // Never fail silently here. The local draft is deliberately NOT cleared on
+      // this path, so the user's work is still safe on the device — but they have
+      // to be told the server copy is behind, otherwise the stale "last saved"
+      // timestamp reads as success. Applies to both the manual Save button and
+      // the 1.8s notes autosave.
+      const detail = error instanceof Error ? error.message : "unknown error"
+      setStatus(
+        silent
+          ? `Autosave failed (${detail}). Changes are kept as a local draft — press Save to retry.`
+          : `Save failed: ${detail}`,
+      )
+      return false
     } finally {
       setSaving(false)
     }
@@ -1099,12 +1055,6 @@ export function StudioView({
       setSheets((current) => [response.item, ...current])
       setSheetId(response.item.id)
       syncActivePaneTab("sheets", response.item.id, response.item.title)
-    }
-    if (kind === "slides") {
-      const response = await api<{ item: WorkspaceDeck }>("/api/slides", { method: "POST", body: JSON.stringify({ title, slides, speakerNotes: {} }) })
-      setDecks((current) => [response.item, ...current])
-      setDeckId(response.item.id)
-      syncActivePaneTab("slides", response.item.id, response.item.title)
     }
   }
 
@@ -1143,6 +1093,7 @@ export function StudioView({
   }
 
   function applyImportedItem(target: ImportTarget, item: Note | WorkspaceDocument | WorkspaceSheet | WorkspaceDeck) {
+    if (target === "slides") return openDeck(item.id)
     const nextKind = importTargetToKind(target)
     setKind(nextKind)
     updateActivePaneKind(nextKind, item.id, item.title)
@@ -1168,13 +1119,19 @@ export function StudioView({
       setSheetId(sheet.id)
       setSheetTitle(sheet.title)
       setCells(cellsFromSheet(sheet))
-      return
     }
-    const deck = item as WorkspaceDeck
-    setDecks((current) => [deck, ...current.filter((entry) => entry.id !== deck.id)])
-    setDeckId(deck.id)
-    setDeckTitle(deck.title)
-    setSlides(slidesFromDeck(deck))
+  }
+
+  async function importOfficeContent(content: ImportedStudioContent) {
+    const response = await api<{ item: WorkspaceDocument }>("/api/docs", { method: "POST", body: JSON.stringify({ title: content.title, content: { text: content.html } }) })
+    applyImportedItem("doc", response.item)
+    setStudioMode("editor")
+    setStatus(`Imported ${content.title}. ${content.warnings.join(" ")}`)
+  }
+
+  /** A PowerPoint keeps its layout: it becomes slides in the design editor. */
+  async function importSlides(file: File) {
+    onOpenLink(await importPowerPoint(file))
   }
 
   async function refreshArchivedItems() {
@@ -1295,8 +1252,6 @@ export function StudioView({
       const speakerNotes = Object.fromEntries(deckSlides.map((slide, index) => [index, slide.speakerNotes || ""]))
       const response = await api<{ item: WorkspaceDeck }>("/api/slides", { method: "PUT", body: JSON.stringify({ id: item.id, title: nextTitle, slides: deckSlides, speakerNotes }) })
       setDecks((current) => current.map((entry) => (entry.id === response.item.id ? response.item : entry)))
-      if (deckId === response.item.id) setDeckTitle(response.item.title)
-      syncActivePaneTab("slides", response.item.id, response.item.title)
     }
 
     setStatus(`Renamed ${item.title} to ${nextTitle}.`)
@@ -1334,11 +1289,8 @@ export function StudioView({
       setStatus("Duplicated sheet.")
       return
     }
-    const deck = source as WorkspaceDeck
-    const response = await api<{ item: WorkspaceDeck }>("/api/slides", { method: "POST", body: JSON.stringify({ title, slides: slidesFromDeck(deck), speakerNotes: {} }) })
-    setDecks((current) => [response.item, ...current])
-    selectItem({ id: response.item.id, kind: "slides", title: response.item.title })
-    setStatus("Duplicated deck.")
+    // The copy is made as slides in the design editor, not as another old deck.
+    await openNewSlides(title, slidesFromDeck(source as WorkspaceDeck))
   }
 
   function closeArchivedStudioTabs(item: Pick<StudioRecordItem, "id" | "kind">) {
@@ -1408,11 +1360,6 @@ export function StudioView({
     if (item.kind === "slides") {
       await api(`/api/slides?id=${item.id}`, { method: "DELETE" })
       setDecks((current) => current.filter((entry) => entry.id !== item.id))
-      if (deckId === item.id) {
-        setDeckId("")
-        setDeckTitle(blankDeckTitle)
-        setSlides(blankDeckSlides)
-      }
     }
     keepArchivedItem(item, source)
     closeArchivedStudioTabs(item)
@@ -1445,7 +1392,6 @@ export function StudioView({
     if (kind === "notes" && noteDraft?.id) return { id: noteDraft.id, kind, title: noteDraft.title }
     if (kind === "docs" && selectedDoc?.id) return { id: selectedDoc.id, kind, title: docTitle || selectedDoc.title }
     if (kind === "sheets" && selectedSheet?.id) return { id: selectedSheet.id, kind, title: sheetTitle || selectedSheet.title }
-    if (kind === "slides" && selectedDeck?.id) return { id: selectedDeck.id, kind, title: deckTitle || selectedDeck.title }
     return null
   }
 
@@ -1463,42 +1409,100 @@ export function StudioView({
     setStatus("Copied to clipboard.")
   }
 
-  async function downloadActive(exportMode = false) {
+  async function downloadActive(exportMode = false, format?: StudioDownloadOption["id"]) {
     const base = fileTitle(activeTitle(), kind)
+    // DOCX, XLSX and PDF are built in-process from the same payloads the other
+    // formats use; everything below is the pre-existing download behaviour.
+    if (format === "docx" && kind === "docs") {
+      downloadBytes(`${base}.docx`, documentHtmlToDocx({ title: activeTitle(), html: docHistory.present }), DOCX_MIME)
+      return
+    }
+    if (format === "pdf" && kind === "docs") {
+      downloadBytes(`${base}.pdf`, documentHtmlToPdf({ title: activeTitle(), html: docHistory.present }), PDF_MIME)
+      return
+    }
+    if (format === "xlsx" && kind === "sheets") {
+      downloadBytes(`${base}.xlsx`, sheetCellsToXlsx({ title: activeTitle(), cells: ensureSheetCells(cells) }), XLSX_MIME)
+      return
+    }
     if (kind === "sheets") return downloadText(`${base}.csv`, currentPayload("download"), "text/csv")
-    if (kind === "slides" && exportMode) return exportPptx(base)
-    if (kind === "slides") return downloadText(`${base}.outline.txt`, currentPayload("download"), "text/plain")
     downloadText(`${base}.${exportMode ? "txt" : "html"}`, currentPayload(exportMode ? "export" : "download"), exportMode ? "text/plain" : "text/html")
   }
 
-  async function exportPptx(base: string) {
-    const pptxgen = await loadPptxGen()
-    const pptx = new pptxgen()
-    pptx.layout = options.slidesAspect === "4:3" ? "LAYOUT_4X3" : "LAYOUT_WIDE"
-    pptx.author = "LEARN"
-    slides.forEach((draft) => {
-      const slide = pptx.addSlide()
-      slide.background = { color: draft.theme === "sunrise" ? "FFF3D6" : "111827" }
-      slide.addText(draft.accent || "LEARN", { x: 0.5, y: 0.35, w: 2.2, h: 0.28, fontSize: 10, bold: true, color: draft.theme === "sunrise" ? "92400E" : "A7F3D0" })
-      slide.addText(draft.title || "Slide", { x: 0.5, y: 0.8, w: 8.8, h: 0.7, fontSize: 28, bold: true, color: draft.theme === "sunrise" ? "111827" : "FFFFFF" })
-      slide.addText(draft.body || "", { x: 0.55, y: 1.65, w: 8.4, h: 3.6, fontSize: 15, breakLine: false, color: draft.theme === "sunrise" ? "374151" : "D1D5DB", fit: "shrink" })
-      if (draft.speakerNotes) slide.addNotes(draft.speakerNotes)
-    })
-    await pptx.writeFile({ fileName: `${base}.pptx` })
+  function askAi(task: TutorSource["task"] = "explain", content?: string, title = activeTitle()) {
+    try {
+      const selection = window.getSelection()
+      const container = selection?.rangeCount ? selection.getRangeAt(0).commonAncestorContainer : null
+      const root = (container instanceof Element ? container : container?.parentElement)?.closest<HTMLElement>("[data-select-to-act]")
+      const source = root?.closest<HTMLElement>("[data-source-id]")
+      const selectedContent = source?.dataset.sourceId === `${kind}:${activeStudioItem()?.id || "draft"}` ? selection?.toString().trim() : ""
+      onOpenAiSource({ title, content: content ?? (selectedContent || currentPayload("export")), task })
+    } catch {
+      setStatus("Your browser could not save the AI handoff. Allow local storage and try again.")
+    }
+  }
+
+  function askAiForItem(item: StudioRecordItem) {
+    const source = findStudioItem(item)
+    if (!source) { setStatus("This item could not be loaded."); return }
+    const content = item.kind === "notes" ? (source as Note).content
+      : item.kind === "docs" ? textFromDocument(source as WorkspaceDocument)
+      : item.kind === "sheets" ? cellsFromSheet(source as WorkspaceSheet).map((row) => row.join("\t")).join("\n")
+      : slidesFromDeck(source as WorkspaceDeck).map((slide) => `${slide.title}\n${slide.body}\n${slide.objects?.map((object) => object.text || "").join("\n") || ""}`).join("\n\n")
+    askAi("explain", content, source.title)
+  }
+
+  async function copyToDesign() {
+    try {
+      const doc = designFromSpec(htmlToDesignSpec(kind === "notes" ? noteHistory.present : docHistory.present, { title: activeTitle() }), { name: activeTitle(), format: "presentation" })
+      await api("/api/canvas", { method: "POST", body: JSON.stringify({ id: doc.id, title: doc.name, content: doc }) })
+      setView("canvas")
+      window.history.replaceState({ learnView: "canvas" }, "", `/canvas?design=${encodeURIComponent(doc.id)}`)
+      window.dispatchEvent(new PopStateEvent("popstate"))
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "This item could not be copied to Designs.")
+    }
+  }
+
+  // Slides live in the design editor. An old deck converts as it opens there.
+  function openDeck(deckId: string) {
+    onOpenLink(`/slides?item=${encodeURIComponent(`slides:${deckId}`)}`)
+  }
+
+  /** New slides (blank, from a template or a copy) are made as a presentation design. */
+  async function openNewSlides(title: string, slides?: WorkspaceDeck["slides"]) {
+    // A 4:3 or 16:9 size picked here wins; other shapes use the Settings aspect.
+    const aspect = canvasFormatId === "presentation-4-3" ? "4:3" : canvasFormatId === "presentation-16-9" ? "16:9" : options.slidesAspect
+    try {
+      const design = slides ? deckToDesign({ title, slides, aspect })
+        : createDesignDoc({ name: title, format: slidesFormatId(aspect), theme: "minimal" })
+      await api("/api/canvas", { method: "POST", body: JSON.stringify({ id: design.id, title, content: design }) })
+      onOpenLink(`/slides?design=${encodeURIComponent(design.id)}`)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "These slides could not be made.")
+    }
   }
 
   function loadStudioItem(item: { id: string; kind: StudioKind }) {
+    if (item.kind === "slides") return openDeck(item.id)
     setKind(item.kind)
     setStudioMode("editor")
     if (item.kind === "notes") setSelectedNoteId(item.id)
     if (item.kind === "docs") setDocId(item.id)
     if (item.kind === "sheets") setSheetId(item.id)
-    if (item.kind === "slides") setDeckId(item.id)
   }
 
   function selectItem(item: { id: string; kind: StudioKind; title: string }) {
+    if (item.kind === "slides") return openDeck(item.id)
     loadStudioItem(item)
     updateActivePaneKind(item.kind, item.id, item.title)
+  }
+
+  /** A pane's tab: its item, or a slides tab with none goes to the slides list. */
+  function openTab(tab: StudioTab) {
+    if (tab.itemId) loadStudioItem({ id: tab.itemId, kind: tab.kind })
+    else if (tab.kind === "slides") onOpenLink("/slides")
+    else setKind(tab.kind)
   }
 
   function paneActiveTab(pane: StudioPane) {
@@ -1518,8 +1522,8 @@ export function StudioView({
 
   function activatePane(pane: StudioPane) {
     const tab = paneActiveTab(pane)
-    if (tab?.itemId) loadStudioItem({ id: tab.itemId, kind: tab.kind })
-    else if (tab) setKind(tab.kind)
+    if (tab?.kind === "slides") return openTab(tab)
+    if (tab) openTab(tab)
     setLayout((current) => ({ ...current, activePaneId: pane.id }))
   }
 
@@ -1528,6 +1532,7 @@ export function StudioView({
       setStatus("Restore this item before opening it in a split pane.")
       return
     }
+    if (item.kind === "slides") return openDeck(item.id)
     loadStudioItem(item)
     setLayout((current) => {
       const group = current.groups[0]
@@ -1551,11 +1556,21 @@ export function StudioView({
   const activePanes = layout.groups[0]?.panes || []
   const canUndoRedo = kind === "notes" || kind === "docs"
   const hasActiveItem = kind === "notes" ? Boolean(noteDraft) : true
-  const activeStudioTab = getStudioKindOption(kind)
   const projectMenuItems = allItems.slice(0, 12)
+
+  useEditorExitGuard(async () => {
+    if (studioMode !== "editor" || !hasActiveItem) return true
+    // Leaving during an autosave used to do nothing at all. Let that save land,
+    // then save whatever was typed since, and go.
+    if (inFlightSave.current) await inFlightSave.current
+    return saveActive(true)
+  })
 
   if (studioMode === "projects") {
     return (
+      <div className="grid gap-3">
+      {status ? <div role="status" className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground">{status}</div> : null}
+      <StudioContentImport onImport={importOfficeContent} onPowerPoint={importSlides} />
       <StudioProjectBrowser
         activeKind={kind}
         canvasFormat={getAnyStudioCanvasFormat(canvasFormatId)}
@@ -1576,72 +1591,74 @@ export function StudioView({
         onShare={shareStudioItem}
         query={query}
       />
+      </div>
     )
   }
 
   return (
-    <div className="grid gap-3">
-      <Panel className="p-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <button onClick={() => setStudioMode("projects")} className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </button>
-          <ActionMenu label={activeTitle() || "Project"} icon={studioKindIcons[kind]} primary>
-            <div className="grid gap-1">
-              <MenuAction active icon={studioKindIcons[kind]} label={activeTitle() || "Current project"} onClick={() => undefined} meta={`${activeStudioTab.label} / ${canvasFormat.label}`} />
-              <MenuAction icon={FileText} label="Rename project" onClick={() => {
-                const nextTitle = window.prompt("Project name", activeTitle() || studioFallbackTitle)
-                if (nextTitle?.trim()) setActiveTitle(nextTitle.trim())
-              }} meta="Update the title shown in Studio" />
-              <MenuAction icon={ArrowLeft} label="All projects" onClick={() => setStudioMode("projects")} meta="Search, formats, and templates" />
-              {projectMenuItems.map((item) => {
-                const Icon = studioKindIcons[item.kind]
-                const badge = dirtyBadgeMap.get(item.kind)
-                return (
-                  <MenuAction key={`${item.kind}-${item.id}`} icon={Icon} label={item.title || studioFallbackTitle} onClick={() => openItemInSplit(item)} meta={badge ? `${badge.count} draft${badge.count === 1 ? "" : "s"}` : "Open in a new pane"} />
-                )
-              })}
-              {projectMenuItems.length === 0 ? <MenuAction icon={Plus} label="Create first project" onClick={createActive} meta="Start from the selected template" /> : null}
-            </div>
-          </ActionMenu>
-          <ActionMenu label="Create" icon={Plus} primary>
-            <MenuAction icon={Plus} label="Blank design" onClick={createActive} meta={`${studioCreateLabels[kind]} format`} />
-            <MenuAction icon={UploadCloud} label="Import content" onClick={() => setImportOpen((open) => !open)} meta="Paste raw notes, CSV, or slide outlines" />
-          </ActionMenu>
-          <StudioButton label="Save" icon={Save} onClick={() => saveActive()} disabled={!hasActiveItem} />
-          <ActionMenu label="Edit" icon={Undo2}>
-            <MenuAction disabled={!canUndoRedo} icon={Undo2} label="Undo" onClick={() => kind === "notes" ? setNoteHistory(undoHistory(noteHistory)) : setDocHistory(undoHistory(docHistory))} />
-            <MenuAction disabled={!canUndoRedo} icon={Redo2} label="Redo" onClick={() => kind === "notes" ? setNoteHistory(redoHistory(noteHistory)) : setDocHistory(redoHistory(docHistory))} />
-            <MenuAction icon={Clipboard} label="Copy" onClick={copyActive} />
-            <MenuAction icon={Copy} label="Duplicate" onClick={duplicateActive} />
-            <MenuAction danger icon={Archive} label="Archive/Delete" onClick={archiveActive} />
-          </ActionMenu>
-          <ActionMenu label="Export" icon={Download}>
-            <MenuAction icon={Download} label="Download" onClick={() => downloadActive(false)} />
-            <MenuAction icon={PanelRight} label="Export" onClick={() => downloadActive(true)} meta={kind === "slides" ? "PPTX when available" : "Portable text format"} />
-          </ActionMenu>
-          <ActionMenu label="Layout" icon={SplitSquareHorizontal}>
-            <MenuSelect label="Canvas" onChange={setCanvasFormatId} options={listStudioCanvasFormats(kind).map((format) => ({ label: format.label, value: format.id }))} />
-            <MenuAction icon={SplitSquareHorizontal} label="Split right" onClick={() => setLayout((current) => splitStudioPane(current, current.activePaneId, "horizontal"))} />
-            <MenuAction icon={SplitSquareVertical} label="Split down" onClick={() => setLayout((current) => splitStudioPane(current, current.activePaneId, "vertical"))} />
-            <MenuAction icon={LayoutPanelLeft} label={toolDrawerOpen ? "Close tools drawer" : "Open tools drawer"} onClick={() => {
-              setToolRailCollapsed(false)
-              setToolDrawerOpen((open) => !open)
-            }} />
-            <MenuAction icon={PanelRight} label={layout.inspectorOpen ? "Hide inspector" : "Show inspector"} onClick={() => setLayout((current) => ({ ...current, inspectorOpen: !current.inspectorOpen }))} />
-            <MenuAction icon={Settings2} label="Reset layout" onClick={() => setLayout(createDefaultStudioLayout(kind, activeTitle() || "Studio"))} />
-          </ActionMenu>
-        </div>
-        {importOpen ? (
-          <div className="mt-3 grid gap-2 rounded-md border border-border bg-background p-3 md:grid-cols-[1fr_160px_160px_auto]">
+    <div className="studio-editor-workspace studio-office-workspace">
+      <div className="editor-document-header">
+        <button onClick={() => setView("studio")} className="editor-command !px-2" aria-label="Back to projects" type="button"><ArrowLeft className="h-4 w-4" /></button>
+        <input aria-label="Project title" value={activeTitle()} onChange={(event) => setActiveTitle(event.target.value)} className="h-9 min-w-0 flex-1 rounded-md bg-transparent px-2 text-sm font-semibold outline-none focus:bg-secondary focus:ring-2 focus:ring-ring" />
+        <span className="hidden text-xs text-muted-foreground sm:block" role="status">{saving ? "Saving…" : lastSaved ? `Saved ${lastSaved}` : "Draft"}</span>
+        <StudioButton label="Save" icon={Save} onClick={() => saveActive()} disabled={!hasActiveItem || saving} primary />
+        <ActionMenu label="Export" icon={Download} align="right">
+          {buildStudioDownloadOptions(kind).map(option => <MenuAction key={option.id} icon={Download} label={option.label} onClick={() => downloadActive(option.action === "export", option.id)} />)}
+        </ActionMenu>
+      </div>
+      <div className="editor-menu-bar">
+        <ActionMenu label="File" icon={FileText}>
+          <MenuAction icon={Plus} label="New project" onClick={createActive} />
+          <MenuAction icon={UploadCloud} label="Import content" onClick={() => setImportOpen((open) => !open)} />
+          <MenuAction icon={Copy} label="Duplicate project" onClick={duplicateActive} />
+          {kind !== "sheets" ? <MenuAction icon={LayoutPanelLeft} label="Copy to Canvas" onClick={() => void copyToDesign()} /> : null}
+          <MenuAction danger icon={Archive} label="Archive project" onClick={archiveActive} />
+          {projectMenuItems.length ? <p className="px-3 pt-3 text-xs text-muted-foreground">Open in a split</p> : null}
+          {projectMenuItems.map((item) => <MenuAction key={`${item.kind}-${item.id}`} icon={studioKindIcons[item.kind]} label={item.title || studioFallbackTitle} onClick={() => openItemInSplit(item)} />)}
+        </ActionMenu>
+        <ActionMenu label="Edit" icon={Undo2}>
+          <MenuAction disabled={!canUndoRedo} icon={Undo2} label="Undo" onClick={() => kind === "notes" ? setNoteHistory(undoHistory(noteHistory)) : setDocHistory(undoHistory(docHistory))} />
+          <MenuAction disabled={!canUndoRedo} icon={Redo2} label="Redo" onClick={() => kind === "notes" ? setNoteHistory(redoHistory(noteHistory)) : setDocHistory(redoHistory(docHistory))} />
+          <MenuAction icon={Clipboard} label="Copy content" onClick={copyActive} />
+        </ActionMenu>
+        <ActionMenu label="View" icon={SplitSquareHorizontal}>
+          <MenuSelect label="Page size" onChange={setCanvasFormatId} options={listStudioCanvasFormats(kind).map((format) => ({ label: format.label, value: format.id }))} />
+          <MenuAction icon={SplitSquareHorizontal} label="Split right" onClick={() => setLayout((current) => splitStudioPane(current, current.activePaneId, "horizontal"))} />
+          <MenuAction icon={SplitSquareVertical} label="Split down" onClick={() => setLayout((current) => splitStudioPane(current, current.activePaneId, "vertical"))} />
+          <MenuAction icon={PanelRight} label={layout.inspectorOpen ? "Hide inspector" : "Show inspector"} onClick={() => setLayout((current) => ({ ...current, inspectorOpen: !current.inspectorOpen }))} />
+          <MenuAction icon={Settings2} label="Reset layout" onClick={() => setLayout({ ...createDefaultStudioLayout(kind, activeTitle() || "Studio"), inspectorOpen: false })} />
+        </ActionMenu>
+        <button type="button" className="editor-command" aria-pressed={toolDrawerOpen} onClick={() => { setToolRailCollapsed(false); setToolDrawerOpen(!toolDrawerOpen) }}><LayoutPanelLeft className="h-4 w-4" /> Library</button>
+        <button type="button" className="editor-command ml-auto" aria-label="Ask AI" onClick={() => askAi()}><Bot className="h-4 w-4" /><span className="hidden sm:inline">Ask AI</span></button>
+      </div>
+      <div className="shrink-0">        {importOpen ? (
+          <div className="grid max-h-72 gap-2 overflow-auto border-b border-border bg-background p-3 md:grid-cols-[1fr_160px_160px_auto]">
+            {kind === "docs" ? <div className="md:col-span-4"><StudioContentImport format="pdf" onImport={importOfficeContent} onPowerPoint={importSlides} /></div> : null}
+            {kind === "docs" ? <div className="md:col-span-4"><StudioImportFile
+          accept={DOCX_ACCEPT}
+          label="Import DOCX"
+          note=""
+          onFile={async (file) => {
+            const target = docImportState.current
+            const imported = await studioDocumentFromDocxFile(file)
+            // An empty import must not blank the open document.
+            if (!imported.blocks.length) return `No content found in ${file.name}.`
+            const current = docImportState.current
+            if (!current.mounted || current.kind !== target.kind || current.id !== target.id || current.pane !== target.pane || current.content !== target.content) {
+              throw new Error("The project changed while importing. Choose the file again in the intended project.")
+            }
+            setDocHistory((current) => pushHistory(current, imported.html))
+            return `Imported ${imported.blocks.length} block${imported.blocks.length === 1 ? "" : "s"}${imported.title ? ` from "${imported.title}"` : ""}.`
+          }}
+          onNote={setStatus}
+        /></div> : null}
             <input
               value={importTitle}
               onChange={(event) => setImportTitle(event.target.value)}
               placeholder="Optional title"
               className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground outline-none focus:border-ring"
             />
-            <select value={importTarget} onChange={(event) => setImportTarget(normalizeImportTargetSelection(event.target.value))} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground">
+            <select value={importTarget} aria-label="Import destination" onChange={(event) => setImportTarget(normalizeImportTargetSelection(event.target.value))} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground">
               {importTargetOptions.map((target) => <option key={target} value={target}>{labelImportTarget(target)}</option>)}
             </select>
             <button onClick={organizeImport} disabled={importing} className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-60" type="button">
@@ -1658,15 +1675,15 @@ export function StudioView({
             />
           </div>
         ) : null}
-      </Panel>
+      </div>
 
-      <div className={`grid gap-3 ${toolRailCollapsed ? "xl:grid-cols-[1fr]" : toolDrawerOpen ? "xl:grid-cols-[72px_280px_1fr]" : "xl:grid-cols-[72px_1fr]"}`}>
-        {!toolRailCollapsed ? <StudioToolRail activeKind={kind} activeToolPanel={activeToolPanel} onSelectKind={selectKind} onSelectToolPanel={(panel) => {
+      <div className={`studio-editor-body grid min-h-0 flex-1 gap-0 ${(toolRailCollapsed || !toolDrawerOpen) ? "xl:grid-cols-[1fr]" : toolDrawerOpen ? "xl:grid-cols-[72px_280px_1fr]" : "xl:grid-cols-[72px_1fr]"}`}>
+        {!toolRailCollapsed && toolDrawerOpen ? <StudioToolRail activeKind={kind} activeToolPanel={activeToolPanel} onSelectKind={selectKind} onSelectToolPanel={(panel) => {
           setActiveToolPanel(panel)
           setToolDrawerOpen(true)
         }} showKindRail={false} /> : null}
         {!toolRailCollapsed && toolDrawerOpen ? (
-          <Panel className="min-h-[74vh] p-3 xl:sticky xl:top-3 xl:max-h-[calc(100vh-6rem)] xl:overflow-auto">
+          <Panel className="studio-library-panel min-h-0 overflow-auto rounded-none border-y-0 p-3 shadow-none">
             <div className="mb-3 flex items-center justify-between gap-2">
               <span className="rounded-md bg-secondary px-2.5 py-1.5 text-xs font-bold text-secondary-foreground">{getStudioToolPanel(activeToolPanel).label}</span>
               <button onClick={() => setToolDrawerOpen(false)} className="icon-button" title="Close library drawer" type="button">
@@ -1681,10 +1698,7 @@ export function StudioView({
               viewMode={viewMode}
               onApplyTemplate={(template) => applyTemplateForKind(kind, template)}
               onArchive={archiveStudioItem}
-              onAskAi={(item) => {
-                selectItem(item)
-                setInspectorTab("AI")
-              }}
+              onAskAi={askAiForItem}
               onCopy={copyStudioItem}
               onDownload={(item) => downloadStudioItem(item)}
               onDuplicate={duplicateStudioItem}
@@ -1701,16 +1715,18 @@ export function StudioView({
           </Panel>
         ) : null}
 
-        <Panel className="min-w-0 p-0">
-          <PanelGroup id="learn-studio-primary" direction={layout.groups[0]?.direction || "horizontal"} className="min-h-[74vh]">
+        <Panel className="studio-pane-container min-h-0 min-w-0 overflow-auto rounded-none border-0 p-0 shadow-none">
+          <PanelGroup id="learn-studio-primary" direction={layout.groups[0]?.direction || "horizontal"} className="h-full min-h-0">
             {activePanes.map((pane, index) => (
               <Fragment key={pane.id}>
                 <ResizePanel id={pane.id} order={index} minSize={28} defaultSize={100 / activePanes.length}>
                   <StudioPaneSurface
+                    showPaneHeader={activePanes.length > 1}
                     active={layout.activePaneId === pane.id}
                     activeKind={kind}
                     activeSummary={activeSummaryText}
                     activeTitle={activeTitle()}
+                    activeSourceId={`${kind}:${activeStudioItem()?.id || "draft"}`}
                     cells={cells}
                     docHistory={docHistory}
                     inspectorOpen={layout.inspectorOpen}
@@ -1719,18 +1735,19 @@ export function StudioView({
                     noteDraft={noteDraft}
                     noteHistory={noteHistory}
                     onArchive={archiveActive}
+                    onAskAi={askAi}
                     onClosePane={() => setLayout((current) => closeStudioPane(current, pane.id))}
                     onCloseOthers={() => setLayout((current) => closeOtherStudioPanes(current, pane.id))}
                     onCopy={copyActive}
-                    onDownload={() => downloadActive(false)}
+                    onDownload={(format) => downloadActive(false, format)}
                     onDuplicate={duplicateActive}
-                    onExport={() => downloadActive(true)}
+                    onExport={(format) => downloadActive(true, format)}
                     onPinPane={() => setLayout((current) => pinStudioPane(current, pane.id))}
                     onRenamePane={(label) => setLayout((current) => normalizeStudioLayout({ ...current, groups: [{ ...current.groups[0], panes: current.groups[0].panes.map((item) => item.id === pane.id ? { ...item, label } : item) }] }))}
                     onSelectPane={() => activatePane(pane)}
                     onSelectTab={(tab) => {
-                      if (tab.itemId) loadStudioItem({ id: tab.itemId, kind: tab.kind })
-                      else setKind(tab.kind)
+                      if (tab.kind === "slides") return openTab(tab)
+                      openTab(tab)
                       setLayout((current) => {
                         const group = current.groups[0]
                         const panes = group.panes.map((item) => item.id === pane.id ? { ...item, activeTabId: tab.id } : item)
@@ -1742,8 +1759,6 @@ export function StudioView({
                     onSetInspectorTab={setInspectorTab}
                     onSetNoteHistory={setNoteHistory}
                     onSetSelectedCell={setSelectedCell}
-                    onSetSelectedSlideIndex={setSelectedSlideIndex}
-                    onSetSlides={setSlides}
                     canvasFormat={canvasFormat}
                     onSplitDown={() => setLayout((current) => splitStudioPane(current, pane.id, "vertical"))}
                     onSplitRight={() => setLayout((current) => splitStudioPane(current, pane.id, "horizontal"))}
@@ -1752,8 +1767,6 @@ export function StudioView({
                     panePreview={previewForPane(pane)}
                     saving={saving}
                     selectedCell={selectedCell}
-                    selectedSlideIndex={selectedSlideIndex}
-                    slides={slides}
                     status={status}
                     updateCell={updateCell}
                   />
@@ -1873,7 +1886,7 @@ function StudioLibrary({
                 </span>
                 <span className="min-w-0 truncate text-sm font-bold text-foreground">{action.label}</span>
               </span>
-              <span className="mt-2 inline-flex rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-secondary-foreground">
+              <span className="mt-2 inline-flex rounded-md bg-secondary px-1.5 py-0.5 text-xs font-semibold uppercase tracking-[0.1em] text-secondary-foreground">
                 {action.canvasAction ? "Page" : action.sheetAction ? "Data" : action.slideObjectType ? "Canvas" : "Insert"}
               </span>
             </button>
@@ -1969,12 +1982,7 @@ function StudioToolPanelHeader({ panel }: { panel: ReturnType<typeof getStudioTo
   return (
     <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-background p-3">
       <p className="text-sm font-bold text-foreground">{panel.label}</p>
-      <details className="relative">
-        <summary className="flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label={`About ${panel.label}`}>
-          <BookOpen className="h-3.5 w-3.5" />
-        </summary>
-        <p className="absolute right-0 top-8 z-40 w-56 rounded-md border border-border bg-popover p-2 text-xs leading-5 text-popover-foreground shadow-xl">{panel.description}</p>
-      </details>
+      <PopoverButton label={`About ${panel.label}`} placement="bottom-end" width={224} buttonClassName="canvas-tool h-9 w-9 shrink-0" panel={() => <p className="max-w-52 text-xs leading-5">{panel.description}</p>}><CircleHelp className="h-4 w-4" /></PopoverButton>
     </div>
   )
 }
@@ -2032,6 +2040,7 @@ function StudioProjectBrowser({
   onShare: (item: StudioRecordItem) => void
   query: string
 }) {
+  const measure = useDesignMeasure()
   const [projectKindFilter, setProjectKindFilter] = useState<StudioProjectKindFilter>("all")
   const [projectSort, setProjectSort] = useState<"newest" | "oldest">("newest")
   const [projectStatusFilter, setProjectStatusFilter] = useState<StudioProjectStatusFilter>("all")
@@ -2066,14 +2075,6 @@ function StudioProjectBrowser({
   const selectedTemplate = templateChoices.find((template) => `${template.kind}:${template.label}` === selectedTemplateKey) || selectStudioBrowserTemplate(templateChoices, "")
   const templateFilterOptions = listStudioProjectFilterOptions()
   const activeTemplateFilter = getStudioProjectFilterOption(projectKindFilter)
-  const browserSummary = buildStudioProjectBrowserSummary({
-    draftCount: draftProjectCount,
-    filterLabel: projectKindFilter === "all" ? "All projects" : activeTemplateFilter.label,
-    formatLabel: selectedCanvasFormat.label,
-    projectCount: filteredProjects.length,
-    query,
-    templateCount: templateChoices.length,
-  })
   const browserSteps: Array<{ id: StudioProjectBrowserStep; label: string; count: number }> = [
     { id: "projects", label: "Recent", count: recentItems.length },
     { id: "templates", label: "Designs", count: templateShelf.length },
@@ -2111,23 +2112,15 @@ function StudioProjectBrowser({
     <div className="grid gap-4">
       <Panel className="overflow-hidden p-0">
         <div>
-          <main className="min-w-0 bg-gradient-to-b from-primary/10 via-muted/35 to-muted/35 p-4 lg:p-6">
-            <div className="mx-auto max-w-4xl text-center">
-              <h2 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">{browserSummary.title}</h2>
-              <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground" title={buildStudioProjectBrowserHeader(browserSummary)}>{browserSummary.caption}</p>
-              <label className="mx-auto mt-5 flex h-14 max-w-3xl items-center gap-3 rounded-2xl border border-primary/20 bg-background px-5 shadow-xl shadow-primary/10">
+          <section aria-label="Project library" className="min-w-0 p-3 sm:p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-lg font-semibold text-foreground">Projects</h2>
+              <label className="flex h-9 min-w-40 flex-1 items-center gap-2 rounded-lg border border-border bg-background px-3 max-sm:order-last max-sm:basis-full sm:max-w-sm">
                 <Search className="h-5 w-5 text-foreground" />
-                <input value={query} onChange={(event) => onQuery(event.target.value)} placeholder="Search across all content" className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
+                <input value={query} onChange={(event) => onQuery(event.target.value)} aria-label="Search projects" placeholder="Search projects" className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
               </label>
-              <div className="mx-auto mt-3 grid max-w-3xl grid-cols-2 gap-2 md:grid-cols-4">
-                {browserSummary.chips.map((chip) => (
-                  <div key={chip.label} className="rounded-xl border border-border bg-background/80 px-3 py-2 text-left shadow-sm">
-                    <p className="truncate text-[0.65rem] font-bold uppercase tracking-[0.12em] text-muted-foreground">{chip.label}</p>
-                    <p className="mt-1 truncate text-sm font-black text-foreground" title={chip.value}>{chip.value}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 flex flex-wrap justify-center gap-2">
+              <div className="ml-auto flex flex-wrap items-center gap-2">
+                {browserStep === "projects" && dirtyBadges.length ? <span className="rounded-lg bg-warning/15 px-2.5 py-1.5 text-xs font-semibold text-warning-foreground">{dirtyBadges.reduce((total, badge) => total + badge.count, 0)} drafts</span> : null}
                 <ActionMenu compact label={projectKindFilter === "all" ? "All designs" : activeTemplateFilter.label} icon={LayoutPanelLeft}>
                   {templateFilterOptions.map((option) => {
                     const Icon = option.value === "all" ? LayoutPanelLeft : studioKindIcons[option.value]
@@ -2144,9 +2137,19 @@ function StudioProjectBrowser({
                   <MenuAction active={projectSort === "newest"} icon={ArrowDown} label="Newest first" onClick={() => setProjectSort("newest")} />
                   <MenuAction active={projectSort === "oldest"} icon={ArrowUp} label="Oldest first" onClick={() => setProjectSort("oldest")} />
                 </ActionMenu>
+                {browserStep === "projects" ? <ActionMenu compact label={selectedProjects.length ? `${selectedProjects.length} selected` : "Select"} icon={CheckSquare}>
+                  <MenuAction icon={CheckSquare} label="Select visible" meta={`${recentItems.length} project${recentItems.length === 1 ? "" : "s"}`} onClick={selectEveryVisibleProject} />
+                  <MenuAction icon={X} label="Clear selection" onClick={clearProjectSelection} />
+                  <div className="my-1 h-px bg-border" />
+                  <MenuAction disabled={selectedProjects.length !== 1} icon={Edit3} label="Rename selected" meta="Available when one project is selected" onClick={() => selectedProjects[0] && onRename(selectedProjects[0])} />
+                  <MenuAction disabled={selectedProjects.length !== 1} icon={Share2} label="Share selected" meta="Copy a share link for one project" onClick={() => selectedProjects[0] && onShare(selectedProjects[0])} />
+                  <MenuAction disabled={!selectedProjects.length} icon={Download} label="Download selected" meta="Download each selected project" onClick={() => selectedProjects.forEach((item) => onDownload(item))} />
+                  <MenuAction disabled={!selectedProjects.length} icon={Copy} label="Duplicate selected" meta="Create editable copies" onClick={() => selectedProjects.forEach((item) => onDuplicate(item))} />
+                  <MenuAction disabled={!selectedProjects.length} danger icon={Archive} label="Archive selected" meta="Move selected projects out of recents" onClick={() => selectedProjects.forEach((item) => onArchive(item))} />
+                </ActionMenu> : null}
               </div>
             </div>
-            <div className="mt-8 grid gap-5">
+            <div className="mt-4 grid gap-3">
               <section className="min-w-0">
                 <div className="mb-5 flex gap-2 overflow-x-auto rounded-2xl border border-border bg-background/75 p-1.5 shadow-sm">
                   {visibleBrowserSteps.map((step) => (
@@ -2159,67 +2162,42 @@ function StudioProjectBrowser({
                       type="button"
                     >
                       <span>{step.label}</span>
-                      <span className={`rounded-md px-1.5 py-0.5 text-[0.65rem] ${browserStep === step.id ? "bg-primary-foreground/20" : "bg-secondary text-secondary-foreground"}`}>{step.count}</span>
+                      <span className={`rounded-md px-1.5 py-0.5 text-xs ${browserStep === step.id ? "bg-primary-foreground/20" : "bg-secondary text-secondary-foreground"}`}>{step.count}</span>
                     </button>
                   ))}
                 </div>
                 {browserStep === "projects" ? (
                 <>
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-xl font-bold text-foreground">Recent projects</h3>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-lg bg-background px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">{recentItems.length} shown</span>
-                    {dirtyBadges.length ? <span className="rounded-lg bg-warning/15 px-2.5 py-1.5 text-xs font-semibold text-warning-foreground">{dirtyBadges.reduce((total, badge) => total + badge.count, 0)} drafts</span> : null}
-                    <ActionMenu compact label={selectedProjects.length ? `${selectedProjects.length} selected` : "Select"} icon={CheckSquare}>
-                      <MenuAction icon={CheckSquare} label="Select visible" meta={`${recentItems.length} project${recentItems.length === 1 ? "" : "s"}`} onClick={selectEveryVisibleProject} />
-                      <MenuAction icon={X} label="Clear selection" onClick={clearProjectSelection} />
-                      <div className="my-1 h-px bg-border" />
-                      <MenuAction disabled={selectedProjects.length !== 1} icon={Edit3} label="Rename selected" meta="Available when one project is selected" onClick={() => selectedProjects[0] && onRename(selectedProjects[0])} />
-                      <MenuAction disabled={selectedProjects.length !== 1} icon={Share2} label="Share selected" meta="Copy a share link for one project" onClick={() => selectedProjects[0] && onShare(selectedProjects[0])} />
-                      <MenuAction disabled={!selectedProjects.length} icon={Download} label="Download selected" meta="Download each selected project" onClick={() => selectedProjects.forEach((item) => onDownload(item))} />
-                      <MenuAction disabled={!selectedProjects.length} icon={Copy} label="Duplicate selected" meta="Create editable copies" onClick={() => selectedProjects.forEach((item) => onDuplicate(item))} />
-                      <MenuAction disabled={!selectedProjects.length} danger icon={Archive} label="Archive selected" meta="Move selected projects out of recents" onClick={() => selectedProjects.forEach((item) => onArchive(item))} />
-                    </ActionMenu>
-                    <button onClick={() => setBrowserStep("formats")} className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground" type="button"><Plus className="h-4 w-4" /> New</button>
-                  </div>
-                </div>
-                <div className="mt-4 flex gap-4 overflow-x-auto pb-4">
-                  <button onClick={() => setBrowserStep("formats")} className="group flex h-[10.5rem] w-48 shrink-0 flex-col items-center justify-center rounded-xl border border-dashed border-primary/50 bg-background/75 text-center shadow-sm transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground" type="button">
-                    <span className="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-sm">
-                      <Plus className="h-6 w-6" />
+                <h3 className="sr-only">Recent projects</h3>
+                <div className="grid grid-cols-2 gap-3 pb-4 sm:flex sm:gap-4 sm:overflow-x-auto">
+                  <button onClick={() => setBrowserStep("formats")} className="group flex min-h-32 min-w-0 flex-col sm:w-48 sm:shrink-0 items-center justify-center rounded-xl border border-dashed border-primary/50 bg-background/75 text-center shadow-sm transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground" type="button">
+                    <span className="grid h-10 w-10 place-items-center rounded-full bg-primary text-primary-foreground shadow-sm sm:h-12 sm:w-12">
+                      <Plus className="h-5 w-5 sm:h-6 sm:w-6" />
                     </span>
                     <span className="mt-3 text-sm font-black text-foreground group-hover:text-accent-foreground">New project</span>
-                    <span className="mt-1 text-xs text-muted-foreground">Pick a size first</span>
                   </button>
                   {recentItems.map((item) => {
                     const Icon = studioKindIcons[item.kind]
-                    const meta = getStudioProjectDisplayMeta(item.kind)
                     const projectKey = `${item.kind}:${item.id}`
                     const selected = selectedProjectKeys.has(projectKey)
                     return (
-                      <div key={`${item.kind}_${item.id}`} className="group relative w-48 shrink-0 text-left">
-                        <button onClick={() => onOpen(item)} className="block w-full text-left" type="button">
-                        <span className={`relative block h-32 overflow-hidden rounded-xl border ${selected ? "border-primary ring-2 ring-primary/25" : "border-border"} ${studioKindStyles[item.kind].icon} p-4 shadow-sm transition group-hover:-translate-y-0.5 group-hover:border-primary group-hover:shadow-lg`}>
-                          <Icon className="h-6 w-6" />
-                          <span className="absolute bottom-4 left-4 right-4 space-y-2">
-                            <span className="block h-2 w-20 rounded-full bg-background/80" />
-                            <span className="block h-2 w-28 rounded-full bg-background/60" />
-                            <span className="block h-2 w-16 rounded-full bg-background/50" />
-                          </span>
-                          <span className="absolute right-3 top-3 rounded-full bg-background/85 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-foreground">{meta.badge}</span>
+                      <div key={`${item.kind}_${item.id}`} className="group relative min-w-0 text-left sm:w-48 sm:shrink-0">
+                        <button onClick={() => onOpen(item)} className="studio-card" data-project-kind={item.kind} data-selected={selected || undefined} type="button">
+                        <span aria-hidden="true" className="studio-card-cover">
+                          {item.preview ? <StudioProjectPreview project={item.preview} measure={measure} fallback={<KindArt kind={item.kind} />} /> : <KindArt kind={item.kind} />}
                         </span>
-                        <span className="mt-3 block">
-                          <span className="block truncate text-sm font-bold text-foreground" title={item.title}>{item.title}</span>
-                          <span className="mt-1 flex items-center gap-1 truncate text-xs text-muted-foreground">
-                            <span className={`h-2 w-2 rounded-full ${studioKindStyles[item.kind].accent}`} />
-                            {item.updated_at ? `Edited ${formatDate(item.updated_at)}` : buildStudioProjectSubtitle(item)}
+                        <span className="studio-card-caption">
+                          <span className="studio-project-icon flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" aria-hidden="true"><Icon className="h-4 w-4" /></span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium text-foreground" title={item.title}>{item.title}</span>
+                            <span className="block truncate text-xs text-muted-foreground">{item.updated_at ? formatRelativeTime(item.updated_at) : buildStudioProjectSubtitle(item)}</span>
                           </span>
                         </span>
                         </button>
-                        <label className={`absolute left-2 top-2 grid h-7 w-7 cursor-pointer place-items-center rounded-lg bg-background/90 text-foreground shadow-sm ring-1 ring-border transition group-hover:opacity-100 ${selected ? "opacity-100" : "opacity-0"}`}>
+                        <label className={`absolute left-2 top-2 grid h-7 w-7 cursor-pointer place-items-center rounded-lg bg-background/90 text-foreground shadow-sm ring-1 ring-border transition group-hover:opacity-100 ${selected ? "opacity-100" : "opacity-0"} ${selectedProjectKeys.size ? "[@media(pointer:coarse)]:opacity-100" : "[@media(pointer:coarse)]:hidden"}`}>
                           <input checked={selected} onChange={(event) => toggleProjectSelection(item, event.target.checked)} className="h-4 w-4 accent-primary" aria-label={`Select ${item.title}`} type="checkbox" />
                         </label>
-                        <div className="absolute right-2 top-2 opacity-0 transition group-hover:opacity-100">
+                        <div className="absolute right-2 top-2 opacity-0 transition group-focus-within:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100">
                           <ActionMenu compact label="Actions" icon={MoreHorizontal}>
                             <MenuAction icon={ArrowRight} label="Open" onClick={() => onOpen(item)} />
                             <MenuAction icon={Edit3} label="Rename" onClick={() => onRename(item)} />
@@ -2292,20 +2270,18 @@ function StudioProjectBrowser({
                       <div className="mb-3 flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <h4 className="truncate text-sm font-black text-foreground">{group.label}</h4>
-                          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{group.description}</p>
                         </div>
-                        <span className="rounded-md bg-secondary px-2 py-1 text-[0.65rem] font-bold text-secondary-foreground">{group.formats.length}</span>
+                        <span className="rounded-md bg-secondary px-2 py-1 text-xs font-bold text-secondary-foreground">{group.formats.length}</span>
                       </div>
                       <div className="grid gap-2">
                         {group.formats.map((format) => {
                           const active = format.id === selectedCanvasFormat.id
                           return (
-                            <button key={format.id} onClick={() => chooseCanvasFormat(format)} className={`group rounded-xl border p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground ${active ? "border-primary bg-primary/10" : "border-border bg-card"}`} type="button">
+                            <button key={format.id} title={format.description} aria-pressed={active} onClick={() => chooseCanvasFormat(format)} className={`group rounded-xl border p-3 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground ${active ? "border-primary bg-primary/10" : "border-border bg-card"}`} type="button">
                               <span className="flex items-center justify-between gap-3">
                                 <span className="truncate text-sm font-bold text-foreground group-hover:text-accent-foreground">{format.label}</span>
-                                <span className={`rounded px-1.5 py-0.5 text-[0.65rem] font-bold ${active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{active ? "Active" : `${format.width}:${format.height}`}</span>
+                                <span className={`rounded px-1.5 py-0.5 text-xs font-bold ${active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{active ? "Active" : `${format.width}:${format.height}`}</span>
                               </span>
-                              <span className="mt-1 block line-clamp-2 text-xs text-muted-foreground">{format.description}</span>
                             </button>
                           )
                         })}
@@ -2317,7 +2293,7 @@ function StudioProjectBrowser({
                 ) : null}
               </section>
             </div>
-          </main>
+          </section>
         </div>
       </Panel>
     </div>
@@ -2357,7 +2333,7 @@ function StudioToolRail({
       {showToolPanels ? studioToolPanels.map((panel) => {
         const Icon = toolIcons[panel.id]
         return (
-          <button key={panel.id} onClick={() => onSelectToolPanel(panel.id)} className={`flex min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-[11px] font-semibold ${activeToolPanel === panel.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`} title={panel.description} type="button">
+          <button key={panel.id} onClick={() => onSelectToolPanel(panel.id)} className={`flex min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-semibold ${activeToolPanel === panel.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`} title={panel.description} type="button">
             <Icon className="h-5 w-5" />
             <span>{panel.label}</span>
           </button>
@@ -2367,7 +2343,7 @@ function StudioToolRail({
       {showKindRail ? studioKindOptions.map((option) => {
         const Icon = studioKindIcons[option.kind]
         return (
-          <button key={option.kind} onClick={() => onSelectKind(option.kind)} className={`flex min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-[11px] font-semibold ${activeKind === option.kind ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`} type="button">
+          <button key={option.kind} onClick={() => onSelectKind(option.kind)} className={`flex min-w-14 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-semibold ${activeKind === option.kind ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`} type="button">
             <Icon className="h-5 w-5" />
             <span>{studioKindStyles[option.kind].label}</span>
           </button>
@@ -2391,7 +2367,7 @@ function getStudioTemplateMeta(kind: StudioKind, template: StudioTemplate) {
   const sheetPalette = kind === "sheets" ? sheetTemplateDesignFor(template.label) : undefined
   return {
     accent: template.accent || slidePalette?.accent || richPalette?.accent || palette[kind],
-    background: slidePalette?.background || richPalette?.background || "hsl(var(--background))",
+    background: slidePalette?.background || richPalette?.background || "var(--background)",
     description: template.description || describeTemplate(kind, template.label),
     sections,
     style: template.style || sheetPalette?.name || richPalette?.name || styleForTemplate(kind, template.label),
@@ -2564,15 +2540,15 @@ function StudioItemButton({
             </span>
           </button>
           <div className="mt-3 flex items-center justify-between gap-2">
-            <span className="min-w-0 truncate text-[0.68rem] font-semibold text-muted-foreground">
+            <span className="min-w-0 truncate text-xs font-semibold text-muted-foreground">
               {pendingAction ? `${pendingAction}...` : archived ? "Archived item" : "Click card to open"}
             </span>
             <ActionMenu align="right" compact label={pendingAction || "More"} icon={MoreHorizontal}>
               {actionGroups.map((group) => (
                 <div key={group.id} className="border-t border-border/70 p-1 first:border-t-0">
                   <div className="mb-1 flex items-center justify-between gap-2 px-2 pt-1">
-                    <span className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground">{group.label}</span>
-                    <span className="truncate text-[0.65rem] font-medium text-muted-foreground">{group.summary}</span>
+                    <span className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">{group.label}</span>
+                    <span className="truncate text-xs font-medium text-muted-foreground">{group.summary}</span>
                   </div>
                   {group.actions.map((actionId) => {
                     const action = actionCatalog[actionId]
@@ -2600,7 +2576,7 @@ function StudioItemButton({
           {actionGroups.map((group, groupIndex) => (
             <Fragment key={group.id}>
               {groupIndex > 0 ? <ContextMenu.Separator className="my-1 h-px bg-border" /> : null}
-              <ContextMenu.Label className="flex items-center justify-between gap-3 px-2 py-1 text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              <ContextMenu.Label className="flex items-center justify-between gap-3 px-2 py-1 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
                 <span>{group.label}</span>
                 <span className="max-w-36 truncate font-medium normal-case tracking-normal">{group.summary}</span>
               </ContextMenu.Label>
@@ -2628,10 +2604,12 @@ function StudioItemButton({
 }
 
 function StudioPaneSurface({
+  showPaneHeader,
   active,
   activeKind,
   activeSummary,
   activeTitle,
+  activeSourceId,
   canvasFormat,
   cells,
   docHistory,
@@ -2641,6 +2619,7 @@ function StudioPaneSurface({
   noteDraft,
   noteHistory,
   onArchive,
+  onAskAi,
   onClosePane,
   onCloseOthers,
   onCopy,
@@ -2656,8 +2635,6 @@ function StudioPaneSurface({
   onSetInspectorTab,
   onSetNoteHistory,
   onSetSelectedCell,
-  onSetSelectedSlideIndex,
-  onSetSlides,
   onSplitDown,
   onSplitRight,
   options,
@@ -2665,15 +2642,15 @@ function StudioPaneSurface({
   panePreview,
   saving,
   selectedCell,
-  selectedSlideIndex,
-  slides,
   status,
   updateCell,
 }: {
+  showPaneHeader: boolean
   active: boolean
   activeKind: StudioKind
   activeSummary: string
   activeTitle: string
+  activeSourceId: string
   canvasFormat: StudioCanvasFormat
   cells: string[][]
   docHistory: HistoryState<string>
@@ -2683,12 +2660,13 @@ function StudioPaneSurface({
   noteDraft: Note | null
   noteHistory: HistoryState<string>
   onArchive: () => void
+  onAskAi: (task?: TutorSource["task"], content?: string, title?: string) => void
   onClosePane: () => void
   onCloseOthers: () => void
   onCopy: () => void
-  onDownload: () => void
+  onDownload: (format?: StudioDownloadOption["id"]) => void
   onDuplicate: () => void
-  onExport: () => void
+  onExport: (format?: StudioDownloadOption["id"]) => void
   onPinPane: () => void
   onRenamePane: (value: string) => void
   onSelectPane: () => void
@@ -2698,8 +2676,6 @@ function StudioPaneSurface({
   onSetInspectorTab: (value: string) => void
   onSetNoteHistory: React.Dispatch<React.SetStateAction<HistoryState<string>>>
   onSetSelectedCell: (value: { row: number; column: number }) => void
-  onSetSelectedSlideIndex: (value: number) => void
-  onSetSlides: React.Dispatch<React.SetStateAction<WorkspaceDeck["slides"]>>
   onSplitDown: () => void
   onSplitRight: () => void
   options: WorkspaceOptions
@@ -2707,8 +2683,6 @@ function StudioPaneSurface({
   panePreview: StudioPanePreview
   saving: boolean
   selectedCell: { row: number; column: number }
-  selectedSlideIndex: number
-  slides: WorkspaceDeck["slides"]
   status: string
   updateCell: (rowIndex: number, cellIndex: number, value: string) => void
 }) {
@@ -2721,16 +2695,16 @@ function StudioPaneSurface({
     <ContextMenu.Root>
       <ContextMenu.Trigger asChild>
         <section onFocus={onSelectPane} onClick={onSelectPane} className={`relative flex h-full min-w-0 flex-col border-border ${active ? "bg-card" : "bg-background/70"}`}>
-          <div className={`border-b border-border px-2 py-1.5 ${active ? "ring-1 ring-inset ring-primary/30" : ""}`}>
+          {showPaneHeader || visiblePaneTabs.length > 1 ? <div className="studio-pane-tabs border-b border-border px-2 py-1.5">
             <div className="flex flex-wrap items-center gap-1.5">
-              <input value={pane.label} onChange={(event) => onRenamePane(event.target.value)} className="h-8 w-24 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground outline-none focus:border-ring" title="Rename order group" />
+              <input value={pane.label} onChange={(event) => onRenamePane(event.target.value)} className="sr-only" title="Rename order group" />
               {pane.pinned ? <span className="inline-flex h-8 items-center rounded-md border border-primary/40 bg-primary/10 px-2 text-xs font-semibold text-primary">Pinned</span> : null}
               <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
                 {visiblePaneTabs.map((tab: StudioTab) => {
                   const tabActive = tab.id === pane.activeTabId
                   const tabLabel = formatStudioTabLabel(tab)
                   return (
-                    <button key={tab.id} onClick={() => onSelectTab(tab)} className={`flex h-8 max-w-40 items-center gap-1.5 rounded-md border px-2 text-xs font-semibold ${tabActive ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} title={tabLabel}>
+                    <button key={tab.id} onClick={() => onSelectTab(tab)} className={`flex h-8 max-w-48 items-center gap-1.5 rounded-md px-2 text-xs ${tabActive ? "bg-secondary font-medium text-foreground" : "text-muted-foreground hover:bg-secondary"}`} title={tabLabel}>
                       <span className="rounded bg-background/20 px-1">{pane.order}</span>
                       <span className="truncate">{tabLabel}</span>
                       {tab.pinned ? <Maximize2 className="h-3 w-3" /> : null}
@@ -2758,14 +2732,15 @@ function StudioPaneSurface({
                 </div>
               ) : null}
             </div>
-          </div>
+          </div> : null}
           {active && status ? <StudioStatusToast message={status} /> : null}
           {!active ? (
             <StudioPanePreviewCard preview={panePreview} onOpen={onSelectPane} />
           ) : (
           <div className={`grid min-h-0 flex-1 ${inspectorOpen ? "xl:grid-cols-[1fr_260px]" : ""}`}>
-            <div className="min-h-0 overflow-auto p-3">
+            <div className="studio-pane-body min-h-0 overflow-auto bg-secondary/50" data-source-title={activeTitle} data-source-kind={activeKind} data-source-id={activeSourceId}>
               <StudioCanvas
+                importKey={`${pane.id}:${pane.activeTabId}`}
                 activeKind={activeKind}
                 canvasFormat={canvasFormat}
                 cells={cells}
@@ -2773,17 +2748,14 @@ function StudioPaneSurface({
                 noteDraft={noteDraft}
                 noteHistory={noteHistory}
                 onArchive={onArchive}
+                onAskAi={onAskAi}
                 onDuplicate={onDuplicate}
                 onSetCells={onSetCells}
                 onSetDocHistory={onSetDocHistory}
                 onSetNoteHistory={onSetNoteHistory}
                 onSetSelectedCell={onSetSelectedCell}
-                onSetSelectedSlideIndex={onSetSelectedSlideIndex}
-                onSetSlides={onSetSlides}
                 options={options}
                 selectedCell={selectedCell}
-                selectedSlideIndex={selectedSlideIndex}
-                slides={slides}
                 updateCell={updateCell}
               />
             </div>
@@ -2795,13 +2767,12 @@ function StudioPaneSurface({
                   cells={cells}
                   currentTitle={activeTitle}
                   inspectorTab={inspectorTab}
+                  onAskAi={onAskAi}
                   onCopyLink={() => navigator.clipboard?.writeText(window.location.href)}
                   onDownload={onDownload}
                   onExport={onExport}
                   onSetInspectorTab={onSetInspectorTab}
                   selectedCell={selectedCell}
-                  selectedSlideIndex={selectedSlideIndex}
-                  slides={slides}
                 />
               </aside>
             ) : null}
@@ -2809,7 +2780,7 @@ function StudioPaneSurface({
           )}
         </section>
       </ContextMenu.Trigger>
-      <StudioContextContent onCopy={onCopy} onDuplicate={onDuplicate} onArchive={onArchive} onAskAi={() => onSetInspectorTab("AI")} />
+      <StudioContextContent onCopy={onCopy} onDuplicate={onDuplicate} onArchive={onArchive} onAskAi={() => onAskAi()} />
     </ContextMenu.Root>
   )
 }
@@ -2854,7 +2825,26 @@ function StudioDraftNotice({ message }: { message: string }) {
   )
 }
 
+function spreadsheetColumnLabel(index: number) {
+  let label = ""
+  for (let value = index + 1; value > 0; value = Math.floor((value - 1) / 26)) label = String.fromCharCode(65 + (value - 1) % 26) + label
+  return label
+}
+function revealSheetCell(input: HTMLInputElement) {
+  const table = input.closest("table")
+  const scroller = table?.parentElement
+  if (!table || !scroller) return
+  const viewport = scroller.getBoundingClientRect()
+  const rowNumbersWidth = table.querySelector("tbody th")?.getBoundingClientRect().width || 0
+  const cell = input.getBoundingClientRect()
+  const visibleLeft = viewport.left + rowNumbersWidth
+  // The sticky row numbers cover part of the scrolling table. Keep the text
+  // edge visible when a partially obscured cell receives pointer/keyboard focus.
+  if (cell.left < visibleLeft) scroller.scrollLeft -= visibleLeft - cell.left
+  else if (cell.right > viewport.right) scroller.scrollLeft += cell.right - viewport.right
+}
 function StudioCanvas({
+  importKey,
   activeKind,
   canvasFormat,
   cells,
@@ -2862,19 +2852,17 @@ function StudioCanvas({
   noteDraft,
   noteHistory,
   onArchive,
+  onAskAi,
   onDuplicate,
   onSetCells,
   onSetDocHistory,
   onSetNoteHistory,
   onSetSelectedCell,
-  onSetSelectedSlideIndex,
-  onSetSlides,
   options,
   selectedCell,
-  selectedSlideIndex,
-  slides,
   updateCell,
 }: {
+  importKey: string
   activeKind: StudioKind
   canvasFormat: StudioCanvasFormat
   cells: string[][]
@@ -2882,36 +2870,26 @@ function StudioCanvas({
   noteDraft: Note | null
   noteHistory: HistoryState<string>
   onArchive: () => void
+  onAskAi: (task?: TutorSource["task"], content?: string, title?: string) => void
   onDuplicate: () => void
   onSetCells: React.Dispatch<React.SetStateAction<string[][]>>
   onSetDocHistory: React.Dispatch<React.SetStateAction<HistoryState<string>>>
   onSetNoteHistory: React.Dispatch<React.SetStateAction<HistoryState<string>>>
   onSetSelectedCell: (value: { row: number; column: number }) => void
-  onSetSelectedSlideIndex: (value: number) => void
-  onSetSlides: React.Dispatch<React.SetStateAction<WorkspaceDeck["slides"]>>
   options: WorkspaceOptions
   selectedCell: { row: number; column: number }
-  selectedSlideIndex: number
-  slides: WorkspaceDeck["slides"]
   updateCell: (rowIndex: number, cellIndex: number, value: string) => void
 }) {
-  const [selectedObjectId, setSelectedObjectId] = useState("")
-  const [slideZoom, setSlideZoom] = useState(86)
-  const activeSlide = activeKind === "slides" ? slides[selectedSlideIndex] || slides[0] : undefined
+  // The one line of feedback the file importers need; the editors themselves are
+  // unchanged, so nothing else has to know an import happened.
+  const [importNote, setImportNote] = useState("")
+  const sheetImportState = useRef({ key: importKey, cells, mounted: true })
+  sheetImportState.current = { key: importKey, cells, mounted: true }
   useEffect(() => {
-    if (activeKind !== "slides") {
-      if (selectedObjectId) setSelectedObjectId("")
-      return
-    }
-    const objects = activeSlide?.objects || []
-    if (!objects.length && selectedObjectId) {
-      setSelectedObjectId("")
-      return
-    }
-    if (objects.length && !objects.some((object) => object.id === selectedObjectId)) {
-      setSelectedObjectId(objects[0]?.id || "")
-    }
-  }, [activeKind, activeSlide?.objects, selectedObjectId])
+    sheetImportState.current.mounted = true
+    return () => { sheetImportState.current.mounted = false }
+  }, [])
+  const sheetFormulas = useMemo(() => createSheetFormulaEvaluator(cells), [cells])
 
   if (activeKind === "notes") {
     if (!noteDraft) return <EmptyState title="No note selected" body="Create or choose one to start." />
@@ -2919,18 +2897,22 @@ function StudioCanvas({
   }
 
   if (activeKind === "docs") {
-    return <RichTextEditor canvasFormat={canvasFormat} value={docHistory.present} onChange={(value) => onSetDocHistory(pushHistory(docHistory, value))} large placeholder="Draft headings, checklists, explanations, citations, tables, and practice tasks..." />
+    return (
+      <div className="h-full">
+        <RichTextEditor canvasFormat={canvasFormat} value={docHistory.present} onChange={(value) => onSetDocHistory(pushHistory(docHistory, value))} large placeholder="Draft headings, checklists, explanations, citations, tables, and practice tasks..." />
+      </div>
+    )
   }
 
   if (activeKind === "sheets") {
     const visibleCells = ensureSheetCells(cells)
     const selectedCellValue = visibleCells[selectedCell.row]?.[selectedCell.column] || ""
-    const formulaPreview = selectedCellValue.trim().startsWith("=") ? evaluateSheetFormula(visibleCells, selectedCellValue) : null
+    const formulaPreview = selectedCellValue.trim().startsWith("=") ? sheetFormulas.evaluateCell(selectedCell) : null
     const applyFormula = (functionName: "SUM" | "AVERAGE" | "MIN" | "MAX" | "COUNT") => {
-      updateCell(selectedCell.row, selectedCell.column, buildSheetFormula(functionName, selectedCell.column, visibleCells.length))
+      updateCell(selectedCell.row, selectedCell.column, buildSheetFormula(functionName, selectedCell.column, { rowCount: visibleCells.length, excludedRow: selectedCell.row }))
     }
     return (
-      <div className="grid gap-3">
+      <div className="studio-sheet-surface flex min-h-full flex-col bg-card">
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2">
           <ActionMenu label="Rows" icon={Rows3}>
             <MenuAction icon={Rows3} label="Insert row" onClick={() => onSetCells((current) => addRow(ensureSheetCells(current), selectedCell.row))} />
@@ -2953,11 +2935,11 @@ function StudioCanvas({
         </div>
         <div className="grid gap-2 rounded-md border border-border bg-card p-2 md:grid-cols-[1fr_auto]">
           <label className="flex min-h-9 items-center gap-2 rounded-md border border-input bg-background px-2 text-sm text-foreground">
-            <Braces className="h-4 w-4 text-muted-foreground" />
+            <span className="border-r border-border pr-3 text-xs text-muted-foreground">{spreadsheetColumnLabel(selectedCell.column)}{selectedCell.row + 1}</span>
             <input
               value={selectedCellValue}
               onChange={(event) => updateCell(selectedCell.row, selectedCell.column, event.target.value)}
-              placeholder="Formula or cell value"
+              aria-label="Formula or cell value" placeholder="Formula or cell value"
               className="w-full bg-transparent outline-none"
             />
           </label>
@@ -2974,7 +2956,7 @@ function StudioCanvas({
         </div>
         <details className="rounded-md border border-border bg-background p-2">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            <span className="flex items-center gap-2"><UploadCloud className="h-3.5 w-3.5" /> CSV import</span>
+            <span className="flex items-center gap-2"><UploadCloud className="h-3.5 w-3.5" /> CSV or XLSX import</span>
             <ChevronDown className="h-3.5 w-3.5" />
           </summary>
           <textarea
@@ -2986,19 +2968,45 @@ function StudioCanvas({
             placeholder="Paste CSV here, then leave the field to import rows into the grid."
             className="mt-2 h-16 w-full rounded-md border border-input bg-background p-3 text-sm outline-none focus:border-ring"
           />
+          <div className="mt-2">
+            <StudioImportFile
+              accept={XLSX_ACCEPT}
+              label="Import XLSX"
+              note={importNote}
+              onFile={async (file) => {
+                const target = sheetImportState.current
+                const imported = await studioSheetFromXlsxFile(file)
+                // An empty workbook must not wipe the grid the user is editing.
+                if (!imported.cells.length) return `No cells found in ${file.name}.`
+                const current = sheetImportState.current
+                if (!current.mounted || current.key !== target.key || current.cells !== target.cells) {
+                  throw new Error("The project changed while importing. Choose the file again in the intended project.")
+                }
+                onSetCells(imported.cells)
+                return `Imported ${imported.rowCount} row${imported.rowCount === 1 ? "" : "s"} x ${imported.columnCount} columns${imported.title ? ` from "${imported.title}"` : ""}.`
+              }}
+              onNote={setImportNote}
+            />
+          </div>
         </details>
         <div className="overflow-auto rounded-md border border-border">
           <table className="min-w-full border-collapse text-sm">
+            <thead className="sticky top-0 z-10 bg-secondary"><tr><th className="w-12 border border-border" aria-label="Row numbers" />{visibleCells[0].map((_, index) => <th key={index} scope="col" className="h-9 border border-border text-center text-xs font-medium text-muted-foreground">{spreadsheetColumnLabel(index)}</th>)}</tr></thead>
             <tbody>
               {visibleCells.map((row, rowIndex) => (
                 <tr key={rowIndex}>
-                  {row.map((cell, cellIndex) => (
+                  <th scope="row" className="sticky left-0 min-w-12 border border-border bg-secondary text-center text-xs font-medium text-muted-foreground">{rowIndex + 1}</th>
+                  {row.map((cell, cellIndex) => {
+                    const isSelected = selectedCell.row === rowIndex && selectedCell.column === cellIndex
+                    const result = !isSelected && cell.trim().startsWith("=") ? sheetFormulas.evaluateCell({ row: rowIndex, column: cellIndex }) : null
+                    return (
                     <ContextMenu.Root key={`${rowIndex}-${cellIndex}`}>
                       <ContextMenu.Trigger asChild>
                         <td className={`border border-border p-0 ${rowIndex === 0 ? "bg-secondary" : "bg-background"}`}>
                           <input
-                            value={cell}
-                            onFocus={() => onSetSelectedCell({ row: rowIndex, column: cellIndex })}
+                            value={result?.ok ? result.value : cell}
+                            aria-label={`Spreadsheet cell ${rowIndex + 1}:${cellIndex + 1}`}
+                            onFocus={(event) => { onSetSelectedCell({ row: rowIndex, column: cellIndex }); revealSheetCell(event.currentTarget) }}
                             onChange={(event) => updateCell(rowIndex, cellIndex, event.target.value)}
                             className={`h-10 min-w-36 bg-transparent px-2 outline-none focus:bg-accent focus:text-accent-foreground ${selectedCell.row === rowIndex && selectedCell.column === cellIndex ? "ring-2 ring-inset ring-primary" : ""}`}
                           />
@@ -3008,10 +3016,11 @@ function StudioCanvas({
                         onCopy={() => navigator.clipboard?.writeText(cell)}
                         onDuplicate={() => onSetCells((current) => addColumn(ensureSheetCells(current), cellIndex))}
                         onArchive={() => onSetCells((current) => deleteColumn(ensureSheetCells(current), cellIndex))}
-                        onAskAi={() => undefined}
+                        onAskAi={() => onAskAi("explain", cell, `Cell R${rowIndex + 1} C${cellIndex + 1}`)}
                       />
                     </ContextMenu.Root>
-                  ))}
+                    )
+                  })}
                 </tr>
               ))}
             </tbody>
@@ -3021,549 +3030,39 @@ function StudioCanvas({
     )
   }
 
-  const selectedSlide = activeSlide
-  const selectedObject = selectedSlide?.objects?.find((object) => object.id === selectedObjectId) || null
-  const slideShowSummary = summarizeSlideShow(slides)
-  const selectedTransition = slideTransitionPresets[selectedSlide?.transition || "none"]
-  const selectedAnimation = slideAnimationPresets[selectedSlide?.animation || "none"]
-  const selectedPalette = slideDesignPresets[(selectedSlide?.theme || "midnight") as keyof typeof slideDesignPresets] || slideDesignPresets.midnight
-  const updateSelectedSlide = (updater: (slide: WorkspaceDeck["slides"][number]) => WorkspaceDeck["slides"][number]) => {
-    onSetSlides((current) => current.map((item, next) => next === selectedSlideIndex ? updater(item) : item))
-  }
-  const addSlideObject = (type: SlideObject["type"]) => {
-    const object = createSlideDesignObject(type)
-    updateSelectedSlide((slide) => ({ ...slide, objects: [...(slide.objects || []), object] }))
-    setSelectedObjectId(object.id)
-  }
-  const updateSelectedObject = (object: SlideObject, patch: Partial<SlideObject>) => {
-    updateSelectedSlide((slide) => updateSlideDesignObject(slide, object.id, patch))
-  }
-  const updateSelectedObjectStyle = (object: SlideObject, patch: Record<string, unknown>) => {
-    updateSelectedObject(object, { style: { ...(object.style || {}), ...patch } })
-  }
-  const duplicateSelectedObject = (object: SlideObject) => {
-    updateSelectedSlide((slide) => duplicateSlideDesignObject(slide, object.id))
-  }
-  const nudgeSelectedObject = (object: SlideObject, direction: "up" | "down" | "left" | "right") => {
-    updateSelectedSlide((slide) => nudgeSlideDesignObject(slide, object.id, direction))
-  }
-  const reorderSelectedObject = (object: SlideObject, direction: "front" | "back" | "forward" | "backward") => {
-    updateSelectedSlide((slide) => reorderSlideDesignObject(slide, object.id, direction))
-  }
-  const resizeSelectedObject = (object: SlideObject, preset: "wide" | "tall" | "compact" | "hero") => {
-    updateSelectedSlide((slide) => resizeSlideDesignObject(slide, object.id, preset))
-  }
-  const alignSelectedObject = (object: SlideObject, alignment: "left" | "center" | "right" | "top" | "middle" | "bottom") => {
-    updateSelectedSlide((slide) => alignSlideDesignObject(slide, object.id, alignment))
-  }
-  const slideIds = slides.map((_, index) => `slide-${index}`)
-  const handleSlideDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    const from = slideIds.indexOf(String(active.id))
-    const to = slideIds.indexOf(String(over.id))
-    if (from < 0 || to < 0) return
-    onSetSlides((current) => arrayMove(current, from, to))
-    onSetSelectedSlideIndex(to)
-  }
-  const goToSlide = (direction: -1 | 1) => {
-    onSetSelectedSlideIndex(Math.min(Math.max(selectedSlideIndex + direction, 0), Math.max(0, slides.length - 1)))
-  }
-  const toggleSelectedSlideHidden = () => updateSelectedSlide((slide) => ({ ...slide, hidden: !slide.hidden }))
-  const toggleSelectedSlideLocked = () => updateSelectedSlide((slide) => ({ ...slide, locked: !slide.locked }))
-  const applyQuickSlideColor = (color: string) => {
-    if (selectedObject) {
-      updateSelectedObjectStyle(selectedObject, { background: color })
-      return
-    }
-    updateSelectedSlide((slide) => ({ ...slide, background: color }))
-  }
-  return (
-    <div className="grid min-h-[58vh] gap-3">
-      <div className="sticky top-0 z-30 rounded-lg border border-border bg-card/95 p-2 shadow-sm backdrop-blur">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <button onClick={() => { onSetSlides([...slides, createBlankStudioSlide(slides.length + 1)]); onSetSelectedSlideIndex(slides.length) }} className="flex h-16 w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-primary/50 bg-primary/10 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground" type="button">
-            <Plus className="h-4 w-4" /> Page
-          </button>
-          <DndContext collisionDetection={closestCenter} onDragEnd={handleSlideDragEnd}>
-            <SortableContext items={slideIds} strategy={horizontalListSortingStrategy}>
-              <div className="flex items-stretch gap-2">
-                {slides.map((slide, index) => (
-                  <SortableSlideThumb
-                    key={`slide-${index}`}
-                    id={`slide-${index}`}
-                    active={selectedSlideIndex === index}
-                    index={index}
-                    onArchive={() => {
-                      onSetSlides((current) => current.length > 1 ? current.filter((_, next) => next !== index) : current)
-                      onSetSelectedSlideIndex(Math.max(0, Math.min(selectedSlideIndex, slides.length - 2)))
-                    }}
-                    onCopy={() => navigator.clipboard?.writeText(`${slide.title}\n${slide.body}`)}
-                    onDuplicate={() => {
-                      onSetSlides((current) => duplicateSlide(current, index))
-                      onSetSelectedSlideIndex(index + 1)
-                    }}
-                    onSelect={() => onSetSelectedSlideIndex(index)}
-                    slide={slide}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-        </div>
-      </div>
-      <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_250px]">
-      <div className="min-w-0">
-        <div className="mb-3 flex justify-center">
-          <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-border bg-card/95 px-2 py-1.5 text-sm shadow-lg backdrop-blur">
-            <ActionMenu compact label="Edit" icon={Settings2}>
-              <MenuAction icon={Type} label="Text box" onClick={() => addSlideObject("text")} />
-              <MenuAction icon={ImageIcon} label="Image frame" onClick={() => addSlideObject("image")} />
-              <MenuAction icon={Grid2X2} label="Shape" onClick={() => addSlideObject("shape")} />
-              <MenuAction icon={Table2} label="Table" onClick={() => addSlideObject("table")} />
-            </ActionMenu>
-            <button onClick={() => selectedObject ? updateSelectedObjectStyle(selectedObject, { background: "transparent" }) : updateSelectedSlide((slide) => ({ ...slide, background: "#ffffff" }))} className="h-8 rounded-md px-2 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground" title="Remove image background or reset page background" type="button">BG remover</button>
-            <ToolbarIcon icon={Scissors} label="Erase selected object" onClick={() => selectedObject ? updateSelectedSlide((slide) => removeSlideDesignObject(slide, selectedObject.id)) : updateSelectedSlide((slide) => ({ ...slide, body: "" }))} />
-            <span className="mx-1 h-6 w-px bg-border" />
-            {["#24305e", "#64748b", "#a7794f", "#b7e4dc"].map((color) => (
-              <button key={color} onClick={() => applyQuickSlideColor(color)} className="h-6 w-6 rounded-full border border-border shadow-sm transition hover:scale-105" style={{ background: color }} title={`Apply ${color}`} type="button" />
-            ))}
-            <ActionMenu compact label="Flip" icon={RotateCcw}>
-              <MenuAction disabled={!selectedObject} icon={ArrowLeft} label="Nudge left" onClick={() => selectedObject ? nudgeSelectedObject(selectedObject, "left") : undefined} />
-              <MenuAction disabled={!selectedObject} icon={ArrowRight} label="Nudge right" onClick={() => selectedObject ? nudgeSelectedObject(selectedObject, "right") : undefined} />
-              <MenuAction disabled={!selectedObject} icon={Rows3} label="Tall crop" onClick={() => selectedObject ? resizeSelectedObject(selectedObject, "tall") : undefined} />
-              <MenuAction disabled={!selectedObject} icon={Columns3} label="Wide crop" onClick={() => selectedObject ? resizeSelectedObject(selectedObject, "wide") : undefined} />
-            </ActionMenu>
-            <ActionMenu compact label="Effects" icon={Highlighter}>
-              <MenuAction disabled={!selectedObject} icon={Paintbrush} label="Soft card" onClick={() => selectedObject ? updateSelectedObjectStyle(selectedObject, { background: "rgba(255,255,255,0.18)", boxShadow: "0 20px 50px rgba(15,23,42,0.22)" }) : undefined} />
-              <MenuAction disabled={!selectedObject} icon={Highlighter} label="Transparent" onClick={() => selectedObject ? updateSelectedObjectStyle(selectedObject, { opacity: 0.72 }) : undefined} />
-              <MenuAction icon={Paintbrush} label="Apply theme to all" onClick={() => onSetSlides((current) => applySlideDesignPresetToDeck(current, (selectedSlide?.theme || "midnight") as keyof typeof slideDesignPresets))} />
-            </ActionMenu>
-            <ActionMenu compact label="Animate" icon={RotateCcw}>
-              <MenuSelect label="Transition" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, transition: value as WorkspaceDeck["slides"][number]["transition"] } : item))} options={Object.keys(slideTransitionPresets).map((value) => ({ label: value, value }))} />
-              <MenuSelect label="Element" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, animation: value as WorkspaceDeck["slides"][number]["animation"] } : item))} options={Object.keys(slideAnimationPresets).map((value) => ({ label: value, value }))} />
-            </ActionMenu>
-            <ActionMenu compact label="Position" icon={Maximize2}>
-              <MenuAction disabled={!selectedObject} icon={AlignLeft} label="Align left" onClick={() => selectedObject ? alignSelectedObject(selectedObject, "left") : undefined} />
-              <MenuAction disabled={!selectedObject} icon={AlignCenter} label="Align center" onClick={() => selectedObject ? alignSelectedObject(selectedObject, "center") : undefined} />
-              <MenuAction disabled={!selectedObject} icon={AlignRight} label="Align right" onClick={() => selectedObject ? alignSelectedObject(selectedObject, "right") : undefined} />
-              <MenuAction disabled={!selectedObject} icon={Maximize2} label="Bring to front" onClick={() => selectedObject ? reorderSelectedObject(selectedObject, "front") : undefined} />
-            </ActionMenu>
-            <ToolbarIcon
-              icon={Paintbrush}
-              label="Apply style"
-              onClick={() => selectedObject
-                ? updateSelectedObjectStyle(selectedObject, { borderRadius: 18, boxShadow: "0 18px 45px rgba(15,23,42,0.20)" })
-                : updateSelectedSlide((slide) => ({ ...slide, background: "#f8fafc" }))}
-            />
-          </div>
-        </div>
-        <div className="mb-2 flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm">
-          <span className="font-bold text-foreground">Page {selectedSlideIndex + 1}</span>
-          <input value={selectedSlide?.title || ""} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, title: event.target.value } : item))} disabled={selectedSlide?.locked} className="min-w-0 flex-1 bg-transparent text-muted-foreground outline-none disabled:opacity-60" placeholder="Add page title" />
-          <button onClick={() => goToSlide(-1)} disabled={selectedSlideIndex <= 0} className="icon-button disabled:opacity-40" title="Previous page" type="button"><ArrowUp className="h-4 w-4" /></button>
-          <button onClick={() => goToSlide(1)} disabled={selectedSlideIndex >= slides.length - 1} className="icon-button disabled:opacity-40" title="Next page" type="button"><ArrowDown className="h-4 w-4" /></button>
-          <button onClick={toggleSelectedSlideHidden} className={`icon-button ${selectedSlide?.hidden ? "bg-primary text-primary-foreground" : ""}`} title={selectedSlide?.hidden ? "Show page" : "Hide page"} type="button">{selectedSlide?.hidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
-          <button onClick={toggleSelectedSlideLocked} className={`icon-button ${selectedSlide?.locked ? "bg-primary text-primary-foreground" : ""}`} title={selectedSlide?.locked ? "Unlock page" : "Lock page"} type="button"><Lock className="h-4 w-4" /></button>
-          <button onClick={() => { onSetSlides((current) => duplicateSlide(current, selectedSlideIndex)); onSetSelectedSlideIndex(selectedSlideIndex + 1) }} className="icon-button" title="Duplicate page" type="button"><Copy className="h-4 w-4" /></button>
-          <button onClick={() => { onSetSlides((current) => current.length > 1 ? current.filter((_, index) => index !== selectedSlideIndex) : current); onSetSelectedSlideIndex(Math.max(0, Math.min(selectedSlideIndex, slides.length - 2))) }} className="icon-button text-destructive" title="Delete page" type="button"><Trash2 className="h-4 w-4" /></button>
-          <button onClick={() => { onSetSlides([...slides, createBlankStudioSlide(slides.length + 1)]); onSetSelectedSlideIndex(slides.length) }} className="icon-button" title="Add page" type="button"><Plus className="h-4 w-4" /></button>
-        </div>
-        <div
-          className={`relative mx-auto w-full overflow-hidden rounded-lg border border-border p-8 text-white shadow-sm transition-all ${selectedSlide?.transition === "fade" ? "hover:opacity-90" : selectedSlide?.transition === "zoom" ? "hover:shadow-lg" : ""} ${selectedSlide?.animation === "rise" ? "hover:-translate-y-1" : selectedSlide?.animation === "emphasis" ? "hover:scale-[1.01]" : ""}`}
-          style={{ aspectRatio: canvasAspectRatio(canvasFormat), background: selectedSlide?.background || slideDesignPresets[(selectedSlide?.theme || "midnight") as keyof typeof slideDesignPresets]?.background || "#111827", maxWidth: Math.round(canvasPreviewWidth(canvasFormat) * (slideZoom / 100)), opacity: selectedSlide?.hidden ? 0.35 : 1 }}
-        >
-          <div className="absolute right-3 top-3 z-30 flex items-center gap-1 rounded-md border border-white/15 bg-black/20 p-1 backdrop-blur">
-            <button onClick={() => goToSlide(-1)} disabled={selectedSlideIndex <= 0} className="h-8 rounded-md px-2 text-xs font-semibold text-white hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40" type="button">Prev</button>
-            <span className="rounded bg-white/15 px-2 py-1 text-xs font-semibold text-white">{selectedSlideIndex + 1}/{slides.length}</span>
-            <button onClick={() => goToSlide(1)} disabled={selectedSlideIndex >= slides.length - 1} className="h-8 rounded-md px-2 text-xs font-semibold text-white hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40" type="button">Next</button>
-          </div>
-        {selectedSlide && !(selectedSlide.objects?.length) ? (
-          <div className="relative z-10 flex h-full flex-col">
-            <input value={selectedSlide.accent || ""} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, accent: event.target.value } : item))} readOnly={selectedSlide.locked} className="mb-3 w-full bg-transparent text-xs font-semibold uppercase tracking-[0.16em] outline-none read-only:opacity-60" style={{ color: selectedPalette.accent }} />
-            <input value={selectedSlide.title} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, title: event.target.value } : item))} readOnly={selectedSlide.locked} className="w-full bg-transparent text-4xl font-semibold leading-tight outline-none read-only:opacity-60" style={{ color: selectedPalette.foreground }} />
-            <textarea value={selectedSlide.body} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, body: event.target.value } : item))} readOnly={selectedSlide.locked} className="mt-5 min-h-32 flex-1 resize-none bg-transparent text-lg leading-8 outline-none read-only:opacity-60" style={{ color: selectedPalette.foreground }} />
-          </div>
-        ) : null}
-        {selectedSlide?.objects?.map((object) => (
-          <SlideCanvasObject
-            key={object.id}
-            active={object.id === selectedObjectId}
-            object={object}
-            onAlign={(alignment) => alignSelectedObject(object, alignment)}
-            onDelete={() => {
-              updateSelectedSlide((slide) => removeSlideDesignObject(slide, object.id))
-              if (selectedObjectId === object.id) setSelectedObjectId("")
-            }}
-            onDuplicate={() => duplicateSelectedObject(object)}
-            onNudge={(direction) => nudgeSelectedObject(object, direction)}
-            onReorder={(direction) => reorderSelectedObject(object, direction)}
-            onResize={(preset) => resizeSelectedObject(object, preset)}
-            onSelect={() => setSelectedObjectId(object.id)}
-            onTextChange={(text) => updateSelectedObject(object, { text })}
-          />
-        ))}
-        </div>
-        <div className="mt-2 flex flex-wrap items-center justify-end gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
-          <details className="mr-auto">
-            <summary className="inline-flex h-8 cursor-pointer list-none items-center gap-1 rounded-md border border-border bg-secondary px-2 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-              <FileText className="h-3.5 w-3.5" /> Notes
-            </summary>
-            <textarea value={selectedSlide?.speakerNotes || ""} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, speakerNotes: event.target.value } : item))} className="absolute z-40 mt-2 h-32 w-72 rounded-lg border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl" placeholder="Speaker notes" />
-          </details>
-          <button onClick={() => updateSelectedSlide((slide) => ({ ...slide, speakerNotes: slide.speakerNotes || "Timer: 5 min explain, 2 min question, 1 min recap." }))} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-secondary px-2 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" title="Add a timing note" type="button">
-            <Clock className="h-3.5 w-3.5" /> Timer
-          </button>
-          <input value={slideZoom} onChange={(event) => setSlideZoom(Number(event.target.value))} min={50} max={140} type="range" className="w-28 accent-primary" aria-label="Slide zoom" />
-          <span className="w-10 text-right font-semibold text-foreground">{slideZoom}%</span>
-          <span className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 font-semibold text-secondary-foreground"><LayoutPanelLeft className="h-3.5 w-3.5" /> Pages</span>
-          <span className="font-semibold text-foreground">{selectedSlideIndex + 1} / {slides.length}</span>
-          <Grid2X2 className="h-4 w-4" />
-          <Maximize2 className="h-4 w-4" />
-        </div>
-      </div>
-      <div className="grid gap-3">
-        <div className="grid grid-cols-3 gap-2 rounded-md border border-border bg-card p-2 text-center text-xs">
-          <span className="rounded-md bg-secondary px-2 py-1 text-secondary-foreground">{slideShowSummary.slideCount} slides</span>
-          <span className="rounded-md bg-secondary px-2 py-1 text-secondary-foreground">{slideShowSummary.totalMinutes} min</span>
-          <span className="rounded-md bg-secondary px-2 py-1 text-secondary-foreground">{Math.ceil((slideShowSummary.slideTimings[selectedSlideIndex]?.durationMs || 0) / 1000)}s here</span>
-        </div>
-        <ActionMenu label="Design" icon={LayoutPanelLeft}>
-          <MenuSelect label="Layout" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, layout: value as WorkspaceDeck["slides"][number]["layout"] } : item))} options={["title", "two-column", "image", "quote"].map((value) => ({ label: value, value }))} />
-          <MenuSelect label="Theme" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? applySlideDesignPreset(item, value as keyof typeof slideDesignPresets) : item))} options={Object.keys(slideDesignPresets).map((value) => ({ label: value, value }))} />
-          <MenuAction icon={Paintbrush} label="Apply theme to all" onClick={() => onSetSlides((current) => applySlideDesignPresetToDeck(current, (selectedSlide?.theme || "midnight") as keyof typeof slideDesignPresets))} />
-          <label className="grid gap-1 px-2 py-1 text-xs font-semibold text-muted-foreground">
-            Background
-            <input value={selectedSlide?.background || "#111827"} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, background: event.target.value } : item))} className="h-8 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-ring" />
-          </label>
-        </ActionMenu>
-        <ActionMenu label="Motion" icon={Maximize2}>
-          <MenuSelect label="Transition" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, transition: value as WorkspaceDeck["slides"][number]["transition"] } : item))} options={Object.keys(slideTransitionPresets).map((value) => ({ label: value, value }))} />
-          <p className="mx-2 rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{selectedTransition.description}</p>
-          <MenuSelect label="Animation" onChange={(value) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, animation: value as WorkspaceDeck["slides"][number]["animation"] } : item))} options={Object.keys(slideAnimationPresets).map((value) => ({ label: value, value }))} />
-          <p className="mx-2 rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">{selectedAnimation.description}</p>
-        </ActionMenu>
-        <ActionMenu label="Insert" icon={Plus}>
-          <MenuAction icon={Type} label="Text box" onClick={() => addSlideObject("text")} />
-          <MenuAction icon={LayoutPanelLeft} label="Shape" onClick={() => addSlideObject("shape")} />
-          <MenuAction icon={ImageIcon} label="Image" onClick={() => addSlideObject("image")} />
-          <MenuAction icon={Table2} label="Table" onClick={() => addSlideObject("table")} />
-        </ActionMenu>
-        <ActionMenu label="Arrange" icon={Scissors}>
-          <MenuAction icon={ChevronDown} label="Move up" onClick={() => { onSetSlides((current) => moveSlide(current, selectedSlideIndex, -1)); goToSlide(-1) }} />
-          <MenuAction icon={ChevronDown} label="Move down" onClick={() => { onSetSlides((current) => moveSlide(current, selectedSlideIndex, 1)); goToSlide(1) }} />
-          <MenuAction icon={Copy} label="Duplicate slide" onClick={() => { onSetSlides((current) => duplicateSlide(current, selectedSlideIndex)); onSetSelectedSlideIndex(selectedSlideIndex + 1) }} />
-          <MenuAction danger icon={Trash2} label="Delete slide" onClick={() => { onSetSlides((current) => current.length > 1 ? current.filter((_, index) => index !== selectedSlideIndex) : current); onSetSelectedSlideIndex(Math.max(0, Math.min(selectedSlideIndex, slides.length - 2))) }} />
-        </ActionMenu>
-        <details className="rounded-md border border-border bg-background p-2">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Speaker notes
-            <ChevronDown className="h-3.5 w-3.5" />
-          </summary>
-          <textarea value={selectedSlide?.speakerNotes || ""} onChange={(event) => onSetSlides(slides.map((item, next) => next === selectedSlideIndex ? { ...item, speakerNotes: event.target.value } : item))} placeholder="Speaker notes" className="mt-2 min-h-32 w-full rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none focus:border-ring" />
-        </details>
-        {selectedSlide?.objects?.length ? (
-          <div className="grid gap-2 rounded-md border border-border bg-background p-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Objects</p>
-              <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{selectedSlide.objects.length}</span>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {selectedSlide.objects.map((object, index) => (
-                <button
-                  key={object.id}
-                  onClick={() => setSelectedObjectId(object.id)}
-                  className={`rounded-md border px-2 py-1 text-xs font-semibold ${object.id === selectedObjectId ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
-                  type="button"
-                >
-                  {index + 1}. {object.type}
-                </button>
-              ))}
-            </div>
-            {selectedObject ? (
-              <div className="grid gap-2 rounded-md border border-border bg-card p-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{selectedObject.type}</span>
-                  <ActionMenu align="right" compact label="Object" icon={Settings2}>
-                    <MenuAction icon={Copy} label="Duplicate" onClick={() => duplicateSelectedObject(selectedObject)} />
-                    <MenuAction icon={ArrowUp} label="Nudge up" onClick={() => nudgeSelectedObject(selectedObject, "up")} />
-                    <MenuAction icon={ArrowDown} label="Nudge down" onClick={() => nudgeSelectedObject(selectedObject, "down")} />
-                    <MenuAction icon={ArrowLeft} label="Nudge left" onClick={() => nudgeSelectedObject(selectedObject, "left")} />
-                    <MenuAction icon={ArrowRight} label="Nudge right" onClick={() => nudgeSelectedObject(selectedObject, "right")} />
-                    <MenuAction icon={AlignLeft} label="Align left" onClick={() => alignSelectedObject(selectedObject, "left")} />
-                    <MenuAction icon={AlignCenter} label="Align center" onClick={() => alignSelectedObject(selectedObject, "center")} />
-                    <MenuAction icon={AlignRight} label="Align right" onClick={() => alignSelectedObject(selectedObject, "right")} />
-                    <MenuAction icon={ArrowUp} label="Align top" onClick={() => alignSelectedObject(selectedObject, "top")} />
-                    <MenuAction icon={ArrowDown} label="Align bottom" onClick={() => alignSelectedObject(selectedObject, "bottom")} />
-                    <MenuAction icon={Maximize2} label="Bring to front" onClick={() => reorderSelectedObject(selectedObject, "front")} />
-                    <MenuAction icon={Minus} label="Send to back" onClick={() => reorderSelectedObject(selectedObject, "back")} />
-                    <MenuAction icon={Columns3} label="Wide size" onClick={() => resizeSelectedObject(selectedObject, "wide")} />
-                    <MenuAction icon={Rows3} label="Tall size" onClick={() => resizeSelectedObject(selectedObject, "tall")} />
-                    <MenuAction danger icon={Trash2} label="Delete" onClick={() => {
-                      updateSelectedSlide((slide) => removeSlideDesignObject(slide, selectedObject.id))
-                      setSelectedObjectId("")
-                    }} />
-                  </ActionMenu>
-                </div>
-                <input
-                  value={selectedObject.text || ""}
-                  onChange={(event) => updateSelectedObject(selectedObject, { text: event.target.value })}
-                  placeholder="Label or text"
-                  className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus:border-ring"
-                />
-                {selectedObject.type === "image" ? (
-                  <input
-                    value={selectedObject.src || ""}
-                    onChange={(event) => updateSelectedObject(selectedObject, { src: event.target.value })}
-                    placeholder="Image URL"
-                    className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus:border-ring"
-                  />
-                ) : null}
-                <div className="grid grid-cols-4 gap-1">
-                  {(["x", "y", "w", "h"] as const).map((field) => (
-                    <label key={field} className="grid gap-1 text-[10px] font-semibold uppercase text-muted-foreground">
-                      {field}
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={selectedObject[field]}
-                        onChange={(event) => updateSelectedObject(selectedObject, { [field]: Number(event.target.value) })}
-                        className="h-8 rounded-md border border-input bg-background px-1 text-xs text-foreground outline-none focus:border-ring"
-                      />
-                    </label>
-                  ))}
-                </div>
-                <div className="grid grid-cols-3 gap-1">
-                  <SlideStyleInput label="Text" value={styleValue(selectedObject, "color", "#ffffff")} onChange={(value) => updateSelectedObjectStyle(selectedObject, { color: value })} />
-                  <SlideStyleInput label="Fill" value={styleValue(selectedObject, "background", "rgba(255,255,255,0.14)")} onChange={(value) => updateSelectedObjectStyle(selectedObject, { background: value })} />
-                  <SlideStyleInput label="Size" value={styleValue(selectedObject, "fontSize", "14")} onChange={(value) => updateSelectedObjectStyle(selectedObject, { fontSize: Number(value) || 14 })} />
-                </div>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-    </div>
-    </div>
-  )
-}
-
-type SlideObjectAlignment = "left" | "center" | "right" | "top" | "middle" | "bottom"
-type SlideObjectNudgeDirection = "up" | "down" | "left" | "right"
-type SlideObjectOrderDirection = "front" | "back" | "forward" | "backward"
-type SlideObjectSizePreset = "wide" | "tall" | "compact" | "hero"
-
-type SlideObjectActionProps = {
-  onAlign: (alignment: SlideObjectAlignment) => void
-  onDelete: () => void
-  onDuplicate: () => void
-  onNudge: (direction: SlideObjectNudgeDirection) => void
-  onReorder: (direction: SlideObjectOrderDirection) => void
-  onResize: (preset: SlideObjectSizePreset) => void
-  onSelect: () => void
-  onTextChange: (value: string) => void
-}
-
-function SlideCanvasObject({
-  active,
-  object,
-  onAlign,
-  onDelete,
-  onDuplicate,
-  onNudge,
-  onReorder,
-  onResize,
-  onSelect,
-  onTextChange,
-}: {
-  active: boolean
-  object: SlideObject
-} & SlideObjectActionProps) {
-  const style = object.style || {}
-  const canvasStyle: React.CSSProperties = {
-    left: `${object.x}%`,
-    top: `${object.y}%`,
-    width: `${object.w}%`,
-    height: `${object.h}%`,
-    color: readStyleValue(style, "color", "#ffffff"),
-    background: readStyleValue(style, "background", object.type === "text" ? "transparent" : "rgba(255,255,255,0.14)"),
-    borderRadius: Number(readStyleValue(style, "borderRadius", "8")),
-    boxShadow: readStyleValue(style, "boxShadow", "none"),
-    fontSize: Number(readStyleValue(style, "fontSize", "14")),
-    fontWeight: readStyleValue(style, "fontWeight", object.type === "text" ? "600" : "500"),
-    lineHeight: readStyleValue(style, "lineHeight", "1.15"),
-    opacity: Number(readStyleValue(style, "opacity", "1")),
-  }
-  const sharedProps = {
-    className: `absolute z-20 overflow-hidden border ${active ? "border-white shadow-[0_0_0_2px_rgba(255,255,255,0.45)]" : "border-white/20"}`,
-    onClick: onSelect,
-    onContextMenu: onSelect,
-    style: canvasStyle,
-    type: "button" as const,
-  }
-  if (object.type === "text") {
-    return (
-      <SlideObjectContextMenu onAlign={onAlign} onDelete={onDelete} onDuplicate={onDuplicate} onNudge={onNudge} onReorder={onReorder} onResize={onResize}>
-        <textarea
-          aria-label="Slide text block"
-          className={`${sharedProps.className} resize-none p-2 text-left font-semibold leading-tight outline-none focus:ring-2 focus:ring-white/70`}
-          onChange={(event) => onTextChange(event.target.value)}
-          onClick={onSelect}
-          onContextMenu={onSelect}
-          onFocus={onSelect}
-          style={canvasStyle}
-          value={object.text || ""}
-        />
-      </SlideObjectContextMenu>
-    )
-  }
-  if (object.type === "image") {
-    return (
-      <SlideObjectContextMenu onAlign={onAlign} onDelete={onDelete} onDuplicate={onDuplicate} onNudge={onNudge} onReorder={onReorder} onResize={onResize}>
-        <button {...sharedProps} className={`${sharedProps.className} text-xs`}>
-          {object.src ? <img src={object.src} alt={object.text || "Slide image"} className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center p-2 text-center">{object.text || "Image"}</span>}
-        </button>
-      </SlideObjectContextMenu>
-    )
-  }
-  if (object.type === "table") {
-    const columns = (object.text || "Concept | Evidence | Action").split("|").map((item) => item.trim())
-    return (
-      <SlideObjectContextMenu onAlign={onAlign} onDelete={onDelete} onDuplicate={onDuplicate} onNudge={onNudge} onReorder={onReorder} onResize={onResize}>
-        <button {...sharedProps} className={`${sharedProps.className} grid text-xs font-semibold`} style={{ ...canvasStyle, gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}>
-          {columns.map((column, index) => <span key={`${column}-${index}`} className="border-r border-white/20 p-2 last:border-r-0">{column}</span>)}
-        </button>
-      </SlideObjectContextMenu>
-    )
-  }
-  return (
-    <SlideObjectContextMenu onAlign={onAlign} onDelete={onDelete} onDuplicate={onDuplicate} onNudge={onNudge} onReorder={onReorder} onResize={onResize}>
-      <button {...sharedProps} className={`${sharedProps.className} p-2 text-left ${object.type === "shape" ? "flex items-center justify-center text-center font-semibold" : ""}`}>
-        {object.text || object.type}
-      </button>
-    </SlideObjectContextMenu>
-  )
-}
-
-function SlideObjectContextMenu({ children, onAlign, onDelete, onDuplicate, onNudge, onReorder, onResize }: { children: React.ReactNode } & Omit<SlideObjectActionProps, "onSelect" | "onTextChange">) {
-  return (
-    <ContextMenu.Root>
-      <ContextMenu.Trigger asChild>{children}</ContextMenu.Trigger>
-      <ContextMenu.Portal>
-        <ContextMenu.Content className="z-50 min-w-52 rounded-md border border-border bg-popover p-1 text-sm text-popover-foreground shadow-xl">
-          <ContextMenu.Item onClick={onDuplicate} className="context-item"><Copy className="h-4 w-4" /> Duplicate</ContextMenu.Item>
-          <ContextMenu.Separator className="my-1 h-px bg-border" />
-          <ContextMenu.Item onClick={() => onNudge("up")} className="context-item"><ArrowUp className="h-4 w-4" /> Nudge up</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onNudge("down")} className="context-item"><ArrowDown className="h-4 w-4" /> Nudge down</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onNudge("left")} className="context-item"><ArrowLeft className="h-4 w-4" /> Nudge left</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onNudge("right")} className="context-item"><ArrowRight className="h-4 w-4" /> Nudge right</ContextMenu.Item>
-          <ContextMenu.Separator className="my-1 h-px bg-border" />
-          <ContextMenu.Item onClick={() => onAlign("left")} className="context-item"><AlignLeft className="h-4 w-4" /> Align left</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onAlign("center")} className="context-item"><AlignCenter className="h-4 w-4" /> Align center</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onAlign("right")} className="context-item"><AlignRight className="h-4 w-4" /> Align right</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onAlign("top")} className="context-item"><ArrowUp className="h-4 w-4" /> Align top</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onAlign("middle")} className="context-item"><Minus className="h-4 w-4" /> Align middle</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onAlign("bottom")} className="context-item"><ArrowDown className="h-4 w-4" /> Align bottom</ContextMenu.Item>
-          <ContextMenu.Separator className="my-1 h-px bg-border" />
-          <ContextMenu.Item onClick={() => onReorder("forward")} className="context-item"><ArrowUp className="h-4 w-4" /> Bring forward</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onReorder("backward")} className="context-item"><ArrowDown className="h-4 w-4" /> Send backward</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onReorder("front")} className="context-item"><Maximize2 className="h-4 w-4" /> Bring to front</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onReorder("back")} className="context-item"><Minus className="h-4 w-4" /> Send to back</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onResize("compact")} className="context-item"><Minus className="h-4 w-4" /> Make compact</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onResize("wide")} className="context-item"><Columns3 className="h-4 w-4" /> Make wide</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onResize("tall")} className="context-item"><Rows3 className="h-4 w-4" /> Make tall</ContextMenu.Item>
-          <ContextMenu.Item onClick={() => onResize("hero")} className="context-item"><Rows3 className="h-4 w-4" /> Make hero</ContextMenu.Item>
-          <ContextMenu.Separator className="my-1 h-px bg-border" />
-          <ContextMenu.Item onClick={onDelete} className="context-item text-destructive"><Trash2 className="h-4 w-4" /> Delete object</ContextMenu.Item>
-        </ContextMenu.Content>
-      </ContextMenu.Portal>
-    </ContextMenu.Root>
-  )
-}
-
-function SlideStyleInput({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) {
-  return (
-    <label className="grid gap-1 text-[10px] font-semibold uppercase text-muted-foreground">
-      {label}
-      <input value={value} onChange={(event) => onChange(event.target.value)} className="h-8 rounded-md border border-input bg-background px-1 text-xs text-foreground outline-none focus:border-ring" />
-    </label>
-  )
-}
-
-function styleValue(object: SlideObject, key: string, fallback: string) {
-  return readStyleValue(object.style || {}, key, fallback)
-}
-
-function readStyleValue(style: Record<string, unknown>, key: string, fallback: string) {
-  const value = style[key]
-  return value === undefined || value === null ? fallback : String(value)
-}
-
-function SortableSlideThumb({
-  active,
-  id,
-  index,
-  onArchive,
-  onCopy,
-  onDuplicate,
-  onSelect,
-  slide,
-}: {
-  active: boolean
-  id: string
-  index: number
-  onArchive: () => void
-  onCopy: () => void
-  onDuplicate: () => void
-  onSelect: () => void
-  slide: WorkspaceDeck["slides"][number]
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id })
-  return (
-    <ContextMenu.Root>
-      <ContextMenu.Trigger asChild>
-        <button
-          ref={setNodeRef}
-          style={{ transform: CSS.Transform.toString(transform), transition }}
-          onClick={onSelect}
-          className={`grid h-16 w-36 shrink-0 grid-cols-[auto_1fr] gap-2 rounded-md border p-2 text-left ${active ? "border-primary bg-primary/10" : "border-border bg-background hover:bg-accent"}`}
-          type="button"
-          {...attributes}
-        >
-          <span
-            className="flex h-8 w-6 cursor-grab items-center justify-center rounded-md bg-secondary text-secondary-foreground active:cursor-grabbing"
-            onClick={(event) => event.stopPropagation()}
-            title="Drag to reorder"
-            {...listeners}
-          >
-            <GripVertical className="h-4 w-4" />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-xs font-semibold text-muted-foreground">Slide {index + 1}</span>
-            <span className="line-clamp-2 text-sm font-medium text-foreground">{slide.title || "Untitled slide"}</span>
-          </span>
-        </button>
-      </ContextMenu.Trigger>
-      <StudioContextContent onCopy={onCopy} onDuplicate={onDuplicate} onArchive={onArchive} onAskAi={() => undefined} />
-    </ContextMenu.Root>
-  )
+  // Slides open in the design editor; StudioView never shows them.
+  return null
 }
 
 function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: { canvasFormat: StudioCanvasFormat; large?: boolean; onChange: (value: string) => void; placeholder: string; value: string }) {
   const documentSummary = useMemo(() => summarizeDocumentHtml(value), [value])
   const pageCount = countRichDocumentPages(value)
-  const [pageHidden, setPageHidden] = useState(false)
-  const [pageLocked, setPageLocked] = useState(false)
+  const [activePage, setActivePage] = useState(1)
   const [zoom, setZoom] = useState(100)
-  const pageWidth = canvasPreviewWidth(canvasFormat)
+  const writingViewport = useRef<HTMLDivElement>(null)
+  const [availableWidth, setAvailableWidth] = useState(canvasPreviewWidth(canvasFormat))
+  const pageWidth = Math.min(canvasPreviewWidth(canvasFormat), availableWidth)
   const pageScale = zoom / 100
-  const pageAspectRatio = canvasAspectRatio(canvasFormat)
+  useEffect(() => {
+    const viewport = writingViewport.current
+    if (!viewport) return
+    const resize = () => {
+      const style = getComputedStyle(viewport)
+      setAvailableWidth(Math.max(200, viewport.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)))
+    }
+    resize()
+    const observer = new ResizeObserver(resize)
+    observer.observe(viewport)
+    return () => observer.disconnect()
+  }, [])
   const editor = useEditor({
     immediatelyRender: false,
-    editable: !pageLocked,
+    editorProps: { attributes: { "aria-label": "Document content", role: "textbox", "aria-multiline": "true" } },
     extensions: [
-      StarterKit.configure({ link: false, underline: false }),
+      StarterKit.configure({ link: false, underline: false, document: false }),
+      WritingDocument,
+      WritingPage,
+      StudioPageBreak,
       Underline,
       TextStyle,
       FontFamily,
@@ -3583,133 +3082,76 @@ function RichTextEditor({ canvasFormat, large, onChange, placeholder, value }: {
       CharacterCount,
       Placeholder.configure({ placeholder }),
     ],
-    content: richTextContent(value),
-    onUpdate: ({ editor }) => onChange(editor.getHTML()),
+    content: richDocumentEditingHtml(richTextContent(value)),
+    onUpdate: ({ editor }) => onChange(writingDocumentHtml(editor)),
+    onSelectionUpdate: ({ editor }) => {
+      setActivePage(editor.state.selection.$from.index(0) + 1)
+    },
   })
 
   useEffect(() => {
     if (!editor) return
     const next = richTextContent(value)
-    if (editor.getHTML() !== next) editor.commands.setContent(next, { emitUpdate: false })
+    if (writingDocumentHtml(editor) === next) return
+    let cancelled = false
+    // React-backed page nodes must mount outside React's effect flush.
+    queueMicrotask(() => {
+      if (!cancelled && !editor.isDestroyed) editor.chain().setMeta("addToHistory", false).setContent(richDocumentEditingHtml(next), { emitUpdate: false }).run()
+    })
+    return () => { cancelled = true }
   }, [editor, value])
 
-  useEffect(() => {
-    editor?.setEditable(!pageLocked)
-  }, [editor, pageLocked])
-
   return (
-    <div className="rounded-md border border-border bg-muted/40">
+    <div className="studio-writing-surface">
       <RichTextToolbar editor={editor} />
-      <RichDocumentPageControls
-        canvasLabel={canvasFormat.label}
-        documentSummary={documentSummary}
-        onAddPage={() => onChange(appendRichDocumentPage(value))}
-        onDuplicatePage={() => onChange(duplicateRichDocumentLastPage(value))}
-        pageCount={pageCount}
-        pageHidden={pageHidden}
-        pageLocked={pageLocked}
-        setPageHidden={setPageHidden}
-        setPageLocked={setPageLocked}
-        setZoom={setZoom}
-        zoom={zoom}
-        placement="top"
-      />
-      <div className="overflow-auto bg-muted/35 p-2 sm:p-3">
+      <div ref={writingViewport} className="studio-writing-scroll overflow-auto p-4 sm:p-8" data-select-to-act tabIndex={-1}>
         <div
           className="mx-auto"
-          style={{ aspectRatio: pageAspectRatio, width: Math.round(pageWidth * pageScale) }}
+          style={{ minHeight: pageWidth / Number(canvasFormat.width / canvasFormat.height) * pageScale, width: Math.round(pageWidth * pageScale) }}
         >
           <div
-            className="origin-top-left rounded-lg border border-border bg-background shadow-xl"
-            style={{ aspectRatio: pageAspectRatio, opacity: pageHidden ? 0.3 : 1, transform: `scale(${pageScale})`, width: pageWidth }}
+            className="writing-pages"
+            style={{ "--writing-page-height": `${pageWidth / Number(canvasFormat.width / canvasFormat.height)}px`, "--writing-controls-zoom": 1 / pageScale, zoom: pageScale, width: pageWidth } as React.CSSProperties}
           >
             <EditorContent
               editor={editor}
-              className={`${large ? "min-h-[62vh]" : "min-h-[52vh]"} px-6 py-6 text-foreground sm:px-10 sm:py-8 [&_.ProseMirror]:min-h-[48vh] [&_.ProseMirror]:outline-none [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-3 [&_h1]:text-3xl [&_h1]:font-semibold [&_h2]:text-2xl [&_h2]:font-semibold [&_p]:leading-8 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-2 [&_th]:border [&_th]:border-border [&_th]:bg-secondary [&_th]:p-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6`}
+              className={`${large ? "min-h-[62vh]" : "min-h-[52vh]"} text-foreground [&_.ProseMirror]:outline-none [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-3 [&_h1]:text-3xl [&_h1]:font-semibold [&_h2]:text-2xl [&_h2]:font-semibold [&_p]:leading-8 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-2 [&_th]:border [&_th]:border-border [&_th]:bg-secondary [&_th]:p-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6`}
             />
           </div>
+          <button type="button" className="design-add-page mx-auto mt-5" onClick={() => editor?.chain().focus().insertContentAt(editor.state.doc.content.size, { type: "studioSheet", content: [{ type: "paragraph" }] }).run()}><Plus size={16} />Add page</button>
         </div>
       </div>
       <RichDocumentPageControls
         canvasLabel={canvasFormat.label}
         documentSummary={documentSummary}
-        onAddPage={() => onChange(appendRichDocumentPage(value))}
-        onDuplicatePage={() => onChange(duplicateRichDocumentLastPage(value))}
         pageCount={pageCount}
-        pageHidden={pageHidden}
-        pageLocked={pageLocked}
-        setPageHidden={setPageHidden}
-        setPageLocked={setPageLocked}
+        activePage={activePage}
         setZoom={setZoom}
         zoom={zoom}
-        placement="bottom"
       />
     </div>
   )
 }
 
-function RichDocumentPageControls({
-  canvasLabel,
-  documentSummary,
-  onAddPage,
-  onDuplicatePage,
-  pageCount,
-  pageHidden,
-  pageLocked,
-  placement,
-  setPageHidden,
-  setPageLocked,
-  setZoom,
-  zoom,
-}: {
+function RichDocumentPageControls({ canvasLabel, documentSummary, pageCount, activePage, setZoom, zoom }: {
   canvasLabel: string
   documentSummary: ReturnType<typeof summarizeDocumentHtml>
-  onAddPage: () => void
-  onDuplicatePage: () => void
   pageCount: number
-  pageHidden: boolean
-  pageLocked: boolean
-  placement: "top" | "bottom"
-  setPageHidden: React.Dispatch<React.SetStateAction<boolean>>
-  setPageLocked: React.Dispatch<React.SetStateAction<boolean>>
+  activePage: number
   setZoom: React.Dispatch<React.SetStateAction<number>>
   zoom: number
 }) {
-  return (
-    <div className={`${placement === "bottom" ? "sticky bottom-0 z-10 border-t" : "border-b"} flex flex-wrap items-center gap-2 border-border bg-card/95 px-3 py-2 text-xs text-muted-foreground backdrop-blur`}>
-      <button onClick={onAddPage} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-secondary px-2 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" title="Add page" type="button">
-        <Plus className="h-3.5 w-3.5" />
-        Page
-      </button>
-      <button onClick={onDuplicatePage} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-secondary px-2 font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" title="Duplicate page" type="button">
-        <Copy className="h-3.5 w-3.5" />
-      </button>
-      <button onClick={() => setPageHidden((hidden) => !hidden)} className={`inline-flex h-8 items-center gap-1 rounded-md border px-2 font-semibold ${pageHidden ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} title={pageHidden ? "Show page" : "Hide page preview"} type="button">
-        {pageHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-      </button>
-      <button onClick={() => setPageLocked((locked) => !locked)} className={`inline-flex h-8 items-center gap-1 rounded-md border px-2 font-semibold ${pageLocked ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} title={pageLocked ? "Unlock editing" : "Lock editing"} type="button">
-        <Lock className="h-3.5 w-3.5" />
-      </button>
-      <span className="hidden font-semibold text-muted-foreground md:inline">{canvasLabel}</span>
-      <span className="hidden md:inline">{documentSummary.words} words</span>
-      <span className="hidden md:inline">{documentSummary.characters} chars</span>
-      <span className="hidden lg:inline">{documentSummary.readingMinutes} min read</span>
-      <div className="ml-auto flex items-center gap-2">
-        <input value={zoom} onChange={(event) => setZoom(Number(event.target.value))} min={60} max={150} type="range" className="w-24 accent-primary sm:w-32" aria-label="Zoom" />
-        <span className="w-10 text-right font-semibold text-foreground">{zoom}%</span>
-        <span className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 font-semibold text-secondary-foreground"><LayoutPanelLeft className="h-3.5 w-3.5" /> Pages</span>
-        <span className="font-semibold text-foreground">1 / {pageCount}</span>
-      </div>
-      {placement === "bottom" ? documentSummary.headings.slice(0, 3).map((heading) => (
-        <span key={`${heading.level}-${heading.title}`} className="rounded-md bg-secondary px-2 py-1 text-secondary-foreground">
-          H{heading.level} {heading.title}
-        </span>
-      )) : null}
-    </div>
-  )
+  return <footer className="editor-status-bar">
+    <span className="inline-flex items-center gap-2 text-xs"><LayoutPanelLeft size={15} />{Math.min(activePage, pageCount)} / {pageCount}</span>
+    <PopoverButton label="Document details" placement="top-start" panel={() => <div className="space-y-2 p-2 text-xs"><p>{canvasLabel}</p><p>{documentSummary.words} words · {documentSummary.characters} characters</p><p>{documentSummary.readingMinutes} min read</p></div>}><FileText size={15} /></PopoverButton>
+    <div className="flex-1" />
+    <input value={zoom} onChange={event => setZoom(Number(event.target.value))} min={40} max={150} type="range" className="w-24 accent-primary sm:w-32" aria-label="Zoom" />
+    <span className="w-10 text-right text-xs">{zoom}%</span>
+  </footer>
 }
 
 function RichTextToolbar({ editor }: { editor: Editor | null }) {
+  const selected = useEditorState({ editor, selector: ({ editor }) => ({ image: Boolean(editor?.isActive("image")), table: Boolean(editor?.isActive("table")) }) })
   const [findText, setFindText] = useState("")
   const [headingStyles, setHeadingStyles] = useState<Record<HeadingStyleLevel, HeadingStylePreset>>(() => readHeadingStyles())
   const [headingStatus, setHeadingStatus] = useState("")
@@ -3739,9 +3181,13 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
     setHeadingStyles(next)
     setHeadingStatus("Styles reset")
   }
+  if (selected?.image) return <div className="studio-format-toolbar" role="toolbar" aria-label="Image tools">
+    <PopoverButton label="Edit image" panel={close => <WritingImageForm editor={editor} replace onDone={close} />}><ImageIcon size={16} /></PopoverButton>
+    <ToolbarIcon icon={Trash2} label="Delete image" onClick={() => run(item => item.chain().focus().deleteSelection().run())} />
+  </div>
   return (
-    <div className="sticky top-0 z-10 flex flex-wrap items-center gap-1.5 border-b border-border bg-card/95 px-3 py-2 backdrop-blur">
-      <ToolbarIcon icon={List} label="Toolbar menu" onClick={() => editor?.commands.focus()} />
+    <div className="studio-format-toolbar flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-card px-3 py-2">
+
       <ActionMenu label="Style" icon={Type} compact>
         <MenuAction icon={Type} label="Paragraph" onClick={() => run((item) => item.chain().focus().setParagraph().run())} />
         <MenuAction icon={Heading1} label="Apply Heading 1" onClick={() => run((item) => applyHeadingStyle(item, 1, headingStyles[1]))} />
@@ -3752,13 +3198,13 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
         <MenuAction icon={Paintbrush} label="Update H3 from selection" onClick={() => saveHeadingStyle(3)} />
         <MenuAction icon={RotateCcw} label="Reset saved headings" onClick={resetHeadingStyles} />
       </ActionMenu>
-      <select defaultValue="" onChange={(event) => event.target.value ? run((item) => item.chain().focus().setFontFamily(event.target.value).run()) : undefined} className="h-9 min-w-28 rounded-md border border-input bg-background px-2 text-sm font-semibold text-foreground">
+      <select defaultValue="" aria-label="Font family" onChange={(event) => event.target.value ? run((item) => item.chain().focus().setFontFamily(event.target.value).run()) : undefined} className="h-9 min-w-28 rounded-md border border-input bg-background px-2 text-sm font-semibold text-foreground">
         <option value="" disabled>Font</option>
         {studioFontOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
       <div className="flex h-9 items-center rounded-md border border-input bg-background">
         <button onClick={() => run((item) => item.chain().focus().setMark("textStyle", { fontSize: "10pt" }).run())} className="grid h-8 w-8 place-items-center text-foreground hover:bg-accent hover:text-accent-foreground" type="button" title="Smaller text"><Minus className="h-4 w-4" /></button>
-        <select defaultValue="" onChange={(event) => event.target.value ? run((item) => item.chain().focus().setMark("textStyle", { fontSize: event.target.value }).run()) : undefined} className="h-8 w-16 border-x border-border bg-transparent px-1 text-center text-sm font-semibold text-foreground">
+        <select defaultValue="" aria-label="Font size" onChange={(event) => event.target.value ? run((item) => item.chain().focus().setMark("textStyle", { fontSize: event.target.value }).run()) : undefined} className="h-8 w-16 border-x border-border bg-transparent px-1 text-center text-sm font-semibold text-foreground">
           <option value="" disabled>Size</option>
           {studioFontSizeOptions.map((option) => <option key={option.value} value={option.value}>{option.label.replace("pt", "")}</option>)}
         </select>
@@ -3771,52 +3217,43 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
       <ToolbarIcon icon={Bold} label="Bold" onClick={() => run((item) => item.chain().focus().toggleBold().run())} />
       <ToolbarIcon icon={Italic} label="Italic" onClick={() => run((item) => item.chain().focus().toggleItalic().run())} />
       <ToolbarIcon icon={UnderlineIcon} label="Underline" onClick={() => run((item) => item.chain().focus().toggleUnderline().run())} />
-      <ToolbarIcon icon={Strikethrough} label="Strike" onClick={() => run((item) => item.chain().focus().toggleStrike().run())} />
       <ActionMenu label="Text settings" icon={Type} compact>
+        <MenuAction icon={Strikethrough} label="Strike" onClick={() => run((item) => item.chain().focus().toggleStrike().run())} />
         <MenuAction icon={Type} label="Uppercase style" onClick={() => run((item) => item.chain().focus().setMark("textStyle", { textTransform: "uppercase" }).run())} />
         <MenuAction icon={Braces} label="Inline code" onClick={() => run((item) => item.chain().focus().toggleCode().run())} />
         <MenuAction icon={Quote} label="Quote" onClick={() => run((item) => item.chain().focus().toggleBlockquote().run())} />
       </ActionMenu>
-      <ToolbarIcon icon={AlignLeft} label="Align left" onClick={() => run((item) => item.chain().focus().setTextAlign("left").run())} />
-      <ToolbarIcon icon={AlignCenter} label="Align center" onClick={() => run((item) => item.chain().focus().setTextAlign("center").run())} />
-      <ToolbarIcon icon={List} label="Bullets" onClick={() => run((item) => item.chain().focus().toggleBulletList().run())} />
-      <ToolbarIcon icon={ListOrdered} label="Numbers" onClick={() => run((item) => item.chain().focus().toggleOrderedList().run())} />
-      <ToolbarIcon icon={CheckSquare} label="Tasks" onClick={() => run((item) => item.chain().focus().toggleTaskList().run())} />
-      <ActionMenu label="Insert" icon={Plus}>
+      <ActionMenu label="Lists" icon={List} compact>
+        <MenuAction icon={List} label="Bullets" onClick={() => run(item => item.chain().focus().toggleBulletList().run())} />
+        <MenuAction icon={ListOrdered} label="Numbers" onClick={() => run(item => item.chain().focus().toggleOrderedList().run())} />
+        <MenuAction icon={CheckSquare} label="Tasks" onClick={() => run(item => item.chain().focus().toggleTaskList().run())} />
+      </ActionMenu>
+      <ActionMenu label="Insert" icon={Plus} compact>
         {documentInsertGroups.map((group) => (
           <div key={group.label} className="grid gap-1">
-            <p className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground first:pt-0">{group.label}</p>
+            <p className="px-2 pt-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground first:pt-0">{group.label}</p>
             {group.items.map((insertKind) => (
-              <MenuAction key={insertKind} icon={FilePlus2} label={insertLabel(insertKind)} onClick={() => run((item) => item.chain().focus().insertContent(getDocumentInsertBlock(insertKind)).run())} />
+              <MenuAction key={insertKind} icon={FilePlus2} label={insertLabel(insertKind)} onClick={() => run(item => insertKind === "page-break" ? insertWritingPageBreak(item) : item.chain().focus().insertContent(getDocumentInsertBlock(insertKind)).run())} />
             ))}
           </div>
         ))}
         <MenuAction icon={Grid2X2} label="Table" onClick={() => run((item) => item.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())} />
+        {selected?.table ? <>
         <MenuAction icon={Rows3} label="Table row" onClick={() => run((item) => item.chain().focus().addRowAfter().run())} />
         <MenuAction icon={Columns3} label="Table column" onClick={() => run((item) => item.chain().focus().addColumnAfter().run())} />
         <MenuAction danger icon={Trash2} label="Delete table column" onClick={() => run((item) => item.chain().focus().deleteColumn().run())} />
         <MenuAction danger icon={Trash2} label="Delete table row" onClick={() => run((item) => item.chain().focus().deleteRow().run())} />
+        </> : null}
         <MenuAction icon={Minus} label="Divider" onClick={() => run((item) => item.chain().focus().setHorizontalRule().run())} />
         <MenuAction icon={Braces} label="Code block" onClick={() => run((item) => item.chain().focus().toggleCodeBlock().run())} />
-        <MenuAction icon={ImageIcon} label="Image URL" onClick={() => {
-          const src = window.prompt("Image URL")
-          if (src) run((item) => item.chain().focus().setImage({ src }).run())
-        }} />
+        <WritingImageForm editor={editor} />
       </ActionMenu>
-      <ActionMenu label="Effects" icon={Highlighter}>
-        <MenuAction icon={Highlighter} label="Soft highlight" onClick={() => run((item) => item.chain().focus().toggleHighlight({ color: "#fef3c7" }).run())} />
-        <MenuAction icon={Paintbrush} label="Accent text" onClick={() => run((item) => item.chain().focus().setColor("#7c3aed").run())} />
-        <MenuAction icon={Quote} label="Callout quote" onClick={() => run((item) => item.chain().focus().toggleBlockquote().run())} />
-      </ActionMenu>
-      <ActionMenu label="Animate" icon={RotateCcw}>
-        <MenuAction icon={RotateCcw} label="Reading reveal marker" onClick={() => run((item) => item.chain().focus().insertContent("<p><strong>Reveal:</strong> </p>").run())} />
-        <MenuAction icon={Clock} label="Timed practice cue" onClick={() => run((item) => item.chain().focus().insertContent("<p><strong>Timer:</strong> 5 min focus block</p>").run())} />
-      </ActionMenu>
-      <ActionMenu label="Position" icon={Maximize2}>
+      <ActionMenu label="Position" icon={AlignLeft} compact>
         <MenuAction icon={AlignLeft} label="Align left" onClick={() => run((item) => item.chain().focus().setTextAlign("left").run())} />
         <MenuAction icon={AlignCenter} label="Align center" onClick={() => run((item) => item.chain().focus().setTextAlign("center").run())} />
         <MenuAction icon={AlignRight} label="Align right" onClick={() => run((item) => item.chain().focus().setTextAlign("right").run())} />
       </ActionMenu>
+      <VoiceInput label="Dictate into document" prompt="Write into this document" onTranscript={(text) => editor?.chain().focus().insertContent(`${text} `).run()} />
       <ActionMenu label="Find" icon={Search} align="right">
         <label className="grid gap-1 px-2 py-1 text-xs font-semibold text-muted-foreground">
           Find
@@ -3836,6 +3273,26 @@ function RichTextToolbar({ editor }: { editor: Editor | null }) {
   )
 }
 
+function WritingImageForm({ editor, replace = false, onDone }: { editor: Editor | null; replace?: boolean; onDone?: () => void }) {
+  const image = replace ? editor?.getAttributes("image") : undefined
+  const [url, setUrl] = useState(String(image?.src ?? ""))
+  const [alt, setAlt] = useState(String(image?.alt ?? ""))
+  const [error, setError] = useState("")
+  return <form className="grid gap-2 border-t border-border p-2" onSubmit={event => {
+    event.preventDefault()
+    const src = sanitizeImageUrl(url)
+    if (!src) { setError("Use a valid image URL."); return }
+    if (replace) editor?.chain().focus().updateAttributes("image", { src, alt }).run()
+    else editor?.chain().focus().setImage({ src, alt }).run()
+    onDone?.()
+  }}>
+    <input aria-label="Image URL" placeholder="Image URL" value={url} onChange={event => setUrl(event.target.value)} className="h-8 w-full rounded border border-input bg-background px-2 text-sm" />
+    <input aria-label="Image description" placeholder="Description" value={alt} onChange={event => setAlt(event.target.value)} className="h-8 w-full rounded border border-input bg-background px-2 text-sm" />
+    {error ? <p role="alert" className="text-xs text-destructive">{error}</p> : null}
+    <button type="submit" className="editor-command justify-center" aria-label={replace ? "Update image" : "Insert image"}><ImageIcon size={15} />{replace ? "Apply" : "Insert"}</button>
+  </form>
+}
+
 function insertLabel(kind: DocumentInsertKind) {
   return kind
     .split("-")
@@ -3850,12 +3307,11 @@ function StudioInspector({
   currentTitle,
   inspectorTab,
   onCopyLink,
+  onAskAi,
   onDownload,
   onExport,
   onSetInspectorTab,
   selectedCell,
-  selectedSlideIndex,
-  slides,
 }: {
   activeKind: StudioKind
   activeSummary: string
@@ -3863,12 +3319,11 @@ function StudioInspector({
   currentTitle: string
   inspectorTab: string
   onCopyLink: () => void
-  onDownload: () => void
-  onExport: () => void
+  onAskAi: (task?: TutorSource["task"], content?: string, title?: string) => void
+  onDownload: (format?: StudioDownloadOption["id"]) => void
+  onExport: (format?: StudioDownloadOption["id"]) => void
   onSetInspectorTab: (value: string) => void
   selectedCell: { row: number; column: number }
-  selectedSlideIndex: number
-  slides: WorkspaceDeck["slides"]
 }) {
   return (
     <div className="p-3">
@@ -3883,8 +3338,7 @@ function StudioInspector({
         <InspectorCard title="Type" body={activeKind} />
         <InspectorCard title="State" body={activeSummary} />
         {activeKind === "sheets" ? <InspectorCard title="Cell" body={`R${selectedCell.row + 1} C${selectedCell.column + 1}: ${cells[selectedCell.row]?.[selectedCell.column] || "blank"}`} /> : null}
-        {activeKind === "slides" ? <InspectorCard title="Slide" body={`${selectedSlideIndex + 1} / ${slides.length}: ${slides[selectedSlideIndex]?.layout || "title"}`} /> : null}
-        {inspectorTab === "AI" ? <InspectorCard title="AI actions" body="Summarize, rewrite, translate, generate quiz, flashcards, or a study route from this active Studio item." /> : null}
+        {inspectorTab === "AI" ? <div className="grid gap-2" aria-label="AI actions">{([['explain', 'Explain source'], ['rewrite', 'Rewrite as note'], ['quiz', 'Create quiz'], ['flashcards', 'Create review cards'], ['activity', 'Schedule activity'], ['discussion', 'Create discussion space']] as const).map(([task, label]) => <button type="button" key={task} onClick={() => onAskAi(task)} className="min-h-9 rounded-md border border-border px-3 py-2 text-left">{label}</button>)}</div> : null}
         {inspectorTab === "History" ? <InspectorCard title="History" body="Undo/redo is local; saved versions and audit entries stay tied to the record APIs." /> : null}
         {inspectorTab === "Export" ? <StudioExportInspector activeKind={activeKind} onCopyLink={onCopyLink} onDownload={onDownload} onExport={onExport} /> : null}
       </div>
@@ -3900,8 +3354,8 @@ function StudioExportInspector({
 }: {
   activeKind: StudioKind
   onCopyLink: () => void
-  onDownload: () => void
-  onExport: () => void
+  onDownload: (format?: StudioDownloadOption["id"]) => void
+  onExport: (format?: StudioDownloadOption["id"]) => void
 }) {
   const shareOptions = buildStudioShareOptions(activeKind)
   const downloadOptions = buildStudioDownloadOptions(activeKind)
@@ -3916,9 +3370,12 @@ function StudioExportInspector({
   } satisfies Record<(typeof shareOptions)[number]["id"], React.ComponentType<{ className?: string }>>
   const downloadIconById = {
     html: FileText,
+    pdf: FileText,
+    docx: FileText,
     text: FileText,
     markdown: Braces,
     csv: Table2,
+    xlsx: Table2,
     pptx: Presentation,
     outline: List,
     json: Braces,
@@ -3931,10 +3388,10 @@ function StudioExportInspector({
             <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Share design</p>
             <p className="mt-1 text-sm font-semibold text-foreground">Private by default</p>
           </div>
-          <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-bold text-secondary-foreground">0 visitors</span>
+          <span className="rounded-md bg-secondary px-2 py-1 text-xs font-bold text-secondary-foreground">0 visitors</span>
         </div>
         <div className="mt-3 rounded-md border border-border bg-background p-2">
-          <p className="text-[0.68rem] font-bold uppercase tracking-[0.1em] text-muted-foreground">Access level</p>
+          <p className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground">Access level</p>
           <div className="mt-2 flex items-center justify-between gap-2">
             <span className="inline-flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
               <Lock className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -3952,8 +3409,8 @@ function StudioExportInspector({
             <div key={option.id} className={`group rounded-md border p-2 text-center transition hover:-translate-y-0.5 ${option.primary ? "border-primary bg-primary/10" : "border-border bg-background"}`} title={option.detail}>
               <span className={`mx-auto flex h-10 w-10 items-center justify-center rounded-full ${
                 option.tone === "primary" ? "bg-primary text-primary-foreground" :
-                option.tone === "present" ? "bg-violet-500/15 text-violet-700 dark:text-violet-200" :
-                option.tone === "social" ? "bg-success/15 text-success" :
+                option.tone === "present" ? "bg-[var(--decor-violet-soft)] text-[var(--decor-violet-ink)]" :
+                option.tone === "social" ? "bg-[var(--decor-mint-soft)] text-[var(--decor-mint-ink)]" :
                 "bg-secondary text-secondary-foreground"
               }`}>
                 {(() => {
@@ -3962,7 +3419,7 @@ function StudioExportInspector({
                 })()}
               </span>
               <p className="mt-2 truncate text-xs font-bold text-foreground">{option.label}</p>
-              <p className="mt-0.5 text-[0.66rem] font-semibold text-muted-foreground">{option.badge}</p>
+              <p className="mt-0.5 text-xs font-semibold text-muted-foreground">{option.badge}</p>
             </div>
           ))}
         </div>
@@ -3973,7 +3430,7 @@ function StudioExportInspector({
             <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Download</p>
             <p className="mt-1 text-sm font-semibold text-foreground">{recommendedDownload?.label || "Best format"} ready</p>
           </div>
-          <span className="rounded-md bg-primary/15 px-2 py-1 text-[0.68rem] font-bold text-primary">Suggested</span>
+          <span className="rounded-md bg-primary/15 px-2 py-1 text-xs font-bold text-primary">Suggested</span>
         </div>
         <div className="mt-3 rounded-md border border-primary/40 bg-primary/10 p-2">
           <div className="flex items-center justify-between gap-2">
@@ -3981,13 +3438,13 @@ function StudioExportInspector({
               <Download className="h-4 w-4 shrink-0 text-primary" />
               <span className="truncate">{recommendedDownload?.label || "Download"}</span>
             </span>
-            <span className="rounded-md bg-background px-2 py-0.5 text-[0.66rem] font-semibold text-muted-foreground">{recommendedDownload?.sizeHint || "Ready"}</span>
+            <span className="rounded-md bg-background px-2 py-0.5 text-xs font-semibold text-muted-foreground">{recommendedDownload?.sizeHint || "Ready"}</span>
           </div>
-          <p className="mt-1 text-[0.7rem] leading-4 text-muted-foreground">{recommendedDownload?.bestFor || "Recommended for this project type."}</p>
+          <p className="mt-1 text-xs leading-4 text-muted-foreground">{recommendedDownload?.bestFor || "Recommended for this project type."}</p>
         </div>
         <div className="mt-3 grid gap-2">
           {downloadOptions.map((option) => (
-            <button key={option.id} onClick={option.action === "download" ? onDownload : onExport} className="rounded-md border border-border bg-background p-2 text-left transition hover:border-primary hover:bg-accent" type="button">
+            <button key={option.id} onClick={() => (option.action === "download" ? onDownload : onExport)(option.id)} className="rounded-md border border-border bg-background p-2 text-left transition hover:border-primary hover:bg-accent" type="button">
               <span className="flex items-center justify-between gap-2">
                 <span className="inline-flex min-w-0 items-center gap-2 text-xs font-bold text-foreground">
                   {(() => {
@@ -3996,10 +3453,10 @@ function StudioExportInspector({
                   })()}
                   <span className="truncate">{option.label}</span>
                 </span>
-                {option.suggested ? <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary">Suggested</span> : null}
+                {option.suggested ? <span className="rounded bg-primary/15 px-1.5 py-0.5 text-xs font-bold text-primary">Suggested</span> : null}
               </span>
-              <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">{option.detail}</span>
-              <span className="mt-2 flex items-center justify-between gap-2 text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              <span className="mt-1 block text-xs leading-4 text-muted-foreground">{option.detail}</span>
+              <span className="mt-2 flex items-center justify-between gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                 <span>{option.bestFor}</span>
                 <span>{option.sizeHint}</span>
               </span>
@@ -4026,48 +3483,29 @@ function ActionMenu({
   label: string
   primary?: boolean
 }) {
-  const [isOpen, setIsOpen] = useState(false)
-  const closeMenuOnEscape = (event: React.KeyboardEvent<HTMLDetailsElement>) => {
-    if (event.key !== "Escape") return
-    event.currentTarget.removeAttribute("open")
-    const summary = event.currentTarget.querySelector("summary")
-    if (summary instanceof HTMLElement) summary.focus()
-  }
-  const closeMenuOnFocusLeave = (event: React.FocusEvent<HTMLDetailsElement>) => {
-    const nextFocusedElement = event.relatedTarget
-    if (nextFocusedElement instanceof Node && event.currentTarget.contains(nextFocusedElement)) return
-    event.currentTarget.removeAttribute("open")
-  }
-  const syncOpenState = (event: React.SyntheticEvent<HTMLDetailsElement>) => {
-    setIsOpen(event.currentTarget.open)
-  }
-
-  return (
-    <details className="group relative inline-block" onBlur={closeMenuOnFocusLeave} onKeyDown={closeMenuOnEscape} onToggle={syncOpenState}>
-      <summary
-        aria-expanded={isOpen}
-        aria-label={label}
-        aria-haspopup="menu"
-        className={`flex h-9 cursor-pointer list-none items-center gap-2 rounded-md border px-3 text-sm font-medium outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden ${
-          compact ? "px-2" : ""
-        } ${
-          primary
-            ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
-            : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
-        }`}
-        title={label}
-      >
-        <Icon className="h-4 w-4" />
-        <span className={compact ? "sr-only" : ""}>{label}</span>
-        {!compact ? <ChevronDown className="h-3.5 w-3.5 opacity-70" /> : null}
-      </summary>
-      <div aria-label={label} className={`absolute top-10 z-50 w-64 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-xl ${align === "right" ? "right-0" : "left-0"}`} role="menu">
-        {children}
-      </div>
-    </details>
-  )
+  return <PopoverButton label={label} placement={align === "right" ? "bottom-end" : "bottom-start"} width={256} buttonClassName={`${primary ? "editor-primary" : "editor-command"} focus-visible:ring-2 focus-visible:ring-offset-2`} panel={(close) => <StudioMenuPanel label={label} onClose={close}>{children}</StudioMenuPanel>}>
+    <Icon className="h-4 w-4" /><span className={compact ? "sr-only" : ""}>{label}</span>{compact ? null : <ChevronDown className="h-3 w-3 opacity-60" />}
+  </PopoverButton>
 }
 
+function StudioMenuPanel({ label, onClose, children }: { label: string; onClose: () => void; children: React.ReactNode }) {
+  const menuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { menuRef.current?.querySelector<HTMLElement>('button:not(:disabled), select, input')?.focus() }, [])
+  return <div ref={menuRef} role="menu" aria-label={label} onBlur={(event) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onClose()
+  }} onKeyDown={(event) => {
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key) || event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return
+    const items = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]:not(:disabled)')]
+    if (!items.length) return
+    event.preventDefault()
+    const current = items.indexOf(document.activeElement as HTMLButtonElement)
+    const next = event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : (current + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length
+    items[next]?.focus()
+  }} onClick={(event) => {
+    const item = (event.target as HTMLElement).closest<HTMLButtonElement>('[role="menuitem"]')
+    if (item && !item.disabled) onClose()
+  }} onChange={(event) => { if (event.target instanceof HTMLSelectElement) onClose() }}>{children}</div>
+}
 function MenuAction({
   active,
   danger,
@@ -4085,17 +3523,14 @@ function MenuAction({
   meta?: string
   onClick: () => void
 }) {
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    onClick()
-    event.currentTarget.closest("details")?.removeAttribute("open")
-  }
-
   return (
     <button
-      onClick={handleClick}
+      onClick={onClick}
+      title={meta}
+      aria-label={disabled && meta ? `${label}: ${meta}` : label}
       disabled={disabled}
       role="menuitem"
-      className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`flex min-h-9 w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover disabled:cursor-not-allowed disabled:opacity-50 ${
         danger
           ? "text-destructive hover:bg-destructive/10"
           : active
@@ -4104,11 +3539,9 @@ function MenuAction({
       }`}
       type="button"
     >
-      <Icon className="mt-0.5 h-4 w-4 shrink-0" />
-      <span className="min-w-0">
-        <span className="block truncate">{label}</span>
-        {meta ? <span className={`mt-0.5 block line-clamp-2 text-xs font-medium ${active ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{meta}</span> : null}
-      </span>
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {meta && /^\d+(?:\s+\w+){0,2}$/.test(meta) ? <span className="shrink-0 text-xs tabular-nums opacity-70">{meta}</span> : null}
     </button>
   )
 }
@@ -4118,7 +3551,6 @@ function MenuSelect({ label, onChange, options }: { label: string; onChange: (va
     if (!event.target.value) return
     onChange(event.target.value)
     event.currentTarget.value = ""
-    event.currentTarget.closest("details")?.removeAttribute("open")
   }
 
   return (

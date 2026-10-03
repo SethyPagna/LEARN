@@ -15,7 +15,7 @@ export const documentInsertBlocks: Record<DocumentInsertKind, string> = {
   callout: `<blockquote><p><strong>Callout:</strong> Add the idea, warning, or insight here.</p></blockquote>`,
   reference: `<p><strong>Reference:</strong> Author, title, link, and why it matters.</p>`,
   equation: `<p><code>Equation:</code> f(x) = ax + b</p>`,
-  "page-break": `<hr><p></p>`,
+  "page-break": `<hr data-studio-page="true"><p></p>`,
   "two-column": `<table><tbody><tr><th>Concept</th><th>Evidence / example</th></tr><tr><td></td><td></td></tr></tbody></table>`,
   "study-summary": `<h2>Study summary</h2><p><strong>Main idea:</strong> </p><ul><li>Key point</li><li>Example</li><li>Next review action</li></ul>`,
   "cornell-notes": `<table><tbody><tr><th>Cues / questions</th><th>Notes</th></tr><tr><td>What should I recall?</td><td>Add explanation, example, and source.</td></tr><tr><td colspan="2"><strong>Summary:</strong> Write the takeaway in your own words.</td></tr></tbody></table>`,

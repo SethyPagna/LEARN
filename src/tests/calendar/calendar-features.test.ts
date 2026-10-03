@@ -1,6 +1,28 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, buildCalendarSummaryChips, calendarDurationPresets, calendarEventDurationMinutes, calendarEventTypeOptions, filterCalendarAgenda, formatCalendarDuration, labelCalendarEventType, normalizeCalendarEventType, summarizeCalendarAgenda } from "../../lib/calendar-features"
+import { addCalendarDays, buildCalendarDaySegments, buildCalendarMonthGrid, buildCalendarPlanningSummary, buildCalendarSummaryChips, calendarDurationPresets, calendarEventDurationMinutes, calendarEventTypeOptions, calendarReminderOptions, daysInCalendarMonth, filterCalendarAgenda, formatCalendarDuration, labelCalendarEventType, normalizeCalendarEventType, setCalendarDayKeyPart, shiftCalendarDayKey, summarizeCalendarAgenda } from "../../lib/calendar-features"
+
+test("the date bar steps months and years without spilling into the next month", () => {
+  assert.equal(shiftCalendarDayKey("2026-09-28", 1), "2026-10-28")
+  assert.equal(shiftCalendarDayKey("2026-09-28", -12), "2025-09-28")
+  assert.equal(shiftCalendarDayKey("2026-01-31", 1), "2026-02-28", "Jan 31 plus a month is the end of February")
+  assert.equal(shiftCalendarDayKey("2028-01-31", 1), "2028-02-29", "leap years keep Feb 29")
+  assert.equal(shiftCalendarDayKey("2028-02-29", 12), "2029-02-28")
+  assert.equal(shiftCalendarDayKey("2026-01-15", -1), "2025-12-15", "stepping back from January crosses the year")
+  assert.equal(shiftCalendarDayKey("2026-12-15", 1), "2027-01-15")
+  assert.equal(addCalendarDays("2026-09-28", 7), "2026-10-05")
+  assert.equal(addCalendarDays("2026-01-02", -7), "2025-12-26")
+})
+
+test("the date bar's pickers change one part of the date and keep it a real day", () => {
+  assert.equal(setCalendarDayKeyPart("2026-09-28", { month: 3 }), "2026-03-28")
+  assert.equal(setCalendarDayKeyPart("2026-03-31", { month: 4 }), "2026-04-30", "April has 30 days")
+  assert.equal(setCalendarDayKeyPart("2026-09-28", { day: 5 }), "2026-09-05")
+  assert.equal(setCalendarDayKeyPart("2028-02-29", { year: 2027 }), "2027-02-28")
+  assert.equal(daysInCalendarMonth(2026, 2), 28)
+  assert.equal(daysInCalendarMonth(2028, 2), 29)
+  assert.equal(daysInCalendarMonth(2026, 12), 31)
+})
 
 const events = [
   event("study_today", "study", "2026-05-16T02:00:00.000Z", "2026-05-16T02:45:00.000Z"),
@@ -51,6 +73,16 @@ test("calendar event options and normalizers keep form values safe", () => {
   assert.equal(normalizeCalendarEventType("unknown"), "study")
   assert.equal(labelCalendarEventType("deadline"), "Deadline")
   assert.equal(labelCalendarEventType("custom"), "custom")
+})
+
+test("calendar reminder options keep None distinct from a missing choice", () => {
+  // 0 is a real selection ("None") that suppresses the VALARM in the exported
+  // ICS, while a null column means the user never chose and the feed falls back
+  // to the app-wide default lead. If 0 stopped being offered, or started to
+  // mean "unset", every event the user deliberately silenced would alarm again.
+  assert.deepEqual(calendarReminderOptions.map((option) => option.value), [0, 5, 10, 15, 30, 60])
+  assert.equal(calendarReminderOptions[0].label, "None")
+  assert.equal(calendarReminderOptions.some((option) => option.value < 0), false)
 })
 
 test("calendar duration helpers handle readable time labels", () => {

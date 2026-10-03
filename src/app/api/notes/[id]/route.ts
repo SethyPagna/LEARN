@@ -6,7 +6,7 @@ export const GET = withApiErrorBoundary(async (request: NextRequest, context: { 
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
   const { id } = await context.params
-  const item = await getNote(id)
+  const item = await getNote(user, id)
   if (!item) return fail("Note not found.", 404)
   return ok({ item })
 })

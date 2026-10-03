@@ -40,6 +40,10 @@
       {
         "name": "PRESENCE_DO",
         "class_name": "PresenceDurableObject"
+      },
+      {
+        "name": "CHAT_DO",
+        "class_name": "ChatDurableObject"
       }
     ]
   },
@@ -53,6 +57,17 @@
         "StudyRoomDurableObject",
         "StudyBattleDurableObject"
       ]
+    },
+    {
+      // Applied live history; its original payload is unavailable. Keep the
+      // matching tag so existing Durable Object migrations are not replayed.
+      "tag": "v6_add_presence_durable_object"
+    },
+    {
+      "tag": "v7_add_chat_durable_object",
+      "new_sqlite_classes": [
+        "ChatDurableObject"
+      ]
     }
   ],
   "observability": {
@@ -61,7 +76,7 @@
   },
   "vars": {
     "APP_ID": "learn",
-    "APP_BASE_URL": "https://learn.learn-app.workers.dev",
+    "APP_BASE_URL": "https://learn.pagna.workers.dev",
     "AI_PROVIDER_DEFAULT": "cloudflare",
     "CLOUDFLARE_ACCOUNT_ID": "d105a82bc26b6913575355352c2d1bb1",
     "CLOUDFLARE_D1_DATABASE_ID": "3eeb04af-c283-48c0-9469-82b64392fa79",

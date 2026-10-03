@@ -1,0 +1,125 @@
+{
+  "head": "d1c748af6337ba2ecac05293b01ba8fd5fe5933f",
+  "files": [
+    {
+      "path": "src/components/learn/learn-shell.tsx",
+      "sha256": "211c6fe5052a0b2f0ba038e5267eef8c16020a6af7d30d27218ae5c17f7d97f4",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    },
+    {
+      "path": "src/components/learn/selection-dock.tsx",
+      "sha256": "cf3ab25a0a0d15a59ff202699e2f041b7481fb91823313faf2e2a1503c451a4c",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    },
+    {
+      "path": "src/components/learn/vault-note-blocks.tsx",
+      "sha256": "9a99cb9c6abc0c6ea29b555b72cb63d33cb04fe5b2ffc469f7bc0e229b24a59d",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    },
+    {
+      "path": "src/components/learn/views/ai-view.tsx",
+      "sha256": "bc71b4e556eeaf02be2f0f140c32043058fd97c4b9e491627f1af7aea3e7cc92",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    },
+    {
+      "path": "src/components/learn/views/ecosystem-views.tsx",
+      "sha256": "4c87ec4b52603b9542266060a243b660eb38c047f437b3f193dc7abb24a116de",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    },
+    {
+      "path": "src/components/learn/views/studio-view.tsx",
+      "sha256": "a49436ca447f2b2011e5e5fbb0aad6b1f51c8918e9649fc7f9d9244cae0b22cb",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    },
+    {
+      "path": "src/lib/ai/assessment-output.ts",
+      "sha256": "5b3a7f1d192f15d01dd3d21fd8f69607b74d54ba5fe539bf817a92f364574d00",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    },
+    {
+      "path": "src/lib/ai/tutor-drafts.ts",
+      "sha256": "0612c042b38d21dcd3165a05618fb92c7516cb76b1f6f571a02aa7c34508508c",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    },
+    {
+      "path": "src/lib/data.ts",
+      "sha256": "aa6c6f197216472db17ba3f8f206a2fb2690c89ca0920f87285dca86905509d1",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    },
+    {
+      "path": "src/lib/select-actions.ts",
+      "sha256": "7c988ef706886fb0ee8f65d81bd2f3ccfad4e021d46708379750130c787925f5",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    },
+    {
+      "path": "src/lib/selection-session.ts",
+      "sha256": "6fc963a9d5ed90c6ef3cef5b5f191664dc532d30964399289b314708b9390998",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    },
+    {
+      "path": "src/lib/vault-drafts.ts",
+      "sha256": "304c983e425019576614b6a00164bdbb441ceb0f2e6183f3d33a4ebe4df3438f",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    },
+    {
+      "path": "src/tests/ai/ai-tutor-drafts.test.ts",
+      "sha256": "6c150666a04ca8795a4d94252e06ac439e74eb2cdad22808dcad3b5d329b9674",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    },
+    {
+      "path": "src/tests/ai/assessment-output.test.ts",
+      "sha256": "073bf508b56fd4d950bec5b931f752efaed12764fdaa0bf8900be311aae79c9a",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    },
+    {
+      "path": "src/tests/api/review-card-creation.test.ts",
+      "sha256": "c2285c8c83544a1c11d1e21e720adfb1d74c228b367f3b9fcab781f3b3539101",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    },
+    {
+      "path": "src/tests/learning/vault-drafts.test.ts",
+      "sha256": "54a30e320737e3a7a851a3f1389d2974463d0d096df7a36fb8254153feae6357",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    },
+    {
+      "path": "src/tests/learning/vault-markdown.test.ts",
+      "sha256": "0fe650e45e6d984cecd32e62ff42d38368caf661effc54c321615d96b6798bde",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    },
+    {
+      "path": "src/tests/project/voice-coverage.test.ts",
+      "sha256": "fcb4b2e1d4659c9ba9fec5b2e9f490a1262ee6bfb8bdd357cd22538054f5c398",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    },
+    {
+      "path": "src/tests/ux/select-actions.test.ts",
+      "sha256": "bebb2c197f83bf01236a44059e2aa0e2528b721968e4183b51b94da9d0f494c3",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    },
+    {
+      "path": "src/tests/ux/selection-session.test.ts",
+      "sha256": "0fed5a3bd6a298b3e5406fac408173cbbfbd903ae9103de7dfe407bd248cd9cb",
+      "workingReads": 2,
+      "committedBlobMatch": true
+    }
+  ]
+}

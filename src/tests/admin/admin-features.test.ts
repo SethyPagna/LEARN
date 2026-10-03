@@ -24,8 +24,8 @@ test("summarizeAdminOperations flags enabled providers missing keys or failing",
 })
 
 test("admin panel tab options match the operational sections", () => {
-  assert.deepEqual(adminPanelTabOptions.map((option) => option.id), ["overview", "access", "users", "providers", "audit", "automation"])
-  assert.deepEqual(adminPanelTabOptions.map((option) => option.label), ["Overview", "Access", "Users", "Providers", "Audit", "Automation"])
+  assert.deepEqual(adminPanelTabOptions.map((option) => option.id), ["overview", "access", "users", "providers", "audit", "moderation", "automation"])
+  assert.deepEqual(adminPanelTabOptions.map((option) => option.label), ["Overview", "Access", "Users", "Providers", "Audit", "Moderation", "Automation"])
 })
 
 test("filterAdminList searches selected fields only", () => {

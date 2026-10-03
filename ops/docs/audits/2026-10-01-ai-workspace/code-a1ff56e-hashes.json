@@ -1,0 +1,126 @@
+{
+  "createdAt": "2026-10-01T03:29:05.441Z",
+  "revision": "a1ff56ed2808c527f9a6725911a1e461dcf4cbaf",
+  "files": [
+    {
+      "path": "ops/docs/audits/2026-10-01-ai-workspace.md",
+      "sha256": "5ceb738baf33796ced0679474dcdeec09fcc6887cff7a9b4127dc6f79998d1e4",
+      "workingReads": 2,
+      "committedSha256": "5ceb738baf33796ced0679474dcdeec09fcc6887cff7a9b4127dc6f79998d1e4"
+    },
+    {
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/baseline-results.json",
+      "sha256": "ab33ca3fb4077b99f3bd04c5e1ab403600819db9c08457d19d80fc10f36d0644",
+      "workingReads": 2,
+      "committedSha256": "ab33ca3fb4077b99f3bd04c5e1ab403600819db9c08457d19d80fc10f36d0644"
+    },
+    {
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/evidence-hashes.json",
+      "sha256": "eca4b56f4a9748b26bff921fc45801bf9c2130040b2d206f396e68a5c7edc553",
+      "workingReads": 2,
+      "committedSha256": "eca4b56f4a9748b26bff921fc45801bf9c2130040b2d206f396e68a5c7edc553"
+    },
+    {
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/learning-results.json",
+      "sha256": "860b7b2aeb4401ba927d11492c9f2366d91422748fd402b542a3b3cee84ed390",
+      "workingReads": 2,
+      "committedSha256": "860b7b2aeb4401ba927d11492c9f2366d91422748fd402b542a3b3cee84ed390"
+    },
+    {
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/older-probe-results.json",
+      "sha256": "7017c2d8a55314e55520cea1c1d44d8d1285445a75bc31c4a558825c5171543b",
+      "workingReads": 2,
+      "committedSha256": "7017c2d8a55314e55520cea1c1d44d8d1285445a75bc31c4a558825c5171543b"
+    },
+    {
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/options-390-light.jpg",
+      "sha256": "5aebd772e8e2a7f6b9bafefaa76eeae380c2c4ea455fe8f50317b5d75e5187e6",
+      "workingReads": 2,
+      "committedSha256": "5aebd772e8e2a7f6b9bafefaa76eeae380c2c4ea455fe8f50317b5d75e5187e6"
+    },
+    {
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/result-menu-320-dark.jpg",
+      "sha256": "b890a8b79d91c85343d0e49f4a1a62ff728765be098c055a5b0a248f389c9f4a",
+      "workingReads": 2,
+      "committedSha256": "b890a8b79d91c85343d0e49f4a1a62ff728765be098c055a5b0a248f389c9f4a"
+    },
+    {
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/results.json",
+      "sha256": "b26158234cda5625aa13beb8539505be3566c9908ad3b95b6ea67dae7058be50",
+      "workingReads": 2,
+      "committedSha256": "b26158234cda5625aa13beb8539505be3566c9908ad3b95b6ea67dae7058be50"
+    },
+    {
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/tasks-320-dark.jpg",
+      "sha256": "cc84c8a09bcce770a8542fa9957ead3fbb335a7ae05618df7ede4204a5a54bb2",
+      "workingReads": 2,
+      "committedSha256": "cc84c8a09bcce770a8542fa9957ead3fbb335a7ae05618df7ede4204a5a54bb2"
+    },
+    {
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/workspace-1280-color.jpg",
+      "sha256": "44f8b526711e3db9f5c9168aa888315f73b72f9471a6e08199ea2658980c8598",
+      "workingReads": 2,
+      "committedSha256": "44f8b526711e3db9f5c9168aa888315f73b72f9471a6e08199ea2658980c8598"
+    },
+    {
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/workspace-320-dark.jpg",
+      "sha256": "d011ba2b83a6871e00887dc466a073a58aa5d05dd9630e5def246c60393b3ba0",
+      "workingReads": 2,
+      "committedSha256": "d011ba2b83a6871e00887dc466a073a58aa5d05dd9630e5def246c60393b3ba0"
+    },
+    {
+      "path": "ops/docs/audits/2026-10-01-ai-workspace/workspace-390-light.jpg",
+      "sha256": "84e43e07f444712a7f30e8594e23e29c00fd05763886d894ffb87ef7989c6221",
+      "workingReads": 2,
+      "committedSha256": "84e43e07f444712a7f30e8594e23e29c00fd05763886d894ffb87ef7989c6221"
+    },
+    {
+      "path": "ops/docs/roadmap/progress.md",
+      "sha256": "f847b396ddf80977bfcb6b02f9968f12811db78c8dd1381b1afb0b581bd7153a",
+      "workingReads": 2,
+      "committedSha256": "f847b396ddf80977bfcb6b02f9968f12811db78c8dd1381b1afb0b581bd7153a"
+    },
+    {
+      "path": "ops/docs/roadmap/requests.md",
+      "sha256": "7d1e66247041a8a5de3d7c3da4b36990840ba22b26d49eb82d6accfb51043f91",
+      "workingReads": 2,
+      "committedSha256": "7d1e66247041a8a5de3d7c3da4b36990840ba22b26d49eb82d6accfb51043f91"
+    },
+    {
+      "path": "ops/docs/sessions/2026-10-01-ai-workspace.md",
+      "sha256": "249b2e648d40244c8e09c68d85f9955515bc985de52b2b91c4dc5ba9f97b4c94",
+      "workingReads": 2,
+      "committedSha256": "249b2e648d40244c8e09c68d85f9955515bc985de52b2b91c4dc5ba9f97b4c94"
+    },
+    {
+      "path": "ops/docs/sessions/2026-10-01-learning-workflow.md",
+      "sha256": "335fb40223b94bc4d01aa78835af6e501137fbbe8905a7e41383278bae3ef5ad",
+      "workingReads": 2,
+      "committedSha256": "335fb40223b94bc4d01aa78835af6e501137fbbe8905a7e41383278bae3ef5ad"
+    },
+    {
+      "path": "ops/scripts/test/ai-workspace-probe.ts",
+      "sha256": "96662ac369d943a8b63f8c81185fcf47071ce37cdcac854364825fa2f6aa51de",
+      "workingReads": 2,
+      "committedSha256": "96662ac369d943a8b63f8c81185fcf47071ce37cdcac854364825fa2f6aa51de"
+    },
+    {
+      "path": "ops/scripts/test/bugfix-ui-probe.ts",
+      "sha256": "d70bff473a52b1042857827a7d009a42840896f9301c2fe03c07af6acbe74660",
+      "workingReads": 2,
+      "committedSha256": "d70bff473a52b1042857827a7d009a42840896f9301c2fe03c07af6acbe74660"
+    },
+    {
+      "path": "ops/scripts/test/learning-workflow-probe.ts",
+      "sha256": "734d65b31899d1f6066f5472764b1476b9e8b106f61f4414bd1f13a1d6791d61",
+      "workingReads": 2,
+      "committedSha256": "734d65b31899d1f6066f5472764b1476b9e8b106f61f4414bd1f13a1d6791d61"
+    },
+    {
+      "path": "src/components/learn/views/ai-view.tsx",
+      "sha256": "786e13b71d822b02d39cb8da7213a53979e4a80a9fb22b244a5b70595febacd8",
+      "workingReads": 2,
+      "committedSha256": "786e13b71d822b02d39cb8da7213a53979e4a80a9fb22b244a5b70595febacd8"
+    }
+  ]
+}

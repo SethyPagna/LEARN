@@ -1,5 +1,6 @@
 import type { SheetMetadata, SlideObject, StudioDirtyBadge, StudioKind, StudioLayoutState, StudioPane, StudioTab, WorkspaceDeck } from "@/components/learn/types"
 import { studioFallbackTitle } from "./studio-defaults"
+export { buildSheetFormula, createSheetFormulaEvaluator, evaluateSheetFormula } from "./sheet-formulas"
 
 export type StudioRecordActionId =
   | "open"
@@ -32,7 +33,7 @@ export type StudioShareOption = {
 }
 
 export type StudioDownloadOption = {
-  id: "html" | "text" | "csv" | "pptx" | "outline" | "json" | "markdown"
+  id: "html" | "text" | "csv" | "xlsx" | "docx" | "pdf" | "pptx" | "outline" | "json" | "markdown"
   label: string
   detail: string
   bestFor: string
@@ -63,7 +64,7 @@ export function createDefaultStudioLayout(kind: StudioKind = "notes", title = st
     version: 1,
     activePaneId: pane.id,
     groups: [{ id: "group_root", direction: "horizontal", panes: [pane] }],
-    inspectorOpen: true,
+    inspectorOpen: false,
     density: "comfortable",
   }
 }
@@ -198,6 +199,7 @@ export function buildStudioDownloadOptions(kind: StudioKind): StudioDownloadOpti
   if (kind === "sheets") {
     return [
       { id: "csv", label: "CSV", detail: "Spreadsheet rows for Excel, Sheets, and imports.", bestFor: "Excel, Sheets, and AI cleanup", sizeHint: "Small", action: "download", suggested: true },
+      { id: "xlsx", label: "XLSX", detail: "Real Excel workbook with typed number and boolean cells.", bestFor: "Excel handoff and grading", sizeHint: "Small", action: "download" },
       { id: "text", label: "Table text", detail: "Readable rows for messages, docs, or quick review.", bestFor: "Fast sharing", sizeHint: "Tiny", action: "export" },
       { id: "json", label: "Sheet JSON", detail: "Cells plus lightweight metadata for LEARN imports.", bestFor: "Backups and automation", sizeHint: "Medium", action: "export" },
     ]
@@ -205,12 +207,15 @@ export function buildStudioDownloadOptions(kind: StudioKind): StudioDownloadOpti
   if (kind === "slides") {
     return [
       { id: "pptx", label: "PPTX", detail: "Editable Microsoft PowerPoint deck.", bestFor: "Presentation handoff", sizeHint: "Medium", action: "export", suggested: true },
+      { id: "pdf", label: "PDF", detail: "One visible slide per page, preserving the deck's aspect ratio without a print dialog.", bestFor: "Sharing and printing", sizeHint: "Small", action: "download" },
       { id: "outline", label: "Speaker outline", detail: "Slide titles, bullets, and notes in a compact script.", bestFor: "Rehearsal", sizeHint: "Tiny", action: "download" },
       { id: "json", label: "Deck JSON", detail: "Slide objects, layouts, theme, and speaker notes.", bestFor: "Studio backup", sizeHint: "Medium", action: "export" },
     ]
   }
   return [
     { id: "html", label: "HTML", detail: "Designed document with headings and formatting.", bestFor: "Reading and publishing", sizeHint: "Small", action: "download", suggested: true },
+    { id: "pdf", label: "PDF", detail: "Real paged PDF built in the app — no print dialog, no plugin.", bestFor: "Sharing and printing", sizeHint: "Small", action: "download" },
+    { id: "docx", label: "DOCX", detail: "Real Word document with headings, lists, and tables.", bestFor: "Word handoff and printing", sizeHint: "Small", action: "download" },
     { id: "markdown", label: "Markdown", detail: "Portable headings, lists, links, and study structure.", bestFor: "Docs, notes, and AI", sizeHint: "Small", action: "export" },
     { id: "text", label: "Plain text", detail: "Clean text for email, AI, and lightweight export.", bestFor: "Fast sharing", sizeHint: "Tiny", action: "export" },
   ]
@@ -286,80 +291,6 @@ export function sortSheetByColumn(cells: string[][], columnIndex: number, direct
   const factor = direction === "asc" ? 1 : -1
   const sortedRows = [...rows].sort((left, right) => String(left[columnIndex] ?? "").localeCompare(String(right[columnIndex] ?? "")) * factor)
   return [header, ...sortedRows]
-}
-
-export function buildSheetFormula(functionName: "SUM" | "AVERAGE" | "MIN" | "MAX" | "COUNT", columnIndex: number, rowCount: number) {
-  const column = columnIndexToName(columnIndex)
-  const endRow = Math.max(2, rowCount)
-  return `=${functionName}(${column}2:${column}${endRow})`
-}
-
-export function evaluateSheetFormula(cells: string[][], formula: string) {
-  const normalized = formula.trim().toUpperCase()
-  const match = normalized.match(/^=(SUM|AVERAGE|MIN|MAX|COUNT)\(([A-Z]+\d+)(?::([A-Z]+\d+))?\)$/)
-  if (!match) return { ok: false, value: "", reason: "Unsupported formula" }
-  const [, functionName, startRef, endRef = startRef] = match
-  const values = readSheetRange(cells, startRef, endRef).map(toNumber).filter((value) => Number.isFinite(value))
-  if (!values.length) return { ok: true, value: "0", reason: "No numeric cells" }
-  const result = calculateFormula(functionName, values)
-  return { ok: true, value: formatFormulaResult(result), reason: `${functionName} across ${values.length} cells` }
-}
-
-function calculateFormula(functionName: string, values: number[]) {
-  if (functionName === "COUNT") return values.length
-  if (functionName === "MIN") return Math.min(...values)
-  if (functionName === "MAX") return Math.max(...values)
-  const total = values.reduce((sum, value) => sum + value, 0)
-  return functionName === "AVERAGE" ? total / values.length : total
-}
-
-function readSheetRange(cells: string[][], startRef: string, endRef: string) {
-  const start = parseCellRef(startRef)
-  const end = parseCellRef(endRef)
-  if (!start || !end) return []
-  const minRow = Math.min(start.row, end.row)
-  const maxRow = Math.max(start.row, end.row)
-  const minColumn = Math.min(start.column, end.column)
-  const maxColumn = Math.max(start.column, end.column)
-  const values: string[] = []
-  for (let row = minRow; row <= maxRow; row += 1) {
-    for (let column = minColumn; column <= maxColumn; column += 1) {
-      values.push(cells[row]?.[column] ?? "")
-    }
-  }
-  return values
-}
-
-function parseCellRef(ref: string) {
-  const match = ref.match(/^([A-Z]+)(\d+)$/)
-  if (!match) return null
-  return {
-    column: columnNameToIndex(match[1]),
-    row: Number(match[2]) - 1,
-  }
-}
-
-function columnIndexToName(index: number) {
-  let next = Math.max(0, index) + 1
-  let name = ""
-  while (next > 0) {
-    const remainder = (next - 1) % 26
-    name = String.fromCharCode(65 + remainder) + name
-    next = Math.floor((next - 1) / 26)
-  }
-  return name
-}
-
-function columnNameToIndex(name: string) {
-  return name.split("").reduce((index, char) => index * 26 + char.charCodeAt(0) - 64, 0) - 1
-}
-
-function toNumber(value: string) {
-  return Number(String(value).replace(/,/g, "").trim())
-}
-
-function formatFormulaResult(value: number) {
-  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, "")
 }
 
 export function duplicateSlide(slides: WorkspaceDeck["slides"], index: number) {

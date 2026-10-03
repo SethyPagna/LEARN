@@ -1,8 +1,23 @@
 # LEARN
 
+Live app: [learn.pagna.workers.dev](https://learn.pagna.workers.dev). Cloudflare is the production target; automatic Vercel releases are disabled.
+
 LEARN is a Cloudflare-first study workspace with notes, native docs, sheets, slides, quizzes, study games, AI tutor workflows, progress tracking, multilingual vocabulary, file capture, calendar planning, group chat, automation logs, and first-party login.
 
 The deployable app name is `learn`. Each sibling app should use separate Cloudflare resources; this repo only creates or modifies `learn-*` resources.
+
+## Quick Start (Windows)
+
+Double-click a file in the project folder. Needs [Node.js](https://nodejs.org) 20.9 or newer (the LTS version is best).
+
+| File | What it does |
+| --- | --- |
+| `run.bat` | Starts LEARN on this PC and opens it in the browser. Ctrl+C stops it. |
+| `test.bat` | Type check and every test. `test.bat full` adds a production build; `test.bat tour` screenshots every page of a running LEARN. |
+| `deploy.bat cloudflare` | Checks and builds, verifies the existing cloud target and recovery point, then publishes to Cloudflare. |
+| `tools.bat` | Health check, clean caches, reinstall packages, reset local data, Cloudflare preview, tunnel. |
+
+Local data (accounts, notes, designs, chats, uploads) lives in `.wrangler\state`. Cleaning caches and deploying never touch it; only **Reset local data** in `tools.bat` deletes it, after you type `RESET`.
 
 ## Default Login
 
@@ -26,13 +41,18 @@ Never commit real Cloudflare, AI, Vercel, or tunnel secrets. If a token was past
 
 ## First Setup
 
+`run.bat` does the local setup on its first start. Local setup and development
+do not require Cloudflare login. To prepare without starting:
+
 ```powershell
-corepack pnpm install --frozen-lockfile
-copy ops\env\dev.vars.example .dev.vars
 ops\run\setup-first-time.bat
 ```
 
-When `wrangler d1 create learn-db` prints the database id, paste that id into `ops\cloudflare\wrangler.jsonc` at `d1_databases[0].database_id` and set `CLOUDFLARE_D1_DATABASE_ID` in ignored local, GitHub, Vercel, or Docker env.
+Setup installs the pinned dependencies, creates `ops\cloudflare\.dev.vars` only
+when missing, and applies local D1 migrations. Existing local data and credentials
+are preserved. For first-time remote provisioning, use `ops\run\setup-d1.bat`
+and `ops\run\setup-r2.bat` after Cloudflare authentication. Set the resulting
+database id in both Wrangler configs and your deployment environment.
 
 Set production secrets with Wrangler or the Cloudflare dashboard:
 
@@ -55,26 +75,58 @@ For Vercel and Docker, also set:
 Run the app locally with OpenNext's Cloudflare binding integration:
 
 ```powershell
-ops\run\start-local.bat
+run.bat
 ```
 
-This applies local D1 migrations and starts Next dev with D1/R2 bindings available through OpenNext's Cloudflare integration.
+This refreshes packages, applies local D1 migrations and starts Next dev plus the realtime hub with D1/R2 bindings available through OpenNext's Cloudflare integration, then opens the browser once the first page answers. If LEARN is already running it opens that copy; a port another app holds is skipped for the next free one. `run.bat --no-browser` skips the browser; `set PORT=3001` first picks another port.
+
+The root launchers hand over to `ops\run`, where every step also has its own file:
+
+| Windows launcher | Action |
+| --- | --- |
+| `ops\run\start-local.bat` | Same as `run.bat` |
+| `ops\run\test.bat` | Same as `test.bat` |
+| `ops\run\check.bat` | Typecheck and run tests |
+| `ops\run\build.bat` | Build production Next.js output |
+| `ops\run\preview-cloudflare.bat` | Build and preview the Worker locally |
+| `ops\run\doctor.bat` | Check types, tests, local D1 migration status and Cloudflare sign-in |
+| `ops\run\tools.bat` | Same as `tools.bat` |
+| `ops\run\run-task.bat` | The task engine behind all of them |
+
+A double-clicked window stays open at the end so results can be read; typed into
+a terminal, launchers end at once. For automation, set `LEARN_NO_PAUSE=1`;
+launchers preserve the command's exit code. Remote deployments ask before going
+live and require Cloudflare sign-in or configured credentials.
+
+For local AI, run Ollama with an installed chat model and set `OLLAMA_BASE_URL`
+to `http://127.0.0.1:11434` and `OLLAMA_MODEL` to its name in
+`ops/cloudflare/.dev.vars`. Restart LEARN and select **Ollama (local server)** in
+AI. The endpoint is restricted to the LEARN server's loopback address; a hosted
+Worker cannot reach Ollama on your personal computer. Unconfigured or failed
+providers show an error instead of a saveable AI answer.
+
+Calls use one peer connection, including invitations sent to a group. For
+networks requiring a relay, configure `LEARN_TURN_URLS` (comma-separated TURN
+URLs) and `LEARN_TURN_SECRET` with a coturn-compatible shared secret. Authenticated
+clients receive temporary credentials; the shared secret stays on the server.
+Direct local call checks do not establish reliability on every external network.
 
 ## Deploy
 
-Cloudflare Workers:
+Use `deploy.bat cloudflare`; `--yes` after the target skips the launcher's
+confirmations for automation. The GitHub Cloudflare workflow also offers a
+verification-only mode that checks the published app without a database write
+or deployment.
+
+Cloudflare Workers uses the project's `CLOUDFLARE_API_TOKEN` and pinned account:
 
 ```powershell
-ops\run\deploy-cloudflare.bat
+deploy.bat cloudflare
 ```
 
-The Worker name is `learn`, so the default Workers URL is `https://learn.<account-workers-subdomain>.workers.dev`. Cloudflare's workers.dev subdomain is account-level; changing it from `learn-learning-app` to `learn`, `learning`, or `learn-learning` changes workers.dev URLs for other Workers in the same account too. Use a custom domain for a LEARN-only hostname change.
-
-Vercel project `learn`:
-
-```powershell
-ops\run\deploy-vercel.bat
-```
+The existing Worker is `learn` at `https://learn.pagna.workers.dev`. The
+`pagna` subdomain belongs to the account; do not change it for this app because
+that would change other Workers' URLs. Use a custom domain for an app-only hostname.
 
 Docker/domain self-deploy:
 
@@ -120,9 +172,19 @@ The included workflows expect these repository or environment secrets:
 ## Verification
 
 ```powershell
-corepack pnpm test
-corepack pnpm lint
-corepack pnpm build
+test.bat
+test.bat full
+test.bat tour
+```
+
+`test.bat tour` (or `ops\run\bin\pnpm.cmd test:tour`) needs LEARN running on this PC (`run.bat`) and Chrome or Edge installed. It signs in with the starter admin account, opens every page and saved project at desktop and phone size, and saves screenshots plus layout numbers to `output\visual-tour` (git-ignored). `TOUR_ONLY=canvas,notes` limits it to a few pages.
+
+The same checks as package scripts:
+
+```powershell
+ops\run\bin\pnpm.cmd lint
+ops\run\bin\pnpm.cmd test
+ops\run\bin\pnpm.cmd build
 ```
 
 On Windows, `ops\run\bin\pnpm.cmd <script>` is the preferred local wrapper for repo scripts. It uses the pinned pnpm toolchain directly and avoids npm reading pnpm-only project config.

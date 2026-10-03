@@ -1,6 +1,14 @@
 import type { NextRequest } from "next/server"
 import { fail, isApiResponse, ok, readJsonObject, requireApiUser, withApiErrorBoundary } from "@/lib/api"
-import { saveVaultBlock } from "@/lib/data"
+import { listVaultBlocks, saveVaultBlock } from "@/lib/data"
+
+export const GET = withApiErrorBoundary(async (request: NextRequest) => {
+  const user = await requireApiUser(request)
+  if (isApiResponse(user)) return user
+  const noteId = request.nextUrl.searchParams.get("noteId")?.trim()
+  if (!noteId) return fail("A note id is required.")
+  return ok({ items: await listVaultBlocks(user, noteId) })
+})
 
 export const POST = withApiErrorBoundary(async (request: NextRequest) => {
   const user = await requireApiUser(request)

@@ -1,819 +1,1066 @@
 "use client"
 
-import type React from "react"
-import { useEffect, useMemo, useState } from "react"
+import { createPortal } from "react-dom"
+import { useCallback, useEffect, useId, useRef, useState } from "react"
 import {
+  AtSign,
   Bell,
-  BookOpen,
-  CalendarDays,
   Check,
   CheckCheck,
-  Bot,
   ChevronDown,
+  ChevronRight,
   Compass,
-  FileText,
+  Edit3,
   Gamepad2,
-  Home,
+  Info,
   Languages,
   LogOut,
-  Menu,
-  Moon,
+  Mail,
+  MailOpen,
+  MessageCircle,
   PanelLeftClose,
   PanelLeftOpen,
+  PhoneMissed,
+  Reply,
   Search,
   Settings,
-  Sun,
-  MessagesSquare,
+  Share2,
   Trash2,
+  UserCheck,
+  UserPlus,
+  Users,
   X,
+  type LucideIcon,
 } from "lucide-react"
+import { ThemeModeSwitcher } from "@/components/theme-mode-switcher"
+import { formatRelativeTime } from "@/lib/format-time"
 import { languageNames, supportedLocales, type baseVocabulary, type SupportedLocale } from "@/lib/i18n/vocabulary"
-import {
-  formatNavigationBadge,
-  rankNavigationMatches,
-  shouldUseNavigationIconRail,
-  summarizeActiveNavigationGroup,
-  viewBelongsToNavigationItem,
-  type NavigationSearchCandidate,
-} from "@/lib/navigation-features"
+import { formatNavigationBadge } from "@/lib/navigation-features"
+import type { ArtifactType } from "@/lib/ux/artifact-catalog"
 import {
   getNavigationItemDetail,
-  launcherCommands,
-  navigationGroups,
   navigationItems,
+  placeTabsForView,
+  placeTabForView,
   practiceViews,
+  resolveNavigationTarget,
+  sectionTabForView,
   studioViews,
+  topbarLabelsForView,
   viewLabelKeys,
-  type LauncherCommandConfig,
+  type LauncherCommandAction,
   type LearnNavigationItem,
-  type NavigationIconKey,
+  type SectionTab,
 } from "@/lib/navigation"
+import type { NotificationItem, NotificationKind } from "@/lib/notifications"
 import type { PracticeDraftSummary } from "@/lib/practice-drafts"
+import type { SidebarMode } from "@/lib/shell/sidebar-mode"
 import type { StudioDraftSummary } from "@/lib/studio-drafts"
-import type { View, User } from "./types"
+import type { RealtimeStatus } from "@/lib/realtime/client"
+import { api } from "./api"
+import { Popover } from "./design/popover"
+import { InstallAppButton } from "./app-install"
+import { openCommandPalette } from "./command-palette"
+import { CreateMenu, openCreateMenu } from "./create-menu"
+import { viewIcons } from "./nav-icons"
+import { openPlaceGuide } from "./place-guide"
+import { ProfileIdentityEditor, useProfileIdentityEditor, type ProfileIdentityEditorState } from "./profile-identity-editor"
+import { useInboxEvent, useInboxStatus } from "./realtime-inbox"
+import type { User, View } from "./types"
 
 type Text = typeof baseVocabulary
 type Density = "compact" | "comfortable"
 
-const navIconMap: Record<NavigationIconKey, React.ComponentType<{ className?: string }>> = {
-  ai: Bot,
-  calendar: CalendarDays,
-  dashboard: Home,
-  practice: Gamepad2,
-  settings: Settings,
-  social: MessagesSquare,
-  studio: FileText,
-  workspaces: Compass,
-}
-
-function keywordsForNavItem(item: LearnNavigationItem, text: Text) {
-  return [item.view, String(text[item.labelKey]), ...(item.aliases ?? []), getNavigationItemDetail(item)]
+/**
+ * Commands that open a surface rather than navigate. The command palette only
+ * knows views, so these two entries name an action and are handed to the
+ * components that own the Create menu and the guide.
+ */
+export const launcherActions: Record<LauncherCommandAction, () => void> = {
+  "create-menu": openCreateMenu,
+  "place-guide": openPlaceGuide,
 }
 
 export function titleForView(view: View, text: Text) {
+  if (view === "studio") return text.studio
   return text[viewLabelKeys[view]] || text.dashboard
 }
 
+const ghostIconButton =
+  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+
+/** "Ctrl" everywhere, "⌘" on Apple devices; settled after mount so SSR and the first paint agree. */
+function useModKeyLabel() {
+  const [label, setLabel] = useState("Ctrl")
+  useEffect(() => {
+    if (/Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent)) setLabel("⌘")
+  }, [])
+  return label
+}
+
+/** Open state for a click-to-open panel that closes on an outside press or Escape. */
+function usePopover() {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onPointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return
+      setOpen(false)
+      rootRef.current?.querySelector<HTMLElement>("[data-popover-trigger]")?.focus()
+    }
+    document.addEventListener("pointerdown", onPointerDown)
+    document.addEventListener("keydown", onKeyDown)
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown)
+      document.removeEventListener("keydown", onKeyDown)
+    }
+  }, [open])
+
+  return { open, rootRef, setOpen }
+}
+
+function draftBadgeFor(item: LearnNavigationItem, studioDraftSummary: StudioDraftSummary, practiceDraftSummary: PracticeDraftSummary) {
+  const count = item.view === "studio" ? studioDraftSummary.count : item.view === "practice" ? practiceDraftSummary.count : 0
+  const title = item.view === "practice"
+    ? formatNavigationBadge(count, "saved Practice attempt", "saved Practice attempts")
+    : formatNavigationBadge(count, "local Studio draft", "local Studio drafts")
+  return { count, title }
+}
+
+/* ------------------------------------------------------------------------ */
+/* Brand                                                                     */
+/* ------------------------------------------------------------------------ */
+
+function BrandMark({ size = "md" }: { size?: "sm" | "md" }) {
+  return <img src="/icon.svg" width={40} height={40} className={size === "sm" ? "h-8 w-8 shrink-0" : "h-10 w-10 shrink-0"} alt="" aria-hidden="true" loading="eager" decoding="async" />
+}
+
+/* ------------------------------------------------------------------------ */
+/* Sidebar                                                                   */
+/* ------------------------------------------------------------------------ */
+
 export function Sidebar({
-  density,
-  locale,
-  query,
-  resolvedTheme,
-  setQuery,
-  setDensity,
-  setLocale,
-  setTheme,
-  setView,
-  text,
-  user,
-  view,
-  logout,
-  studioDraftSummary,
+  hideCreate = false,
+  isAdmin = false,
+  mode,
+  onModeChange,
+  onCreate,
   practiceDraftSummary,
+  setView,
+  studioDraftSummary,
+  text,
+  view,
 }: {
-  density: Density
-  locale: SupportedLocale
-  query: string
-  resolvedTheme?: string
-  setQuery: (query: string) => void
-  setDensity: (density: Density) => void
-  setLocale: (locale: SupportedLocale) => void
-  setTheme: (theme: string) => void
-  setView: (view: View) => void
-  text: Text
-  user: User | null
-  view: View
-  logout: () => void
-  studioDraftSummary: StudioDraftSummary
+  hideCreate?: boolean
+  isAdmin?: boolean
+  mode: SidebarMode
+  onModeChange: (mode: SidebarMode) => void
+  onCreate?: (artifact: ArtifactType) => void
   practiceDraftSummary: PracticeDraftSummary
+  setView: (view: View) => void
+  studioDraftSummary: StudioDraftSummary
+  text: Text
+  view: View
 }) {
-  const compact = density === "compact"
+  const modKey = useModKeyLabel()
+  if (mode === "hidden") return null
+  const compact = mode === "rail"
+
   return (
-    <aside className={`fixed inset-y-0 left-0 z-30 hidden border-r border-border bg-sidebar py-4 text-sidebar-foreground lg:flex lg:flex-col ${compact ? "w-[84px] px-2" : "w-[272px] px-3"}`}>
-      <Brand compact={compact} text={text} />
-      <LauncherSearch compact={compact} query={query} setQuery={setQuery} setView={setView} text={text} />
-      <div className={`min-h-0 flex-1 overflow-y-auto ${compact ? "pr-0" : "pr-1"}`}>
-        <Navigation density={density} text={text} view={view} setView={setView} studioDraftSummary={studioDraftSummary} practiceDraftSummary={practiceDraftSummary} />
+    <aside
+      aria-label="Main navigation"
+      className="learn-sidebar fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex"
+    >
+      {compact ? (
+        <div className="flex items-center justify-center px-2 pb-2 pt-3">
+          <button type="button" onClick={() => onModeChange("expanded")} className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Expand sidebar" title={`Expand sidebar (${modKey}+\\)`}>
+            <BrandMark size="sm" />
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 px-3 pb-2 pt-3">
+          <button type="button" onClick={() => onModeChange("rail")} className="mr-auto rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Collapse sidebar" title="Collapse sidebar">
+            <BrandMark size="sm" />
+          </button>
+          <button type="button" onClick={() => onModeChange("rail")} className={ghostIconButton} aria-label="Collapse sidebar to icons" title={`Collapse to icons (${modKey}+\\)`}>
+            <PanelLeftClose className="h-[18px] w-[18px]" />
+          </button>
+        </div>
+      )}
+
+      <div className={compact ? "px-2" : "px-3"}>
+        {hideCreate ? null : <CreateMenu variant={compact ? "rail" : "sidebar"} setView={setView} onCreate={onCreate} />}
+        {compact ? (
+          <div className="mb-3 flex justify-center">
+            <button type="button" onClick={openCommandPalette} className={`${ghostIconButton} h-11 w-11 rounded-xl border border-sidebar-border bg-background/60`} aria-label="Search or jump" title={`Search or jump (${modKey}+K)`}>
+              <Search className="h-[18px] w-[18px]" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={openCommandPalette}
+            className="mb-3 flex h-9 w-full items-center gap-2 rounded-lg border border-sidebar-border bg-background/70 px-3 text-sm text-muted-foreground transition hover:border-ring/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Search className="h-4 w-4" />
+            <span className="whitespace-nowrap text-xs">Search</span>
+            <span className="ml-auto flex items-center gap-0.5">
+              <kbd className="learn-kbd">{modKey}</kbd>
+              <kbd className="learn-kbd">K</kbd>
+            </span>
+          </button>
+        )}
       </div>
-      <SidebarControls
-        density={density}
-        locale={locale}
-        logout={logout}
-        resolvedTheme={resolvedTheme}
-        setDensity={setDensity}
-        setLocale={setLocale}
-        setTheme={setTheme}
-        text={text}
-        user={user}
-      />
+
+      <div className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-3 ${compact ? "px-2" : "px-3"}`}>
+        <Navigation compact={compact} isAdmin={isAdmin} practiceDraftSummary={practiceDraftSummary} setView={setView} studioDraftSummary={studioDraftSummary} text={text} view={view} />
+      </div>
+
+      <SidebarFooter compact={compact} isAdmin={isAdmin} setView={setView} text={text} view={view} />
+      <div id="sidebar-account" className={`border-t border-sidebar-border p-2 ${compact ? "" : "px-3"}`} />
     </aside>
   )
 }
 
-function LauncherSearch({
+/**
+ * `aria-current` for a place: "page" on the place's own page, "true" on any
+ * other page of the place (its tab row marks the page itself).
+ */
+function placeCurrent(item: LearnNavigationItem, view: View, activePlace: View) {
+  if (item.view !== activePlace) return undefined
+  return item.view === view ? "page" : "true"
+}
+
+function Navigation({
   compact,
-  query,
-  setQuery,
+  isAdmin,
+  practiceDraftSummary,
   setView,
+  studioDraftSummary,
   text,
+  view,
 }: {
-  compact?: boolean
-  query: string
-  setQuery: (query: string) => void
+  compact: boolean
+  isAdmin: boolean
+  practiceDraftSummary: PracticeDraftSummary
   setView: (view: View) => void
+  studioDraftSummary: StudioDraftSummary
   text: Text
+  view: View
 }) {
-  const [focused, setFocused] = useState(false)
-  const needle = query.trim().toLowerCase()
-  const navCandidates = useMemo<NavigationSearchCandidate<LearnNavigationItem>[]>(() => navigationItems.map((item) => ({
-    value: item,
-    label: String(text[item.labelKey]),
-    detail: getNavigationItemDetail(item),
-    keywords: keywordsForNavItem(item, text),
-  })), [text])
-  const commandCandidates = useMemo<NavigationSearchCandidate<LauncherCommandConfig>[]>(() => launcherCommands.map((item) => ({
-    value: item,
-    label: item.label,
-    detail: item.detail,
-    keywords: item.keywords,
-  })), [])
-  const navResults = useMemo(() => {
-    if (!needle) return []
-    return rankNavigationMatches(needle, navCandidates, 5)
-  }, [navCandidates, needle])
-  const commandResults = useMemo(() => {
-    if (!needle) return []
-    return rankNavigationMatches(needle, commandCandidates, 4)
-  }, [commandCandidates, needle])
-  const visibleCommands = needle ? commandResults : commandCandidates.slice(0, 4)
-  const hasResults = navResults.length > 0 || visibleCommands.length > 0
-  const showPanel = focused && (needle.length > 0 || visibleCommands.length > 0)
-  const firstView = visibleCommands[0]?.value.view ?? navResults[0]?.value.view
-
-  function choose(nextView: View) {
-    setView(nextView)
-    setQuery("")
-    setFocused(false)
-  }
-
-  function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Escape") {
-      setQuery("")
-      setFocused(false)
-      return
-    }
-    if (event.key === "Enter" && firstView) {
-      event.preventDefault()
-      choose(firstView)
-    }
-  }
-
-  const resultsPanel = (
-    <>
-      {hasResults ? (
-        <div className="grid gap-2">
-          {navResults.length ? (
-            <LauncherGroup label="Go to">
-              {navResults.map((item) => {
-                const Icon = navIconMap[item.value.iconKey]
-                return (
-                  <LauncherItem key={item.value.view} icon={Icon} label={item.label} detail={item.detail} onClick={() => choose(item.value.view)} />
-                )
-              })}
-            </LauncherGroup>
-          ) : null}
-          {visibleCommands.length ? (
-            <LauncherGroup label={needle ? "Actions" : "Quick actions"}>
-              {visibleCommands.map((item) => (
-                <LauncherItem key={item.label} icon={navIconMap[item.value.iconKey]} label={item.label} detail={item.detail} onClick={() => choose(item.value.view)} />
-              ))}
-            </LauncherGroup>
-          ) : null}
-        </div>
-      ) : (
-        <div className="rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">
-          No command found
-        </div>
-      )}
-    </>
-  )
-
-  if (compact) {
-    return (
-      <div className="relative mb-3 flex justify-center" onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false)
-      }}>
-        <button
-          onClick={() => setFocused(true)}
-          className="flex h-11 w-11 items-center justify-center rounded-xl border border-sidebar-border bg-background text-muted-foreground transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          aria-label="Search or jump"
-          title="Search or jump"
-        >
-          <Search className="h-4 w-4" />
-        </button>
-        {showPanel ? (
-          <div className="absolute left-full top-0 z-[80] ml-3 w-80 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95">
-            <div className="mb-2 flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 focus-within:ring-2 focus-within:ring-ring/30">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <input
-                autoFocus
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onFocus={() => setFocused(true)}
-                onKeyDown={handleKeyDown}
-                placeholder="Search or jump"
-                className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-              />
-            </div>
-            {resultsPanel}
-          </div>
-        ) : null}
-      </div>
-    )
-  }
+  const activePlace = resolveNavigationTarget(view).primaryView
 
   return (
-    <div className="relative mb-3" onBlur={(event) => {
-      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false)
-    }}>
-      <div className="flex h-9 items-center gap-2 rounded-md border border-sidebar-border bg-background px-3 focus-within:ring-2 focus-within:ring-sidebar-ring/30">
-        <Search className="h-4 w-4 text-muted-foreground" />
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onFocus={() => setFocused(true)}
-          onKeyDown={handleKeyDown}
-          placeholder="Search or jump"
-          className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-        />
-      </div>
-      {showPanel ? (
-        <div className="absolute left-0 right-0 top-11 z-[80] rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95">
-          {resultsPanel}
-        </div>
-      ) : null}
+    <nav aria-label="Sections">
+      <ul className={compact ? "grid justify-items-center gap-1.5" : "grid gap-0.5"}>
+        {navigationItems.map((item) => {
+          if (item.view === "profile") return null
+          const active = item.view === activePlace
+          const Icon = viewIcons[item.view]
+          const label = String(text[item.labelKey])
+          const badge = draftBadgeFor(item, studioDraftSummary, practiceDraftSummary)
+          const count = badge.count ? (
+            <span className="sidebar-icon-count" title={badge.title}>
+              {badge.count > 99 ? "99+" : badge.count}
+            </span>
+          ) : null
+          return (
+            <li key={item.view} data-tab={sectionTabForView(item.view)}>
+              {compact ? (
+                <button
+                  type="button"
+                  onClick={() => setView(item.view)}
+                  aria-current={placeCurrent(item, view, activePlace)}
+                  aria-label={label}
+                  title={`${label}: ${getNavigationItemDetail(item)}`}
+                  className={`relative flex h-11 w-11 items-center justify-center rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    active ? "learn-tab-dot learn-tab-on shadow-paper" : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  }`}
+                >
+                  <span className="relative flex h-6 w-6 items-center justify-center"><Icon className="h-5 w-5" />{count}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setView(item.view)}
+                  aria-current={placeCurrent(item, view, activePlace)}
+                  title={getNavigationItemDetail(item)}
+                  className={`relative flex h-9 w-full items-center gap-2 rounded-lg px-2 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    active
+                      ? "learn-tab-marker learn-tab-wash-strong font-semibold text-foreground"
+                      : "font-medium text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  }`}
+                >
+                  <span className={`relative flex h-6 w-6 shrink-0 items-center justify-center ${active ? "text-foreground" : "text-muted-foreground"}`}>
+                    <Icon className="h-[18px] w-[18px]" />
+                    {count}
+                  </span>
+                  <span className="truncate">{label}</span>
+                </button>
+              )}
+              {!compact && active ? <SidebarPageLinks isAdmin={isAdmin} label={label} setView={setView} text={text} view={view} /> : null}
+            </li>
+          )
+        })}
+      </ul>
+    </nav>
+  )
+}
+
+function ConnectionStatus({ compact, status }: { compact?: boolean; status: RealtimeStatus }) {
+  const label = status === "open" ? "Live" : status === "closed" ? "Offline" : "Reconnecting…"
+  const detail = status === "open"
+    ? "Connected: messages, calls and notifications arrive instantly"
+    : status === "closed"
+      ? "Not connected to live updates"
+      : "Reconnecting to live updates"
+  const tone = status === "open" ? "bg-success" : status === "closed" ? "bg-muted-foreground/50" : "animate-pulse bg-warning"
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground" title={detail}>
+      <span className={`h-2 w-2 rounded-full ${tone}`} aria-hidden="true" />
+      {compact ? <span className="sr-only">{label}</span> : label}
+    </span>
+  )
+}
+
+function SidebarPageLinks({ isAdmin, label, setView, text, view }: { isAdmin: boolean; label: string; setView: (view: View) => void; text: Text; view: View }) {
+  return <ul className="sidebar-pages" aria-label={`${label} pages`}>{placeTabsForView(view, isAdmin).map(page => {
+    const Icon = viewIcons[page]
+    return <li key={page}><button type="button" onClick={() => setView(page)} aria-current={placeTabForView(view) === page ? "page" : undefined}><Icon aria-hidden="true" /><span>{text[viewLabelKeys[page]]}</span></button></li>
+  })}</ul>
+}
+
+function SidebarFooter({ compact, isAdmin, setView, text, view }: { compact: boolean; isAdmin: boolean; setView: (view: View) => void; text: Text; view: View }) {
+  if (compact || resolveNavigationTarget(view).primaryView !== "profile") return null
+
+  return (
+    <div className="border-t border-sidebar-border px-3 py-2">
+      <SidebarPageLinks isAdmin={isAdmin} label={String(text.me)} setView={setView} text={text} view={view} />
     </div>
   )
 }
 
-function LauncherGroup({ children, label }: { children: React.ReactNode; label: string }) {
-  return (
-    <div>
-      <p className="px-2 pb-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
-      <div className="grid gap-1">{children}</div>
-    </div>
-  )
-}
-
-function LauncherItem({
-  detail,
-  icon: Icon,
-  label,
-  onClick,
-}: {
-  detail: string
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  onClick: () => void
-}) {
-  return (
-    <button onClick={onClick} className="flex w-full items-center gap-3 rounded-md p-2 text-left transition hover:bg-accent hover:text-accent-foreground">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
-        <Icon className="h-4 w-4" />
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-sm font-semibold">{label}</span>
-        <span className="block truncate text-xs text-muted-foreground">{detail}</span>
-      </span>
-    </button>
-  )
-}
+/* ------------------------------------------------------------------------ */
+/* Top bar                                                                   */
+/* ------------------------------------------------------------------------ */
 
 export function Topbar({
+  hideCreate = false,
   density,
+  editorOpen = false,
   locale,
-  menuOpen,
-  resolvedTheme,
+  logout,
+  onCreate,
+  onProfileSaved,
+  onSidebarModeChange,
+  openLink,
+  practiceDraftSummary,
   setDensity,
   setLocale,
-  setMenuOpen,
-  setTheme,
+  setView,
+  sidebarMode,
+  studioDraftSummary,
   text,
   user,
   view,
-  logout,
-  studioDraftSummary,
-  practiceDraftSummary,
 }: {
+  hideCreate?: boolean
   density: Density
+  editorOpen?: boolean
   locale: SupportedLocale
-  menuOpen: boolean
-  resolvedTheme?: string
+  logout: () => void
+  onCreate?: (artifact: ArtifactType) => void
+  onProfileSaved: (user: User) => void
+  onSidebarModeChange: (mode: SidebarMode) => void
+  openLink: (href: string) => void
+  practiceDraftSummary: PracticeDraftSummary
   setDensity: (density: Density) => void
   setLocale: (locale: SupportedLocale) => void
-  setMenuOpen: (open: boolean) => void
-  setTheme: (theme: string) => void
+  setView: (view: View) => void
+  sidebarMode: SidebarMode
+  studioDraftSummary: StudioDraftSummary
   text: Text
   user: User | null
   view: View
-  logout: () => void
-  studioDraftSummary: StudioDraftSummary
-  practiceDraftSummary: PracticeDraftSummary
 }) {
-  const MenuIcon = menuOpen ? X : Menu
-  const ThemeIcon = resolvedTheme === "dark" ? Moon : Sun
-  const [openControl, setOpenControl] = useState<"language" | "notifications" | null>(null)
+  const modKey = useModKeyLabel()
+  const target = resolveNavigationTarget(view)
+  const labels = topbarLabelsForView(view, editorOpen)
+  const title = String(text[labels.title] || text.dashboard)
+  const placeLabel = labels.place ? String(text[labels.place]) : ""
+  const [accountHost, setAccountHost] = useState<HTMLElement | null>(null)
+  const identityEditor = useProfileIdentityEditor({ user, onSaved: onProfileSaved })
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1024px)")
+    const updateHost = () => setAccountHost(desktop.matches && sidebarMode !== "hidden" ? document.getElementById("sidebar-account") : null)
+    updateHost()
+    desktop.addEventListener("change", updateHost)
+    return () => desktop.removeEventListener("change", updateHost)
+  }, [sidebarMode])
+
+  const accountControls = (
+    <div aria-busy={!user} className={`account-controls ${accountHost ? (sidebarMode === "rail" ? "account-cluster account-cluster-rail" : "account-cluster") : "flex items-center gap-1"}`}>
+          <AccountMenu
+            sidebar={Boolean(accountHost)}
+            showName={Boolean(accountHost) && sidebarMode === "expanded"}
+            density={density}
+            editor={identityEditor}
+            locale={locale}
+            logout={logout}
+            modKey={modKey}
+            onSidebarModeChange={onSidebarModeChange}
+            setDensity={setDensity}
+            setLocale={setLocale}
+            setView={setView}
+            sidebarMode={sidebarMode}
+            text={text}
+            user={user}
+          />
+          <ThemeModeSwitcher compact={!accountHost || sidebarMode === "rail"} iconsOnly={Boolean(accountHost) && sidebarMode === "expanded"} className="account-appearance" />
+          <NotificationsMenu openLink={openLink} user={user} sidebar={Boolean(accountHost)} />
+    </div>
+  )
+
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-2.5 text-foreground backdrop-blur lg:hidden">
-      <div className="flex min-w-0 items-center gap-3">
-        <button
-          onClick={() => setMenuOpen(!menuOpen)}
-          className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground lg:hidden"
-          aria-label="Toggle menu"
-        >
-          <MenuIcon className="h-4 w-4" />
+    <header className="learn-topbar sticky top-0 z-30 border-b border-border bg-card">
+      <div className="flex h-14 items-center gap-2 px-3 sm:px-4 lg:px-6">
+        {sidebarMode === "hidden" ? (
+          <button type="button" onClick={() => onSidebarModeChange("expanded")} className={`${ghostIconButton} hidden lg:inline-flex`} aria-label="Show sidebar" title={`Show sidebar (${modKey}+\\)`}>
+            <PanelLeftOpen className="h-[18px] w-[18px]" />
+          </button>
+        ) : null}
+        <button type="button" onClick={() => setView("dashboard")} className={`shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${sidebarMode === "hidden" ? "" : "lg:hidden"}`} aria-label={`${text.appName} home`} title={`${text.appName} home`}>
+          <BrandMark size="sm" />
         </button>
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase text-muted-foreground">LEARN</p>
-          <h1 className="truncate text-lg font-semibold">{titleForView(view, text)}</h1>
+
+        <div data-tab={sectionTabForView(view)} className="flex min-w-0 flex-1 items-center gap-1.5 pl-1">
+          {placeLabel ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setView(target.primaryView)}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-sm font-medium text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+              >
+                <span className="learn-tab-dot h-2 w-2 rounded-full" aria-hidden="true" />
+                {placeLabel}
+              </button>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
+            </>
+          ) : (
+            null
+          )}
+          <h1 className="truncate text-sm font-semibold tracking-tight">{title}</h1>
           {studioDraftSummary.count && studioViews.includes(view as (typeof studioViews)[number]) ? (
-            <span className="mt-1 inline-flex rounded-md bg-warning px-2 py-0.5 text-[0.68rem] font-semibold text-warning-foreground">
+            <span className="hidden shrink-0 rounded-md bg-secondary px-2 py-0.5 text-xs text-muted-foreground sm:inline-flex">
               {studioDraftSummary.count} draft{studioDraftSummary.count === 1 ? "" : "s"}
             </span>
           ) : null}
           {practiceDraftSummary.count && practiceViews.includes(view as (typeof practiceViews)[number]) ? (
-            <span className="mt-1 inline-flex rounded-md bg-warning px-2 py-0.5 text-[0.68rem] font-semibold text-warning-foreground">
+            <span className="hidden shrink-0 rounded-full bg-warning px-2 py-0.5 text-xs font-semibold text-warning-foreground sm:inline-flex">
               {practiceDraftSummary.count} saved attempt{practiceDraftSummary.count === 1 ? "" : "s"}
             </span>
           ) : null}
         </div>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <button
-          onClick={() => setDensity(density === "compact" ? "comfortable" : "compact")}
-          className="hidden h-9 w-9 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground sm:flex"
-          aria-label="Toggle density"
-          title={density === "compact" ? "Comfortable spacing" : "Compact spacing"}
-        >
-          {density === "compact" ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-        </button>
-        <button
-          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-          className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
-          aria-label="Toggle theme"
-          title={resolvedTheme === "dark" ? "Light mode" : "Dark mode"}
-        >
-          <ThemeIcon className="h-4 w-4" />
-        </button>
-        <LanguageMenu compact locale={locale} open={openControl === "language"} setLocale={setLocale} setOpen={(open) => setOpenControl(open ? "language" : null)} />
-        <NotificationsMenu compact open={openControl === "notifications"} setOpen={(open) => setOpenControl(open ? "notifications" : null)} />
-        <div className="hidden text-right md:block">
-          <p className="text-sm font-semibold">{user?.name || "Loading"}</p>
-          <p className="text-xs capitalize text-muted-foreground">{user?.role || "learner"}</p>
+
+        <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+          <button
+            type="button"
+            onClick={openCommandPalette}
+            className={`h-8 w-52 items-center gap-2 rounded-md border border-border bg-background px-3 text-xs text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring ${sidebarMode === "expanded" ? "hidden" : "hidden md:flex"}`}
+          >
+            <Search className="h-4 w-4" />
+            <span className="truncate">Search or jump…</span>
+            <span className="ml-auto flex items-center gap-0.5">
+              <kbd className="learn-kbd">{modKey}</kbd>
+              <kbd className="learn-kbd">K</kbd>
+            </span>
+          </button>
+          <button type="button" onClick={openCommandPalette} className={`${ghostIconButton} md:hidden`} aria-label="Search or jump" title="Search or jump">
+            <Search className="h-[18px] w-[18px]" />
+          </button>
+          <div className="hidden sm:block">
+            {hideCreate ? null : <CreateMenu variant="header" setView={setView} onCreate={onCreate} />}
+          </div>
+          <div className="hidden xl:block"><InstallAppButton /></div>
+          {accountHost ? createPortal(accountControls, accountHost) : accountControls}
         </div>
-        <button
-          onClick={logout}
-          className="flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-2 text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground sm:px-3"
-        >
-          <LogOut className="h-4 w-4" />
-          <span className="hidden sm:inline">{text.signOut}</span>
-        </button>
       </div>
     </header>
   )
 }
 
-function SidebarControls({
+/* ------------------------------------------------------------------------ */
+/* Account                                                                   */
+/* ------------------------------------------------------------------------ */
+
+function Avatar({ className = "h-8 w-8 text-xs", user }: { className?: string; user: User | null }) {
+  const initial = (user?.name || user?.username || "L").trim().slice(0, 1).toUpperCase()
+  return (
+    <span className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary font-semibold text-primary-foreground ${className}`}>
+      {user?.avatarUrl ? <img src={user.avatarUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" /> : initial}
+    </span>
+  )
+}
+
+function Segmented<T extends string>({
+  label,
+  onChange,
+  options,
+  value,
+}: {
+  label: string
+  onChange: (value: T) => void
+  options: ReadonlyArray<{ value: T; label: string; icon?: LucideIcon }>
+  value: T | undefined
+}) {
+  return (
+    <div role="radiogroup" aria-label={label} className="grid auto-cols-fr grid-flow-col gap-1 rounded-lg bg-muted p-1">
+      {options.map((option) => {
+        const Icon = option.icon
+        const checked = option.value === value
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={checked}
+            onClick={() => onChange(option.value)}
+            className={`flex h-8 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              checked ? "bg-card text-foreground shadow-paper" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
+            {option.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+const sidebarOptions: ReadonlyArray<{ value: SidebarMode; label: string }> = [
+  { value: "expanded", label: "Full" },
+  { value: "rail", label: "Icons" },
+  { value: "hidden", label: "Hidden" },
+]
+
+function AccountMenu({
+  sidebar = false,
+  showName = false,
   density,
+  editor,
   locale,
   logout,
-  resolvedTheme,
+  modKey,
+  onSidebarModeChange,
   setDensity,
   setLocale,
-  setTheme,
+  setView,
+  sidebarMode,
   text,
   user,
 }: {
+  sidebar?: boolean
+  showName?: boolean
   density: Density
+  editor: ProfileIdentityEditorState
   locale: SupportedLocale
   logout: () => void
-  resolvedTheme?: string
+  modKey: string
+  onSidebarModeChange: (mode: SidebarMode) => void
   setDensity: (density: Density) => void
   setLocale: (locale: SupportedLocale) => void
-  setTheme: (theme: string) => void
+  setView: (view: View) => void
+  sidebarMode: SidebarMode
   text: Text
   user: User | null
 }) {
-  const ThemeIcon = resolvedTheme === "dark" ? Moon : Sun
-  const [openControl, setOpenControl] = useState<"language" | "notifications" | null>(null)
-  const compact = density === "compact"
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const [languagesOpen, setLanguagesOpen] = useState(false)
+  const panelId = useId()
+  const status = useInboxStatus()
 
-  if (compact) {
-    return (
-      <div className="mt-auto pt-3">
-        <div className="grid justify-center gap-2 rounded-xl border border-sidebar-border bg-background p-1.5">
-          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-xs font-semibold text-primary-foreground" title={user?.name || "Learner"}>
-            {(user?.name || "L").slice(0, 1)}
-          </div>
-          <button
-            onClick={() => setDensity("comfortable")}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground"
-            aria-label="Comfortable spacing"
-            title="Comfortable spacing"
-          >
-            <PanelLeftOpen className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground"
-            aria-label="Toggle theme"
-            title={resolvedTheme === "dark" ? text.lightMode : text.darkMode}
-          >
-            <ThemeIcon className="h-4 w-4" />
-          </button>
-          <LanguageMenu compact rail locale={locale} open={openControl === "language"} setLocale={setLocale} setOpen={(open) => setOpenControl(open ? "language" : null)} />
-          <NotificationsMenu compact rail open={openControl === "notifications"} setOpen={(open) => setOpenControl(open ? "notifications" : null)} />
-          <button
-            onClick={logout}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground"
-            aria-label={text.signOut}
-            title={text.signOut}
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    )
+  function go(next: View) {
+    setOpen(false)
+    setView(next)
   }
 
   return (
-    <div className="mt-auto pt-4">
-      <div className="rounded-md border border-sidebar-border bg-background p-2">
-        <div className="mb-2 flex items-center gap-2 px-1">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-xs font-semibold text-primary-foreground">
-            {(user?.name || "L").slice(0, 1)}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">{user?.name || "Learner"}</p>
-            <p className="truncate text-xs capitalize text-muted-foreground">{user?.role || "learner"}</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-4 gap-1">
-          <button
-            onClick={() => setDensity("compact")}
-            className="sidebar-icon-button"
-            aria-label="Toggle density"
-            title="Compact spacing"
-          >
-            <PanelLeftClose className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-            className="sidebar-icon-button"
-            aria-label="Toggle theme"
-            title={resolvedTheme === "dark" ? text.lightMode : text.darkMode}
-          >
-            <ThemeIcon className="h-4 w-4" />
-          </button>
-          <LanguageMenu locale={locale} open={openControl === "language"} setLocale={setLocale} setOpen={(open) => setOpenControl(open ? "language" : null)} />
-          <NotificationsMenu open={openControl === "notifications"} setOpen={(open) => setOpenControl(open ? "notifications" : null)} />
-        </div>
-        <button
-          onClick={logout}
-          className="mt-2 flex h-9 w-full items-center justify-center gap-2 rounded-md border border-border bg-secondary text-sm font-semibold text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground"
-        >
-          <LogOut className="h-4 w-4" />
-          {text.signOut}
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function LanguageMenu({
-  compact,
-  locale,
-  open,
-  rail,
-  setLocale,
-  setOpen,
-}: {
-  compact?: boolean
-  locale: SupportedLocale
-  open: boolean
-  rail?: boolean
-  setLocale: (locale: SupportedLocale) => void
-  setOpen: (open: boolean) => void
-}) {
-  return (
-    <div className="relative">
-      <button onClick={() => setOpen(!open)} className={`${rail ? "flex h-10 w-10 rounded-xl" : compact ? "flex h-9 w-9 rounded-md" : "sidebar-icon-button"} list-none items-center justify-center border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground`} aria-label="Language" title={languageNames[locale]}>
-        <Languages className="h-4 w-4" />
+    <div className={`account-profile relative ${showName ? "min-w-0 flex-1" : ""}`}>
+      <button
+        ref={triggerRef}
+        type="button"
+        data-popover-trigger
+        onClick={() => {
+          setLanguagesOpen(false)
+          setOpen(!open)
+        }}
+        aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
+        aria-haspopup="dialog"
+        aria-label="Your account"
+        title="Your account"
+        disabled={!user}
+        className="account-profile-link"
+      >
+        <Avatar user={user} />
+        {showName ? <><span className="min-w-0 flex-1"><strong className="block truncate text-xs font-medium">{user?.name || "Learner"}</strong><span className="block truncate text-xs text-muted-foreground">@{user?.username || "you"}</span></span><ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" /></> : null}
       </button>
-      {open ? <div className={`absolute z-[80] w-64 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95 ${rail ? "bottom-0 left-full ml-2" : compact ? "right-0 mt-2 origin-top-right" : "bottom-11 left-0 origin-bottom-left"}`}>
-        <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Language</p>
-        <div className="grid max-h-72 gap-1 overflow-auto">
-          {supportedLocales.map((item) => (
-            <button
-              key={item}
-              onClick={() => {
-                setLocale(item)
-                setOpen(false)
-              }}
-              className={`flex items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm transition hover:bg-accent hover:text-accent-foreground ${locale === item ? "bg-primary text-primary-foreground" : "text-popover-foreground"}`}
-            >
-              <span>{languageNames[item]}</span>
-              {locale === item ? <Check className="h-4 w-4" /> : null}
-            </button>
-          ))}
-        </div>
-      </div> : null}
-    </div>
-  )
-}
+      <Popover open={open} anchor={triggerRef} onClose={() => setOpen(false)} label="Account and preferences" placement={sidebar ? "top-start" : "bottom-end"} width={320} focusOnOpen={!editor.editing} className="account-panel !w-[320px] !rounded-xl !p-3">
+        <div id={panelId}>
+          <div className="flex items-center gap-2 rounded-xl">
+            <Avatar user={user} className="h-11 w-11 text-base" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-display font-semibold">{user?.name || "Learner"}</p>
+              <p className="truncate text-xs text-muted-foreground">@{user?.username || "you"} · <span className="capitalize">{user?.role || "learner"}</span></p>
+            </div>
+            {!editor.editing ? <button ref={editor.editButton} type="button" className={ghostIconButton} aria-label="Edit profile" title="Edit profile" onClick={editor.startEditing}><Edit3 className="h-4 w-4" aria-hidden="true" /></button> : null}
+            <ConnectionStatus status={status} />
+          </div>
 
-function NotificationsMenu({ compact, open, rail, setOpen }: { compact?: boolean; open: boolean; rail?: boolean; setOpen: (open: boolean) => void }) {
-  const [filter, setFilter] = useState<"all" | "unread">("all")
-  const [items, setItems] = useState([
-    { id: "review", title: "Review ready", detail: "3 active recall items", unread: true },
-    { id: "studio", title: "Studio saved", detail: "Latest workspace sync", unread: false },
-    { id: "room", title: "Room status", detail: "Focus room is open", unread: true },
-  ])
-  const { unreadCount, visibleItems } = useMemo(() => {
-    let nextUnreadCount = 0
-    const nextVisibleItems = []
-    for (const item of items) {
-      if (item.unread) nextUnreadCount += 1
-      if (filter === "all" || item.unread) nextVisibleItems.push(item)
-    }
-    return { unreadCount: nextUnreadCount, visibleItems: nextVisibleItems }
-  }, [filter, items])
+          {editor.editing ? <ProfileIdentityEditor editor={editor} /> : editor.status ? <p className="account-save-status" role="status">{editor.status}</p> : null}
 
-  function markAllRead() {
-    setItems((current) => current.map((item) => ({ ...item, unread: false })))
-  }
+          <div className="account-links my-2 grid gap-0.5">
+            <MenuRow icon={Settings} label={String(text.settings)} onClick={() => go("settings")} />
+            <MenuRow icon={Compass} label="What's where?" onClick={() => { setOpen(false); triggerRef.current?.focus(); openPlaceGuide() }} />
+          </div>
 
-  function toggleRead(id: string) {
-    setItems((current) => current.map((item) => item.id === id ? { ...item, unread: !item.unread } : item))
-  }
-
-  function dismiss(id: string) {
-    setItems((current) => current.filter((item) => item.id !== id))
-  }
-
-  return (
-    <div className="relative">
-      <button onClick={() => setOpen(!open)} className={`${rail ? "flex h-10 w-10 rounded-xl" : compact ? "flex h-9 w-9 rounded-md" : "sidebar-icon-button"} relative list-none items-center justify-center border border-border bg-secondary text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground`} aria-label="Notifications" title="Notifications">
-        <Bell className="h-4 w-4" />
-        {unreadCount ? <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-success px-1 text-[0.62rem] font-bold leading-none text-success-foreground">{unreadCount}</span> : null}
-      </button>
-      {open ? <div className={`absolute z-[80] w-72 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl animate-in fade-in zoom-in-95 ${rail ? "bottom-0 left-full ml-2" : compact ? "right-0 mt-2 origin-top-right" : "bottom-11 left-0 origin-bottom-left"}`}>
-        <div className="flex items-center justify-between px-2 pb-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Notifications</p>
-          <button onClick={markAllRead} className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground" title="Mark all read">
-            <CheckCheck className="h-3.5 w-3.5" />
-            Read
-          </button>
-        </div>
-        <div className="mb-2 grid grid-cols-2 gap-1 rounded-md border border-border bg-background p-1">
-          {(["all", "unread"] as const).map((item) => (
-            <button
-              key={item}
-              onClick={() => setFilter(item)}
-              className={`rounded-sm px-2 py-1.5 text-xs font-semibold capitalize transition ${filter === item ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-        <div className="grid gap-1">
-          {visibleItems.length ? visibleItems.map((item) => (
-            <div key={item.id} className="group/notification grid grid-cols-[1fr_auto] gap-2 rounded-md p-3 transition hover:bg-accent hover:text-accent-foreground">
-              <button onClick={() => toggleRead(item.id)} className="min-w-0 text-left">
-                <span className="flex items-center gap-2 text-sm font-semibold">
-                  {item.unread ? <span className="h-2 w-2 rounded-full bg-success" /> : null}
-                  <span className="truncate">{item.title}</span>
+          <details className="account-preferences border-t border-border pb-2 pt-1"><summary className="cursor-pointer py-2 text-xs font-medium text-muted-foreground">Preferences</summary><div className="grid gap-3 py-2">
+            <div className="hidden gap-1.5 lg:grid">
+              <p className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Sidebar
+                <span className="normal-case tracking-normal">
+                  <kbd className="learn-kbd">{modKey}</kbd> <kbd className="learn-kbd">\</kbd>
                 </span>
-                <span className="mt-1 block truncate text-xs text-muted-foreground">{item.detail}</span>
-              </button>
-              <button onClick={() => dismiss(item.id)} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground opacity-80 transition hover:bg-background hover:text-destructive group-hover/notification:opacity-100" aria-label={`Dismiss ${item.title}`} title="Dismiss">
-                <Trash2 className="h-4 w-4" />
-              </button>
+              </p>
+              <Segmented label="Sidebar size" options={sidebarOptions} value={sidebarMode} onChange={onSidebarModeChange} />
             </div>
-          )) : (
-            <div className="rounded-md border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
-              No notifications
+            <button
+              type="button"
+              role="switch"
+              aria-checked={density === "compact"}
+              onClick={() => setDensity(density === "compact" ? "comfortable" : "compact")}
+              className="flex items-center justify-between gap-3 rounded-lg py-1 text-left text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Compact spacing
+              <span className={`relative h-5 w-9 shrink-0 rounded-full transition ${density === "compact" ? "bg-primary" : "bg-muted-foreground/35"}`}>
+                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-background shadow transition-all ${density === "compact" ? "left-[1.1rem]" : "left-0.5"}`} />
+              </span>
+            </button>
+            <div>
+              <button
+                type="button"
+                onClick={() => setLanguagesOpen(!languagesOpen)}
+                aria-expanded={languagesOpen}
+                className="flex w-full items-center justify-between gap-3 rounded-lg py-1 text-left text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className="flex items-center gap-2">
+                  <Languages className="h-4 w-4 text-muted-foreground" />
+                  Language
+                </span>
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  {languageNames[locale]}
+                  <ChevronDown className={`h-3.5 w-3.5 transition ${languagesOpen ? "rotate-180" : ""}`} />
+                </span>
+              </button>
+              {languagesOpen ? (
+                <div className="mt-1 grid max-h-48 gap-0.5 overflow-y-auto rounded-lg border border-border p-1">
+                  {supportedLocales.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => {
+                        setLocale(item)
+                        setLanguagesOpen(false)
+                      }}
+                      className={`flex items-center justify-between gap-3 rounded-md px-2.5 py-1.5 text-left text-sm transition ${locale === item ? "bg-accent font-semibold text-accent-foreground" : "hover:bg-accent/60"}`}
+                    >
+                      <span>{languageNames[item]}</span>
+                      {locale === item ? <Check className="h-4 w-4" /> : null}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
-          )}
+          </div></details>
+
+          <div className="border-t border-border pt-1">
+            <MenuRow icon={LogOut} label={String(text.signOut)} onClick={logout} tone="destructive" />
+          </div>
         </div>
-      </div> : null}
+      </Popover>
     </div>
   )
 }
 
-export function MobileMenu({
-  density,
-  open,
-  query,
-  setQuery,
-  setView,
-  text,
-  view,
-  studioDraftSummary,
-  practiceDraftSummary,
-}: {
-  density: Density
-  open: boolean
-  query: string
-  setQuery: (query: string) => void
-  setView: (view: View) => void
-  text: Text
-  view: View
-  studioDraftSummary: StudioDraftSummary
-  practiceDraftSummary: PracticeDraftSummary
-}) {
-  if (!open) return null
+function MenuRow({ icon: Icon, label, onClick, tone }: { icon: LucideIcon; label: string; onClick: () => void; tone?: "destructive" }) {
   return (
-    <div className="border-b border-border bg-sidebar p-3 text-sidebar-foreground lg:hidden">
-      <LauncherSearch query={query} setQuery={setQuery} setView={setView} text={text} />
-      <Navigation mobile density={density} text={text} view={view} setView={setView} studioDraftSummary={studioDraftSummary} practiceDraftSummary={practiceDraftSummary} />
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex h-10 w-full items-center gap-3 rounded-lg px-2.5 text-left text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+        tone === "destructive" ? "text-destructive hover:bg-destructive/10" : "hover:bg-accent hover:text-accent-foreground"
+      }`}
+    >
+      <Icon className="h-4 w-4" />
+      {label}
+    </button>
   )
 }
 
-function Brand({ compact, text }: { compact?: boolean; text: Text }) {
-  if (compact) {
-    return (
-      <div className="mb-5 flex justify-center">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm" title={`${text.appName} ${text.workspace}`}>
-          <BookOpen className="h-4 w-4" />
-        </div>
-      </div>
-    )
-  }
+/* ------------------------------------------------------------------------ */
+/* Notifications                                                             */
+/* ------------------------------------------------------------------------ */
 
-  return (
-    <div className="mb-5 flex items-center gap-3 px-1">
-      <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
-        <BookOpen className="h-4 w-4" />
-      </div>
-      <div>
-        <p className="font-semibold">{text.appName}</p>
-        <p className="text-xs text-muted-foreground">{text.workspace}</p>
-      </div>
-    </div>
-  )
+const notificationIcons: Record<NotificationKind, LucideIcon> = {
+  "connection-request": UserPlus,
+  "connection-accepted": UserCheck,
+  "group-added": Users,
+  mention: AtSign,
+  message: MessageCircle,
+  "missed-call": PhoneMissed,
+  share: Share2,
+  "game-invite": Gamepad2,
+  "story-reply": Reply,
+  system: Info,
 }
 
-function Navigation({
-  density,
-  mobile,
-  setView,
-  text,
-  view,
-  studioDraftSummary,
-  practiceDraftSummary,
-}: {
-  density: Density
-  mobile?: boolean
-  setView: (view: View) => void
-  text: Text
-  view: View
-  studioDraftSummary: StudioDraftSummary
-  practiceDraftSummary: PracticeDraftSummary
-}) {
-  const iconRail = shouldUseNavigationIconRail({ density, mobile })
-  const compact = density === "compact"
-  const rowHeight = "h-11"
-  const activeGroup = summarizeActiveNavigationGroup(view, navigationGroups)
-  const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
-    const defaults = new Set<string>()
-    for (const group of navigationGroups) {
-      if (!mobile || group.label === "Home" || activeGroup?.groupLabel === group.label) defaults.add(group.label)
-    }
-    return defaults
-  })
+const notificationTabs: Record<NotificationKind, SectionTab> = {
+  "connection-request": "social",
+  "connection-accepted": "social",
+  "group-added": "social",
+  mention: "social",
+  message: "social",
+  "missed-call": "social",
+  share: "studio",
+  "game-invite": "practice",
+  "story-reply": "social",
+  system: "settings",
+}
+
+interface NotificationList {
+  items: NotificationItem[]
+  unreadCount: number
+}
+
+function NotificationsMenu({ openLink, user, sidebar = false }: { sidebar?: boolean; openLink: (href: string) => void; user: User | null }) {
+  const { open, rootRef, setOpen } = usePopover()
+  const [items, setItems] = useState<NotificationItem[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [filter, setFilter] = useState<"all" | "unread">("all")
+  const [loaded, setLoaded] = useState(false)
+  const [error, setError] = useState("")
+  const [toasts, setToasts] = useState<NotificationItem[]>([])
+  const itemsRef = useRef(items)
+  const status = useInboxStatus()
+  const previousStatus = useRef(status)
+  const userId = user?.id
 
   useEffect(() => {
-    if (!activeGroup?.groupLabel) return
-    setOpenGroups((current) => {
-      if (current.has(activeGroup.groupLabel)) return current
-      const next = new Set(current)
-      next.add(activeGroup.groupLabel)
-      return next
-    })
-  }, [activeGroup?.groupLabel])
+    itemsRef.current = items
+  }, [items])
 
-  function toggleGroup(label: string) {
-    setOpenGroups((current) => {
-      const next = new Set(current)
-      if (next.has(label)) next.delete(label)
-      else next.add(label)
-      return next
-    })
+  const apply = useCallback((data: NotificationList) => {
+    setItems(data.items)
+    setUnreadCount(data.unreadCount)
+    setError("")
+  }, [])
+
+  const load = useCallback(async () => {
+    try {
+      apply(await api<NotificationList>("/api/notifications?limit=40"))
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Notifications could not load.")
+    } finally {
+      setLoaded(true)
+    }
+  }, [apply])
+
+  useEffect(() => {
+    if (userId) void load()
+  }, [load, userId])
+
+  // Anything pushed while the socket was down is only in the database.
+  useEffect(() => {
+    const previous = previousStatus.current
+    previousStatus.current = status
+    if (userId && status === "open" && previous === "reconnecting") void load()
+  }, [load, status, userId])
+
+  useEffect(() => {
+    if (open && userId) void load()
+  }, [load, open, userId])
+
+  useInboxEvent("notification", (frame) => {
+    const item = (frame.payload as { item?: NotificationItem } | undefined)?.item
+    if (!item?.id) return
+    const known = itemsRef.current.find((entry) => entry.id === item.id)
+    if (!known || known.readAt) setUnreadCount((count) => count + 1)
+    setItems((current) => [item, ...current.filter((entry) => entry.id !== item.id)].slice(0, 60))
+    if (!open) {
+      setToasts((current) => [item, ...current.filter((entry) => entry.id !== item.id)].slice(0, 3))
+      window.setTimeout(() => setToasts((current) => current.filter((entry) => entry.id !== item.id)), 6500)
+    }
+  })
+
+  async function send(request: Promise<NotificationList>) {
+    try {
+      apply(await request)
+    } catch {
+      void load()
+    }
   }
 
-  function renderItem(item: LearnNavigationItem) {
-    const active = viewBelongsToNavigationItem(view, item)
-    const Icon = navIconMap[item.iconKey]
-    const accent = navigationAccentClass(item.iconKey, active)
-    const badge = item.view === "studio" ? studioDraftSummary.count : item.view === "practice" ? practiceDraftSummary.count : 0
-    const badgeTitle = item.view === "practice"
-      ? formatNavigationBadge(badge, "saved Practice attempt", "saved Practice attempts")
-      : formatNavigationBadge(badge, "local Studio draft", "local Studio drafts")
+  function markAllRead() {
+    const now = new Date().toISOString()
+    setItems((current) => current.map((item) => (item.readAt ? item : { ...item, readAt: now })))
+    setUnreadCount(0)
+    void send(api<NotificationList>("/api/notifications", { method: "PATCH", body: JSON.stringify({ all: true }) }))
+  }
 
-    return (
+  function setRead(item: NotificationItem, read: boolean) {
+    if (Boolean(item.readAt) === read) return
+    setItems((current) => current.map((entry) => (entry.id === item.id ? { ...entry, readAt: read ? new Date().toISOString() : null } : entry)))
+    setUnreadCount((count) => Math.max(0, count + (read ? -1 : 1)))
+    void send(api<NotificationList>("/api/notifications", { method: "PATCH", body: JSON.stringify({ ids: [item.id], read }) }))
+  }
+
+  async function dismiss(item: NotificationItem) {
+    setItems((current) => current.filter((entry) => entry.id !== item.id))
+    if (!item.readAt) setUnreadCount((count) => Math.max(0, count - 1))
+    try {
+      await api(`/api/notifications?id=${encodeURIComponent(item.id)}`, { method: "DELETE" })
+    } catch {
+      void load()
+    }
+  }
+
+  function activate(item: NotificationItem) {
+    setRead(item, true)
+    setOpen(false)
+    setToasts((current) => current.filter((entry) => entry.id !== item.id))
+    if (item.link) openLink(item.link)
+  }
+
+  const visible = filter === "unread" ? items.filter((item) => !item.readAt) : items
+
+  return (
+    <div ref={rootRef} className="relative">
       <button
-        key={item.view}
-        onClick={() => setView(item.view)}
-        title={`${text[item.labelKey]} - ${getNavigationItemDetail(item)}`}
-        className={`relative flex ${rowHeight} ${iconRail ? "w-11 justify-center rounded-xl px-0" : "w-full gap-3 rounded-md px-3"} items-center text-sm font-medium transition ${
-          active
-            ? `${accent} text-sidebar-primary-foreground shadow-sm ring-1 ring-sidebar-ring/20`
-            : `text-muted-foreground hover:text-sidebar-accent-foreground ${accent}`
-        }`}
+        type="button"
+        data-popover-trigger
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-label={unreadCount ? `Notifications, ${unreadCount} unread` : "Notifications"}
+        title="Notifications"
+        className={`${ghostIconButton} relative`}
       >
-        <Icon className="h-[18px] w-[18px] shrink-0" />
-        {iconRail ? <span className="sr-only">{text[item.labelKey]}</span> : <span className="truncate">{text[item.labelKey]}</span>}
-        {badge ? (
-          <span className={`${iconRail ? "absolute -right-1 -top-1 h-4 min-w-4 px-1 text-[0.58rem]" : "ml-auto h-5 min-w-5 px-1.5 text-[0.68rem]"} flex items-center justify-center rounded-full font-bold ${active ? "bg-sidebar-primary-foreground text-sidebar-primary" : "bg-warning text-warning-foreground"}`} title={badgeTitle}>
-            {badge}
+        <Bell className="h-[18px] w-[18px]" />
+        {unreadCount ? (
+          <span className="sidebar-icon-count notification-icon-count">
+            {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         ) : null}
       </button>
-    )
-  }
 
-  if (iconRail) {
-    return (
-      <nav className="grid justify-center gap-1">
-        {navigationItems.map(renderItem)}
-      </nav>
-    )
-  }
-
-  return (
-    <nav className={compact ? "grid gap-2" : "grid gap-3"}>
-      {navigationGroups.map((group) => (
-        <details key={group.label} className="group/navigation" open={openGroups.has(group.label)}>
-          <summary
-            onClick={(event) => {
-              event.preventDefault()
-              toggleGroup(group.label)
-            }}
-            className="mb-1 flex cursor-pointer list-none items-center justify-between px-2 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground"
-            title={group.caption}
-          >
-            <span className="flex min-w-0 items-center gap-2">
-              <span>{group.label}</span>
-              {activeGroup?.groupLabel === group.label ? <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" /> : null}
-            </span>
-            <ChevronDown className="h-3.5 w-3.5 transition group-open/navigation:rotate-180" />
-          </summary>
-          <div className="grid gap-1">
-            {group.items.map(renderItem)}
+      {open ? (
+        <div
+          role="dialog"
+          aria-label="Notifications"
+          className={`learn-pop-in fixed z-[80] flex max-h-[calc(100dvh-6rem)] flex-col overflow-hidden rounded-2xl border border-border bg-popover text-popover-foreground shadow-lift ${sidebar ? "bottom-20 left-3 w-[23rem] max-w-[calc(100vw-1.5rem)]" : "inset-x-3 top-[3.75rem] sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:max-h-[32rem] sm:w-[23rem]"}`}
+        >
+          <div className="flex items-center justify-between gap-2 px-4 pb-2 pt-3">
+            <p className="font-display text-base font-semibold">Notifications</p>
+            <button
+              type="button"
+              onClick={markAllRead}
+              disabled={!unreadCount}
+              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground transition hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+              Mark all read
+            </button>
           </div>
-        </details>
-      ))}
-    </nav>
+          <div className="px-3 pb-2">
+            <Segmented
+              label="Show"
+              options={[
+                { value: "all", label: "All" },
+                { value: "unread", label: unreadCount ? `Unread (${unreadCount})` : "Unread" },
+              ]}
+              value={filter}
+              onChange={setFilter}
+            />
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+            {error && !items.length ? (
+              <p className="m-2 rounded-lg border border-dashed border-border p-4 text-center text-sm text-muted-foreground">{error}</p>
+            ) : !loaded ? (
+              <div className="grid gap-2 p-2" aria-hidden="true">
+                {[0, 1, 2].map((index) => (
+                  <div key={index} className="h-14 animate-pulse rounded-xl bg-muted" />
+                ))}
+              </div>
+            ) : visible.length ? (
+              <ul className="grid gap-0.5">
+                {visible.map((item) => (
+                  <NotificationRow key={item.id} item={item} onActivate={activate} onDismiss={dismiss} onToggleRead={(entry) => setRead(entry, !entry.readAt)} />
+                ))}
+              </ul>
+            ) : (
+              <div className="grid justify-items-center gap-2 px-6 py-10 text-center">
+                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <Bell className="h-5 w-5" />
+                </span>
+                <p className="text-sm font-semibold">{filter === "unread" ? "You're all caught up" : "Nothing yet"}</p>
+                <p className="text-xs text-muted-foreground">Connection requests, mentions, missed calls and shares show up here the moment they happen.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      <NotificationToasts items={toasts} onActivate={activate} onDismiss={(item) => setToasts((current) => current.filter((entry) => entry.id !== item.id))} />
+    </div>
   )
 }
 
-function navigationAccentClass(iconKey: NavigationIconKey, active: boolean) {
-  if (active) {
-    if (iconKey === "calendar") return "bg-gradient-to-br from-emerald-500 to-sky-500"
-    if (iconKey === "studio") return "bg-gradient-to-br from-cyan-500 to-blue-600"
-    if (iconKey === "ai") return "bg-gradient-to-br from-fuchsia-500 to-violet-600"
-    if (iconKey === "practice") return "bg-gradient-to-br from-amber-500 to-rose-500"
-    if (iconKey === "social") return "bg-gradient-to-br from-teal-500 to-emerald-600"
-    if (iconKey === "settings") return "bg-gradient-to-br from-slate-600 to-slate-900"
-    return "bg-gradient-to-br from-primary to-success"
-  }
-  if (iconKey === "calendar") return "hover:bg-emerald-500/12"
-  if (iconKey === "studio") return "hover:bg-cyan-500/12"
-  if (iconKey === "ai") return "hover:bg-fuchsia-500/12"
-  if (iconKey === "practice") return "hover:bg-amber-500/12"
-  if (iconKey === "social") return "hover:bg-teal-500/12"
-  if (iconKey === "settings") return "hover:bg-slate-500/12"
-  return "hover:bg-sidebar-accent"
+function NotificationBadgeIcon({ item }: { item: NotificationItem }) {
+  const Icon = notificationIcons[item.kind] ?? Info
+  const actorInitial = (item.actorName || "").trim().slice(0, 1).toUpperCase()
+  return (
+    <span data-tab={notificationTabs[item.kind] ?? "settings"} className="relative mt-0.5 shrink-0">
+      {item.actorAvatarUrl ? (
+        <img src={item.actorAvatarUrl} alt="" loading="lazy" decoding="async" className="h-10 w-10 rounded-full object-cover" />
+      ) : actorInitial ? (
+        <span className="learn-tab-wash-strong flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold text-foreground">{actorInitial}</span>
+      ) : (
+        <span className="learn-tab-wash learn-tab-ink flex h-10 w-10 items-center justify-center rounded-full">
+          <Icon className="h-[18px] w-[18px]" />
+        </span>
+      )}
+      {item.actorAvatarUrl || actorInitial ? (
+        <span className="learn-tab-dot learn-tab-on absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full ring-2 ring-popover">
+          <Icon className="h-3 w-3" />
+        </span>
+      ) : null}
+    </span>
+  )
+}
+
+function NotificationRow({
+  item,
+  onActivate,
+  onDismiss,
+  onToggleRead,
+}: {
+  item: NotificationItem
+  onActivate: (item: NotificationItem) => void
+  onDismiss: (item: NotificationItem) => void
+  onToggleRead: (item: NotificationItem) => void
+}) {
+  const unread = !item.readAt
+  return (
+    <li className={`group/notification relative flex gap-3 rounded-xl p-2.5 transition hover:bg-accent/60 ${unread ? "bg-primary/[0.06]" : ""}`}>
+      <button type="button" onClick={() => onActivate(item)} className="flex min-w-0 flex-1 gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <NotificationBadgeIcon item={item} />
+        <span className="min-w-0 flex-1">
+          <span className={`block text-sm leading-snug ${unread ? "font-semibold text-foreground" : "text-foreground/85"}`}>{item.title}</span>
+          {item.body ? <span className="mt-0.5 line-clamp-2 block text-xs text-muted-foreground">{item.body}</span> : null}
+          <span className="mt-1 block text-xs font-medium text-muted-foreground">{formatRelativeTime(item.createdAt)}</span>
+        </span>
+      </button>
+      <span className="flex shrink-0 flex-col items-center gap-1">
+        <span className={`relative mt-1.5 h-2 w-2 rounded-full ${unread ? "bg-primary" : ""}`}>{unread ? <span className="sr-only">Unread</span> : null}</span>
+        <span className="flex flex-col opacity-100 transition sm:opacity-0 sm:group-hover/notification:opacity-100 sm:group-focus-within/notification:opacity-100">
+          <button type="button" onClick={() => onToggleRead(item)} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-background hover:text-foreground" aria-label={unread ? "Mark as read" : "Mark as unread"} title={unread ? "Mark as read" : "Mark as unread"}>
+            {unread ? <MailOpen className="h-3.5 w-3.5" /> : <Mail className="h-3.5 w-3.5" />}
+          </button>
+          <button type="button" onClick={() => onDismiss(item)} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-background hover:text-destructive" aria-label={`Remove: ${item.title}`} title="Remove">
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </span>
+      </span>
+    </li>
+  )
+}
+
+/** A live notification that arrives while the panel is closed pops up briefly. */
+function NotificationToasts({
+  items,
+  onActivate,
+  onDismiss,
+}: {
+  items: NotificationItem[]
+  onActivate: (item: NotificationItem) => void
+  onDismiss: (item: NotificationItem) => void
+}) {
+  return (
+    <div aria-live="polite" className="pointer-events-none fixed bottom-24 right-3 z-[85] grid w-[min(22rem,calc(100vw-1.5rem))] gap-2 lg:bottom-5 lg:right-5">
+      {items.map((item) => (
+        <div key={item.id} className="learn-pop-in pointer-events-auto flex items-start gap-3 rounded-2xl border border-border bg-popover p-3 text-popover-foreground shadow-lift">
+          <button type="button" onClick={() => onActivate(item)} className="flex min-w-0 flex-1 gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <NotificationBadgeIcon item={item} />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold leading-snug">{item.title}</span>
+              {item.body ? <span className="mt-0.5 line-clamp-2 block text-xs text-muted-foreground">{item.body}</span> : null}
+            </span>
+          </button>
+          <button type="button" onClick={() => onDismiss(item)} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground" aria-label="Close" title="Close">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------------ */
+/* Phone: the dock                                                           */
+/* ------------------------------------------------------------------------ */
+
+/** The five places at the bottom of a phone. Sign out and "What's where?" live in the account menu. */
+export function MobileTabBar({
+  setView,
+  text,
+  view,
+}: {
+  setView: (view: View) => void
+  text: Text
+  view: View
+}) {
+  const activePlace = resolveNavigationTarget(view).primaryView
+
+  return (
+    <nav aria-label="Main" className="learn-bottom-safe fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-md lg:hidden">
+      <ul className="mx-auto grid max-w-lg grid-cols-4 px-1 pt-1.5">
+        {navigationItems.filter(item => item.view !== "profile").map((item) => {
+          const Icon = viewIcons[item.view]
+          const active = activePlace === item.view
+          return (
+            <li key={item.view} data-tab={sectionTabForView(item.view)}>
+              <button
+                type="button"
+                onClick={() => setView(item.view)}
+                aria-current={placeCurrent(item, view, activePlace)}
+                className="flex w-full flex-col items-center gap-0.5 rounded-xl py-0.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className={`flex h-8 w-14 items-center justify-center rounded-full transition ${active ? "learn-tab-wash-strong learn-tab-ink" : "text-muted-foreground"}`}>
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span className={active ? "text-foreground" : "text-muted-foreground"}>{text[item.labelKey]}</span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </nav>
+  )
 }

@@ -1,6 +1,6 @@
 export type ChatIntent = "update" | "question" | "win"
 export type ChatThreadFilter = "all" | "questions" | "wins" | "saved"
-export type SocialWorkspaceKind = "spaces" | "rooms" | "battles"
+type SocialWorkspaceKind = "spaces" | "rooms" | "battles"
 export type SocialRecordFilter = "all" | "active" | "private" | "public" | "team" | "focus"
 export type SocialMomentTypeId = "win" | "question" | "resource" | "milestone"
 
@@ -15,7 +15,7 @@ export interface ChatThreadLike {
   updatedAt?: string
 }
 
-export interface ChatWorkspaceSummary {
+interface ChatWorkspaceSummary {
   total: number
   questions: number
   wins: number
@@ -25,7 +25,7 @@ export interface ChatWorkspaceSummary {
   channels: Array<{ label: string; count: number }>
 }
 
-export interface ChatComposerPlan {
+interface ChatComposerPlan {
   headline: string
   recommendedIntent: ChatIntent
   nextAction: string
@@ -35,7 +35,7 @@ export interface ChatComposerPlan {
 export type ChatComposerActionId = "send" | "clear-draft" | "use-suggestion"
 export type ChatThreadActionId = "helpful" | "save" | "reply"
 
-export interface ChatComposerActionState {
+interface ChatComposerActionState {
   id: ChatComposerActionId
   label: string
   busyLabel: string
@@ -44,7 +44,7 @@ export interface ChatComposerActionState {
   busy: boolean
 }
 
-export interface ChatThreadActionState {
+interface ChatThreadActionState {
   id: ChatThreadActionId
   label: string
   busyLabel: string
@@ -54,7 +54,7 @@ export interface ChatThreadActionState {
   busy: boolean
 }
 
-export interface ChatThreadStatus {
+interface ChatThreadStatus {
   label: string
   tone: "accent" | "muted" | "success" | "warning"
 }
@@ -70,7 +70,7 @@ export interface SocialMomentOption {
   recommended: boolean
 }
 
-export type ChatQuickPromptId = "question" | "win" | "resource" | "recap"
+type ChatQuickPromptId = "question" | "win" | "resource" | "recap"
 
 export interface ChatQuickPrompt {
   id: ChatQuickPromptId
@@ -83,7 +83,7 @@ export interface ChatQuickPrompt {
   recommended: boolean
 }
 
-export type ChatInboxShortcutId = "all" | "help" | "wins" | "saved" | "mentions" | "studio"
+type ChatInboxShortcutId = "all" | "help" | "wins" | "saved" | "mentions" | "studio"
 
 export interface ChatInboxShortcut {
   id: ChatInboxShortcutId
@@ -94,7 +94,7 @@ export interface ChatInboxShortcut {
   recommended: boolean
 }
 
-export interface SocialRecordLike {
+interface SocialRecordLike {
   id?: string
   name?: string
   title?: string
@@ -111,7 +111,7 @@ export interface SocialRecordLike {
   pomodoroMinutes?: number
 }
 
-export interface SocialWorkspaceSummary {
+interface SocialWorkspaceSummary {
   total: number
   primaryCount: number
   secondaryCount: number
@@ -121,14 +121,14 @@ export interface SocialWorkspaceSummary {
   modeCounts: Array<{ label: string; count: number }>
 }
 
-export interface SocialWorkspacePlan {
+interface SocialWorkspacePlan {
   headline: string
   primaryAction: string
   safetyCue: string
   emptyHint: string
 }
 
-export interface SocialRecordCard {
+interface SocialRecordCard {
   action: string
   meta: string[]
   recommended: boolean
@@ -136,30 +136,30 @@ export interface SocialRecordCard {
   title: string
 }
 
-export interface SocialRecordEmptyState {
+interface SocialRecordEmptyState {
   action: "clear" | "create"
   body: string
   title: string
 }
 
-export interface SocialRecordFilterSummary {
+interface SocialRecordFilterSummary {
   active: boolean
   label: string
 }
 
 export type SocialActionTarget = "invite" | "chat" | "calendar" | "practice" | "files"
 
-export interface SocialActionItem {
+interface SocialActionItem {
   id: SocialActionTarget
   label: string
   detail: string
 }
 
-export interface SocialActionReadiness extends SocialActionItem {
+interface SocialActionReadiness extends SocialActionItem {
   enabled: boolean
 }
 
-export interface SocialActionKit {
+interface SocialActionKit {
   headline: string
   brief: string
   inviteText: string
@@ -174,7 +174,7 @@ export const socialInviteRoleOptions: Array<{ value: SocialInviteRole; label: st
   { value: "admin", label: "Admin" },
 ]
 
-export interface SocialInviteDraft {
+interface SocialInviteDraft {
   email: string
   role: SocialInviteRole
 }
@@ -189,7 +189,7 @@ export interface WorkspaceMemberLike {
   createdAt?: string
 }
 
-export interface WorkspaceMemberSummary {
+interface WorkspaceMemberSummary {
   total: number
   admins: number
   learners: number
@@ -212,7 +212,7 @@ export interface UserConnectionLike {
 
 export type ConnectionActionId = "friend" | "follow" | "remove"
 
-export interface ConnectionActionState {
+interface ConnectionActionState {
   id: ConnectionActionId
   label: string
   busyLabel: string
@@ -220,7 +220,7 @@ export interface ConnectionActionState {
   busy: boolean
 }
 
-export interface SocialCommandSummary {
+interface SocialCommandSummary {
   headline: string
   peopleReady: boolean
   chatReady: boolean
@@ -230,16 +230,16 @@ export interface SocialCommandSummary {
 }
 
 export type SocialFlowId = "chat" | "spaces" | "rooms" | "battles"
-export type SocialCommandPrimaryActionId = "find" | "invite" | "post" | SocialFlowId
+type SocialCommandPrimaryActionId = "find" | "invite" | "post" | SocialFlowId
 export type SocialCommandRunId = "sync" | "post" | "invite" | SocialFlowId
 
-export interface SocialCommandPrimaryAction {
+interface SocialCommandPrimaryAction {
   id: SocialCommandPrimaryActionId
   detail: string
   label: string
 }
 
-export interface SocialCommandRunActionState {
+interface SocialCommandRunActionState {
   id: SocialCommandRunId
   label: string
   busyLabel: string
@@ -247,7 +247,7 @@ export interface SocialCommandRunActionState {
   busy: boolean
 }
 
-export interface SocialCommandModelInput {
+interface SocialCommandModelInput {
   battleCount: number
   connectionCount: number
   memberCount: number
@@ -256,7 +256,7 @@ export interface SocialCommandModelInput {
   threadCount: number
 }
 
-export interface SocialCommandModel {
+interface SocialCommandModel {
   callModes: SocialCallMode[]
   flowCards: SocialFlowCard[]
   homeLanes: SocialHomeLane[]
@@ -266,10 +266,10 @@ export interface SocialCommandModel {
   summary: SocialCommandSummary
 }
 
-export type SocialUnifiedSearchAction = "people" | "invite" | "chat" | "groups" | "sync"
+type SocialUnifiedSearchAction = "people" | "invite" | "chat" | "groups" | "sync"
 export type SocialUnifiedSearchScope = "all" | "people" | "chats" | "groups"
 
-export interface SocialUnifiedSearchCommand {
+interface SocialUnifiedSearchCommand {
   action: SocialUnifiedSearchAction
   badge: string
   detail: string
@@ -277,7 +277,7 @@ export interface SocialUnifiedSearchCommand {
   scope: SocialUnifiedSearchScope
 }
 
-export interface SocialUnifiedSearchSections {
+interface SocialUnifiedSearchSections {
   activeScope: SocialUnifiedSearchScope
   showChats: boolean
   showGroups: boolean
@@ -285,12 +285,12 @@ export interface SocialUnifiedSearchSections {
   showPeople: boolean
 }
 
-export type SocialHomeLaneId = "friends" | "chats" | "moments" | "groups" | "calls"
-export type SocialHomeLaneTarget =
+type SocialHomeLaneId = "friends" | "chats" | "moments" | "groups" | "calls"
+type SocialHomeLaneTarget =
   | { kind: "command"; value: "people" | "post" | "invite" | "connections" }
   | { kind: "tab"; value: SocialFlowId }
 
-export interface SocialHomeLane {
+interface SocialHomeLane {
   id: SocialHomeLaneId
   label: string
   detail: string
@@ -300,9 +300,9 @@ export interface SocialHomeLane {
   target: SocialHomeLaneTarget
 }
 
-export type SocialStarterActionId = "add-friend" | "chat" | "moment" | "group" | "call"
+type SocialStarterActionId = "add-friend" | "chat" | "moment" | "group" | "call"
 
-export interface SocialStarterAction {
+interface SocialStarterAction {
   id: SocialStarterActionId
   label: string
   detail: string
@@ -311,7 +311,7 @@ export interface SocialStarterAction {
   target: SocialHomeLaneTarget
 }
 
-export type SocialContactQuickActionId = "chat" | "group" | "call"
+type SocialContactQuickActionId = "chat" | "group" | "call"
 
 export interface SocialContactQuickAction {
   id: SocialContactQuickActionId
@@ -323,9 +323,9 @@ export interface SocialContactQuickAction {
   target: Extract<SocialHomeLaneTarget, { kind: "tab" }>
 }
 
-export type PeopleSearchShortcutId = "all" | "learners" | "admins" | "active" | "email"
+type PeopleSearchShortcutId = "all" | "learners" | "admins" | "active" | "email"
 
-export interface PeopleSearchShortcut {
+interface PeopleSearchShortcut {
   id: PeopleSearchShortcutId
   label: string
   query: string
@@ -333,9 +333,9 @@ export interface PeopleSearchShortcut {
   recommended: boolean
 }
 
-export type SocialCallModeId = "voice" | "video" | "group" | "focus" | "battle"
+type SocialCallModeId = "voice" | "video" | "group" | "focus" | "battle"
 
-export interface SocialCallMode {
+interface SocialCallMode {
   id: SocialCallModeId
   label: string
   detail: string
@@ -345,7 +345,7 @@ export interface SocialCallMode {
   recommended: boolean
 }
 
-export interface SocialFlowCard {
+interface SocialFlowCard {
   id: SocialFlowId
   label: string
   action: string
@@ -354,7 +354,7 @@ export interface SocialFlowCard {
   ready: boolean
 }
 
-export interface SocialActivityItem {
+interface SocialActivityItem {
   id: string
   label: string
   detail: string
@@ -374,11 +374,11 @@ export interface SocialActionLike {
   createdAt?: string
 }
 
-export type SocialInviteValidation =
+type SocialInviteValidation =
   | { ok: true; value: SocialInviteDraft }
   | { ok: false; error: string }
 
-export interface SocialInviteReadiness {
+interface SocialInviteReadiness {
   enabled: boolean
   label: string
   message: string
@@ -1816,11 +1816,11 @@ export function buildSocialRecordsPage(records: SocialRecordLike[], input: { que
   }
 }
 
-export function socialRecordTitle(record: SocialRecordLike) {
+function socialRecordTitle(record: SocialRecordLike) {
   return String(record.title || record.name || "Untitled").trim()
 }
 
-export function socialRecordStatus(record: SocialRecordLike) {
+function socialRecordStatus(record: SocialRecordLike) {
   return String(record.status || record.visibility || record.mode || "ready").trim()
 }
 

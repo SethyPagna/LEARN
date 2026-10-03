@@ -1,47 +1,27 @@
 "use client"
 
-import { type FormEvent, useEffect, useMemo, useState } from "react"
-import Link from "next/link"
-import { useTheme } from "next-themes"
-import {
-  ArrowRight,
-  BookOpen,
-  Check,
-  Eye,
-  EyeOff,
-  Languages,
-  LockKeyhole,
-  Moon,
-  ShieldCheck,
-  Sparkles,
-  Sun,
-  UserPlus,
-} from "lucide-react"
-import { buildAuthEntryPlan, buildForgotPasswordPlan, safeRedirectPath } from "@/lib/auth-entry"
-import { applyLocaleToDocument, readStoredLocale, writeStoredLocale } from "@/lib/i18n/locale-storage"
-import { languageNames, supportedLocales, type SupportedLocale } from "@/lib/i18n/vocabulary"
+import { type FormEvent, useEffect, useRef, useState } from "react"
+import { ArrowRight, Check, Eye, EyeOff, GraduationCap, LoaderCircle, Mail, Palette, School, Users } from "lucide-react"
+import { AuthFrame } from "@/components/auth-frame"
+import { buildForgotPasswordPlan, normalizeAccessRequest, safeRedirectPath } from "@/lib/auth-entry"
+import styles from "@/components/auth-surface.module.css"
 
 const demoAccounts = [
-  { label: "Admin", identifier: "admin", password: "Admin123456!", detail: "Full provider, audit, and workspace controls." },
-  { label: "Learner", identifier: "learner", password: "Learn123456!", detail: "Clean learner workspace for daily study." },
+  { label: "Admin", identifier: "admin", password: "Admin123456!" },
+  { label: "Learner", identifier: "learner", password: "Learn123456!" },
 ]
 
 const requestRoles = [
-  { label: "Learner", value: "learner" },
-  { label: "Teacher", value: "teacher" },
-  { label: "Team lead", value: "team" },
-  { label: "Creator", value: "creator" },
+  { label: "Learner", value: "learner", Icon: GraduationCap },
+  { label: "Teacher", value: "teacher", Icon: School },
+  { label: "Team lead", value: "team", Icon: Users },
+  { label: "Creator", value: "creator", Icon: Palette },
 ]
 
-const accessSignals = [
-  { label: "Private vault", icon: ShieldCheck },
-  { label: "Draft safe", icon: Sparkles },
-  { label: "Admin reviewed", icon: LockKeyhole },
-]
+type AccessMode = "request" | "signin"
 
 export function LoginSurface() {
-  const { resolvedTheme, setTheme } = useTheme()
-  const [mode, setMode] = useState<"request" | "signin">("signin")
+  const [mode, setMode] = useState<AccessMode>("signin")
   const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -50,363 +30,134 @@ export function LoginSurface() {
   const [requestGoal, setRequestGoal] = useState("")
   const [requestRole, setRequestRole] = useState("learner")
   const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
+  const [requestSent, setRequestSent] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [locale, setLocaleState] = useState<SupportedLocale>("en")
-  const [mounted, setMounted] = useState(false)
-  const [languageOpen, setLanguageOpen] = useState(false)
   const [forgotOpen, setForgotOpen] = useState(false)
   const [redirectPath, setRedirectPath] = useState("/dashboard")
-  const plan = useMemo(
-    () => buildAuthEntryPlan({ accessRequestStatus: success ? "success" : error ? "error" : "idle", identifier, mode, password }),
-    [error, identifier, mode, password, success],
-  )
-  const forgotPlan = useMemo(() => buildForgotPasswordPlan(identifier), [identifier])
-  const currentTheme = mounted ? resolvedTheme : "dark"
-  const nextTheme = currentTheme === "dark" ? "light" : "dark"
-  const ThemeIcon = currentTheme === "dark" ? Sun : Moon
+  const pending = useRef(false)
   const canSignIn = Boolean(identifier.trim() && password)
-  const canRequestAccess = Boolean(requestName.trim().length >= 2 && requestEmail.trim() && requestGoal.trim().length >= 12)
+  const requestValidation = normalizeAccessRequest({ email: requestEmail, goal: requestGoal, name: requestName, role: requestRole })
 
   useEffect(() => {
-    setMounted(true)
-    setLocaleState(readStoredLocale())
     const params = new URLSearchParams(window.location.search)
     setRedirectPath(safeRedirectPath(params.get("redirect")))
+    if (params.get("mode") === "request") setMode("request")
   }, [])
 
-  useEffect(() => {
-    applyLocaleToDocument(locale)
-  }, [locale])
-
-  function setLocale(nextLocale: SupportedLocale) {
-    setLocaleState(nextLocale)
-    writeStoredLocale(nextLocale)
-    setLanguageOpen(false)
+  function changeMode(nextMode: AccessMode) {
+    if (pending.current) return
+    setMode(nextMode)
+    setError("")
+    setRequestSent(false)
+    setForgotOpen(false)
+    setShowPassword(false)
+    const url = new URL(window.location.href)
+    if (nextMode === "request") url.searchParams.set("mode", "request")
+    else url.searchParams.delete("mode")
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`)
   }
 
   function applyDemoAccount(account: (typeof demoAccounts)[number]) {
-    setMode("signin")
+    if (pending.current) return
     setIdentifier(account.identifier)
     setPassword(account.password)
     setError("")
-    setSuccess("")
+    setForgotOpen(false)
   }
 
   async function handleSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (pending.current || !canSignIn) return
+    pending.current = true
     setLoading(true)
     setError("")
-    setSuccess("")
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ identifier, password }),
-    })
-    const json = await response.json().catch(() => ({}))
-    setLoading(false)
-    if (!response.ok) {
-      setError(json.error || "Unable to sign in.")
-      return
+    setForgotOpen(false)
+    let navigating = false
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ identifier, password }),
+      })
+      const json = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setError(json.error || "Unable to sign in.")
+        return
+      }
+      window.location.href = redirectPath
+      navigating = true
+    } catch {
+      setError("Unable to connect. Please try again.")
+    } finally {
+      if (!navigating) {
+        pending.current = false
+        setLoading(false)
+      }
     }
-    window.location.href = redirectPath
-  }
-
-  function handleForgotPassword() {
-    const resetPlan = buildForgotPasswordPlan(identifier)
-    setForgotOpen(true)
-    setError(resetPlan.tone === "watch" ? resetPlan.nextAction : "")
-    setSuccess(resetPlan.tone === "neutral" ? resetPlan.nextAction : "")
   }
 
   async function handleAccessRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (pending.current || !requestValidation.ok || requestSent) return
+    pending.current = true
     setLoading(true)
     setError("")
-    setSuccess("")
-    const response = await fetch("/api/auth/signup-request", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: requestEmail, goal: requestGoal, name: requestName, role: requestRole }),
-    })
-    const json = await response.json().catch(() => ({}))
-    setLoading(false)
-    if (!response.ok) {
-      setError(json.error || "Unable to save the request.")
-      return
+    setForgotOpen(false)
+    try {
+      const response = await fetch("/api/auth/signup-request", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: requestEmail, goal: requestGoal, name: requestName, role: requestRole }),
+      })
+      const json = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setError(json.error || "Unable to send your request.")
+        return
+      }
+      setRequestSent(true)
+      setRequestGoal("")
+    } catch {
+      setError("Unable to connect. Your details are still here — try again.")
+    } finally {
+      pending.current = false
+      setLoading(false)
     }
-    setSuccess(json.message || "Access request saved.")
-    setRequestGoal("")
   }
 
-  return (
-    <main className="min-h-screen overflow-x-hidden bg-[#f5f7fb] text-slate-950 dark:bg-[#03070d] dark:text-white">
-      <div className="mx-auto grid min-h-screen w-full max-w-7xl grid-cols-1 gap-0 px-4 py-4 lg:grid-cols-[0.95fr_1.05fr] lg:px-6 lg:py-6">
-        <section className="hidden min-w-0 flex-col justify-between rounded-[28px] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/60 dark:border-white/10 dark:bg-white/[0.045] dark:shadow-black/30 lg:flex">
-          <Link href="/" className="flex w-fit items-center gap-3 rounded-xl transition hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-500" aria-label="Go to LEARN intro">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-950 text-white dark:bg-white dark:text-slate-950">
-              <BookOpen className="h-5 w-5" />
-            </span>
-            <span>
-              <span className="block text-sm font-semibold">LEARN</span>
-              <span className="block text-xs text-slate-500 dark:text-white/52">Workspace access</span>
-            </span>
-          </Link>
-
-          <div className="py-10">
-            <h1 className="max-w-2xl text-5xl font-semibold leading-[1.02] tracking-tight">
-              One calm door into your learning system.
-            </h1>
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
-              {accessSignals.map(({ icon: Icon, label }) => (
-                <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-black/24">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-300/12 dark:text-emerald-200">
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <span className="mt-4 block text-sm font-semibold">{label}</span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-black/24">
-              <div className="grid grid-cols-3 gap-2 text-center">
-                {["Sign in", "Create", "Practice"].map((step, index) => (
-                  <span key={step} className="rounded-2xl bg-white px-3 py-3 text-sm font-semibold text-slate-700 shadow-sm dark:bg-white/[0.055] dark:text-white/74">
-                    <span className="mr-2 text-emerald-600 dark:text-emerald-200">{index + 1}</span>
-                    {step}
-                  </span>
-                ))}
-              </div>
-            </div>
+  return <AuthFrame>
+    <section className={styles.formPanel} aria-labelledby="auth-heading">
+      {requestSent ? <div className={styles.successPanel}>
+        <span className={styles.successSymbol}><Check size={30} strokeWidth={2.5} aria-hidden="true" /></span>
+        <div role="status"><p className={styles.eyebrow}>Request received</p><h1 id="auth-heading">You’re on the list.</h1><p className={styles.description}>An admin will review your request. An invitation is needed to create your account.</p></div>
+        <span className={styles.emailReceipt}><Mail size={16} aria-hidden="true" />{requestEmail}</span>
+        <button type="button" className={styles.primaryButton} onClick={() => changeMode("signin")}>Back to sign in<ArrowRight size={17} aria-hidden="true" /></button>
+      </div> : <>
+        <div className={styles.formHeading}>
+          <p className={styles.eyebrow}>{mode === "signin" ? "Your workspace awaits" : "A little about you"}</p>
+          <h1 id="auth-heading">{mode === "signin" ? "Welcome back." : "Start something good."}</h1>
+          <p className={styles.description}>{mode === "signin" ? "Pick up where your ideas left off." : "Request an invite to your new workspace."}</p>
+        </div>
+        {mode === "signin" ? <form onSubmit={handleSignIn} className={styles.form} aria-busy={loading}>
+          <label className={styles.field}>Username or email<input required autoComplete="username" value={identifier} disabled={loading} onChange={(event) => setIdentifier(event.target.value)} placeholder="you@example.com" /></label>
+          <div className={styles.field}>
+            <div className={styles.labelRow}><label htmlFor="signin-password">Password</label><button type="button" aria-expanded={forgotOpen} aria-controls="password-help" onClick={() => setForgotOpen(!forgotOpen)} disabled={loading} className={styles.textButton}>Forgot password?</button></div>
+            <div className={styles.passwordField}><input id="signin-password" required type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} disabled={loading} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" /><button type="button" className={styles.passwordToggle} disabled={loading} aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}</button></div>
           </div>
-
-          <details className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-black/24">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-white/42">
-              Demo access
-              <span className="rounded-full bg-white px-2 py-1 text-[0.66rem] tracking-normal text-slate-700 dark:bg-white/8 dark:text-white/70">{demoAccounts.length} accounts</span>
-            </summary>
-            <div className="mt-3 grid gap-2">
-              {demoAccounts.map((account) => (
-                <button
-                  key={account.identifier}
-                  type="button"
-                  onClick={() => applyDemoAccount(account)}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left transition hover:border-emerald-400 hover:bg-emerald-50 dark:border-white/10 dark:bg-white/[0.045] dark:hover:border-emerald-300/50 dark:hover:bg-emerald-300/10"
-                >
-                  <span>
-                    <span className="block text-sm font-semibold">{account.label}</span>
-                    <span className="block text-xs text-slate-500 dark:text-white/50">{account.detail}</span>
-                  </span>
-                  <ArrowRight className="h-4 w-4 shrink-0" />
-                </button>
-              ))}
-            </div>
-          </details>
-        </section>
-
-        <section className="flex min-w-0 items-center justify-center py-4 lg:py-0 lg:pl-6">
-          <div className="w-full max-w-xl rounded-[28px] border border-slate-200 bg-white p-4 shadow-2xl shadow-slate-200/70 dark:border-white/10 dark:bg-[#0b111b] dark:shadow-black/40 sm:p-6">
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <Link href="/" className="flex min-w-0 items-center gap-3 rounded-xl transition hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-500" aria-label="Go to LEARN intro">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white dark:bg-white dark:text-slate-950">
-                  <BookOpen className="h-5 w-5" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold">LEARN</span>
-                  <span className="block truncate text-xs text-slate-500 dark:text-white/52">Secure workspace</span>
-                </span>
-              </Link>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setTheme(nextTheme)}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 transition hover:border-emerald-400 hover:bg-emerald-50 dark:border-white/10 dark:bg-white/[0.055] dark:text-white/78 dark:hover:border-emerald-300/50"
-                  aria-label={nextTheme === "light" ? "Light mode" : "Dark mode"}
-                  title={nextTheme === "light" ? "Light mode" : "Dark mode"}
-                >
-                  <ThemeIcon className="h-4 w-4" />
-                </button>
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setLanguageOpen((open) => !open)}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 transition hover:border-emerald-400 hover:bg-emerald-50 dark:border-white/10 dark:bg-white/[0.055] dark:text-white/78 dark:hover:border-emerald-300/50"
-                    aria-expanded={languageOpen}
-                    aria-label="Language"
-                    title={languageNames[locale]}
-                  >
-                    <Languages className="h-4 w-4" />
-                  </button>
-                  {languageOpen ? (
-                    <div className="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-2 text-slate-950 shadow-2xl dark:border-white/12 dark:bg-[#101722] dark:text-white">
-                      <p className="px-3 pb-2 pt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-white/48">Language</p>
-                      <div className="grid max-h-72 gap-1 overflow-auto pr-1">
-                        {supportedLocales.map((item) => (
-                          <button
-                            key={item}
-                            type="button"
-                            onClick={() => setLocale(item)}
-                            className={`flex items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition hover:bg-emerald-50 hover:text-emerald-900 dark:hover:bg-white/8 dark:hover:text-white ${
-                              locale === item ? "bg-emerald-600 text-white dark:bg-emerald-300 dark:text-slate-950" : "text-slate-700 dark:text-white/78"
-                            }`}
-                          >
-                            <span>{languageNames[item]}</span>
-                            {locale === item ? <Check className="h-4 w-4" /> : null}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1 dark:bg-black/28">
-              {[
-                ["signin", "Sign in", LockKeyhole],
-                ["request", "Request access", UserPlus],
-              ].map(([value, label, Icon]) => (
-                <button
-                  key={String(value)}
-                  type="button"
-                  onClick={() => {
-                    setMode(value as "request" | "signin")
-                    setError("")
-                    setSuccess("")
-                  }}
-                  className={`flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition ${
-                    mode === value ? "bg-white text-slate-950 shadow-sm dark:bg-white dark:text-slate-950" : "text-slate-500 hover:text-slate-950 dark:text-white/56 dark:hover:text-white"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  {String(label)}
-                </button>
-              ))}
-            </div>
-
-            <div className={`mt-4 rounded-2xl border p-4 ${plan.tone === "good" ? "border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-300/30 dark:bg-emerald-300/10 dark:text-emerald-100" : plan.tone === "watch" ? "border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-300/30 dark:bg-amber-300/10 dark:text-amber-100" : "border-slate-200 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-white/[0.045] dark:text-white/70"}`} aria-live="polite">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold">{plan.label}</p>
-                <span className="rounded-full bg-white/70 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:bg-white/10 dark:text-white/66">
-                  {mode === "signin" ? `To ${redirectPath}` : "Admin approval"}
-                </span>
-              </div>
-              <p className="mt-1 text-sm opacity-80">{plan.nextAction}</p>
-            </div>
-
-            {mode === "signin" ? (
-              <form onSubmit={handleSignIn} className="mt-5 grid gap-4">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {demoAccounts.map((account) => (
-                    <button
-                      key={account.identifier}
-                      type="button"
-                      onClick={() => applyDemoAccount(account)}
-                      className="group flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-left transition hover:-translate-y-0.5 hover:border-emerald-400 hover:bg-emerald-50 active:scale-[0.99] dark:border-white/10 dark:bg-white/[0.045] dark:hover:border-emerald-300/50 dark:hover:bg-emerald-300/10"
-                    >
-                      <span>
-                        <span className="block text-sm font-semibold">Use {account.label}</span>
-                        <span className="block text-xs text-slate-500 dark:text-white/50">{account.identifier}</span>
-                      </span>
-                      <ArrowRight className="h-4 w-4 shrink-0 text-slate-400 transition group-hover:text-emerald-600 dark:group-hover:text-emerald-200" />
-                    </button>
-                  ))}
-                </div>
-                <label className="grid gap-2 text-sm font-semibold">
-                  Username or email
-                  <input
-                    value={identifier}
-                    onChange={(event) => setIdentifier(event.target.value)}
-                    autoComplete="username"
-                    className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white dark:border-white/10 dark:bg-white/[0.055] dark:text-white dark:focus:border-emerald-300"
-                    placeholder="admin or learner"
-                  />
-                </label>
-                <label className="grid gap-2 text-sm font-semibold">
-                  <span className="flex items-center justify-between gap-3">
-                    <span>Password</span>
-                    <button
-                      type="button"
-                      onClick={handleForgotPassword}
-                      className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 dark:text-white/55 dark:hover:bg-white/8 dark:hover:text-white"
-                    >
-                      Forgot?
-                    </button>
-                  </span>
-                  <span className="flex h-12 items-center rounded-xl border border-slate-200 bg-slate-50 pr-2 transition focus-within:border-emerald-500 focus-within:bg-white dark:border-white/10 dark:bg-white/[0.055] dark:focus-within:border-emerald-300">
-                    <input
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      autoComplete="current-password"
-                      type={showPassword ? "text" : "password"}
-                      className="h-full min-w-0 flex-1 bg-transparent px-4 text-sm font-medium text-slate-950 outline-none placeholder:text-slate-400 dark:text-white"
-                      placeholder="Enter password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((visible) => !visible)}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-200 hover:text-slate-950 dark:text-white/55 dark:hover:bg-white/10 dark:hover:text-white"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </span>
-                </label>
-
-                {forgotOpen ? (
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm dark:border-white/10 dark:bg-white/[0.045]">
-                    <p className="font-semibold">{forgotPlan.label}</p>
-                    <p className="mt-1 text-slate-500 dark:text-white/55">{forgotPlan.nextAction}</p>
-                  </div>
-                ) : null}
-
-                {error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:bg-red-500/14 dark:text-red-100">{error}</p> : null}
-
-                <button
-                  disabled={loading || !canSignIn}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-emerald-300 dark:text-slate-950 dark:hover:bg-emerald-200"
-                >
-                  {loading ? "Signing in..." : "Open workspace"}
-                  <ArrowRight className="h-4 w-4" />
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleAccessRequest} className="mt-5 grid gap-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="grid gap-2 text-sm font-semibold">
-                    Name
-                    <input value={requestName} onChange={(event) => setRequestName(event.target.value)} autoComplete="name" className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium outline-none transition focus:border-emerald-500 focus:bg-white dark:border-white/10 dark:bg-white/[0.055] dark:text-white dark:focus:border-emerald-300" placeholder="Your name" />
-                  </label>
-                  <label className="grid gap-2 text-sm font-semibold">
-                    Email
-                    <input value={requestEmail} onChange={(event) => setRequestEmail(event.target.value)} autoComplete="email" className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium outline-none transition focus:border-emerald-500 focus:bg-white dark:border-white/10 dark:bg-white/[0.055] dark:text-white dark:focus:border-emerald-300" placeholder="you@example.com" />
-                  </label>
-                </div>
-                <label className="grid gap-2 text-sm font-semibold">
-                  Role
-                  <select value={requestRole} onChange={(event) => setRequestRole(event.target.value)} className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium outline-none transition focus:border-emerald-500 focus:bg-white dark:border-white/10 dark:bg-white/[0.055] dark:text-white dark:focus:border-emerald-300">
-                    {requestRoles.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
-                  </select>
-                </label>
-                <label className="grid gap-2 text-sm font-semibold">
-                  What do you want LEARN to help with?
-                  <textarea value={requestGoal} onChange={(event) => setRequestGoal(event.target.value)} className="min-h-28 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium outline-none transition focus:border-emerald-500 focus:bg-white dark:border-white/10 dark:bg-white/[0.055] dark:text-white dark:focus:border-emerald-300" placeholder="Example: organize notes, generate practice, and track progress for operating systems." />
-                </label>
-
-                {error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:bg-red-500/14 dark:text-red-100">{error}</p> : null}
-                {success ? <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 dark:bg-emerald-300/12 dark:text-emerald-100">{success}</p> : null}
-
-                <button
-                  disabled={loading || !canRequestAccess}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-emerald-300 dark:text-slate-950 dark:hover:bg-emerald-200"
-                >
-                  {loading ? "Saving request..." : "Request access"}
-                  <ArrowRight className="h-4 w-4" />
-                </button>
-              </form>
-            )}
-          </div>
-        </section>
-      </div>
-    </main>
-  )
+          {forgotOpen ? <p id="password-help" className={styles.notice}>{buildForgotPasswordPlan(identifier).nextAction}</p> : null}
+          {error ? <p role="alert" className={styles.error}>{error}</p> : null}
+          <button type="submit" disabled={loading || !canSignIn} className={styles.primaryButton}>{loading ? <LoaderCircle size={17} className={styles.spinner} aria-hidden="true" /> : null}{loading ? "Signing in…" : "Sign in"}{!loading ? <ArrowRight size={17} aria-hidden="true" /> : null}</button>
+          <details className={styles.demo}><summary>Explore with a demo</summary><div className={styles.demoOptions}>{demoAccounts.map((account) => <button key={account.identifier} type="button" disabled={loading} onClick={() => applyDemoAccount(account)}>Use {account.label}<ArrowRight size={14} aria-hidden="true" /></button>)}</div></details>
+        </form> : <form onSubmit={handleAccessRequest} className={styles.form} aria-busy={loading}>
+          <label className={styles.field}>Name<input required minLength={2} maxLength={120} autoComplete="name" disabled={loading} value={requestName} onChange={(event) => setRequestName(event.target.value)} placeholder="Your name" /></label>
+          <label className={styles.field}>Email<input required type="email" maxLength={254} autoComplete="email" disabled={loading} value={requestEmail} onChange={(event) => setRequestEmail(event.target.value)} placeholder="you@example.com" /></label>
+          <fieldset className={styles.roleField}><legend>I’m a…</legend><div className={styles.roleOptions}>{requestRoles.map(({ value, label, Icon }) => <label key={value} className={styles.roleOption}><input type="radio" name="role" value={value} checked={requestRole === value} disabled={loading} onChange={() => setRequestRole(value)} /><span><Icon size={16} aria-hidden="true" />{label}</span></label>)}</div></fieldset>
+          <label className={styles.field}>What’s on your mind?<textarea required minLength={12} maxLength={600} rows={2} disabled={loading} value={requestGoal} onChange={(event) => setRequestGoal(event.target.value)} placeholder="Something you want to learn or create…" /><span className={styles.fieldHint}>A short learning goal · 12 characters minimum</span></label>
+          {error ? <p role="alert" className={styles.error}>{error}</p> : null}
+          <button type="submit" disabled={loading || !requestValidation.ok} className={styles.primaryButton}>{loading ? <LoaderCircle size={17} className={styles.spinner} aria-hidden="true" /> : null}{loading ? "Sending…" : "Request an invite"}{!loading ? <ArrowRight size={17} aria-hidden="true" /> : null}</button>
+          <p className={styles.approvalNote}>Invitations are reviewed by an admin.</p>
+        </form>}
+        <p className={styles.modeSwitch}>{mode === "signin" ? "New here?" : "Already have an account?"}<button type="button" disabled={loading} onClick={() => changeMode(mode === "signin" ? "request" : "signin")}>{mode === "signin" ? "Request access" : "Sign in"}<ArrowRight size={14} aria-hidden="true" /></button></p>
+      </>}
+    </section>
+  </AuthFrame>
 }

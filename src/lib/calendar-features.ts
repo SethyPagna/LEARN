@@ -11,6 +11,21 @@ export const calendarEventTypeOptions: Array<{ value: CalendarEventType; label: 
 
 export const calendarDurationPresets = [15, 30, 45, 60, 90] as const
 
+/**
+ * Per-event reminder leads, in minutes. `0` is "None" and is a real choice, not
+ * a missing one: it is stored as `0` and suppresses the VALARM in the exported
+ * ICS, whereas a `null` column means the user never picked and the feed falls
+ * back to the app-wide default lead.
+ */
+export const calendarReminderOptions: Array<{ value: number; label: string }> = [
+  { value: 0, label: "None" },
+  { value: 5, label: "5 minutes before" },
+  { value: 10, label: "10 minutes before" },
+  { value: 15, label: "15 minutes before" },
+  { value: 30, label: "30 minutes before" },
+  { value: 60, label: "1 hour before" },
+]
+
 export interface CalendarEventLike {
   id: string
   event_type: string
@@ -201,6 +216,48 @@ export function buildCalendarMonthGrid<T extends CalendarEventLike>(
       totalMinutes: dayEvents.reduce((sum, event) => sum + calendarEventDurationMinutes(event), 0),
     }
   })
+}
+
+/** Days in a month; `month` is 1-12. */
+export function daysInCalendarMonth(year: number, month: number) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate()
+}
+
+/**
+ * Moves a "YYYY-MM-DD" day by whole months (12 for a year). The day of the
+ * month stays, clamped to the new month, so Jan 31 plus a month is Feb 28
+ * (29 in a leap year), not Mar 3.
+ */
+export function shiftCalendarDayKey(key: string, months: number) {
+  const [year, month, day] = parseCalendarDayKey(key)
+  const index = year * 12 + (month - 1) + months
+  const nextYear = Math.floor(index / 12)
+  const nextMonth = index - nextYear * 12 + 1
+  return formatCalendarDayKey(nextYear, nextMonth, Math.min(day, daysInCalendarMonth(nextYear, nextMonth)))
+}
+
+/** Moves a "YYYY-MM-DD" day by whole days. */
+export function addCalendarDays(key: string, days: number) {
+  const [year, month, day] = parseCalendarDayKey(key)
+  const date = new Date(Date.UTC(year, month - 1, day + days))
+  return formatCalendarDayKey(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate())
+}
+
+/** Replaces the year, the month (1-12) or the day of a "YYYY-MM-DD" day, clamping the day to the month. */
+export function setCalendarDayKeyPart(key: string, part: { year?: number; month?: number; day?: number }) {
+  const [year, month, day] = parseCalendarDayKey(key)
+  const nextYear = part.year ?? year
+  const nextMonth = part.month ?? month
+  return formatCalendarDayKey(nextYear, nextMonth, Math.min(part.day ?? day, daysInCalendarMonth(nextYear, nextMonth)))
+}
+
+function parseCalendarDayKey(key: string): [number, number, number] {
+  const [year, month, day] = key.split("-").map(Number)
+  return [year || 2000, month || 1, day || 1]
+}
+
+function formatCalendarDayKey(year: number, month: number, day: number) {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
 }
 
 export function buildCalendarPlanningSummary(

@@ -1,14 +1,27 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { CheckCircle2, ChevronDown, Clock, Flag, Info, ListFilter, MoreHorizontal, Pause, Play, RotateCcw, Sparkles, Trash2, XCircle } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { ArrowLeft, ArrowRight, BookOpen, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Flag, Layers3, Loader2, Pause, Play, RotateCcw, Settings2, Trash2, Trophy, X } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { PracticeAttemptSummary, PracticeMode, Quiz, QuizAttemptResult } from "../types"
 import { api } from "../api"
-import { ControlButton, EmptyState, Panel, StatusPill } from "../ui"
-import { menuSurfaceClasses, toneTextClasses } from "@/lib/design-system"
-import { clearPracticeDraft, hasPracticeDraftContent, readPracticeDraft, writePracticeDraft } from "@/lib/practice-drafts"
-import { buildMistakeRetrySet, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, buildPracticeSessionSummary, filterPracticeQuestions, practiceModeGroups, practiceModeLabel, summarizePracticeAttempt, summarizePracticeMode, type PracticeQuestionFilter, type PracticeRunActionId, type PracticeSessionSummary } from "@/lib/practice-features"
+import { SharePanel } from "../share-panel"
+import { clearPracticeDraft, clearPracticeDraftIfUnchanged, hasPracticeDraftContent, readPracticeDraft, writePracticeDraft, type PracticeDraftState } from "@/lib/practice-drafts"
+import { buildMistakeRetrySet, buildPracticeReviewCards, filterPracticeQuestions, practiceModeGroups, practiceModeLabel, summarizePracticeAttempt, type PracticeQuestionFilter } from "@/lib/practice-features"
+import styles from "./practice-workspace.module.css"
+
+type SessionPhase = "setup" | "run" | "result"
+type PendingAction = "submit" | "reviews" | "archive" | null
+
+interface QuizViewProps {
+  quizzes: Quiz[]
+  selectedQuizId: string
+  setSelectedQuizId: (id: string) => void
+  options: WorkspaceOptions
+  onBack?: () => void
+  onArchive?: (id: string) => void
+  onArchived?: (id: string) => void
+}
 
 const questionFilters: Array<{ id: PracticeQuestionFilter; label: string }> = [
   { id: "all", label: "All" },
@@ -16,702 +29,326 @@ const questionFilters: Array<{ id: PracticeQuestionFilter; label: string }> = [
   { id: "marked", label: "Marked" },
   { id: "missed", label: "Missed" },
 ]
+const featuredModes = [
+  { id: "quiz", label: "Quiz", icon: BookOpen, hint: "At your pace" },
+  { id: "exam", label: "Exam", icon: Clock3, hint: "No hints" },
+  { id: "flashcards", label: "Cards", icon: Layers3, hint: "Recall, then reveal" },
+] as const
 
-export function QuizView({
-  quizzes,
-  selectedQuizId,
-  setSelectedQuizId,
-  options,
-}: {
-  quizzes: Quiz[]
-  selectedQuizId: string
-  setSelectedQuizId: (id: string) => void
-  options: WorkspaceOptions
-}) {
+export function QuizView({ selectedQuizId, options, onBack, onArchive, onArchived }: QuizViewProps) {
+  const defaultMode: PracticeMode = options.quizMode === "exam" ? "exam" : "quiz"
   const [quiz, setQuiz] = useState<Quiz | null>(null)
+  const [loadError, setLoadError] = useState("")
+  const [loadRevision, setLoadRevision] = useState(0)
+  const [phase, setPhase] = useState<SessionPhase>("setup")
   const [answers, setAnswers] = useState<Record<string, string>>({})
-  const [result, setResult] = useState<QuizAttemptResult | null>(null)
-  const [startedAt, setStartedAt] = useState(() => Date.now())
-  const [elapsedSeconds, setElapsedSeconds] = useState(0)
-  const [targetMinutes, setTargetMinutes] = useState(options.quizMode === "exam" ? 20 : 10)
-  const [paused, setPaused] = useState(false)
-  const [practiceMode, setPracticeMode] = useState<PracticeMode>(options.quizMode === "exam" ? "exam" : "quiz")
-  const [attemptSummary, setAttemptSummary] = useState<PracticeAttemptSummary | null>(null)
-  const [retryQuestionIds, setRetryQuestionIds] = useState<string[]>([])
-  const [markedQuestionIds, setMarkedQuestionIds] = useState<string[]>([])
+  const [markedIds, setMarkedIds] = useState<string[]>([])
+  const [retryIds, setRetryIds] = useState<string[]>([])
+  const [practiceMode, setPracticeMode] = useState<PracticeMode>(defaultMode)
   const [questionFilter, setQuestionFilter] = useState<PracticeQuestionFilter>("all")
-  const [reviewCardStatus, setReviewCardStatus] = useState("")
+  const [questionIndex, setQuestionIndex] = useState(0)
+  const [targetMinutes, setTargetMinutes] = useState(defaultMode === "exam" ? 20 : 10)
+  const [startedAt, setStartedAt] = useState(0)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const [summary, setSummary] = useState<PracticeAttemptSummary | null>(null)
+  const [pending, setPending] = useState<PendingAction>(null)
+  const [status, setStatus] = useState("")
+  const [savedDraft, setSavedDraft] = useState(false)
   const [draftStatus, setDraftStatus] = useState("")
-  const [practiceAction, setPracticeAction] = useState<PracticeRunActionId | null>(null)
-  const [practiceStatus, setPracticeStatus] = useState("")
-  const [archivedQuizIds, setArchivedQuizIds] = useState<string[]>([])
-  const visibleQuizBank = useMemo(() => quizzes.filter((item) => !archivedQuizIds.includes(item.id)), [archivedQuizIds, quizzes])
-  const selected = selectedQuizId && visibleQuizBank.some((item) => item.id === selectedQuizId) ? selectedQuizId : visibleQuizBank[0]?.id
-  const defaultPracticeMode: PracticeMode = options.quizMode === "exam" ? "exam" : "quiz"
-  const visibleQuestions = useMemo(() => {
-    const questions = quiz?.questions || []
-    return retryQuestionIds.length ? buildMistakeRetrySet(questions, retryQuestionIds) : questions
-  }, [quiz?.questions, retryQuestionIds])
-  const answeredQuestionIds = useMemo(() => Object.keys(answers), [answers])
-  const filteredQuestions = useMemo(() => filterPracticeQuestions(visibleQuestions, {
-    filter: questionFilter,
-    answeredQuestionIds,
-    markedQuestionIds,
-    missedQuestionIds: attemptSummary?.missedQuestionIds || retryQuestionIds,
-  }), [answeredQuestionIds, attemptSummary?.missedQuestionIds, markedQuestionIds, questionFilter, retryQuestionIds, visibleQuestions])
-  const questionFilterCounts = useMemo(() => new Map(questionFilters.map((filter) => [
-    filter.id,
-    filter.id === "all"
-      ? visibleQuestions.length
-      : filterPracticeQuestions(visibleQuestions, {
-        filter: filter.id,
-        answeredQuestionIds,
-        markedQuestionIds,
-        missedQuestionIds: attemptSummary?.missedQuestionIds || retryQuestionIds,
-      }).length,
-  ])), [answeredQuestionIds, attemptSummary?.missedQuestionIds, markedQuestionIds, retryQuestionIds, visibleQuestions])
+  const [cardsSaved, setCardsSaved] = useState(false)
+  const [showReview, setShowReview] = useState(false)
+  const [showOptions, setShowOptions] = useState(false)
+  const [showQuestions, setShowQuestions] = useState(false)
+  const [confirmFinish, setConfirmFinish] = useState(false)
+  const [revealedCards, setRevealedCards] = useState<string[]>([])
+  const pendingRef = useRef<PendingAction>(null)
+  const latestDraft = useRef<PracticeDraftState | null>(null)
+  const persistedDraft = useRef<PracticeDraftState | null>(null)
+  const mounted = useRef(true)
+  const questionHeading = useRef<HTMLHeadingElement>(null)
+
+  const questions = useMemo(() => retryIds.length ? buildMistakeRetrySet(quiz?.questions || [], retryIds) : quiz?.questions || [], [quiz?.questions, retryIds])
+  const answeredIds = useMemo(() => Object.keys(answers).filter(id => questions.some(question => question.id === id)), [answers, questions])
+  const filteredQuestions = useMemo(() => filterPracticeQuestions(questions, { filter: questionFilter, answeredQuestionIds: answeredIds, markedQuestionIds: markedIds, missedQuestionIds: summary?.missedQuestionIds || retryIds }), [answeredIds, markedIds, questionFilter, questions, retryIds, summary?.missedQuestionIds])
+  const activeIndex = Math.min(questionIndex, Math.max(0, filteredQuestions.length - 1))
+  const question = filteredQuestions[activeIndex]
+  const answeredCount = answeredIds.length
+  const progress = questions.length ? Math.round(answeredCount / questions.length * 100) : 0
+  const remainingSeconds = Math.max(0, targetMinutes * 60 - elapsedSeconds)
+  const isFlashcard = practiceMode === "flashcards"
+  const canRevealFeedback = phase === "result" || (options.revealAnswers && practiceMode !== "exam")
+
+  function persistDraft(draft: PracticeDraftState) {
+    writePracticeDraft(draft)
+    persistedDraft.current = draft
+  }
 
   useEffect(() => {
-    if (!selected) return
-    api<{ item: Quiz }>(`/api/quizzes/${selected}`).then((response) => {
-      setQuiz(response.item)
-      const draft = readPracticeDraft(response.item.id)
-      setAnswers(draft?.answers || {})
-      setResult(null)
-      setAttemptSummary(null)
-      setReviewCardStatus("")
-      setPracticeAction(null)
-      setPracticeStatus("")
-      setRetryQuestionIds(draft?.retryQuestionIds || [])
-      setMarkedQuestionIds(draft?.markedQuestionIds || [])
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      if (latestDraft.current) {
+        try { persistDraft(latestDraft.current) } catch { /* The player reports storage failures while mounted. */ }
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setQuiz(null)
+    setLoadError("")
+    api<{ item: Quiz }>(`/api/quizzes/${encodeURIComponent(selectedQuizId)}`, { signal: controller.signal }).then(({ item }) => {
+      if (controller.signal.aborted) return
+      setQuiz(item)
+      let draft: PracticeDraftState | null = null
+      try { draft = readPracticeDraft(item.id) }
+      catch { setDraftStatus("Local saves are unavailable.") }
+      persistedDraft.current = draft
+      const validQuestions = new Map((item.questions || []).map(question => [question.id, question]))
+      const restoredAnswers = Object.fromEntries(Object.entries(draft?.answers || {}).filter(([id, answer]) => validQuestions.get(id)?.choices.some(choice => choice.id === answer)))
+      setAnswers(restoredAnswers)
+      setMarkedIds((draft?.markedQuestionIds || []).filter(id => validQuestions.has(id)))
+      setRetryIds((draft?.retryQuestionIds || []).filter(id => validQuestions.has(id)))
       setQuestionFilter(draft?.questionFilter || "all")
-      setPracticeMode(draft?.practiceMode || defaultPracticeMode)
-      setTargetMinutes(draft?.targetMinutes || (options.quizMode === "exam" ? 20 : 10))
-      setStartedAt(Date.now() - (draft?.elapsedSeconds || 0) * 1000)
+      setPracticeMode(draft?.practiceMode || defaultMode)
+      setTargetMinutes(draft?.targetMinutes || (defaultMode === "exam" ? 20 : 10))
       setElapsedSeconds(draft?.elapsedSeconds || 0)
-      setDraftStatus(draft ? `Restored draft from ${formatDraftTime(draft.updatedAt)}.` : "")
+      setSavedDraft(Boolean(draft))
+      setPhase("setup")
+    }).catch(error => {
+      if (!controller.signal.aborted) setLoadError(error instanceof Error ? error.message : "Unable to open this set.")
     })
-  }, [defaultPracticeMode, options.quizMode, selected])
+    return () => controller.abort()
+  }, [defaultMode, loadRevision, selectedQuizId])
 
   useEffect(() => {
-    if (!selectedQuizId && visibleQuizBank[0]?.id) setSelectedQuizId(visibleQuizBank[0].id)
-  }, [selectedQuizId, setSelectedQuizId, visibleQuizBank])
-
-  useEffect(() => {
-    if (result || paused) return
-    const timer = window.setInterval(() => {
-      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)))
-    }, 1000)
+    if (phase !== "run" || paused) return
+    const timer = window.setInterval(() => setElapsedSeconds(elapsedSince(startedAt)), 1000)
     return () => window.clearInterval(timer)
-  }, [paused, result, startedAt])
+  }, [paused, phase, startedAt])
 
   const draftElapsedBucket = Math.floor(elapsedSeconds / 10)
+  latestDraft.current = quiz && phase === "run" ? {
+    quizId: quiz.id, answers, markedQuestionIds: markedIds, retryQuestionIds: retryIds, questionFilter,
+    practiceMode, targetMinutes, elapsedSeconds: paused ? elapsedSeconds : elapsedSince(startedAt), updatedAt: new Date().toISOString(),
+  } : null
 
   useEffect(() => {
-    if (!quiz || result) return
-    const elapsed = paused ? elapsedSeconds : currentElapsedSeconds(startedAt)
-    const draft = {
-      quizId: quiz.id,
-      answers,
-      markedQuestionIds,
-      retryQuestionIds,
-      questionFilter,
-      practiceMode,
-      targetMinutes,
-      elapsedSeconds: elapsed,
-      updatedAt: new Date().toISOString(),
-    }
-    if (!hasPracticeDraftContent(draft, defaultPracticeMode)) return
+    const draft = latestDraft.current
+    if (!draft || !hasPracticeDraftContent(draft, defaultMode)) return
     const timeout = window.setTimeout(() => {
-      writePracticeDraft(draft)
-      setDraftStatus(`Draft saved at ${formatDuration(elapsed)}.`)
-    }, 500)
+      try { persistDraft(draft); setDraftStatus("Saved on this device") }
+      catch { setDraftStatus("Could not save on this device. Keep this tab open.") }
+    }, 350)
     return () => window.clearTimeout(timeout)
-  }, [answers, defaultPracticeMode, draftElapsedBucket, markedQuestionIds, paused, practiceMode, questionFilter, quiz, result, retryQuestionIds, startedAt, targetMinutes])
+  }, [answers, defaultMode, draftElapsedBucket, markedIds, paused, phase, practiceMode, questionFilter, retryIds, targetMinutes])
 
-  async function submit() {
-    if (!quiz || practiceAction) return
-    const durationSeconds = paused ? elapsedSeconds : currentElapsedSeconds(startedAt)
-    const submittedAnswers = Object.entries(answers).map(([questionId, selectedAnswerId]) => ({ questionId, selectedAnswerId }))
-    const summary = summarizePracticeAttempt({
-      mode: practiceMode,
-      questions: visibleQuestions,
-      answers: submittedAnswers,
-      durationSeconds,
-    })
-    setPracticeAction("submit")
-    setPracticeStatus("")
-    try {
-      const response = await api<QuizAttemptResult>("/api/quizzes/attempts", {
-        method: "POST",
-        body: JSON.stringify({
-          quizId: quiz.id,
-          answers: submittedAnswers,
-          durationSeconds,
-        }),
-      })
-      setElapsedSeconds(durationSeconds)
-      setResult(response)
-      setAttemptSummary(summary)
-      setReviewCardStatus("")
-      setPracticeStatus(`Submitted: ${summary.score}/${summary.total}.`)
-      clearPracticeDraft(quiz.id)
-      setDraftStatus("Attempt submitted. Draft cleared.")
-    } catch (error) {
-      setPracticeStatus(error instanceof Error ? error.message : "Unable to submit this attempt.")
-    } finally {
-      setPracticeAction(null)
-    }
-  }
-
-  function discardDraft() {
-    if (!quiz || practiceAction) return
-    clearPracticeDraft(quiz.id)
-    setAnswers({})
-    setRetryQuestionIds([])
-    setMarkedQuestionIds([])
-    setQuestionFilter("all")
-    setPracticeMode(defaultPracticeMode)
-    resetTimer()
-    setDraftStatus("Draft cleared.")
-    setPracticeStatus("")
-  }
-
-  function resetTimer() {
-    setStartedAt(Date.now())
-    setElapsedSeconds(0)
-    setPaused(false)
-  }
-
-  function setPracticePaused(nextPaused: boolean) {
-    if (nextPaused) {
-      setElapsedSeconds(currentElapsedSeconds(startedAt))
-      setPaused(true)
-      return
-    }
+  function beginSession() {
     setStartedAt(Date.now() - elapsedSeconds * 1000)
     setPaused(false)
+    setPhase("run")
+    setStatus("")
+    setQuestionIndex(0)
+    setShowReview(false)
+  }
+
+  function togglePause() {
+    if (pendingRef.current) return
+    if (paused) setStartedAt(Date.now() - elapsedSeconds * 1000)
+    else setElapsedSeconds(elapsedSince(startedAt))
+    setPaused(value => !value)
+  }
+
+  function resetSession() {
+    if (!quiz || pendingRef.current) return
+    try { clearPracticeDraft(quiz.id) } catch { setDraftStatus("Could not clear the local save.") }
+    latestDraft.current = null
+    setAnswers({})
+    setMarkedIds([])
+    setRetryIds([])
+    setSummary(null)
+    setQuestionIndex(0)
+    setQuestionFilter("all")
+    setElapsedSeconds(0)
+    setSavedDraft(false)
+    setPhase("setup")
+    setShowReview(false)
+    setRevealedCards([])
+    setCardsSaved(false)
+    setStatus("")
+  }
+
+  function chooseAnswer(choiceId: string) {
+    if (!question || phase !== "run" || paused || pendingRef.current) return
+    setAnswers(current => ({ ...current, [question.id]: choiceId }))
+    setConfirmFinish(false)
+  }
+
+  function changeQuestion(index: number) {
+    setQuestionIndex(index)
+    setConfirmFinish(false)
+    window.requestAnimationFrame(() => questionHeading.current?.focus({ preventScroll: true }))
+  }
+
+  async function submitAttempt() {
+    if (!quiz || pendingRef.current || !answeredCount || phase !== "run") return
+    pendingRef.current = "submit"
+    setPending("submit")
+    setStatus("")
+    const durationSeconds = paused ? elapsedSeconds : elapsedSince(startedAt)
+    const submittedAnswers = answeredIds.map(questionId => ({ questionId, selectedAnswerId: answers[questionId] }))
+    try {
+      await api<QuizAttemptResult>("/api/quizzes/attempts", { method: "POST", body: JSON.stringify({ quizId: quiz.id, answers: submittedAnswers, durationSeconds }) })
+      latestDraft.current = null
+      try {
+        if (persistedDraft.current) clearPracticeDraftIfUnchanged(persistedDraft.current)
+        if (mounted.current) setDraftStatus("")
+      } catch { if (mounted.current) setDraftStatus("Attempt saved. The old local draft could not be cleared.") }
+      if (!mounted.current) return
+      setSummary(summarizePracticeAttempt({ mode: practiceMode, questions, answers: submittedAnswers, durationSeconds }))
+      setElapsedSeconds(durationSeconds)
+      setPhase("result")
+      setShowReview(false)
+      setCardsSaved(false)
+      setConfirmFinish(false)
+    } catch (error) {
+      if (mounted.current) setStatus(error instanceof Error ? error.message : "Could not save this attempt. Your answers are still here.")
+    } finally {
+      pendingRef.current = null
+      if (mounted.current) setPending(null)
+    }
+  }
+
+  function finishSession() {
+    if (answeredCount < questions.length) setConfirmFinish(true)
+    else void submitAttempt()
   }
 
   function retryMissed() {
-    if (practiceAction || !attemptSummary?.missedQuestionIds.length) return
-    setRetryQuestionIds(attemptSummary.missedQuestionIds)
-    setMarkedQuestionIds(attemptSummary.missedQuestionIds)
-    setQuestionFilter("all")
+    if (!summary?.missedQuestionIds.length || pendingRef.current) return
+    setRetryIds(summary.missedQuestionIds)
+    setMarkedIds([])
     setAnswers({})
-    setResult(null)
-    setAttemptSummary(null)
+    setSummary(null)
     setPracticeMode("mistake-retry")
-    setReviewCardStatus("")
-    setPracticeStatus(`Retrying ${attemptSummary.missedQuestionIds.length} missed questions.`)
-    resetTimer()
+    setQuestionFilter("all")
+    setQuestionIndex(0)
+    setElapsedSeconds(0)
+    setStartedAt(Date.now())
+    setPaused(false)
+    setPhase("run")
+    setShowReview(false)
+    setStatus("")
+    setRevealedCards([])
   }
 
-  async function saveMissesToReviews() {
-    if (!quiz || practiceAction || !attemptSummary?.missedQuestionIds.length) return
-    const items = buildPracticeReviewCards({
-      quizId: quiz.id,
-      quizTitle: quiz.title,
-      questions: visibleQuestions,
-      missedQuestionIds: attemptSummary.missedQuestionIds,
-    })
-    if (!items.length) {
-      setReviewCardStatus("No missed questions are ready for review cards.")
-      return
-    }
-    setPracticeAction("save-review-cards")
-    setReviewCardStatus("Saving review cards...")
+  async function saveReviewCards() {
+    if (!quiz || !summary?.missedQuestionIds.length || pendingRef.current || cardsSaved) return
+    const items = buildPracticeReviewCards({ quizId: quiz.id, quizTitle: quiz.title, questions, missedQuestionIds: summary.missedQuestionIds })
+    if (!items.length) return
+    pendingRef.current = "reviews"
+    setPending("reviews")
+    setStatus("")
     try {
-      const response = await api<{ item: { count: number } }>("/api/reviews", {
-        method: "POST",
-        body: JSON.stringify({ items }),
-      })
-      setReviewCardStatus(`Saved ${response.item.count} review cards.`)
+      const response = await api<{ item: { count: number } }>("/api/reviews", { method: "POST", body: JSON.stringify({ items }) })
+      if (!mounted.current) return
+      setCardsSaved(true)
+      setStatus(`Saved ${response.item.count} review cards.`)
     } catch (error) {
-      setReviewCardStatus(error instanceof Error ? error.message : "Unable to save review cards.")
-    } finally {
-      setPracticeAction(null)
-    }
+      if (mounted.current) setStatus(error instanceof Error ? error.message : "Could not save review cards. Try again.")
+    } finally { pendingRef.current = null; if (mounted.current) setPending(null) }
   }
 
-  const remainingSeconds = Math.max(0, targetMinutes * 60 - elapsedSeconds)
-  const elapsedLabel = formatDuration(elapsedSeconds)
-  const remainingLabel = formatDuration(remainingSeconds)
-  const answeredCount = answeredQuestionIds.filter((id) => visibleQuestions.some((question) => question.id === id)).length
-  const progressPercent = visibleQuestions.length ? Math.round((answeredCount / visibleQuestions.length) * 100) : 0
-  const sessionSummary = useMemo(() => buildPracticeSessionSummary({
-    answeredCount,
-    draftStatus,
-    elapsedLabel,
-    markedCount: markedQuestionIds.length,
-    progressPercent,
-    remainingLabel,
-    remainingSeconds,
-    revealAnswers: options.revealAnswers,
-    totalCount: visibleQuestions.length,
-  }), [answeredCount, draftStatus, elapsedLabel, markedQuestionIds.length, options.revealAnswers, progressPercent, remainingLabel, remainingSeconds, visibleQuestions.length])
-  const missedCount = attemptSummary?.missedQuestionIds.length || 0
-  const modeSummary = summarizePracticeMode({
-    mode: practiceMode,
-    missedCount,
-    answeredCount,
-    totalCount: visibleQuestions.length,
-  })
-  const reviewPlan = useMemo(() => (
-    attemptSummary ? buildPracticeReviewPlan({ summary: attemptSummary, questions: visibleQuestions }) : null
-  ), [attemptSummary, visibleQuestions])
-  const runActions = useMemo(() => buildPracticeRunActions({
-    busyAction: practiceAction,
-    hasAttempt: Boolean(attemptSummary),
-    hasQuiz: Boolean(quiz && visibleQuestions.length),
-    missedCount,
-    retryActive: retryQuestionIds.length > 0,
-  }), [attemptSummary, missedCount, practiceAction, quiz, retryQuestionIds.length, visibleQuestions.length])
-  const runActionById = useMemo(() => new Map(runActions.map((action) => [action.id, action])), [runActions])
-
-  function toggleMarked(questionId: string) {
-    setMarkedQuestionIds((current) => (
-      current.includes(questionId) ? current.filter((id) => id !== questionId) : [...current, questionId]
-    ))
-  }
-
-  function clearAnswer(questionId: string) {
-    setAnswers((current) => {
-      const next = { ...current }
-      delete next[questionId]
-      return next
-    })
-  }
-
-  async function archiveCurrentQuiz() {
-    if (!quiz || practiceAction) return
-    if (!window.confirm(`Archive "${quiz.title}"? Existing attempts stay saved, but this set leaves active practice.`)) return
-    setPracticeAction("submit")
-    setPracticeStatus("Archiving practice set...")
+  async function archiveSet() {
+    if (!quiz || pendingRef.current) return
+    if (!window.confirm(`Archive "${quiz.title}"? Existing attempts stay saved.`)) return
+    pendingRef.current = "archive"
+    setPending("archive")
+    setStatus("")
     try {
-      await api(`/api/quizzes/${quiz.id}`, { method: "DELETE" })
-      setArchivedQuizIds((current) => [...new Set([...current, quiz.id])])
-      const nextQuiz = visibleQuizBank.find((item) => item.id !== quiz.id)
-      setSelectedQuizId(nextQuiz?.id || "")
-      setQuiz(null)
-      setAttemptSummary(null)
-      setPracticeStatus("Practice set archived.")
+      await api(`/api/quizzes/${encodeURIComponent(quiz.id)}`, { method: "DELETE" })
+      latestDraft.current = null
+      try { clearPracticeDraft(quiz.id) } catch { /* Archived sets no longer appear in the library. */ }
+      onArchived?.(quiz.id)
+      if (mounted.current) onArchive?.(quiz.id)
     } catch (error) {
-      setPracticeStatus(error instanceof Error ? error.message : "Unable to archive this practice set.")
-    } finally {
-      setPracticeAction(null)
-    }
+      if (mounted.current) setStatus(error instanceof Error ? error.message : "Could not archive this set.")
+    } finally { pendingRef.current = null; if (mounted.current) setPending(null) }
   }
 
-  return (
-    <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)]">
-      <Panel className="p-3 xl:sticky xl:top-3 xl:max-h-[calc(100vh-6rem)] xl:overflow-auto">
-        <details open>
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground xl:hidden">
-            Sets
-            <ChevronDown className="h-4 w-4" />
-          </summary>
-          <div className="mt-2 xl:mt-0">
-            <div className="mb-2 hidden items-center justify-between gap-2 xl:flex">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Sets</p>
-              <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold text-secondary-foreground">{visibleQuizBank.length}</span>
-            </div>
-            {visibleQuizBank.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setSelectedQuizId(item.id)}
-                className={`mb-2 flex w-full items-center justify-between gap-2 rounded-md p-2.5 text-left ${selected === item.id ? "bg-primary text-primary-foreground" : "bg-muted text-foreground hover:bg-accent hover:text-accent-foreground"}`}
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-semibold">{item.title}</span>
-                  <span className="mt-0.5 block text-xs opacity-70">{item.topic || "Practice"}</span>
-                </span>
-                <span className="shrink-0 rounded bg-background/80 px-1.5 py-0.5 text-[0.68rem] font-bold text-foreground">{item.question_count || 0}</span>
-              </button>
-            ))}
-            {!visibleQuizBank.length ? <EmptyState title="No practice sets" body="Generate one from Studio or Tutor." /> : null}
-          </div>
-        </details>
-      </Panel>
-      <Panel className="p-4">
-        {quiz ? (
-          <>
-            <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-2xl font-semibold text-foreground">{quiz.title}</h2>
-                  <details className="group relative">
-                    <summary className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden" title="About this practice set">
-                      <Info className="h-3.5 w-3.5" />
-                    </summary>
-                    <div className={`absolute left-0 top-9 z-40 w-72 text-sm ${menuSurfaceClasses()}`}>
-                      <p className="font-semibold text-popover-foreground">Practice set</p>
-                      <p className="mt-1 text-muted-foreground">{quiz.description || "Answer the questions, submit once, then repair missed items."}</p>
-                    </div>
-                  </details>
-                </div>
-                <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{visibleQuestions.length} questions - {progressPercent}% complete</p>
-              </div>
-              <div className="flex flex-wrap gap-2 lg:justify-end">
-                <ModeStatusChip label={modeSummary.activeGroup.label} value={modeSummary.activeModeLabel} />
-                <ModeStatusChip label="Filter" value={`${questionFilters.find((filter) => filter.id === questionFilter)?.label || "All"} ${questionFilterCounts.get(questionFilter) ?? filteredQuestions.length}`} />
-                <PracticeMenu label="Setup" icon={ListFilter}>
-                  <PracticeMenuSection title="Mode" />
-                  <PracticeMenuAction icon={Sparkles} label={`Recommended: ${practiceModeLabel(modeSummary.recommendedNextMode)}`} onClick={() => setPracticeMode(modeSummary.recommendedNextMode)} meta={modeSummary.caption} />
-                  {practiceModeGroups.map((group) => (
-                    <div key={group.id} className="grid gap-1">
-                      <p className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground first:pt-0">{group.label}</p>
-                      {group.modes.map((mode) => (
-                        <PracticeMenuAction key={mode} active={practiceMode === mode} icon={CheckCircle2} label={practiceModeLabel(mode)} onClick={() => setPracticeMode(mode)} meta={group.caption} />
-                      ))}
-                    </div>
-                  ))}
-                  <PracticeMenuSection title="Questions" />
-                  {questionFilters.map((filter) => {
-                    const count = questionFilterCounts.get(filter.id) ?? 0
-                    return (
-                      <PracticeMenuAction key={filter.id} active={questionFilter === filter.id} icon={ListFilter} label={filter.label} onClick={() => setQuestionFilter(filter.id)} meta={`${count} question${count === 1 ? "" : "s"}`} />
-                    )
-                  })}
-                  <PracticeMenuSection title="Set" />
-                  <PracticeMenuAction icon={Trash2} label="Archive set" onClick={archiveCurrentQuiz} meta="Hide from active practice" />
-                </PracticeMenu>
-                <ControlButton onClick={submit} active size="compact" disabled={runActionById.get("submit")?.disabled}>
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  {runActionById.get("submit")?.busy ? runActionById.get("submit")?.busyLabel : "Submit"}
-                </ControlButton>
-              </div>
-            </div>
-            <PracticeProgressBar
-              elapsedSeconds={elapsedSeconds}
-              onClearDraft={discardDraft}
-              paused={paused}
-              resetTimer={resetTimer}
-              session={sessionSummary}
-              setPaused={setPracticePaused}
-              setTargetMinutes={setTargetMinutes}
-              targetMinutes={targetMinutes}
-            />
-            {practiceStatus ? <p className="mt-3 rounded-md bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground">{practiceStatus}</p> : null}
-            {missedCount ? <div className="mt-3"><StatusPill label={`${missedCount} to repair`} tone="watch" /></div> : null}
-            <div className="mt-5 space-y-3">
-              {filteredQuestions.map((question, index) => {
-                const marked = markedQuestionIds.includes(question.id)
-                return (
-                <article key={question.id} className="rounded-lg border border-border p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Question {index + 1}</p>
-                      <h3 className="mt-1 font-semibold text-foreground">{question.question}</h3>
-                    </div>
-                    <PracticeMenu align="right" compact label="Question actions" icon={MoreHorizontal}>
-                      <PracticeMenuAction active={marked} icon={Flag} label={marked ? "Unmark" : "Mark for review"} onClick={() => toggleMarked(question.id)} />
-                      <PracticeMenuAction disabled={!answers[question.id]} icon={XCircle} label="Clear answer" onClick={() => clearAnswer(question.id)} />
-                    </PracticeMenu>
-                  </div>
-                  <div className="mt-4 grid gap-2 md:grid-cols-2">
-                    {question.choices.map((choice) => (
-                      <button
-                        key={choice.id}
-                        onClick={() => setAnswers((current) => ({ ...current, [question.id]: choice.id }))}
-                        className={`rounded-md border p-3 text-left text-sm ${
-                          answers[question.id] === choice.id ? "border-success bg-accent text-accent-foreground" : "border-border hover:bg-muted"
-                        }`}
-                      >
-                        {choice.text}
-                        {options.revealAnswers && answers[question.id] === choice.id ? (
-                          <span className="mt-2 block text-xs font-semibold">
-                            {choice.id === question.correct_answer_id ? "Correct choice" : "Try reviewing this topic after submit"}
-                          </span>
-                        ) : null}
-                      </button>
-                    ))}
-                  </div>
-                </article>
-              )})}
-              {!filteredQuestions.length ? <EmptyState title="No questions here" body="Change filters or clear marks." /> : null}
-            </div>
-            {attemptSummary ? (
-              <div className="mt-4 rounded-md border border-border bg-accent p-3 text-accent-foreground">
-                <p className="font-semibold">Score: {attemptSummary.score} / {attemptSummary.total} - Duration: {formatDuration(attemptSummary.durationSeconds)}</p>
-                <p className="mt-1 text-sm opacity-80">Next: {attemptSummary.nextAction.replace(/-/g, " ")} {attemptSummary.missedQuestionIds.length ? `- ${attemptSummary.missedQuestionIds.length} missed` : ""}</p>
-                {reviewPlan ? (
-                  <div className="mt-3 grid gap-2 rounded-md bg-background/90 p-3 text-foreground md:grid-cols-[1fr_auto]">
-                    <div>
-                      <p className="text-sm font-semibold">Repair plan</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{reviewPlan.primaryAction}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2 md:justify-end">
-                      <StatusPill label={`${reviewPlan.accuracy}% accuracy`} />
-                      <StatusPill label={`${reviewPlan.durationMinutes} min`} />
-                      <StatusPill label={`${reviewPlan.cardsToCreate} cards`} />
-                    </div>
-                    {reviewPlan.weakTopics.length ? (
-                      <details className="md:col-span-2">
-                        <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs font-semibold text-muted-foreground [&::-webkit-details-marker]:hidden">
-                          <ChevronDown className="h-3.5 w-3.5" />
-                          Weak topics
-                          <span className="rounded bg-secondary px-1.5 py-0.5 text-secondary-foreground">{reviewPlan.weakTopics.length}</span>
-                        </summary>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {reviewPlan.weakTopics.map((topic) => (
-                            <StatusPill key={topic.topic} label={`${topic.topic}: ${topic.missed}`} tone="watch" />
-                          ))}
-                        </div>
-                      </details>
-                    ) : null}
-                  </div>
-                ) : null}
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <ControlButton onClick={retryMissed} disabled={runActionById.get("retry-missed")?.disabled} size="compact" title={runActionById.get("retry-missed")?.helper}>
-                    {runActionById.get("retry-missed")?.busy ? runActionById.get("retry-missed")?.busyLabel : "Retry missed"}
-                  </ControlButton>
-                  <ControlButton onClick={saveMissesToReviews} disabled={runActionById.get("save-review-cards")?.disabled} size="compact" title={runActionById.get("save-review-cards")?.helper}>
-                    {runActionById.get("save-review-cards")?.busy ? runActionById.get("save-review-cards")?.busyLabel : "Save review cards"}
-                  </ControlButton>
-                  <ControlButton onClick={() => { setRetryQuestionIds([]); setPracticeStatus("Full question set restored.") }} disabled={runActionById.get("full-set")?.disabled} size="compact" title={runActionById.get("full-set")?.helper}>Full set</ControlButton>
-                </div>
-                {reviewCardStatus ? <p className="mt-2 rounded-md bg-background px-3 py-2 text-xs font-semibold text-foreground">{reviewCardStatus}</p> : null}
-              </div>
-            ) : null}
-          </>
-        ) : (
-          <>
-            <QuizTimerControls paused={paused} setPaused={setPracticePaused} targetMinutes={targetMinutes} elapsedSeconds={elapsedSeconds} remainingSeconds={remainingSeconds} resetTimer={resetTimer} setTargetMinutes={setTargetMinutes} />
-            <EmptyState title="No quiz selected" body="Choose a set to start." />
-          </>
-        )}
-      </Panel>
-    </div>
-  )
-}
+  function returnToLibrary() {
+    if (pendingRef.current) return
+    if (latestDraft.current) {
+      try { persistDraft(latestDraft.current) }
+      catch { setDraftStatus("Could not save this attempt. Keep this tab open."); return }
+    }
+    onBack?.()
+  }
 
-function ModeStatusChip({ label, value }: { label: string; value: string }) {
-  return (
-    <span className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-xs font-semibold text-muted-foreground">
-      {label}
-      <span className="rounded bg-secondary px-1.5 py-0.5 text-secondary-foreground">{value}</span>
-    </span>
-  )
-}
+  if (!quiz) return <div className={styles.empty}>
+    {loadError ? <><BookOpen size={30} aria-hidden="true" /><h2>Unable to open this set</h2><p role="alert">{loadError}</p><div className={styles.actionRow}><button className={styles.secondaryButton} onClick={onBack}>Back to sets</button><button className={styles.primaryButton} onClick={() => setLoadRevision(value => value + 1)}>Try again</button></div></> : <><Loader2 className="animate-spin" aria-hidden="true" /><p role="status">Opening set…</p><button type="button" className={styles.secondaryButton} onClick={onBack}>Back to sets</button></>}
+  </div>
 
-function PracticeProgressBar({
-  elapsedSeconds,
-  onClearDraft,
-  paused,
-  resetTimer,
-  session,
-  setPaused,
-  setTargetMinutes,
-  targetMinutes,
-}: {
-  elapsedSeconds: number
-  onClearDraft: () => void
-  paused: boolean
-  resetTimer: () => void
-  session: PracticeSessionSummary
-  setPaused: (paused: boolean) => void
-  setTargetMinutes: (minutes: number) => void
-  targetMinutes: number
-}) {
-  return (
-    <div className="mt-4 rounded-md border border-border bg-card p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground">{session.answeredLabel} answered</p>
-          <p className="truncate text-xs text-muted-foreground">{session.timerLabel}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <StatusPill label={session.statusLabel} tone={session.statusTone} />
-          <ControlButton onClick={() => setPaused(!paused)} size="compact">
-            {paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
-            {paused ? "Resume" : "Pause"}
-          </ControlButton>
-        </div>
-      </div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${session.progressPercent}%` }} />
-      </div>
-      <details className="mt-3 rounded-md border border-border bg-background">
-        <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-muted-foreground [&::-webkit-details-marker]:hidden">
-          <ChevronDown className="h-3.5 w-3.5" />
-          Timer, draft, and target
-          <span className={`ml-auto rounded-md px-2 py-0.5 ${session.timerTone === "critical" ? "bg-destructive text-destructive-foreground" : "bg-secondary text-secondary-foreground"}`}>{formatDuration(elapsedSeconds)}</span>
-        </summary>
-        <div className="grid gap-2 border-t border-border p-2 text-xs sm:grid-cols-2 xl:grid-cols-4">
-          {session.visibleDetails.map((detail) => (
-            <PracticeStat key={detail.label} label={detail.label} value={detail.value} tone={detail.label === "Left" && session.timerTone === "critical" ? "danger" : "neutral"} />
-          ))}
-        </div>
-        <div className="grid gap-2 border-t border-border p-2 lg:grid-cols-[1fr_auto_auto] lg:items-center">
-          <span className="truncate rounded-md bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground">{session.draftLabel}</span>
-          <div className="flex flex-wrap gap-1.5">
-            {[5, 10, 20, 45].map((minutes) => (
-              <ControlButton
-                key={minutes}
-                onClick={() => setTargetMinutes(minutes)}
-                active={targetMinutes === minutes}
-                size="compact"
-              >
-                {minutes}m
-              </ControlButton>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-1.5 lg:justify-end">
-            <ControlButton onClick={resetTimer} size="compact">
-              <RotateCcw className="h-3.5 w-3.5" />
-              Reset
-            </ControlButton>
-            <ControlButton onClick={onClearDraft} size="compact">
-              Clear
-            </ControlButton>
-          </div>
-        </div>
-      </details>
-    </div>
-  )
-}
-
-function PracticeStat({ label, tone = "neutral", value }: { label: string; tone?: "danger" | "neutral"; value: string }) {
-  const valueClass = toneTextClasses(tone === "danger" ? "critical" : "neutral")
-  return (
-    <div className="rounded-md bg-background px-2.5 py-2">
-      <p className="text-[0.66rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{label}</p>
-      <p className={`mt-1 truncate font-semibold ${valueClass}`}>{value}</p>
-    </div>
-  )
-}
-
-function PracticeMenu({
-  align = "left",
-  children,
-  compact,
-  icon: Icon,
-  label,
-}: {
-  align?: "left" | "right"
-  children: React.ReactNode
-  compact?: boolean
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-}) {
-  return (
-    <details className="group relative inline-block">
-      <summary className={`flex h-9 cursor-pointer list-none items-center gap-2 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden ${compact ? "px-2" : ""}`} title={label}>
-        <Icon className="h-3.5 w-3.5" />
-        <span className={compact ? "sr-only" : ""}>{label}</span>
-        {!compact ? <ChevronDown className="h-3.5 w-3.5 opacity-70" /> : null}
-      </summary>
-      <div className={`absolute top-10 z-40 max-h-[min(32rem,calc(100vh-8rem))] w-64 overflow-y-auto ${menuSurfaceClasses()} ${align === "right" ? "right-0" : "left-0"}`}>
-        {children}
-      </div>
-    </details>
-  )
-}
-
-function PracticeMenuSection({ title }: { title: string }) {
-  return (
-    <p className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground first:pt-0">
-      {title}
-    </p>
-  )
-}
-
-function PracticeMenuAction({
-  active,
-  disabled,
-  icon: Icon,
-  label,
-  meta,
-  onClick,
-}: {
-  active?: boolean
-  disabled?: boolean
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  meta?: string
-  onClick: () => void
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${
-        active ? "bg-primary text-primary-foreground" : "text-popover-foreground hover:bg-accent hover:text-accent-foreground"
-      }`}
-      type="button"
-    >
-      <Icon className="mt-0.5 h-4 w-4 shrink-0" />
-      <span className="min-w-0">
-        <span className="block truncate">{label}</span>
-        {meta ? <span className={`mt-0.5 block line-clamp-2 text-xs font-medium ${active ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{meta}</span> : null}
-      </span>
-    </button>
-  )
-}
-
-function QuizTimerControls({
-  elapsedSeconds,
-  paused,
-  remainingSeconds,
-  resetTimer,
-  setPaused,
-  setTargetMinutes,
-  targetMinutes,
-}: {
-  elapsedSeconds: number
-  paused: boolean
-  remainingSeconds: number
-  resetTimer: () => void
-  setPaused: (paused: boolean) => void
-  setTargetMinutes: (minutes: number) => void
-  targetMinutes: number
-}) {
-  return (
-    <div className="mt-3 flex flex-wrap items-center gap-1.5 rounded-md border border-border bg-card p-2">
-      <span className="inline-flex h-8 items-center gap-1.5 rounded-md bg-muted px-2 text-xs font-semibold text-muted-foreground">
-        <Clock className="h-3.5 w-3.5" />
-        {formatDuration(elapsedSeconds)}
-      </span>
-      <span className={`inline-flex h-8 items-center rounded-md px-2 text-xs font-semibold ${remainingSeconds === 0 ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>
-        {formatDuration(remainingSeconds)} left
-      </span>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {[5, 10, 20, 45].map((minutes) => (
-          <ControlButton
-            key={minutes}
-            onClick={() => setTargetMinutes(minutes)}
-            active={targetMinutes === minutes}
-            size="compact"
-          >
-            {minutes}m
-          </ControlButton>
-        ))}
-      </div>
-      <ControlButton onClick={resetTimer} className="ml-auto" size="compact">
-        <RotateCcw className="h-3.5 w-3.5" />
-        Reset
-      </ControlButton>
-      <ControlButton onClick={() => setPaused(!paused)} size="compact">
-        {paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
-        {paused ? "Resume" : "Pause"}
-      </ControlButton>
-    </div>
-  )
+  return <div className={styles.player} aria-label="Practice session">
+    <header className={styles.sessionHeader}>
+      <button type="button" className={styles.iconButton} onClick={returnToLibrary} disabled={Boolean(pending)} aria-label="Back to sets" title="Back to sets"><ArrowLeft size={18} /></button>
+      <div className={styles.sessionTitle}><span>{quiz.topic || "Practice"}</span><h2>{quiz.title}</h2></div>
+      <button type="button" className={styles.iconButton} aria-label="Practice options" title="Practice options" aria-expanded={showOptions} onClick={() => setShowOptions(value => !value)}><Settings2 size={18} /></button>
+    </header>
+    {showOptions ? <div className={styles.optionsPanel}>
+      <label>Mode<select aria-label="Practice mode" value={practiceMode} disabled={Boolean(pending) || phase === "result"} onChange={event => setPracticeMode(event.target.value as PracticeMode)}>{practiceModeGroups.map(group => <optgroup key={group.id} label={group.label}>{group.modes.map(mode => <option value={mode} key={mode}>{practiceModeLabel(mode)}</option>)}</optgroup>)}</select></label>
+      <label>Time goal<select aria-label="Time goal" value={targetMinutes} disabled={Boolean(pending)} onChange={event => setTargetMinutes(Number(event.target.value))}>{[5, 10, 20, 45].map(minutes => <option key={minutes} value={minutes}>{minutes} min</option>)}</select></label>
+      <div className={styles.optionActions}><SharePanel sourceTable="quizzes" sourceId={quiz.id} /><button type="button" className={styles.iconButton} disabled={Boolean(pending)} onClick={archiveSet} aria-label="Archive set" title="Archive set"><Trash2 size={16} /></button></div>
+      {quiz.description ? <p className={styles.setDescription}>{quiz.description}</p> : null}
+    </div> : null}
+    {status ? <p className={styles.notice} role="status">{status}</p> : null}
+    {phase === "setup" ? <div className={styles.setup}>
+      <div className={styles.setupMark} aria-hidden="true"><Layers3 size={34} /><span>{questions.length}</span></div>
+      <h3>{savedDraft ? "Ready to pick up?" : "Make it your session."}</h3>
+      <p>{savedDraft ? `${answeredCount} of ${questions.length} answered · ${formatDuration(elapsedSeconds)}` : `${questions.length} questions`}</p>
+      <div className={styles.modeCards} role="group" aria-label="Session style">{featuredModes.map(({ id, label, icon: Icon, hint }) => <button type="button" key={id} aria-pressed={practiceMode === id} onClick={() => setPracticeMode(id)}><Icon aria-hidden="true" size={23} /><strong>{label}</strong><small>{hint}</small></button>)}</div>
+      {!featuredModes.some(mode => mode.id === practiceMode) ? <span className={styles.modeLabel}>{practiceModeLabel(practiceMode)}</span> : null}
+      <div className={styles.actionRow}><button type="button" className={styles.primaryButton} onClick={beginSession} disabled={!questions.length}><Play aria-hidden="true" size={16} />{savedDraft ? "Resume" : "Start"}</button>{savedDraft ? <button type="button" className={styles.secondaryButton} onClick={() => { if (window.confirm("Start over and clear this saved attempt?")) resetSession() }}>Start over</button> : null}</div>
+      {!questions.length ? <p role="status">This set has no questions yet.</p> : null}
+    </div> : null}
+    {phase === "result" && summary ? <section className={styles.results} aria-label="Practice results">
+      <div className={styles.resultRing} style={{ "--score": `${summary.total ? summary.score / summary.total * 100 : 0}%` } as React.CSSProperties}><span><Trophy aria-hidden="true" size={22} /><strong aria-label={`Score ${summary.score} out of ${summary.total}`}>{summary.score}<small> / {summary.total}</small></strong></span></div>
+      <h3>{summary.score === summary.total ? "All clear." : "Good work. Keep going."}</h3>
+      <p>{summary.missedQuestionIds.length ? `${summary.missedQuestionIds.length} to revisit` : "Every question correct"} <span aria-hidden="true">·</span> {formatDuration(summary.durationSeconds)}</p>
+      <div className={styles.actionRow}>{summary.missedQuestionIds.length ? <button type="button" className={styles.primaryButton} onClick={retryMissed} disabled={Boolean(pending)}><RotateCcw aria-hidden="true" size={15} />Retry missed</button> : <button type="button" className={styles.primaryButton} onClick={returnToLibrary}>Back to sets<ArrowRight aria-hidden="true" size={15} /></button>}<button type="button" className={styles.secondaryButton} onClick={() => { setShowReview(value => !value); setQuestionFilter("all"); setQuestionIndex(0) }}>{showReview ? "Hide answers" : "Review answers"}</button></div>
+      <div className={styles.resultSecondary}>{summary.missedQuestionIds.length ? <button type="button" disabled={Boolean(pending) || cardsSaved} onClick={saveReviewCards}>{pending === "reviews" ? "Saving…" : cardsSaved ? "Cards saved" : "Save review cards"}</button> : null}<button type="button" disabled={Boolean(pending)} onClick={resetSession}>New attempt</button></div>
+    </section> : null}
+    {phase === "run" || showReview ? <>
+      <div className={styles.progressRow}><span>{answeredCount}/{questions.length}</span><div role="progressbar" aria-label="Questions answered" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><span style={{ width: `${progress}%` }} /></div><span className={remainingSeconds === 0 ? styles.timeWarning : ""}><Clock3 aria-hidden="true" size={14} />{formatDuration(practiceMode === "exam" ? remainingSeconds : elapsedSeconds)}</span>{phase === "run" ? <button type="button" className={styles.iconButton} onClick={togglePause} disabled={Boolean(pending)} aria-label={paused ? "Resume timer" : "Pause timer"} title={paused ? "Resume timer" : "Pause timer"}>{paused ? <Play size={15} /> : <Pause size={15} />}</button> : null}</div>
+      {phase === "run" && practiceMode === "exam" && remainingSeconds === 0 ? <p className={styles.notice} role="status">Time goal reached. Finish when you’re ready.</p> : null}
+      <div className={styles.questionTools}><button type="button" className={styles.secondaryButton} aria-expanded={showQuestions} onClick={() => setShowQuestions(value => !value)}><Layers3 aria-hidden="true" size={15} />Questions</button><label className={styles.filterLabel}><span className="sr-only">Filter questions</span><select aria-label="Filter questions" value={questionFilter} onChange={event => { setQuestionFilter(event.target.value as PracticeQuestionFilter); setQuestionIndex(0) }}>{questionFilters.map(filter => <option key={filter.id} value={filter.id}>{filter.label}</option>)}</select></label></div>
+      {showQuestions ? <nav className={styles.questionMap} aria-label="Question navigation">{filteredQuestions.map((item, index) => <button type="button" key={item.id} data-answered={Boolean(answers[item.id])} data-marked={markedIds.includes(item.id)} aria-current={activeIndex === index ? "step" : undefined} aria-label={`Question ${questions.indexOf(item) + 1}${answers[item.id] ? ", answered" : ""}${markedIds.includes(item.id) ? ", marked" : ""}`} onClick={() => changeQuestion(index)}>{questions.indexOf(item) + 1}{markedIds.includes(item.id) ? <Flag aria-hidden="true" size={9} /> : null}</button>)}</nav> : null}
+      {paused && phase === "run" ? <div className={styles.paused}><Pause aria-hidden="true" size={28} /><h3>Take a breath.</h3><button type="button" className={styles.primaryButton} onClick={togglePause}>Resume</button></div> : question ? <article className={styles.questionCard}>
+        <div className={styles.questionEyebrow}><span>QUESTION {questions.indexOf(question) + 1}<span> / {questions.length}</span></span><button type="button" className={styles.iconButton} disabled={phase === "result" || Boolean(pending)} aria-label={markedIds.includes(question.id) ? "Unmark question" : "Mark for review"} title={markedIds.includes(question.id) ? "Unmark question" : "Mark for review"} aria-pressed={markedIds.includes(question.id)} onClick={() => setMarkedIds(ids => ids.includes(question.id) ? ids.filter(id => id !== question.id) : [...ids, question.id])}><Flag size={17} /></button></div>
+        <h3 ref={questionHeading} tabIndex={-1}>{question.question}</h3>
+        {isFlashcard && phase === "run" && !revealedCards.includes(question.id) ? <button type="button" className={styles.flashcardReveal} onClick={() => setRevealedCards(ids => [...ids, question.id])}><Layers3 aria-hidden="true" size={22} />Reveal choices<ArrowRight aria-hidden="true" size={16} /></button> : <div className={styles.answerGrid} role="group" aria-label={`Answers for question ${questions.indexOf(question) + 1}`}>
+          {question.choices.map((choice, index) => {
+            const chosen = answers[question.id] === choice.id
+            const correct = choice.id === question.correct_answer_id
+            const showCorrect = canRevealFeedback && (phase === "result" || chosen)
+            return <button type="button" key={choice.id} className={styles.answer} data-tone={["violet", "blue", "coral", "mint"][index % 4]} data-selected={chosen} data-result={showCorrect ? correct ? "correct" : "wrong" : undefined} aria-pressed={chosen} disabled={phase !== "run" || Boolean(pending)} onClick={() => chooseAnswer(choice.id)}><span className={styles.answerLetter}>{String.fromCharCode(65 + index)}</span><span className={styles.answerText}>{choice.text}</span>{chosen ? showCorrect && !correct ? <X aria-label="Incorrect" size={18} /> : <Check aria-label={showCorrect ? "Correct" : "Selected"} size={18} /> : showCorrect && correct ? <CheckCircle2 aria-label="Correct answer" size={18} /> : null}</button>
+          })}
+        </div>}
+        {canRevealFeedback && answers[question.id] && question.explanation ? <details className={styles.explanation}><summary>Explanation</summary><p>{question.explanation}</p></details> : null}
+        {phase === "run" && answers[question.id] ? <button type="button" className={styles.clearAnswer} disabled={Boolean(pending)} onClick={() => setAnswers(current => { const next = { ...current }; delete next[question.id]; return next })}>Clear answer</button> : null}
+      </article> : <div className={styles.empty}><BookOpen aria-hidden="true" size={26} /><h3>No questions here</h3><button type="button" className={styles.secondaryButton} onClick={() => setQuestionFilter("all")}>Show all</button></div>}
+      <div className={styles.playerFooter}><button type="button" className={styles.iconButton} aria-label="Previous question" title="Previous question" disabled={activeIndex === 0 || paused || Boolean(pending)} onClick={() => changeQuestion(activeIndex - 1)}><ChevronLeft size={19} /></button><span>{filteredQuestions.length ? activeIndex + 1 : 0} / {filteredQuestions.length}</span>{activeIndex + 1 < filteredQuestions.length ? <button type="button" className={styles.primaryButton} disabled={paused || Boolean(pending)} onClick={() => changeQuestion(activeIndex + 1)}>Next<ChevronRight aria-hidden="true" size={16} /></button> : phase === "run" ? <button type="button" className={styles.primaryButton} disabled={!answeredCount || Boolean(pending) || paused} onClick={finishSession}>{pending === "submit" ? <Loader2 className="animate-spin" aria-hidden="true" size={16} /> : <Check aria-hidden="true" size={16} />}Finish</button> : <button type="button" className={styles.secondaryButton} onClick={() => setShowReview(false)}>Done</button>}</div>
+      {confirmFinish ? <div className={styles.finishConfirm} role="alert"><span>{questions.length - answeredCount} unanswered</span><button type="button" className={styles.secondaryButton} disabled={Boolean(pending)} onClick={() => { setQuestionFilter("unanswered"); setQuestionIndex(0); setConfirmFinish(false) }}>Review</button><button type="button" className={styles.primaryButton} disabled={Boolean(pending)} onClick={submitAttempt}>{pending === "submit" ? "Saving…" : "Finish anyway"}</button></div> : null}
+    </> : null}
+    {draftStatus ? <p className={styles.draftStatus} role="status">{draftStatus}</p> : null}
+  </div>
 }
 
 function formatDuration(totalSeconds: number) {
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return `${minutes}:${String(seconds).padStart(2, "0")}`
+  return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, "0")}`
 }
 
-function formatDraftTime(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return "earlier"
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-}
-
-function currentElapsedSeconds(startedAt: number) {
-  return Math.max(0, Math.floor((Date.now() - startedAt) / 1000))
+function elapsedSince(startedAt: number) {
+  return startedAt ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000)) : 0
 }

@@ -9,18 +9,6 @@ export interface LearnRouteAction {
   priority: number
 }
 
-export interface LearnRouteSignal {
-  label: string
-  value: string
-}
-
-export interface LearnRoutePlan {
-  headline: string
-  primaryAction: LearnRouteAction
-  actions: LearnRouteAction[]
-  signals: LearnRouteSignal[]
-}
-
 export function buildLearnRoutePlan(input: {
   goalCompletion?: number
   recommendedFocus?: string[]

@@ -4,6 +4,7 @@ export interface AiGatewayProviderStatus {
   provider?: string
   enabled?: boolean
   has_key?: boolean
+  requires_key?: boolean
   last_status?: string
   name?: string
   default_model?: string
@@ -52,6 +53,7 @@ export function sanitizeAiGatewayProviderStatuses(providers: unknown[]): AiGatew
       provider: typeof provider.provider === "string" ? provider.provider : undefined,
       enabled: provider.enabled === true || provider.enabled === 1 || provider.enabled === "1",
       has_key: Boolean(provider.has_key),
+      ...(provider.requires_key === false ? { requires_key: false } : {}),
       last_status: typeof provider.last_status === "string" ? provider.last_status : "untested",
       default_model: typeof provider.default_model === "string" ? provider.default_model : undefined,
       priority: Number(provider.priority || 50),
@@ -115,7 +117,7 @@ export function buildAiGatewayReadiness(input: {
   if (!input.providers.length) {
     checks.push("Provider status has not been loaded yet.")
   } else if (!readyProviders.length) {
-    checks.push("No enabled provider currently has a stored key and healthy status.")
+    checks.push("No enabled provider is configured and available to try.")
   } else if (input.providerFamily !== "auto" && !selectedProviders.length) {
     checks.push(`Preferred provider family "${input.providerFamily}" is not ready; auto failover is safer.`)
   }
@@ -131,8 +133,8 @@ export function buildAiGatewayReadiness(input: {
   }
 }
 
-function isProviderReady(provider: AiGatewayProviderStatus) {
-  return Boolean(provider.enabled && provider.has_key && provider.last_status !== "error")
+export function isProviderReady(provider: AiGatewayProviderStatus) {
+  return Boolean(provider.enabled && (provider.has_key || provider.requires_key === false) && provider.last_status !== "error")
 }
 
 function readString(value: unknown) {

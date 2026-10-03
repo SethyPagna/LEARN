@@ -1,15 +1,41 @@
 # LEARN Comprehensive Improvement Progress
 
-Status: Active
-Last updated: 2026-05-21
+Status: Verified Cloudflare release and scoped local cleanup delivered; current evidence in the October 3 session log
+Last updated: 2026-10-03
 Current owner: User and maintainer
-Current branch: main
+Current branch: cleanup/stage-1
 
-## Current Snapshot
+## Resume here
 
-- A comprehensive 20 phase improvement roadmap exists in `docs/roadmap/plan.md`.
-- Existing in-progress files were already dirty before this tracking update and were not changed by this planning pass.
-- This tracker is the source of truth for phase status, evidence, risks, and next targets.
+Every session starts here: the newest dated log in [`ops/docs/sessions/`](../sessions/) has the "Resume here" block, and [requests.md](requests.md) has every owner request with its status and the chosen order of work. Update both as you go (see `~/.claude/CLAUDE.md`).
+
+Latest delivery: [October 3 Cloudflare release](../sessions/2026-10-03-cloud-release.md). [LEARN](https://learn.pagna.workers.dev) serves verified `abbfbe1`; the [portfolio](https://sethy-pagna.pages.dev) serves final production `cbf5269` with the current LEARN link/previews. Hosted 1,373 tests/typecheck/build and 19 public browser checks across 13 layouts passed. Both old Vercel production projects are paused. Six exact generated caches (8.37 GiB) and the June source archive were retired after recovery verification; private recovery, source/assets/data/history/evidence remain retained. Authenticated external services and realtime collaboration were not exercised in this release. Later source changes affect verification tooling/documentation only; no merge or default-branch change.
+
+Current evidence: [navigation/demo polish](../audits/2026-10-01-navigation-polish.md), type/1,355tests/build/CSS,76navigation checks and93demo checks across9layouts. [AI result recovery](../audits/2026-10-01-ai-result-recovery.md) is delivered at326dba6 with green latest CI (69recovery/312AI/108workflow checks). Provider-dependent live verification, relocated guide-opener focus and source-specific review provenance remain follow-ons; historical phase labels below do not establish their completion.
+
+## Snapshot as of 2026-09-24
+
+- Delivery: [draft PR #1](https://github.com/SethyPagna/LEARN/pull/1). All eight takeover goals are closed with the limits recorded below.
+- The comprehensive 20 phase roadmap is in `ops/docs/roadmap/plan.md`.
+- P0/P1 foundations are preserved; P2b/P2c now integrate the multi-page editor, shared rendering, source conversions and bounded content imports.
+- P3 connects owned sources to real AI destinations, including local Ollama. P4/P5 add private media/stories, peer calls and real-time game delivery.
+- Expanded launchers include the shared task menu and dedicated test/check/build/preview wrappers with truthful failures.
+- Historical recovery follows the accessible source inventory; newer authorization and local stored data are retained.
+- Acceptance, verification results and infrastructure limits: [takeover goals](takeover-completion.md) and [verification report](../audits/2026-09-24-takeover-verification.md).
+- The [history reconciliation](../audits/2026-09-24-assistant-history-reconciliation.md) remains the initial checkpoint, not the final implementation status. No production deployment or merge is part of this delivery.
+
+## September 24 Continuity Checkpoint (historical)
+
+- Scope: reconcile local assistant progress with the pushed Git history; source provenance is recorded in the linked audit.
+- Files changed: the reconciliation report, audit index, this tracker and `productivity-suite-plan.md`.
+- Verification: checked local histories, commit reachability, remote SHA, tracked launchers and editor wiring; reviewed documentation links.
+- Known risks: historical artifacts are missing, several assistant task lists are stale, and older deployment reports concern different revisions or checkouts.
+- Next target: choose a bounded launcher, historical recovery, or P2b integration checkpoint; preserve the completed September work.
+
+The phase table and detailed checklists below are the original May planning
+baseline. They have **not** been individually re-audited and must not override the
+September checkpoint evidence above. The P0–P6 overhaul labels are a separate,
+later checkpoint scheme from these original 20 phases.
 
 ## Status Legend
 
@@ -255,3 +281,19 @@ Current branch: main
 ## Next Recommended Slice
 
 Start with Phase 1. It will expose which buttons and workflows are incomplete, then Phase 2 and Phase 3 can turn those findings into reusable UI and architecture rules before larger implementation begins.
+
+## 2026-10-02 UTC: publication inventory and manual deployment handoff
+
+Original goal remains the Cloudflare-first learning operating system with working learning/editor/AI/social/practice workflows and evidence-led staged delivery. Historical May phase checklists and September/October verified slices remain intact; they are not a claim that every phase/provider flow is complete.
+
+Past: navigation/demo delivery records 1,355 tests, build/four CSS checks, 76 navigation and 93 demo checks across nine layouts; exact-head CI receipts are preserved in the existing session/audit. Current: root verified clean `cleanup/stage-1` at full SHA `b7ec6b277a5410615996aef8072e27b1c4bd453e`, matching remote `SethyPagna/LEARN`, with verify and Vercel Preview Comments successful. Already published; no duplicate push/PR, merge or deployment was made in this task.
+
+Request/evidence checklist:
+- Original all-other-projects goal: clean/debloated/working source plus required review and additional gates before dedicated non-deploying branches/draft PRs; BusinessOS excluded.
+- 11:31:16 manual deployment request: staged `task-8/deployment-guidance/web-tools/LEARN.md` and read/print-only `Run-ManualPlan.ps1`; actual existing configs/scripts/IDs reused, no secrets copied. Operator verifies GitHub SethyPagna, Vercel ungsethypagna@gmail.com and Cloudflare jamesung.kh@gmail.com before any manual write.
+- 11:31:39 progress request: this append-only proposal preserves existing goal/evidence/history; application source and provider settings remain unchanged by this documentation checkpoint.
+- Actual Cloudflare resources/configuration: account `d105a82bc26b6913575355352c2d1bb1`, Worker `learn`, D1 `learn-db` (`3eeb04af-c283-48c0-9469-82b64392fa79`), R2 `learn-files`/`learn-next-cache`, existing realtime Durable Objects. Missing or mismatched resources stop the manual plan rather than provisioning replacements.
+
+Blockers/limits: requested watermark skill NOT FOUND/NOT RUN; provider-dependent live verification and source-specific provenance follow-ons remain open. Existing Cloudflare launcher applies live D1 migrations before its build/upload pipeline; schema recovery, migration ordering and a prior local build are required. Remote Wrangler 4.95.0 `d1 migrations list` is not read-only preflight. Existing Vercel launcher uses unpinned latest CLI; exact existing scope/project and pinned CLI remain operator gates. No full checks or live smoke were rerun in this docs lane.
+
+Next gate: owner selects/fixes the exact deployment candidate, verifies existing account/resources and schema recovery, resolves requested skill criterion, completes source/local/UI/provider gates serially, then chooses deliberate manual deployment and records its exact release SHA/URL/schema state/smoke. Main push/manual deployment workflow is a production action and remains outside this task's source-only publication scope. Do not mark deployment complete from this handoff.

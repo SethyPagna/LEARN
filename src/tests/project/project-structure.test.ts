@@ -6,9 +6,12 @@ import test from "node:test"
 
 const allowedRootFiles = new Set([
   ".dockerignore",
+  ".gitattributes",
   ".gitignore",
   ".npmrc",
   "README.md",
+  // Explicitly loaded project binding for the user's shared recovery workflow.
+  "META-HARNESS.md",
   "components.json",
   "next-env.d.ts",
   "next.config.mjs",
@@ -19,6 +22,11 @@ const allowedRootFiles = new Set([
   "postcss.config.mjs",
   "tsconfig.json",
   "vercel.json",
+  // Double-click launchers; each hands over to ops/run at once.
+  "deploy.bat",
+  "run.bat",
+  "test.bat",
+  "tools.bat",
 ])
 
 const allowedRootDirectories = new Set([
@@ -30,14 +38,45 @@ const allowedRootDirectories = new Set([
 
 const allowedDocsDirectories = new Set([
   "architecture",
+  "audits",
   "operations",
   "roadmap",
+  // One dated log per working day, with a "Resume here" block, so work can
+  // pick up again after an interrupted session.
+  "sessions",
   "superpowers",
 ])
 
 const allowedJavaScriptFiles = new Set([
   "next.config.mjs",
   "postcss.config.mjs",
+  // A service worker must be served verbatim from the origin root and cannot be
+  // bundled, hashed, or compiled from TypeScript like the rest of the app.
+  "public/sw.js",
+  // `pnpm audit:ux` drives an already-running Chrome over the DevTools Protocol
+  // using nothing but Node's built-in WebSocket and fetch. It runs as
+  // `node <file>` with no build step, so it stays .mjs on purpose — see the
+  // wiring assertions in src/tests/ux/touch-targets.test.ts.
+  "ops/scripts/test/browser-ux-audit.mjs",
+  "ops/scripts/test/lib/cdp.mjs",
+  // Hosted public-flow smoke runs directly with Node/Playwright after release;
+  // it is operational verification, with no application runtime imports.
+  "ops/scripts/test/smoke-cloudflare-browser.mjs",
+  // Playwright CLI evaluates these functions directly in its browser sandbox;
+  // it does not compile TypeScript. They share no application runtime code.
+  "ops/scripts/test/playwright-routes.js",
+  "ops/scripts/test/playwright-learning.js",
+  "ops/scripts/test/playwright-practice.js",
+  "ops/scripts/test/playwright-social.js",
+  "ops/scripts/test/playwright-chat.js",
+  "ops/scripts/test/playwright-community.js",
+  "ops/scripts/test/playwright-responsive.js",
+  "ops/scripts/test/playwright-editor.js",
+  "ops/scripts/test/playwright-public.js",
+  "ops/scripts/test/playwright-themes.js",
+  "ops/scripts/test/playwright-studio.js",
+  "ops/scripts/test/playwright-demo.js",
+  "ops/scripts/test/playwright-editor-edges.js",
 ])
 
 function listTrackedFiles() {
@@ -162,12 +201,13 @@ test("Cloudflare smoke script verifies live routes and CSS", () => {
   const smokeScript = fs.readFileSync("ops/scripts/test/smoke-cloudflare.ts", "utf8")
 
   assert.equal(packageJson.scripts?.["smoke:cloudflare"], "tsx ops/scripts/test/smoke-cloudflare.ts")
-  assert.match(smokeScript, /learn\.learn-app\.workers\.dev/)
+  assert.match(smokeScript, /learn\.pagna\.workers\.dev/)
   assert.match(smokeScript, /display:flex/)
   assert.match(smokeScript, /favicon\.ico/)
   assert.match(smokeScript, /RouteExpectation/)
-  assert.match(smokeScript, /All projects/)
-  assert.match(smokeScript, /Sets/)
+  assert.match(smokeScript, /Try the workspace/)
+  assert.match(smokeScript, /min-height:100dvh/)
+  assert.match(smokeScript, /<title>Studio - LEARN<\/title>/)
   assert.match(smokeScript, /expectedStatus/)
   assert.match(smokeScript, /expectedJsonKeys/)
   assert.match(smokeScript, /\/api\/integrations\/health/)
@@ -186,7 +226,7 @@ test("Cloudflare smoke script verifies live routes and CSS", () => {
 
 test("Cloudflare deploy workflow smokes the live Worker after deploy", () => {
   const workflowText = fs.readFileSync(".github/workflows/deploy-cloudflare.yml", "utf8")
-  const deployIndex = workflowText.indexOf("corepack pnpm deploy:cloudflare")
+  const deployIndex = workflowText.indexOf("corepack pnpm exec tsx ops/scripts/deploy/cloudflare.ts upload")
   const smokeIndex = workflowText.indexOf("corepack pnpm smoke:cloudflare")
 
   assert.notEqual(deployIndex, -1)

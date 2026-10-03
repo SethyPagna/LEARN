@@ -1,4 +1,4 @@
-export type AdminPanelTab = "overview" | "access" | "users" | "providers" | "audit" | "automation"
+export type AdminPanelTab = "overview" | "access" | "users" | "providers" | "audit" | "moderation" | "automation"
 
 export const adminPanelTabOptions: Array<{ id: AdminPanelTab; label: string }> = [
   { id: "overview", label: "Overview" },
@@ -6,6 +6,7 @@ export const adminPanelTabOptions: Array<{ id: AdminPanelTab; label: string }> =
   { id: "users", label: "Users" },
   { id: "providers", label: "Providers" },
   { id: "audit", label: "Audit" },
+  { id: "moderation", label: "Moderation" },
   { id: "automation", label: "Automation" },
 ]
 

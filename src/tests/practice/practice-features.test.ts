@@ -1,13 +1,36 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import type { QuizQuestion } from "../../components/learn/types"
-import { hasPracticeDraftContent, listPracticeDraftCards, normalizePracticeDraft, parseStoredPracticeDrafts, serializePracticeDrafts, summarizePracticeDrafts } from "../../lib/practice-drafts"
+import { clearPracticeDraftIfUnchanged, hasPracticeDraftContent, listPracticeDraftCards, normalizePracticeDraft, parseStoredPracticeDrafts, readPracticeDraft, serializePracticeDrafts, summarizePracticeDrafts, writePracticeDraft } from "../../lib/practice-drafts"
 import { buildGameRunActions, buildMistakeRetrySet, buildPracticeArenaPresets, buildPracticeGameModes, buildPracticeLiveJoinCard, buildPracticePlayStyles, buildPracticeReadyLoops, buildPracticeReviewCards, buildPracticeReviewPlan, buildPracticeRunActions, buildPracticeSessionSummary, buildPracticeWorkspacePlan, evaluateGameChoice, filterPracticeQuestions, getPracticeModeGroup, practiceModeGroups, practiceModeLabel, summarizeGameRun, summarizePracticeAttempt, summarizePracticeMode } from "../../lib/practice-features"
 
 const questions: QuizQuestion[] = [
   { id: "q1", question: "One?", choices: [{ id: "a", text: "1" }, { id: "b", text: "2" }], correct_answer_id: "a", topic: "Math", explanation: "One" },
   { id: "q2", question: "Two?", choices: [{ id: "a", text: "1" }, { id: "b", text: "2" }], correct_answer_id: "b", topic: "Math", explanation: "Two" },
 ]
+
+test("late attempt completion clears its saved draft but preserves a newer attempt", () => {
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window")
+  const storage = new Map<string, string>()
+  Object.defineProperty(globalThis, "window", { configurable: true, value: {
+    localStorage: { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value) },
+    dispatchEvent: () => true,
+  } })
+  try {
+    const submitted = normalizePracticeDraft({ quizId: "quiz_math", answers: { q1: "a" }, updatedAt: "2026-09-27T00:00:00.000Z" }, "quiz_math")!
+    writePracticeDraft(submitted)
+    assert.equal(clearPracticeDraftIfUnchanged(submitted), true)
+    assert.equal(readPracticeDraft(submitted.quizId), null)
+
+    const newer = { ...submitted, answers: { q1: "b" }, updatedAt: "2026-09-27T00:01:00.000Z" }
+    writePracticeDraft(newer)
+    assert.equal(clearPracticeDraftIfUnchanged(submitted), false)
+    assert.deepEqual(readPracticeDraft(submitted.quizId), newer)
+  } finally {
+    if (originalWindow) Object.defineProperty(globalThis, "window", originalWindow)
+    else Reflect.deleteProperty(globalThis, "window")
+  }
+})
 
 test("practice attempt summary scores answers and recommends retry", () => {
   const summary = summarizePracticeAttempt({

@@ -1,5 +1,8 @@
-import { LearnShell } from "@/components/learn/learn-shell"
+import type { Metadata } from "next"
+import { LearnPage } from "@/components/learn/learn-page"
+
+export const metadata: Metadata = { title: "Sheets" }
 
 export default function SheetsPage() {
-  return <LearnShell initialView="sheets" />
+  return <LearnPage initialView="sheets" />
 }

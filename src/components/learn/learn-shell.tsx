@@ -1,60 +1,124 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { Sidebar, MobileMenu, Topbar, titleForView } from "./app-nav"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { launcherActions, MobileTabBar, Sidebar, Topbar, titleForView } from "./app-nav"
 import { api } from "./api"
+import { PageSections } from "./page-sections"
+import { CommandPalette } from "./command-palette"
+import { PlaceGuide, openPlaceGuide } from "./place-guide"
+import { RealtimeInboxProvider } from "./realtime-inbox"
+import { SelectionDock } from "./selection-dock"
 import type { AdminData, AutomationData, DashboardData, Note, Quiz, User, View } from "./types"
 import { StatusMessage } from "./ui"
 import { AiTutorView } from "./views/ai-view"
-import { DashboardView } from "./views/dashboard-view"
+import { CanvasEditorView } from "./views/canvas-editor"
+import { DeckOpener } from "./views/deck-opener"
+import { EditorProjectList } from "./editor-project-list"
+import { EditorNavigationContext, type EditorExitGuard } from "./editor-navigation"
+import { StudioLobby } from "./studio-lobby"
+import { AppInstallProvider } from "./app-install"
 import { FilesView } from "./views/files-view"
-import { AdminView, CalendarView, ProgressView, SettingsView } from "./views/secondary-views"
+import { AdminView, ProgressView, SettingsView } from "./views/secondary-views"
+import { CalendarView } from "./views/calendar-view"
 import { useWorkspacePreferences } from "./preferences"
-import { FeedView, GraphView, ProfileView, VaultView } from "./views/ecosystem-views"
+import { FeedView, GraphView, ProfileView, ReviewsView, VaultView } from "./views/ecosystem-views"
+import { LiveQuizView } from "./views/live-quiz-view"
 import { StudioView } from "./views/studio-view"
-import { LearnWorkspaceView, PracticeWorkspaceView, SocialWorkspaceView } from "./views/workspaces/combined-workspace-views"
+import { TodayView } from "./views/today-view"
+import { PracticeWorkspaceView, SocialWorkspaceView } from "./views/workspaces/combined-workspace-views"
 import { PRACTICE_DRAFT_EVENT, readPracticeDrafts, summarizePracticeDrafts, type PracticeDraftSummary } from "@/lib/practice-drafts"
 import { readStudioDrafts, STUDIO_DRAFT_EVENT, summarizeStudioDrafts, type StudioDraftSummary } from "@/lib/studio-drafts"
-import { getStudioKind, learnWorkspaceViews, practiceViews, socialViews, studioViews, viewFromPath, viewRoutes } from "@/lib/navigation"
+import { getStudioKind, practiceViews, socialViews, studioViews, viewFromPath, viewRoutes } from "@/lib/navigation"
+import type { SavedQuiz } from "@/lib/select-actions"
+import { AI_TUTOR_LAUNCH_KEY, buildPracticeAiTutorLaunch } from "@/lib/ai/tutor-workflow"
+import { launchAiTutorFromSource, type TutorSource } from "@/lib/ai/source-launch"
+import { artifactCreationPlan, studioCreationKindFromSearch, withoutStudioCreationQuery, type StudioCreationIntent } from "@/lib/studio-creation"
+import type { ArtifactType } from "@/lib/ux/artifact-catalog"
+import { cycleSidebarMode, DEFAULT_SIDEBAR_MODE, sidebarModeCookie, type SidebarMode } from "@/lib/shell/sidebar-mode"
+
+/** `/profile/<username>` names someone else's profile; `/profile` is your own. */
+function profileUsernameFromPath(pathname: string) {
+  const [first, second] = pathname.split("/").filter(Boolean)
+  if (first !== "profile" || !second) return undefined
+  try {
+    return decodeURIComponent(second)
+  } catch {
+    return second
+  }
+}
+
+function quizIdFromPath(pathname: string) {
+  const [section, id] = pathname.split("/").filter(Boolean)
+  if (section !== "quiz" || !id) return undefined
+  try { return decodeURIComponent(id) } catch { return undefined }
+}
 
 export function LearnShell({
   initialView = "dashboard",
-  initialNoteId,
   initialQuizId,
+  initialSidebarMode = DEFAULT_SIDEBAR_MODE,
+  profileUsername: initialProfileUsername,
 }: {
   initialView?: View
-  initialNoteId?: string
   initialQuizId?: string
+  /** Read from the cookie on the server, so the first paint already has the right width. */
+  initialSidebarMode?: SidebarMode
+  profileUsername?: string
 }) {
   const [view, setView] = useState<View>(initialView)
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [locationSearch, setLocationSearch] = useState("")
+  const [studioCreationIntent, setStudioCreationIntent] = useState<StudioCreationIntent | null>(null)
+  const creationIntentRef = useRef<StudioCreationIntent | null>(null)
+  const creationSequence = useRef(0)
+  const [aiCreationRevision, setAiCreationRevision] = useState(0)
+  const [liveSetupRevision, setLiveSetupRevision] = useState(0)
+  const clearStudioCreation = useCallback(() => {
+    creationIntentRef.current = null
+    setStudioCreationIntent(null)
+  }, [])
+  const [sidebarMode, setSidebarMode] = useState(initialSidebarMode)
+  const [editorSidebarMode, setEditorSidebarMode] = useState<SidebarMode>("rail")
+  const [filePreviewOpen, setFilePreviewOpen] = useState(false)
+  const searchParams = new URLSearchParams(locationSearch)
+  // Slides and designs share one editor. Without a design (or an old deck to
+  // convert, or a canvas size to pick) /slides and /canvas are the Studio lobby.
+  const designView = view === "canvas" || view === "slides"
+  const openDeckId = view === "slides" && searchParams.get("item")?.startsWith("slides:") ? searchParams.get("item")!.slice("slides:".length) : ""
+  const isEditor = ["notes", "docs", "sheets"].includes(view) || (designView && (searchParams.has("design") || Boolean(openDeckId) || (view === "canvas" && searchParams.has("new"))))
+  const focusedWorkspace = isEditor || (view === "files" && filePreviewOpen)
+  const effectiveSidebarMode = focusedWorkspace ? editorSidebarMode : sidebarMode
+  useEffect(() => { if (focusedWorkspace) setEditorSidebarMode("rail") }, [focusedWorkspace])
+  const editorExitGuard = useRef<EditorExitGuard | null>(null)
+  const navigationPending = useRef(false)
+  const navigateSafely = useCallback(async (navigate: () => void) => {
+    if (navigationPending.current) return
+    navigationPending.current = true
+    try { if (!editorExitGuard.current || await editorExitGuard.current()) navigate() }
+    finally { navigationPending.current = false }
+  }, [])
+  const [profileUsername, setProfileUsername] = useState(initialProfileUsername)
   const [user, setUser] = useState<User | null>(null)
   const [notes, setNotes] = useState<Note[]>([])
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
-  const [selectedNoteId, setSelectedNoteId] = useState(initialNoteId || "")
+  const [selectedNoteId, setSelectedNoteId] = useState("")
   const [selectedQuizId, setSelectedQuizId] = useState(initialQuizId || "")
+  const [quizLaunch, setQuizLaunch] = useState<{ id: string } | undefined>(initialQuizId ? { id: initialQuizId } : undefined)
+  const [practiceLibraryRevision, setPracticeLibraryRevision] = useState(0)
+  const removeArchivedQuiz = useCallback((id: string) => setQuizzes(current => current.filter(quiz => quiz.id !== id)), [])
+  const addQuiz = useCallback((quiz: SavedQuiz) => setQuizzes(current => [
+    { ...(quiz as Quiz), question_count: quiz.questions?.length },
+    ...current.filter(item => item.id !== quiz.id),
+  ]), [])
   const [dashboard, setDashboard] = useState<DashboardData | null>(null)
   const [adminData, setAdminData] = useState<AdminData | null>(null)
   const [automationData, setAutomationData] = useState<AutomationData | null>(null)
   const [status, setStatus] = useState("")
-  const [query, setQuery] = useState("")
   const [studioDraftSummary, setStudioDraftSummary] = useState<StudioDraftSummary>({ count: 0, labels: [] })
   const [practiceDraftSummary, setPracticeDraftSummary] = useState<PracticeDraftSummary>({ count: 0, quizIds: [] })
-  const [forceOnboarding, setForceOnboarding] = useState(false)
-  const preferences = useWorkspacePreferences()
+  const preferences = useWorkspacePreferences(user)
+  const { setTheme } = preferences
 
   const selectedNote = useMemo(() => notes.find((note) => note.id === selectedNoteId) || notes[0], [notes, selectedNoteId])
-  const filteredNotes = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    if (!needle) return notes
-    const results: Note[] = []
-    for (const note of notes) {
-      if (`${note.title} ${note.content} ${note.tags?.join(" ")}`.toLowerCase().includes(needle)) {
-        results.push(note)
-      }
-    }
-    return results
-  }, [notes, query])
 
   async function refresh() {
     try {
@@ -68,7 +132,7 @@ export function LearnShell({
       setDashboard(dashboardData)
       setNotes(notesData.items)
       setQuizzes(quizzesData.items)
-      setSelectedNoteId((current) => current || initialNoteId || notesData.items[0]?.id || "")
+      setSelectedNoteId((current) => current || notesData.items[0]?.id || "")
       setSelectedQuizId((current) => current || initialQuizId || quizzesData.items[0]?.id || "")
       setStatus("")
     } catch (error) {
@@ -109,16 +173,24 @@ export function LearnShell({
     function syncViewFromLocation() {
       const nextView = viewFromPath(window.location.pathname)
       if (!nextView) return
-      setForceOnboarding(new URLSearchParams(window.location.search).get("onboarding") === "1")
+      clearStudioCreation()
+      if (nextView === "studio" && new URLSearchParams(window.location.search).has("add")) {
+        const search = withoutStudioCreationQuery(window.location.search)
+        window.history.replaceState(window.history.state, "", `${window.location.pathname}${search}${window.location.hash}`)
+      }
+      if (new URLSearchParams(window.location.search).get("onboarding") === "1") openPlaceGuide()
+      setLocationSearch(window.location.search)
+      setProfileUsername(profileUsernameFromPath(window.location.pathname))
+      const quizId = quizIdFromPath(window.location.pathname)
+      setQuizLaunch(quizId ? { id: quizId } : undefined)
+      if (!quizId && (nextView === "practice" || nextView === "quizzes")) setPracticeLibraryRevision(revision => revision + 1)
       setView(nextView)
-      setMenuOpen(false)
-      setQuery("")
     }
 
     syncViewFromLocation()
     window.addEventListener("popstate", syncViewFromLocation)
     return () => window.removeEventListener("popstate", syncViewFromLocation)
-  }, [])
+  }, [clearStudioCreation])
 
   useEffect(() => {
     document.title = `${titleForView(view, preferences.text)} - LEARN`
@@ -134,89 +206,244 @@ export function LearnShell({
     api<AutomationData>("/api/automation").then(setAutomationData).catch((error) => setStatus(error.message))
   }, [view, automationData])
 
+  const changeSidebarMode = useCallback((mode: SidebarMode) => {
+    if (focusedWorkspace) { setEditorSidebarMode(mode); return }
+    setSidebarMode(mode)
+    // A cookie rather than localStorage: the server reads it, so a reload
+    // paints the sidebar at its chosen width instead of flashing the default.
+    document.cookie = sidebarModeCookie(mode)
+  }, [focusedWorkspace])
+
+  const cycleSidebar = useCallback(() => {
+    if (focusedWorkspace) { setEditorSidebarMode(cycleSidebarMode); return }
+    setSidebarMode((current) => {
+      const next = cycleSidebarMode(current)
+      document.cookie = sidebarModeCookie(next)
+      return next
+    })
+  }, [focusedWorkspace])
+
+  // Ctrl/Cmd+\ cycles full → icons → hidden. An editor that binds the same
+  // chord for itself calls preventDefault() first and keeps it.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented || !(event.ctrlKey || event.metaKey) || event.altKey || event.key !== "\\") return
+      event.preventDefault()
+      cycleSidebar()
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [cycleSidebar])
+
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" })
     window.location.href = "/login"
   }
 
-  function chooseView(nextView: View) {
+  const chooseView = useCallback((nextView: View) => {
+    void navigateSafely(() => {
+      clearStudioCreation()
+      setView(nextView)
+      setQuizLaunch(undefined)
+      if (nextView === "practice" || nextView === "quizzes") setPracticeLibraryRevision(revision => revision + 1)
+      setProfileUsername(undefined)
+      window.scrollTo({ top: 0, behavior: "instant" })
+      const nextPath = viewRoutes[nextView]
+      if (nextPath && `${window.location.pathname}${window.location.search}${window.location.hash}` !== nextPath) {
+        window.history.pushState({ learnView: nextView }, "", nextPath)
+      }
+      setLocationSearch("")
+    })
+  }, [navigateSafely, clearStudioCreation])
+
+  /** In-app links (a notification's target) keep their query, e.g. `/chat?thread=…`. */
+  const openLink = useCallback((href: string, prepare?: () => void) => {
+    if (!prepare && new URL(href, window.location.origin).href === window.location.href) return
+    void navigateSafely(() => {
+      const url = new URL(href, window.location.origin)
+      const nextView = url.origin === window.location.origin ? viewFromPath(url.pathname) : null
+      if (!nextView) { window.location.assign(href); return }
+      try { prepare?.() }
+      catch (error) { setStatus(error instanceof Error ? error.message : "Unable to start this action."); return }
+      const kind = nextView === "studio" ? studioCreationKindFromSearch(url.search) : null
+      const intent = kind ? { id: ++creationSequence.current, kind } : null
+      creationIntentRef.current = intent
+      setStudioCreationIntent(intent)
+      if (url.href !== window.location.href) window.history.pushState({ learnView: nextView }, "", `${url.pathname}${url.search}${url.hash}`)
+      setLocationSearch(url.search)
+      setProfileUsername(profileUsernameFromPath(url.pathname))
+      const quizId = quizIdFromPath(url.pathname)
+      setQuizLaunch(quizId ? { id: quizId } : undefined)
+      if (!quizId && (nextView === "practice" || nextView === "quizzes")) setPracticeLibraryRevision(revision => revision + 1)
+      setView(nextView)
+      window.scrollTo({ top: 0, behavior: "instant" })
+    })
+  }, [navigateSafely])
+
+  const consumeStudioCreation = useCallback((intent: StudioCreationIntent): boolean => {
+    if (creationIntentRef.current?.id !== intent.id || viewFromPath(window.location.pathname) !== "studio") return false
+    if (studioCreationKindFromSearch(window.location.search) !== intent.kind) return false
+    clearStudioCreation()
+    const search = withoutStudioCreationQuery(window.location.search)
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${search}${window.location.hash}`)
+    setLocationSearch(search)
+    return true
+  }, [clearStudioCreation])
+
+  const createArtifact = useCallback((artifact: ArtifactType) => {
+    const plan = artifactCreationPlan(artifact.id)
+    if (plan.type === "quiz") {
+      openLink(plan.href, () => {
+        try {
+          localStorage.setItem(AI_TUTOR_LAUNCH_KEY, JSON.stringify(buildPracticeAiTutorLaunch({ draftCount: practiceDraftSummary.count, quizCount: quizzes.length, selectedQuizTitle: quizzes.find(quiz => quiz.id === selectedQuizId)?.title })))
+        } catch { throw new Error("Browser storage is unavailable. Open AI tutor to create a practice set.") }
+        setAiCreationRevision(revision => revision + 1)
+      })
+    } else if (plan.type === "live") openLink(plan.href, () => setLiveSetupRevision(revision => revision + 1))
+    else openLink(plan.href)
+  }, [openLink, practiceDraftSummary.count, quizzes, selectedQuizId])
+
+  const openNote = useCallback((id: string) => {
+    openLink(`/notes?item=notes:${encodeURIComponent(id)}`, () => setSelectedNoteId(id))
+  }, [openLink])
+
+  const openAiSource = useCallback((source: TutorSource) => {
+    openLink("/ai", () => launchAiTutorFromSource(source))
+  }, [openLink])
+
+  const openQuiz = useCallback((id: string) => {
+    void navigateSafely(() => {
+      clearStudioCreation()
+      setSelectedQuizId(id)
+      setQuizLaunch({ id })
+      setView("quizzes")
+      setProfileUsername(undefined)
+      setLocationSearch("")
+      const path = `/quiz/${encodeURIComponent(id)}`
+      if (window.location.pathname !== path) window.history.pushState({ learnView: "quizzes" }, "", path)
+      window.scrollTo({ top: 0, behavior: "instant" })
+    })
+  }, [navigateSafely, clearStudioCreation])
+
+  const isStudioLobby = view === "studio" || (designView && !isEditor)
+
+  /** Swap the address without a history step, e.g. an old deck's link for its converted copy. */
+  const replaceLink = useCallback((href: string) => {
+    const url = new URL(href, window.location.origin)
+    const nextView = viewFromPath(url.pathname)
+    if (!nextView) return
+    clearStudioCreation()
+    window.history.replaceState({ learnView: nextView }, "", `${url.pathname}${url.search}${url.hash}`)
+    setLocationSearch(url.search)
     setView(nextView)
-    setMenuOpen(false)
-    setQuery("")
-    const nextPath = viewRoutes[nextView]
-    if (typeof window !== "undefined" && nextPath && window.location.pathname !== nextPath) {
-      window.history.pushState({ learnView: nextView }, "", nextPath)
-    }
-  }
+  }, [clearStudioCreation])
+  // Someone else's profile is a Friends page; only your own lives in Me.
+  const viewingSomeoneElse = view === "profile" && Boolean(profileUsername) && profileUsername !== user?.username
+  const placeView: View = viewingSomeoneElse ? "social" : view
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-background text-foreground">
-      <div className="min-h-screen lg:block">
+    <EditorNavigationContext.Provider value={editorExitGuard}><AppInstallProvider><RealtimeInboxProvider userId={user?.id}>
+      <div className="learn-app min-h-dvh overflow-x-clip bg-background text-foreground" data-sidebar={effectiveSidebarMode} data-editor={isEditor || undefined} data-density={preferences.density} data-view={view}>
+        {/* WCAG 2.4.1 (bypass blocks): the sidebar and topbar repeat on every view,
+            so the first focusable element in the shell is a link that jumps past
+            them. It sits just above the viewport until it is focused and only then
+            slides into view, which keeps it invisible to sighted users without
+            hiding it from the keyboard (no `sr-only`, so it is a real target the
+            moment it receives focus). */}
+        <a
+          href="#learn-main-content"
+          className="absolute left-4 top-4 z-[80] -translate-y-[200%] rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground focus:translate-y-0 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          Skip to content
+        </a>
         <Sidebar
-          density={preferences.density}
-          locale={preferences.locale}
-          logout={logout}
-          view={view}
-          query={query}
-          resolvedTheme={preferences.resolvedTheme}
-          setQuery={setQuery}
-          setDensity={preferences.setDensity}
-          setLocale={preferences.setLocale}
-          setTheme={preferences.setTheme}
-          setView={chooseView}
-          text={preferences.text}
-          user={user}
-          studioDraftSummary={studioDraftSummary}
+          hideCreate
+          isAdmin={user?.role === "admin"}
+          mode={effectiveSidebarMode}
+          onModeChange={changeSidebarMode}
+          onCreate={createArtifact}
           practiceDraftSummary={practiceDraftSummary}
+          setView={chooseView}
+          studioDraftSummary={studioDraftSummary}
+          text={preferences.text}
+          view={placeView}
         />
-        <section className={`min-w-0 overflow-x-hidden ${preferences.density === "compact" ? "lg:ml-[84px]" : "lg:ml-[272px]"}`}>
+        <div className="learn-app-column">
           <Topbar
+            hideCreate={isStudioLobby}
             density={preferences.density}
+            editorOpen={isEditor}
             locale={preferences.locale}
-            resolvedTheme={preferences.resolvedTheme}
+            logout={logout}
+            onCreate={createArtifact}
+            onProfileSaved={setUser}
+            onSidebarModeChange={changeSidebarMode}
+            openLink={openLink}
+            practiceDraftSummary={practiceDraftSummary}
             setDensity={preferences.setDensity}
             setLocale={preferences.setLocale}
-            setTheme={preferences.setTheme}
-            text={preferences.text}
-            view={view}
-            user={user}
-            menuOpen={menuOpen}
-            setMenuOpen={setMenuOpen}
-            logout={logout}
-            studioDraftSummary={studioDraftSummary}
-            practiceDraftSummary={practiceDraftSummary}
-          />
-          <MobileMenu
-            density={preferences.density}
-            open={menuOpen}
-            query={query}
-            setQuery={setQuery}
-            view={view}
-            text={preferences.text}
             setView={chooseView}
+            sidebarMode={effectiveSidebarMode}
             studioDraftSummary={studioDraftSummary}
-            practiceDraftSummary={practiceDraftSummary}
+            text={preferences.text}
+            user={user}
+            view={placeView}
           />
-          <div className={preferences.density === "compact" ? "p-3 lg:p-4" : "p-4 lg:p-6"}>
+          <main
+            id="learn-main-content"
+            tabIndex={-1}
+            className={`learn-paper min-h-[calc(100dvh-var(--shell-topbar))] min-w-0 pb-28 focus:outline-none lg:pb-10 ${preferences.density === "compact" ? "px-3 pt-4 sm:px-5 lg:px-6" : "px-4 pt-5 sm:px-6 lg:px-8 lg:pt-7"}`}
+          >
+            {isEditor ? <EditorProjectList notes={notes} view={view} search={locationSearch} onOpen={openLink} /> : null}
+            <div className="learn-content-pane min-w-0">
+            {isEditor || viewingSomeoneElse ? null : <PageSections isAdmin={user?.role === "admin"} setView={chooseView} text={preferences.text} view={view} />}
             {status ? <div className="mb-4"><StatusMessage message={status} /></div> : null}
-            {view === "dashboard" ? <DashboardView dashboard={dashboard} forceOnboarding={forceOnboarding} notes={notes} quizzes={quizzes} options={preferences.options} practiceDraftSummary={practiceDraftSummary} setView={chooseView} studioDraftSummary={studioDraftSummary} user={user} /> : null}
-            {learnWorkspaceViews.includes(view as (typeof learnWorkspaceViews)[number]) ? <LearnWorkspaceView dashboard={dashboard} quizzes={quizzes} setView={chooseView} /> : null}
-            {view === "vault" ? <VaultView setView={chooseView} /> : null}
+            {view === "dashboard" ? <TodayView onOpen={openLink} /> : null}
+            {isStudioLobby ? <StudioLobby key={view} notes={notes} options={preferences.options} onOpen={openLink} onNoteCreated={(note) => setNotes((current) => [note, ...current])} initialFilter={view === "canvas" ? "Canvas" : view === "slides" ? "Slides" : "All"} creationIntent={studioCreationIntent} onCreationConsumed={consumeStudioCreation} /> : null}
+            {view === "vault" ? <VaultView setView={chooseView} notes={notes} onOpenNote={openNote} onOpenAiSource={openAiSource} /> : null}
+            {/* `discover` is a documented alias of `feed`, not a second screen: both
+                views render the same FeedView. `/discover` exists as a route (and
+                `viewFromPath` resolves it to the `discover` view), but the catalog
+                deliberately has no separate Discover place, so the shared render is
+                intentional. See src/tests/ux/artifact-catalog.test.ts, which pins it. */}
             {view === "feed" || view === "discover" ? <FeedView setView={chooseView} /> : null}
             {view === "graph" ? <GraphView setView={chooseView} /> : null}
             {view === "progress" ? <ProgressView dashboard={dashboard} quizzes={quizzes} setView={chooseView} /> : null}
             {view === "calendar" ? <CalendarView options={preferences.options} /> : null}
-            {studioViews.includes(view as (typeof studioViews)[number]) ? <StudioView initialKind={getStudioKind(view)} notes={filteredNotes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} onDraftSummary={setStudioDraftSummary} /> : null}
-            {practiceViews.includes(view as (typeof practiceViews)[number]) ? <PracticeWorkspaceView initialView={view} quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} options={preferences.options} setView={chooseView} /> : null}
-            {view === "ai" ? <AiTutorView notes={notes} options={preferences.options} setNotes={setNotes} setOptions={preferences.setOptions} setView={chooseView} /> : null}
-            {view === "files" ? <FilesView options={preferences.options} setView={chooseView} /> : null}
+            {designView && isEditor && openDeckId ? <DeckOpener key={openDeckId} deckId={openDeckId} aspect={preferences.options.slidesAspect} onReady={replaceLink} onHome={() => chooseView("studio")} /> : null}
+            {designView && isEditor && !openDeckId ? <CanvasEditorView key={locationSearch} designId={searchParams.get("design") || undefined} picker={!searchParams.has("design")} notes={notes} onHome={() => chooseView("studio")} /> : null}
+            {/* `live` is a Practice alias with a screen of its own; the Practice
+                workspace below is for every other Practice view, so the two never
+                stack on one page. */}
+            {view === "live" ? <LiveQuizView key={liveSetupRevision} quizzes={quizzes} user={user} /> : null}
+            {view === "reviews" ? <ReviewsView setView={chooseView} /> : null}
+            {view !== "studio" && view !== "slides" && studioViews.includes(view as (typeof studioViews)[number]) ? <StudioView key={`${view}:${locationSearch}`} setView={chooseView} initialKind={getStudioKind(view)} notes={notes} selectedNote={selectedNote} setSelectedNoteId={setSelectedNoteId} setNotes={setNotes} options={preferences.options} onDraftSummary={setStudioDraftSummary} onOpenLink={openLink} onOpenAiSource={openAiSource} /> : null}
+            {view !== "live" && view !== "reviews" && practiceViews.includes(view as (typeof practiceViews)[number]) ? <PracticeWorkspaceView initialView={view} quizzes={quizzes} selectedQuizId={selectedQuizId} setSelectedQuizId={setSelectedQuizId} quizLaunch={quizLaunch} libraryRevision={practiceLibraryRevision} onQuizArchived={removeArchivedQuiz} options={preferences.options} setView={chooseView} /> : null}
+            {view === "ai" ? <AiTutorView key={aiCreationRevision} userId={user?.id} notes={notes} options={preferences.options} setNotes={setNotes} setQuizzes={setQuizzes} setOptions={preferences.setOptions} setView={chooseView} /> : null}
+            {view === "files" ? <FilesView options={preferences.options} onPreviewChange={setFilePreviewOpen} /> : null}
             {socialViews.includes(view as (typeof socialViews)[number]) ? <SocialWorkspaceView initialView={view} options={preferences.options} setView={chooseView} user={user} /> : null}
-            {view === "profile" ? <ProfileView user={user} setView={chooseView} /> : null}
-            {view === "settings" ? <SettingsView user={user} automationData={automationData} locale={preferences.locale} options={preferences.options} setLocale={preferences.setLocale} setOptions={preferences.setOptions} /> : null}
+            {view === "profile" ? <ProfileView key={profileUsername || "me"} user={user} username={profileUsername} setView={chooseView} onProfileSaved={setUser} /> : null}
+            {view === "settings" ? <SettingsView user={user} automationData={automationData} locale={preferences.locale} options={preferences.options} locationSearch={locationSearch} onProfileSaved={setUser} setLocale={preferences.setLocale} setOptions={preferences.setOptions} /> : null}
             {view === "admin" ? <AdminView user={user} adminData={adminData} automationData={automationData} options={preferences.options} /> : null}
-          </div>
-        </section>
+            </div>
+          </main>
+        </div>
+        <MobileTabBar setView={chooseView} text={preferences.text} view={placeView} />
+        <CommandPalette
+          actions={launcherActions}
+          notes={notes}
+          onCycleSidebar={cycleSidebar}
+          setTheme={setTheme}
+          openNote={openNote}
+          openQuiz={openQuiz}
+          quizzes={quizzes}
+          setView={chooseView}
+          text={preferences.text}
+          user={user}
+        />
+        <PlaceGuide setView={chooseView} />
+        <SelectionDock userId={user?.id} view={`${view}:${locationSearch}`} onOpen={openLink} onQuizCreated={addQuiz} />
       </div>
-    </main>
+    </RealtimeInboxProvider></AppInstallProvider></EditorNavigationContext.Provider>
   )
 }

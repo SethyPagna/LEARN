@@ -1,0 +1,12 @@
+[
+  {
+    "width": 1280,
+    "theme": "color",
+    "mode": "expanded",
+    "checks": [
+      "one visible account trigger"
+    ],
+    "errors": [],
+    "writes": []
+  }
+]

@@ -13,3 +13,11 @@ CLOUDFLARE_R2_BUCKET=learn-files
 CLOUDFLARE_NEXT_CACHE_BUCKET=learn-next-cache
 CLOUDFLARE_R2_ACCESS_KEY_ID=
 CLOUDFLARE_R2_SECRET_ACCESS_KEY=
+
+# Optional local AI; set MODEL to a model already installed in your Ollama server.
+OLLAMA_BASE_URL=
+OLLAMA_MODEL=
+
+# Optional coturn REST authentication for calls across restrictive networks.
+LEARN_TURN_URLS=
+LEARN_TURN_SECRET=

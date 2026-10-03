@@ -1,0 +1,1 @@
+Preview fixture: readable text remains in the file panel.

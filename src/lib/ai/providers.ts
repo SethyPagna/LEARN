@@ -1,4 +1,4 @@
-export type AiProviderKey = "groq" | "mistral" | "cerebras" | "google" | "cohere" | "vercel" | "cloudflare"
+export type AiProviderKey = "groq" | "mistral" | "cerebras" | "google" | "cohere" | "vercel" | "cloudflare" | "ollama"
 
 export interface AiProviderMetadata {
   provider: AiProviderKey
@@ -20,6 +20,11 @@ export interface RuntimeEnv {
 }
 
 const PROVIDERS: Record<AiProviderKey, AiProviderMetadata> = {
+  ollama: {
+    provider: "ollama", label: "Ollama (local server)", envKey: "OLLAMA_BASE_URL", defaultModel: "", endpoint: "http://127.0.0.1:11434/v1/chat/completions",
+    type: "chat", supportedTypes: ["chat"], defaultPriority: 100, safeRequestsPerMinute: 10, safeTimeoutMs: 180_000, safeCooldownSeconds: 10,
+    notes: "Configure OLLAMA_BASE_URL and OLLAMA_MODEL on the LEARN server. Uses the server's loopback Ollama instance without an API key.",
+  },
   groq: {
     provider: "groq",
     label: "Groq",
@@ -258,6 +263,11 @@ export function resolveConfiguredProvider(env: RuntimeEnv = process.env) {
   const visited = new Set<string>()
   const resolve = (provider: AiProviderMetadata) => {
     visited.add(provider.provider)
+    if (provider.provider === "ollama") {
+      const endpoint = resolveLocalOllamaEndpoint(env.OLLAMA_BASE_URL)
+      const model = env.OLLAMA_MODEL?.trim()
+      return endpoint && model ? { ...provider, endpoint, apiKey: "", model } : null
+    }
     const apiKey = env[provider.envKey]
     if (!apiKey?.trim()) return null
     const model = env[`${provider.envKey}_MODEL`] || provider.defaultModel
@@ -288,4 +298,26 @@ export function resolveConfiguredProvider(env: RuntimeEnv = process.env) {
   }
 
   return null
+}
+
+/** Runtime configuration only: learner requests never choose the host, port or model. */
+export function resolveLocalOllamaEndpoint(value: string | undefined): string | null {
+  if (!value?.trim()) return null
+  try {
+    const url = new URL(value)
+    if (!["http:", "https:"].includes(url.protocol) || !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
+      || url.username || url.password || url.search || url.hash || !["", "/", "/v1", "/v1/"].includes(url.pathname)) return null
+    return `${url.origin}/v1/chat/completions`
+  } catch { return null }
+}
+
+export function listConfiguredEnvironmentProviders(env: RuntimeEnv) {
+  return listProviderMetadata().flatMap((metadata) => {
+    const configured = resolveConfiguredProvider({ ...env, AI_PROVIDER_DEFAULT: metadata.provider })
+    return configured?.provider === metadata.provider && configured.type !== "embed" ? [configured] : []
+  }).sort((left, right) => {
+    if (left.provider === env.AI_PROVIDER_DEFAULT) return -1
+    if (right.provider === env.AI_PROVIDER_DEFAULT) return 1
+    return left.defaultPriority - right.defaultPriority
+  })
 }

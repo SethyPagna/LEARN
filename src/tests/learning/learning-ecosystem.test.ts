@@ -17,6 +17,7 @@ import {
   filterPublicProfileArtifacts,
   reviewAnswerText,
   reviewPromptText,
+  reviewSourceKind,
   reviewSourceLabel,
   selectFeedLessons,
   summarizeFeedWorkspace,
@@ -65,10 +66,20 @@ test("review card helpers expose practice mistake context", () => {
     topic: "FSRS",
   }
 
-  assert.equal(reviewSourceLabel(mistake), "Practice miss | FSRS")
+  assert.equal(reviewSourceLabel(mistake), "Practice card | FSRS")
   assert.equal(reviewPromptText(mistake), "What is the scheduler optimizing?")
   assert.equal(reviewAnswerText(mistake), "It minimizes daily review load while maintaining target retention.")
   assert.equal(reviewPromptText(item("review_plain", "2026-05-13T01:00:00.000Z", 0.8)), 'Recall the core idea behind "review_plain".')
+})
+
+test("a review wears the colour of the kind of work it came from", () => {
+  const from = (sourceType?: "note" | "block" | "flashcard" | "lesson" | "practice_mistake") => reviewSourceKind({ ...item("review_kind", "2026-05-13T01:00:00.000Z", 0.8), sourceType })
+  assert.equal(from(undefined), "notes", "a review with no source type comes from a note, as its label says")
+  assert.equal(from("note"), "notes")
+  assert.equal(from("block"), "notes", "a Vault block lives in a note")
+  assert.equal(from("practice_mistake"), "quiz")
+  assert.equal(from("flashcard"), null)
+  assert.equal(from("lesson"), null)
 })
 
 test("review session summary and action plan guide reveal and grade loops", () => {

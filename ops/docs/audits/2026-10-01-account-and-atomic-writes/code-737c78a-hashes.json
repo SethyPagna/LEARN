@@ -1,0 +1,238 @@
+{
+  "head": "737c78a655d4c0e66198f2f1b459b8c906246c34",
+  "method": "Two worktree SHA-256 reads compared to committed Git blob bytes",
+  "files": [
+    {
+      "file": "META-HARNESS.md",
+      "sha256": "cc74b10e1ced042863e277a49318fa8363256d84e79aeb9de60764824375e0fd"
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-account-and-atomic-writes.md",
+      "sha256": "ca92e7c72426fdcc9596f58ea136817605ab40e907d53b838e4525045af40c0c"
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-account-and-atomic-writes/account-320-dark.jpg",
+      "sha256": "4a9e7aa0c3b947bd76b101031d4245a0e7531afe96a454ae470b7b597f01ad0b"
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-account-and-atomic-writes/account-edit-1280-color.jpg",
+      "sha256": "947d6d2b5c0987ad89d9564d24b9e7932ad9ae87fd0b54703f0c6d800bbac705"
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-account-and-atomic-writes/account-edit-390-light.jpg",
+      "sha256": "ccaa95063c23ccfe2535a2d6ed33cc8331aae686442520b2a70976355024d30d"
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-account-and-atomic-writes/demo-1280-color.jpg",
+      "sha256": "0bcd6c5dd34b19f8b282c518967adced89f8180bd091dbc30268ed8dbefb49ff"
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-account-and-atomic-writes/demo-320-dark.jpg",
+      "sha256": "198ce85e7e1df6c00be20fa1a3e91cbabd63691459ba960b30f54d607d26a275"
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-account-and-atomic-writes/demo-390-light.jpg",
+      "sha256": "6d22de801800d93ae043330eceec5aa4d7e0319449bd5cbe63b68409a22cae1c"
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-account-and-atomic-writes/demo-results.json",
+      "sha256": "2b398b6b013f2f306ad2370b1cd7200873eda4acb881965d7df86fef7a8430d2"
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-account-and-atomic-writes/evidence-hashes.json",
+      "sha256": "08c840d317efe0b3a5b67e2536a0283ee8f720814facfcf65b25718218ab1ea5"
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-account-and-atomic-writes/profile-320-dark.jpg",
+      "sha256": "cff2e43960cc6cc322bdf796bc2116f9b29c11708484ef678b51dbbfd4c965fd"
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-account-and-atomic-writes/public-results.json",
+      "sha256": "aba6b0a09ecd734a9da4505fb4a19c450a03650c929da338cfa89b179798dfeb"
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-account-and-atomic-writes/results.json",
+      "sha256": "b50f51ea0681d6032d56d1695e46cda6921139c66a5f1df966735d7503d5d2bd"
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-account-and-atomic-writes/takeover-ui-results.json",
+      "sha256": "09f42b8e9f4fe2fc8060faf1676a4cd45238ee268b9b9ec29324cd18e9ee282b"
+    },
+    {
+      "file": "ops/docs/audits/2026-10-01-bugfixes.md",
+      "sha256": "2ec076e36ae90cf62311a9ad16775525064a31d1f9216e84bbafff7dc287657d"
+    },
+    {
+      "file": "ops/docs/roadmap/requests.md",
+      "sha256": "11139ca6d88c049904e3a0fa14ba8b350c6c086ca3f5109af35c0fe0d50ebc37"
+    },
+    {
+      "file": "ops/docs/sessions/2026-10-01-continuation.md",
+      "sha256": "1896c2596392aeca1c1929b3e07e3889f9b1b846be985552bb0d80a38a459791"
+    },
+    {
+      "file": "ops/scripts/test/public-probe.ts",
+      "sha256": "f2c7c99932c1a569ef8ffcdcbd83c1233e4b14b58b5e4345b2769ec586002056"
+    },
+    {
+      "file": "ops/scripts/test/takeover-ui-probe.ts",
+      "sha256": "5804a528c969a7ed202bf161f25583b4ef6d2dbd95472a67f561a18f617dd35e"
+    },
+    {
+      "file": "src/app/globals.css",
+      "sha256": "866d2e87a5484a591d3118e15bb657c22c802c3b59d2de1a57842a82173fc09b"
+    },
+    {
+      "file": "src/components/learn/app-nav.tsx",
+      "sha256": "ecd12f2373170d24248b7274e5fb5a7258c7d9b4dd143ba17a3a1fccc6c481c8"
+    },
+    {
+      "file": "src/components/learn/create-menu.tsx",
+      "sha256": "44f25e0eb620f7246482769cb006f099e3b472ccf25b45160a2ee6b51ef5e90c"
+    },
+    {
+      "file": "src/components/learn/learn-shell.tsx",
+      "sha256": "c4dc3b93cb9bf085e5daa068393dcb32ecfe005ba4e88dd837213ae2f33e3196"
+    },
+    {
+      "file": "src/components/learn/preferences.tsx",
+      "sha256": "1d94b27f784b488d7861c3d25c7098d7059030822da058e8d88684a84948b93c"
+    },
+    {
+      "file": "src/components/learn/profile-identity-editor.module.css",
+      "sha256": "ff10a2522d42be586d4d4625a87b5013c89be7d639d40e0952cdd5690c4d5686"
+    },
+    {
+      "file": "src/components/learn/profile-identity-editor.tsx",
+      "sha256": "1e731534ae0d23d0a72f257f1d0f7f5aa857322e5b6d6350ed82d8b9e95488d1"
+    },
+    {
+      "file": "src/components/learn/studio-lobby.tsx",
+      "sha256": "1d1f66095237dda8889e7efe3946964947d050299bdcc9dadd463adfdada9982"
+    },
+    {
+      "file": "src/components/learn/views/ai-view.tsx",
+      "sha256": "1da8d4d1ba44572c8f6e5993624484a361e73e8a7bd975424bfa29e77a969007"
+    },
+    {
+      "file": "src/components/learn/views/calendar-view.tsx",
+      "sha256": "b9660b9951b54874b72054ba081cfdbd86b2004888b78d39a673b6242f1375ca"
+    },
+    {
+      "file": "src/components/learn/views/personal-profile-view.tsx",
+      "sha256": "9b00b92d73a100a2ba4c99a15f4580d84c7f7201460d2a8c9483e5e0c2aac8bb"
+    },
+    {
+      "file": "src/components/learn/views/practice-workspace.module.css",
+      "sha256": "9ba0a43c77194481fbf0a29aa4e564d8f09cb0da1ec3b0f4d186eaeb7779e9d9"
+    },
+    {
+      "file": "src/components/learn/views/profile-workspace.module.css",
+      "sha256": "d978660b0c1dc21e6c32f6b6e21a56975dd32f32d99589e20949fa31bea7b6f6"
+    },
+    {
+      "file": "src/components/learn/views/secondary-views.tsx",
+      "sha256": "c7f9f56b56f336d2f95f0da60e7f978d7b6bb5287f1d30c03e2a37fa9c8172bb"
+    },
+    {
+      "file": "src/components/learn/views/studio-view.tsx",
+      "sha256": "619935e3ebf44e4bcf34acdbce4ca867a27ebc27d1a0a332f77aa6063773ad9f"
+    },
+    {
+      "file": "src/components/learn/views/workspaces/practice-workspace-view.tsx",
+      "sha256": "d87da62d9f82cf97c4105d8bb62dc45e4ed7db19a56d72f3a0d1da1ddd109ec1"
+    },
+    {
+      "file": "src/lib/cloudflare.ts",
+      "sha256": "cb79b0cbbbb7729340f99ffaa00b2d48a03ca9058dc0353ba76a9c04dae2b712"
+    },
+    {
+      "file": "src/lib/data.ts",
+      "sha256": "62647a6bcbdb26eb36acf1f8404c63c60098bc321ae7cef931f90a188c9cf886"
+    },
+    {
+      "file": "src/lib/db.ts",
+      "sha256": "7d4447355dab1abfbd8f1a5cf8210f162eed55454baeec2da4657e8326694cb1"
+    },
+    {
+      "file": "src/lib/profile-identity.ts",
+      "sha256": "6148c15c87fd4bbfa51830809bf58748903b66c5e6d9a3545b95ccc75e1e5469"
+    },
+    {
+      "file": "src/lib/review-scheduling.ts",
+      "sha256": "6253e70d0006ef3d75f705e1e784333127763133df0e3e9a4a54899f77728358"
+    },
+    {
+      "file": "src/lib/studio-creation.ts",
+      "sha256": "f8bec75e33046d9964ef069ddab10c032e9ef01aa26e892ef86695fe84b57cfb"
+    },
+    {
+      "file": "src/lib/ux/artifact-catalog.ts",
+      "sha256": "634e2ff356dd4471ff83f552cd4349d7dcee50590bffc5cadff3766a234758af"
+    },
+    {
+      "file": "src/lib/workspace-preferences.ts",
+      "sha256": "10e52a870c1b6cc79696aa56b391b4ba6b4442e0522d6ca65a42a4df79faf3ad"
+    },
+    {
+      "file": "src/tests/api/chat-route.test.ts",
+      "sha256": "016da862ddaf9391923d2daecef4d828743bcddcccf88ed00d24a3fc76d0fa1d"
+    },
+    {
+      "file": "src/tests/api/concurrent-learning-mutations.test.ts",
+      "sha256": "f904834e81e4cafb21b0dfb143fe91f6df3a8aebccb9deb5f23a37268cf1a0bd"
+    },
+    {
+      "file": "src/tests/api/harness.ts",
+      "sha256": "3dce14e62e45afa4e6931b9d7b2bc7f354c61e2be3c934eca6cde170a0d8c4ea"
+    },
+    {
+      "file": "src/tests/api/live-sessions-route.test.ts",
+      "sha256": "bfd767d09f50e873238ec61f290721563d196b88e71dd31253e2bb9e6de94d86"
+    },
+    {
+      "file": "src/tests/api/reviews-route.test.ts",
+      "sha256": "c630dc45ef0eb69e8b0a40603a45e808e82898e66020efd4cb350e76eeff190c"
+    },
+    {
+      "file": "src/tests/api/sqlite-store.ts",
+      "sha256": "6f348d85a6f82660ecc4c9ee65305b5a33db13820c40c6553b7834dd3aacdcf1"
+    },
+    {
+      "file": "src/tests/cloudflare/d1-batch.test.ts",
+      "sha256": "4e6d7a9e83ab2873b6d3c4170d4fe51f8209da7d62fc390d65f83e20f7af06a4"
+    },
+    {
+      "file": "src/tests/learning/profile-identity.test.ts",
+      "sha256": "9606ce7640be6ea2b46c75dc395ffbcdcaedfa812ffac865969a0ff1b6500360"
+    },
+    {
+      "file": "src/tests/learning/review-scheduling.test.ts",
+      "sha256": "668fc9645de06177e3f141391ef6968f08c5d425f881b508bb52a39f40a197ea"
+    },
+    {
+      "file": "src/tests/learning/workspace-preferences.test.ts",
+      "sha256": "1296666dbb8c8131e90a5ce22ec9cdad03c68fe6819aa4017cb8314f6b04dd0a"
+    },
+    {
+      "file": "src/tests/project/project-structure.test.ts",
+      "sha256": "ff5f229f43acdc843331229c6358e1a55898c1d22be751818d8705210bd35dff"
+    },
+    {
+      "file": "src/tests/project/route-wiring.test.ts",
+      "sha256": "7a78c51b577c105ebaa84006f9f55ab090b93bcf70ef3b697496a074bb2a0b1c"
+    },
+    {
+      "file": "src/tests/studio/slides-in-one-editor.test.ts",
+      "sha256": "9f3b4088761c4d5708ac678253ccdece9717414511c5da45cdbd76e7db66dcf6"
+    },
+    {
+      "file": "src/tests/studio/studio-creation.test.ts",
+      "sha256": "45b0c1b3f1063d2b27a3d8f0c8e9cdcd96965ad3da8262121b777d127aa4ff87"
+    },
+    {
+      "file": "src/tests/ux/ux-wiring.test.ts",
+      "sha256": "57170d4dbcb0c30b971dd36698c3d2dcca58ddce5cb769cb0be7b312a1fcd91e"
+    }
+  ]
+}

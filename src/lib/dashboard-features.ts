@@ -1,20 +1,29 @@
 import { studioFallbackTitle } from "./studio-defaults"
 
 export type DashboardCommandTarget = "ai" | "calendar" | "files" | "practice" | "studio"
-export type DashboardQuickActionTarget =
+type DashboardQuickActionTarget =
   | DashboardCommandTarget
   | "graph"
   | "rooms"
   | "settings"
   | "social"
 
+/**
+ * A weak-topic signal as these dashboard helpers accept it.
+ *
+ * `accuracy` and `attempts` are optional because the helpers tolerate a partial
+ * snapshot and defend with `?? 0` / `?? 100` defaults. This is the canonical
+ * declaration of the name: the component-side snapshot type is a *different*,
+ * stricter shape and is deliberately named separately (see
+ * `DashboardSnapshotWeakTopic` in `src/components/learn/types.ts`).
+ */
 export interface DashboardWeakTopic {
   topic: string
   accuracy?: number
   attempts?: number
 }
 
-export interface DashboardSnapshotLike {
+interface DashboardSnapshotLike {
   goalCompletion?: number
   todayStudyMinutes?: number
   weakTopics?: DashboardWeakTopic[]
@@ -22,13 +31,13 @@ export interface DashboardSnapshotLike {
   recentNotes?: unknown[]
 }
 
-export interface DashboardCommandInput {
+interface DashboardCommandInput {
   snapshot?: DashboardSnapshotLike | null
   noteCount: number
   quizCount: number
 }
 
-export interface DashboardCommandPlan {
+interface DashboardCommandPlan {
   headline: string
   detail: string
   target: DashboardCommandTarget
@@ -36,7 +45,7 @@ export interface DashboardCommandPlan {
   chips: string[]
 }
 
-export interface DashboardRouteAction {
+interface DashboardRouteAction {
   id: string
   label: string
   detail: string
@@ -44,13 +53,13 @@ export interface DashboardRouteAction {
   primary: boolean
 }
 
-export interface DashboardSignal {
+interface DashboardSignal {
   label: string
   value: string
   tone: "critical" | "steady" | "watch"
 }
 
-export interface DashboardEmptyState {
+interface DashboardEmptyState {
   id: "practice" | "route" | "studio"
   title: string
   detail: string
@@ -58,12 +67,12 @@ export interface DashboardEmptyState {
   target: DashboardCommandTarget
 }
 
-export interface DashboardUserMetrics {
+interface DashboardUserMetrics {
   streakCurrent?: number
   xpTotal?: number
 }
 
-export interface DashboardMetricInput extends DashboardCommandInput {
+interface DashboardMetricInput extends DashboardCommandInput {
   calendarDefaultMinutes: number
   dailyGoalMinutes?: number
   practiceDraftCount: number
@@ -71,7 +80,7 @@ export interface DashboardMetricInput extends DashboardCommandInput {
   userMetrics?: DashboardUserMetrics | null
 }
 
-export interface DashboardMetricTile {
+interface DashboardMetricTile {
   id: "drafts" | "hours" | "progress" | "reviews" | "streak"
   label: string
   value: string
@@ -79,28 +88,28 @@ export interface DashboardMetricTile {
   tone: "critical" | "steady" | "watch"
 }
 
-export interface DashboardWeakTopicCard {
+interface DashboardWeakTopicCard {
   accuracy: number
   attempts: number
   label: string
   tone: "critical" | "steady" | "watch"
 }
 
-export interface DashboardRecentNoteLike {
+interface DashboardRecentNoteLike {
   id: string
   title: string
   updated_at?: string
   updatedAt?: string
 }
 
-export interface DashboardRecentAiLike {
+interface DashboardRecentAiLike {
   id: string
   title: string
   updated_at?: string
   updatedAt?: string
 }
 
-export interface DashboardRecentAttemptLike {
+interface DashboardRecentAttemptLike {
   id: string
   quiz_title?: string
   title?: string
@@ -110,7 +119,7 @@ export interface DashboardRecentAttemptLike {
   createdAt?: string
 }
 
-export interface DashboardRecentFileLike {
+interface DashboardRecentFileLike {
   id: string
   filename: string
   content_type?: string
@@ -119,7 +128,7 @@ export interface DashboardRecentFileLike {
   createdAt?: string
 }
 
-export interface DashboardRecentWorkInput {
+interface DashboardRecentWorkInput {
   aiChats?: DashboardRecentAiLike[]
   files?: DashboardRecentFileLike[]
   notes?: DashboardRecentNoteLike[]
@@ -137,7 +146,7 @@ export interface DashboardRecentWorkItem {
 
 export type DashboardQuickActionIcon = "brain" | "calendar" | "compass" | "file" | "game" | "graph" | "message" | "plus" | "repeat" | "stats"
 
-export interface DashboardQuickAction {
+interface DashboardQuickAction {
   id: string
   label: string
   detail: string
@@ -145,7 +154,7 @@ export interface DashboardQuickAction {
   icon: DashboardQuickActionIcon
 }
 
-export interface DashboardQuickActionGroup {
+interface DashboardQuickActionGroup {
   id: "create" | "manage" | "practice" | "review" | "share"
   label: string
   actions: DashboardQuickAction[]

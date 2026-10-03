@@ -6,7 +6,8 @@ import {
   sanitizeAiGatewayProviderStatuses,
 } from "@/lib/ai/gateway-readiness"
 import type { ProviderConfigInput } from "@/lib/ai/provider-admin"
-import { listProviderMetadata, listProviderPresets } from "@/lib/ai/providers"
+import { listConfiguredEnvironmentProviders, listProviderMetadata, listProviderPresets } from "@/lib/ai/providers"
+import { getCloudflareBindings } from "@/lib/cloudflare"
 import { deleteAiProviderConfig, getAiProviderAdminState, listAiProviderConfigs, saveAiProviderConfig, testAiProviderConfig } from "@/lib/data"
 
 function optionalString(value: unknown) {
@@ -61,10 +62,16 @@ function providerInputFromBody(body: Record<string, unknown>): ProviderConfigInp
 export const GET = withApiErrorBoundary(async (request: NextRequest) => {
   const user = await requireApiUser(request)
   if (isApiResponse(user)) return user
+  const bindings = await getCloudflareBindings()
+  const runtimeItems = listConfiguredEnvironmentProviders({ ...process.env, ...(bindings || {}) } as Record<string, string | undefined>).map((provider) => ({
+    id: `env:${provider.provider}`, provider: provider.provider, name: `${provider.label} (server configuration)`, enabled: true,
+    has_key: Boolean(provider.apiKey), requires_key: provider.provider !== "ollama", last_status: "untested", default_model: provider.model, priority: provider.defaultPriority,
+  }))
   if (user.role !== "admin") {
     const providers = await listAiProviderConfigs()
     return ok({
       items: sanitizeAiGatewayProviderStatuses(providers),
+      runtimeItems,
       catalog: sanitizeAiGatewayProviderCatalog(listProviderMetadata()),
       presets: sanitizeAiGatewayProviderPresets(listProviderPresets()),
     })
@@ -72,6 +79,7 @@ export const GET = withApiErrorBoundary(async (request: NextRequest) => {
   const state = await getAiProviderAdminState()
   return ok({
     ...state,
+    runtimeItems,
     catalog: listProviderMetadata(),
     presets: listProviderPresets(),
   })

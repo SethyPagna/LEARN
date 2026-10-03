@@ -2,18 +2,31 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import type React from "react"
-import { AtSign, Bell, CheckCircle2, Circle, Clock, Download, Gamepad2, Image as ImageIcon, Languages, MessageSquare, Mic, MicOff, MoreHorizontal, Paperclip, Phone, PhoneOff, Plus, Reply, RotateCcw, Search, Send, SlidersHorizontal, Smile, Sparkles, Trophy, Users, Video, VideoOff, XCircle } from "lucide-react"
+import { ArrowDown, ArrowLeft, AtSign, Bookmark, CheckCircle2, Circle, Clock, Download, Gamepad2, Image as ImageIcon, LoaderCircle, MessageSquare, Mic, MicOff, MoreHorizontal, Paperclip, Phone, PhoneOff, Plus, RotateCcw, Search, Send, SlidersHorizontal, Smile, Sparkles, Trophy, UserRound, Users, Video, VideoOff, X, XCircle } from "lucide-react"
 import type { WorkspaceOptions } from "../preferences"
 import type { Quiz } from "../types"
 import { api, formatDate } from "../api"
-import { EmptyState, Panel } from "../ui"
+import { EmptyState, Panel, type ViewMenuProps } from "../ui"
+import { Popover } from "../design/popover"
+import { VoiceInput } from "../voice-input"
 import { buildGameRunActions, evaluateGameChoice, summarizeGameRun, type GameRunActionId } from "@/lib/practice-features"
+import { parseLiveGameInvite, parseLiveGameResult } from "@/lib/live/game-invite"
+import { LiveGameCard, LiveGameResultCard } from "./live-game-cards"
+import { LiveGameLauncher } from "./live-game-launcher"
+import { ChatVoiceMessage } from "./chat-voice-message"
+import { ChatMediaComposer } from "./chat-media-composer"
+import { ChatStories } from "./chat-stories"
+import chatStyles from "./chat-workspace.module.css"
+import { CHAT_REACTION_EMOJI, type MessageReaction } from "@/lib/social-media"
 import { CHAT_DRAFT_KEY, parseStoredChatDraft, serializeChatDraft, type ChatDraft } from "@/lib/chat-drafts"
 import { dmChatChannelId, groupChatChannelId } from "@/lib/chat-channel"
-import { buildChatComposerActions, buildChatComposerPlan, buildChatDraftPayload, buildChatInboxShortcuts, buildChatQuickPrompts, buildChatThreadActions, buildChatThreadStatus, filterChatThreads, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatInboxShortcut, type ChatIntent, type ChatQuickPrompt, type ChatThreadActionId, type ChatThreadFilter, type ChatThreadLike } from "@/lib/social-features"
+import { RealtimeSocket, type RealtimeStatus, type RealtimeFrame } from "@/lib/realtime/client"
+import { acceptsCallSignal } from "@/lib/chat-call"
+import { chatDestinationPayload, chatDestinationStorageKey, selectConversationThread, type ChatDestination } from "@/lib/chat-destination"
+import { buildChatComposerActions, buildChatDraftPayload, buildChatQuickPrompts, buildChatThreadActions, parseThreadTitle, summarizeChatWorkspace, type ChatComposerActionId, type ChatIntent, type ChatQuickPrompt, type ChatThreadActionId, type ChatThreadLike } from "@/lib/social-features"
 
 const quizDetailCache = new Map<string, Quiz>()
-type ChatMenuId = "attach" | "compose" | "chatMore" | "tools" | "filters" | `threadActions:${string}`
+type ChatMenuId = "attach" | "compose" | "chatMore" | `threadActions:${string}`
 type ChatThreadRecord = ChatThreadLike & {
   threadId?: string
   thread_id?: string
@@ -28,7 +41,17 @@ type ChatMessageRecord = {
   user_id: string
   body: string
   created_at: string
-  metadata?: { attachment?: { fileId: string; filename: string; contentType: string } }
+  /**
+   * The message's machine-readable descriptor. `attachment` is an uploaded
+   * file; `kind: "live-game"` is a launched game and `"live-game-result"` is a
+   * finished one — both read back through `@/lib/live/game-invite`, which
+   * returns `null` for anything it does not recognise.
+   */
+  metadata?: {
+    attachment?: { fileId: string; filename: string; contentType: string }
+    kind?: string
+    [key: string]: unknown
+  }
 }
 type GroupRecord = {
   id: string
@@ -47,6 +70,8 @@ type CallStatus = "outgoing" | "incoming" | "connected"
 type ActiveCall = {
   callId: string
   peerUserId: string
+  peerDevice?: string
+  initiator?: boolean
   video: boolean
   status: CallStatus
   muted: boolean
@@ -134,7 +159,7 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
     const result = evaluateGameChoice(current, choiceId)
     setFeedback(result)
     if (result.correct) setScore((value) => value + 1)
-    setGameStatus(result.correct ? "Correct. Keep the pace." : "Missed. Review the fix, then continue.")
+    setGameStatus("")
   }
 
   async function nextPrompt() {
@@ -165,7 +190,6 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
   if (!current) {
     return (
       <Panel className="p-4">
-        <GameTimerControls disabled={Boolean(gameAction)} elapsedSeconds={elapsedSeconds} resetRun={resetRun} setTargetSeconds={setTargetSeconds} targetSeconds={targetSeconds} />
         <EmptyState title="No game questions yet" body="Add or open quizzes so question data can power flashcard sprint and matching games." />
       </Panel>
     )
@@ -175,7 +199,7 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
     <Panel className="p-4">
       <div className="mb-3 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-success/15 text-success">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--decor-mint-soft)] text-[var(--decor-mint-ink)]">
             <Gamepad2 className="h-5 w-5" />
           </span>
           <div className="min-w-0">
@@ -186,7 +210,6 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
         <div className="flex flex-wrap gap-1.5 lg:justify-end">
           <GameStatusChip label="Score" value={`${score}/${questions.length}`} />
           <GameStatusChip label="Prompt" value={`${index + 1}/${questions.length}`} />
-          <GameStatusChip label="Time" value={formatDuration(elapsedSeconds)} />
         </div>
       </div>
       <GameTimerControls disabled={Boolean(gameAction)} elapsedSeconds={elapsedSeconds} resetRun={resetRun} setTargetSeconds={setTargetSeconds} targetSeconds={targetSeconds} />
@@ -202,11 +225,11 @@ export function GamesView({ quizzes, options }: { quizzes: Quiz[]; options: Work
           <button onClick={resetRun} disabled={gameActionById.get("restart")?.disabled} className="mt-3 rounded-md bg-background px-3 py-1.5 text-xs font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-60">Start another run</button>
         </div>
       ) : null}
-      <div className="rounded-lg border border-primary/30 bg-primary p-5 text-primary-foreground">
+      <div className="game-prompt rounded-lg border border-primary/30 bg-primary p-5 text-primary-foreground">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] opacity-75">Prompt {index + 1}</p>
         <h3 className="mt-2 text-2xl font-semibold leading-tight">{current.question}</h3>
       </div>
-      <div className="mt-4 grid gap-2 md:grid-cols-2">
+      <div className="game-choices mt-4 grid gap-2 md:grid-cols-2">
         {current.choices.map((choice) => (
           <button
             key={choice.id}
@@ -269,34 +292,35 @@ function GameTimerControls({
 }) {
   return (
     <div className="mb-3 flex flex-wrap items-center gap-1.5 rounded-md border border-border bg-card p-2">
-      <span className="inline-flex h-8 items-center gap-1.5 rounded-md bg-muted px-2 text-xs font-semibold text-muted-foreground">
+      <span className="inline-flex h-9 sm:h-8 items-center gap-1.5 rounded-md bg-muted px-2 text-xs font-semibold text-muted-foreground">
         <Clock className="h-3.5 w-3.5" />
         {formatDuration(elapsedSeconds)}
       </span>
-      <span className={`inline-flex h-8 items-center rounded-md px-2 text-xs font-semibold ${elapsedSeconds > targetSeconds ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>
+      <span className={`inline-flex h-9 sm:h-8 items-center rounded-md px-2 text-xs font-semibold ${elapsedSeconds > targetSeconds ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>
         target {formatDuration(targetSeconds)}
       </span>
       <details className="group relative">
-        <summary className="inline-flex h-8 cursor-pointer list-none items-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden" title="Round setup">
+        <summary className="inline-flex h-9 sm:h-8 cursor-pointer list-none items-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground [&::-webkit-details-marker]:hidden" title="Round setup">
           <SlidersHorizontal className="h-3.5 w-3.5" />
           Setup
         </summary>
-        <div className="absolute left-0 top-9 z-40 grid w-48 gap-1 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-lg">
-          <p className="px-1 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-muted-foreground">Target time</p>
+        <div className="absolute right-0 top-10 z-40 grid w-48 sm:left-0 sm:right-auto sm:top-9 gap-1 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-lg">
+          <p className="px-1 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Target time</p>
           {[60, 90, 180].map((seconds) => (
             <button
               key={seconds}
               onClick={() => setTargetSeconds(seconds)}
+              aria-pressed={targetSeconds === seconds}
               disabled={disabled}
-              className={`h-8 rounded-md px-2.5 text-left text-xs font-semibold ${targetSeconds === seconds ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
+              className={`h-9 sm:h-8 rounded-md px-2.5 text-left text-xs font-semibold ${targetSeconds === seconds ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
               type="button"
             >
-              {Math.round(seconds / 60)} min round
+              {formatDuration(seconds)}
             </button>
           ))}
         </div>
       </details>
-      <button onClick={resetRun} disabled={disabled} className="ml-auto flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60">
+      <button onClick={resetRun} disabled={disabled} className="ml-auto flex h-9 sm:h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60">
         <RotateCcw className="h-3.5 w-3.5" />
         Restart
       </button>
@@ -320,29 +344,53 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const [title, setTitle] = useState("Study room")
   const [intent, setIntent] = useState<ChatIntent>("update")
   const [channel, setChannel] = useState("#general")
-  const [reaction, setReaction] = useState("helpful")
   const [query, setQuery] = useState("")
-  const [filter, setFilter] = useState<ChatThreadFilter>("all")
+  const [inboxKind, setInboxKind] = useState<"all" | "people" | "groups" | "saved">("all")
+  const [inboxLoading, setInboxLoading] = useState(true)
+  const [inboxError, setInboxError] = useState("")
+  const [messagesLoading, setMessagesLoading] = useState(false)
+  const [messagesError, setMessagesError] = useState("")
+  const [messageQuery, setMessageQuery] = useState("")
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [recipientsOpen, setRecipientsOpen] = useState(false)
+  const [recipientQuery, setRecipientQuery] = useState("")
+  const [recipientError, setRecipientError] = useState("")
+  const [groupName, setGroupName] = useState("")
+  const [newGroupOpen, setNewGroupOpen] = useState(false)
+  const [recipientBusy, setRecipientBusy] = useState(false)
+  const [mediaOpen, setMediaOpen] = useState(false)
+  const [reactionMessageId, setReactionMessageId] = useState("")
+  const [awayFromLatest, setAwayFromLatest] = useState(false)
+  const recipientDialogRef = useRef<HTMLDialogElement>(null)
+  const recipientSearchRef = useRef<HTMLInputElement>(null)
+  const messageListRef = useRef<HTMLDivElement>(null)
+  const messageInputRef = useRef<HTMLTextAreaElement>(null)
+  const messageSearchRef = useRef<HTMLInputElement>(null)
+  const sendPendingRef = useRef(false)
+  const recipientPendingRef = useRef(false)
+  const mountedRef = useRef(true)
+  const messageScrollRef = useRef({ threadId: "", count: 0 })
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
   const [draftStatus, setDraftStatus] = useState("")
   const [replyThreadId, setReplyThreadId] = useState<string | undefined>(undefined)
   const [chatAction, setChatAction] = useState<ChatComposerActionId | null>(null)
   const [threadAction, setThreadAction] = useState<{ action: ChatThreadActionId; threadId: string } | null>(null)
   const [openChatMenu, setOpenChatMenu] = useState<ChatMenuId | null>(null)
-  const [activeThreadKey, setActiveThreadKey] = useState("")
-  const quickIntents = [
-    { id: "update" as const, label: "Update", body: "Share progress, a note, or what changed." },
-    { id: "question" as const, label: "Question", body: "Ask for help and invite replies." },
-    { id: "win" as const, label: "Win", body: "Celebrate a milestone or review streak." },
-  ]
-  const threadFilters: Array<{ id: ChatThreadFilter; label: string }> = [
-    { id: "all", label: "All" },
-    { id: "questions", label: "Questions" },
-    { id: "wins", label: "Wins" },
-    { id: "saved", label: "Saved" },
-  ]
-  const activeIntent = quickIntents.find((item) => item.id === intent) || quickIntents[0]
+  const [conversationOpen, setConversationOpen] = useState(false)
+  const [destination, setDestination] = useState<ChatDestination>({ kind: "personal" })
+  const destinationRef = useRef(destination)
+  const currentDraftRef = useRef<ChatDraft>({ body, title, intent, channel, replyThreadId })
+  const conversationDraftsRef = useRef(new Map<string, ChatDraft>())
+  const draftsReadyRef = useRef(false)
+  destinationRef.current = destination
+  currentDraftRef.current = { body, title, intent, channel, replyThreadId }
+  // The "Start a live game" composer flow: which mode, on which quiz. The
+  // launcher owns the choices; this only owns whether it is open.
+  const [liveGameOpen, setLiveGameOpen] = useState(false)
   const chatSummary = useMemo(() => summarizeChatWorkspace(threads), [threads])
-  const composerPlan = useMemo(() => buildChatComposerPlan(chatSummary, body), [body, chatSummary])
   const quickPrompts = useMemo(() => buildChatQuickPrompts({
     hasDraft: Boolean(body.trim()),
     questionCount: chatSummary.questions,
@@ -350,36 +398,45 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     threadCount: chatSummary.total,
     winCount: chatSummary.wins,
   }), [body, chatSummary.questions, chatSummary.saved, chatSummary.total, chatSummary.wins])
-  const inboxShortcuts = useMemo(() => buildChatInboxShortcuts(chatSummary), [chatSummary])
   const chatActions = useMemo(() => buildChatComposerActions({
     busyAction: chatAction,
     hasDraft: Boolean(body.trim()),
-    hasSuggestion: Boolean(composerPlan.nextAction),
-  }), [body, chatAction, composerPlan.nextAction])
+    hasSuggestion: false,
+  }), [body, chatAction])
   const chatActionById = useMemo(() => new Map(chatActions.map((action) => [action.id, action])), [chatActions])
-  const visibleThreads = useMemo(() => filterChatThreads(threads, { query, filter }), [filter, query, threads])
-  const activeThread = useMemo(() => {
-    if (!threads.length) return null
-    return visibleThreads.find((thread) => chatThreadKey(thread) === activeThreadKey)
-      || visibleThreads[0]
-      || threads[0]
-  }, [activeThreadKey, threads, visibleThreads])
+  const visibleThreads = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase()
+    return threads.filter((thread) => {
+      const searchable = [thread.title, thread.dm_peer_name, thread.last_message, thread.lastMessage].filter(Boolean).join(" ").toLocaleLowerCase()
+      if (needle && !searchable.includes(needle)) return false
+      if (inboxKind === "people") return Boolean(thread.dm_peer_id) && !thread.group_id
+      if (inboxKind === "groups") return Boolean(thread.group_id)
+      if (inboxKind === "saved") return Boolean(thread.saved)
+      return true
+    }).sort((a, b) => (Date.parse(b.updated_at || b.updatedAt || "") || 0) - (Date.parse(a.updated_at || a.updatedAt || "") || 0))
+  }, [inboxKind, query, threads])
+  const activeThread = useMemo(() => selectConversationThread(threads, destination), [threads, destination])
+  const groupId = destination.kind === "group" ? destination.groupId : activeThread?.group_id || ""
+  const dmTargetUserId = destination.kind === "dm" ? destination.targetUserId : activeThread?.dm_peer_id || ""
   const activeThreadParsed = parseThreadTitle(activeThread?.title || `${channel} - ${title}`)
-  const activeThreadBody = String(activeThread?.last_message || activeThread?.lastMessage || "No messages yet. Start with one clear question, resource, or win.")
   const activeThreadId = activeThread ? chatThreadKey(activeThread) : ""
+  const activeThreadIdRef = useRef(activeThreadId)
+  activeThreadIdRef.current = activeThreadId
 
   // --- Groups: which group this conversation posts into, and live/message state ---
   const [groups, setGroups] = useState<GroupRecord[]>([])
-  const [groupId, setGroupId] = useState<string>("")
   const [messages, setMessages] = useState<ChatMessageRecord[]>([])
+  const [messageReactions, setMessageReactions] = useState<Record<string, MessageReaction[]>>({})
+  const [reactionPending, setReactionPending] = useState(false)
   const [remoteTyping, setRemoteTyping] = useState(false)
   const [currentUserId, setCurrentUserId] = useState("")
-  const socketRef = useRef<WebSocket | null>(null)
+  const socketRef = useRef<RealtimeSocket | null>(null)
+  const [socketStatus, setSocketStatus] = useState<RealtimeStatus>("closed")
   const typingClearRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const typingStopRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastTypingSentRef = useRef(0)
   const myGroups = useMemo(() => groups.filter((group) => group.is_member), [groups])
-  const activeGroup = useMemo(() => myGroups.find((group) => group.id === groupId) || myGroups[0] || null, [groupId, myGroups])
+  const activeGroup = useMemo(() => myGroups.find((group) => group.id === groupId) || null, [groupId, myGroups])
 
   useEffect(() => {
     api<{ user?: { id?: string } }>("/api/auth/session").then((response) => {
@@ -392,72 +449,97 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
       const response = await api<{ items: GroupRecord[] }>("/api/groups")
       setGroups(response.items)
     } catch {
-      // Groups are optional context for the composer; a failed fetch just means no group picker yet.
+      setRecipientError("Couldn't load groups. Try again.")
     }
   }
 
   // --- Direct messages: 1:1 with a connection, mutually exclusive with the group selection above ---
   const [connections, setConnections] = useState<ConnectionRecord[]>([])
-  const [dmTargetUserId, setDmTargetUserId] = useState("")
   const activeDmTarget = useMemo(() => connections.find((c) => c.target_user_id === dmTargetUserId) || null, [connections, dmTargetUserId])
 
+  async function refreshConnections() {
+    try {
+      const response = await api<{ items: ConnectionRecord[] }>("/api/connections")
+      setConnections(response.items)
+    } catch { setRecipientError("Couldn't load connections. Try again.") }
+  }
+
+  useEffect(() => { void refreshConnections() }, [])
+
   useEffect(() => {
-    api<{ items: ConnectionRecord[] }>("/api/connections").then((response) => setConnections(response.items)).catch(() => undefined)
-  }, [])
+    if (recipientsOpen) {
+      recipientDialogRef.current?.showModal()
+      recipientSearchRef.current?.focus()
+    } else recipientDialogRef.current?.close()
+  }, [recipientsOpen])
+
+  useEffect(() => {
+    if (searchOpen) messageSearchRef.current?.focus()
+    else setMessageQuery("")
+  }, [searchOpen])
+
+  function openRecipients() {
+    setRecipientQuery("")
+    setNewGroupOpen(false)
+    setRecipientsOpen(true)
+  }
+
+  function closeRecipients() { if (!recipientBusy) setRecipientsOpen(false) }
 
   useEffect(() => {
     refreshGroups().catch(() => undefined)
   }, [])
 
-  useEffect(() => {
-    if (!activeGroup && !dmTargetUserId && myGroups.length) setGroupId(myGroups[0].id)
-  }, [activeGroup, myGroups, dmTargetUserId])
-
   async function createGroup(name: string) {
-    if (!name.trim()) return
+    if (!name.trim() || recipientPendingRef.current) return
+    recipientPendingRef.current = true
+    setRecipientBusy(true)
+    setRecipientError("")
     try {
       const response = await api<{ item: GroupRecord }>("/api/groups", { method: "POST", body: JSON.stringify({ name: name.trim() }) })
       await refreshGroups()
-      setGroupId(response.item.id)
+      switchToGroup(response.item.id)
       setDraftStatus(`Created "${name.trim()}"`)
+      setGroupName("")
     } catch (error) {
-      setDraftStatus(error instanceof Error ? error.message : "Unable to create group.")
-    }
+      setRecipientError(error instanceof Error ? error.message : "Unable to create group.")
+    } finally { recipientPendingRef.current = false; setRecipientBusy(false) }
   }
 
   async function joinGroupById(id: string) {
+    if (recipientPendingRef.current) return
+    recipientPendingRef.current = true
+    setRecipientBusy(true)
+    setRecipientError("")
     try {
       await api(`/api/groups/${id}/join`, { method: "POST" })
       await refreshGroups()
-      setGroupId(id)
+      switchToGroup(id)
       setDraftStatus("Joined group")
     } catch (error) {
-      setDraftStatus(error instanceof Error ? error.message : "Unable to join group.")
-    }
+      setRecipientError(error instanceof Error ? error.message : "Unable to join group.")
+    } finally { recipientPendingRef.current = false; setRecipientBusy(false) }
   }
 
   function startDirectMessage(targetUserId: string) {
-    setDmTargetUserId(targetUserId)
-    setGroupId("")
+    setConversationOpen(true)
+    switchConversation({ kind: "dm", targetUserId })
+    setRecipientsOpen(false)
+    setSearchOpen(false)
+    setMessages([])
     setOpenChatMenu(null)
   }
 
   function switchToGroup(id: string) {
-    setGroupId(id)
-    setDmTargetUserId("")
+    setConversationOpen(true)
+    switchConversation({ kind: "group", groupId: id })
+    setRecipientsOpen(false)
+    setSearchOpen(false)
+    setMessages([])
     setOpenChatMenu(null)
   }
 
-  useEffect(() => {
-    if (dmTargetUserId) {
-      const match = threads.find((thread) => thread.dm_peer_id === dmTargetUserId)
-      setActiveThreadKey(match ? chatThreadKey(match) : "")
-    } else if (groupId) {
-      const match = threads.find((thread) => thread.group_id === groupId)
-      setActiveThreadKey(match ? chatThreadKey(match) : "")
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dmTargetUserId, groupId, threads])
+  const messageDestination = chatDestinationPayload(activeThreadId ? { kind: "thread", threadId: activeThreadId } : destination)
 
   // --- Message history for the active thread ---
   async function refreshMessages(threadId: string) {
@@ -465,41 +547,70 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
       setMessages([])
       return
     }
+    if (activeThreadIdRef.current !== threadId) return
+    setMessagesError("")
     try {
-      const response = await api<{ items: ChatMessageRecord[] }>(`/api/chat?threadId=${encodeURIComponent(threadId)}`)
-      setMessages(response.items)
-    } catch {
-      setMessages([])
+      const response = await api<{ items: ChatMessageRecord[]; reactions?: Record<string, MessageReaction[]> }>(`/api/chat?threadId=${encodeURIComponent(threadId)}`)
+      if (activeThreadIdRef.current === threadId) { setMessages(response.items); setMessageReactions(response.reactions || {}) }
+    } catch (error) {
+      if (activeThreadIdRef.current === threadId) setMessagesError(error instanceof Error ? error.message : "Couldn't load messages.")
+    } finally {
+      if (activeThreadIdRef.current === threadId) setMessagesLoading(false)
     }
   }
 
   useEffect(() => {
-    refreshMessages(activeThreadId).catch(() => undefined)
+    setMessages([])
+    setMessagesError("")
+    setMessagesLoading(Boolean(activeThreadId))
+    setReactionMessageId("")
+    setAwayFromLatest(false)
+    void refreshMessages(activeThreadId)
   }, [activeThreadId])
 
+  useEffect(() => {
+    const previous = messageScrollRef.current
+    const switched = previous.threadId !== activeThreadId
+    if (switched || (!awayFromLatest && messages.length !== previous.count)) scrollToLatest()
+    messageScrollRef.current = { threadId: activeThreadId, count: messages.length }
+  }, [activeThreadId, awayFromLatest, messages.length])
+
+  function scrollToLatest() {
+    const list = messageListRef.current
+    if (list) list.scrollTop = list.scrollHeight
+    setAwayFromLatest(false)
+  }
+
   // --- Realtime: live messages + typing over the active group's or DM's channel ---
-  const groupChannelId = activeGroup ? groupChatChannelId(activeGroup.id) : (activeDmTarget && currentUserId ? dmChatChannelId(currentUserId, activeDmTarget.target_user_id) : null)
+  const groupChannelId = groupId ? groupChatChannelId(groupId) : (dmTargetUserId && currentUserId ? dmChatChannelId(currentUserId, dmTargetUserId) : null)
 
   useEffect(() => {
     if (!groupChannelId || typeof window === "undefined") return
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-    const socket = new WebSocket(`${protocol}//${window.location.host}/api/realtime/chat/${encodeURIComponent(groupChannelId)}`)
+    const socket = new RealtimeSocket({
+      kind: "chat", id: groupChannelId,
+      onStatus: (status) => {
+        setSocketStatus(status)
+        if (status === "open") { void refresh().catch(() => undefined); void refreshMessages(activeThreadIdRef.current) }
+      },
+      onFrame: receiveFrame,
+    }).start()
     socketRef.current = socket
 
-    socket.onmessage = (event) => {
-      let parsed: { type?: string; userId?: string; payload?: Record<string, unknown> } | null = null
-      try {
-        parsed = JSON.parse(event.data)
-      } catch {
+    function receiveFrame(parsed: RealtimeFrame) {
+      if (!parsed) return
+      if (parsed.type === "chat-event") {
+        const threadId = String(parsed.payload?.threadId || "")
+        if (threadId === activeThreadIdRef.current) void refreshMessages(threadId)
+        void refresh().catch(() => undefined)
         return
       }
-      if (!parsed || parsed.userId === currentUserId) return
+      if (parsed.userId === currentUserId) return
 
       if (parsed.type === "chat-message") {
         const payload = parsed.payload || {}
         const threadId = String(payload.threadId || "")
         setMessages((current) => {
-          if (threadId !== activeThreadId) return current
+          if (threadId !== activeThreadIdRef.current) return current
           if (current.some((m) => m.id === payload.messageId)) return current
           const attachment = payload.attachment as { fileId?: string; filename?: string; contentType?: string } | undefined
           return [...current, {
@@ -525,7 +636,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
       }
 
       if (parsed.type === "call-signal") {
-        handleCallSignal(parsed.payload || {}, parsed.userId)
+        void handleCallSignal(parsed.payload || {}, parsed.userId, parsed.fromDevice).catch(() => endCall(true, "Call negotiation failed. Please try again."))
       }
     }
 
@@ -534,18 +645,19 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     }
 
     return () => {
+      endCall(true, "")
       socket.close()
       if (socketRef.current === socket) socketRef.current = null
       setRemoteTyping(false)
-      endCall(false, "")
+      cleanupMedia()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupChannelId, currentUserId, activeThreadId])
+  }, [groupChannelId, currentUserId])
 
   function sendTypingSignal(isTyping: boolean) {
     const socket = socketRef.current
-    if (!socket || socket.readyState !== WebSocket.OPEN || !groupChannelId || !currentUserId) return
-    socket.send(JSON.stringify({ type: "typing", userId: currentUserId, payload: { threadId: groupChannelId, isTyping } }))
+    if (!socket || socket.status !== "open" || !groupChannelId || !currentUserId) return
+    socket.sendNow({ type: "typing", payload: { threadId: groupChannelId, isTyping } })
   }
 
   function stopTypingSignal() {
@@ -575,6 +687,13 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const [callElapsed, setCallElapsed] = useState(0)
   const activeCallRef = useRef<ActiveCall | null>(null)
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
+  const callRecoveryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const callSetupPendingRef = useRef(false)
+  const callSetupVersionRef = useRef(0)
+  const [callConnectionStatus, setCallConnectionStatus] = useState("Connecting media…")
+  const [relayAvailable, setRelayAvailable] = useState(false)
+  const outgoingIceRef = useRef<string[]>([])
+  const earlyPeerIceRef = useRef<Array<{ userId: string; device?: string; candidate: RTCIceCandidateInit }>>([])
   const localStreamRef = useRef<MediaStream | null>(null)
   const pendingIceCandidatesRef = useRef<RTCIceCandidateInit[]>([])
   const incomingOfferRef = useRef<{ callId: string; sdp: string; video: boolean; peerUserId: string } | null>(null)
@@ -588,23 +707,29 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   const recordedChunksRef = useRef<Blob[]>([])
   const recordingAudioContextRef = useRef<AudioContext | null>(null)
   const recordingAnimationFrameRef = useRef<number | null>(null)
-  const iceServers = useMemo<RTCIceServer[]>(() => [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-  ], [])
+  const iceServersRef = useRef<RTCIceServer[]>([{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }])
 
-  useEffect(() => {
-    activeCallRef.current = activeCall
-  }, [activeCall])
+  async function loadCallConfiguration() {
+    try {
+      const config = await api<{ iceServers: RTCIceServer[]; relayAvailable: boolean }>("/api/calls/config")
+      iceServersRef.current = config.iceServers
+      setRelayAvailable(config.relayAvailable)
+    } catch { setRelayAvailable(false) }
+  }
+
+  function updateActiveCall(call: ActiveCall | null) {
+    activeCallRef.current = call
+    setActiveCall(call)
+  }
 
   useEffect(() => {
     if (localVideoRef.current) localVideoRef.current.srcObject = localStream
-  }, [localStream])
+  }, [localStream, activeCall?.status])
 
   useEffect(() => {
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream
     if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream
-  }, [remoteStream])
+  }, [remoteStream, activeCall?.status])
 
   useEffect(() => {
     if (activeCall?.status !== "connected") {
@@ -623,17 +748,21 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     }
   }, [])
 
-  function sendCallSignal(payload: { callId: string; kind: string; video?: boolean; sdp?: string; candidate?: string }) {
+  function sendCallSignal(payload: { callId: string; kind: string; video?: boolean; sdp?: string; candidate?: string }, recipient?: { userId: string; device?: string }) {
     const socket = socketRef.current
-    if (!socket || socket.readyState !== WebSocket.OPEN || !currentUserId) return false
-    socket.send(JSON.stringify({ type: "call-signal", userId: currentUserId, payload }))
+    if (!socket || socket.status !== "open" || !currentUserId) return false
+    const peer = recipient || (activeCallRef.current?.peerUserId ? { userId: activeCallRef.current.peerUserId, device: activeCallRef.current.peerDevice } : null)
+    socket.sendNow({ type: "call-signal", payload, ...(peer ? { to: peer.userId, toDevice: peer.device } : {}) })
     return true
   }
 
   function createPeerConnection(callId: string) {
-    const pc = new RTCPeerConnection({ iceServers })
+    const pc = new RTCPeerConnection({ iceServers: iceServersRef.current })
     pc.onicecandidate = (event) => {
-      if (event.candidate) sendCallSignal({ callId, kind: "ice-candidate", candidate: JSON.stringify(event.candidate.toJSON()) })
+      if (!event.candidate) return
+      const candidate = JSON.stringify(event.candidate.toJSON())
+      if (!activeCallRef.current?.peerUserId) outgoingIceRef.current.push(candidate)
+      else sendCallSignal({ callId, kind: "ice-candidate", candidate })
     }
     pc.ontrack = (event) => {
       setRemoteStream((current) => {
@@ -643,47 +772,78 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
       })
     }
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === "failed" || pc.connectionState === "disconnected" || pc.connectionState === "closed") {
-        if (activeCallRef.current?.callId === callId) endCall(pc.connectionState !== "closed", "Call disconnected.")
+      if (pc.connectionState === "connected") {
+        if (callRecoveryRef.current) clearTimeout(callRecoveryRef.current)
+        callRecoveryRef.current = null
+        setCallConnectionStatus("Connected")
+        return
+      }
+      if (pc.connectionState === "connecting" || pc.connectionState === "new") { setCallConnectionStatus("Connecting media…"); return }
+      if ((pc.connectionState === "disconnected" || pc.connectionState === "failed") && !callRecoveryRef.current) {
+        setCallConnectionStatus("Connection interrupted. Reconnecting…")
+        callRecoveryRef.current = setTimeout(async () => {
+          if (activeCallRef.current?.callId !== callId || pc.connectionState === "connected") return
+          try {
+            if (activeCallRef.current.initiator && activeCallRef.current.peerUserId && pc.signalingState === "stable") {
+              const offer = await pc.createOffer({ iceRestart: true })
+              await pc.setLocalDescription(offer)
+              if (activeCallRef.current?.callId !== callId) return
+              sendCallSignal({ callId, kind: "offer", sdp: offer.sdp, video: activeCallRef.current.video })
+            }
+          } catch { /* The timeout below closes an unrecoverable connection. */ }
+          callRecoveryRef.current = setTimeout(() => {
+            if (activeCallRef.current?.callId === callId && pc.connectionState !== "connected") endCall(true, "Could not reconnect the call. Try calling again.")
+          }, 15000)
+        }, pc.connectionState === "failed" ? 0 : 6000)
       }
     }
     peerConnectionRef.current = pc
     return pc
   }
 
-  async function attachLocalMedia(video: boolean) {
+  async function attachLocalMedia(video: boolean, setupVersion: number) {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video })
+    if (setupVersion !== callSetupVersionRef.current) { stream.getTracks().forEach((track) => track.stop()); throw new Error("Call cancelled.") }
     localStreamRef.current = stream
     setLocalStream(stream)
     return stream
   }
 
   async function startCall(video: boolean) {
+    if (callSetupPendingRef.current) return
     if (activeCallRef.current || !groupChannelId || !currentUserId) {
-      setDraftStatus("Open a group chat to start a call.")
+      setDraftStatus("Open a conversation to start a call.")
       return
     }
-    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
+    if (!socketRef.current || socketRef.current.status !== "open") {
       setDraftStatus("Connecting — try the call again in a moment.")
       return
     }
     const callId = crypto.randomUUID()
+    const setupVersion = callSetupVersionRef.current
+    callSetupPendingRef.current = true
     try {
-      const stream = await attachLocalMedia(video)
+      await loadCallConfiguration()
+      if (setupVersion !== callSetupVersionRef.current) return
+      setCallConnectionStatus("Connecting media…")
+      const stream = await attachLocalMedia(video, setupVersion)
       const pc = createPeerConnection(callId)
       stream.getTracks().forEach((track) => pc.addTrack(track, stream))
-      setActiveCall({ callId, peerUserId: "", video, status: "outgoing", muted: false, cameraOff: false })
+      updateActiveCall({ callId, peerUserId: dmTargetUserId, initiator: true, video, status: "outgoing", muted: false, cameraOff: false })
       const offer = await pc.createOffer()
       await pc.setLocalDescription(offer)
+      if (setupVersion !== callSetupVersionRef.current) return
       sendCallSignal({ callId, kind: "offer", video, sdp: offer.sdp })
       if (callTimeoutRef.current) clearTimeout(callTimeoutRef.current)
       callTimeoutRef.current = setTimeout(handleNoAnswerTimeout, 30000)
-      setDraftStatus(video ? "Calling the group with video…" : "Calling the group…")
+      setDraftStatus(dmTargetUserId ? (video ? "Calling with video…" : "Calling…") : "Inviting one group member to a call…")
     } catch {
-      setDraftStatus("Couldn't access your camera/microphone — check permissions.")
-      cleanupMedia()
-      setActiveCall(null)
-    }
+      if (setupVersion === callSetupVersionRef.current) {
+        setDraftStatus("Couldn't start the call — check camera/microphone permissions.")
+        cleanupMedia()
+        updateActiveCall(null)
+      }
+    } finally { callSetupPendingRef.current = false }
 
     function handleNoAnswerTimeout() {
       if (activeCallRef.current?.callId === callId && activeCallRef.current.status === "outgoing") {
@@ -693,31 +853,57 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     }
   }
 
-  async function handleCallSignal(payload: Record<string, unknown>, fromUserId: string | undefined) {
+  async function handleCallSignal(payload: Record<string, unknown>, fromUserId: string | undefined, fromDevice?: string) {
     const callId = String(payload.callId || "")
     const kind = String(payload.kind || "")
     if (!callId || !kind || !fromUserId) return
 
     if (kind === "offer") {
+      const existingCall = activeCallRef.current
+      const existingPeer = peerConnectionRef.current
+      if (existingCall?.status === "connected" && existingPeer && acceptsCallSignal(existingCall, { callId, kind, userId: fromUserId, device: fromDevice })) {
+        await existingPeer.setRemoteDescription({ type: "offer", sdp: String(payload.sdp || "") })
+        await flushPendingIceCandidates()
+        const answer = await existingPeer.createAnswer()
+        await existingPeer.setLocalDescription(answer)
+        if (activeCallRef.current?.callId !== callId) return
+        sendCallSignal({ callId, kind: "answer", sdp: answer.sdp })
+        return
+      }
       if (activeCallRef.current) {
-        sendCallSignal({ callId, kind: "busy" })
+        sendCallSignal({ callId, kind: "busy" }, { userId: fromUserId, device: fromDevice })
         return
       }
       incomingOfferRef.current = { callId, sdp: String(payload.sdp || ""), video: Boolean(payload.video), peerUserId: fromUserId }
-      setActiveCall({ callId, peerUserId: fromUserId, video: Boolean(payload.video), status: "incoming", muted: false, cameraOff: false })
+      updateActiveCall({ callId, peerUserId: fromUserId, peerDevice: fromDevice, video: Boolean(payload.video), status: "incoming", muted: false, cameraOff: false })
       setDraftStatus(`Incoming ${payload.video ? "video" : "voice"} call…`)
       return
     }
 
-    if (activeCallRef.current?.callId !== callId) return
+    if (kind === "ice-candidate" && activeCallRef.current?.callId === callId && !activeCallRef.current.peerUserId) {
+      if (earlyPeerIceRef.current.length < 128) {
+        try {
+          const candidate: RTCIceCandidateInit = JSON.parse(String(payload.candidate || ""))
+          if (candidate && typeof candidate === "object") earlyPeerIceRef.current.push({ userId: fromUserId, device: fromDevice, candidate })
+        } catch { /* Ignore malformed candidates. */ }
+      }
+      return
+    }
+    const restarting = kind === "answer" && peerConnectionRef.current?.signalingState === "have-local-offer" && activeCallRef.current?.status === "connected"
+    if (!acceptsCallSignal(activeCallRef.current, { callId, kind: restarting ? "ice-candidate" : kind, userId: fromUserId, device: fromDevice })) return
 
     if (kind === "answer") {
       const pc = peerConnectionRef.current
-      if (!pc) return
+      if (!pc || pc.signalingState !== "have-local-offer") return
+      const call = activeCallRef.current
+      if (!call) return
+      updateActiveCall({ ...call, peerUserId: fromUserId, peerDevice: fromDevice, status: "connected" })
       await pc.setRemoteDescription({ type: "answer", sdp: String(payload.sdp || "") })
+      pendingIceCandidatesRef.current.push(...earlyPeerIceRef.current.filter((entry) => entry.userId === fromUserId && entry.device === fromDevice).map((entry) => entry.candidate))
+      earlyPeerIceRef.current = []
       await flushPendingIceCandidates()
       if (callTimeoutRef.current) clearTimeout(callTimeoutRef.current)
-      setActiveCall((current) => (current ? { ...current, peerUserId: fromUserId, status: "connected" } : current))
+      for (const candidate of outgoingIceRef.current.splice(0)) sendCallSignal({ callId, kind: "ice-candidate", candidate })
       setDraftStatus("Call connected.")
       return
     }
@@ -766,37 +952,45 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   async function acceptIncomingCall() {
     const offer = incomingOfferRef.current
     const call = activeCallRef.current
-    if (!offer || !call || call.status !== "incoming") return
+    if (!offer || !call || call.status !== "incoming" || callSetupPendingRef.current) return
+    const setupVersion = callSetupVersionRef.current
+    callSetupPendingRef.current = true
     try {
-      const stream = await attachLocalMedia(offer.video)
+      await loadCallConfiguration()
+      if (setupVersion !== callSetupVersionRef.current) return
+      setCallConnectionStatus("Connecting media…")
+      const stream = await attachLocalMedia(offer.video, setupVersion)
       const pc = createPeerConnection(offer.callId)
       stream.getTracks().forEach((track) => pc.addTrack(track, stream))
       await pc.setRemoteDescription({ type: "offer", sdp: offer.sdp })
       await flushPendingIceCandidates()
       const answer = await pc.createAnswer()
       await pc.setLocalDescription(answer)
+      if (activeCallRef.current?.callId !== offer.callId) return
       sendCallSignal({ callId: offer.callId, kind: "answer", sdp: answer.sdp })
-      setActiveCall((current) => (current ? { ...current, status: "connected" } : current))
+      updateActiveCall(activeCallRef.current ? { ...activeCallRef.current, status: "connected" } : null)
       setDraftStatus("Call connected.")
     } catch {
+      if (setupVersion !== callSetupVersionRef.current) return
       sendCallSignal({ callId: offer.callId, kind: "hangup" })
       setDraftStatus("Couldn't access your camera/microphone — check permissions.")
       cleanupMedia()
-      setActiveCall(null)
+      updateActiveCall(null)
       incomingOfferRef.current = null
-    }
+    } finally { callSetupPendingRef.current = false }
   }
 
   function declineIncomingCall() {
     const call = activeCallRef.current
     if (!call || call.status !== "incoming") return
     sendCallSignal({ callId: call.callId, kind: "decline" })
-    incomingOfferRef.current = null
-    setActiveCall(null)
-    setDraftStatus("Call declined.")
+    endCall(false, "Call declined.")
   }
 
   function cleanupMedia() {
+    callSetupVersionRef.current += 1
+    if (callRecoveryRef.current) clearTimeout(callRecoveryRef.current)
+    callRecoveryRef.current = null
     localStreamRef.current?.getTracks().forEach((track) => track.stop())
     localStreamRef.current = null
     setLocalStream(null)
@@ -804,6 +998,8 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     peerConnectionRef.current?.close()
     peerConnectionRef.current = null
     pendingIceCandidatesRef.current = []
+    outgoingIceRef.current = []
+    earlyPeerIceRef.current = []
   }
 
   function endCall(notifyPeer: boolean, reason: string) {
@@ -814,10 +1010,11 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
       clearTimeout(callTimeoutRef.current)
       callTimeoutRef.current = null
     }
-    if (isRecordingCall) stopRecordingCall()
+    if (mediaRecorderRef.current) stopRecordingCall()
     incomingOfferRef.current = null
+    activeCallRef.current = null
     cleanupMedia()
-    setActiveCall(null)
+    updateActiveCall(null)
     setCallElapsed(0)
     if (reason) setDraftStatus(reason)
   }
@@ -901,7 +1098,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
   }
 
   function toggleCallRecording() {
-    if (isRecordingCall) stopRecordingCall()
+    if (mediaRecorderRef.current) stopRecordingCall()
     else startRecordingCall()
   }
 
@@ -910,7 +1107,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     if (!stream) return
     const nextMuted = !activeCallRef.current?.muted
     stream.getAudioTracks().forEach((track) => { track.enabled = !nextMuted })
-    setActiveCall((current) => (current ? { ...current, muted: nextMuted } : current))
+    updateActiveCall(activeCallRef.current ? { ...activeCallRef.current, muted: nextMuted } : null)
   }
 
   function toggleCallCamera() {
@@ -918,7 +1115,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     if (!stream || !activeCallRef.current?.video) return
     const nextOff = !activeCallRef.current?.cameraOff
     stream.getVideoTracks().forEach((track) => { track.enabled = !nextOff })
-    setActiveCall((current) => (current ? { ...current, cameraOff: nextOff } : current))
+    updateActiveCall(activeCallRef.current ? { ...activeCallRef.current, cameraOff: nextOff } : null)
   }
 
   function formatCallDuration(totalSeconds: number) {
@@ -927,86 +1124,157 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     return `${minutes}:${seconds}`
   }
 
-  function applyComposerPlan() {
-    if (chatActionById.get("use-suggestion")?.disabled) return
-    setChatAction("use-suggestion")
-    setIntent(composerPlan.recommendedIntent)
-    if (composerPlan.recommendedIntent === "question") setFilter("questions")
-    if (composerPlan.recommendedIntent === "win") {
-      setFilter("wins")
-      setChannel("#wins")
-    }
-    if (!body.trim()) setDraftStatus(composerPlan.nextAction)
-    setChatAction(null)
-  }
-
   function applyQuickPrompt(prompt: ChatQuickPrompt) {
     setIntent(prompt.intent)
     setChannel(prompt.channel)
-    setFilter(prompt.id === "question" ? "questions" : prompt.id === "win" ? "wins" : prompt.id === "resource" ? "saved" : "all")
     setBody((current) => current.trim() ? current : prompt.prompt)
     setDraftStatus(`${prompt.label} draft ready`)
   }
 
-  function applyInboxShortcut(shortcut: ChatInboxShortcut) {
-    setFilter(shortcut.filter)
-    setQuery(shortcut.query)
+  function applyDraft(draft: ChatDraft) {
+    currentDraftRef.current = draft
+    setBody(draft.body)
+    setTitle(draft.title)
+    setIntent(draft.intent)
+    setChannel(draft.channel)
+    setReplyThreadId(draft.replyThreadId)
+  }
+
+  function saveConversationDraft(target: ChatDestination, draft: ChatDraft) {
+    conversationDraftsRef.current.set(chatDestinationKey(target), draft)
+    writeConversationDraft(currentUserId, target, draft)
+  }
+
+  function switchConversation(requested: ChatDestination) {
+    if (!mountedRef.current) return
+    saveConversationDraft(destinationRef.current, currentDraftRef.current)
+    const thread = selectConversationThread(threads, requested)
+    const next: ChatDestination = thread ? { kind: "thread", threadId: chatThreadKey(thread) } : requested
+    const parsed = parseThreadTitle(thread?.title || "Study room")
+    const draft = conversationDraftsRef.current.get(chatDestinationKey(next)) || readConversationDraft(currentUserId, next) || {
+      body: "", title: parsed.title, intent: "update" as const, channel: parsed.channel || "#general", replyThreadId: next.kind === "thread" ? next.threadId : undefined,
+    }
+    destinationRef.current = next
+    setDestination(next)
+    writeChatDestination(currentUserId, next)
+    applyDraft(draft)
+    setDraftStatus("")
+    setMediaOpen(false)
+    setLiveGameOpen(false)
+  }
+
+  function finishMessageSend(source: ChatDestination, sentDraft: ChatDraft | null, threadId: string) {
+    if (!mountedRef.current) return false
+    const sourceKey = chatDestinationKey(source)
+    const stillActive = chatDestinationKey(destinationRef.current) === sourceKey
+    const latest = stillActive ? currentDraftRef.current : conversationDraftsRef.current.get(sourceKey) || readConversationDraft(currentUserId, source)
+    const next: ChatDestination = { kind: "thread", threadId }
+    if (latest) {
+      const unchanged = sentDraft && JSON.stringify(latest) === JSON.stringify(sentDraft)
+      const preserved = unchanged ? { ...latest, body: "", replyThreadId: undefined } : latest
+      saveConversationDraft(next, preserved)
+      if (sourceKey !== chatDestinationKey(next)) {
+        conversationDraftsRef.current.delete(sourceKey)
+        removeConversationDraft(currentUserId, source)
+      }
+      if (stillActive) applyDraft(preserved)
+    }
+    if (stillActive) {
+      destinationRef.current = next
+      setDestination(next)
+      writeChatDestination(currentUserId, next)
+      setDraftStatus("Sent")
+    }
+    return stillActive
+  }
+
+  function clearCurrentDraft() {
+    const empty = { ...currentDraftRef.current, body: "" }
+    saveConversationDraft(destinationRef.current, empty)
+    applyDraft(empty)
+    setDraftStatus("Draft cleared")
   }
 
   function selectThread(thread: ChatThreadRecord) {
-    const parsed = parseThreadTitle(thread.title)
-    const targetId = chatThreadKey(thread)
-    setActiveThreadKey(targetId)
-    setChannel(parsed.channel || "#general")
-    setTitle(parsed.title)
-    setReplyThreadId(targetId || undefined)
+    setConversationOpen(true)
+    setSearchOpen(false)
+    setOpenChatMenu(null)
+    switchConversation({ kind: "thread", threadId: chatThreadKey(thread) })
   }
 
   async function refresh() {
-    const response = await api<{ items: ChatThreadRecord[] }>("/api/chat")
-    setThreads(response.items)
+    try {
+      const response = await api<{ items: ChatThreadRecord[] }>("/api/chat")
+      setThreads(response.items)
+      setInboxError("")
+    } catch (error) {
+      setInboxError(error instanceof Error ? error.message : "Couldn't load conversations.")
+    } finally { setInboxLoading(false) }
   }
 
-  useEffect(() => {
-    refresh().catch(() => undefined)
-  }, [])
+  useEffect(() => { void refresh() }, [])
 
   useEffect(() => {
-    const draft = readChatDraft()
-    if (!draft) return
-    setBody(draft.body || "")
-    setTitle(draft.title || "Study room")
-    setIntent(draft.intent || "update")
-    setChannel(draft.channel || "#general")
-    setReplyThreadId(draft.replyThreadId)
-  }, [])
+    if (!currentUserId) return
+    conversationDraftsRef.current.clear()
+    const remembered = readChatDestination(currentUserId)
+    const legacy = remembered ? null : readChatDraft()
+    const next: ChatDestination = remembered || (legacy?.replyThreadId ? { kind: "thread", threadId: legacy.replyThreadId } : { kind: "personal" })
+    const draft = readConversationDraft(currentUserId, next) || legacy
+    destinationRef.current = next
+    setDestination(next)
+    setConversationOpen(next.kind !== "personal")
+    if (draft) {
+      applyDraft(draft)
+      conversationDraftsRef.current.set(chatDestinationKey(next), draft)
+    }
+    draftsReadyRef.current = true
+  }, [currentUserId])
 
   useEffect(() => {
+    if (!currentUserId || !draftsReadyRef.current) return
+    const draft = { body, title, intent, channel, replyThreadId }
     const timeout = window.setTimeout(() => {
-      writeChatDraft({ body, title, intent, channel, replyThreadId })
-      setDraftStatus(body.trim() ? "Draft saved" : "")
+      saveConversationDraft(destination, draft)
+      writeChatDestination(currentUserId, destination)
+      setDraftStatus((current) => !current || current === "Draft saved" ? (body.trim() ? "Draft saved" : "") : current)
     }, 500)
     return () => window.clearTimeout(timeout)
-  }, [body, channel, intent, replyThreadId, title])
+  }, [body, channel, currentUserId, destination, intent, replyThreadId, title])
+
+  useEffect(() => {
+    function persistCurrentDraft() {
+      if (!draftsReadyRef.current) return
+      writeConversationDraft(currentUserId, destinationRef.current, currentDraftRef.current)
+      writeChatDestination(currentUserId, destinationRef.current)
+    }
+    window.addEventListener("pagehide", persistCurrentDraft)
+    return () => {
+      window.removeEventListener("pagehide", persistCurrentDraft)
+      persistCurrentDraft()
+    }
+  }, [currentUserId])
 
   async function send() {
-    if (chatActionById.get("send")?.disabled) return
+    if (chatActionById.get("send")?.disabled || sendPendingRef.current) return
+    sendPendingRef.current = true
+    const sendingDestination = destinationRef.current
+    const sendingDraft = { ...currentDraftRef.current }
     setChatAction("send")
     try {
-      const payload = { ...buildChatDraftPayload({ body, channel, title, intent, threadId: replyThreadId }), groupId: activeGroup?.id, targetUserId: activeDmTarget?.target_user_id }
-      await api("/api/chat", { method: "POST", body: JSON.stringify(payload) })
-      setBody("")
-      setReplyThreadId(undefined)
-      clearChatDraft()
-      setDraftStatus("Sent")
+      const payload = { ...buildChatDraftPayload({ body, channel, title, intent }), ...messageDestination }
+      const sent = await api<{ threadId: string }>("/api/chat", { method: "POST", body: JSON.stringify(payload) })
+      if (!mountedRef.current) return
+      finishMessageSend(sendingDestination, sendingDraft, sent.threadId)
       if (typingStopRef.current) clearTimeout(typingStopRef.current)
       sendTypingSignal(false)
       await refresh()
-      await refreshMessages(activeThreadId)
+      await refreshMessages(sent.threadId)
     } catch (error) {
-      setDraftStatus(error instanceof Error ? error.message : "Unable to send this message.")
+      if (mountedRef.current && chatDestinationKey(destinationRef.current) === chatDestinationKey(sendingDestination)) setDraftStatus(error instanceof Error ? error.message : "Unable to send this message.")
     } finally {
-      setChatAction(null)
+      sendPendingRef.current = false
+      if (mountedRef.current) setChatAction(null)
     }
   }
 
@@ -1045,8 +1313,12 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     fileInputRef.current?.click()
   }
 
-  async function sendAttachment(file: File) {
-    setDraftStatus("Uploading...")
+  async function sendAttachment(file: File): Promise<boolean> {
+    if (sendPendingRef.current) return false
+    sendPendingRef.current = true
+    const sendingDestination = destinationRef.current
+    setChatAction("send")
+    setDraftStatus("Uploading…")
     try {
       const form = new FormData()
       form.append("file", file)
@@ -1054,23 +1326,38 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
       const uploadResponse = await api<{ file: { id: string; filename: string; content_type: string } }>("/api/files", { method: "POST", body: form })
       const attachment = { fileId: uploadResponse.file.id, filename: uploadResponse.file.filename, contentType: uploadResponse.file.content_type }
       const payload = {
-        body: attachment.contentType.startsWith("image/") ? "Shared a photo" : `Shared a file: ${attachment.filename}`,
+        body: attachment.contentType.startsWith("audio/") ? "Voice message" : attachment.contentType.startsWith("image/") ? "Shared a picture" : `Shared a file: ${attachment.filename}`,
         title,
-        groupId: activeGroup?.id,
-        targetUserId: activeDmTarget?.target_user_id,
-        threadId: replyThreadId,
+        ...messageDestination,
         metadata: { attachment },
       }
-      await api("/api/chat", { method: "POST", body: JSON.stringify(payload) })
-      setDraftStatus("Sent")
-      await refresh()
-      await refreshMessages(activeThreadId)
+      const sent = await api<{ threadId: string }>("/api/chat", { method: "POST", body: JSON.stringify(payload) })
+      if (!mountedRef.current) return false
+      finishMessageSend(sendingDestination, null, sent.threadId)
+      await refresh().catch(() => setDraftStatus("Sent. Reopen the conversation if the history has not refreshed."))
+      await refreshMessages(sent.threadId)
+      return true
     } catch (error) {
-      setDraftStatus(error instanceof Error ? error.message : "Unable to send that attachment.")
+      if (mountedRef.current && chatDestinationKey(destinationRef.current) === chatDestinationKey(sendingDestination)) setDraftStatus(error instanceof Error ? error.message : "Unable to send that attachment.")
+      return false
+    } finally {
+      sendPendingRef.current = false
+      if (mountedRef.current) setChatAction(null)
     }
   }
 
+  async function reactToMessage(messageId: string, emoji: string, active: boolean) {
+    if (reactionPending) return
+    setReactionPending(true)
+    try {
+      await api("/api/chat/reactions", { method: "POST", body: JSON.stringify({ messageId, emoji, active }) })
+      await refreshMessages(activeThreadId)
+    } catch (error) { setDraftStatus(error instanceof Error ? error.message : "Could not save reaction.") }
+    finally { setReactionPending(false) }
+  }
+
   function replyToThread(thread: ChatThreadRecord) {
+    selectThread(thread)
     const parsed = parseThreadTitle(thread.title)
     const targetId = chatThreadKey(thread)
     setChannel(parsed.channel || "#general")
@@ -1120,7 +1407,6 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
           saved: action === "save" || Boolean(currentThread.saved),
         }
       }))
-      setReaction(action)
       setDraftStatus(action === "save" ? "Thread saved" : "Marked helpful")
     } catch (error) {
       setDraftStatus(error instanceof Error ? error.message : "Unable to save this thread action.")
@@ -1130,377 +1416,129 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
     }
   }
 
-  function useComposerTool(tool: "mention" | "reaction" | "translate" | "notify") {
-    const additions = {
-      mention: { text: "@", status: "Mention ready" },
-      reaction: { text: `\n\nReaction: ${reaction}`, status: "Reaction added" },
-      translate: { text: "\n\nTranslate this for my study group.", status: "Translation intent added" },
-      notify: { text: "\n\nNotify the group when this is posted.", status: "Notification intent added" },
-    }
-    const addition = additions[tool]
-    setBody((current) => {
-      if (tool === "mention") return current.endsWith(" ") || !current ? `${current}@` : `${current} @`
-      return current.includes(addition.text.trim()) ? current : `${current.trimEnd()}${addition.text}`
-    })
-    setDraftStatus(addition.status)
+  function insertMention() {
+    setBody((current) => current.endsWith(" ") || !current ? `${current}@` : `${current} @`)
     setOpenChatMenu(null)
+    messageInputRef.current?.focus()
   }
 
+  const conversationName = activeDmTarget?.name || activeThread?.dm_peer_name || activeGroup?.name || (activeThread ? activeThreadParsed.title : title)
+  const hasConversation = destination.kind !== "personal" || conversationOpen
+  const matchingMessages = messages.filter((message) => !messageQuery.trim() || message.body.toLocaleLowerCase().includes(messageQuery.trim().toLocaleLowerCase()) || message.metadata?.attachment?.filename.toLocaleLowerCase().includes(messageQuery.trim().toLocaleLowerCase()))
+  const recipientNeedle = recipientQuery.trim().toLocaleLowerCase()
+  const matchingConnections = connections.filter((connection) => `${connection.name} ${connection.username}`.toLocaleLowerCase().includes(recipientNeedle))
+  const matchingGroups = groups.filter((group) => group.name.toLocaleLowerCase().includes(recipientNeedle))
+
   return (
-    <div className="grid min-h-[72vh] overflow-hidden rounded-xl border border-border bg-background lg:grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)]" title={options.collaborationPresence ? "Live-ready chats" : "Async chats"}>
-      <Panel className="order-2 flex min-h-[72vh] flex-col rounded-none border-0 p-0 lg:order-2 lg:border-l lg:border-border">
-        <div className="mb-3 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
-          <div className="flex min-w-0 items-center gap-3 border-b border-border px-4 py-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground">
-              <MessageSquare className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <input value={title} onChange={(event) => setTitle(event.target.value)} className="w-full bg-transparent text-lg font-semibold text-foreground outline-none" />
-              <p className="truncate text-xs font-semibold text-muted-foreground">
-                {activeDmTarget ? `Direct message with ${activeDmTarget.name}` : `${activeThreadParsed.channel} - ${activeIntent.label}`}
-                {remoteTyping ? <span className="ml-2 text-primary">typing…</span> : null}
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-2 border-b border-border px-4 py-3 lg:justify-end">
-            <ChatMenu icon={Users} label={activeDmTarget ? activeDmTarget.name : activeGroup ? activeGroup.name : "Group"} menuId="tools" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
-              <ChatMenuSection title="Chat as this group">
-                {myGroups.length ? myGroups.map((group) => (
-                  <ChatMenuAction
-                    active={!activeDmTarget && groupId === group.id}
-                    key={group.id}
-                    label={group.name}
-                    meta={`${group.member_count ?? 1} member${group.member_count === 1 ? "" : "s"} - live chat + calls`}
-                    onClick={() => switchToGroup(group.id)}
-                  />
-                )) : (
-                  <p className="px-2 py-2 text-xs text-muted-foreground">Not in any group yet — join one below or create one.</p>
-                )}
-              </ChatMenuSection>
-              <ChatMenuSection title="Other groups">
-                {groups.filter((group) => !group.is_member).map((group) => (
-                  <ChatMenuAction key={group.id} label={group.name} meta="Join to chat live with this group" onClick={() => joinGroupById(group.id)} />
-                ))}
-                <ChatMenuAction icon={Plus} label="New group" meta="Create a study group you can invite others to." onClick={() => {
-                  const name = window.prompt("Group name")
-                  if (name) createGroup(name)
-                  setOpenChatMenu(null)
-                }} />
-              </ChatMenuSection>
-              <ChatMenuSection title="Direct messages">
-                {connections.length ? connections.map((connection) => (
-                  <ChatMenuAction
-                    active={dmTargetUserId === connection.target_user_id}
-                    key={connection.target_user_id}
-                    label={connection.name}
-                    meta={`@${connection.username} - live chat + calls`}
-                    onClick={() => startDirectMessage(connection.target_user_id)}
-                  />
-                )) : (
-                  <p className="px-2 py-2 text-xs text-muted-foreground">No connections yet — connect with someone from their profile to message them directly.</p>
-                )}
-              </ChatMenuSection>
-            </ChatMenu>
-            <ToolbarButton label="Video" onClick={() => startCall(true)} icon={Video} />
-            <ToolbarButton label="Call" onClick={() => startCall(false)} icon={Phone} />
-            <ToolbarButton label="Download" onClick={exportConversation} icon={Download} />
-            <ChatMenu icon={Sparkles} label="Compose" menuId="compose" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
-              <ChatMenuSection title="Draft intent">
-                {quickIntents.map((item) => (
-                  <ChatMenuAction
-                    active={intent === item.id}
-                    key={item.id}
-                    label={item.label}
-                    meta={item.body}
-                    onClick={() => {
-                      setIntent(item.id)
-                      setOpenChatMenu(null)
-                    }}
-                  />
-                ))}
-              </ChatMenuSection>
-              <ChatMenuSection title="Smart helper">
-                <ChatMenuAction
-                  disabled={chatActionById.get("use-suggestion")?.disabled}
-                  icon={Sparkles}
-                  label={chatActionById.get("use-suggestion")?.busy ? "Applying" : "Use suggestion"}
-                  meta={composerPlan.nextAction}
-                  onClick={() => {
-                    applyComposerPlan()
-                    setOpenChatMenu(null)
-                  }}
-                />
-              </ChatMenuSection>
-            </ChatMenu>
-            <ChatMenu align="right" compact icon={MoreHorizontal} label="More" menuId="chatMore" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
-              <ChatMenuSection title="Conversation">
-                <ChatMenuAction icon={Search} label="Search chat" meta="Filter the inbox by this conversation title." onClick={() => setQuery(activeThreadParsed.title)} />
-                <ChatMenuAction icon={Bell} label="Mute notifications" meta="Prepared for notification settings." onClick={() => setDraftStatus("Notifications muted for this chat")} />
-                <ChatMenuAction icon={Gamepad2} label="Start quiz battle" meta="Jump to Practice for a live challenge." onClick={() => setDraftStatus("Battle prompt ready")} />
-              </ChatMenuSection>
-            </ChatMenu>
-          </div>
+    <section className={chatStyles.workspace} data-conversation-open={conversationOpen} aria-label="Messages workspace" data-presence={options.collaborationPresence}>
+      <aside className={chatStyles.inbox} aria-label="Conversations">
+        <header className={chatStyles.inboxHeading}>
+          <h3>Messages</h3>
+          <button type="button" className={chatStyles.newButton} onClick={openRecipients} aria-label="Start a new message" title="New message"><Plus size={19} /></button>
+        </header>
+        <div className={chatStyles.stories}><ChatStories currentUserId={currentUserId} groups={myGroups} /></div>
+        <label className={chatStyles.search}><Search size={16} /><input aria-label="Search messages" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search conversations" />{query ? <button type="button" aria-label="Clear conversation search" onClick={() => setQuery("")}><X size={14} /></button> : null}</label>
+        <div className={chatStyles.filters} role="group" aria-label="Inbox filters">
+          {(["all", "people", "groups", "saved"] as const).map((kind) => <button type="button" key={kind} aria-pressed={inboxKind === kind} onClick={() => { setInboxKind(kind) }}>{kind === "all" ? "All" : kind === "people" ? "People" : kind === "groups" ? "Groups" : "Saved"}</button>)}
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.08),transparent_34%),linear-gradient(135deg,hsl(var(--muted)/0.6),hsl(var(--background)))] px-4 py-5">
-          <div className="mx-auto flex max-w-3xl flex-col gap-3">
-            {messages.length ? messages.map((message) => (
-              <div
-                key={message.id}
-                className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${
-                  message.user_id === currentUserId
-                    ? "ml-auto rounded-tr-sm bg-primary text-primary-foreground"
-                    : "rounded-tl-sm bg-secondary text-secondary-foreground"
-                }`}
-              >
-                {message.metadata?.attachment ? (
-                  message.metadata.attachment.contentType.startsWith("image/") ? (
-                    <a href={`/api/files/${message.metadata.attachment.fileId}/download`} target="_blank" rel="noreferrer">
-                      <img src={`/api/files/${message.metadata.attachment.fileId}/download`} alt={message.metadata.attachment.filename} className="mb-1.5 max-h-64 w-full rounded-xl object-cover" />
-                    </a>
-                  ) : (
-                    <a href={`/api/files/${message.metadata.attachment.fileId}/download`} target="_blank" rel="noreferrer" className="mb-1.5 flex items-center gap-2 rounded-xl bg-black/10 px-3 py-2 text-xs font-semibold underline">
-                      <Paperclip className="h-3.5 w-3.5 shrink-0" /> {message.metadata.attachment.filename}
-                    </a>
-                  )
-                ) : null}
-                <p>{message.body.replace(/^\[[^\]]+\]\s*/, "")}</p>
-                <p className="mt-1 text-right text-[11px] opacity-70">{formatDate(message.created_at)}</p>
-              </div>
-            )) : (
-              <div className="max-w-[78%] rounded-2xl rounded-tl-sm bg-secondary px-4 py-3 text-sm leading-6 text-secondary-foreground shadow-sm">
-                <p>{activeThreadBody.replace(/^\[[^\]]+\]\s*/, "")}</p>
-                <p className="mt-1 text-right text-[11px] opacity-70">{activeThread?.updated_at ? formatDate(activeThread.updated_at) : "recent"}</p>
-              </div>
-            )}
-            {body.trim() ? (
-              <div className="ml-auto max-w-[78%] rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-sm leading-6 text-primary-foreground shadow-sm">
-                <p>{body}</p>
-                <p className="mt-1 text-right text-[11px] opacity-75">draft</p>
-              </div>
-            ) : !messages.length ? (
-              <div className="mx-auto mt-12 grid grid-cols-2 gap-3 text-center text-sm text-muted-foreground">
-                <button onClick={() => setDraftStatus("Document picker ready")} className="grid h-28 w-32 place-items-center rounded-2xl bg-card shadow-sm hover:bg-accent hover:text-accent-foreground" type="button">
-                  <Paperclip className="h-6 w-6" />
-                  <span>Send document</span>
-                </button>
-                <button onClick={() => setDraftStatus("Contact invite ready")} className="grid h-28 w-32 place-items-center rounded-2xl bg-card shadow-sm hover:bg-accent hover:text-accent-foreground" type="button">
-                  <Plus className="h-6 w-6" />
-                  <span>Add contact</span>
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </div>
-        <details className="mx-4 mt-3 rounded-md border border-border bg-background">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-            <span>Starter prompts</span>
-            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{quickPrompts.length}</span>
-          </summary>
-          <div className="flex gap-2 overflow-x-auto border-t border-border p-2">
-          {quickPrompts.map((prompt) => (
-            <button
-              key={prompt.id}
-              onClick={() => applyQuickPrompt(prompt)}
-              title={prompt.detail}
-              className={`group inline-flex h-10 min-w-[9rem] shrink-0 items-center justify-between gap-2 rounded-md border px-3 text-left transition hover:border-primary/40 hover:bg-accent hover:text-accent-foreground ${
-                prompt.recommended ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background text-foreground"
-              }`}
-            >
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold">{prompt.label}</span>
-              </span>
-              <span className="rounded-md bg-secondary px-2 py-1 text-[11px] font-semibold text-secondary-foreground">{prompt.badge}</span>
-            </button>
-          ))}
-          </div>
-        </details>
-        <div className="m-4 mt-3 rounded-full border border-input bg-background px-3 py-2 shadow-sm">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={pendingAttachKind === "photo" ? "image/*" : undefined}
-            className="hidden"
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              if (file) sendAttachment(file)
-              event.target.value = ""
-            }}
-          />
-          <textarea value={body} onChange={(event) => { setBody(event.target.value); handleDraftActivity(event.target.value) }} className="min-h-28 w-full resize-none bg-transparent text-sm leading-6 text-foreground outline-none" placeholder="Message your study group, mention someone, link Studio, or ask a question..." />
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-            <div className="flex items-center gap-2">
-            <ChatMenu compact icon={Plus} label="Attach" menuId="attach" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
-              <ChatMenuSection title="Attach">
-                <ChatMenuAction icon={Paperclip} label="Document" meta="Upload a file from your device." onClick={() => openAttachPicker("document")} />
-                <ChatMenuAction icon={ImageIcon} label="Photo" meta="Upload and share a picture." onClick={() => openAttachPicker("photo")} />
-                <ChatMenuAction icon={Gamepad2} label="Quiz battle" meta="Attach a practice challenge." onClick={() => setDraftStatus("Practice attachment ready")} />
-                <ChatMenuAction icon={Clock} label="Event" meta="Attach a study calendar block." onClick={() => setDraftStatus("Event attachment ready")} />
-              </ChatMenuSection>
-            </ChatMenu>
-            <ChatMenu compact icon={Smile} label="Tools" menuId="tools" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
-              <ChatMenuSection title="Composer tools">
-                <ChatMenuAction icon={AtSign} label="@mention" meta="Mention a teammate in the draft." onClick={() => useComposerTool("mention")} />
-                <ChatMenuAction icon={Smile} label="Reaction" meta={`Default thread reaction: ${reaction}.`} onClick={() => useComposerTool("reaction")} />
-                <ChatMenuAction icon={Languages} label="Translate" meta="Mark this message for translation after sending." onClick={() => useComposerTool("translate")} />
-                <ChatMenuAction icon={Bell} label="Notify" meta="Prepare this draft as a notification-worthy update." onClick={() => useComposerTool("notify")} />
-              </ChatMenuSection>
-              <ChatMenuSection title="Draft">
-                <ChatMenuAction
-                  disabled={chatActionById.get("clear-draft")?.disabled}
-                  icon={RotateCcw}
-                  label={chatActionById.get("clear-draft")?.busy ? "Clearing" : "Clear draft"}
-                  meta={chatActionById.get("clear-draft")?.helper || "Remove only the local unsent draft."}
-                  onClick={() => {
-                    if (chatActionById.get("clear-draft")?.disabled) return
-                    setChatAction("clear-draft")
-                    setBody("")
-                    setReplyThreadId(undefined)
-                    clearChatDraft()
-                    setDraftStatus("Draft cleared")
-                    setChatAction(null)
-                    setOpenChatMenu(null)
-                  }}
-                />
-              </ChatMenuSection>
-            </ChatMenu>
-            <button onClick={() => setDraftStatus("Voice note ready")} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-2 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-              <Mic className="h-4 w-4" />
-            </button>
-            </div>
-            <p className={`rounded-md px-2 py-1 text-xs font-semibold ${draftStatus ? "bg-success/15 text-success" : "text-muted-foreground"}`}>
-              {replyThreadId ? "Reply target saved" : draftStatus || "Private-first sharing"}
-            </p>
-            <ToolbarButton
-              disabled={chatActionById.get("send")?.disabled}
-              label={chatActionById.get("send")?.busy ? chatActionById.get("send")?.busyLabel || "Sending" : "Send"}
-              onClick={send}
-              icon={Send}
-              primary
-            />
-          </div>
-        </div>
-      </Panel>
-      <Panel className="order-1 min-h-[72vh] rounded-none border-0 p-3 lg:order-1 lg:max-h-[72vh] lg:overflow-y-auto">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="text-2xl font-semibold text-foreground">Chats</h3>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setBody((current) => current || "Can someone help me with ")} className="grid h-9 w-9 place-items-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-              <Plus className="h-4 w-4" />
-            </button>
-            <ChatMenu align="right" compact icon={MoreHorizontal} label="Menu" menuId="filters" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
-              <ChatMenuSection title="Inbox">
-                {threadFilters.map((item) => (
-                  <ChatMenuAction
-                    active={filter === item.id}
-                    key={item.id}
-                    label={item.label}
-                    meta={item.id === "all" ? "Show every recent thread." : `Show only ${item.id}.`}
-                    onClick={() => {
-                      setFilter(item.id)
-                      setOpenChatMenu(null)
-                    }}
-                  />
-                ))}
-              </ChatMenuSection>
-            </ChatMenu>
-          </div>
-        </div>
-        <div className="mt-4 flex h-11 items-center gap-2 rounded-full bg-muted px-4">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search or start a new chat" className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
-        </div>
-        <div className="mt-3 flex gap-2 overflow-x-auto">
-          {inboxShortcuts.map((shortcut) => (
-            <button
-              key={shortcut.id}
-              onClick={() => applyInboxShortcut(shortcut)}
-              className={`inline-flex h-9 min-w-[5.6rem] shrink-0 items-center justify-between gap-2 rounded-md border px-2 text-xs font-semibold transition hover:border-primary/40 hover:bg-accent hover:text-accent-foreground ${
-                shortcut.recommended ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-secondary text-secondary-foreground"
-              }`}
-            >
-              <span className="truncate">{shortcut.label}</span>
-              <span className="rounded bg-background px-1.5 py-0.5 text-[11px] text-foreground">{shortcut.count}</span>
-            </button>
-          ))}
-        </div>
-        {chatSummary.channels.length ? (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {chatSummary.channels.slice(0, 3).map((channelSummary) => (
-              <button key={channelSummary.label} onClick={() => setQuery(channelSummary.label)} className="rounded-md bg-muted px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                {channelSummary.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
-        <div className="mt-3 space-y-1.5">
+        <div className={chatStyles.threadList}>
+          {inboxLoading ? <div className={chatStyles.skeleton} role="status" aria-label="Loading conversations"><span /><span /><span /></div> : null}
+          {inboxError ? <div className={chatStyles.error} role="alert"><p>{inboxError}</p><button type="button" onClick={() => { setInboxLoading(true); void refresh() }}><RotateCcw size={14} />Retry</button></div> : null}
           {visibleThreads.map((thread) => {
             const parsed = parseThreadTitle(thread.title)
-            const targetId = chatThreadKey(thread)
-            const helpful = Boolean(thread.helpful)
-            const saved = Boolean(thread.saved)
-            const selected = Boolean(targetId) && targetId === activeThreadId
-            const status = buildChatThreadStatus(thread)
-            const threadActions = buildChatThreadActions({
-              busyAction: threadAction?.threadId === targetId ? threadAction.action : null,
-              helpful,
-              hasThread: Boolean(targetId),
-              saved,
-            })
-            const menuLabel = saved ? "saved" : helpful ? "helpful" : "react"
-            return (
-            <div
-              key={targetId || parsed.title}
-              onClick={() => selectThread(thread)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault()
-                  selectThread(thread)
-                }
-              }}
-              className={`cursor-pointer rounded-xl border p-3 text-sm transition hover:border-primary/40 hover:bg-accent hover:text-accent-foreground ${
-                selected ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background"
-              }`}
-              role="button"
-              tabIndex={0}
-            >
-              <div className="flex items-start gap-3">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground">
-                  <MessageSquare className="h-4 w-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="truncate font-semibold text-foreground">{parsed.title}</p>
-                    <span className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold ${chatStatusClasses(status.tone)}`}>{status.label}</span>
-                  </div>
-                  <p className="text-xs font-semibold text-muted-foreground">{parsed.channel}</p>
-                  <p className="mt-1 line-clamp-2 text-muted-foreground">{thread.last_message || "No messages yet"}</p>
-                </div>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-2 pl-[3.25rem]" onClick={(event) => event.stopPropagation()}>
-                <ChatMenu compact icon={Smile} label={menuLabel} menuId={`threadActions:${targetId || parsed.title}`} openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
-                  <ChatMenuSection title="Thread actions">
-                    {threadActions.map((item) => (
-                      <ChatMenuAction
-                        active={item.active}
-                        disabled={item.disabled}
-                        key={item.id}
-                        label={item.busy ? item.busyLabel : item.label}
-                        meta={item.helper}
-                        onClick={() => runThreadAction(thread, item.id)}
-                      />
-                    ))}
-                  </ChatMenuSection>
-                </ChatMenu>
-                <button onClick={() => runThreadAction(thread, "reply")} disabled={Boolean(threadAction)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60">
-                  <Reply className="h-3.5 w-3.5" />
-                  reply
-                </button>
-              </div>
+            const threadId = chatThreadKey(thread)
+            const name = thread.dm_peer_name || groups.find((group) => group.id === thread.group_id)?.name || parsed.title
+            const selected = threadId === activeThreadId
+            const actions = buildChatThreadActions({ busyAction: threadAction?.threadId === threadId ? threadAction.action : null, helpful: Boolean(thread.helpful), saved: Boolean(thread.saved), hasThread: Boolean(threadId) })
+            return <div key={threadId} className={chatStyles.thread} data-selected={selected}>
+              <button type="button" className={chatStyles.threadSelect} aria-pressed={selected} onClick={() => selectThread(thread)} aria-label={`Open conversation with ${name}`}>
+                <ConversationAvatar name={name} group={Boolean(thread.group_id)} />
+                <span className={chatStyles.threadCopy}><span className={chatStyles.threadTitle}><strong>{name}</strong>{thread.updated_at || thread.updatedAt ? <time dateTime={thread.updated_at || thread.updatedAt}>{chatRecency(thread.updated_at || thread.updatedAt || "")}</time> : null}</span><span className={chatStyles.threadPreview}>{String(thread.last_message || thread.lastMessage || "No messages yet").replace(/^\[[^\]]+\]\s*/, "")}</span></span>
+                {thread.saved ? <Bookmark size={12} className={chatStyles.savedMark} aria-label="Saved" /> : null}
+              </button>
+              <div className={chatStyles.threadMenu}><ChatMenu compact align="right" icon={MoreHorizontal} label={`Actions for ${name}`} menuId={`threadActions:${threadId}`} openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}><ChatMenuSection title="Conversation">{actions.map((action) => <ChatMenuAction key={action.id} label={action.busy ? action.busyLabel : action.label} active={action.active} disabled={action.disabled} onClick={() => void runThreadAction(thread, action.id)} />)}</ChatMenuSection></ChatMenu></div>
             </div>
-          )})}
-          {!visibleThreads.length ? <EmptyState title="No matching threads" body="Send a message or change the search/filter to see more collaboration history." /> : null}
+          })}
+          {!inboxLoading && !inboxError && !visibleThreads.length ? <div className={chatStyles.listEmpty}><MessageSquare size={28} /><strong>{query || inboxKind !== "all" ? "No matches" : "Your conversations live here"}</strong>{query || inboxKind !== "all" ? <button type="button" onClick={() => { setQuery(""); setInboxKind("all") }}>Clear filters</button> : <button type="button" onClick={openRecipients}>Start a conversation</button>}</div> : null}
         </div>
-      </Panel>
+      </aside>
+      <div className={chatStyles.conversation}>
+        {!hasConversation ? <div className={chatStyles.welcome}><div className={chatStyles.welcomeArt} aria-hidden="true"><MessageSquare /><span>✦</span><Smile /></div><h3>A little conversation.<br />A new perspective.</h3><p>Pick a chat or say hello.</p><button type="button" onClick={openRecipients}>New message <Plus size={16} /></button></div> : <>
+        <header className={chatStyles.conversationHeader}>
+          <button type="button" className={`${chatStyles.iconButton} ${chatStyles.back}`} aria-label="Back to conversations" onClick={() => { setConversationOpen(false); setOpenChatMenu(null) }}><ArrowLeft size={18} /></button>
+          <ConversationAvatar name={conversationName} group={Boolean(groupId)} />
+          <div className={chatStyles.identity}><h3>{conversationName}</h3><span>{remoteTyping ? "Typing…" : activeDmTarget || dmTargetUserId ? "Direct message" : activeGroup ? (activeGroup.member_count === undefined ? "Group" : `${activeGroup.member_count} members`) : "Conversation"}{groupChannelId ? <i data-live={socketStatus === "open"} title={socketStatus === "open" ? "Connected" : "Connecting"} /> : null}</span></div>
+          <div className={chatStyles.headerActions}>
+            <button type="button" className={chatStyles.iconButton} aria-label="Search this conversation" aria-pressed={searchOpen} onClick={() => setSearchOpen(!searchOpen)}><Search size={17} /></button>
+            <button type="button" className={chatStyles.iconButton} aria-label="Start voice call" disabled={!groupChannelId || Boolean(activeCall)} onClick={() => void startCall(false)}><Phone size={17} /></button>
+            <ChatMenu compact align="right" icon={MoreHorizontal} label="Conversation options" menuId="chatMore" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}>
+              <ChatMenuSection title="Conversation">
+                <ChatMenuAction icon={Video} label="Video call" disabled={!groupChannelId || Boolean(activeCall)} onClick={() => { void startCall(true); setOpenChatMenu(null) }} />
+                <ChatMenuAction icon={Download} label="Download conversation" disabled={!messages.length} onClick={() => { exportConversation(); setOpenChatMenu(null) }} />
+                <ChatMenuAction icon={Gamepad2} label="Start a live game" onClick={() => { setLiveGameOpen(true); setOpenChatMenu(null) }} />
+                <ChatMenuAction icon={Users} label="New conversation" onClick={() => { openRecipients(); setOpenChatMenu(null) }} />
+              </ChatMenuSection>
+            </ChatMenu>
+          </div>
+        </header>
+        {searchOpen ? <div className={chatStyles.messageSearch}><label className={chatStyles.search}><Search size={16} /><input ref={messageSearchRef} aria-label="Find in conversation" placeholder="Find a message" value={messageQuery} onChange={(event) => setMessageQuery(event.target.value)} /></label><span role="status">{messageQuery ? `${matchingMessages.length} found` : ""}</span><button type="button" className={chatStyles.iconButton} aria-label="Close message search" onClick={() => setSearchOpen(false)}><X size={16} /></button></div> : null}
+        <div className={chatStyles.messageStage}>
+          <div ref={messageListRef} className={chatStyles.messages} role="log" aria-label="Conversation messages" aria-live="polite" onScroll={(event) => { const element = event.currentTarget; setAwayFromLatest(element.scrollHeight - element.clientHeight - element.scrollTop > 100) }}>
+            {messagesLoading ? <div className={chatStyles.loading} role="status"><LoaderCircle size={20} className="animate-spin" /><span>Loading messages</span></div> : null}
+            {messagesError ? <div className={chatStyles.error} role="alert"><p>{messagesError}</p><button type="button" onClick={() => { setMessagesLoading(true); void refreshMessages(activeThreadId) }}><RotateCcw size={14} />Retry</button></div> : null}
+            {matchingMessages.map((message, index) => {
+              const invite = parseLiveGameInvite(message.metadata)
+              const result = parseLiveGameResult(message.metadata)
+              const mine = message.user_id === currentUserId
+              const attachment = message.metadata?.attachment
+              const reactions = messageReactions[message.id] || []
+              const previous = matchingMessages[index - 1]
+              const date = new Date(message.created_at).toLocaleDateString([], { month: "short", day: "numeric" })
+              const showDate = !previous || new Date(previous.created_at).toDateString() !== new Date(message.created_at).toDateString()
+              return <div key={message.id} className={chatStyles.messageRow} data-mine={mine}>
+                {showDate ? <div className={chatStyles.dateDivider}><span>{date}</span></div> : null}
+                {invite ? <LiveGameCard invite={invite} createdAt={message.created_at} alignRight={mine} /> : result ? <LiveGameResultCard result={result} createdAt={message.created_at} threadId={activeThreadId} alignRight={mine} /> : <div className={chatStyles.bubble}>
+                  {attachment ? attachment.contentType.startsWith("image/") ? <a href={`/api/files/${attachment.fileId}/download`} target="_blank" rel="noreferrer"><img src={`/api/files/${attachment.fileId}/download`} alt={attachment.filename} loading="lazy" decoding="async" /></a> : attachment.contentType.startsWith("audio/") ? <audio controls preload="metadata" src={`/api/files/${attachment.fileId}/download`} aria-label="Voice message" /> : attachment.contentType.startsWith("video/") ? <video controls preload="metadata" src={`/api/files/${attachment.fileId}/download`} aria-label="Shared video" /> : <a className={chatStyles.attachment} href={`/api/files/${attachment.fileId}/download`} target="_blank" rel="noreferrer"><Paperclip size={16} />{attachment.filename}<Download size={14} /></a> : null}
+                  <p>{message.body.replace(/^\[[^\]]+\]\s*/, "")}</p>
+                  <div className={chatStyles.bubbleMeta}><time dateTime={message.created_at}>{new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time><button type="button" aria-label={`React to message ${index + 1}`} aria-expanded={reactionMessageId === message.id} onClick={() => setReactionMessageId(reactionMessageId === message.id ? "" : message.id)}><Smile size={13} /></button></div>
+                </div>}
+                {reactions.length || reactionMessageId === message.id ? <div className={chatStyles.reactions} aria-label={`Reactions to message ${index + 1}`}>{(reactionMessageId === message.id ? CHAT_REACTION_EMOJI : reactions.map((entry) => entry.emoji)).map((emoji) => { const entry = reactions.find((item) => item.emoji === emoji); return <button type="button" key={emoji} disabled={reactionPending} aria-pressed={Boolean(entry?.mine)} aria-label={`${entry?.mine ? "Remove" : "Add"} ${emoji} reaction`} onClick={() => { void reactToMessage(message.id, emoji, !entry?.mine); setReactionMessageId("") }}>{emoji}{entry?.count ? ` ${entry.count}` : ""}</button> })}</div> : null}
+              </div>
+            })}
+            {!messagesLoading && !messagesError && !matchingMessages.length ? <div className={chatStyles.conversationEmpty}><MessageSquare size={28} /><strong>{messageQuery ? "No matching messages" : `Say hello${activeDmTarget ? ` to ${activeDmTarget.name.split(" ")[0]}` : ""}.`}</strong><p>{messageQuery ? "Try another word." : "This is the start of your conversation."}</p></div> : null}
+          </div>
+          {awayFromLatest && !messageQuery ? <button type="button" className={chatStyles.latest} onClick={scrollToLatest} aria-label="Jump to latest message"><ArrowDown size={15} />Latest</button> : null}
+        </div>
+        {mediaOpen ? <div className={chatStyles.mediaDrawer}><header><strong>Make it yours</strong><button type="button" className={chatStyles.iconButton} aria-label="Close media tools" onClick={() => setMediaOpen(false)}><X size={16} /></button></header><div key={JSON.stringify(messageDestination)}><ChatVoiceMessage onSend={sendAttachment} disabled={Boolean(activeCall)} /><ChatMediaComposer onSend={sendAttachment} onEmoji={(emoji) => { setBody((current) => `${current}${emoji}`); messageInputRef.current?.focus() }} /></div></div> : null}
+        {liveGameOpen ? <div className={chatStyles.mediaDrawer}><LiveGameLauncher threadId={messageDestination.threadId || ""} groupId={messageDestination.groupId} targetUserId={messageDestination.targetUserId} onClose={() => setLiveGameOpen(false)} onLaunched={async (code, threadId) => { if (!mountedRef.current) return; setLiveGameOpen(false); if (threadId) finishMessageSend(destination, null, threadId); setDraftStatus(`Live game ${code} posted`); await refresh(); await refreshMessages(threadId || activeThreadId) }} /></div> : null}
+        <div className={chatStyles.composer}>
+          <input ref={fileInputRef} type="file" aria-label="Attach a file" accept={pendingAttachKind === "photo" ? "image/*" : undefined} className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void sendAttachment(file); event.target.value = "" }} />
+          <textarea ref={messageInputRef} aria-label="Message" rows={1} value={body} onChange={(event) => { setBody(event.target.value); setDraftStatus(""); handleDraftActivity(event.target.value); event.target.style.height = "auto"; event.target.style.height = `${Math.min(event.target.scrollHeight, 140)}px` }} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && window.matchMedia("(pointer: fine)").matches) { event.preventDefault(); void send() } }} placeholder="Message…" />
+          <div className={chatStyles.composerBar}><div className={chatStyles.composerActions}>
+            <ChatMenu compact icon={Plus} label="Attach" menuId="attach" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}><ChatMenuSection title="Add to your message"><ChatMenuAction icon={Paperclip} label="File" onClick={() => openAttachPicker("document")} /><ChatMenuAction icon={ImageIcon} label="Photo" onClick={() => openAttachPicker("photo")} /><ChatMenuAction icon={Mic} label="Voice message" onClick={() => { setMediaOpen(true); setOpenChatMenu(null) }} /><ChatMenuAction icon={Gamepad2} label="Live game" onClick={() => { setLiveGameOpen(true); setOpenChatMenu(null) }} /></ChatMenuSection></ChatMenu>
+            <button type="button" className={chatStyles.iconButton} aria-label="Emoji and media" aria-expanded={mediaOpen} onClick={() => setMediaOpen(!mediaOpen)}><Smile size={19} /></button>
+            <ChatMenu compact icon={Sparkles} label="Writing tools" menuId="compose" openMenu={openChatMenu} setOpenMenu={setOpenChatMenu}><ChatMenuSection title="Start with">{quickPrompts.map((prompt) => <ChatMenuAction key={prompt.id} label={prompt.label} onClick={() => { applyQuickPrompt(prompt); setOpenChatMenu(null); messageInputRef.current?.focus() }} />)}</ChatMenuSection><ChatMenuSection title="Draft"><ChatMenuAction icon={AtSign} label="Mention" onClick={() => insertMention()} /><ChatMenuAction icon={RotateCcw} label="Clear draft" disabled={!body} onClick={() => { clearCurrentDraft(); setOpenChatMenu(null) }} /></ChatMenuSection></ChatMenu>
+            <VoiceInput label="Dictate message" prompt={conversationName} onTranscript={(text) => { setBody((current) => current && !/\s$/.test(current) ? `${current} ${text}` : `${current}${text}`); handleDraftActivity(text) }} />
+          </div><button type="button" className={chatStyles.sendButton} aria-label={chatAction === "send" ? "Sending message" : "Send message"} disabled={chatActionById.get("send")?.disabled} onClick={() => void send()}>{chatAction === "send" ? <LoaderCircle size={17} className="animate-spin" /> : <Send size={17} />}</button></div>
+        </div>
+        {draftStatus && draftStatus !== "Draft saved" ? <p className={chatStyles.draftStatus} role="status">{draftStatus}</p> : null}
+        </>}
+      </div>
+      <dialog ref={recipientDialogRef} className={chatStyles.recipientDialog} aria-label="New conversation" onCancel={(event) => { if (recipientBusy) event.preventDefault(); else closeRecipients() }} onClose={() => setRecipientsOpen(false)}>
+        <header><h3>New message</h3><button type="button" className={chatStyles.iconButton} aria-label="Close new conversation" disabled={recipientBusy} onClick={closeRecipients}><X size={18} /></button></header>
+        <label className={chatStyles.search}><Search size={16} /><input ref={recipientSearchRef} aria-label="Find people or groups" placeholder="People, groups, or @username" value={recipientQuery} onChange={(event) => setRecipientQuery(event.target.value)} /></label>
+        {recipientError ? <div role="alert" className={chatStyles.error}><p>{recipientError}</p><button type="button" onClick={() => { setRecipientError(""); void refreshConnections(); void refreshGroups() }}>Retry</button></div> : null}
+        <div className={chatStyles.recipientList}>
+          {matchingConnections.length ? <h4>People</h4> : null}
+          {matchingConnections.map((connection) => <button type="button" className={chatStyles.recipient} key={connection.target_user_id} disabled={recipientBusy} onClick={() => startDirectMessage(connection.target_user_id)}><ConversationAvatar name={connection.name} /><span><strong>{connection.name}</strong><small>@{connection.username}</small></span><MessageSquare size={16} /></button>)}
+          {!connections.length && !recipientError ? <p className={chatStyles.noResults}>Your connections appear here.</p> : null}
+          {/^@[a-zA-Z0-9_-]+$/.test(recipientQuery.trim()) ? <a href={`/profile/${encodeURIComponent(recipientQuery.trim().slice(1))}`} className={chatStyles.findPeople}><UserRound size={18} />Open {recipientQuery.trim()} profile</a> : null}
+          <div className={chatStyles.recipientGroupHeading}><h4>Groups</h4><button type="button" className={chatStyles.iconButton} aria-label="Create group" aria-expanded={newGroupOpen} onClick={() => setNewGroupOpen(!newGroupOpen)}><Plus size={16} /></button></div>
+          {newGroupOpen ? <form className={chatStyles.groupForm} onSubmit={(event) => { event.preventDefault(); void createGroup(groupName) }}><input autoFocus aria-label="Group name" placeholder="Group name" maxLength={120} value={groupName} onChange={(event) => setGroupName(event.target.value)} /><button type="submit" disabled={!groupName.trim() || recipientBusy}>{recipientBusy ? "Creating…" : "Create"}</button></form> : null}
+          {matchingGroups.map((group) => <button type="button" className={chatStyles.recipient} key={group.id} disabled={recipientBusy} onClick={() => group.is_member ? switchToGroup(group.id) : void joinGroupById(group.id)}><ConversationAvatar name={group.name} group /><span><strong>{group.name}</strong><small>{group.member_count === undefined ? "Group" : `${group.member_count} members`}</small></span>{!group.is_member ? <em>Join</em> : <MessageSquare size={16} />}</button>)}
+          {recipientQuery && !matchingConnections.length && !matchingGroups.length ? <p className={chatStyles.noResults}>No matches</p> : null}
+        </div>
+      </dialog>
       {activeCall ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4">
           <div className="relative flex w-full max-w-lg flex-col items-center overflow-hidden rounded-2xl border border-border bg-popover p-6 text-center text-popover-foreground shadow-2xl">
@@ -1523,6 +1561,7 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
               {activeCall.status === "connected" && formatCallDuration(callElapsed)}
             </p>
 
+            <p role="status" className="mt-2 text-xs text-muted-foreground">{activeCall.status === "connected" ? callConnectionStatus : "One-to-one call"}{activeCall.status === "connected" && !relayAvailable ? " · Direct connection" : ""}</p>
             {activeCall.status === "incoming" ? (
               <div className="mt-6 flex items-center gap-4">
                 <button onClick={declineIncomingCall} className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-lg transition hover:opacity-90" type="button" aria-label="Decline call">
@@ -1555,30 +1594,73 @@ export function ChatView({ options }: { options: WorkspaceOptions }) {
           </div>
         </div>
       ) : null}
-    </div>
+    </section>
   )
 }
 
 function readChatDraft(): ChatDraft | null {
   if (typeof window === "undefined") return null
-  return parseStoredChatDraft(window.localStorage.getItem(CHAT_DRAFT_KEY))
+  try { return parseStoredChatDraft(window.localStorage.getItem(CHAT_DRAFT_KEY)) }
+  catch { return null }
 }
 
-function writeChatDraft(draft: ChatDraft) {
-  if (typeof window === "undefined") return
-  window.localStorage.setItem(CHAT_DRAFT_KEY, serializeChatDraft(draft))
+function chatDestinationKey(destination: ChatDestination) {
+  if (destination.kind === "thread") return `thread:${destination.threadId}`
+  if (destination.kind === "dm") return `dm:${destination.targetUserId}`
+  if (destination.kind === "group") return `group:${destination.groupId}`
+  return "personal"
 }
 
-function clearChatDraft() {
-  if (typeof window === "undefined") return
-  window.localStorage.removeItem(CHAT_DRAFT_KEY)
+function conversationDraftKey(userId: string, destination: ChatDestination) {
+  return `${CHAT_DRAFT_KEY}:${encodeURIComponent(userId)}:${encodeURIComponent(chatDestinationKey(destination))}`
 }
 
-function chatStatusClasses(tone: "accent" | "muted" | "success" | "warning") {
-  if (tone === "success") return "bg-success/15 text-success"
-  if (tone === "warning") return "bg-warning/15 text-warning"
-  if (tone === "accent") return "bg-primary/10 text-primary"
-  return "bg-secondary text-secondary-foreground"
+function readConversationDraft(userId: string, destination: ChatDestination) {
+  try { return parseStoredChatDraft(window.localStorage.getItem(conversationDraftKey(userId, destination))) }
+  catch { return null }
+}
+
+function writeConversationDraft(userId: string, destination: ChatDestination, draft: ChatDraft) {
+  if (!userId) return
+  try { window.localStorage.setItem(conversationDraftKey(userId, destination), serializeChatDraft(draft)) }
+  catch { /* The in-memory draft stays available when local storage is full. */ }
+}
+
+function removeConversationDraft(userId: string, destination: ChatDestination) {
+  try { window.localStorage.removeItem(conversationDraftKey(userId, destination)) }
+  catch { /* Storage access can be disabled by browser privacy settings. */ }
+}
+
+function writeChatDestination(userId: string, destination: ChatDestination) {
+  if (!userId) return
+  try { window.localStorage.setItem(chatDestinationStorageKey(userId), JSON.stringify(destination)) }
+  catch { /* Draft navigation remains available without browser storage. */ }
+}
+
+function readChatDestination(userId: string): ChatDestination | null {
+  try {
+    const value: unknown = JSON.parse(window.localStorage.getItem(chatDestinationStorageKey(userId)) || "null")
+    if (!value || typeof value !== "object" || !("kind" in value)) return null
+    if (value.kind === "personal") return { kind: "personal" }
+    if (value.kind === "thread" && "threadId" in value && typeof value.threadId === "string") return { kind: "thread", threadId: value.threadId }
+    if (value.kind === "dm" && "targetUserId" in value && typeof value.targetUserId === "string") return { kind: "dm", targetUserId: value.targetUserId }
+    if (value.kind === "group" && "groupId" in value && typeof value.groupId === "string") return { kind: "group", groupId: value.groupId }
+    return null
+  } catch { return null }
+}
+
+function chatRecency(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ""
+  return date.toDateString() === new Date().toDateString()
+    ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : date.toLocaleDateString([], { month: "short", day: "numeric" })
+}
+
+function ConversationAvatar({ name, group = false }: { name: string; group?: boolean }) {
+  const tone = [...name].reduce((total, letter) => total + letter.charCodeAt(0), 0) % 4
+  const initials = name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()
+  return <span className={chatStyles.avatar} data-tone={tone} aria-hidden="true">{group ? <Users size={18} /> : initials || <UserRound size={18} />}</span>
 }
 
 function ChatMenu({
@@ -1590,33 +1672,24 @@ function ChatMenu({
   menuId,
   openMenu,
   setOpenMenu,
-}: {
-  align?: "left" | "right"
-  children: React.ReactNode
-  compact?: boolean
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  menuId: ChatMenuId
-  openMenu: ChatMenuId | null
-  setOpenMenu: (menuId: ChatMenuId | null) => void
-}) {
+}: ViewMenuProps<ChatMenuId>) {
+  const anchor = useRef<HTMLButtonElement>(null)
   const open = openMenu === menuId
   return (
     <div className="relative">
       <button
+        ref={anchor}
         aria-expanded={open}
+        aria-label={label}
+        title={label}
         onClick={() => setOpenMenu(open ? null : menuId)}
         className={`inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground ${compact ? "px-2" : "px-3"}`}
         type="button"
       >
         <Icon className="h-4 w-4" />
-        <span>{label}</span>
+        <span className={compact ? "sr-only" : undefined}>{label}</span>
       </button>
-      {open ? (
-        <div className={`absolute top-[calc(100%+0.4rem)] z-[120] w-72 rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-xl ${align === "right" ? "right-0" : "left-0"}`}>
-          {children}
-        </div>
-      ) : null}
+      <Popover open={open} anchor={anchor} onClose={() => setOpenMenu(null)} label={label} placement={align === "right" ? "bottom-end" : "bottom-start"} width={288}>{children}</Popover>
     </div>
   )
 }
@@ -1624,7 +1697,7 @@ function ChatMenu({
 function ChatMenuSection({ children, title }: { children: React.ReactNode; title: string }) {
   return (
     <div className="space-y-1 rounded-md p-1">
-      <p className="px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{title}</p>
+      <p className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{title}</p>
       {children}
     </div>
   )
@@ -1651,35 +1724,15 @@ function ChatMenuAction({
     <button
       onClick={onClick}
       disabled={disabled}
+      title={meta}
       className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50 ${active ? "bg-primary/10 text-primary" : danger ? "text-destructive" : "text-popover-foreground"}`}
       type="button"
     >
       {Icon ? <Icon className="mt-0.5 h-4 w-4 shrink-0" /> : <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-current opacity-50" />}
       <span className="min-w-0">
         <span className="block font-semibold">{label}</span>
-        {meta ? <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{meta}</span> : null}
+        {meta ? <span className="sr-only">{meta}</span> : null}
       </span>
-    </button>
-  )
-}
-
-function ToolbarButton({
-  disabled,
-  icon: Icon,
-  label,
-  onClick,
-  primary,
-}: {
-  disabled?: boolean
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  onClick: () => void
-  primary?: boolean
-}) {
-  return (
-    <button disabled={disabled} onClick={onClick} className={`flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60 ${primary ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}>
-      <Icon className="h-4 w-4" />
-      <span>{label}</span>
     </button>
   )
 }

@@ -139,24 +139,18 @@ test("slide export payload includes presenter outline and timings", () => {
   assert.match(payload.presenterOutline, /Speaker notes/)
 })
 
-test("slide editor toolbar keeps visible controls actionable", () => {
+test("Studio no longer edits slides: decks, new slides and PowerPoints go to the slides editor", () => {
   const source = readFileSync("src/components/learn/views/studio-view.tsx", "utf8")
-  const start = source.indexOf("BG remover")
-  const end = source.indexOf("<div className=\"mb-2 flex items-center gap-2", start)
-  const toolbarSource = source.slice(start, end)
-
-  assert.ok(start > -1)
-  assert.ok(end > start)
-  assert.match(toolbarSource, /Apply style/)
-  assert.match(toolbarSource, /label="Animate"/)
-  assert.match(toolbarSource, /label="Position"/)
-  assert.match(toolbarSource, /disabled=\{!selectedObject\}/)
-  assert.doesNotMatch(toolbarSource, /setSelectedObjectId\(selectedObject\?\.id/)
-
-  const bottomBarStart = source.indexOf("<FileText className=\"h-3.5 w-3.5\" /> Notes")
-  const bottomBarSource = source.slice(bottomBarStart, source.indexOf("aria-label=\"Slide zoom\"", bottomBarStart))
-  assert.match(bottomBarSource, /Speaker notes/)
-  assert.match(bottomBarSource, /Timer: 5 min/)
+  for (const retired of ["SlideCanvasObject", "SortableSlideThumb", "Slide zoom", "Timer: 5 min", "setSelectedSlideIndex", "exportDeck", "@dnd-kit"]) {
+    assert.ok(!source.includes(retired), `${retired} is gone`)
+  }
+  assert.match(source, /Slides open in the design editor; StudioView never shows them\.\n  return null/)
+  assert.match(source, /function selectItem[^\n]*\n    if \(item\.kind === "slides"\) return openDeck\(item\.id\)/, "opening a deck goes to the slides editor")
+  assert.match(source, /function loadStudioItem[^\n]*\n    if \(item\.kind === "slides"\) return openDeck\(item\.id\)/, "tabs and panes do too")
+  assert.match(source, /if \(targetKind === "slides"\) return openNewSlides\(/, "new slides are a presentation design")
+  assert.match(source, /if \(templateKind === "slides"\) \{\n      void openNewSlides\(/, "so are slides from a template")
+  assert.match(source, /if \(target === "slides"\) return openDeck\(item\.id\)/, "imported text for slides opens as slides")
+  assert.equal(source.match(/onPowerPoint=\{importSlides\}/g)?.length, 2, "a PowerPoint keeps its layout wherever Studio imports one")
 })
 
 test("studio shared button helpers avoid accidental form submits", () => {
@@ -171,103 +165,56 @@ test("studio shared button helpers avoid accidental form submits", () => {
   }
 })
 
-test("studio menu actions close their dropdown after selection", () => {
+test("studio menu actions close their popover after selection", () => {
   const source = readFileSync("src/components/learn/views/studio-view.tsx", "utf8")
-  const start = source.indexOf("function MenuAction(")
-  const end = source.indexOf("\nfunction MenuSelect", start)
-  const helperSource = source.slice(start, end)
-
-  assert.ok(start > -1)
-  assert.ok(end > start)
-  assert.match(helperSource, /closest\("details"\)\?\.removeAttribute\("open"\)/)
-  assert.match(helperSource, /onClick=\{handleClick\}/)
+  const panel = source.slice(source.indexOf("function StudioMenuPanel("), source.indexOf("function MenuAction("))
+  assert.match(panel, /closest<HTMLButtonElement>\('\[role="menuitem"\]'\)/)
+  assert.match(panel, /if \(item && !item.disabled\) onClose\(\)/)
 })
 
-test("studio action menus support keyboard escape closing", () => {
+test("studio action menus use the shared Escape and focus-return behavior", () => {
   const source = readFileSync("src/components/learn/views/studio-view.tsx", "utf8")
-  const start = source.indexOf("function ActionMenu(")
-  const end = source.indexOf("\nfunction MenuAction", start)
-  const helperSource = source.slice(start, end)
-
-  assert.ok(start > -1)
-  assert.ok(end > start)
-  assert.match(helperSource, /React\.KeyboardEvent<HTMLDetailsElement>/)
-  assert.match(helperSource, /event\.key !== "Escape"/)
-  assert.match(helperSource, /removeAttribute\("open"\)/)
-  assert.match(helperSource, /querySelector\("summary"\)/)
-  assert.match(helperSource, /aria-label=\{label\}/)
+  const popover = readFileSync("src/components/learn/design/popover.tsx", "utf8")
+  assert.match(source, /<PopoverButton label=\{label\}/)
+  assert.match(popover, /event.key !== "Escape"/)
+  assert.match(popover, /anchor.current\?\.focus\(\)/)
+  assert.match(popover, /createPortal\(/)
 })
 
-test("studio action menus expose accessible menu semantics", () => {
+test("studio action menus expose labelled controls and menu items", () => {
   const source = readFileSync("src/components/learn/views/studio-view.tsx", "utf8")
-  const menuStart = source.indexOf("function ActionMenu(")
-  const menuEnd = source.indexOf("\nfunction MenuAction", menuStart)
-  const menuSource = source.slice(menuStart, menuEnd)
-  const actionStart = source.indexOf("function MenuAction(")
-  const actionEnd = source.indexOf("\nfunction MenuSelect", actionStart)
-  const actionSource = source.slice(actionStart, actionEnd)
-
-  assert.ok(menuStart > -1)
-  assert.ok(menuEnd > menuStart)
-  assert.ok(actionStart > -1)
-  assert.ok(actionEnd > actionStart)
-  assert.match(menuSource, /aria-haspopup="menu"/)
-  assert.match(menuSource, /aria-expanded=\{isOpen\}/)
-  assert.match(menuSource, /React\.SyntheticEvent<HTMLDetailsElement>/)
-  assert.match(menuSource, /setIsOpen\(event\.currentTarget\.open\)/)
-  assert.match(menuSource, /onToggle=\{syncOpenState\}/)
-  assert.match(menuSource, /role="menu"/)
-  assert.match(menuSource, /aria-label=\{label\}/)
-  assert.match(actionSource, /role="menuitem"/)
+  const popover = readFileSync("src/components/learn/design/popover.tsx", "utf8")
+  assert.match(source, /role="menu" aria-label=\{label\}/)
+  assert.match(source, /role="menuitem"/)
+  assert.match(popover, /aria-expanded=\{open\}/)
+  assert.match(popover, /aria-label=\{label\}/)
 })
 
 test("studio action menus keep visible keyboard focus styles", () => {
   const source = readFileSync("src/components/learn/views/studio-view.tsx", "utf8")
-  const menuStart = source.indexOf("function ActionMenu(")
-  const menuEnd = source.indexOf("\nfunction MenuAction", menuStart)
-  const menuSource = source.slice(menuStart, menuEnd)
-  const actionStart = source.indexOf("function MenuAction(")
-  const actionEnd = source.indexOf("\nfunction MenuSelect", actionStart)
-  const actionSource = source.slice(actionStart, actionEnd)
-
-  assert.ok(menuStart > -1)
-  assert.ok(menuEnd > menuStart)
-  assert.ok(actionStart > -1)
-  assert.ok(actionEnd > actionStart)
-  assert.match(menuSource, /focus-visible:ring-2/)
-  assert.match(menuSource, /focus-visible:ring-offset-2/)
-  assert.match(actionSource, /focus-visible:ring-2/)
-  assert.match(actionSource, /focus-visible:ring-offset-popover/)
+  const menus = source.slice(source.indexOf("function ActionMenu("), source.indexOf("function MenuSelect("))
+  assert.match(menus, /focus-visible:ring-2/)
+  assert.match(menus, /focus-visible:ring-offset-2/)
+  assert.match(menus, /focus-visible:ring-offset-popover/)
 })
 
-test("studio action menus close when focus leaves the menu", () => {
+test("studio action menus support arrow navigation and close when focus leaves", () => {
   const source = readFileSync("src/components/learn/views/studio-view.tsx", "utf8")
-  const start = source.indexOf("function ActionMenu(")
-  const end = source.indexOf("\nfunction MenuAction", start)
-  const helperSource = source.slice(start, end)
-
-  assert.ok(start > -1)
-  assert.ok(end > start)
-  assert.match(helperSource, /React\.FocusEvent<HTMLDetailsElement>/)
-  assert.match(helperSource, /event\.relatedTarget/)
-  assert.match(helperSource, /event\.currentTarget\.contains\(nextFocusedElement\)/)
-  assert.match(helperSource, /onBlur=\{closeMenuOnFocusLeave\}/)
+  const panel = source.slice(source.indexOf("function StudioMenuPanel("), source.indexOf("function MenuAction("))
+  assert.match(panel, /event.currentTarget.contains\(event.relatedTarget/)
+  assert.match(panel, /onClose\(\)/)
+  assert.match(panel, /"ArrowDown", "ArrowUp", "Home", "End"/)
+  assert.match(panel, /items\[next\]\?\.focus\(\)/)
 })
 
-test("studio menu selects close their dropdown after choosing a value", () => {
+test("studio menu selects close the popover after choosing a value", () => {
   const source = readFileSync("src/components/learn/views/studio-view.tsx", "utf8")
-  const start = source.indexOf("function MenuSelect(")
-  const end = source.indexOf("\nfunction StudioContextContent", start)
-  const helperSource = source.slice(start, end)
-
-  assert.ok(start > -1)
-  assert.ok(end > start)
-  assert.match(helperSource, /React\.ChangeEvent<HTMLSelectElement>/)
-  assert.match(helperSource, /event\.currentTarget\.value = ""/)
-  assert.match(helperSource, /closest\("details"\)\?\.removeAttribute\("open"\)/)
-  assert.match(helperSource, /onChange=\{handleChange\}/)
+  const panel = source.slice(source.indexOf("function StudioMenuPanel("), source.indexOf("function MenuAction("))
+  assert.match(panel, /event.target instanceof HTMLSelectElement\) onClose\(\)/)
+  const select = source.slice(source.indexOf("function MenuSelect("), source.indexOf("function StudioContextContent("))
+  assert.match(select, /event.currentTarget.value = ""/)
+  assert.match(select, /onChange=\{handleChange\}/)
 })
-
 test("studio menu selects keep accessible labels and focus styles", () => {
   const source = readFileSync("src/components/learn/views/studio-view.tsx", "utf8")
   const start = source.indexOf("function MenuSelect(")

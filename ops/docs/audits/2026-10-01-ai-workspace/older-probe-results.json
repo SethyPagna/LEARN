@@ -1,0 +1,44 @@
+[
+  {
+    "width": 1280,
+    "theme": "color",
+    "checks": [
+      "AI primary action has a visible label",
+      "AI Studio action has a visible label",
+      "AI reset has a visible label in draft actions",
+      "AI fits viewport",
+      "no page errors ()",
+      "only expected mocked joins attempted"
+    ],
+    "writes": [],
+    "failures": []
+  },
+  {
+    "width": 390,
+    "theme": "light",
+    "checks": [
+      "AI primary action has a visible label",
+      "AI Studio action has a visible label",
+      "AI reset has a visible label in draft actions",
+      "AI fits viewport",
+      "no page errors ()",
+      "only expected mocked joins attempted"
+    ],
+    "writes": [],
+    "failures": []
+  },
+  {
+    "width": 320,
+    "theme": "dark",
+    "checks": [
+      "AI primary action has a visible label",
+      "AI Studio action has a visible label",
+      "AI reset has a visible label in draft actions",
+      "AI fits viewport",
+      "no page errors ()",
+      "only expected mocked joins attempted"
+    ],
+    "writes": [],
+    "failures": []
+  }
+]

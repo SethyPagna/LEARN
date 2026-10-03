@@ -1,0 +1,2 @@
+.workspace { display:grid; min-width:0; gap:16px; max-width:1440px; margin-inline:auto; }
+@media(max-width:1023px) { .workspace { gap:12px; } }

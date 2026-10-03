@@ -117,6 +117,17 @@ test("collaboration session helpers keep durable object ids stable", () => {
   assert.equal(collaborationSessionId("rooms", "Study Room #1"), "collab_rooms_Study_Room_1")
 })
 
+test("call signaling preserves SDP line endings and rejects oversized descriptions intact", () => {
+  const sdp = "v=0\r\no=- 1 1 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n"
+  for (const kind of ["offer", "answer"]) {
+    const result = validateCollaborationEvent({ type: "call-signal", payload: { callId: "c1", kind, sdp } })
+    assert.equal(result.ok, true)
+    assert.equal(result.event?.payload?.sdp, sdp)
+    assert.equal(validateCollaborationEvent({ type: "call-signal", callId: "c1", kind, sdp: "x".repeat(40001) }).ok, false)
+    assert.equal(validateCollaborationEvent({ type: "call-signal", callId: "c1", kind, sdp: " \r\n" }).ok, false)
+  }
+})
+
 test("collaboration persistence skips transient presence, chat, and call-signal events", () => {
   assert.equal(shouldPersistCollaborationEvent("presence"), false)
   assert.equal(shouldPersistCollaborationEvent("typing"), false)

@@ -1,0 +1,71 @@
+[
+  {
+    "width": 1280,
+    "mode": "color",
+    "routes": 22,
+    "interactions": 124,
+    "writes": [
+      "POST /api/docs",
+      "POST /api/notes",
+      "POST /api/sheets",
+      "POST /api/canvas",
+      "POST /api/docs",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile"
+    ],
+    "errors": []
+  },
+  {
+    "width": 390,
+    "mode": "light",
+    "routes": 22,
+    "interactions": 111,
+    "writes": [
+      "POST /api/docs",
+      "POST /api/notes",
+      "POST /api/sheets",
+      "POST /api/canvas",
+      "POST /api/docs",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile"
+    ],
+    "errors": []
+  },
+  {
+    "width": 320,
+    "mode": "dark",
+    "routes": 22,
+    "interactions": 111,
+    "writes": [
+      "POST /api/docs",
+      "POST /api/notes",
+      "POST /api/sheets",
+      "POST /api/canvas",
+      "POST /api/docs",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile",
+      "PUT /api/profile"
+    ],
+    "errors": []
+  }
+]

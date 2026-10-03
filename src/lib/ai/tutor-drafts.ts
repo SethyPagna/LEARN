@@ -17,6 +17,8 @@ import {
 import type { AiTaskKey } from "./prompt-library"
 
 export const AI_TUTOR_DRAFT_KEY = "learn_ai_tutor_draft_v1"
+export const AI_TUTOR_DRAFT_HISTORY_KEY = "learn_ai_tutor_draft_history_v1"
+type DraftStorage = Pick<Storage, "getItem" | "setItem">
 
 export interface AiTutorDraft {
   message: string
@@ -37,6 +39,8 @@ export interface AiTutorDraft {
   requiredOutput: string
   activeTaskKey: AiTaskKey
   updatedAt: string
+  sourceTitle?: string
+  sourceContent?: string
 }
 
 const DEFAULT_MESSAGE = "Create a study plan from my recent notes."
@@ -45,6 +49,32 @@ const DEFAULT_OUTPUT = "Clear sections, compact examples, and one next action."
 
 export function parseStoredAiTutorDraft(raw: string | null): AiTutorDraft | null {
   return normalizeAiTutorDraft(parseJson(raw))
+}
+
+function draftFingerprint(draft: AiTutorDraft) {
+  const { updatedAt: _updatedAt, ...content } = normalizeAiTutorDraft(draft)!
+  return JSON.stringify(content)
+}
+
+function readDraftHistory(storage: DraftStorage): AiTutorDraft[] {
+  const history = parseJson(storage.getItem(AI_TUTOR_DRAFT_HISTORY_KEY))
+  return Array.isArray(history) ? history.map(normalizeAiTutorDraft).filter((draft): draft is AiTutorDraft => Boolean(draft)) : []
+}
+
+/** Archive before replacing a draft. A failed write leaves the active draft untouched. */
+export function archiveAiTutorDraft(storage: DraftStorage, draft: AiTutorDraft) {
+  const fingerprint = draftFingerprint(draft)
+  const history = readDraftHistory(storage).filter(saved => draftFingerprint(saved) !== fingerprint)
+  storage.setItem(AI_TUTOR_DRAFT_HISTORY_KEY, JSON.stringify([...history, draft]))
+}
+
+export function readPreviousAiTutorDraft(storage: DraftStorage, current?: AiTutorDraft | null): AiTutorDraft | null {
+  const fingerprint = current ? draftFingerprint(current) : null
+  return readDraftHistory(storage).reverse().find(saved => draftFingerprint(saved) !== fingerprint) || null
+}
+
+export function persistAiTutorDraft(storage: DraftStorage, draft: AiTutorDraft) {
+  storage.setItem(AI_TUTOR_DRAFT_KEY, JSON.stringify(draft))
 }
 
 export function parseStoredAiTutorLaunchPreset(raw: string | null): AiTutorLaunchPreset | null {
@@ -74,6 +104,8 @@ export function normalizeAiTutorDraft(value: unknown): AiTutorDraft | null {
     requiredOutput: readString(value.requiredOutput, DEFAULT_OUTPUT),
     activeTaskKey: task.id,
     updatedAt: normalizeIsoDate(value.updatedAt),
+    sourceTitle: readString(value.sourceTitle, "").slice(0, 200),
+    sourceContent: readString(value.sourceContent, "").slice(0, 12_000),
   }
 }
 
@@ -91,6 +123,8 @@ export function normalizeAiTutorLaunchPreset(value: unknown): AiTutorLaunchPrese
     outputLength: normalizeChoice(value.outputLength, aiTutorOutputLengths, aiTutorOutputLengths[1]),
     sourceScope: normalizeChoice(value.sourceScope, aiTutorSourceScopes, aiTutorSourceScopes[0]),
     status: readString(value.status, ""),
+    sourceTitle: readString(value.sourceTitle, "").slice(0, 200),
+    sourceContent: readString(value.sourceContent, "").slice(0, 12_000),
   }
 }
 

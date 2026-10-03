@@ -1,43 +1,50 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react"
+import { VaultNoteBlocks } from "../vault-note-blocks"
+import type { TutorSource } from "@/lib/ai/source-launch"
+import { useEditorExitGuard } from "../editor-navigation"
+import { completeVaultBlockDraft, readVaultBlockDraft, writeVaultBlockDraft, type VaultBlockDraft } from "@/lib/vault-drafts"
 import {
   ArrowRight,
-  Brain,
+  ArrowLeft,
   BookOpen,
   CalendarDays,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Compass,
   Copy,
   Edit3,
   Eye,
   ExternalLink,
   FolderOpen,
-  GitFork,
   Lock,
   Mail,
   MessageSquare,
-  MoreHorizontal,
   Network,
   Play,
   Radio,
+  Search,
   Repeat2,
-  Save,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
   Swords,
   Trash2,
   Users,
+  X,
 } from "lucide-react"
+import communityStyles from "./social-community.module.css"
+import { OwnProfileView } from "./personal-profile-view"
 import { api } from "../api"
 import type {
-  Achievement,
   KnowledgeEdge,
   KnowledgeNode,
   LearningSpace,
   MicroLesson,
+  Note,
   PublicProfile,
   ReviewItem,
   StudyBattle,
@@ -45,11 +52,16 @@ import type {
   User,
   View,
 } from "../types"
+import { Buddy } from "../buddy"
+import { viewIcons } from "../nav-icons"
 import { EmptyState, Panel, StatusMessage } from "../ui"
-import { buildFeedActionPlan, buildFeedSummaryChips, buildKnowledgeGraphActionPlan, buildKnowledgeGraphSummaryChips, buildReviewActionPlan, buildReviewRatingActions, buildReviewSummaryChips, buildVaultBlockPalette, reviewAnswerText, reviewPromptText, reviewSourceLabel, summarizeFeedWorkspace, summarizeKnowledgeGraph, summarizeReviewSession, type FeedSummaryChip, type KnowledgeGraphSummaryChip, type ReviewRating, type VaultBlockPaletteGroup, type VaultBlockType } from "@/lib/learning-ecosystem"
-import { buildProfileActionPlan, buildProfileSummaryChips, type ProfilePlanTarget, type ProfileSummaryChip } from "@/lib/profile-features"
+import { VoiceInput } from "../voice-input"
+import { buildReviewRatingActions, buildReviewSummaryChips, buildVaultBlockPalette, reviewAnswerText, reviewPromptText, reviewSourceKind, reviewSourceLabel, summarizeReviewSession, type ReviewRating, type VaultBlockType } from "@/lib/learning-ecosystem"
 import { createSocialDraft, parseStoredSocialDraftStore, socialDraftStorageKey, type SocialDraft, type SocialDraftStore, type SocialKind } from "@/lib/social-drafts"
-import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialActivityTimeline, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordEmptyState, buildSocialRecordFilterSummary, buildSocialRecordsPage, buildSocialRecordSelectionMessage, buildSocialWorkspacePlan, buildWorkspaceMembersPage, filterSocialRecords, findRecommendedSocialRecord, formatSocialAction, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, summarizeSocialActions, summarizeSocialWorkspace, summarizeWorkspaceMembers, type SocialActionLike, type SocialActionTarget, type SocialInviteRole, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
+import { buildSocialActionKit, buildSocialActionReadiness, buildSocialActionsPage, buildSocialInviteReadiness, buildSocialRecordCard, buildSocialRecordsPage, buildWorkspaceMembersPage, formatSocialAction, normalizeSocialInviteDraft, normalizeSocialInviteRole, socialInviteRoleOptions, type SocialActionLike, type SocialActionTarget, type SocialInviteRole, type SocialRecordFilter, type WorkspaceMemberLike } from "@/lib/social-features"
+
+const NoteIcon = viewIcons.notes
+const QuizIcon = viewIcons.quizzes
 
 type VaultGraphPayload = {
   nodes: KnowledgeNode[]
@@ -63,102 +75,123 @@ type ReviewPayload = {
   remainingDueCount: number
 }
 
-export function VaultView({ setView }: { setView: (view: View) => void }) {
+export function VaultView({ notes = [], setView, onOpenNote, onOpenAiSource }: { notes?: Note[]; setView: (view: View) => void; onOpenNote: (id: string) => void; onOpenAiSource: (source: TutorSource) => void }) {
   const { data, status } = useResource<VaultGraphPayload>("/api/vault/graph")
   const [blockType, setBlockType] = useState<VaultBlockType>("text")
+  const [blockNoteId, setBlockNoteId] = useState("")
+  const [blockContent, setBlockContent] = useState("")
+  const [blockStatus, setBlockStatus] = useState("")
+  const [savingBlock, setSavingBlock] = useState(false)
+  const [noteQuery, setNoteQuery] = useState("")
+  const [blocksRevision, setBlocksRevision] = useState(0)
+  const blockDrafts = useRef(new Map<string, VaultBlockDraft>())
+  const currentBlockDraft = useRef<{ noteId: string; draft: VaultBlockDraft } | null>(null)
+  const blockSavePending = useRef(false)
+  const vaultMounted = useRef(false)
+  const unwrittenBlockDrafts = useRef(new Set<string>())
 
   const topNodes = data?.nodes.slice(0, 5) ?? []
-  const graphSummary = useMemo(() => summarizeKnowledgeGraph(data?.nodes ?? [], data?.edges ?? []), [data?.edges, data?.nodes])
-  const vaultChips = useMemo(() => buildKnowledgeGraphSummaryChips(graphSummary).filter((chip) => ["nodes", "edges", "orphans", "mastery"].includes(chip.id)), [graphSummary])
   const paletteGroups = useMemo(() => buildVaultBlockPalette(blockType), [blockType])
-  const primaryPaletteGroups = paletteGroups.filter((group) => group.priority === "primary")
-  const secondaryPaletteGroups = paletteGroups.filter((group) => group.priority === "secondary")
+  const targetNoteId = blockNoteId || notes[0]?.id || ""
+  const targetNoteTitle = notes.find((note) => note.id === targetNoteId)?.title || "No note selected"
+
+  function persistBlockDraft(noteId: string, draft: VaultBlockDraft, announce = true) {
+    blockDrafts.current.set(noteId, draft)
+    try { writeVaultBlockDraft(window.localStorage, noteId, draft); unwrittenBlockDrafts.current.delete(noteId); return true }
+    catch { unwrittenBlockDrafts.current.add(noteId); if (announce) setBlockStatus("Browser storage is unavailable. Keep this page open until your block is saved."); return false }
+  }
+
+  function flushVaultDrafts(announce = true) {
+    let persisted = true
+    for (const noteId of unwrittenBlockDrafts.current) {
+      const draft = blockDrafts.current.get(noteId)
+      if (draft && !persistBlockDraft(noteId, draft, announce)) persisted = false
+    }
+    return persisted
+  }
+
+  useEditorExitGuard(async () => flushVaultDrafts())
+
+  useEffect(() => {
+    vaultMounted.current = true
+    const flush = () => { flushVaultDrafts(false) }
+    window.addEventListener("pagehide", flush)
+    return () => { vaultMounted.current = false; window.removeEventListener("pagehide", flush); flush() }
+  }, [])
+
+  useEffect(() => {
+    if (!targetNoteId) return
+    let draft = blockDrafts.current.get(targetNoteId)
+    try { draft ||= readVaultBlockDraft(window.localStorage, targetNoteId) || undefined }
+    catch { setBlockStatus("Browser storage is unavailable. Keep this page open until your block is saved.") }
+    draft ||= { blockType: "text", text: "", revision: crypto.randomUUID() }
+    blockDrafts.current.set(targetNoteId, draft)
+    currentBlockDraft.current = { noteId: targetNoteId, draft }
+    setBlockType(draft.blockType)
+    setBlockContent(draft.text)
+  }, [targetNoteId])
+
+  function updateBlockDraft(change: Partial<Pick<VaultBlockDraft, "blockType" | "text">>) {
+    const current = currentBlockDraft.current
+    if (!current || current.noteId !== targetNoteId) return
+    const draft = { ...current.draft, ...change, revision: crypto.randomUUID() }
+    currentBlockDraft.current = { noteId: targetNoteId, draft }
+    setBlockType(draft.blockType)
+    setBlockContent(draft.text)
+    persistBlockDraft(targetNoteId, draft)
+  }
+
+  async function saveVaultBlock() {
+    if (blockSavePending.current || !blockContent.trim()) return
+    if (!targetNoteId) {
+      setBlockStatus("Create a note first, then the palette can save blocks into it.")
+      return
+    }
+    const submitted = currentBlockDraft.current
+    if (!submitted || submitted.noteId !== targetNoteId) return
+    blockSavePending.current = true
+    setSavingBlock(true)
+    setBlockStatus("Saving block...")
+    try {
+      await api("/api/vault/blocks", {
+        method: "POST",
+        body: JSON.stringify({ noteId: submitted.noteId, blockType: submitted.draft.blockType, content: { text: submitted.draft.text } }),
+      })
+      let cleared: VaultBlockDraft | null = null
+      try { cleared = completeVaultBlockDraft(window.localStorage, submitted.noteId, submitted.draft, crypto.randomUUID()) }
+      catch { /* The saved block remains persisted; keep its local draft for recovery. */ }
+      if (cleared) { blockDrafts.current.set(submitted.noteId, cleared); unwrittenBlockDrafts.current.delete(submitted.noteId) }
+      if (!vaultMounted.current) return
+      if (cleared && currentBlockDraft.current?.noteId === submitted.noteId && currentBlockDraft.current.draft.revision === submitted.draft.revision) {
+        currentBlockDraft.current = { noteId: submitted.noteId, draft: cleared }
+        setBlockContent("")
+      }
+      setBlocksRevision((value) => value + 1)
+      setBlockStatus(cleared ? `Saved a ${blockType} block to "${targetNoteTitle}".` : "Block saved. A newer or unavailable local draft was kept.")
+    } catch (error) {
+      if (vaultMounted.current) setBlockStatus(error instanceof Error ? error.message : "Unable to save the block.")
+    } finally { blockSavePending.current = false; if (vaultMounted.current) setSavingBlock(false) }
+  }
+
   return (
-    <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-      <section className="rounded-lg border border-border bg-[radial-gradient(circle_at_20%_20%,hsl(var(--primary)/0.18),transparent_34%),hsl(var(--card))] p-5 text-card-foreground">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Private by default</p>
-            <h2 className="mt-2 max-w-2xl text-3xl font-semibold leading-tight">Your Vault is the living map of what you know.</h2>
-          </div>
-          <button onClick={() => setView("notes")} className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground">
-            <Brain className="h-4 w-4" />
-            New note
-          </button>
-        </div>
-        <div className="mt-5 flex flex-wrap gap-2">
-          {vaultChips.map((chip) => (
-            <GraphSummaryChipView key={chip.id} chip={chip} />
-          ))}
-        </div>
-      </section>
-
-      <Panel className="p-4">
-        <h3 className="font-semibold text-foreground">Daily ritual</h3>
-        <div className="mt-3 grid gap-2">
-          <RitualButton icon={Repeat2} label="Review queue" onClick={() => setView("reviews")} />
-          <RitualButton icon={GitFork} label="Open graph" onClick={() => setView("graph")} />
-          <RitualButton icon={Compass} label="Discover spark" onClick={() => setView("feed")} />
-          <RitualButton icon={Sparkles} label="Ask AI co-pilot" onClick={() => setView("ai")} />
-        </div>
-      </Panel>
-
-      <Panel className="p-4 xl:col-span-2">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="font-semibold text-foreground">Block palette</h3>
-            <p className="text-sm text-muted-foreground">Selected: {blockType}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {primaryPaletteGroups.map((group) => (
-              <VaultPaletteGroup key={group.id} activeBlock={blockType} group={group} onSelect={setBlockType} />
-            ))}
-          </div>
-        </div>
-        <details className="mt-3 rounded-md border border-border bg-background">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-            <span>More block tools</span>
-            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{secondaryPaletteGroups.reduce((total, group) => total + group.blocks.length, 0)} tools</span>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          </summary>
-          <div className="grid gap-2 border-t border-border p-2 md:grid-cols-2">
-            {secondaryPaletteGroups.map((group) => (
-              <VaultPaletteGroup key={group.id} activeBlock={blockType} group={group} onSelect={setBlockType} />
-            ))}
-          </div>
-        </details>
-      </Panel>
-
-      <Panel className="p-4 xl:col-span-2">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="font-semibold text-foreground">Active knowledge</h3>
-          <span className="text-sm text-muted-foreground">{status}</span>
-        </div>
-        <div className="grid gap-3 md:grid-cols-5">
-          {topNodes.length ? topNodes.map((node) => <NodeCard key={node.id} node={node} />) : <EmptyState title="No graph nodes yet" body="Create notes and reviews to grow your Vault graph." />}
-        </div>
-      </Panel>
-    </div>
-  )
-}
-
-function VaultPaletteGroup({ activeBlock, group, onSelect }: { activeBlock: VaultBlockType; group: VaultBlockPaletteGroup; onSelect: (type: VaultBlockType) => void }) {
-  return (
-    <div className="rounded-md border border-border bg-background p-2">
-      <p className="mb-2 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{group.label}</p>
-      <div className="flex flex-wrap gap-2">
-        {group.blocks.map((type) => (
-          <button
-            key={type}
-            onClick={() => onSelect(type)}
-            className={`h-8 rounded-md border px-3 text-xs font-semibold capitalize ${activeBlock === type ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
-            type="button"
-          >
-            {type}
-          </button>
-        ))}
+    <section className="learning-page grid gap-3">
+      <h2 className="sr-only">Vault</h2>
+      <div className="vault-workbench">
+        <aside className="compact-list"><select aria-label="Vault note" className="editor-input md:hidden" disabled={savingBlock} value={targetNoteId} onChange={event => setBlockNoteId(event.target.value)}>{notes.map(note => <option key={note.id} value={note.id}>{note.title}</option>)}</select>
+          <div className="hidden md:grid"><input aria-label="Find a Vault note" className="editor-input mb-2" placeholder="Find a note" value={noteQuery} onChange={event => setNoteQuery(event.target.value)} /><div className="max-h-[60dvh] overflow-y-auto">{notes.filter(note => note.title.toLowerCase().includes(noteQuery.trim().toLowerCase())).map(note => <button key={note.id} disabled={savingBlock} className="compact-row" aria-pressed={targetNoteId === note.id} onClick={() => setBlockNoteId(note.id)}><span data-project-kind="notes" className="studio-project-icon shrink-0 rounded-md p-1"><NoteIcon className="h-3.5 w-3.5" /></span><span className="truncate">{note.title}</span></button>)}</div></div>
+        </aside>
+        <Panel className="min-w-0 p-4"><div className="mb-3 flex items-center justify-between gap-3"><h3 className="min-w-0 truncate font-semibold">{targetNoteTitle}</h3><button onClick={() => targetNoteId ? onOpenNote(targetNoteId) : setView("notes")} className="editor-primary shrink-0" aria-label="Open notes" title="Open notes"><BookOpen className="h-4 w-4" /></button></div><VaultNoteBlocks note={notes.find(note => note.id === targetNoteId)} revision={blocksRevision} onOpenAiSource={onOpenAiSource} />
+          <details className="workspace-disclosure mt-3"><summary>Add a block</summary><div className="grid gap-3 pt-3">
+            <select aria-label="Block type" className="editor-input" disabled={savingBlock} value={blockType} onChange={event => updateBlockDraft({ blockType: event.target.value as VaultBlockType })}>{paletteGroups.map(group => <optgroup key={group.id} label={group.label}>{group.blocks.map(block => <option key={block} value={block}>{block.replaceAll("-", " ")}</option>)}</optgroup>)}</select>
+            <textarea aria-label="Block content" className="editor-input min-h-24 py-2" disabled={savingBlock} placeholder="Write something…" value={blockContent} onChange={event => updateBlockDraft({ text: event.target.value })} />
+            <div className="flex items-center gap-2">{!savingBlock ? <VoiceInput label="Dictate block" prompt={`Vault ${blockType} block for ${targetNoteTitle}`} onTranscript={(text) => { const current = currentBlockDraft.current?.draft.text || ""; updateBlockDraft({ text: (current && !/\s$/.test(current) ? `${current} ${text}` : `${current}${text}`) }) }} /> : null}<button className="editor-primary ml-auto" disabled={savingBlock || !targetNoteId || !blockContent.trim()} onClick={saveVaultBlock}>{savingBlock ? "Saving…" : "Add"}</button></div>
+          </div></details>
+          {blockStatus ? <p role="status" className="mt-2 text-xs text-muted-foreground">{blockStatus}</p> : null}
+        </Panel>
       </div>
-    </div>
+      <details className="workspace-disclosure"><summary>Connected topics <span className="text-muted-foreground">{data?.nodes.length || 0}</span></summary><div className="grid gap-2 pt-3 sm:grid-cols-3">{topNodes.map(node => <NodeCard key={node.id} node={node} />)}</div><button className="editor-command mt-2" onClick={() => setView("graph")} aria-label="Explore graph" title="Explore graph"><Network className="h-4 w-4" /></button></details>
+      {status && status !== "Ready" ? <p className="text-xs text-muted-foreground">{status}</p> : null}
+    </section>
   )
 }
 
@@ -171,176 +204,33 @@ export function GraphView({ setView }: { setView: (view: View) => void }) {
   const nodes = data?.nodes ?? []
   const edges = data?.edges ?? []
   const orphanIds = useMemo(() => new Set((data?.orphanNodes ?? []).map((node) => node.id)), [data?.orphanNodes])
-  const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes])
-  const graphSummary = useMemo(() => summarizeKnowledgeGraph(nodes, edges), [edges, nodes])
-  const graphSummaryChips = useMemo(() => buildKnowledgeGraphSummaryChips(graphSummary), [graphSummary])
-  const primaryGraphChips = graphSummaryChips.filter((chip) => chip.priority === "primary")
-  const secondaryGraphChips = graphSummaryChips.filter((chip) => chip.priority === "secondary")
-  const graphPlan = useMemo(() => buildKnowledgeGraphActionPlan(nodes, edges, graphSummary), [edges, graphSummary, nodes])
-  const selectedNode = useMemo(() => nodes.find((node) => node.id === selectedId) ?? nodes[0], [nodes, selectedId])
   const filteredNodes = useMemo(() => filterGraphNodes(nodes, orphanIds, graphFilter), [graphFilter, nodes, orphanIds])
+  const selectedNode = filteredNodes.find(node => node.id === selectedId) ?? filteredNodes[0]
 
-  function applyGraphPlan() {
-    if (graphPlan.nextAction === "add-node") {
-      setView("studio")
-      return
-    }
-    if (graphPlan.nextAction === "review-weak") {
-      setView("reviews")
-      return
-    }
-    if (graphPlan.nextAction === "open-ai") {
-      setView("ai")
-      return
-    }
-    if (graphPlan.targetNodeId) {
-      setSelectedId(graphPlan.targetNodeId)
-      setGraphFilter("all")
-    }
-  }
-
-  return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
-      <Panel className="min-h-[520px] overflow-hidden p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="font-semibold text-foreground">Living graph</h2>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {primaryGraphChips.map((chip) => (
-                <GraphSummaryChipView key={chip.id} chip={chip} />
-              ))}
-            </div>
-          </div>
-          <span className="text-sm text-muted-foreground">{status}</span>
-        </div>
-        <div className="relative h-[440px] rounded-md border border-border bg-background">
-          <svg className="absolute inset-0 h-full w-full" role="img" aria-label="Knowledge graph preview">
-            {edges.map((edge) => {
-              const source = nodeById.get(edge.sourceId)
-              const target = nodeById.get(edge.targetId)
-              if (!source || !target) return null
-              return (
-                <line
-                  key={edge.id}
-                  x1={`${50 + ((source.position?.x ?? 0) / 4)}%`}
-                  y1={`${50 + ((source.position?.y ?? 0) / 4)}%`}
-                  x2={`${50 + ((target.position?.x ?? 0) / 4)}%`}
-                  y2={`${50 + ((target.position?.y ?? 0) / 4)}%`}
-                  stroke="hsl(var(--primary))"
-                  strokeOpacity={Math.max(0.18, edge.strength)}
-                  strokeWidth={2}
-                />
-              )
-            })}
-            {nodes.map((node, index) => (
-              <g key={node.id} className="cursor-pointer" onClick={() => setSelectedId(node.id)}>
-                <circle
-                  cx={`${50 + ((node.position?.x ?? index * 12) / 4)}%`}
-                  cy={`${50 + ((node.position?.y ?? index * 8) / 4)}%`}
-                  r={18 + node.mastery * 12}
-                  fill={selectedNode?.id === node.id ? "hsl(var(--primary) / 0.18)" : "hsl(var(--card))"}
-                  stroke={orphanIds.has(node.id) ? "hsl(var(--warning))" : "hsl(var(--primary))"}
-                  strokeWidth={selectedNode?.id === node.id ? "4" : "2"}
-                />
-                <text
-                  x={`${50 + ((node.position?.x ?? index * 12) / 4)}%`}
-                  y={`${50 + ((node.position?.y ?? index * 8) / 4)}%`}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  className="fill-foreground text-[10px] font-semibold"
-                >
-                  {node.title.slice(0, 12)}
-                </text>
-              </g>
-            ))}
-          </svg>
-        </div>
-      </Panel>
-
-      <Panel className="p-4">
-        <h3 className="font-semibold text-foreground">Graph command</h3>
-        <button onClick={applyGraphPlan} className="mt-3 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
-          <div className="flex items-center justify-between gap-3">
-            <span className="font-semibold text-foreground">{graphPlan.headline}</span>
-            <ArrowRight className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <p className="mt-2 text-xs leading-5 text-muted-foreground">{graphPlan.detail}</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {graphPlan.chips.map((chip) => (
-              <span key={chip} className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">
-                {chip}
-              </span>
-            ))}
-          </div>
-        </button>
-        <details className="mt-3 rounded-md border border-border bg-background">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-            <span>Graph signals</span>
-            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{secondaryGraphChips.length} more</span>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          </summary>
-          <div className="grid grid-cols-2 gap-2 border-t border-border p-2">
-            {secondaryGraphChips.map((chip) => (
-              <GraphSummaryChipView key={chip.id} chip={chip} relaxed />
-            ))}
-          </div>
-        </details>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {(["all", "weak", "orphan", "public"] as GraphFilter[]).map((filter) => (
-            <button
-              key={filter}
-              onClick={() => setGraphFilter(filter)}
-              className={`h-8 rounded-md px-3 text-xs font-semibold ${graphFilter === filter ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
-            >
-              {graphFilterLabel(filter)}
-            </button>
-          ))}
-        </div>
-        {selectedNode ? (
-          <div className="mt-3 rounded-md border border-border bg-background p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-semibold text-foreground">{selectedNode.title}</p>
-                <p className="mt-1 text-xs font-semibold text-muted-foreground">{selectedNode.type} | {selectedNode.visibility}</p>
-              </div>
-              {selectedNode.visibility === "private" ? <Lock className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-success" />}
-            </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-primary" style={{ width: `${Math.round(Math.max(0, Math.min(1, selectedNode.mastery)) * 100)}%` }} />
-            </div>
-          </div>
-        ) : null}
-        <h3 className="mt-4 font-semibold text-foreground">Accessible graph table</h3>
-        <div className="mt-3 max-h-[470px] space-y-2 overflow-auto">
-          {filteredNodes.map((node) => (
-            <button key={node.id} onClick={() => setSelectedId(node.id)} className={`w-full rounded-md border p-3 text-left ${selectedNode?.id === node.id ? "border-primary bg-primary/10" : "border-border hover:bg-muted"}`}>
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-medium text-foreground">{node.title}</p>
-                {node.visibility === "private" ? <Lock className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-success" />}
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">{Math.round(node.mastery * 100)}% mastery</p>
-            </button>
-          ))}
-          {!filteredNodes.length ? <EmptyState title="No nodes match" body="Change the graph filter or add a new Studio item." /> : null}
-        </div>
-      </Panel>
-    </div>
-  )
-}
-
-function GraphSummaryChipView({ chip, relaxed = false }: { chip: KnowledgeGraphSummaryChip; relaxed?: boolean }) {
-  return (
-    <span className={`rounded-md border px-3 py-2 text-left ${graphSummaryChipClasses(chip.tone)} ${relaxed ? "min-h-16" : ""}`}>
-      <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.12em] opacity-75">{chip.label}</span>
-      <span className="mt-1 block text-sm font-semibold">{chip.value}</span>
-    </span>
-  )
-}
-
-function graphSummaryChipClasses(tone: KnowledgeGraphSummaryChip["tone"]) {
-  if (tone === "good") return "border-success/30 bg-success/10 text-success"
-  if (tone === "watch") return "border-warning/35 bg-warning/10 text-warning"
-  return "border-border bg-secondary text-secondary-foreground"
+  const positions = new Map(nodes.map((node, index) => [node.id, { x: 300 + Math.cos(index * 2.399) * Math.min(205, 65 + index * 11), y: 205 + Math.sin(index * 2.399) * Math.min(155, 50 + index * 9) }]))
+  const visibleIds = new Set(filteredNodes.map(node => node.id))
+  const points = filteredNodes.map(node => positions.get(node.id)!)
+  const left = Math.min(...points.map(point => point.x), 300) - 105
+  const top = Math.min(...points.map(point => point.y), 205) - 60
+  const width = Math.max(...points.map(point => point.x), 300) - left + 105
+  const height = Math.max(...points.map(point => point.y), 205) - top + 80
+  return <section className="learning-page grid gap-3">
+    <header className="workspace-header"><h2 className="page-count">Graph <span>{nodes.length} topics</span></h2><div className="flex min-w-0 flex-1 flex-wrap gap-1 max-sm:order-last max-sm:basis-full">{(["all", "weak", "orphan", "public"] as GraphFilter[]).map(filter => <button className="calendar-filter" aria-pressed={graphFilter === filter} key={filter} onClick={() => setGraphFilter(filter)}>{graphFilterLabel(filter)}</button>)}</div><button className="editor-command" onClick={() => setView("notes")} aria-label="Notes" title="Notes"><BookOpen className="h-4 w-4" /></button></header>
+    <div className="graph-workbench"><Panel className="relative overflow-hidden graph-stage">
+      {filteredNodes.length ? <svg viewBox={`${left} ${top} ${width} ${height}`} className="w-full" aria-label="Knowledge graph">
+        {edges.filter(edge => visibleIds.has(edge.sourceId) && visibleIds.has(edge.targetId)).map(edge => { const source = positions.get(edge.sourceId), target = positions.get(edge.targetId); return source && target ? <line key={edge.id} x1={source.x} y1={source.y} x2={target.x} y2={target.y} stroke="currentColor" className="text-primary/25" strokeWidth="2" /> : null })}
+        {filteredNodes.map(node => { const point = positions.get(node.id)!; return <g key={node.id} role="button" tabIndex={0} aria-label={`Select ${node.title}`} aria-pressed={selectedNode?.id === node.id} onClick={() => setSelectedId(node.id)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedId(node.id) } }} className="graph-node cursor-pointer">
+          <circle cx={point.x} cy={point.y} r={selectedNode?.id === node.id ? 27 : 21} className={orphanIds.has(node.id) ? "fill-card stroke-warning" : "fill-card stroke-primary"} strokeWidth={selectedNode?.id === node.id ? 4 : 2} />
+          <text x={point.x} y={point.y + 4} textAnchor="middle" className="fill-primary text-[12px] font-semibold" aria-hidden="true">{node.title.slice(0, 1)}</text>
+          <text x={point.x} y={point.y + 41} textAnchor="middle" className="fill-foreground text-xs">{node.title.length > 22 ? `${node.title.slice(0, 21)}…` : node.title}</text>
+        </g> })}
+      </svg> : <div className="grid min-h-72 place-content-center"><EmptyState bare title={nodes.length ? "No topics match this filter." : "No topics yet"} action={<button className="editor-primary" onClick={() => setView("notes")}>Open notes</button>} /></div>}
+    </Panel><aside className="compact-list">
+      {selectedNode ? <div className="grid gap-3"><div className="flex items-center gap-3"><p className="min-w-0 flex-1 text-sm font-medium">{selectedNode.title}</p><button className="editor-command" onClick={() => setView("reviews")} aria-label="Review" title="Review"><Repeat2 className="h-4 w-4 text-primary" /></button></div><div className="flex items-center gap-3"><meter className="h-2 w-full accent-primary" min={0} max={1} value={selectedNode.mastery} aria-label="Topic mastery" /><span className="text-xs tabular-nums text-muted-foreground">{Math.round(selectedNode.mastery * 100)}%</span></div><span className="text-xs capitalize text-muted-foreground">{selectedNode.visibility}</span></div> : null}
+      <details className="mt-3 border-t border-border pt-3"><summary className="-my-2.5 cursor-pointer py-2.5 text-xs text-muted-foreground">Topics · {filteredNodes.length}</summary><div className="mt-2 max-h-64 overflow-auto">{filteredNodes.map(node => <button key={node.id} onClick={() => setSelectedId(node.id)} className="compact-row" aria-pressed={selectedNode?.id === node.id}><span className="truncate flex-1">{node.title}</span><span className="text-xs text-muted-foreground">{Math.round(node.mastery * 100)}%</span></button>)}</div></details>
+    </aside></div>
+    {status && status !== "Ready" ? <p className="text-xs text-muted-foreground">{status}</p> : null}
+  </section>
 }
 
 function filterGraphNodes(nodes: KnowledgeNode[], orphanIds: Set<string>, filter: GraphFilter) {
@@ -351,386 +241,114 @@ function filterGraphNodes(nodes: KnowledgeNode[], orphanIds: Set<string>, filter
 }
 
 function graphFilterLabel(filter: GraphFilter) {
-  if (filter === "weak") return "Weak"
-  if (filter === "orphan") return "Orphan"
+  if (filter === "weak") return "Needs practice"
+  if (filter === "orphan") return "Unlinked"
   if (filter === "public") return "Shared"
   return "All"
 }
 
 export function ReviewsView({ setView }: { setView: (view: View) => void }) {
   const { data, status, refresh } = useResource<ReviewPayload>("/api/reviews")
-  const [busyId, setBusyId] = useState("")
+  const [selectedId, setSelectedId] = useState("")
   const [busyRating, setBusyRating] = useState<ReviewRating | null>(null)
   const [reviewMessage, setReviewMessage] = useState("")
   const [revealedIds, setRevealedIds] = useState<string[]>([])
-  const revealed = useMemo(() => new Set(revealedIds), [revealedIds])
-  const reviewSummary = useMemo(
-    () => summarizeReviewSession({ items: data?.items ?? [], remainingDueCount: data?.remainingDueCount ?? 0 }, revealedIds),
-    [data?.items, data?.remainingDueCount, revealedIds],
-  )
-  const reviewSummaryChips = useMemo(() => buildReviewSummaryChips(reviewSummary), [reviewSummary])
-  const primaryReviewChips = reviewSummaryChips.filter((chip) => chip.priority === "primary")
-  const secondaryReviewChips = reviewSummaryChips.filter((chip) => chip.priority === "secondary")
-  const reviewPlan = useMemo(
-    () => buildReviewActionPlan({ items: data?.items ?? [], isRestDay: Boolean(data?.isRestDay), remainingDueCount: data?.remainingDueCount ?? 0 }, reviewSummary, revealedIds),
-    [data?.isRestDay, data?.items, data?.remainingDueCount, revealedIds, reviewSummary],
-  )
+  const [gradedIds, setGradedIds] = useState<string[]>([])
+  const items = useMemo(() => (data?.items ?? []).filter(item => !gradedIds.includes(item.id)), [data?.items, gradedIds])
+  const selectedIndex = Math.max(0, items.findIndex(item => item.id === selectedId))
+  const selected = items[selectedIndex]
+  const isRevealed = Boolean(selected && revealedIds.includes(selected.id))
+  const summary = useMemo(() => summarizeReviewSession({ items, remainingDueCount: data?.remainingDueCount ?? 0 }, revealedIds), [items, data?.remainingDueCount, revealedIds])
 
-  async function record(item: ReviewItem, rating: ReviewRating) {
-    if (!revealed.has(item.id)) {
-      setReviewMessage("Reveal the answer before grading.")
-      return
-    }
-    setBusyId(item.id)
+  async function record(rating: ReviewRating) {
+    if (!selected || !isRevealed || busyRating) return
     setBusyRating(rating)
+    setReviewMessage("")
     try {
-      await api("/api/reviews", { method: "POST", body: JSON.stringify({ id: item.id, rating }) })
-      setRevealedIds((current) => current.filter((id) => id !== item.id))
-      setReviewMessage(`${item.title} graded ${rating}.`)
-      await refresh()
+      await api("/api/reviews", { method: "POST", body: JSON.stringify({ id: selected.id, rating }) })
+      setGradedIds(current => [...current, selected.id])
+      setRevealedIds(current => current.filter(id => id !== selected.id))
+      const refreshed = await refresh()
+      if (refreshed) setGradedIds([])
+      setReviewMessage(refreshed ? "Saved" : "")
     } catch (error) {
       setReviewMessage(error instanceof Error ? error.message : "Unable to record this review.")
-    } finally {
-      setBusyId("")
-      setBusyRating(null)
-    }
+    } finally { setBusyRating(null) }
   }
 
-  function toggleReveal(id: string) {
-    setRevealedIds((current) => current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id])
-  }
-
-  function applyReviewPlan() {
-    if (reviewPlan.nextAction === "studio" || reviewPlan.nextAction === "rest") {
-      setView("studio")
-      return
-    }
-    if (reviewPlan.nextAction === "practice") {
-      setView("practice")
-      return
-    }
-    if (reviewPlan.targetItemId) {
-      if (reviewPlan.nextAction === "reveal") {
-        setRevealedIds((current) => current.includes(reviewPlan.targetItemId!) ? current : [...current, reviewPlan.targetItemId!])
-      }
-      document.getElementById(`review-${reviewPlan.targetItemId}`)?.scrollIntoView({ behavior: "smooth", block: "start" })
-    }
-  }
-
-  return (
-    <div className="grid gap-4 xl:grid-cols-[340px_1fr]">
-      <Panel className="p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="font-semibold text-foreground">Reviews</h2>
-          <details className="relative">
-            <summary className="flex h-8 w-8 list-none items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground" aria-label="About reviews">
-              <SlidersHorizontal className="h-4 w-4" />
-            </summary>
-            <p className="absolute right-0 top-10 z-[80] w-72 rounded-md border border-border bg-popover p-3 text-sm leading-6 text-popover-foreground shadow-xl">
-              Reveal only when ready, grade honestly, and let LEARN schedule the next review from your answer.
-            </p>
-          </details>
-        </div>
-        <button onClick={applyReviewPlan} className="mt-3 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
-          <div className="flex items-center justify-between gap-3">
-            <span className="font-semibold text-foreground">{reviewPlan.headline}</span>
-            <ArrowRight className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {reviewPlan.chips.map((chip) => (
-              <span key={chip} className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">
-                {chip}
-              </span>
-            ))}
-          </div>
-        </button>
-        <details className="mt-3 rounded-md border border-border bg-background p-2">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
-            <span>Why this move</span>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          </summary>
-          <p className="mt-2 border-t border-border pt-2 text-xs leading-5 text-muted-foreground">{reviewPlan.detail}</p>
-        </details>
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          {primaryReviewChips.map((chip) => (
-            <CompactMetric key={chip.id} label={chip.label} value={chip.value} />
-          ))}
-        </div>
-        <details className="mt-3 rounded-md border border-border bg-background p-2">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
-            <span>Queue details</span>
-            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{status}</span>
-          </summary>
-          <div className="mt-2 grid grid-cols-2 gap-2 border-t border-border pt-2">
-            {secondaryReviewChips.map((chip) => (
-              <Metric key={chip.id} label={chip.label} value={chip.value} />
-            ))}
-            <Metric label="Notes" value={String(reviewSummary.sourceCounts.note)} />
-            <Metric label="Blocks" value={String(reviewSummary.sourceCounts.block)} />
-            <Metric label="Cards" value={String(reviewSummary.sourceCounts.flashcard)} />
-            <Metric label="Lessons" value={String(reviewSummary.sourceCounts.lesson)} />
-          </div>
-        </details>
-        {reviewMessage ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{reviewMessage}</p> : null}
-        {reviewSummary.topTopics.length ? (
-          <details className="mt-3 rounded-md border border-border bg-background p-2">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground">
-              <span>Topics</span>
-              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{reviewSummary.topTopics.length}</span>
-            </summary>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {reviewSummary.topTopics.map((topic) => (
-              <span key={topic.topic} className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
-                {topic.topic} {topic.count}
-              </span>
-            ))}
-          </div>
-          </details>
-        ) : null}
-      </Panel>
-      <div className="grid gap-3">
-        {(data?.items ?? []).map((item) => {
-          const isRevealed = revealed.has(item.id)
-          const ratingActions = buildReviewRatingActions({ busyRating, isBusy: busyId === item.id, isRevealed })
-          return (
-          <div key={item.id} id={`review-${item.id}`}>
-          <Panel className="p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-semibold text-foreground">{item.title}</p>
-                  <span className="rounded-md border border-border bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">
-                    {reviewSourceLabel(item)}
-                  </span>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => { toggleReveal(item.id); setReviewMessage(isRevealed ? "Answer hidden." : "Answer revealed. Grade when ready.") }}
-                  disabled={Boolean(busyId)}
-                  className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground"
-                >
-                  <Eye className="h-4 w-4" />
-                  {isRevealed ? "Hide answer" : "Reveal"}
-                </button>
-                {isRevealed ? ratingActions.map((action) => (
-                    <button
-                      key={action.rating}
-                      disabled={action.disabled}
-                      onClick={() => record(item, action.rating)}
-                      title={action.helper}
-                      className={`h-9 rounded-md border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60 ${reviewRatingClassName(action.rating)}`}
-                    >
-                      {action.busy ? "Saving" : action.label}
-                    </button>
-                  )) : (
-                    <span className="inline-flex h-9 items-center rounded-md border border-border bg-muted px-3 text-sm font-semibold text-muted-foreground">
-                      Reveal first
-                    </span>
-                  )}
-              </div>
-            </div>
-            <div className="mt-4 rounded-md border border-border bg-background p-3">
-              <p className="text-sm font-semibold text-foreground">{reviewPromptText(item)}</p>
-              {isRevealed ? <p className="mt-3 text-sm leading-6 text-muted-foreground">{reviewAnswerText(item)}</p> : null}
-            </div>
-            <details className="mt-3 rounded-md border border-border bg-background p-2">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                <span>Memory signal</span>
-                <span>{Math.round(item.retrievability * 100)}%</span>
-              </summary>
-              <div className="mt-2 flex flex-wrap gap-2 border-t border-border pt-2 text-xs font-semibold text-muted-foreground">
-                <span className="rounded-md bg-muted px-2 py-1">Retrievability {Math.round(item.retrievability * 100)}%</span>
-                <span className="rounded-md bg-muted px-2 py-1">Difficulty {Math.round(item.difficulty * 100)}%</span>
-                <span className="rounded-md bg-muted px-2 py-1">Stability {Math.round(item.stability * 10) / 10}</span>
-              </div>
-            </details>
-          </Panel>
-          </div>
-          )
-        })}
-        {data && data.items.length === 0 ? <EmptyState title="No reviews due" body="Rest or save a feed lesson into Studio for the next session." /> : null}
+  return <section className="learning-page review-workspace mx-auto grid w-full max-w-3xl gap-4">
+    <header className="workspace-header">
+      <h2 className="sr-only">Reviews</h2>
+      <div className="flex items-center gap-1">
+        <button className="editor-command" aria-label="Previous review" title="Previous review" disabled={Boolean(busyRating) || selectedIndex === 0} onClick={() => setSelectedId(items[selectedIndex - 1].id)}><ChevronLeft className="h-4 w-4" /></button>
+        <span className="min-w-12 text-center text-xs tabular-nums text-muted-foreground" aria-live="polite">{selected ? selectedIndex + 1 : 0} / {items.length}</span>
+        <button className="editor-command" aria-label="Next review" title="Next review" disabled={Boolean(busyRating) || selectedIndex >= items.length - 1} onClick={() => setSelectedId(items[selectedIndex + 1].id)}><ChevronRight className="h-4 w-4" /></button>
       </div>
-    </div>
-  )
+    </header>
+    {selected ? <article className="review-focus-card" aria-label="Current review">
+      <header className="flex items-center justify-between gap-3 text-xs text-muted-foreground"><span className="flex min-w-0 items-center gap-2"><ReviewSourceIcon item={selected} /><span className="truncate">{selected.title}</span></span><span className="shrink-0">{reviewSourceLabel(selected)}</span></header>
+      <div className="review-question"><Repeat2 aria-hidden="true" className="mb-5 h-7 w-7 text-primary/60" /><h3 className="text-xl font-medium leading-relaxed sm:text-2xl">{reviewPromptText(selected)}</h3></div>
+      {isRevealed ? <div className="review-answer" aria-label="Answer"><p className="whitespace-pre-wrap text-sm leading-7">{reviewAnswerText(selected)}</p></div> : null}
+      <footer className="mt-5 flex flex-wrap items-center justify-center gap-2">
+        {isRevealed ? buildReviewRatingActions({ busyRating, isBusy: Boolean(busyRating), isRevealed }).map(action => <button key={action.rating} disabled={action.disabled} onClick={() => void record(action.rating)} title={action.helper} className={`review-rating ${reviewRatingClassName(action.rating)}`}>{action.busy ? "Saving…" : action.label}</button>) : <button className="editor-primary" onClick={() => { setRevealedIds(current => [...current, selected.id]); setReviewMessage("") }}><Eye className="h-4 w-4" />Reveal answer</button>}
+      </footer>
+    </article> : data ? <div className="grid justify-items-center gap-4 py-10"><Buddy mood={data.isRestDay ? "sleepy" : "excited"} size={72} label="" /><p className="font-medium">{data.isRestDay ? "Rest day" : "All caught up"}</p><button className="editor-command" onClick={() => setView("studio")}><BookOpen className="h-4 w-4" />Studio</button></div> : null}
+    {reviewMessage || (status && status !== "Ready") ? <p role="status" className="text-center text-xs text-muted-foreground">{reviewMessage || status}</p> : null}
+    {gradedIds.length && status !== "Loading" ? <button className="editor-command justify-self-center" disabled={Boolean(busyRating)} onClick={async () => { if (await refresh()) setGradedIds([]) }}><Repeat2 className="h-4 w-4" />Retry refresh</button> : null}
+    {items.length ? <details className="workspace-disclosure"><summary>Queue <span className="text-muted-foreground">{summary.totalDue}</span></summary>
+      <div className="mt-3 grid grid-cols-3 gap-2 border-b border-border pb-3">{buildReviewSummaryChips(summary).filter(chip => chip.priority === "primary").map(chip => <CompactMetric key={chip.id} label={chip.label} value={chip.value} />)}</div>
+      <div className="mt-2 max-h-64 overflow-auto">{items.map((item, index) => <button key={item.id} className="compact-row" aria-pressed={selected?.id === item.id} disabled={Boolean(busyRating)} onClick={() => setSelectedId(item.id)}><span className="w-5 text-xs tabular-nums text-muted-foreground">{index + 1}</span><span className="min-w-0 flex-1 truncate">{item.title}</span>{revealedIds.includes(item.id) ? <Eye className="h-4 w-4 text-primary" /> : null}</button>)}</div>
+      {selected ? <dl className="mt-3 grid grid-cols-3 gap-3 border-t border-border pt-3 text-xs text-muted-foreground"><div><dt>Recall</dt><dd className="mt-1 text-base text-foreground">{Math.round(selected.retrievability * 100)}%</dd></div><div><dt>Difficulty</dt><dd className="mt-1 text-base text-foreground">{Math.round(selected.difficulty * 100)}%</dd></div><div><dt>Stability</dt><dd className="mt-1 text-base text-foreground">{Math.round(selected.stability * 10) / 10}</dd></div></dl> : null}
+    </details> : null}
+  </section>
 }
 
-function reviewRatingClassName(rating: "again" | "hard" | "good" | "easy") {
-  if (rating === "again") return "border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
-  if (rating === "hard") return "border-warning text-warning hover:bg-warning hover:text-warning-foreground"
-  if (rating === "easy") return "border-success text-success hover:bg-success hover:text-success-foreground"
-  return "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
+/** Where a review came from, in its kind's colour when that is a note or a quiz. */
+function ReviewSourceIcon({ item }: { item: ReviewItem }) {
+  const kind = reviewSourceKind(item)
+  // Same box as the coloured well, so the card does not shift between sources.
+  if (!kind) return <span className="shrink-0 p-1 text-primary"><BookOpen className="h-3.5 w-3.5" /></span>
+  const Icon = kind === "quiz" ? QuizIcon : NoteIcon
+  return <span data-project-kind={kind} className="studio-project-icon shrink-0 rounded-md p-1"><Icon className="h-3.5 w-3.5" /></span>
 }
+
+function reviewRatingClassName(rating: ReviewRating) {
+  if (rating === "again") return "border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20"
+  if (rating === "hard") return "border-warning/30 bg-warning/10 text-foreground hover:bg-warning/20"
+  if (rating === "easy") return "border-success/30 bg-success/10 text-success hover:bg-success/20"
+  return "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20"
+}
+
 
 export function FeedView({ setView }: { setView: (view: View) => void }) {
-  const { data, refresh } = useResource<{ items: MicroLesson[] }>("/api/feed?topic=study&topic=notes")
+  const { data, status, refresh } = useResource<{ items: MicroLesson[] }>("/api/feed?topic=study&topic=notes")
   const [answered, setAnswered] = useState<Record<string, string>>({})
-  const lessons = useMemo(() => data?.items ?? [], [data?.items])
-  const feedLessonsForSummary = useMemo(() => lessons.map(toFeedLessonForSummary), [lessons])
-  const feedSummary = useMemo(() => summarizeFeedWorkspace(feedLessonsForSummary, answered), [answered, feedLessonsForSummary])
-  const feedPlan = useMemo(() => buildFeedActionPlan(feedLessonsForSummary, feedSummary, answered), [answered, feedLessonsForSummary, feedSummary])
-  const feedSummaryChips = useMemo(() => buildFeedSummaryChips(feedSummary), [feedSummary])
-  const primaryFeedChips = feedSummaryChips.filter((chip) => chip.priority === "primary")
-  const secondaryFeedChips = feedSummaryChips.filter((chip) => chip.priority === "secondary")
-
+  const [busy, setBusy] = useState<string | null>(null)
+  const [message, setMessage] = useState("")
+  const [filter, setFilter] = useState("all")
+  const lessons = data?.items || []
+  const topics = Array.from(new Set(lessons.flatMap(lesson => lesson.topic_tags || lesson.topicTags || [])))
+  const activeFilter = topics.includes(filter) ? filter : "all"
   async function answer(lesson: MicroLesson, choiceId: string) {
-    setAnswered((current) => ({ ...current, [lesson.id]: choiceId }))
-    await api("/api/feed/interactions", {
-      method: "POST",
-      body: JSON.stringify({
-        lessonId: lesson.id,
-        action: "answered",
-        correct: choiceId === lesson.correct_choice_id,
-      }),
-    })
-    refresh()
+    if (busy || answered[lesson.id]) return
+    setBusy(lesson.id); setMessage("")
+    try {
+      await api("/api/feed/interactions", { method: "POST", body: JSON.stringify({ lessonId: lesson.id, action: "answered", correct: choiceId === lesson.correct_choice_id }) })
+      setAnswered(current => ({ ...current, [lesson.id]: choiceId }))
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not save your answer. Try again.") }
+    finally { setBusy(null) }
   }
-
-  function applyFeedPlan() {
-    if (feedPlan.nextAction === "refresh") {
-      refresh()
-      return
-    }
-    if (feedPlan.nextAction === "save") {
-      setView("studio")
-      return
-    }
-    const target = feedPlan.targetLessonId ? document.getElementById(`lesson-${feedPlan.targetLessonId}`) : null
-    target?.scrollIntoView({ behavior: "smooth", block: "start" })
-  }
-
-  return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
-      <div className="grid gap-4">
-        {lessons.map((lesson) => {
-          const isAnswered = Boolean(answered[lesson.id])
-          return (
-            <div key={lesson.id} id={`lesson-${lesson.id}`}>
-              <Panel className="min-h-[420px] p-5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <span className="inline-flex h-8 items-center gap-2 rounded-md bg-secondary px-3 text-xs font-semibold text-secondary-foreground">
-                    {lesson.reason === "serendipity" ? <Sparkles className="h-4 w-4" /> : <Compass className="h-4 w-4" />}
-                    {lesson.reason || "preferred"}
-                  </span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`rounded-md px-2 py-1 text-xs font-semibold ${isAnswered ? "bg-success text-success-foreground" : "bg-secondary text-secondary-foreground"}`}>{isAnswered ? "answered" : "open"}</span>
-                    <span className="text-sm text-muted-foreground">{lesson.duration_seconds || lesson.durationSeconds || 90}s</span>
-                  </div>
-                </div>
-                <div className="mt-10 max-w-2xl">
-                  <h2 className="text-3xl font-semibold leading-tight text-foreground">{lesson.title}</h2>
-                  <p className="mt-3 text-lg text-muted-foreground">{lesson.summary}</p>
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    {(lesson.topic_tags || lesson.topicTags || []).map((topic) => (
-                      <span key={topic} className="rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-                        {topic}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="mt-10 grid gap-3">
-                  <p className="text-sm font-semibold text-foreground">{lesson.question}</p>
-                  {(lesson.choices ?? []).map((choice) => {
-                    const selected = answered[lesson.id] === choice.id
-                    const correct = choice.id === lesson.correct_choice_id
-                    return (
-                      <button
-                        key={choice.id}
-                        onClick={() => answer(lesson, choice.id)}
-                        className={`rounded-md border p-3 text-left text-sm transition ${
-                          selected
-                            ? correct
-                              ? "border-success bg-success/15 text-foreground"
-                              : "border-destructive bg-destructive/10 text-foreground"
-                            : "border-border bg-background text-foreground hover:bg-accent"
-                        }`}
-                      >
-                        {choice.text}
-                      </button>
-                    )
-                  })}
-                  {answered[lesson.id] ? <p className="mt-3 text-sm text-muted-foreground">{lesson.explanation}</p> : null}
-                </div>
-              </Panel>
-            </div>
-          )
-        })}
-      </div>
-      <Panel className="h-max p-4">
-        <h3 className="font-semibold text-foreground">Discovery controls</h3>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {primaryFeedChips.map((chip) => (
-            <FeedSummaryChipButton key={chip.id} chip={chip} />
-          ))}
-        </div>
-        <button onClick={applyFeedPlan} className="mt-3 w-full rounded-md border border-border bg-secondary p-3 text-left transition hover:bg-accent hover:text-accent-foreground">
-          <div className="flex items-center justify-between gap-3">
-            <span className="font-semibold text-foreground">{feedPlan.headline}</span>
-            <ArrowRight className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {feedPlan.chips.map((chip) => (
-              <span key={chip} className="rounded-md bg-background px-2 py-1 text-xs font-semibold text-muted-foreground">
-                {chip}
-              </span>
-            ))}
-          </div>
-        </button>
-        <details className="mt-3 rounded-md border border-border bg-background">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-            <span>Feed signals</span>
-            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{secondaryFeedChips.length} more</span>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          </summary>
-          <div className="grid grid-cols-2 gap-2 border-t border-border p-2">
-            {secondaryFeedChips.map((chip) => (
-              <FeedSummaryChipButton key={chip.id} chip={chip} relaxed />
-            ))}
-          </div>
-          {feedSummary.topTopics.length ? (
-            <div className="flex flex-wrap gap-2 border-t border-border p-2">
-              {feedSummary.topTopics.map((topic) => (
-                <span key={topic.topic} className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">
-                  {topic.topic} {topic.count}
-                </span>
-              ))}
-            </div>
-          ) : null}
-        </details>
-        <div className="mt-3 grid gap-2">
-          <RitualButton icon={Brain} label="Save ideas to Studio" onClick={() => setView("studio")} />
-          <RitualButton icon={Users} label="Open groups" onClick={() => setView("spaces")} />
-          <RitualButton icon={ShieldCheck} label="Refresh lesson mix" onClick={refresh} />
-        </div>
-      </Panel>
-    </div>
-  )
-}
-
-function FeedSummaryChipButton({ chip, relaxed = false }: { chip: FeedSummaryChip; relaxed?: boolean }) {
-  return (
-    <span className={`rounded-md border px-3 py-2 text-left ${feedSummaryChipClasses(chip.id)} ${relaxed ? "min-h-16" : ""}`}>
-      <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.12em] opacity-75">{chip.label}</span>
-      <span className="mt-1 block text-sm font-semibold">{chip.value}</span>
-    </span>
-  )
-}
-
-function feedSummaryChipClasses(id: FeedSummaryChip["id"]) {
-  if (id === "open" || id === "outside") return "border-warning/35 bg-warning/10 text-warning"
-  if (id === "answered") return "border-success/30 bg-success/10 text-success"
-  return "border-border bg-secondary text-secondary-foreground"
-}
-
-function toFeedLessonForSummary(lesson: MicroLesson) {
-  return {
-    id: lesson.id,
-    title: lesson.title,
-    topicTags: lesson.topic_tags ?? lesson.topicTags ?? [],
-    readinessScore: 1,
-    durationSeconds: lesson.duration_seconds ?? lesson.durationSeconds ?? 90,
-    reason: lesson.reason ?? ("preferred" as const),
-  }
+  return <section className="learning-page mx-auto grid max-w-3xl gap-3">
+    <header className="workspace-header"><h2 className="sr-only">Feed</h2><div className="flex min-w-0 flex-1 gap-1 overflow-x-auto">{["all", ...topics].map(topic => <button key={topic} aria-pressed={activeFilter === topic} onClick={() => setFilter(topic)} className="calendar-filter shrink-0">{topic === "all" ? "For you" : topic}</button>)}</div><button onClick={() => setView("notes")} className="editor-command shrink-0" aria-label="Open notes" title="Open notes"><BookOpen className="h-4 w-4" /></button><button onClick={refresh} className="editor-command shrink-0" aria-label="Refresh" title="Refresh"><Repeat2 className="h-4 w-4" /></button></header>
+    {message ? <p role="alert" className="text-sm text-destructive">{message}</p> : null}
+    {status && status !== "Ready" && status !== "Loading" ? <p role="alert" className="text-sm text-destructive">{status}</p> : null}
+    {lessons.filter(lesson => activeFilter === "all" || (lesson.topic_tags || lesson.topicTags || []).includes(activeFilter)).map((lesson, index) => <details key={lesson.id} className="discovery-card discovery-lesson" data-tone={index % 3}>
+      <summary><span className="discovery-symbol"><BookOpen aria-hidden="true" className="h-6 w-6" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold sm:text-base">{lesson.title}</span><span className="mt-1 block text-xs text-muted-foreground">{Math.ceil((lesson.duration_seconds || lesson.durationSeconds || 90) / 60)} min</span></span>{answered[lesson.id] ? <CheckCircle2 aria-label="Answered" className="h-4 w-4 text-success" /> : null}<ChevronDown aria-hidden="true" className="discovery-chevron h-4 w-4 shrink-0 text-muted-foreground" /></summary>
+      <p className="mt-5 text-sm leading-7 text-muted-foreground">{lesson.summary}</p>
+      <details className="mt-4"><summary className="-my-2 cursor-pointer py-2 text-sm font-medium">Quick question</summary><div className="grid gap-2 pt-3"><p className="text-sm">{lesson.question}</p><div className="grid gap-2 sm:grid-cols-2">{(lesson.choices || []).map(choice => <button key={choice.id} disabled={Boolean(busy || answered[lesson.id])} onClick={() => void answer(lesson, choice.id)} className={`rounded-lg border p-3 text-left text-sm disabled:cursor-default ${answered[lesson.id] === choice.id ? choice.id === lesson.correct_choice_id ? "border-success bg-success/10" : "border-destructive bg-destructive/10" : "border-border bg-card hover:bg-accent"}`}>{choice.text}</button>)}</div>{answered[lesson.id] ? <p role="status" className="text-sm text-muted-foreground">{answered[lesson.id] === lesson.correct_choice_id ? "Correct. " : "Not quite. "}{lesson.explanation}</p> : null}</div></details>
+    </details>)}
+    {!lessons.length ? <EmptyState title="Nothing to discover yet" body={status && status !== "Ready" ? status : "Try refreshing after your next study session."} /> : null}
+  </section>
 }
 
 export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms" | "battles"; setView?: (view: View) => void }) {
@@ -740,6 +358,8 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const recentActions = useResource<{ items: SocialActionLike[] }>("/api/social/actions?limit=8")
   const [selectedId, setSelectedId] = useState("")
   const [draft, setDraft] = useState(() => createSocialDraft(kind))
+  const [editing, setEditing] = useState(false)
+  const [detailOpen, setDetailOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [memberQuery, setMemberQuery] = useState("")
   const [recordFilter, setRecordFilter] = useState<SocialRecordFilter>("all")
@@ -748,7 +368,6 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const [inviteRole, setInviteRole] = useState<SocialInviteRole>("learner")
   const [inviteLink, setInviteLink] = useState("")
   const [inviteLoading, setInviteLoading] = useState(false)
-  const [openSocialMenu, setOpenSocialMenu] = useState<"filters" | "actions" | null>(null)
   const [detailTab, setDetailTab] = useState<SocialDetailTab>("actions")
   const [memberLimit, setMemberLimit] = useState(10)
   const [recordLimit, setRecordLimit] = useState(12)
@@ -757,43 +376,27 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   const [recordAction, setRecordAction] = useState<"save" | "toggle" | "delete" | null>(null)
   const draftHydrated = useRef(false)
   const restoredDraftId = useRef<string | null>(null)
+  const recordPending = useRef(false)
+  const invitePending = useRef(false)
+  const detailHeading = useRef<HTMLHeadingElement>(null)
+  const browseHeading = useRef<HTMLHeadingElement>(null)
   const items = useMemo(() => data?.items ?? [], [data?.items])
   const memberItems = useMemo(() => members.data?.items ?? [], [members.data?.items])
   const recentActionItems = useMemo(() => recentActions.data?.items ?? [], [recentActions.data?.items])
   const selected = useMemo(() => items.find((item) => item.id === selectedId), [items, selectedId])
   const Icon = kind === "spaces" ? Users : kind === "rooms" ? Radio : Swords
-  const title = kind === "spaces" ? "Groups" : kind === "rooms" ? "Study Rooms" : "Study Battles"
+  const title = kind === "spaces" ? "Groups" : kind === "rooms" ? "Rooms" : "Battles"
   const noun = kind === "spaces" ? "group" : kind === "rooms" ? "room" : "battle"
-  const socialSummary = useMemo(() => summarizeSocialWorkspace(kind, items), [items, kind])
-  const memberSummary = useMemo(() => summarizeWorkspaceMembers(memberItems), [memberItems])
-  const actionSummary = useMemo(() => summarizeSocialActions(recentActionItems), [recentActionItems])
-  const socialPlan = useMemo(() => buildSocialWorkspacePlan(kind, socialSummary), [kind, socialSummary])
-  const recommendedRecord = useMemo(() => findRecommendedSocialRecord(kind, items), [items, kind])
   const recordPage = useMemo(() => buildSocialRecordsPage(items, { query, filter: recordFilter, limit: recordLimit }), [items, query, recordFilter, recordLimit])
   const filteredItems = recordPage.items as Array<LearningSpace | StudyRoom | StudyBattle>
   const recordCards = useMemo(() => filteredItems.map((item) => ({
-    card: buildSocialRecordCard(kind, item, recommendedRecord?.id),
+    card: buildSocialRecordCard(kind, item),
     item,
-  })), [filteredItems, kind, recommendedRecord?.id])
-  const recordEmptyState = useMemo(() => buildSocialRecordEmptyState({
-    emptyHint: socialPlan.emptyHint,
-    filter: recordFilter,
-    query,
-    title,
-    total: items.length,
-    visible: recordPage.total,
-  }), [items.length, query, recordFilter, recordPage.total, socialPlan.emptyHint, title])
-  const recordFilterSummary = useMemo(() => buildSocialRecordFilterSummary({
-    filter: recordFilter,
-    query,
-    total: items.length,
-    visible: recordPage.total,
-  }), [items.length, query, recordFilter, recordPage.total])
+  })), [filteredItems, kind])
   const memberPage = useMemo(() => buildWorkspaceMembersPage(memberItems, memberQuery, memberLimit), [memberItems, memberLimit, memberQuery])
   const filteredMembers = memberPage.items
   const activityPage = useMemo(() => buildSocialActionsPage(recentActionItems, activityLimit), [activityLimit, recentActionItems])
   const filterOptions = useMemo(() => socialFilterOptions(kind), [kind])
-  const workflowSteps = useMemo(() => socialWorkflowSteps(kind, Boolean(draft.id)), [draft.id, kind])
   const actionKit = useMemo(() => buildSocialActionKit(kind, {
     title: socialTitle(draft),
     saved: Boolean(draft.id),
@@ -806,14 +409,6 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
     () => actionKit.actions.map((action) => buildSocialActionReadiness(kind, action, Boolean(draft.id))),
     [actionKit.actions, draft.id, kind],
   )
-  const activityTimeline = useMemo(() => buildSocialActivityTimeline({
-    kind,
-    title: socialTitle(draft),
-    saved: Boolean(draft.id),
-    inviteLinkReady: Boolean(inviteLink),
-    memberSummary,
-    suggestedAction: socialSummary.suggestedAction,
-  }), [draft, inviteLink, kind, memberSummary, socialSummary.suggestedAction])
   const inviteReadiness = useMemo(() => buildSocialInviteReadiness({
     email: inviteEmail,
     kind,
@@ -821,13 +416,13 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
     loading: inviteLoading,
     saved: Boolean(draft.id),
   }), [draft.id, inviteEmail, inviteLink, inviteLoading, kind])
-  const detailTabs = useMemo<Array<{ id: SocialDetailTab; label: string; icon: ComponentType<{ className?: string }>; count: string }>>(() => [
-    { id: "actions", label: "Actions", icon: Play, count: String(actionKit.actions.length) },
-    { id: "invite", label: "Invite", icon: Mail, count: inviteLink ? "1" : "0" },
-    { id: "people", label: "People", icon: Users, count: String(memberSummary.total) },
-    { id: "activity", label: "Activity", icon: Repeat2, count: String(actionSummary.total || activityTimeline.length) },
-    { id: "safety", label: "Safety", icon: ShieldCheck, count: status },
-  ], [actionKit.actions.length, actionSummary.total, activityTimeline.length, inviteLink, memberSummary.total, status])
+  const detailTabs: Array<{ id: SocialDetailTab; label: string; icon: ComponentType<{ className?: string }> }> = [
+    { id: "actions", label: "Overview", icon: Play },
+    { id: "invite", label: "Invite", icon: Mail },
+    { id: "people", label: "People", icon: Users },
+    { id: "activity", label: "Activity", icon: Repeat2 },
+    { id: "safety", label: "Manage", icon: ShieldCheck },
+  ]
   const recordStatus = recordAction === "save"
     ? "Saving"
     : recordAction === "toggle"
@@ -836,6 +431,15 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
         ? "Deleting"
         : socialDraftStatus(kind, draft)
   const recordBusy = recordAction !== null
+  const draftIsValid = Boolean((kind === "battles" ? draft.title : draft.name).trim()) && (kind !== "rooms" || [draft.pomodoroMinutes, draft.breakMinutes].every(minutes => Number.isInteger(minutes) && minutes >= 1 && minutes <= 180))
+  const loadFailed = status !== "Loading" && status !== "Ready"
+  const hasUnsavedDraft = draft.id
+    ? Boolean(selected && socialDraftFingerprint(draft) !== socialDraftFingerprint(draftFromSocialItem(kind, selected)))
+    : hasMeaningfulSocialDraft(kind, draft)
+
+  useEffect(() => {
+    if (detailOpen) detailHeading.current?.focus()
+  }, [detailOpen])
 
   useEffect(() => {
     const stored = readSocialDraftStore(kind)
@@ -844,7 +448,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
       setSelectedId(stored.selectedId)
       setDraft(stored.draft)
       setQuery(stored.query)
-      setMessage("Local draft restored.")
+      setMessage("")
     } else {
       restoredDraftId.current = null
       setSelectedId("")
@@ -880,7 +484,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   }, [draft.id, kind])
 
   useEffect(() => {
-    if (!draftHydrated.current || !data) return
+    if (!draftHydrated.current || !data || editing || recordBusy) return
     if (!items.length) {
       if (!hasMeaningfulSocialDraft(kind, draft)) {
         if (selectedId) setSelectedId("")
@@ -892,7 +496,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
     const first = items[0]
     setSelectedId(first.id)
     setDraft(draftFromSocialItem(kind, first))
-  }, [data, draft, items, kind, selectedId])
+  }, [data, draft, editing, items, kind, recordBusy, selectedId])
 
   useEffect(() => {
     if (!selected) return
@@ -904,37 +508,53 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
   }, [kind, selected?.id])
 
   function startNew() {
+    if (recordPending.current) return
+    setDetailOpen(true)
+    setDetailTab("actions")
+    setEditing(true)
     setSelectedId("")
     setDraft(createSocialDraft(kind))
     setDeleteConfirmId(null)
-    setMessage(`Drafting a new ${noun}.`)
+    setMessage("")
   }
 
   function clearRecordFilters() {
     setQuery("")
     setRecordFilter("all")
-    setMessage("Search and filters cleared.")
+    setMessage("")
   }
 
   function selectSocialRecord(item: LearningSpace | StudyRoom | StudyBattle) {
+    if (recordPending.current) return
+    setDetailOpen(true)
+    setEditing(false)
     setSelectedId(item.id)
     setDraft(draftFromSocialItem(kind, item))
     setDeleteConfirmId(null)
     setDetailTab("actions")
-    setMessage(buildSocialRecordSelectionMessage(kind, item))
+    setInviteLink("")
+    setMessage("")
   }
 
-  function runPrimarySocialAction() {
-    const shouldOpenRecommended = kind === "battles" ? socialSummary.secondaryCount > 0 : socialSummary.primaryCount > 0
-    if (shouldOpenRecommended && recommendedRecord?.id) {
-      selectSocialRecord(recommendedRecord as LearningSpace | StudyRoom | StudyBattle)
-      return
-    }
-    startNew()
+  function closeDetail() {
+    if (recordPending.current || invitePending.current) return
+    setEditing(false)
+    setDetailOpen(false)
+    setMessage("")
+    requestAnimationFrame(() => browseHeading.current?.focus())
+  }
+
+  function cancelEditing() {
+    if (recordPending.current) return
+    setEditing(false)
+    if (selected) setDraft(draftFromSocialItem(kind, selected))
+    else closeDetail()
+    setMessage("")
   }
 
   async function saveDraft() {
-    if (recordBusy) return
+    if (recordPending.current || !draftIsValid) return
+    recordPending.current = true
     setRecordAction("save")
     setMessage(draft.id ? "Saving changes..." : `Creating ${noun}...`)
     try {
@@ -944,41 +564,46 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
         body: JSON.stringify(body),
       })
       setSelectedId(response.item.id)
+      setDraft(draftFromSocialItem(kind, response.item))
       setDeleteConfirmId(null)
       setMessage(`${socialTitle(response.item)} saved.`)
+      setEditing(false)
       await refresh()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : `Unable to save this ${noun}.`)
     } finally {
+      recordPending.current = false
       setRecordAction(null)
     }
   }
 
-  async function toggleDraft() {
-    if (recordBusy) return
-    const nextDraft = nextSocialToggle(kind, draft)
+  async function updateRecordStatus(value: string) {
+    if (recordPending.current) return
+    const nextDraft = kind === "spaces" ? { ...draft, visibility: value } : { ...draft, status: value }
     setDraft(nextDraft)
     setDeleteConfirmId(null)
     if (!nextDraft.id) {
       setMessage("Draft state updated. Save when ready.")
       return
     }
+    recordPending.current = true
     setRecordAction("toggle")
     setMessage("Updating state...")
     try {
       await api(endpoint, { method: "PUT", body: JSON.stringify(payloadFromSocialDraft(kind, nextDraft)) })
-      setMessage(`${socialTitle(nextDraft)} toggled.`)
+      setMessage("Updated.")
       await refresh()
     } catch (error) {
       setDraft(draft)
       setMessage(error instanceof Error ? error.message : `Unable to update this ${noun}.`)
     } finally {
+      recordPending.current = false
       setRecordAction(null)
     }
   }
 
   async function deleteDraft() {
-    if (recordBusy) return
+    if (recordPending.current) return
     if (!draft.id) {
       startNew()
       return
@@ -988,6 +613,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
       setMessage(`Select Delete again to remove ${socialTitle(draft)}.`)
       return
     }
+    recordPending.current = true
     setRecordAction("delete")
     setMessage(`Deleting ${socialTitle(draft)}...`)
     try {
@@ -996,20 +622,23 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
       setDeleteConfirmId(null)
       setSelectedId("")
       setDraft(createSocialDraft(kind))
+      setDetailOpen(false)
       await refresh()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : `Unable to delete this ${noun}.`)
     } finally {
+      recordPending.current = false
       setRecordAction(null)
     }
   }
 
   async function copyInvite() {
-    await navigator.clipboard?.writeText(actionKit.inviteText).catch(() => undefined)
-    setMessage(draft.id ? "Invite text copied." : `Save this ${noun} first, then share the copied invite text.`)
+    const copied = await navigator.clipboard?.writeText(actionKit.inviteText).then(() => true, () => false)
+    setMessage(copied ? "Invite text copied." : "Clipboard unavailable. Create an invite link to copy manually.")
   }
 
   async function createSecureInvite() {
+    if (invitePending.current) return
     if (!inviteReadiness.enabled) {
       setMessage(inviteReadiness.message)
       return
@@ -1019,6 +648,7 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
       setMessage(validation.error)
       return
     }
+    invitePending.current = true
     setInviteLoading(true)
     try {
       const response = await api<{ item: { token: string } }>("/api/invites", {
@@ -1027,11 +657,12 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
       })
       const link = `${window.location.origin}/invite/${response.item.token}`
       setInviteLink(link)
-      await navigator.clipboard?.writeText(link).catch(() => undefined)
-      setMessage("Secure invite link created and copied.")
+      const copied = await navigator.clipboard?.writeText(link).then(() => true, () => false)
+      setMessage(copied ? "Invite link created and copied." : "Invite link created. Copy the link below.")
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to create secure invite.")
     } finally {
+      invitePending.current = false
       setInviteLoading(false)
     }
   }
@@ -1069,365 +700,63 @@ export function SocialLearningView({ kind, setView }: { kind: "spaces" | "rooms"
     setMessage("Files opened for shared resources.")
   }
 
-  return (
-    <div className="grid gap-3 xl:grid-cols-[304px_minmax(0,1fr)]">
-      <section className="rounded-lg border border-border bg-card p-3 xl:sticky xl:top-3 xl:max-h-[calc(100vh-6rem)] xl:self-start xl:overflow-y-auto">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-xl font-semibold text-foreground">{title}</h2>
-            <span className="mt-1 inline-flex rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{socialPlan.headline}</span>
+  return <section className={communityStyles.community} data-kind={kind} aria-label={title}>
+    {!detailOpen ? <>
+      <header className={communityStyles.toolbar}>
+        <h2 ref={browseHeading} tabIndex={-1} className="page-count mr-auto">{title} <span>{items.length}</span></h2>
+        <label className={communityStyles.search}><Search aria-hidden="true" /><input aria-label={`Search ${title}`} value={query} onChange={event => setQuery(event.target.value)} placeholder={`Find a ${noun}`} />{query ? <button type="button" aria-label="Clear search" onClick={() => setQuery("")}><X /></button> : null}</label>
+        <button type="button" onClick={startNew} className="editor-primary" aria-label={`Add ${noun}`}>New</button>
+      </header>
+      <div className={communityStyles.filters} role="group" aria-label={`${title} filters`}>{filterOptions.map(option => <button key={option} aria-pressed={recordFilter === option} onClick={() => setRecordFilter(option)}>{option === "all" ? "All" : socialFilterLabel(option)}</button>)}</div>
+      {hasUnsavedDraft ? <button className={`editor-command ${communityStyles.resume}`} onClick={() => { setEditing(true); setDetailOpen(true) }}><Edit3 className="h-4 w-4" />Resume draft</button> : null}
+      {loadFailed ? <div className={communityStyles.error} role="status"><p>{status}</p><button className="editor-command" onClick={() => void refresh()}><Repeat2 className="h-4 w-4" />Retry</button></div> : null}
+      <div className={communityStyles.cards}>
+        {recordCards.map(({ card, item }, index) => <button key={item.id} onClick={() => selectSocialRecord(item)} className={communityStyles.card} data-tone={index % 4} aria-label={`Open ${card.title}`}>
+          <div className={communityStyles.cardArt} aria-hidden="true"><span className={communityStyles.orbit} /><span className={communityStyles.symbol}><Icon /></span>{"pomodoro_minutes" in item ? <span className={communityStyles.duration}>{item.pomodoro_minutes}<small>min</small></span> : <span className={communityStyles.artLines}><i /><i /><i /></span>}</div>
+          <div className={communityStyles.cardBody}><span className={communityStyles.cardStatus} data-active={card.status === "active" || card.status === "open"}>{card.status}</span><h3>{card.title}</h3><p>{kind === "spaces" && "description" in item ? item.description : kind === "battles" && "topic" in item ? item.topic : "mode" in item ? item.mode : ""}</p><div className={communityStyles.cardFooter}><span>{card.meta.filter(meta => meta.toLowerCase() !== card.status.toLowerCase()).slice(0, 2).join(" · ")}</span><ArrowRight aria-hidden="true" /></div></div>
+        </button>)}
+      </div>
+      {!filteredItems.length && !loadFailed ? <div className={communityStyles.empty}><span className={communityStyles.emptyIcon}><Icon /></span><h3>{status === "Loading" ? "Loading…" : items.length ? "No matches" : `Your first ${noun}`}</h3>{status !== "Loading" ? <button className="editor-command" onClick={items.length ? clearRecordFilters : startNew}>{items.length ? "Clear filters" : `Create ${noun}`}</button> : null}</div> : null}
+      {recordPage.hiddenCount ? <button className={`editor-command ${communityStyles.more}`} onClick={() => setRecordLimit(value => value + 12)}>Show more <ChevronDown className="h-4 w-4" /></button> : null}
+    </> : <>
+      <div className={communityStyles.detailToolbar}><button className="editor-command" disabled={recordBusy || inviteLoading} onClick={closeDetail} aria-label={`Back to ${title.toLowerCase()}`}><ArrowLeft className="h-4 w-4" />{title}</button>{!editing ? <button className="editor-command" disabled={recordBusy || inviteLoading} aria-label={`Edit ${noun}`} title={`Edit ${noun}`} onClick={() => setEditing(true)}><Edit3 className="h-4 w-4" /></button> : null}</div>
+      <div className={communityStyles.detailCover}><span className={communityStyles.coverIcon}><Icon aria-hidden="true" /></span><div><span className={communityStyles.eyebrow}>{draft.id ? recordStatus : `New ${noun}`}</span><h3 ref={detailHeading} tabIndex={-1}>{socialTitle(draft)}</h3></div></div>
+      {message ? <p role="status" className={communityStyles.message}>{message}</p> : null}
+      {editing ? <form className={communityStyles.form} onSubmit={event => { event.preventDefault(); void saveDraft() }}>
+        <fieldset disabled={recordBusy} className={communityStyles.fields}>
+          {kind === "battles" ? <>
+            <SocialField label="Title" value={draft.title} required onChange={value => setDraft({ ...draft, title: value })} />
+            <SocialField label="Topic" value={draft.topic} onChange={value => setDraft({ ...draft, topic: value })} />
+            <div className={communityStyles.fieldPair}><SocialSelect label="Mode" value={draft.mode} options={["solo", "team"]} onChange={value => setDraft({ ...draft, mode: value })} /><SocialSelect label="Status" value={draft.status} options={["waiting", "active", "completed"]} onChange={value => setDraft({ ...draft, status: value })} /></div>
+          </> : kind === "rooms" ? <>
+            <SocialField label="Room name" value={draft.name} required onChange={value => setDraft({ ...draft, name: value })} />
+            <div className={communityStyles.fieldPair}><SocialSelect label="Mode" value={draft.mode} options={["focus", "discussion", "stage"]} onChange={value => setDraft({ ...draft, mode: value })} /><SocialSelect label="Status" value={draft.status} options={["open", "active", "closed"]} onChange={value => setDraft({ ...draft, status: value })} /></div>
+            <div className={communityStyles.fieldPair}><SocialField label="Focus minutes" value={String(draft.pomodoroMinutes)} numeric onChange={value => setDraft({ ...draft, pomodoroMinutes: Number(value) })} /><SocialField label="Break minutes" value={String(draft.breakMinutes)} numeric onChange={value => setDraft({ ...draft, breakMinutes: Number(value) })} /></div>
+          </> : <>
+            <SocialField label="Group name" value={draft.name} required onChange={value => setDraft({ ...draft, name: value })} />
+            <SocialField label="Description" value={draft.description} onChange={value => setDraft({ ...draft, description: value })} multiline />
+            <div className={communityStyles.fieldPair}><SocialField label="Topics" value={draft.topicTags} onChange={value => setDraft({ ...draft, topicTags: value })} /><SocialSelect label="Visibility" value={draft.visibility} options={["private", "connections", "public"]} onChange={value => setDraft({ ...draft, visibility: value })} /></div>
+          </>}
+          <footer className={communityStyles.formFooter}><button type="button" className="editor-command" onClick={cancelEditing}>Cancel</button><button type="submit" className="editor-primary" disabled={!draftIsValid}>{recordBusy ? "Saving…" : draft.id ? "Save" : "Create"}</button></footer>
+        </fieldset>
+      </form> : <>
+        <nav className={communityStyles.detailTabs} aria-label={`${title} details`}>{detailTabs.map(tab => <button key={tab.id} aria-current={detailTab === tab.id ? "page" : undefined} onClick={() => setDetailTab(tab.id)}><tab.icon aria-hidden="true" /><span>{tab.label}</span></button>)}</nav>
+        {detailTab === "actions" ? <div className={communityStyles.overview}>
+          <div className={communityStyles.about}>
+            {kind === "rooms" ? <div className={communityStyles.sessionRhythm} aria-label={`${draft.pomodoroMinutes} minutes focus and ${draft.breakMinutes} minutes break`}><div><strong>{draft.pomodoroMinutes}<small>min</small></strong><span>Focus</span></div><span className={communityStyles.rhythmDivider}><Repeat2 aria-hidden="true" /></span><div><strong>{draft.breakMinutes}<small>min</small></strong><span>Break</span></div></div> : <><h4>{kind === "spaces" ? "About" : "Topic"}</h4><p>{kind === "spaces" ? draft.description || "No description yet." : draft.topic || "Open topic"}</p></>}
+            <div className={communityStyles.tags}>{(kind === "spaces" ? draft.topicTags.split(",").map(tag => tag.trim()).filter(Boolean) : [draft.mode]).map((tag, index) => <span key={`${tag}-${index}`}>{tag}</span>)}{kind === "spaces" && selected && "member_count" in selected && selected.member_count !== undefined ? <span><Users aria-hidden="true" />{selected.member_count}</span> : null}</div>
           </div>
-          <button onClick={startNew} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground">
-            <Icon className="h-4 w-4" />
-            New
-          </button>
-        </div>
-        <label className="mt-3 flex h-9 items-center rounded-md border border-input bg-background px-3">
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${title.toLowerCase()}`} className="w-full bg-transparent text-sm outline-none" />
-        </label>
-        <div className="mt-3 grid gap-2 rounded-md border border-border bg-background p-2">
-          <div className="flex min-w-0 flex-wrap gap-1">
-            <SocialSummaryChip label="Shown" value={`${filteredItems.length}/${recordPage.total}`} />
-            <SocialSummaryChip label={socialSummary.primaryLabel} value={String(socialSummary.primaryCount)} />
-            <SocialSummaryChip label={socialSummary.secondaryLabel} value={String(socialSummary.secondaryCount)} />
-          </div>
-          <div className="flex items-center justify-between gap-2">
-            <span className={`truncate rounded-md px-2 py-1 text-xs font-semibold ${recordFilterSummary.active ? "bg-warning/15 text-warning" : "bg-muted text-muted-foreground"}`}>
-              {recordFilterSummary.active ? recordFilterSummary.label : "All visible"}
-            </span>
-            {recordFilterSummary.active ? (
-              <button onClick={clearRecordFilters} className="h-9 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-                Clear
-              </button>
-            ) : null}
-            <SocialMenu icon={SlidersHorizontal} label="Filters" menuId="filters" openMenu={openSocialMenu} setOpenMenu={setOpenSocialMenu}>
-              <SocialMenuSection title="Show records">
-                {filterOptions.map((option) => {
-                  const count = filterSocialRecords(items, { query, filter: option }).length
-                  return (
-                    <SocialMenuAction
-                      key={option}
-                      active={recordFilter === option}
-                      icon={SlidersHorizontal}
-                      label={socialFilterLabel(option)}
-                      meta={`${count} ${noun}${count === 1 ? "" : "s"}`}
-                      onClick={() => {
-                        setRecordFilter(option)
-                        setOpenSocialMenu(null)
-                      }}
-                    />
-                  )
-                })}
-              </SocialMenuSection>
-            </SocialMenu>
-          </div>
-        </div>
-        <div className="mt-3 grid gap-2">
-          {recordCards.map(({ card, item }) => (
-            <button
-              key={item.id}
-              onClick={() => selectSocialRecord(item)}
-              className={`rounded-md border p-2 text-left ${selectedId === item.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`}
-            >
-              <span className="flex min-w-0 items-center justify-between gap-2">
-                <span className="truncate text-sm font-semibold">{card.title}</span>
-                <span className={`rounded px-1.5 py-0.5 text-[0.65rem] font-semibold ${selectedId === item.id ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary/15 text-primary"}`}>{card.action}</span>
-              </span>
-              <span className="mt-2 flex flex-wrap gap-1">
-                <span className={`rounded px-1.5 py-0.5 text-[0.65rem] font-semibold ${selectedId === item.id ? "bg-primary-foreground/15 text-primary-foreground/85" : "bg-background text-foreground"}`}>{card.status}</span>
-                {card.recommended ? <span className={`rounded px-1.5 py-0.5 text-[0.65rem] font-semibold ${selectedId === item.id ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary/15 text-primary"}`}>Recommended</span> : null}
-                {card.meta.map((meta) => (
-                  <span key={meta} className={`rounded px-1.5 py-0.5 text-[0.65rem] font-semibold ${selectedId === item.id ? "bg-primary-foreground/15 text-primary-foreground/85" : "bg-muted text-muted-foreground"}`}>{meta}</span>
-                ))}
-              </span>
-            </button>
-          ))}
-          {!filteredItems.length ? (
-            <div className="grid gap-2 rounded-md border border-dashed border-border bg-background p-3">
-              <EmptyState title={recordEmptyState.title} body={recordEmptyState.body} />
-              <button
-                onClick={recordEmptyState.action === "clear" ? clearRecordFilters : startNew}
-                className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
-                type="button"
-              >
-                {recordEmptyState.action === "clear" ? "Clear filters" : `New ${noun}`}
-              </button>
-            </div>
-          ) : null}
-          {recordPage.hiddenCount ? (
-            <button onClick={() => setRecordLimit((limit) => limit + 12)} className="rounded-md border border-border bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-              Show {Math.min(12, recordPage.hiddenCount)} more
-            </button>
-          ) : null}
-        </div>
-        {message ? <p className="mt-3 rounded-md bg-muted p-3 text-sm text-muted-foreground">{message}</p> : null}
-      </section>
-
-      <Panel className="p-3">
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase text-muted-foreground">{draft.id ? "Editing" : "New draft"}</p>
-            <h3 className="mt-1 text-lg font-semibold text-foreground">{draft.name || draft.title || `Untitled ${noun}`}</h3>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">{recordStatus}</span>
-            <SocialActionButton label={recordAction === "save" ? "Saving" : "Save"} icon={Save} onClick={saveDraft} primary disabled={recordBusy} />
-            <SocialMenu align="right" compact icon={MoreHorizontal} label="More actions" menuId="actions" openMenu={openSocialMenu} setOpenMenu={setOpenSocialMenu}>
-              <SocialMenuSection title="Record actions">
-                <SocialMenuAction disabled={recordBusy} icon={Play} label={recordAction === "toggle" ? "Updating" : "Toggle state"} meta="Cycle visibility or activity status." onClick={() => { setOpenSocialMenu(null); void toggleDraft() }} />
-                <SocialMenuAction disabled={recordBusy} icon={Edit3} label="Reset draft" meta="Restore selected record values or clear the new draft." onClick={() => { setOpenSocialMenu(null); setDeleteConfirmId(null); setDraft(selected ? draftFromSocialItem(kind, selected) : createSocialDraft(kind)); setMessage("Draft reset.") }} />
-                <SocialMenuAction disabled={recordBusy} danger icon={Trash2} label={recordAction === "delete" ? "Deleting" : draft.id && deleteConfirmId === draft.id ? "Confirm delete" : "Delete"} meta={draft.id && deleteConfirmId === draft.id ? `Delete ${socialTitle(draft)} now.` : `Ask before removing the selected ${noun}.`} onClick={() => { setOpenSocialMenu(null); void deleteDraft() }} />
-              </SocialMenuSection>
-            </SocialMenu>
-          </div>
-        </div>
-        <details className="rounded-md border border-border bg-background" open>
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-            <span>Setup</span>
-            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-semibold capitalize text-secondary-foreground">{recordStatus}</span>
-          </summary>
-          <div className="grid gap-3 border-t border-border p-3">
-            {kind === "battles" ? (
-              <>
-                <SocialField label="Title" value={draft.title} onChange={(value) => setDraft({ ...draft, title: value })} />
-                <SocialField label="Topic" value={draft.topic} onChange={(value) => setDraft({ ...draft, topic: value })} />
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <SocialSelect label="Mode" value={draft.mode} options={["solo", "team"]} onChange={(value) => setDraft({ ...draft, mode: value })} />
-                  <SocialSelect label="Status" value={draft.status} options={["waiting", "active", "completed"]} onChange={(value) => setDraft({ ...draft, status: value })} />
-                </div>
-              </>
-            ) : kind === "rooms" ? (
-              <>
-                <SocialField label="Room name" value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <SocialSelect label="Mode" value={draft.mode} options={["focus", "discussion", "stage"]} onChange={(value) => setDraft({ ...draft, mode: value })} />
-                  <SocialSelect label="Status" value={draft.status} options={["open", "active", "closed"]} onChange={(value) => setDraft({ ...draft, status: value })} />
-                  <SocialField label="Pomodoro minutes" value={String(draft.pomodoroMinutes)} onChange={(value) => setDraft({ ...draft, pomodoroMinutes: Number(value) || 25 })} />
-                  <SocialField label="Break minutes" value={String(draft.breakMinutes)} onChange={(value) => setDraft({ ...draft, breakMinutes: Number(value) || 5 })} />
-                </div>
-              </>
-            ) : (
-              <>
-                <SocialField label="Group name" value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
-                <SocialField label="Description" value={draft.description} onChange={(value) => setDraft({ ...draft, description: value })} multiline />
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <SocialField label="Topic tags" value={draft.topicTags} onChange={(value) => setDraft({ ...draft, topicTags: value })} />
-                  <SocialSelect label="Visibility" value={draft.visibility} options={["private", "connections", "public"]} onChange={(value) => setDraft({ ...draft, visibility: value })} />
-                </div>
-              </>
-            )}
-          </div>
-        </details>
-        <div className="mt-4 grid gap-3">
-          <div className="flex gap-1 overflow-x-auto rounded-md border border-border bg-background p-1">
-            {detailTabs.map((tab) => {
-              const TabIcon = tab.icon
-              const active = detailTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setDetailTab(tab.id)}
-                  className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-md px-3 text-xs font-semibold transition ${active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}
-                  type="button"
-                >
-                  <TabIcon className="h-4 w-4" />
-                  <span>{tab.label}</span>
-                  <span className={`rounded px-1.5 py-0.5 text-[0.65rem] ${active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{tab.count}</span>
-                </button>
-              )
-            })}
-          </div>
-
-          <div className="rounded-md border border-border bg-background p-3">
-            {detailTab === "actions" ? (
-              <div className="grid gap-3">
-                <button onClick={runPrimarySocialAction} className="flex w-full items-center justify-between rounded-md border border-primary/30 bg-primary/10 p-3 text-left text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-                  <span>{socialPlan.primaryAction}</span>
-                  <Icon className="h-4 w-4" />
-                </button>
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-card p-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-foreground">{actionKit.headline}</p>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {actionKit.chips.map((chip) => (
-                        <span key={chip} className="rounded-md bg-secondary px-2 py-0.5 text-[0.68rem] font-semibold text-secondary-foreground">{chip}</span>
-                      ))}
-                    </div>
-                  </div>
-                  <button onClick={() => void runSocialAction("invite")} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-2 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-                    <Copy className="h-3.5 w-3.5" />
-                    Invite
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-4">
-                  {readyActions.map((action) => {
-                    const ActionIcon = socialActionIcon(action.id)
-                    return (
-                      <button
-                        key={action.id}
-                        disabled={!action.enabled}
-                        onClick={() => void runSocialAction(action.id)}
-                        className="group min-h-14 rounded-md border border-border bg-card p-2 text-left transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:bg-card disabled:hover:text-foreground"
-                        title={action.detail}
-                        type="button"
-                      >
-                        <ActionIcon className="h-4 w-4 text-primary group-hover:text-accent-foreground group-disabled:group-hover:text-primary" />
-                        <span className="mt-1 block truncate text-xs font-semibold text-foreground group-hover:text-accent-foreground group-disabled:group-hover:text-foreground">{action.label}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-                <div className="grid gap-1.5 sm:grid-cols-4">
-                  {workflowSteps.map((step, index) => (
-                    <div key={step} className="flex items-center gap-2 rounded-md border border-border bg-card px-2 py-2 text-xs">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/15 text-[0.65rem] font-bold text-primary">{index + 1}</span>
-                      <span className="truncate font-semibold text-foreground">{step}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {detailTab === "invite" ? (
-              <div className="grid gap-3">
-                <div className="grid gap-2 lg:grid-cols-[1fr_1.2fr]">
-                  <p className="rounded-md border border-border bg-card p-3 text-sm leading-6 text-muted-foreground">{actionKit.brief}</p>
-                  <div className="rounded-md border border-border bg-card p-3 text-sm text-foreground">{actionKit.inviteText}</div>
-                </div>
-                <div className="grid gap-2 rounded-md border border-border bg-card p-2">
-                  <div className="grid gap-2 sm:grid-cols-[1fr_120px]">
-                    <label className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <input value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="email@example.com" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none" />
-                    </label>
-                    <select value={inviteRole} onChange={(event) => setInviteRole(normalizeSocialInviteRole(event.target.value))} className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none">
-                      {socialInviteRoleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button onClick={copyInvite} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-                      <Copy className="h-4 w-4" />
-                      Copy text
-                    </button>
-                    <button disabled={!inviteReadiness.enabled} onClick={createSecureInvite} className="inline-flex h-9 items-center gap-2 rounded-md border border-primary bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60" title={inviteReadiness.message} type="button">
-                      <Mail className="h-4 w-4" />
-                      {inviteReadiness.label}
-                    </button>
-                    <span className="inline-flex h-9 items-center rounded-md bg-muted px-2 text-xs font-semibold text-muted-foreground">{inviteReadiness.message}</span>
-                  </div>
-                  {inviteLink ? <p className="truncate rounded-md bg-muted px-2 py-1.5 text-xs font-medium text-muted-foreground">{inviteLink}</p> : null}
-                </div>
-              </div>
-            ) : null}
-
-            {detailTab === "people" ? (
-              <div className="grid gap-3">
-                <div className="grid gap-2 sm:grid-cols-4">
-                  <Metric label="Admins" value={String(memberSummary.admins)} />
-                  <Metric label="Learners" value={String(memberSummary.learners)} />
-                  <Metric label="Pending" value={String(memberSummary.pending)} />
-                  <Metric label="Status" value={members.status} />
-                </div>
-                <label className="flex h-9 items-center rounded-md border border-input bg-card px-3">
-                  <input value={memberQuery} onChange={(event) => setMemberQuery(event.target.value)} placeholder="Search people" className="w-full bg-transparent text-sm text-foreground outline-none" />
-                </label>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{memberPage.total} visible</span>
-                  {memberPage.hiddenCount ? (
-                    <button onClick={() => setMemberLimit((limit) => limit + 10)} className="rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-                      Show {Math.min(10, memberPage.hiddenCount)} more
-                    </button>
-                  ) : null}
-                </div>
-                <div className="grid max-h-64 gap-1.5 overflow-auto pr-1">
-                  {filteredMembers.map((member) => (
-                    <div key={member.id || member.email || member.name} className="flex items-center justify-between gap-3 rounded-md border border-border bg-card p-2 text-sm">
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold text-foreground">{member.name || member.email || "Learner"}</p>
-                        <p className="truncate text-xs text-muted-foreground">{member.email || "No email"}</p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold capitalize text-secondary-foreground">{member.role || "learner"}</span>
-                        <span className="rounded-md bg-muted px-2 py-1 text-[0.68rem] font-semibold capitalize text-muted-foreground">{member.status || "active"}</span>
-                      </div>
-                    </div>
-                  ))}
-                  {!filteredMembers.length ? (
-                    <p className="rounded-md border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">
-                      {memberPage.emptyAction === "clear-search" ? "No matching people. Clear search or invite someone new." : "No people yet. Create an invite to start."}
-                    </p>
-                  ) : null}
-                </div>
-                {memberSummary.newest ? <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">Newest: {memberSummary.newest.name || memberSummary.newest.email || "Learner"}</p> : null}
-              </div>
-            ) : null}
-
-            {detailTab === "activity" ? (
-              <div className="grid gap-3">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold text-secondary-foreground">{activityPage.items.length}/{activityPage.total} shown</span>
-                  <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold text-secondary-foreground">{actionSummary.comments} comments</span>
-                  <span className="rounded-md bg-secondary px-2 py-1 text-[0.68rem] font-semibold text-secondary-foreground">{actionSummary.saves} saved</span>
-                  <span className="rounded-md bg-muted px-2 py-1 text-[0.68rem] font-semibold text-muted-foreground">{recentActions.status}</span>
-                </div>
-                {activityPage.items.length ? (
-                  <div className="grid gap-1.5 md:grid-cols-2">
-                    {activityPage.items.map((action) => {
-                      const formatted = formatSocialAction(action)
-                      return (
-                        <div key={action.id || `${formatted.label}-${formatted.detail}`} className="rounded-md border border-border bg-card px-3 py-2 text-sm">
-                          <p className="font-semibold text-foreground">{formatted.label}</p>
-                          <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{formatted.detail}</p>
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : null}
-                {activityPage.hiddenCount ? (
-                  <button onClick={() => setActivityLimit((limit) => limit + 4)} className="rounded-md border border-border bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground" type="button">
-                    Show {Math.min(4, activityPage.hiddenCount)} more
-                  </button>
-                ) : null}
-                <div className="grid gap-1.5">
-                  {activityTimeline.map((item, index) => (
-                    <div key={item.id} className="grid grid-cols-[auto_1fr] gap-3 rounded-md border border-border bg-card p-3 text-sm">
-                      <span className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold ${socialActivityToneClass(item.tone)}`}>{index + 1}</span>
-                      <span className="min-w-0">
-                        <span className="block font-semibold text-foreground">{item.label}</span>
-                        <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.detail}</span>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {detailTab === "safety" ? (
-              <div className="grid gap-3">
-                <div className="flex items-start gap-2 rounded-md border border-border bg-card p-3 text-sm text-muted-foreground">
-                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                  <span>{socialPlan.safetyCue}</span>
-                </div>
-                <div className="rounded-md border border-border bg-card p-3 text-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Next</p>
-                  <p className="mt-1 font-medium text-foreground">{socialSummary.suggestedAction}</p>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  {socialSummary.modeCounts.slice(0, 3).map((mode) => (
-                    <div key={mode.label} className="flex items-center justify-between rounded-md border border-border bg-card p-2 text-sm">
-                      <span className="min-w-0 truncate font-medium text-foreground capitalize">{mode.label}</span>
-                      <span className="rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{mode.count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </Panel>
-    </div>
-  )
+          <div className={communityStyles.actions}>{(draft.id ? readyActions : []).map(action => { const ActionIcon = socialActionIcon(action.id); const label = action.id === "invite" ? "Invite" : action.id === "chat" ? "Chat" : action.id === "calendar" ? "Schedule" : action.id === "practice" ? "Practice" : "Files"; return <button key={action.id} disabled={!action.enabled || !setView && action.id !== "invite"} title={action.detail} onClick={() => action.id === "invite" ? setDetailTab("invite") : void runSocialAction(action.id)}><span><ActionIcon aria-hidden="true" /></span>{label}<ArrowRight aria-hidden="true" /></button> })}{!draft.id ? <button className="editor-primary" onClick={() => setEditing(true)}>Set up {noun}</button> : null}</div>
+        </div> : null}
+        {detailTab === "invite" ? <div className={communityStyles.subpanel}><div className={communityStyles.panelHeading}><Mail aria-hidden="true" /><h4>Invite to LEARN</h4></div><p className={communityStyles.hint}>Invite someone to your workspace.</p><form onSubmit={event => { event.preventDefault(); void createSecureInvite() }}><fieldset disabled={inviteLoading} className={communityStyles.fields}><label className={communityStyles.field}><span>Email</span><input type="email" required aria-label="Invite email" placeholder="name@example.com" value={inviteEmail} onChange={event => setInviteEmail(event.target.value)} /></label><SocialSelect label="Role" value={inviteRole} options={socialInviteRoleOptions.map(option => option.value)} onChange={value => setInviteRole(normalizeSocialInviteRole(value))} /><div className={communityStyles.formFooter}><button type="button" className="editor-command" onClick={copyInvite} aria-label="Copy invitation" title="Copy invitation"><Copy className="h-4 w-4" /></button><button type="submit" className="editor-primary" disabled={!inviteReadiness.enabled} title={inviteReadiness.message}>{inviteLoading ? "Creating…" : "Create link"}</button></div></fieldset></form>{inviteLink ? <a href={inviteLink} className={communityStyles.inviteLink}>{inviteLink}</a> : null}</div> : null}
+        {detailTab === "people" ? <div className={communityStyles.subpanel}><div className={communityStyles.panelHeading}><Users aria-hidden="true" /><h4>Workspace people</h4><span>{memberItems.length}</span></div><label className={communityStyles.search}><Search aria-hidden="true" /><input aria-label="Search people" placeholder="Find a person" value={memberQuery} onChange={event => setMemberQuery(event.target.value)} /></label><div className={communityStyles.people}>{filteredMembers.map(member => <div key={member.id || member.email} className={communityStyles.person}><span>{(member.name || member.email || "?").slice(0, 1)}</span><div><strong>{member.name || member.email}</strong><small>{member.role || "learner"}</small></div></div>)}</div>{!filteredMembers.length ? <p className={communityStyles.hint}>{members.status === "Loading" ? "Loading…" : "No people found."}</p> : null}{members.status !== "Ready" && members.status !== "Loading" ? <button className="editor-command" onClick={() => void members.refresh()}>Retry people</button> : null}{memberPage.hiddenCount ? <button className="editor-command" onClick={() => setMemberLimit(value => value + 10)}>Show more</button> : null}</div> : null}
+        {detailTab === "activity" ? <div className={communityStyles.subpanel}><div className={communityStyles.panelHeading}><Repeat2 aria-hidden="true" /><h4>Workspace activity</h4></div>{activityPage.items.map((action, index) => { const formatted = formatSocialAction(action); return <div key={action.id || index} className={communityStyles.activity}><span><MessageSquare aria-hidden="true" /></span><div><strong>{formatted.label}</strong><p>{formatted.detail}</p></div></div> })}{!activityPage.items.length ? <p className={communityStyles.hint}>{recentActions.status === "Loading" ? "Loading…" : "No activity yet."}</p> : null}{recentActions.status !== "Ready" && recentActions.status !== "Loading" ? <button className="editor-command" onClick={() => void recentActions.refresh()}>Retry activity</button> : null}{activityPage.hiddenCount ? <button className="editor-command" onClick={() => setActivityLimit(value => value + 4)}>Show more</button> : null}</div> : null}
+        {detailTab === "safety" ? <div className={communityStyles.subpanel}><div className={communityStyles.panelHeading}><ShieldCheck aria-hidden="true" /><h4>Manage {noun}</h4></div><div className={communityStyles.manageRow}><div><strong>{kind === "spaces" ? "Visibility" : "Status"}</strong><span>{socialDraftStatus(kind, draft)}</span></div><select className={communityStyles.statusSelect} aria-label={kind === "spaces" ? "Group visibility" : "Record status"} disabled={recordBusy} value={socialDraftStatus(kind, draft)} onChange={event => void updateRecordStatus(event.target.value)}>{(kind === "spaces" ? ["private", "connections", "public"] : kind === "rooms" ? ["open", "active", "closed"] : ["waiting", "active", "completed"]).map(value => <option key={value} value={value}>{value}</option>)}</select></div><div className={communityStyles.manageRow}><div><strong>Details</strong><span>Name, {kind === "spaces" ? "topics and description" : "mode and settings"}</span></div><button className="editor-command" disabled={recordBusy} onClick={() => setEditing(true)}>Edit</button></div><div className={communityStyles.manageRow}><div><strong>Delete {noun}</strong><span>This cannot be undone.</span></div><button className="editor-command text-destructive" disabled={recordBusy} onClick={() => void deleteDraft()} aria-label={deleteConfirmId === draft.id && draft.id ? `Confirm delete ${noun}` : `Delete ${noun}`}><Trash2 className="h-4 w-4" />{deleteConfirmId === draft.id && draft.id ? "Confirm" : null}</button></div></div> : null}
+      </>}
+    </>}
+  </section>
 }
+
 
 type SocialDetailTab = "actions" | "invite" | "people" | "activity" | "safety"
 
@@ -1471,19 +800,6 @@ function payloadFromSocialDraft(kind: "spaces" | "rooms" | "battles", draft: Soc
   return { id: draft.id || undefined, name: draft.name, description: draft.description, visibility: draft.visibility, topicTags: draft.topicTags.split(",").map((tag) => tag.trim()).filter(Boolean) }
 }
 
-function nextSocialToggle(kind: "spaces" | "rooms" | "battles", draft: SocialDraft) {
-  if (kind === "spaces") {
-    const order = ["private", "connections", "public"]
-    return { ...draft, visibility: order[(order.indexOf(draft.visibility) + 1) % order.length] }
-  }
-  if (kind === "rooms") {
-    const order = ["open", "active", "closed"]
-    return { ...draft, status: order[(order.indexOf(draft.status) + 1) % order.length] }
-  }
-  const order = ["waiting", "active", "completed"]
-  return { ...draft, status: order[(order.indexOf(draft.status) + 1) % order.length] }
-}
-
 function socialFilterOptions(kind: SocialKind): SocialRecordFilter[] {
   if (kind === "spaces") return ["all", "private", "public"]
   if (kind === "rooms") return ["all", "active", "focus"]
@@ -1510,12 +826,6 @@ function socialTitle(item: LearningSpace | StudyRoom | StudyBattle | SocialDraft
   return "Untitled"
 }
 
-function socialWorkflowSteps(kind: SocialKind, saved: boolean) {
-  if (kind === "rooms") return [saved ? "Open room" : "Save room", "Invite", "Focus timer", "Recap"]
-  if (kind === "battles") return [saved ? "Queue battle" : "Save battle", "Invite", "Play", "Review misses"]
-  return [saved ? "Open group" : "Save group", "Invite", "Chat", "Share resources"]
-}
-
 function socialActionIcon(target: SocialActionTarget) {
   if (target === "invite") return Users
   if (target === "chat") return MessageSquare
@@ -1524,20 +834,14 @@ function socialActionIcon(target: SocialActionTarget) {
   return FolderOpen
 }
 
-function socialActivityToneClass(tone: "ready" | "draft" | "next") {
-  if (tone === "ready") return "bg-success/15 text-success"
-  if (tone === "draft") return "bg-warning/15 text-warning"
-  return "bg-primary/15 text-primary"
-}
-
-function SocialField({ label, value, onChange, multiline }: { label: string; value: string; onChange: (value: string) => void; multiline?: boolean }) {
+function SocialField({ label, value, onChange, multiline, numeric, required }: { label: string; value: string; onChange: (value: string) => void; multiline?: boolean; numeric?: boolean; required?: boolean }) {
   return (
-    <label className="block rounded-md bg-muted p-3">
-      <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
+    <label className={communityStyles.field}>
+      <span>{label}</span>
       {multiline ? (
-        <textarea value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 min-h-24 w-full resize-none rounded-md border border-input bg-background p-3 text-sm text-foreground outline-none" />
+        <textarea rows={3} value={value} onChange={(event) => onChange(event.target.value)} />
       ) : (
-        <input value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none" />
+        <input value={value} type={numeric ? "number" : "text"} min={numeric ? 1 : undefined} max={numeric ? 180 : undefined} step={numeric ? 1 : undefined} required={required || numeric} onChange={(event) => onChange(event.target.value)} />
       )}
     </label>
   )
@@ -1545,300 +849,110 @@ function SocialField({ label, value, onChange, multiline }: { label: string; val
 
 function SocialSelect({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
   return (
-    <label className="block rounded-md bg-muted p-3">
-      <span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none">
+    <label className={communityStyles.field}>
+      <span>{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
     </label>
   )
 }
 
-function SocialActionButton({
-  danger,
-  disabled,
-  icon: Icon,
-  label,
-  onClick,
-  primary,
-}: {
-  danger?: boolean
-  disabled?: boolean
-  icon: ComponentType<{ className?: string }>
-  label: string
-  onClick: () => void
-  primary?: boolean
-}) {
-  return (
-    <button disabled={disabled} onClick={onClick} className={`inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${primary ? "border-primary bg-primary text-primary-foreground" : danger ? "border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground" : "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"}`} type="button">
-      <Icon className="h-4 w-4" />
-      {label}
-    </button>
-  )
+/**
+ * `/profile` is your own profile; `/profile/<username>` is someone else's, read
+ * only and exactly as much of it as they share with you (the server decides).
+ */
+export function ProfileView({ setView, user, username, onProfileSaved }: { setView?: (view: View) => void; user: User | null; username?: string; onProfileSaved?: (user: User) => void }) {
+  if (!user) return <StatusMessage message="Loading profile…" />
+  if (username && username !== user.username) return <PersonProfileView setView={setView} username={username} />
+  return <OwnProfileView setView={setView} user={user} onProfileSaved={onProfileSaved} />
 }
 
-function SocialSummaryChip({ label, value }: { label: string; value: string }) {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
-      <span>{label}</span>
-      <span className="capitalize text-foreground">{value}</span>
-    </span>
-  )
-}
+function PersonProfileView({ setView, username }: { setView?: (view: View) => void; username: string }) {
+  const { data, status } = useResource<{ item: PublicProfile }>(`/api/profile/public?username=${encodeURIComponent(username)}`)
+  const profile = data?.item
+  if (!profile) return <StatusMessage message={status === "Loading" ? "Loading profile…" : status} />
 
-function SocialMenu({
-  align = "left",
-  children,
-  compact,
-  icon: Icon,
-  label,
-  menuId,
-  openMenu,
-  setOpenMenu,
-}: {
-  align?: "left" | "right"
-  children: React.ReactNode
-  compact?: boolean
-  icon: ComponentType<{ className?: string }>
-  label: string
-  menuId: "filters" | "actions"
-  openMenu: "filters" | "actions" | null
-  setOpenMenu: (menuId: "filters" | "actions" | null) => void
-}) {
-  const open = openMenu === menuId
+  const initial = (profile.name || profile.username || "?").slice(0, 1).toUpperCase()
+  const links = [
+    { href: profile.social_links?.intro, label: "Intro" },
+    { href: profile.social_links?.website, label: "Website" },
+    { href: profile.social_links?.facebook, label: "Facebook" },
+  ].filter((link): link is { href: string; label: string } => Boolean(link.href))
+  const visibilityLabel = profile.profile_visibility === "public" ? "Public profile" : profile.profile_visibility === "connections" ? "Connections only" : "Private profile"
+
   return (
-    <div className="relative inline-block">
-      <button
-        aria-expanded={open}
-        className={`flex h-9 items-center gap-2 rounded-md border border-border bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground ${compact ? "px-2" : ""}`}
-        onClick={() => setOpenMenu(open ? null : menuId)}
-        title={label}
-        type="button"
-      >
-        <Icon className="h-3.5 w-3.5" />
-        <span className={compact ? "sr-only" : ""}>{label}</span>
-        {!compact ? <ChevronDown className="h-3.5 w-3.5 opacity-70" /> : null}
-      </button>
-      {open ? (
-        <div className={`absolute top-10 z-40 w-72 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl ${align === "right" ? "right-0" : "left-0"}`}>
-          {children}
+    <div className="mx-auto grid max-w-4xl gap-4">
+      <section className="learn-surface overflow-hidden">
+        <div className="h-28 bg-gradient-to-r from-tab-studio/45 via-tab-ai/35 to-tab-social/45" aria-hidden="true" />
+        <div className="-mt-12 flex flex-wrap items-end justify-between gap-4 px-5">
+          <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-primary text-3xl font-semibold text-primary-foreground ring-4 ring-card">
+            {profile.avatar_url ? <img src={profile.avatar_url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" /> : initial}
+          </div>
+          <span className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">
+            {profile.restricted ? <Lock className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            {visibilityLabel}
+          </span>
         </div>
+        <div className="px-5 pb-5 pt-3">
+          <h2 className="font-display text-2xl font-semibold text-foreground">{profile.name || profile.username}</h2>
+          <p className="text-sm text-muted-foreground">@{profile.username}{profile.viewer === "connections" ? " · Connected" : ""}</p>
+          {profile.bio ? <p className="mt-3 max-w-2xl text-sm leading-6 text-foreground/85">{profile.bio}</p> : null}
+          {links.length ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {links.map((link) => (
+                <a key={link.label} href={link.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
+                  {link.label}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              ))}
+            </div>
+          ) : null}
+          {!profile.restricted ? (
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <Metric label="Level" value={String(profile.metrics.level ?? 1)} />
+              <Metric label="XP" value={String(profile.metrics.xp ?? 0)} />
+              <Metric label="Streak" value={`${profile.metrics.streak ?? 0} days`} />
+              <Metric label="Reputation" value={String(profile.metrics.reputation ?? 0)} />
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      {profile.restricted ? (
+        <section className="learn-surface flex items-start gap-3 p-5">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <Lock className="h-5 w-5" />
+          </span>
+          <div>
+            <h3 className="font-semibold text-foreground">{profile.profile_visibility === "connections" ? "Only their connections can see more" : "This profile is private"}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {profile.profile_visibility === "connections"
+                ? `Once ${profile.name || profile.username} accepts you as a connection, their bio, stats and shared notes appear here.`
+                : `${profile.name || profile.username} keeps their learning to themselves. Their name and picture are all that is shared.`}
+            </p>
+          </div>
+        </section>
+      ) : (
+        <section className="learn-surface p-5">
+          <h3 className="font-display text-lg font-semibold text-foreground">Shared with you</h3>
+          {profile.artifacts.length ? (
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              {profile.artifacts.map((node) => <NodeCard key={node.id} node={node} />)}
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">Nothing shared yet.</p>
+          )}
+        </section>
+      )}
+
+      {setView ? (
+        <button type="button" onClick={() => setView("social")} className="justify-self-start rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+          Back to Friends
+        </button>
       ) : null}
     </div>
   )
-}
-
-function SocialMenuSection({ children, title }: { children: React.ReactNode; title: string }) {
-  return (
-    <div className="grid gap-1">
-      <p className="px-1 text-[0.66rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{title}</p>
-      {children}
-    </div>
-  )
-}
-
-function SocialMenuAction({
-  active,
-  danger,
-  disabled,
-  icon: Icon,
-  label,
-  meta,
-  onClick,
-}: {
-  active?: boolean
-  danger?: boolean
-  disabled?: boolean
-  icon: ComponentType<{ className?: string }>
-  label: string
-  meta?: string
-  onClick: () => void
-}) {
-  const tone = danger
-    ? "text-destructive hover:bg-destructive hover:text-destructive-foreground"
-    : active
-      ? "bg-primary text-primary-foreground"
-      : "text-popover-foreground hover:bg-accent hover:text-accent-foreground"
-  return (
-    <button disabled={disabled} onClick={onClick} className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${tone}`} type="button">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0" />
-      <span className="min-w-0">
-        <span className="block truncate">{label}</span>
-        {meta ? <span className={`mt-0.5 block line-clamp-2 text-xs font-medium ${active ? "text-primary-foreground/80" : danger ? "text-current/80" : "text-muted-foreground"}`}>{meta}</span> : null}
-      </span>
-    </button>
-  )
-}
-
-export function ProfileView({ setView, user }: { setView?: (view: View) => void; user: User | null }) {
-  const username = user?.username || "admin"
-  const { data, status } = useResource<{ item: PublicProfile }>(`/api/profile/public?username=${encodeURIComponent(username)}&viewer=owner`)
-  const profile = data?.item
-  const achievements = useResource<{ items: Achievement[] }>("/api/achievements")
-  const achievementItems = achievements.data?.items ?? []
-  const profilePlan = useMemo(() => buildProfileActionPlan({ profile, achievements: achievementItems }), [achievementItems, profile])
-  const profileSummaryChips = useMemo(() => buildProfileSummaryChips(profilePlan), [profilePlan])
-  const primaryProfileChips = profileSummaryChips.filter((chip) => chip.priority === "primary")
-  const secondaryProfileChips = profileSummaryChips.filter((chip) => chip.priority === "secondary")
-  const unlockedAchievements = achievementItems.filter((achievement) => achievement.unlocked)
-  const lockedAchievements = achievementItems.filter((achievement) => !achievement.unlocked)
-  const profileAvatarUrl = profile?.avatar_url || user?.avatarUrl || ""
-  const profileLinks = [
-    { href: profile?.social_links?.intro || preferenceString(user?.preferences?.introUrl), label: "Intro" },
-    { href: profile?.social_links?.website || preferenceString(user?.preferences?.websiteUrl), label: "Website" },
-    { href: profile?.social_links?.facebook || preferenceString(user?.preferences?.facebookUrl), label: "Facebook" },
-  ].filter((link) => link.href)
-
-  return (
-    <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
-      <Panel className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-md bg-primary text-xl font-semibold text-primary-foreground">
-            {profileAvatarUrl ? <img src={profileAvatarUrl} alt="" className="h-full w-full object-cover" /> : (profile?.name || user?.name || "L").slice(0, 1)}
-          </div>
-          <span className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">{profilePlan.privacyLabel}</span>
-        </div>
-        <h2 className="mt-4 text-2xl font-semibold text-foreground">{profile?.name || user?.name || "Learner"}</h2>
-        <p className="text-sm text-muted-foreground">@{profile?.username || username}</p>
-        <p className="mt-4 text-sm leading-6 text-muted-foreground">{profile?.bio || "A private learning portrait that grows from Vault activity."}</p>
-        {profileLinks.length ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {profileLinks.map((link) => (
-              <a key={link.label} href={link.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-                {link.label}
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            ))}
-          </div>
-        ) : null}
-        <div className="mt-4 flex flex-wrap gap-2">
-          {primaryProfileChips.map((chip) => (
-            <ProfileSummaryChipButton key={chip.id} chip={chip} onClick={() => setView?.(profileTargetView(chip.target))} />
-          ))}
-        </div>
-        <details className="mt-4 rounded-md border border-border bg-background">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-            <span>Profile stats</span>
-            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{secondaryProfileChips.length} more</span>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          </summary>
-          <div className="grid grid-cols-2 gap-2 border-t border-border p-2">
-            {secondaryProfileChips.map((chip) => (
-              <ProfileSummaryChipButton key={chip.id} chip={chip} onClick={() => setView?.(profileTargetView(chip.target))} relaxed />
-            ))}
-            <Metric label="Level" value={String(profile?.metrics.level ?? 1)} />
-            <Metric label="Reputation" value={String(profile?.metrics.reputation ?? 0)} />
-          </div>
-        </details>
-        <button
-          onClick={() => setView?.(profileTargetView(profilePlan.target))}
-          className="mt-4 flex w-full items-center justify-between gap-3 rounded-md border border-border bg-secondary p-3 text-left text-sm font-semibold text-secondary-foreground transition hover:bg-accent hover:text-accent-foreground"
-        >
-          <span>{profilePlan.nextAction}</span>
-          <Sparkles className="h-4 w-4" />
-        </button>
-      </Panel>
-      <div className="grid gap-4">
-        <Panel className="p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 className="font-semibold text-foreground">{profilePlan.headline}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{profilePlan.masteryLabel}</p>
-            </div>
-            <span className="rounded-md bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">{status}</span>
-          </div>
-          <details className="mt-4 rounded-md border border-border bg-background">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-foreground">
-              <span>Portrait signals</span>
-              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">{profilePlan.stats.length}</span>
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            </summary>
-            <div className="grid gap-2 border-t border-border p-2 sm:grid-cols-2 xl:grid-cols-4">
-              {profilePlan.stats.map((stat) => (
-                <div key={stat.id} className="rounded-md border border-border bg-card p-3">
-                  <p className="text-xs font-semibold uppercase text-muted-foreground">{stat.label}</p>
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <p className="text-lg font-semibold text-foreground">{stat.value}</p>
-                    <span className={`h-2 w-2 rounded-full ${profileToneDotClass(stat.tone)}`} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </details>
-        </Panel>
-        <Panel className="p-4">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="font-semibold text-foreground">Public artifacts</h3>
-            <button onClick={() => setView?.("settings")} className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-              Manage sharing
-            </button>
-          </div>
-          <div className="mt-3 grid gap-3 md:grid-cols-3">
-            {(profile?.artifacts ?? []).map((node) => <NodeCard key={node.id} node={node} />)}
-          </div>
-          {profile && profile.artifacts.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">No public artifacts yet. Sharing remains opt-in.</p> : null}
-        </Panel>
-        <Panel className="p-4">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="font-semibold text-foreground">Achievements</h3>
-            <span className="rounded-md bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">{unlockedAchievements.length}/{achievementItems.length}</span>
-          </div>
-          <div className="mt-3 grid gap-2 md:grid-cols-3">
-            {[...unlockedAchievements, ...lockedAchievements].map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} />)}
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">{achievements.status}</p>
-        </Panel>
-      </div>
-    </div>
-  )
-}
-
-function AchievementTile({ achievement }: { achievement: Achievement }) {
-  return (
-    <div className={`rounded-md border p-3 ${achievement.unlocked ? "border-success/40 bg-success/10" : "border-border bg-background"}`}>
-      <CheckCircle2 className={`h-4 w-4 ${achievement.unlocked ? "text-success" : "text-muted-foreground"}`} />
-      <p className="mt-2 font-medium text-foreground">{achievement.name}</p>
-      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{achievement.description}</p>
-      <span className="mt-2 inline-flex rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground">{achievement.xp_reward} XP</span>
-    </div>
-  )
-}
-
-function ProfileSummaryChipButton({ chip, onClick, relaxed = false }: { chip: ProfileSummaryChip; onClick: () => void; relaxed?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-md border px-3 py-2 text-left transition hover:-translate-y-0.5 ${profileSummaryChipClasses(chip.tone)} ${relaxed ? "min-h-16" : ""}`}
-      title={`${chip.label}: ${chip.value}`}
-    >
-      <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.12em] opacity-75">{chip.label}</span>
-      <span className="mt-1 block text-sm font-semibold">{chip.value}</span>
-    </button>
-  )
-}
-
-function profileSummaryChipClasses(tone: ProfileSummaryChip["tone"]) {
-  if (tone === "good") return "border-success/30 bg-success/10 text-success hover:bg-success/15"
-  if (tone === "watch") return "border-warning/35 bg-warning/10 text-warning hover:bg-warning/15"
-  return "border-border bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
-}
-
-function profileTargetView(target: ProfilePlanTarget): View {
-  if (target === "settings") return "settings"
-  if (target === "studio") return "studio"
-  if (target === "reviews") return "reviews"
-  return "social"
-}
-
-function preferenceString(value: unknown) {
-  return typeof value === "string" ? value : ""
-}
-
-function profileToneDotClass(tone: "good" | "watch" | "neutral") {
-  if (tone === "good") return "bg-success"
-  if (tone === "watch") return "bg-warning"
-  return "bg-muted-foreground"
 }
 
 function useResource<T>(path: string) {
@@ -1849,8 +963,10 @@ function useResource<T>(path: string) {
       setStatus("Loading")
       setData(await api<T>(path))
       setStatus("Ready")
+      return true
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to load")
+      return false
     }
   }, [path])
 
@@ -1864,19 +980,10 @@ function useResource<T>(path: string) {
 function NodeCard({ node }: { node: KnowledgeNode }) {
   return (
     <article className="rounded-md border border-border bg-background p-3">
-      <Network className="h-4 w-4 text-success" />
+      <Network className="h-4 w-4 text-[var(--decor-mint-ink)]" />
       <h4 className="mt-2 font-medium text-foreground">{node.title}</h4>
       <p className="mt-1 text-sm text-muted-foreground">{Math.round(node.mastery * 100)}% mastery | {node.visibility}</p>
     </article>
-  )
-}
-
-function RitualButton({ icon: Icon, label, onClick }: { icon: ComponentType<{ className?: string }>; label: string; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="flex h-11 items-center gap-3 rounded-md border border-border bg-secondary px-3 text-left text-sm font-medium text-secondary-foreground hover:bg-accent hover:text-accent-foreground">
-      <Icon className="h-4 w-4 text-success" />
-      <span>{label}</span>
-    </button>
   )
 }
 
@@ -1892,7 +999,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 function CompactMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border border-border bg-background px-3 py-2">
-      <p className="text-[0.65rem] font-semibold uppercase text-muted-foreground">{label}</p>
+      <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
       <p className="text-base font-semibold text-foreground">{value}</p>
     </div>
   )

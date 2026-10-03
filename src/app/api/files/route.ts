@@ -1,19 +1,23 @@
-import { NextResponse } from "next/server"
-import { getCurrentUser } from "@/lib/data"
+import { NextResponse, type NextRequest } from "next/server"
 import { deleteMediaAsset, listMediaAssets, uploadMediaAsset } from "@/lib/storage"
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
-import { withApiErrorBoundary } from "@/lib/api"
+import { isApiResponse, requireApiUser, withApiErrorBoundary } from "@/lib/api"
 
-export const GET = withApiErrorBoundary(async () => {
-  const user = await getCurrentUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+// All three handlers use requireApiUser() so the file has a single auth path.
+// POST and DELETE are mutations and therefore also pick up the
+// hasTrustedOrigin() cross-origin check that a bare getCurrentUser() skipped;
+// GET is unaffected because that check only applies to mutations.
+
+export const GET = withApiErrorBoundary(async (request: NextRequest) => {
+  const user = await requireApiUser(request)
+  if (isApiResponse(user)) return user
 
   return NextResponse.json({ files: await listMediaAssets(user) })
 })
 
-export const POST = withApiErrorBoundary(async (request: Request) => {
-  const user = await getCurrentUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+export const POST = withApiErrorBoundary(async (request: NextRequest) => {
+  const user = await requireApiUser(request)
+  if (isApiResponse(user)) return user
 
   const limit = await checkRateLimit({
     key: `upload:${user.id}:${getClientIp(request.headers)}`,
@@ -42,9 +46,9 @@ export const POST = withApiErrorBoundary(async (request: Request) => {
   return NextResponse.json({ file: asset }, { status: 201 })
 })
 
-export const DELETE = withApiErrorBoundary(async (request: Request) => {
-  const user = await getCurrentUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+export const DELETE = withApiErrorBoundary(async (request: NextRequest) => {
+  const user = await requireApiUser(request)
+  if (isApiResponse(user)) return user
 
   const id = new URL(request.url).searchParams.get("id") || ""
   if (!id) return NextResponse.json({ error: "File id is required." }, { status: 400 })
