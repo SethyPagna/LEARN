@@ -186,6 +186,12 @@ async function checkRoutes(baseUrl: string) {
       if (missingKeys.length > 0) {
         fail(`${route.path} JSON is missing ${missingKeys.join(", ")}`)
       }
+      if (route.path === "/api/auth/session" && jsonObject.databaseConfigured !== true) {
+        fail("the live authentication route cannot access its database")
+      }
+      if (route.path === "/api/auth/session" && jsonObject.user !== null) {
+        fail("the anonymous authentication response contains a user session")
+      }
     }
   }
 }
