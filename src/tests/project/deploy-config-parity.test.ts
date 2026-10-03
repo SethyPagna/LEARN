@@ -29,6 +29,8 @@ const REALTIME_WORKER = path.join(PROJECT_ROOT, "src", "workers", "realtime.ts")
 const REALTIME_KINDS = path.join(PROJECT_ROOT, "src", "lib", "collaboration-events.ts")
 const REALTIME_ROUTE = path.join(PROJECT_ROOT, "src", "app", "api", "realtime", "[kind]", "[id]", "route.ts")
 const WORKER_ENTRY = path.join(PROJECT_ROOT, "src", "workers", "app.ts")
+const APPLIED_PRESENCE_MIGRATION_TAG = "v6_add_presence_durable_object"
+const CHAT_MIGRATION_TAG = "v7_add_chat_durable_object"
 
 /**
  * Bindings allowed to exist in the dev config only. Each one needs a reason that
@@ -40,16 +42,16 @@ const DEV_ONLY_BINDINGS = new Map<string, string>()
 
 /**
  * Durable Object classes a binding names that no migration in these configs
- * creates, because the migration that created them is older than the migration
- * list the configs carry. Each entry needs a reason, and the list is capped so
- * it cannot quietly absorb the next omission — which is the bug this file is
- * about. An entry must also still be referenced by a binding, so the exemption
+ * creates, because their applied creation payload is unavailable. The live
+ * history tag is retained without inventing that payload. Each entry needs a
+ * reason, and the list is capped so it cannot absorb the next missing creation
+ * migration. An entry must still be referenced by a binding, so the exemption
  * cannot outlive the class it excuses.
  */
-const CLASSES_OLDER_THAN_CONFIGURED_MIGRATIONS = new Map<string, string>([
+const HISTORICAL_CLASSES_WITHOUT_CREATION_PAYLOAD = new Map<string, string>([
   [
     "PresenceDurableObject",
-    "Created by the pre-v4 migration history. v5_restore_learn_realtime_classes named it until c2b9e2a narrowed that tag's class list, and an already-applied tag's classes are not something a later deploy can rewrite, so it stays bound with its creating tag historical.",
+    "The live Worker already binds PresenceDurableObject at v6_add_presence_durable_object. The applied payload is unavailable; its retained tag is an empty history marker, so recreating the existing namespace must not be inferred.",
   ],
 ])
 
@@ -177,8 +179,12 @@ function bindingsOf(config: WranglerConfig) {
 }
 
 function migrationsOf(config: WranglerConfig) {
+  const tags = new Set<string>()
+
   return (config.migrations ?? []).map((migration) => {
-    assert.ok(migration.tag, "every migration needs a tag")
+    assert.ok(typeof migration.tag === "string" && migration.tag.trim(), "every migration needs a nonempty string tag")
+    assert.ok(!tags.has(migration.tag), `migration tag ${migration.tag} must be unique`)
+    tags.add(migration.tag)
     return { tag: migration.tag, classes: migration.new_sqlite_classes ?? [] }
   })
 }
@@ -254,6 +260,29 @@ test("both wrangler configs declare the same Durable Object bindings", () => {
   assert.deepEqual(differences, [], driftMessage("wrangler.jsonc", "wrangler.app-deploy.jsonc", differences))
 })
 
+test("deployment after the applied presence tag creates only the missing chat class", () => {
+  for (const [label, configPath] of CONFIGS) {
+    const config = readConfig(configPath)
+    const migrations = migrationsOf(config)
+    const appliedIndex = migrations.findIndex((migration) => migration.tag === APPLIED_PRESENCE_MIGRATION_TAG)
+
+    // Wrangler replays every entry when the live tag is absent; when present,
+    // it sends only the suffix. Check the complete payload to reject destructive
+    // directives as well as recreating an existing StudyRoom/Battle/Presence.
+    assert.ok(appliedIndex >= 0, `${label} must retain the live presence migration tag to prevent replay`)
+    assert.deepEqual(
+      config.migrations?.[appliedIndex],
+      { tag: APPLIED_PRESENCE_MIGRATION_TAG },
+      `${label} must preserve the applied presence tag without inventing its unavailable payload`,
+    )
+    assert.deepEqual(
+      config.migrations?.slice(appliedIndex + 1),
+      [{ tag: CHAT_MIGRATION_TAG, new_sqlite_classes: ["ChatDurableObject"] }],
+      `${label} must create only Chat after the live baseline, preserving existing namespaces`,
+    )
+  }
+})
+
 test("both wrangler configs apply the same Durable Object migrations", () => {
   const dev = migrationsOf(readConfig(DEV_CONFIG))
   const deploy = migrationsOf(readConfig(DEPLOY_CONFIG))
@@ -311,8 +340,8 @@ test("every Durable Object class a binding names is exported from the worker ent
 })
 
 test("every Durable Object class a binding names is created by a migration in the same config", () => {
-  // The one exception is a class whose creating migration is older than the
-  // migration list these configs carry; those are named and justified above.
+  // Existing classes with unavailable applied creation payloads are named and
+  // justified above; their live history must not be replaced by a new creation.
   for (const [label, configPath] of CONFIGS) {
     const config = readConfig(configPath)
     const bindings = bindingsOf(config)
@@ -321,7 +350,7 @@ test("every Durable Object class a binding names is created by a migration in th
     for (const [name, className] of bindings) {
       if (created.has(className)) continue
       assert.ok(
-        CLASSES_OLDER_THAN_CONFIGURED_MIGRATIONS.has(className),
+        HISTORICAL_CLASSES_WITHOUT_CREATION_PAYLOAD.has(className),
         `the ${label} config binds ${name} to ${className}, but no new_sqlite_classes migration in ${path.basename(configPath)} creates it`,
       )
     }
@@ -330,7 +359,7 @@ test("every Durable Object class a binding names is created by a migration in th
 
 test("the exemptions stay narrow, justified, and referenced", () => {
   assert.ok(
-    CLASSES_OLDER_THAN_CONFIGURED_MIGRATIONS.size <= 2,
+    HISTORICAL_CLASSES_WITHOUT_CREATION_PAYLOAD.size <= 2,
     "a class that no migration in these configs creates needs a reason, not an exemption",
   )
 
@@ -338,7 +367,7 @@ test("the exemptions stay narrow, justified, and referenced", () => {
     CONFIGS.flatMap(([, configPath]) => [...bindingsOf(readConfig(configPath)).values()]),
   )
 
-  for (const [className, reason] of CLASSES_OLDER_THAN_CONFIGURED_MIGRATIONS) {
+  for (const [className, reason] of HISTORICAL_CLASSES_WITHOUT_CREATION_PAYLOAD) {
     assert.match(className, /DurableObject$/, `${className} should be a Durable Object class`)
     assert.ok(reason.trim().split(/\s+/).length >= 8, `${className} needs a real reason, not a placeholder`)
     assert.ok(boundClasses.has(className), `${className} is no longer bound by any config, so its exemption is stale`)

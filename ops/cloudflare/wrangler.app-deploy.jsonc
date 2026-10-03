@@ -59,7 +59,12 @@
       ]
     },
     {
-      "tag": "v6_add_chat_durable_object",
+      // Applied live history; its original payload is unavailable. Keep the
+      // matching tag so existing Durable Object migrations are not replayed.
+      "tag": "v6_add_presence_durable_object"
+    },
+    {
+      "tag": "v7_add_chat_durable_object",
       "new_sqlite_classes": [
         "ChatDurableObject"
       ]
