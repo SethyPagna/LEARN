@@ -1,13 +1,15 @@
 # LEARN Comprehensive Improvement Progress
 
-Status: Navigation/demo polish delivered through `8327053` with passing integrity and exact-head CI; final documentation receipt follows
-Last updated: 2026-10-01
+Status: Verified Cloudflare release and scoped local cleanup delivered; current evidence in the October 3 session log
+Last updated: 2026-10-03
 Current owner: User and maintainer
 Current branch: cleanup/stage-1
 
 ## Resume here
 
 Every session starts here: the newest dated log in [`ops/docs/sessions/`](../sessions/) has the "Resume here" block, and [requests.md](requests.md) has every owner request with its status and the chosen order of work. Update both as you go (see `~/.claude/CLAUDE.md`).
+
+Latest delivery: [October 3 Cloudflare release](../sessions/2026-10-03-cloud-release.md). [LEARN](https://learn.pagna.workers.dev) serves verified `abbfbe1`; the [portfolio](https://sethy-pagna.pages.dev) serves final production `cbf5269` with the current LEARN link/previews. Hosted 1,373 tests/typecheck/build and 19 public browser checks across 13 layouts passed. Both old Vercel production projects are paused. Six exact generated caches (8.37 GiB) and the June source archive were retired after recovery verification; private recovery, source/assets/data/history/evidence remain retained. Authenticated external services and realtime collaboration were not exercised in this release. Later source changes affect verification tooling/documentation only; no merge or default-branch change.
 
 Current evidence: [navigation/demo polish](../audits/2026-10-01-navigation-polish.md), type/1,355tests/build/CSS,76navigation checks and93demo checks across9layouts. [AI result recovery](../audits/2026-10-01-ai-result-recovery.md) is delivered at326dba6 with green latest CI (69recovery/312AI/108workflow checks). Provider-dependent live verification, relocated guide-opener focus and source-specific review provenance remain follow-ons; historical phase labels below do not establish their completion.
 
