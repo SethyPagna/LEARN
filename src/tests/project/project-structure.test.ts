@@ -59,6 +59,9 @@ const allowedJavaScriptFiles = new Set([
   // wiring assertions in src/tests/ux/touch-targets.test.ts.
   "ops/scripts/test/browser-ux-audit.mjs",
   "ops/scripts/test/lib/cdp.mjs",
+  // Hosted public-flow smoke runs directly with Node/Playwright after release;
+  // it is operational verification, with no application runtime imports.
+  "ops/scripts/test/smoke-cloudflare-browser.mjs",
   // Playwright CLI evaluates these functions directly in its browser sandbox;
   // it does not compile TypeScript. They share no application runtime code.
   "ops/scripts/test/playwright-routes.js",
