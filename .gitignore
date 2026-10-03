@@ -56,3 +56,6 @@ next-env.d.ts
 # local assistant launch config
 .claude/
 .playwright-cli/
+
+# Private recovered configuration/history; keep outside generated caches.
+/ops/local-recovery/
