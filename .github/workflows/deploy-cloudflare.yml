@@ -2,6 +2,15 @@ name: Deploy Cloudflare
 
 on:
   workflow_dispatch:
+    inputs:
+      verification_only:
+        description: Check the current public release without rebuilding or deploying
+        type: boolean
+        default: false
+      deployed_source_sha:
+        description: Previously verified deployed app SHA (required for verification only)
+        type: string
+        required: false
   push:
     branches:
       - main
@@ -15,6 +24,7 @@ env:
 
 jobs:
   deploy:
+    if: ${{ !inputs.verification_only }}
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -86,6 +96,48 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+      - name: Preserve public browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-public-browser-${{ github.sha }}
+          path: .cache/release/browser
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 14
+
+  verify-public:
+    if: ${{ inputs.verification_only }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      LEARN_DEPLOYED_SOURCE_SHA: ${{ inputs.deployed_source_sha }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Validate deployed source receipt
+        run: |
+          if [[ ! "$LEARN_DEPLOYED_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "A full deployed source SHA from a verified release receipt is required."
+            exit 1
+          fi
+      - name: Install browser tooling
+        run: |
+          corepack enable
+          corepack pnpm install --frozen-lockfile
+      - name: Check live HTTP and PDF assets
+        run: corepack pnpm smoke:cloudflare
+      - name: Check live public editor and responsive auth
+        run: |
+          browser_path=$(command -v google-chrome || command -v chromium || true)
+          if [ -z "$browser_path" ]; then
+            echo "A Chromium browser is required for the public flow checks."
+            exit 1
+          fi
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$browser_path" node ops/scripts/test/smoke-cloudflare-browser.mjs
       - name: Preserve public browser evidence
         if: always()
         uses: actions/upload-artifact@v4

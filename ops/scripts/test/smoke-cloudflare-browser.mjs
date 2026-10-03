@@ -13,7 +13,8 @@ const VIEWPORTS = [
   { width: 320, height: 700, mode: "Dark" },
 ]
 const report = {
-  sourceSha: process.env.GITHUB_SHA || null,
+  sourceSha: process.env.LEARN_DEPLOYED_SOURCE_SHA || process.env.GITHUB_SHA || null,
+  toolingSha: process.env.GITHUB_SHA || null,
   startedAt: new Date().toISOString(),
   baseUrl: null,
   status: "running",
@@ -24,6 +25,7 @@ const report = {
   pageErrors: [],
   consoleErrors: [],
   requestFailures: [],
+  canceledPrefetchRequests: [],
   httpFailures: [],
   blockedWrites: [],
 }
@@ -157,7 +159,24 @@ async function viewportFlow(browser, origin, viewport, sharp) {
   page.setDefaultNavigationTimeout(45_000)
   page.on("pageerror", error => { if (collecting) report.pageErrors.push({ viewport: viewport.width, message: error.message }) })
   page.on("console", message => { if (collecting && message.type() === "error") report.consoleErrors.push({ viewport: viewport.width, message: message.text() }) })
-  page.on("requestfailed", request => { if (collecting) report.requestFailures.push({ viewport: viewport.width, url: publicUrl(request.url()), error: request.failure()?.errorText }) })
+  page.on("requestfailed", request => {
+    if (!collecting) return
+    const headers = request.headers()
+    const failure = {
+      viewport: viewport.width, url: publicUrl(request.url()), error: request.failure()?.errorText,
+      method: request.method(), resourceType: request.resourceType(), isNavigation: request.isNavigationRequest(),
+      routerPrefetch: headers["next-router-prefetch"] || null,
+      purpose: headers.purpose || headers["sec-purpose"] || null,
+      rsc: headers.rsc || null,
+    }
+    // Next cancels speculative route fetches when a user leaves the page.
+    // Keep the evidence; actual navigation, asset and non-prefetch errors still fail.
+    const canceledPrefetch = failure.error === "net::ERR_ABORTED" && failure.method === "GET"
+      && failure.resourceType === "fetch" && !failure.isNavigation && failure.rsc === "1"
+      && new URL(request.url()).origin === origin
+      && (failure.routerPrefetch === "1" || failure.purpose === "prefetch")
+    report[canceledPrefetch ? "canceledPrefetchRequests" : "requestFailures"].push(failure)
+  })
   page.on("response", response => { if (collecting && response.status() >= 400) report.httpFailures.push({ viewport: viewport.width, url: publicUrl(response.url()), status: response.status() }) })
   try {
     assert.equal((await context.cookies()).length, 0, "Smoke must start anonymously")
@@ -179,6 +198,13 @@ async function viewportFlow(browser, origin, viewport, sharp) {
     await screenshot(page, sharp, `demo-${viewport.width}`)
     report.checks.push(`responsive landing and editor: ${viewport.width}px`)
     await authFlow(page, origin, viewport, sharp)
+    if (viewport.width === 1280) {
+      await page.goto(`${origin}/showcase`, { waitUntil: "load" })
+      await visible(page.getByRole("heading", { name: "Find your flow.", exact: true }))
+      await layout(page, viewport, "public showcase")
+      report.testedUrls.push({ viewport: viewport.width, url: `${origin}/showcase` })
+      report.checks.push("public showcase: direct navigation succeeds")
+    }
   } finally {
     // Our own teardown cancels in-flight requests; do not count those as app failures.
     collecting = false
